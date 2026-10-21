@@ -14,6 +14,15 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - Mounted on wall bars or a railing, or on a light stand (e.g. Manfrotto 1004BAC) with sandbags or
   strapped to something fixed.
 
+## Development setup
+
+- Training and match processing run on an NVIDIA GPU (RTX 5080), in WSL2 with Ubuntu. The Windows
+  NVIDIA driver covers WSL2: do not install a Linux driver.
+- RTX 50 series requires PyTorch 2.7+ built for CUDA 12.8+. Older repositories pinning older
+  PyTorch or TensorFlow versions are ported to this environment rather than run as-is.
+- Code can be written on any machine and run on the GPU machine over SSH (e.g. VS Code
+  Remote-SSH).
+
 ## Pipeline
 
 | Step | What it does | Starting point |
