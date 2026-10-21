@@ -13,6 +13,9 @@ name each identity once. Jersey numbers map to names through a roster kept acros
   faster, audio on.
 - Mounted on wall bars or a railing, or on a light stand (e.g. Manfrotto 1004BAC) with sandbags or
   strapped to something fixed.
+- Handball goal option: stand base on the floor behind a goal post, column strapped to the post
+  (80 × 80 mm) with two ratchet straps, low and at ~1.8 m. Only on an anchored goal, at most ~8 m
+  behind the volleyball baseline.
 
 ## Development setup
 
