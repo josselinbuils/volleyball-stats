@@ -57,7 +57,10 @@ scouting ([UFP thesis, 2026](https://bdigital.ufp.pt/bitstreams/9e2cbd9e-89d4-41
   with player actions.
 - Commercial: Balltime / Hudl Assist.
 
-Reusing GPL/AGPL code sets this project's license accordingly.
+## License
+
+[AGPL-3.0](LICENSE), so AGPL dependencies such as Ultralytics YOLO and VolleyVision can be reused.
+GPL-2.0-only code, such as volleyball_analytics, is incompatible: reference only.
 
 ## Privacy
 
