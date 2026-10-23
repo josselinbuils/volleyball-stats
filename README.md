@@ -23,7 +23,7 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - [x] microSD SanDisk Extreme 256 GB
 - [x] 5 m USB-C charging cable
 - [x] Manfrotto 1004BAC light stand
-- [ ] Three-prong to 1/4" adapter: Insta360 1/4" to 3 Pin Adapter
+- [x] Three-prong to 1/4" adapter: Insta360 1/4" to 3 Pin Adapter
 - [x] 2 straps, 25 mm, ~2 m, no hooks (gentle on the stand column)
 - [ ] Cord loop (any, e.g. paracord), camera frame to stand column, with a little slack
 - [x] Power bank, ~10,000 mAh
