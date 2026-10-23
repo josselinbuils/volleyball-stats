@@ -7,15 +7,13 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 
 ## Recording
 
-- One fixed camera, centered behind a baseline, 3–6 m back, 3.5–5 m high, framing the whole court.
-  No auto-tracking or panning camera.
-- 4K (2.7K minimum) at 50 fps, linear mode, exposure/focus/white balance locked, shutter 1/250 or
-  faster, audio on.
-- Mounted on wall bars or a railing, or on a light stand (e.g. Manfrotto 1004BAC) with sandbags or
-  strapped to something fixed.
-- Handball goal option: stand base on the floor behind a goal post, column strapped to the post
-  (80 × 80 mm) with two straps, low and at ~1.8 m. Only on an anchored goal, at most ~8 m
-  behind the volleyball baseline.
+- One fixed camera on a sideline, aligned with the net, a few meters from the court, 3.6 m high,
+  framing both end lines. No auto-tracking or panning camera.
+- 4K (2.7K minimum) at 50 fps, widest field of view (lens distortion is corrected in software),
+  exposure/focus/white balance locked, shutter 1/250 or faster, audio on.
+- Mounted on a light stand (Manfrotto 1004BAC): stand base on the floor behind a handball goal
+  post, column strapped to the post (80 × 80 mm) with two straps, low and at ~1.8 m. Only on an
+  anchored goal. Without a goal: sandbags on the stand legs.
 
 ### Hardware
 
@@ -35,10 +33,10 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - [ ] Check the SD card with [F3](https://github.com/AltraMayor/f3) or H2testw.
 - [ ] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
       overheating.
-- [ ] Lock the settings: 50 fps, linear mode, shutter 1/250 or faster, exposure and white balance
-      locked, audio on.
-- [ ] At the gym: get approval for the handball goals, check they are anchored, measure their
-      distance to the volleyball baseline.
+- [ ] Lock the settings: 50 fps, widest field of view, shutter 1/250 or faster, exposure and white
+      balance locked, audio on.
+- [ ] At the gym: get approval for the handball goals, check they are anchored, check the framing
+      from the stand shows both end lines and the near corners.
 
 ## Development setup
 
@@ -71,8 +69,8 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 5. Player tracking and contact attribution.
 6. Identity clustering and naming.
 7. Stats report.
-8. Later: quality grades (reception 0–3, attack efficiency), second camera if the far side is
-   unreliable.
+8. Later: quality grades (reception 0–3, attack efficiency), second camera on the opposite
+   sideline if the far side is unreliable.
 
 Each step is validated on real footage against a manual scout of the same rallies before the next
 one starts. Reference: a fixed-camera semi-automatic system reached 77% agreement with human
