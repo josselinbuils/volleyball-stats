@@ -1,0 +1,15 @@
+[project]
+name = "volleyball-stats"
+version = "0.1.0"
+description = "Automatic per-player volleyball statistics from match video"
+license = "AGPL-3.0-only"
+requires-python = ">=3.12"
+dependencies = ["numpy", "onnxruntime", "opencv-python"]
+
+[dependency-groups]
+dev = ["pytest"]
+bench = ["pillow", "torch", "torchvision", "ultralytics"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
