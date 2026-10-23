@@ -17,6 +17,29 @@ name each identity once. Jersey numbers map to names through a roster kept acros
   (80 × 80 mm) with two ratchet straps, low and at ~1.8 m. Only on an anchored goal, at most ~8 m
   behind the volleyball baseline.
 
+### Hardware
+
+- [x] DJI Osmo Action 3
+- [x] microSD SanDisk Extreme 256 GB (U3, V30)
+- [x] 5 m USB-C charging cable
+- [x] Manfrotto 1004BAC light stand
+- [ ] Two-prong to 1/4" adapter, unless included with the camera
+- [ ] 2 ratchet straps, 25 mm × 4 m
+- [ ] Safety cord
+- [ ] Power bank, ~10,000 mAh
+- Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
+  handlebar mount.
+
+### Before the first match
+
+- [ ] Check the SD card with [F3](https://github.com/AltraMayor/f3) or H2testw.
+- [ ] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
+      overheating.
+- [ ] Lock the settings: 50 fps, linear mode, shutter 1/250 or faster, exposure and white balance
+      locked, audio on.
+- [ ] At the gym: get approval for the handball goals, check they are anchored, measure their
+      distance to the volleyball baseline.
+
 ## Development setup
 
 - Training and match processing run on an NVIDIA GPU (RTX 5080), in WSL2 with Ubuntu. The Windows
