@@ -4,11 +4,11 @@ version = "0.1.0"
 description = "Automatic per-player volleyball statistics from match video"
 license = "AGPL-3.0-only"
 requires-python = ">=3.12"
-dependencies = ["numpy", "onnxruntime", "opencv-python"]
+dependencies = ["gdown", "numpy", "opencv-python", "torch"]
 
 [dependency-groups]
 dev = ["pytest"]
-bench = ["pillow", "torch", "torchvision", "ultralytics"]
+bench = ["onnxruntime", "pillow", "pyyaml", "torchvision", "ultralytics"]
 
 [build-system]
 requires = ["hatchling"]

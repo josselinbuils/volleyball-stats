@@ -53,7 +53,7 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 | --- | --- | --- |
 | 1. Rallies | Find when the ball is in play, drop dead time | Motion + whistle detection |
 | 2. Court | Detect court lines, map pixels to court coordinates | Line detection + homography |
-| 3. Ball | Track the ball, detect contacts and net crossings | TrackNet |
+| 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)) |
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Contact order per side + position |
 | 5. Players | Detect and track players, attribute each contact | YOLO + ByteTrack + pose (wrists) |
 | 6. Identity | Merge tracklets into one identity per player for the match | Jersey number OCR + re-ID + team color |

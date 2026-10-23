@@ -1,87 +1,146 @@
-"""Ball tracking with a pretrained VballNet grid model.
+"""Ball tracking with the pretrained WASB volleyball model.
 
-Model and decoding come from https://github.com/asigatchov/vball-net-pytorch (MIT, Alexander
-Sigatchov). The model reads 9 consecutive grayscale frames and returns, per frame, a grid of ball
-confidences with x/y offsets inside each cell.
+Model and weights come from https://github.com/nttcom/WASB-SBDT (MIT, NTT Communications). The
+model reads 3 consecutive RGB frames at 512x288 and returns one ball heatmap per frame. Its window
+slides one frame at a time, so each frame is seen by up to 3 windows and keeps the strongest blob:
+the best of the trackers in benchmarks/ball on side-view footage.
 """
 
 import argparse
 import csv
-import urllib.request
-from collections.abc import Iterator
+from collections import deque
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 import cv2
 import numpy as np
-import onnxruntime as ort
+import torch
+from torch import nn
 
-MODEL_URL = (
-    "https://raw.githubusercontent.com/asigatchov/vball-net-pytorch/"
-    "307020e84ca749e7e0f56fdcac506f5f93bd7ffb/models/"
-    "VballNetGridV1b_seq9_grayscale_20260319_193937.onnx"
-)
-MODEL_PATH = Path("models") / MODEL_URL.rsplit("/", 1)[1]
+from volleyball_stats.vendor.wasb_hrnet import HRNet
+
+WEIGHTS_GDRIVE_ID = "1M9y4wPJqLc0K-z-Bo5DP8Ft5XwJuLqIS"
+WEIGHTS_PATH = Path("models/wasb_volleyball.pth.tar")
+WIDTH, HEIGHT = 512, 288
+WINDOW = 3
+# Chosen on the side-view clips of benchmarks/ball.
+THRESHOLD = 0.2
+# Heatmap value bounding a blob.
+FLOOR = 0.1
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+# WASB's configs/model/wasb.yaml.
+_STAGE = {"NUM_MODULES": 1, "BLOCK": "BASIC", "FUSE_METHOD": "SUM"}
+MODEL_CONFIG = {
+    "frames_in": WINDOW,
+    "frames_out": WINDOW,
+    "out_scales": [0],
+    "MODEL": {
+        "EXTRA": {
+            "FINAL_CONV_KERNEL": 1,
+            "PRETRAINED_LAYERS": ["*"],
+            "STEM": {"INPLANES": 64, "STRIDES": [1, 1]},
+            "STAGE1": {**_STAGE, "NUM_BRANCHES": 1, "BLOCK": "BOTTLENECK", "NUM_BLOCKS": [1], "NUM_CHANNELS": [32]},
+            "STAGE2": {**_STAGE, "NUM_BRANCHES": 2, "NUM_BLOCKS": [2, 2], "NUM_CHANNELS": [16, 32]},
+            "STAGE3": {**_STAGE, "NUM_BRANCHES": 3, "NUM_BLOCKS": [2, 2, 2], "NUM_CHANNELS": [16, 32, 64]},
+            "STAGE4": {**_STAGE, "NUM_BRANCHES": 4, "NUM_BLOCKS": [2, 2, 2, 2], "NUM_CHANNELS": [16, 32, 64, 128]},
+            "DECONV": {"NUM_DECONVS": 0, "KERNEL_SIZE": [], "NUM_BASIC_BLOCKS": 2},
+        }
+    },
+}
+
+Position = tuple[int, int] | None
 
 
-def load_model(path: Path = MODEL_PATH) -> ort.InferenceSession:
+class AttrDict(dict):
+    """HRNet reads its config both as `cfg["X"]` and as `cfg.X`."""
+
+    def __init__(self, data: dict):
+        super().__init__({k: AttrDict(v) if isinstance(v, dict) else v for k, v in data.items()})
+
+    __getattr__ = dict.__getitem__
+
+
+def default_device() -> str:
+    return "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+
+
+def load_model(device: str, path: Path = WEIGHTS_PATH) -> nn.Module:
     if not path.exists():
+        import gdown
+
         path.parent.mkdir(parents=True, exist_ok=True)
-        urllib.request.urlretrieve(MODEL_URL, path)
-    available = ort.get_available_providers()
-    providers = [p for p in ("CUDAExecutionProvider", "CPUExecutionProvider") if p in available]
-    return ort.InferenceSession(str(path), providers=providers)
+        gdown.download(id=WEIGHTS_GDRIVE_ID, output=str(path), quiet=True)
+    model = HRNet(AttrDict(MODEL_CONFIG))
+    state = torch.load(path, map_location="cpu", weights_only=True)["model_state_dict"]
+    model.load_state_dict({k.removeprefix("module."): v for k, v in state.items()})
+    return model.to(device).eval()
 
 
-def decode(output: np.ndarray, seq: int, width: int, height: int) -> list[tuple[float, float, float]]:
-    """Best cell of each frame's grid, as (x, y, confidence) in model input pixels."""
-    rows, cols = output.shape[-2:]
-    grids = output.reshape(seq, -1, rows, cols)
-    results = []
-    for conf, dx, dy in grids[:, :3]:
-        row, col = np.unravel_index(np.argmax(conf), conf.shape)
-        x = (col + dx[row, col]) * width / cols
-        y = (row + dy[row, col]) * height / rows
-        results.append((float(x), float(y), float(conf[row, col])))
-    return results
+def preprocess(frame: np.ndarray) -> np.ndarray:
+    rgb = cv2.cvtColor(cv2.resize(frame, (WIDTH, HEIGHT)), cv2.COLOR_BGR2RGB) / 255.0
+    return ((rgb - IMAGENET_MEAN) / IMAGENET_STD).transpose(2, 0, 1).astype(np.float32)
 
 
-def track(
-    video: Path, session: ort.InferenceSession, threshold: float = 0.5
-) -> Iterator[tuple[np.ndarray, tuple[int, int] | None]]:
-    """Yield each frame with the ball position in frame pixels, or None when not found.
+def best_blob(heatmap: np.ndarray) -> tuple[float, float, float] | None:
+    """Weighted centroid of the blob around the heatmap peak, with the peak value."""
+    row, col = np.unravel_index(np.argmax(heatmap), heatmap.shape)
+    peak = float(heatmap[row, col])
+    if peak < FLOOR:
+        return None
+    _, labels = cv2.connectedComponents((heatmap >= FLOOR).astype(np.uint8))
+    ys, xs = np.nonzero(labels == labels[row, col])
+    w = heatmap[ys, xs]
+    return float((xs * w).sum() / w.sum()), float((ys * w).sum() / w.sum()), peak
 
-    Frames are read in non-overlapping clips of `seq`; trailing frames that do not fill a clip
-    are yielded without a position.
-    """
-    model_input = session.get_inputs()[0]
-    seq, height, width = model_input.shape[1:]
+
+def track_frames(
+    frames: Iterable[np.ndarray], model: nn.Module, device: str, threshold: float = THRESHOLD
+) -> Iterator[tuple[np.ndarray, Position]]:
+    """Yield each frame with the ball position in frame pixels, or None when not found."""
+    pending: deque[tuple[int, np.ndarray, np.ndarray]] = deque()
+    best: dict[int, tuple[float, float, float]] = {}
+
+    @torch.no_grad()
+    def run(window: list[tuple[int, np.ndarray, np.ndarray]], real: int) -> None:
+        # ponytail: one window per forward pass, batch windows if GPU throughput matters.
+        batch = torch.from_numpy(np.concatenate([inputs for _, _, inputs in window])[None]).to(device)
+        heatmaps = model(batch)[0].sigmoid()[0].cpu().numpy()
+        for (index, _, _), heatmap in zip(window[:real], heatmaps[:real]):
+            blob = best_blob(heatmap)
+            if blob and blob[2] > best.get(index, (0.0, 0.0, -1.0))[2]:
+                best[index] = blob
+
+    def position(index: int, frame: np.ndarray) -> Position:
+        blob = best.pop(index, None)
+        if blob is None or blob[2] < threshold:
+            return None
+        return round(blob[0] * frame.shape[1] / WIDTH), round(blob[1] * frame.shape[0] / HEIGHT)
+
+    for index, frame in enumerate(frames):
+        pending.append((index, frame, preprocess(frame)))
+        if len(pending) == WINDOW:
+            run(list(pending), WINDOW)
+            # The window starting at this frame was its last one.
+            index, frame, _ = pending.popleft()
+            yield frame, position(index, frame)
+    if pending:
+        real = len(pending)
+        run(list(pending) + [pending[-1]] * (WINDOW - real), real)
+        for index, frame, _ in pending:
+            yield frame, position(index, frame)
+
+
+def read_frames(video: Path) -> Iterator[np.ndarray]:
     cap = cv2.VideoCapture(str(video))
     if not cap.isOpened():
         raise ValueError(f"Cannot open {video}")
-    clip = []
     while True:
         ok, frame = cap.read()
-        if ok:
-            clip.append(frame)
-        if clip and (len(clip) == seq or not ok):
-            if len(clip) < seq:
-                for frame in clip:
-                    yield frame, None
-                break
-            # ponytail: one clip per run call, batch clips if GPU throughput matters.
-            gray = [
-                cv2.cvtColor(cv2.resize(f, (width, height), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2GRAY)
-                for f in clip
-            ]
-            batch = (np.stack(gray)[None] / 255.0).astype(np.float32)
-            output = session.run(None, {model_input.name: batch})[0][0]
-            frame_h, frame_w = clip[0].shape[:2]
-            for frame, (x, y, conf) in zip(clip, decode(output, seq, width, height), strict=True):
-                position = (round(x * frame_w / width), round(y * frame_h / height))
-                yield frame, position if conf >= threshold else None
-            clip = []
         if not ok:
             break
+        yield frame
     cap.release()
 
 
@@ -89,17 +148,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Track the ball in a volleyball video.")
     parser.add_argument("video", type=Path)
     parser.add_argument("--out", type=Path, default=Path("outputs"))
-    parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--threshold", type=float, default=THRESHOLD)
     parser.add_argument("--overlay", action="store_true", help="Also write a video with the ball drawn")
     args = parser.parse_args()
 
     args.out.mkdir(parents=True, exist_ok=True)
-    session = load_model()
+    device = default_device()
+    model = load_model(device)
     writer = None
     with open(args.out / f"{args.video.stem}_ball.csv", "w", newline="") as f:
         rows = csv.writer(f)
         rows.writerow(["frame", "visible", "x", "y"])
-        for index, (frame, position) in enumerate(track(args.video, session, args.threshold)):
+        for index, (frame, position) in enumerate(track_frames(read_frames(args.video), model, device, args.threshold)):
             rows.writerow([index, int(position is not None), *(position or ("", ""))])
             if args.overlay:
                 if writer is None:
