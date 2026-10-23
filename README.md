@@ -14,7 +14,7 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - Mounted on wall bars or a railing, or on a light stand (e.g. Manfrotto 1004BAC) with sandbags or
   strapped to something fixed.
 - Handball goal option: stand base on the floor behind a goal post, column strapped to the post
-  (80 × 80 mm) with two ratchet straps, low and at ~1.8 m. Only on an anchored goal, at most ~8 m
+  (80 × 80 mm) with two straps, low and at ~1.8 m. Only on an anchored goal, at most ~8 m
   behind the volleyball baseline.
 
 ### Hardware
@@ -24,7 +24,7 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - [x] 5 m USB-C charging cable
 - [x] Manfrotto 1004BAC light stand
 - [ ] Three-prong to 1/4" adapter: Insta360 1/4" to 3 Pin Adapter
-- [ ] 2 ratchet straps, 25 mm × 4 m
+- [x] 2 straps, 25 mm, ~2 m, no hooks (gentle on the stand column)
 - [ ] Safety cord
 - [x] Power bank, ~10,000 mAh
 - Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
