@@ -19,8 +19,8 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 
 ### Hardware
 
-- [x] DJI Osmo Action 3
-- [x] microSD SanDisk Extreme 256 GB (U3, V30)
+- [x] DJI Osmo Action 3 Standard Combo
+- [x] microSD SanDisk Extreme 256 GB
 - [x] 5 m USB-C charging cable
 - [x] Manfrotto 1004BAC light stand
 - [ ] Two-prong to 1/4" adapter, unless included with the camera
