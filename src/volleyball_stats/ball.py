@@ -1,9 +1,10 @@
 """Ball tracking with the pretrained WASB volleyball model.
 
 Model and weights come from https://github.com/nttcom/WASB-SBDT (MIT, NTT Communications). The
-model reads 3 consecutive RGB frames at 512x288 and returns one ball heatmap per frame. Its window
-slides one frame at a time, so each frame is seen by up to 3 windows and keeps the strongest blob:
-the best of the trackers in benchmarks/ball on side-view footage.
+model reads 3 consecutive RGB frames at 512x288 and returns one ball heatmap per frame. The window
+moves `stride` frames at a time: 3 sees each frame once; 1 sees it in up to 3 windows and keeps
+the strongest blob, which found 6-10% more balls on the side-view clips of benchmarks/ball, at 3x
+the compute and for an F1 gain within noise.
 """
 
 import argparse
@@ -23,8 +24,9 @@ WEIGHTS_GDRIVE_ID = "1M9y4wPJqLc0K-z-Bo5DP8Ft5XwJuLqIS"
 WEIGHTS_PATH = Path("models/wasb_volleyball.pth.tar")
 WIDTH, HEIGHT = 512, 288
 WINDOW = 3
-# Chosen on the side-view clips of benchmarks/ball.
-THRESHOLD = 0.2
+STRIDE = 3
+# Chosen per stride on the side-view clips of benchmarks/ball.
+THRESHOLD = {1: 0.2, 3: 0.3}
 # Heatmap value bounding a blob.
 FLOOR = 0.1
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -96,9 +98,15 @@ def best_blob(heatmap: np.ndarray) -> tuple[float, float, float] | None:
 
 
 def track_frames(
-    frames: Iterable[np.ndarray], model: nn.Module, device: str, threshold: float = THRESHOLD
+    frames: Iterable[np.ndarray],
+    model: nn.Module,
+    device: str,
+    stride: int = STRIDE,
+    threshold: float | None = None,
 ) -> Iterator[tuple[np.ndarray, Position]]:
     """Yield each frame with the ball position in frame pixels, or None when not found."""
+    if threshold is None:
+        threshold = THRESHOLD[stride]
     pending: deque[tuple[int, np.ndarray, np.ndarray]] = deque()
     best: dict[int, tuple[float, float, float]] = {}
 
@@ -122,9 +130,10 @@ def track_frames(
         pending.append((index, frame, preprocess(frame)))
         if len(pending) == WINDOW:
             run(list(pending), WINDOW)
-            # The window starting at this frame was its last one.
-            index, frame, _ = pending.popleft()
-            yield frame, position(index, frame)
+            # The next window starts after these frames: their last view is in.
+            for _ in range(stride):
+                index, frame, _ = pending.popleft()
+                yield frame, position(index, frame)
     if pending:
         real = len(pending)
         run(list(pending) + [pending[-1]] * (WINDOW - real), real)
@@ -148,7 +157,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Track the ball in a volleyball video.")
     parser.add_argument("video", type=Path)
     parser.add_argument("--out", type=Path, default=Path("outputs"))
-    parser.add_argument("--threshold", type=float, default=THRESHOLD)
+    parser.add_argument("--stride", type=int, choices=sorted(THRESHOLD), default=STRIDE, help="Frames between windows")
+    parser.add_argument("--threshold", type=float, help="Defaults to the value tuned for the stride")
     parser.add_argument("--overlay", action="store_true", help="Also write a video with the ball drawn")
     args = parser.parse_args()
 
@@ -159,7 +169,8 @@ def main() -> None:
     with open(args.out / f"{args.video.stem}_ball.csv", "w", newline="") as f:
         rows = csv.writer(f)
         rows.writerow(["frame", "visible", "x", "y"])
-        for index, (frame, position) in enumerate(track_frames(read_frames(args.video), model, device, args.threshold)):
+        tracked = track_frames(read_frames(args.video), model, device, args.stride, args.threshold)
+        for index, (frame, position) in enumerate(tracked):
             rows.writerow([index, int(position is not None), *(position or ("", ""))])
             if args.overlay:
                 if writer is None:

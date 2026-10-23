@@ -74,6 +74,11 @@ The three models trained on the side-view SFU volleyball dataset (`wasb`, `wasb-
 with thresholds tuned on one side-view clip and scored on the other, `wasb-step1` alone scores
 0.803 and 0.906, and no fallback beats it by more than 0.02.
 
+`wasb-step1` finds 63 of 71 and 61 of 63 labelled balls against 59 and 55 for `wasb`, but its F1
+gain (+0.03 and +0.02; paired bootstrap 95% intervals −0.01 to +0.06 and −0.03 to +0.07) is
+within noise at 3× the compute, so `ball.py` moves the window 3 frames at a time by default and
+keeps the overlap behind `--stride 1`.
+
 ### Behind the baseline
 
 | Candidate | Threshold | Mean F1 | backcourt | club | fps |
