@@ -3,6 +3,7 @@
     uv run --group bench python benchmarks/ball/bench.py run VIDEO [--only NAME ...]
     uv run --group bench python benchmarks/ball/bench.py score VIDEO GROUND_TRUTH_CSV [--tolerance PX]
     uv run --group bench python benchmarks/ball/bench.py compare VIDEO:GROUND_TRUTH_CSV ... [--tolerance PX]
+    uv run --group bench python benchmarks/ball/bench.py hits VIDEO:GROUND_TRUTH_CSV ... [--tolerance PX]
 """
 
 import argparse
@@ -155,6 +156,34 @@ def compare(pairs: list[tuple[Path, Path]], tolerance: float) -> None:
         print(f"{name:18} {thr:5.2f} {mean:6.3f} " + " ".join(f"{c:>22}" for c in cells))
 
 
+def hit_rate(pairs: list[tuple[Path, Path]], tolerance: float) -> None:
+    """On labelled ball frames only: share where the strongest blob is within `tolerance`.
+
+    Needs no "no ball" labels, so it holds on clips where those are unreliable.
+    """
+    import cv2
+
+    clips = []
+    for video, truth_path in pairs:
+        width = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FRAME_WIDTH)
+        balls = {f: b for f, b in load_ground_truth(truth_path).items() if b is not None}
+        clips.append((video.stem, width, balls))
+    print(f"tolerance {tolerance:g} px, share of ball frames hit by the strongest blob\n")
+    print(f"{'candidate':18} {'mean':>6} " + " ".join(f"{s} ({len(b)})".rjust(18) for s, _, b in clips))
+    rows = []
+    for name in CANDIDATES:
+        paths = [OUT / stem / f"{name}.jsonl" for stem, _, _ in clips]
+        if not all(p.exists() for p in paths):
+            continue
+        rates = []
+        for path, (_, width, balls) in zip(paths, clips):
+            picks = select_top([json.loads(line) for line in path.open()], 0.0, width)
+            rates.append(sum(picks[f] is not None and math.dist(picks[f][:2], b) <= tolerance for f, b in balls.items()) / len(balls))
+        rows.append((sum(rates) / len(rates), name, rates))
+    for mean, name, rates in sorted(rows, reverse=True):
+        print(f"{name:18} {mean:6.3f} " + " ".join(f"{r:18.3f}" for r in rates))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -168,13 +197,18 @@ def main() -> None:
     compare_parser = sub.add_parser("compare")
     compare_parser.add_argument("pairs", nargs="+", help="VIDEO:GROUND_TRUTH_CSV")
     compare_parser.add_argument("--tolerance", type=float, default=10.0, help="In video pixels")
+    hits_parser = sub.add_parser("hits")
+    hits_parser.add_argument("pairs", nargs="+", help="VIDEO:GROUND_TRUTH_CSV")
+    hits_parser.add_argument("--tolerance", type=float, default=10.0, help="In video pixels")
     args = parser.parse_args()
     if args.command == "run":
         run(args.video, args.only)
     elif args.command == "score":
         score(args.video, args.truth, args.tolerance)
-    else:
+    elif args.command == "compare":
         compare([tuple(map(Path, p.split(":"))) for p in args.pairs], args.tolerance)
+    else:
+        hit_rate([tuple(map(Path, p.split(":"))) for p in args.pairs], args.tolerance)
 
 
 if __name__ == "__main__":

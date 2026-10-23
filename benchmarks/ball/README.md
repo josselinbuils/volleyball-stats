@@ -1,45 +1,79 @@
 # Ball tracking benchmark
 
-Pretrained open-source ball trackers, scored on hand-labelled frames of two public matches filmed
-from behind the baseline. The project films from the sideline, so side-view clips are still to be
-added.
+Pretrained open-source ball trackers, scored on hand-labelled frames of four public matches: two
+filmed from the sideline next to the net, like this project, and two from behind the baseline.
 
 ## Run
 
 ```bash
 ./benchmarks/ball/setup.sh   # weights and third-party model code, into .cache/bench
-uv run --group bench python benchmarks/ball/bench.py run data/backcourt.mp4
+uv run --group bench python benchmarks/ball/bench.py run data/side_club.mp4
 uv run --group bench python benchmarks/ball/bench.py compare \
-  data/backcourt.mp4:benchmarks/ball/ground_truth/backcourt.csv \
-  data/club.mp4:benchmarks/ball/ground_truth/club.csv
+  data/side_club.mp4:benchmarks/ball/ground_truth/side_club.csv \
+  data/side_vnl.mp4:benchmarks/ball/ground_truth/side_vnl.csv
 ```
 
 `bench.py` imports `candidates.py` from its own folder: run it with `PYTHONPATH=benchmarks/ball`.
+`hits` scores only the labelled ball frames, so it does not depend on the "no ball" labels.
 
 ## Videos
 
 | Clip | Source | Segment | Setup |
 | --- | --- | --- | --- |
+| `side_club.mp4` | [BIS vs CCAS Women's Volleyball](https://www.youtube.com/watch?v=bFLVvZ09YJo) | 1800–1980 s, 720p30 | wide-angle camera raised next to the net post, other courts in view |
+| `side_vnl.mp4` | [France vs Türkiye, VNL 2025](https://www.youtube.com/watch?v=jTigaX7Xd5c) | 2700–2880 s, 720p25 | broadcast side camera; only its shots are labelled (3.6–11.6, 31.2–37.6, 55.2–75.4, 90.6–103.8, 167–176 s) |
 | `backcourt.mp4` | [Turkey vs Netherlands, Paris 2024](https://www.youtube.com/watch?v=BVL7g25bP4c) | 600–780 s, 720p50 | broadcast back-court camera, high and centered |
 | `club.mp4` | [Forza North 14ONE vs Madfrog 14](https://www.youtube.com/watch?v=rKahSdKGgv4) | 900–1020 s, 720p60 | phone on a low tripod behind the baseline, other courts in view |
 
 ```bash
-uvx yt-dlp -f '298+140' --download-sections '*600-780' -o data/backcourt.mp4 'https://www.youtube.com/watch?v=BVL7g25bP4c'
-uvx yt-dlp -f 'bv*[height=720][ext=mp4]+ba[ext=m4a]' --download-sections '*900-1020' -o data/club.mp4 'https://www.youtube.com/watch?v=rKahSdKGgv4'
+uvx yt-dlp -f '136+140' --download-sections '*1800-1980' -o data/side_club.mp4 -- bFLVvZ09YJo
+uvx yt-dlp -f '136+140' --download-sections '*2700-2880' -o data/side_vnl.mp4 -- jTigaX7Xd5c
+uvx yt-dlp -f '298+140' --download-sections '*600-780' -o data/backcourt.mp4 -- BVL7g25bP4c
+uvx yt-dlp -f 'bv*[height=720][ext=mp4]+ba[ext=m4a]' --download-sections '*900-1020' -o data/club.mp4 -- rKahSdKGgv4
 ```
 
 ## Ground truth
 
-`ground_truth/*.csv`: one frame every 20 (backcourt) or 24 (club) frames, `visible=1` with the ball
-center in pixels, or `visible=0`. Built by reviewing zoomed crops around every candidate's
-proposals: a frame where no candidate proposed the ball is labelled `visible=0`. A random audit of
-24 such frames per clip found 0 (backcourt) and 2 (club, both balls held by players between
-rallies) visible balls. Frames where the ball position was uncertain are left out.
+`ground_truth/*.csv`: `visible=1` with the ball center in pixels, or `visible=0`. Built by
+reviewing zoomed crops around every candidate's proposals: a frame where no candidate proposed the
+ball is labelled `visible=0`, so a ball no candidate saw is missing. A random audit of 24 such
+frames per baseline clip found 0 (backcourt) and 2 (club) visible balls. Frames where the ball
+position was uncertain are left out, and on the side-view clips so are frames where the ball is
+not in play (held, on the floor, warm-up balls).
+
+| Clip | Labelled frames | With the ball |
+| --- | --- | --- |
+| `side_club` | 125 | 71 |
+| `side_vnl` | 118 | 63 |
+| `backcourt` | 419 | 196 |
+| `club` | 269 | 92 |
 
 ## Results
 
-F1 at 10 px, one confidence threshold per candidate shared by both clips, 95% bootstrap interval.
-Speed on an M4 Pro (PyTorch on MPS, ONNX on CPU).
+F1 at 10 px, one confidence threshold per candidate shared by the clips of a table, 95% bootstrap
+interval. Speed on an M4 Pro (PyTorch on MPS, ONNX on CPU), the whole loop including video
+decoding.
+
+### Sideline, next to the net
+
+| Candidate | Threshold | Mean F1 | side_club | side_vnl | fps |
+| --- | --- | --- | --- | --- | --- |
+| `wasb-step1` | 0.20 | **0.866** | **0.913** [0.86–0.96] | **0.819** [0.75–0.88] | 30 |
+| `wasb` | 0.30 | 0.845 | 0.887 [0.82–0.94] | 0.803 [0.72–0.88] | 87 |
+| `tracknetv2` | 0.05 | 0.803 | 0.862 [0.79–0.92] | 0.744 [0.66–0.83] | 54 |
+| `vballnet-v1` | 0.85 | 0.613 | 0.894 [0.83–0.95] | 0.333 [0.22–0.46] | 83 |
+| `vballnet-grid-v1b` | 0.50 | 0.589 | 0.775 [0.69–0.86] | 0.404 [0.28–0.53] | 185 |
+| `vballnet-grid-v1c` | 0.55 | 0.509 | 0.736 [0.64–0.82] | 0.281 [0.17–0.38] | 270 |
+| `vballnet-fast-v1` | 0.30 | 0.495 | 0.729 [0.63–0.81] | 0.262 [0.13–0.39] | 309 |
+| `tracknetv3-beach` | 0.25 | 0.337 | 0.444 [0.32–0.56] | 0.230 [0.11–0.35] | 68 |
+| `yolo11n` | 0.05 | 0.257 | 0.051 [0.00–0.13] | 0.463 [0.34–0.58] | 97 |
+
+The three models trained on the side-view SFU volleyball dataset (`wasb`, `wasb-step1`,
+`tracknetv2`) lead. A fallback to a second tracker when `wasb-step1` finds nothing does not help:
+with thresholds tuned on one side-view clip and scored on the other, `wasb-step1` alone scores
+0.803 and 0.906, and no fallback beats it by more than 0.02.
+
+### Behind the baseline
 
 | Candidate | Threshold | Mean F1 | backcourt | club | fps |
 | --- | --- | --- | --- | --- | --- |
@@ -54,17 +88,8 @@ Speed on an M4 Pro (PyTorch on MPS, ONNX on CPU).
 | `vballnet-v1` | 0.85 | 0.430 | 0.630 [0.56–0.69] | 0.230 [0.13–0.33] | 83 |
 | `yolo11n` | 0.10 | 0.425 | 0.484 [0.41–0.55] | 0.365 [0.25–0.47] | 97 |
 
-Only `wasb-step1` is near the top on both clips. YOLO11x is the only candidate finding balls at
-rest (on the floor, in a server's hands): the others rely on motion.
-
-Combining two trackers (the first one's pick, else the second's), thresholds tuned on one clip and
-scored on the other:
-
-| Combination | Tuned on backcourt → club | Tuned on club → backcourt |
-| --- | --- | --- |
-| `wasb-step1` alone | 0.589 | 0.714 |
-| `wasb-step1`, else `tracknetv3-beach` | 0.699 | 0.728 |
-| `wasb-step1`, else `vballnet-fast-v1` | 0.662 | 0.554 |
+YOLO11x is the only candidate finding balls at rest (on the floor, in a server's hands): the others
+rely on motion.
 
 ## Candidates
 
