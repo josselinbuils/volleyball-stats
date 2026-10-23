@@ -26,7 +26,7 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - [ ] Two-prong to 1/4" adapter, unless included with the camera
 - [ ] 2 ratchet straps, 25 mm × 4 m
 - [ ] Safety cord
-- [ ] Power bank, ~10,000 mAh
+- [x] Power bank, ~10,000 mAh
 - Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
   handlebar mount.
 
