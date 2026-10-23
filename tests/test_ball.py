@@ -22,7 +22,7 @@ class TestBestBlob:
 class TestTrackFrames:
     class FakeModel(nn.Module):
         """Window w puts the ball of its k-th frame at x = 10 * w + k, with a peak growing with
-        k, so the last window covering a frame wins."""
+        k, so a frame's earliest window gives its strongest view."""
 
         def __init__(self):
             super().__init__()
@@ -35,19 +35,24 @@ class TestTrackFrames:
             self.calls += 1
             return {0: logits}
 
-    def test_keeps_for_each_frame_the_strongest_window_and_yields_every_frame(self):
-        frames = [np.full((HEIGHT * 2, WIDTH * 2, 3), i, dtype=np.uint8) for i in range(5)]
+    def frames(self, count, scale=1):
+        return [np.full((HEIGHT * scale, WIDTH * scale, 3), i, dtype=np.uint8) for i in range(count)]
 
-        results = list(track_frames(frames, self.FakeModel(), "cpu", threshold=0.5))
+    def test_with_stride_1_keeps_the_strongest_of_the_windows_seeing_a_frame(self):
+        results = list(track_frames(self.frames(5, scale=2), self.FakeModel(), "cpu", stride=1, threshold=0.5))
 
         assert [int(frame[0, 0, 0]) for frame, _ in results] == list(range(5))
-        # Later slots have higher peaks, so each frame keeps its view from the earliest window
-        # covering it; the padded last window (3) only adds weaker views of frames 3 and 4.
+        # Frame i sits last in window i - 2; the padded last window (3) only adds weaker views
+        # of frames 3 and 4.
         assert [position for _, position in results] == [(0, 200), (2, 200), (4, 200), (24, 200), (44, 200)]
 
-    def test_drops_positions_below_the_threshold(self):
-        frames = [np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8) for _ in range(3)]
+    def test_with_stride_3_each_frame_is_seen_once(self):
+        results = list(track_frames(self.frames(5, scale=2), self.FakeModel(), "cpu", stride=3, threshold=0.5))
 
-        results = list(track_frames(frames, self.FakeModel(), "cpu", threshold=0.9))
+        # Frames 3 and 4 come from the padded last window (1).
+        assert [position for _, position in results] == [(0, 200), (2, 200), (4, 200), (20, 200), (22, 200)]
+
+    def test_drops_positions_below_the_threshold(self):
+        results = list(track_frames(self.frames(3), self.FakeModel(), "cpu", threshold=0.9))
 
         assert [position for _, position in results] == [None, None, (2, 100)]
