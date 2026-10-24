@@ -5,8 +5,9 @@ import { cellContacts } from '@/components/CourtChart/helpers/zones';
 import { SvgButton } from '@/components/CourtChart/SvgButton';
 
 /** Each zone of each half, shaded by its share of the touches in the colour of the team playing
- * there (`left` on the left half), neutral when both teams played on it (`left` null). */
-export function ZoneGrid({ shown, left, onPlay }: { shown: Contact[]; left: Group | null; onPlay: (title: string, contacts: Contact[]) => void }) {
+ * there (`left` on the left half), neutral when both teams played on it (`left` null), in the
+ * colour of the `only` team shown when one is. */
+export function ZoneGrid({ shown, left, only, onPlay }: { shown: Contact[]; left: Group | null; only: Group | null; onPlay: (title: string, contacts: Contact[]) => void }) {
   const { t } = useTranslation();
   const f = useFormat();
   const inside = cellContacts(shown, match.zones);
@@ -14,7 +15,7 @@ export function ZoneGrid({ shown, left, onPlay }: { shown: Contact[]; left: Grou
 
   return match.zones.map((z, k) => {
     const n = inside[k].length;
-    const team = left === null ? null : ((z.x < 0 ? left : 3 - left) as Group);
+    const team = only ?? (left === null ? null : ((z.x < 0 ? left : 3 - left) as Group));
     const cell = (
       <>
         <rect x={z.x + 0.06} y={z.y + 0.06} width={z.w - 0.12} height={z.h - 0.12} rx={0.2} fill={team ? teamColor(team) : 'var(--muted-foreground)'} stroke={team ? teamRing(team) : undefined} fillOpacity={0.06 + (0.5 * n) / max} className="[vector-effect:non-scaling-stroke]" />

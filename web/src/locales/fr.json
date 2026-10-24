@@ -170,5 +170,9 @@
   "muteVideo": "Couper le son",
   "unmuteVideo": "Remettre le son",
   "fullscreen": "Plein écran",
-  "exitFullscreen": "Quitter le plein écran"
+  "exitFullscreen": "Quitter le plein écran",
+  "sideFilter": "Côté",
+  "bothSides": "Les deux côtés",
+  "teamFilter": "Équipe",
+  "bothTeams": "Les deux équipes"
 }

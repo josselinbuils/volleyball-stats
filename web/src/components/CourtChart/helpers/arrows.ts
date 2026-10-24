@@ -1,6 +1,6 @@
-import type { Contact, Placed, Result } from '@/lib/match';
+import type { ActionType, Contact, Placed, Result } from '@/lib/match';
 
-const ARROWED = new Set(['serve', 'attack']);
+export const ARROWED: ActionType[] = ['serve', 'attack'];
 
 /** A serve or an attack, drawn from where it was played to the next touch of its rally, `landing`
  * when that is the ball hitting the floor. `line` stops short of the head, whose tip stops short of the target. */
@@ -17,7 +17,7 @@ export function arrows(shown: Contact[], all: Contact[]): Arrow[] {
   const out: Arrow[] = [];
   for (const c of shown) {
     const n = all[c.i + 1];
-    if (!ARROWED.has(c.type) || c.x === null || c.y === null || n?.rally !== c.rally || n.x === null || n.y === null) {
+    if (!ARROWED.includes(c.type) || c.x === null || c.y === null || n?.rally !== c.rally || n.x === null || n.y === null) {
       continue;
     }
     const dx = n.x - c.x;

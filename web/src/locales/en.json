@@ -170,5 +170,9 @@
   "muteVideo": "Mute",
   "unmuteVideo": "Unmute",
   "fullscreen": "Full screen",
-  "exitFullscreen": "Exit full screen"
+  "exitFullscreen": "Exit full screen",
+  "sideFilter": "Side",
+  "bothSides": "Both sides",
+  "teamFilter": "Team",
+  "bothTeams": "Both teams"
 }

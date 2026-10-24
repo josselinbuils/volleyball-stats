@@ -10,13 +10,13 @@ import { Court, Legend } from '@/components/Court';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
-import { color, contacts as all, GROUPS, groupName, match, placed, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
+import { color, contacts as all, GROUPS, groupName, hasTeams, match, placed, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { Arrows } from '@/components/CourtChart/Arrows';
 import { ContactDots } from '@/components/CourtChart/ContactDots';
-import { arrows as toArrows } from '@/components/CourtChart/helpers/arrows';
+import { ARROWED, arrows as toArrows } from '@/components/CourtChart/helpers/arrows';
 import { ZoneGrid } from '@/components/CourtChart/ZoneGrid';
 
 const VIEWS = ['contacts', 'zones', 'directions'] as const;
@@ -28,16 +28,19 @@ export function CourtChart() {
   const { play } = usePlayer();
   const { rallies, contacts } = useSet();
   const [view, setView] = useState<View>('contacts');
-  const [type, setType] = useState<ActionType | 'all'>('all');
+  const [chosen, setType] = useState<ActionType | 'all'>('all');
+  const [group, setGroup] = useState<Group | 'both'>('both');
   // Touches stay where they were played: a half holds one team only when the shown rallies were
   // all played on the same ends.
   const left = rallies.length && rallies.every((r) => r.left === rallies[0].left) ? rallies[0].left : null;
 
-  const present = TYPES.filter((p) => contacts.some((c) => c.type === p));
-  const picked = contacts.filter((c) => type === 'all' || c.type === type);
+  // Serves and attacks only for their arrows; the action picked for another view comes back with it.
+  const present = TYPES.filter((p) => (view !== 'directions' || ARROWED.includes(p)) && contacts.some((c) => c.type === p));
+  const type = chosen !== 'all' && present.includes(chosen) ? chosen : 'all';
+  const picked = contacts.filter((c) => (type === 'all' || c.type === type) && (group === 'both' || c.g === group));
   const arrows = view === 'directions' ? toArrows(picked, all) : [];
   const shown = view === 'directions' ? arrows.map((a) => a.from) : picked.filter(placed);
-  const title = (tr: TFunction) => [tr(`views.${view}`), type !== 'all' && tr(`types.${type}`)].filter(Boolean).join(', ');
+  const title = (tr: TFunction) => [tr(`views.${view}`), type !== 'all' && tr(`types.${type}`), group !== 'both' && groupName(tr, group)].filter(Boolean).join(', ');
   const describe = (c: Contact) => `${t(`types.${c.type}`)}, ${groupName(t, c.g)} · ${t('rallyLower', { n: c.rally + 1 })} · ${clock(c.t)}`;
   const playFrom = (c: Contact) => play(title, contactClips(shown, match.duration), shown.indexOf(c as (typeof shown)[number]));
 
@@ -88,8 +91,27 @@ export function CourtChart() {
               ))}
             </SelectContent>
           </Select>
-          {type !== 'all' && (
-            <Button variant="ghost" onClick={() => setType('all')}>
+          <Select value={String(group)} onValueChange={(v) => setGroup(v === 'both' ? v : (Number(v) as Group))}>
+            <SelectTrigger aria-label={t(hasTeams ? 'teamFilter' : 'sideFilter')} className="w-full bg-card sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="both">{t(hasTeams ? 'bothTeams' : 'bothSides')}</SelectItem>
+              {GROUPS.map((g) => (
+                <SelectItem key={g} value={String(g)}>
+                  {groupName(t, g)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(type !== 'all' || group !== 'both') && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setType('all');
+                setGroup('both');
+              }}
+            >
               <RotateCcw aria-hidden />
               {t('reset')}
             </Button>
@@ -105,7 +127,7 @@ export function CourtChart() {
         <div className="relative mx-auto w-full max-w-4xl">
           <Court zones role="group" aria-label={t(`captions.${view}`)} ends={left === null ? undefined : [groupName(t, left), groupName(t, (3 - left) as Group)]}>
             {view === 'contacts' && <ContactDots shown={shown} describe={describe} onPlay={playFrom} />}
-            {view === 'zones' && <ZoneGrid shown={shown} left={left} onPlay={(zoneTitle, inside) => play(() => zoneTitle, contactClips(inside, match.duration))} />}
+            {view === 'zones' && <ZoneGrid shown={shown} left={left} only={group === 'both' ? null : group} onPlay={(zoneTitle, inside) => play(() => zoneTitle, contactClips(inside, match.duration))} />}
             {view === 'directions' && <Arrows arrows={arrows} describe={describe} onPlay={playFrom} />}
           </Court>
           {!shown.length && (
@@ -117,7 +139,7 @@ export function CourtChart() {
 
         {view === 'contacts' && (
           <Legend>
-            {GROUPS.map((g) => (
+            {GROUPS.filter((g) => group === 'both' || g === group).map((g) => (
               <span key={g} className="inline-flex min-w-0 items-center gap-2">
                 <Swatch color={teamColor(g)} ring={teamRing(g)} />
                 <span className="truncate">{groupName(t, g)}</span>
