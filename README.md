@@ -35,8 +35,11 @@ name each identity once. Jersey numbers map to names through a roster kept acros
       overheating.
 - [ ] Lock the settings: 50 fps, widest field of view, shutter 1/250 or faster, exposure and white
       balance locked, audio on.
-- [ ] Calibrate the lens once with a checkerboard at those settings (OpenCV fisheye) and save the
-      lens JSON: without it the court mapping is off by 0.3–1.4 m (see the court benchmark).
+- [ ] Calibrate the lens once at those settings: without it the court mapping is off by 0.3–1.4 m
+      (see the court benchmark). Print the board (`python -m volleyball_stats.lens pattern`), tape
+      it flat on cardboard, film it for a minute at 1–3 m while tilting it and sweeping it into the
+      corners and edges of the frame, then `python -m volleyball_stats.lens calibrate VIDEO` writes
+      `outputs/lens.json`, to pass as `--lens` to the court commands.
 - [ ] At the gym: get approval for the handball goals, check they are anchored, check the framing
       from the stand shows both end lines and the near corners.
 
