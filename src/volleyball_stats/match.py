@@ -218,7 +218,8 @@ def main() -> None:
         known = identity.run(out, args.video, rows, windows, found_teams.left, fps, args.squad, attributed)
         timings["identity"] = time.perf_counter() - start
         who = [identity.lookup(known, k, t[0]) if k is not None else None for t, k in zip(typed, touchers)]
-        rows_out = [[*t, "" if k is None else k, "" if g is None else g, "" if w is None else w[1]] for t, k, g, w in zip(typed, touchers, contact_teams, who)]
+        # A track swapping players across the net can hold an identity of the other team.
+        rows_out = [[*t, "" if k is None else k, "" if g is None else g, "" if w is None or w[0] != g else w[1]] for t, k, g, w in zip(typed, touchers, contact_teams, who)]
         write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track", "team", "identity"], rows_out)
         # ponytail: a rally with unknown sides counts team 1 on the left, as points.main does.
         found_points = points.points(typed, crossings, windows, [g or 1 for g in found_teams.left], sets, fps, calibration)

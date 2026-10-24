@@ -247,6 +247,9 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
     return v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-9), np.array([max(1.0, stored[k][1]) for k in keys])
 
 
+# ponytail: a dense segments x segments matrix, ~2,100 segments per 10 minutes: fine for clips, but a
+# 2-hour match (~25,000) needs GBs here and in `group` and `doubts`' float products. Keep the
+# cannot-links sparse (pairs overlapping in time or within LINK_GAP_S) before a full match.
 def cannot_links(segments: list[Segment], fps: float) -> np.ndarray:
     """Pairs of segments (sorted by start) that cannot be one player: of different teams, sharing a
     frame, or one starting within LINK_GAP_S after the other ended, farther than a player runs."""
@@ -648,6 +651,30 @@ def parse_squad(text: str) -> tuple[int, int]:
     return parts[0], parts[-1]
 
 
+def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None) -> list[tuple[int, int, int, int, int]]:
+    """`run` on a match folder run with --players, its actions.csv's identity column refreshed."""
+    from volleyball_stats.attribution import read_players
+
+    with open(match / "rallies.csv") as f:
+        rallies = list(csv.DictReader(f))
+    windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies]
+    left = [int(r["left"]) if r.get("left") else None for r in rallies]
+    actions = match / "actions.csv"
+    with open(actions) as f:
+        typed = list(csv.DictReader(f))
+    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    rows = read_players(match / "players.csv")
+    table = run(match, video, rows, windows, left, fps, squad, [(int(r["frame"]), int(r["track"])) for r in typed if r.get("track")])
+    for r in typed:
+        found = lookup(table, int(r["track"]), int(r["frame"])) if r.get("track") else None
+        r["identity"] = "" if found is None or str(found[0]) != r.get("team") else found[1]
+    with open(actions, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=[*[k for k in typed[0] if k != "identity"], "identity"] if typed else ["identity"])
+        writer.writeheader()
+        writer.writerows(typed)
+    return table
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Link the player tracks into one identity per player for the whole match.")
     parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO), run with --players")
@@ -655,25 +682,7 @@ def main() -> None:
     parser.add_argument("--squad", type=parse_squad, help="Players per team, N or N1,N2 (team 1 is on the left at the first rally)")
     args = parser.parse_args()
 
-    from volleyball_stats.attribution import read_players
-
-    with open(args.match / "rallies.csv") as f:
-        rallies = list(csv.DictReader(f))
-    windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies]
-    left = [int(r["left"]) if r.get("left") else None for r in rallies]
-    actions = args.match / "actions.csv"
-    with open(actions) as f:
-        typed = list(csv.DictReader(f))
-    fps = cv2.VideoCapture(str(args.video)).get(cv2.CAP_PROP_FPS)
-    rows = read_players(args.match / "players.csv")
-    table = run(args.match, args.video, rows, windows, left, fps, args.squad, [(int(r["frame"]), int(r["track"])) for r in typed if r.get("track")])
-    for r in typed:
-        found = lookup(table, int(r["track"]), int(r["frame"])) if r.get("track") else None
-        r["identity"] = "" if found is None else found[1]
-    with open(actions, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=[*[k for k in typed[0] if k != "identity"], "identity"] if typed else ["identity"])
-        writer.writeheader()
-        writer.writerows(typed)
+    table = rerun(args.match, args.video, args.squad)
     counts = {team: len({r[4] for r in table if r[3] == team and r[4]}) for team in (1, 2)}
     print(f"{len(table)} segments, identities: team 1 {counts[1]}, team 2 {counts[2]} -> {args.match / 'identities.csv'}")
 

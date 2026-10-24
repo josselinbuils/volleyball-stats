@@ -117,10 +117,18 @@ break, see the [teams benchmark](benchmarks/teams/README.md)) or a score, or pas
 (`--title ""` goes back to the default title). The final scores show on the page once a set is
 over and the report gives the estimated score's drift from them.
 
-The identity step reruns alone in seconds (`uv run python -m volleyball_stats.identity
-outputs/VIDEO --video VIDEO [--squad N[,N]]`), keeping the numbers of the previous run. It writes
-`identity_candidates.json`, the identities it is least sure of; answers in
-`identity_answers.json` (same player, different players, not a player) override it on the next run.
+```bash
+uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--squad N[,N]]
+```
+
+`review` opens, on this machine only, the players the identity step is least sure of, most at stake
+first: the player outlined on the looping video, pictures of the numbers they could be, an answer
+per key (1, 2: that number, 3: someone else, X: not a player, S: don't know; for two numbers never
+on court together, 1: same person, 2: two people). Answers are saved at once to
+`identity_answers.json` and hold as hard constraints; "apply" (or "undo") reruns the identity step
+and rebuilds the match page in seconds, keeping the other numbers. The identity step also reruns
+alone: `uv run python -m volleyball_stats.identity outputs/VIDEO --video VIDEO [--squad N[,N]]`.
+Answers refer to pieces of player tracks: tracking the players again (`--force`) drops them.
 
 ```bash
 uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video] [--theme NAME]

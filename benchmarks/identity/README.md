@@ -109,3 +109,5 @@ merges 1.07 and 1.14. The page shows no number on 1.8% of the player dots of `si
 - The user's answers on the doubtful pieces (`identity_candidates.json`) fix the rest; the review
   page asks them on the video.
 - Two clips of the same club and camera; the constants need a check on the user's footage.
+- Memory: the cannot-links are a dense matrix over all pieces, ~2,100 per 10 minutes. A 2-hour
+  match (~25,000 pieces) needs them sparse first (see `cannot_links`).

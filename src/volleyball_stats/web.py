@@ -266,6 +266,15 @@ def write_site(data: dict, players: dict | None, video: Path, site: Path, copy: 
         target.symlink_to(video.resolve())
 
 
+def build(match: Path, video: Path, court: Path, site: Path, copy: bool = False, theme: str = "aspom") -> dict:
+    """The match page in `site`; returns data.js's match."""
+    data, players = match_data(match, video, Calibration.load(court))
+    shutil.rmtree(site / "brand", ignore_errors=True)
+    data["brand"] = brand(theme, site)
+    write_site(data, players, video, site, copy)
+    return data
+
+
 def main() -> None:
     themes = sorted(p.parent.name for p in BRANDING.glob("*/brand.json"))
     parser = argparse.ArgumentParser(description="Build the static match page from the pipeline's outputs.")
@@ -278,10 +287,7 @@ def main() -> None:
     args = parser.parse_args()
 
     site = args.out or args.match / "site"
-    data, players = match_data(args.match, args.video, Calibration.load(args.court))
-    shutil.rmtree(site / "brand", ignore_errors=True)
-    data["brand"] = brand(args.theme, site)
-    write_site(data, players, args.video, site, args.copy_video)
+    data = build(args.match, args.video, args.court, site, args.copy_video, args.theme)
     sizes = ", ".join(f"{name} {(site / name).stat().st_size / 1e3:.0f} KB" for name in ("data.js", "players.js") if (site / name).exists())
     print(f"{len(data['contacts'])} contacts, {len(data['rallies'])} rallies, {sizes} -> {site / 'index.html'}")
 
