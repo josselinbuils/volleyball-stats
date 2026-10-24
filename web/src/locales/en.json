@@ -76,7 +76,7 @@
   },
   "timelineCaption": "Each bar is a rally along the video, taller when longer. Click a bar to watch it.",
   "histCaption": "Rallies by number of touches. Click a bar to watch them.",
-  "touchesPerRally": "touches per rally",
+  "touchesPerRally": "Touches per rally",
   "ralliesN_one": "{{count, number}} rally",
   "ralliesN_other": "{{count, number}} rallies",
   "touchesK_one": "{{k}} touch",

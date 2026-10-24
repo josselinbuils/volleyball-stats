@@ -16,13 +16,14 @@ export function RallyCharts() {
           </h2>
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
-        <div>
-          <p className="mb-4 text-sm text-muted-foreground">{t('timelineCaption')}</p>
+      {/* Side by side, the two captions share a row: the charts start and end at the same height. */}
+      <CardContent className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:gap-y-4">
+        <div className="grid content-start gap-4 lg:row-span-2 lg:grid-rows-subgrid">
+          <p className="text-sm text-muted-foreground">{t('timelineCaption')}</p>
           <Timeline />
         </div>
-        <div>
-          <p className="mb-4 text-sm text-muted-foreground">{t('histCaption')}</p>
+        <div className="grid content-start gap-4 lg:row-span-2 lg:grid-rows-subgrid">
+          <p className="text-sm text-muted-foreground">{t('histCaption')}</p>
           <Histogram />
         </div>
       </CardContent>

@@ -76,7 +76,7 @@
   },
   "timelineCaption": "Chaque barre est un échange au fil de la vidéo, plus haute quand il dure plus longtemps. Cliquez sur une barre pour le revoir.",
   "histCaption": "Échanges selon leur nombre de touches. Cliquez sur une barre pour les revoir.",
-  "touchesPerRally": "touches par échange",
+  "touchesPerRally": "Touches par échange",
   "ralliesN_one": "{{count, number}} échange",
   "ralliesN_other": "{{count, number}} échanges",
   "touchesK_one": "{{k}} touche",
