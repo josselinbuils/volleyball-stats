@@ -1,5 +1,6 @@
 {
   "frame": 1500,
+  "background": true,
   "points": {
     "corner_left_far": [268.9, 331.3],
     "attack_left_far": [497.6, 327.1],
@@ -15,7 +16,7 @@
     "corner_left_far": 4,
     "attack_right_far": 4,
     "corner_right_far": 6,
-    "center_near": 3,
+    "center_near": 5,
     "post_near": 5,
     "post_far": 5
   }

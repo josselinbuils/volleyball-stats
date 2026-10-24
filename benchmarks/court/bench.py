@@ -1,15 +1,16 @@
 """Score the court calibration against hand-located landmarks.
 
     uv run --group bench python benchmarks/court/bench.py manual VIDEO:GROUND_TRUTH_JSON ...
-    uv run --group bench python benchmarks/court/bench.py auto VIDEO:GROUND_TRUTH_JSON ... [--debug DIR]
+    uv run --group bench python benchmarks/court/bench.py refine VIDEO:GROUND_TRUTH_JSON ... [--seeds N]
+    uv run --group bench python benchmarks/court/bench.py auto
 
 `manual` fits the homography on the ground-truth landmarks and reports each landmark's leave-one-out
-reprojection error. `auto` detects the court lines on the frame, names their intersections and
-scores them against the same landmarks.
+reprojection error. `refine` simulates rough clicks (ground truth + 10-20 px in a random direction)
+and scores them as clicked and once snapped to the lines. `auto` stores the two ground-truth courts
+and matches them on the other clips, on simulated camera moves and on other courts.
 """
 
 import argparse
-import itertools
 import json
 import math
 from pathlib import Path
@@ -17,13 +18,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats.court import LANDMARKS, Calibration, fit, read_frame
+from volleyball_stats.court import LANDMARKS, UNSNAPPED, Calibration, background, calibrate, fit, match, read_frame, refine
 
 Points = dict[str, tuple[float, float]]
-# Line order along the court length, each with a far and a near end.
-TRANSVERSE = ["corner_left", "attack_left", "center", "attack_right", "corner_right"]
-# Top-hat response of a line pixel over its surroundings; 15 keeps the low-contrast far sideline of side_vnl.
-WHITE_MIN = 15
+GROUND_TRUTH = Path("benchmarks/court/ground_truth")
 
 
 def load_ground_truth(path: Path) -> tuple[int, Points, dict[str, float]]:
@@ -34,6 +32,12 @@ def load_ground_truth(path: Path) -> tuple[int, Points, dict[str, float]]:
 def line_landmarks(points: Points) -> Points:
     """Posts stay out of the fits: their distance to the sideline is a guess."""
     return {n: p for n, p in points.items() if not n.startswith("post")}
+
+
+def ground_truth_image(video: Path, truth_path: Path) -> np.ndarray:
+    """The median frame for a fixed camera, the labelled frame otherwise."""
+    data = json.loads(truth_path.read_text())
+    return background(video) if data.get("background") else read_frame(video, data["frame"])
 
 
 def residual(calibration: Calibration, name: str, image: tuple[float, float]) -> tuple[float, float]:
@@ -72,161 +76,136 @@ def manual(pairs: list[tuple[Path, Path]]) -> None:
         report(leave_one_out(points), tolerance)
 
 
-def floor_mask(frame: np.ndarray) -> np.ndarray:
-    """Pixels colored like the floor in front of the camera (median hue and saturation of the bottom center)."""
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV).astype(int)
-    height, width = frame.shape[:2]
-    patch = hsv[int(0.6 * height) : int(0.85 * height), int(0.3 * width) : int(0.7 * width)]
-    hue, sat = np.median(patch[..., 0]), np.median(patch[..., 1])
-    close = (np.abs(hsv[..., 0] - hue) < 12) & (hsv[..., 1] > 0.5 * sat) & (hsv[..., 1] < 1.7 * sat)
-    return close.astype(np.uint8)
+def rough_clicks(truth: Points, seed: int) -> Points:
+    rng = np.random.default_rng(seed)
+    angle, radius = rng.uniform(0, 2 * np.pi, len(truth)), rng.uniform(10, 20, len(truth))
+    return {n: (x + r * math.cos(a), y + r * math.sin(a)) for (n, (x, y)), a, r in zip(truth.items(), angle, radius)}
 
 
-def white_segments(frame: np.ndarray) -> np.ndarray:
-    """Straight pieces of bright thin lines next to floor-colored pixels, as (x1, y1, x2, y2) rows."""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)))
-    # ponytail: one floor color, so a two-tone floor keeps only the lines bordering the dominant tone.
-    near_floor = cv2.dilate(floor_mask(frame), np.ones((21, 21), np.uint8))
-    mask = ((tophat > WHITE_MIN) & (gray > 120) & (near_floor > 0)).astype(np.uint8) * 255
-    segments = cv2.HoughLinesP(mask, 1, np.pi / 360, 50, minLineLength=40, maxLineGap=8)
-    return segments.reshape(-1, 4).astype(float) if segments is not None else np.empty((0, 4))
+def stats(errors: list[float]) -> str:
+    e = np.array(errors)
+    return f"RMS {np.sqrt(np.mean(e**2)):5.1f}  median {np.median(e):5.2f}  max {e.max():5.1f}" if len(e) else "-"
 
 
-def merge_segments(segments: np.ndarray, angle_tol: float = 2.5, dist_tol: float = 5.0) -> list[dict]:
-    """Group colinear segments; each group is {"point", "dir", "length"} fitted on its endpoints."""
-    groups: list[dict] = []
-    for x1, y1, x2, y2 in sorted(segments, key=lambda s: -math.hypot(s[2] - s[0], s[3] - s[1])):
-        direction = np.array([x2 - x1, y2 - y1])
-        length = float(np.linalg.norm(direction))
-        direction /= length
-        for g in groups:
-            cos = abs(float(direction @ g["dir"]))
-            normal = np.array([-g["dir"][1], g["dir"][0]])
-            off = [abs(float((np.array(p) - g["point"]) @ normal)) for p in ((x1, y1), (x2, y2))]
-            if cos > math.cos(math.radians(angle_tol)) and max(off) < dist_tol:
-                g["ends"].extend([(x1, y1), (x2, y2)])
-                g["length"] += length
-                vx, vy, x0, y0 = cv2.fitLine(np.array(g["ends"], np.float32), cv2.DIST_L2, 0, 0.01, 0.01).ravel()
-                g["point"], g["dir"] = np.array([x0, y0]), np.array([vx, vy])
-                break
-        else:
-            groups.append({"point": np.array([x1, y1]), "dir": direction, "length": length, "ends": [(x1, y1), (x2, y2)]})
-    return groups
+def court_error(calibration: Calibration, truth: Points) -> list[float]:
+    """Meters between each ground-truth landmark mapped to the court and its model position."""
+    return [residual(calibration, n, p)[1] for n, p in truth.items()]
 
 
-def line_y(g: dict, x: float) -> float:
-    return float(g["point"][1] + (x - g["point"][0]) * g["dir"][1] / g["dir"][0])
-
-
-def cross(a: dict, b: dict) -> tuple[float, float] | None:
-    m = np.array([a["dir"], -b["dir"]]).T
-    if abs(np.linalg.det(m)) < 1e-6:
-        return None
-    t = np.linalg.solve(m, b["point"] - a["point"])
-    return tuple((a["point"] + t[0] * a["dir"]).tolist())
-
-
-def detect_landmarks(frame: np.ndarray, debug: Path | None = None) -> Points | None:
-    """Name the court line intersections: the two longest near-horizontal lines are the sidelines, the
-    lines crossing them are assigned to TRANSVERSE names by the homography that fits them best."""
-    lines = merge_segments(white_segments(frame))
-    horizontal = [g for g in lines if abs(g["dir"][1]) < math.sin(math.radians(25)) and g["length"] > 150]
-    horizontal.sort(key=lambda g: -g["length"])
-    floor = floor_mask(frame)
-    sidelines = None
-    for a, b in itertools.combinations(horizontal, 2):
-        # Sidelines are at least 60 px apart with floor between them.
-        xs = np.linspace(0.2 * frame.shape[1], 0.8 * frame.shape[1], 50)
-        ys = [(line_y(a, x) + line_y(b, x)) / 2 for x in xs]
-        between = [floor[int(y), int(x)] for x, y in zip(xs, ys) if 0 <= y < frame.shape[0]]
-        if abs(a["point"][1] - b["point"][1]) > 60 and between and np.mean(between) > 0.6:
-            sidelines = sorted((a, b), key=lambda g: g["point"][1])
-            break
-    if sidelines is None:
-        return None
-    far, near = sidelines
-    transverse = []
-    for g in lines:
-        if abs(g["dir"][1]) < math.sin(math.radians(25)) or g["length"] < 60:
-            continue
-        ends = cross(g, far), cross(g, near)
-        if None in ends:
-            continue
-        # The near end must be below the far end and the line must reach between the sidelines.
-        ys = [y for _, y in g["ends"]]
-        if min(ys) > near["point"][1] - 20 or max(ys) < far["point"][1] + 20:
-            continue
-        transverse.append((ends[1][0], ends, g["length"]))
-    # ponytail: the 8 longest keep the hypothesis search small.
-    transverse = sorted(sorted(transverse, key=lambda t: -t[2])[:8])
-    transverse = [(x, ends) for x, ends, _ in transverse]
-    if debug:
-        canvas = frame.copy()
-        for g in lines:
-            p, d = g["point"], g["dir"]
-            cv2.line(canvas, tuple(map(int, p - 2000 * d)), tuple(map(int, p + 2000 * d)), (0, 0, 255), 1)
-        for _, (f, n) in transverse:
-            cv2.circle(canvas, tuple(map(int, f)), 5, (0, 255, 0), 2)
-            cv2.circle(canvas, tuple(map(int, n)), 5, (0, 255, 0), 2)
-        cv2.imwrite(str(debug), canvas)
-    best = None
-    for k in range(min(len(transverse), 5), 2, -1):
-        for chosen in itertools.combinations(transverse, k):
-            for names in itertools.combinations(TRANSVERSE, k):
-                points = {}
-                for name, (_, (f, n)) in zip(names, chosen):
-                    points[f"{name}_far"], points[f"{name}_near"] = f, n
-                try:
-                    error = fit(points).error
-                except ValueError:
-                    continue
-                if best is None or error < best[0]:
-                    best = (error, points)
-        if best and best[0] < 3.0:
-            break
-    return best[1] if best else None
-
-
-def auto(pairs: list[tuple[Path, Path]], debug: Path | None) -> None:
+def refine_bench(pairs: list[tuple[Path, Path]], seeds: int) -> None:
     for video, truth_path in pairs:
-        frame, truth, tolerance = load_ground_truth(truth_path)
-        image = read_frame(video, frame)
-        detected = detect_landmarks(image, debug / f"{video.stem}_{frame}_lines.png" if debug else None)
-        if not detected:
-            print(f"{video.stem} frame {frame}: no court found\n")
-            continue
-        common = sorted(set(detected) & set(truth))
-        print(f"{video.stem} frame {frame}: {len(detected)} landmarks detected, {len(common)} in the ground truth")
-        print(f"{'landmark':20} {'detected':>16} {'truth':>16} {'px':>6}")
-        for name in sorted(detected):
-            d = detected[name]
-            if name in truth:
-                px = math.dist(d, truth[name])
-                print(f"{name:20} {d[0]:8.1f}{d[1]:8.1f} {truth[name][0]:8.1f}{truth[name][1]:8.1f} {px:6.1f}")
-            else:
-                print(f"{name:20} {d[0]:8.1f}{d[1]:8.1f} {'not labelled':>16}")
-        calibration = fit(detected)
-        print(f"fit on the detected landmarks RMS {calibration.error:.1f} px; error on the ground truth:")
-        report({name: residual(calibration, name, image) for name, image in truth.items()}, tolerance)
+        truth = line_landmarks(load_ground_truth(truth_path)[1])
+        image = ground_truth_image(video, truth_path)
+        snappable = [n for n in truth if n not in UNSNAPPED]
+        clicked, final, snapped = [], [], {n: [] for n in snappable}
+        meters_clicks, meters_refined = [], []
+        for seed in range(seeds):
+            clicks = rough_clicks(truth, seed)
+            points, _, _ = refine(image, clicks)
+            for name, p in truth.items():
+                clicked.append(math.dist(clicks[name], p))
+                final.append(math.dist(points.get(name, clicks[name]), p))
+                if name in points:
+                    snapped[name].append(math.dist(points[name], p))
+            meters_clicks += court_error(fit(clicks, ransac=False), truth)
+            meters_refined += court_error(calibrate(image, clicks), truth)
+        print(f"{video.stem}: {len(truth)} landmarks x {seeds} seeds of clicks 10-20 px off")
+        print(f"{'landmark':20} {'snapped':>8}  error once snapped, px")
+        for name, errors in snapped.items():
+            print(f"{name:20} {len(errors):3}/{seeds:<4}  {stats(errors)}")
+        every = [e for errors in snapped.values() for e in errors]
+        print(f"snapped {len(every)}/{len(snappable) * seeds} of the snappable landmarks: {stats(every)}")
+        print(f"points, px     clicks  {stats(clicked)}")
+        print(f"               refined {stats(final)}   (clicks kept where not snapped)")
+        print(f"court, m       clicks  {stats(meters_clicks)}   (least squares)")
+        print(f"               refined {stats(meters_refined)}\n")
+
+
+# Library courts built from the ground truth, and the frames matched against them: VIDEO or
+# VIDEO@FRAME, with the ground truth that applies when the camera is the same.
+LIBRARY = {"side_club": "data/side_club.mp4", "side_vnl": "data/side_vnl.mp4@785"}
+TARGETS = {
+    "side_club": [
+        ("data/side_club.mp4", "side_club"),
+        ("data/side_long.mp4", "side_club"),
+        ("data/side_holdout.mp4", "side_club"),
+        ("data/side_vnl.mp4@785", None),
+        ("data/side_vnl.mp4@1500", None),
+        ("data/side_vnl.mp4@2500", None),
+        ("data/backcourt.mp4@500", None),
+        ("data/club.mp4@500", None),
+    ],
+    "side_vnl": [
+        ("data/side_vnl.mp4@785", "side_vnl"),
+        ("data/side_vnl.mp4@1500", None),
+        ("data/side_vnl.mp4@2500", None),
+        ("data/side_vnl.mp4@4300", None),
+        ("data/side_club.mp4", None),
+        ("data/backcourt.mp4@500", None),
+        ("data/club.mp4@500", None),
+    ],
+}
+# Simulated stand moves on side_long: shift x, shift y (px), roll (degrees), zoom.
+MOVES = [(40, 20, 0, 1), (90, 0, 0, 1), (0, -90, 0, 1), (120, 0, 0, 1), (0, 0, 2, 1), (0, 0, 4, 1), (0, 0, 6, 1),
+         (0, 0, 0, 1.06), (0, 0, 0, 1.1), (30, 15, 1.5, 1.03), (60, -30, 2.5, 1.05)]
+
+
+def load_image(spec: str, cache: dict) -> np.ndarray:
+    if spec not in cache:
+        video, _, frame = spec.partition("@")
+        cache[spec] = read_frame(Path(video), int(frame)) if frame else background(Path(video))
+    return cache[spec]
+
+
+def auto_row(label: str, image: np.ndarray, court: Calibration, truth: Points | None) -> None:
+    calibration, found, accepted = match(image, court)
+    cells = f"{found:5.2f}  {len(calibration.points)}/{len(court.points)}  {'match' if accepted else 'no   '}"
+    if accepted and truth:
+        points = {**calibration.clicks, **calibration.points}
+        px = [math.dist(points[n], p) for n, p in truth.items()]
+        cells += f"  landmarks {stats(px)} px  court median {np.median(court_error(calibration, truth)):.2f} m"
+    print(f"  {label:28} {cells}")
+
+
+def auto_bench() -> None:
+    cache: dict = {}
+    for name, spec in LIBRARY.items():
+        truth = line_landmarks(load_ground_truth(GROUND_TRUTH / f"{name}.json")[1])
+        court = calibrate(load_image(spec, cache), truth)
+        print(f"court {name} (ground truth as clicks): {len(court.points)} landmarks snapped, {len(court.template)} line samples")
+        print(f"  {'frame':28} found  snapped  verdict")
+        for target, truth_name in TARGETS[name]:
+            target_truth = line_landmarks(load_ground_truth(GROUND_TRUTH / f"{truth_name}.json")[1]) if truth_name else None
+            auto_row(target, load_image(target, cache), court, target_truth)
+        if name == "side_club":
+            image = load_image("data/side_long.mp4", cache)
+            for dx, dy, roll, zoom in MOVES:
+                m = cv2.getRotationMatrix2D((image.shape[1] / 2, image.shape[0] / 2), roll, zoom)
+                m[:, 2] += (dx, dy)
+                warped = cv2.warpAffine(image, m, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_REPLICATE)
+                moved = {n: tuple(m @ [*p, 1.0]) for n, p in truth.items()}
+                auto_row(f"side_long moved {dx},{dy} px {roll}° x{zoom}", warped, court, moved)
+        print()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
-    for command in ("manual", "auto"):
+    for command in ("manual", "refine"):
         p = sub.add_parser(command)
         p.add_argument("pairs", nargs="+", help="VIDEO:GROUND_TRUTH_JSON")
-        if command == "auto":
-            p.add_argument("--debug", type=Path, help="Folder for the detected-lines images")
+        if command == "refine":
+            p.add_argument("--seeds", type=int, default=20)
+    sub.add_parser("auto")
     args = parser.parse_args()
+    if args.command == "auto":
+        auto_bench()
+        return
     pairs = [tuple(map(Path, p.split(":"))) for p in args.pairs]
     if args.command == "manual":
         manual(pairs)
     else:
-        if args.debug:
-            args.debug.mkdir(parents=True, exist_ok=True)
-        auto(pairs, args.debug)
+        refine_bench(pairs, args.seeds)
 
 
 if __name__ == "__main__":
