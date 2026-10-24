@@ -180,6 +180,25 @@
     stroke-width: 0.12px;
     stroke-linejoin: round;
   }
+  /* Dots running along the flight pointed at, from the player to where the ball went. */
+  .flight-flow {
+    fill: none;
+    stroke: var(--card);
+    stroke-width: 0.08px;
+    stroke-linecap: round;
+    stroke-dasharray: 0.01px 0.6px;
+    animation: flight-flow 0.5s linear infinite;
+  }
+  @keyframes flight-flow {
+    to {
+      stroke-dashoffset: -0.61px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flight-flow {
+      animation: none;
+    }
+  }
   /* A ring, unlike the filled player dots whatever the teams' colours. */
   .ball-mark {
     r: 0.3px;

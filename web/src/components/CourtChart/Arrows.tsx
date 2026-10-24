@@ -8,7 +8,7 @@ const DIM = 0.12;
 
 /** Serves and attacks as the ball's flights, coloured by outcome, from the player who played them
  * to the next player or the ball on the floor. Points and faults lie over the balls still in play;
- * pointing at one flight dims the others. */
+ * pointing at one flight dims the others and runs dots along it. */
 export function Arrows({ arrows, describe, onPlay }: { arrows: Arrow[]; describe: (c: Contact) => string; onPlay: (c: Contact) => void }) {
   const { t } = useTranslation();
   const [active, setActive] = useState<number | null>(null);
@@ -30,7 +30,8 @@ export function Arrows({ arrows, describe, onPlay }: { arrows: Arrow[]; describe
           className="transition-opacity duration-150"
           style={{ color: color(a.result) }}
         >
-          <path d={a.shape} fill="currentColor" fillOpacity={a.result === 'play' ? 0.5 : 0.9} />
+          <path d={a.shape} fill="currentColor" fillOpacity={a.result === 'play' && active !== a.from.i ? 0.5 : 0.9} />
+          {active === a.from.i && <path d={a.curve} className="flight-flow" />}
           <path d={a.curve} fill="none" stroke="transparent" strokeWidth={0.8} />
         </SvgButton>
       ))}

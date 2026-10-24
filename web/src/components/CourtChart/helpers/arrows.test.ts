@@ -18,16 +18,19 @@ describe('arrows', () => {
     expect(out[1].curve).toMatch(/^M1,0Q.* -4\.62,0$/);
   });
 
-  it('widens from the player to the end, thinner for a ball still in play', () => {
+  it('widens from the player to a pointed head, thinner for a ball still in play', () => {
     const all = [contact(0, 0, 'serve', 0, 0), contact(1, 0, 'pass', 10, 0), contact(2, 1, 'attack', 0, 0, 'point'), contact(3, 1, 'floor', 10, 0)];
-    const width = (shape: string, k: number) => {
-      const pts = shape.slice(1, -1).split('L').map((p) => p.split(',').map(Number));
-      return Math.hypot(pts[k][0] - pts[pts.length - 1 - k][0], pts[k][1] - pts[pts.length - 1 - k][1]);
-    };
+    const points = (shape: string) => shape.slice(1, -1).split('L').map((p) => p.split(',').map(Number));
     const [play, point] = arrows(all, all);
-    expect(width(point.shape, 0)).toBeCloseTo(0.06);
-    expect(width(point.shape, 16)).toBeCloseTo(0.38);
-    expect(width(play.shape, 16)).toBeCloseTo(0.228);
+    const pts = points(point.shape);
+    // 17 points left of the shaft, the head's left barb, its tip, its right barb, 17 right.
+    expect(pts).toHaveLength(37);
+    expect(Math.hypot(pts[0][0] - pts[36][0], pts[0][1] - pts[36][1])).toBeCloseTo(0.06);
+    expect(Math.hypot(pts[16][0] - pts[20][0], pts[16][1] - pts[20][1])).toBeCloseTo(0.26);
+    expect(Math.hypot(pts[17][0] - pts[19][0], pts[17][1] - pts[19][1])).toBeCloseTo(0.6);
+    expect(pts[18]).toEqual([9.62, 0]);
+    const head = points(play.shape);
+    expect(Math.hypot(head[17][0] - head[19][0], head[17][1] - head[19][1])).toBeCloseTo(0.36);
   });
 
   it('skips a touch without a placed next touch in its rally', () => {

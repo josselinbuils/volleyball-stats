@@ -57,7 +57,7 @@
   "notes": {
     "contacts": "Chaque touche est placée aux pieds du joueur qui l'a jouée, ou du joueur le plus proche sous le ballon quand ce joueur n'est pas connu. Un ballon au sol est placé exactement.",
     "zones": "Les zones sont numérotées depuis la ligne de fond de chaque équipe : 1 arrière droit, 2 avant droit, 3 avant centre, 4 avant gauche, 5 arrière gauche, 6 arrière centre. Les touches hors du terrain comptent dans la zone la plus proche.",
-    "directions": "Point : le ballon est tombé dans le camp adverse. Faute : dehors, dans son propre camp ou dans le filet. Chaque trajet part du joueur qui a servi ou attaqué et s'élargit vers là où le ballon est allé ; passez dessus pour le suivre seul."
+    "directions": "Point : le ballon est tombé dans le camp adverse. Faute : dehors, dans son propre camp ou dans le filet. Chaque trajet part du joueur qui a servi ou attaqué et pointe vers là où le ballon est allé ; passez dessus pour le suivre seul."
   },
   "typeFilter": "Action",
   "allActions": "Toutes les actions",
