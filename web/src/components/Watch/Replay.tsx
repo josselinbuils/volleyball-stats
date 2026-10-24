@@ -27,6 +27,9 @@ export function Replay() {
 
   return (
     <figure className="m-0 min-w-0">
+      <p className="mb-2 line-clamp-2 h-12 font-semibold" aria-live="off" title={now}>
+        {now}
+      </p>
       <div className="relative">
         <Court role="img" aria-label={t('replayLabel')} ends={ends}>
           {dots.map(({ person, x, y }) => {
@@ -52,9 +55,6 @@ export function Replay() {
         )}
       </div>
       <figcaption className="mt-3 grid gap-2">
-        <p className="line-clamp-2 h-12 font-semibold" aria-live="off" title={now}>
-          {now}
-        </p>
         <Legend>
           {GROUPS.map((g) => (
             <span key={g} className="inline-flex min-w-0 items-center gap-2">
