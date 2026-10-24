@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import pytest
 
-from volleyball_stats.court import LANDMARKS, LINES, UNSNAPPED, Calibration, Clicks, calibrate, distort, draw_grid, fit, match, refine, undistort
+from volleyball_stats.court import LANDMARKS, LINES, UNSNAPPED, Calibration, Clicks, calibrate, distort, draw_grid, fit, magnifier, match, refine, undistort
 
 
 class TestFit:
@@ -140,6 +140,27 @@ class TestClicks:
         assert clicks.points == {"a": (1.0, 2.0)} and clicks.current == "b"
         clicks.click(5.0, 6.0)
         assert clicks.points == {"a": (1.0, 2.0), "b": (5.0, 6.0)} and clicks.current == "c"
+
+
+class TestMagnifier:
+    def test_zooms_around_the_center_with_a_cross_through_it(self):
+        image = np.zeros((80, 100, 3), dtype=np.uint8)
+        image[30, 40] = 255
+
+        inset = magnifier(image, (40.2, 29.8), radius=2, zoom=3)
+
+        assert inset.shape == (15, 15, 3)
+        # The center pixel fills rows and columns 6-8; the cross runs along row and column 7.
+        assert inset[6, 6].tolist() == [255, 255, 255]
+        assert inset[7, 0].tolist() == [0, 0, 255]
+        assert inset[0, 0].tolist() == [0, 0, 0]
+
+    def test_pads_past_the_image_edges(self):
+        inset = magnifier(np.full((80, 100, 3), 255, dtype=np.uint8), (-5, 0), radius=2, zoom=3)
+
+        assert inset.shape == (15, 15, 3)
+        assert inset[0, 0].tolist() == [0, 0, 0]
+        assert inset[14, 14].tolist() == [255, 255, 255]
 
 
 class TestDrawGrid:

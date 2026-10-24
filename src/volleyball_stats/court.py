@@ -22,6 +22,7 @@ OpenCV intrinsics for the video resolution: {"model": "fisheye" | "standard", "K
 # a match. Without it the homography is only as good as the benchmark's side_club numbers.
 
 import argparse
+import base64
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -425,6 +426,19 @@ class Clicks:
             self.points.pop(self.names[self.index], None)
 
 
+def magnifier(image: np.ndarray, center: tuple[float, float], radius: int = 25, zoom: int = 5) -> np.ndarray:
+    """Zoomed view of `image` around `center`, with a cross through the center pixel."""
+    height, width = image.shape[:2]
+    x, y = min(max(round(center[0]), 0), width - 1), min(max(round(center[1]), 0), height - 1)
+    padded = cv2.copyMakeBorder(image, radius, radius, radius, radius, cv2.BORDER_CONSTANT)
+    patch = padded[y : y + 2 * radius + 1, x : x + 2 * radius + 1]
+    inset = cv2.resize(patch, None, fx=zoom, fy=zoom, interpolation=cv2.INTER_NEAREST)
+    middle = radius * zoom + zoom // 2
+    cv2.line(inset, (middle, 0), (middle, inset.shape[0]), (0, 0, 255), 1)
+    cv2.line(inset, (0, middle), (inset.shape[1], middle), (0, 0, 255), 1)
+    return inset
+
+
 def draw_clicks(image: np.ndarray, clicks: Clicks, scale: float) -> np.ndarray:
     """The frame with the placed landmarks, the one to click and where it is on a court sketch."""
     out = image.copy()
@@ -451,27 +465,60 @@ def draw_clicks(image: np.ndarray, clicks: Clicks, scale: float) -> np.ndarray:
 
 
 def click_landmarks(image: np.ndarray) -> Points:
-    """Let the user click the landmarks in an OpenCV window; Enter, q or Esc ends."""
-    scale = min(1.0, 1600 / image.shape[1])
+    """Let the user click the landmarks in a window with a cross cursor and a zoomed view following
+    it, cut from the full-resolution frame; Enter, q or Esc ends.
+
+    Tk rather than an OpenCV window: OpenCV's macOS window cannot change the cursor and reports
+    clicks offset from the arrow's tip.
+    """
+    import tkinter
+
+    root = tkinter.Tk()
+    root.title("court")
+    height, width = image.shape[:2]
+    scale = min(1.0, (root.winfo_screenwidth() - 100) / width, (root.winfo_screenheight() - 150) / height)
     shown = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    canvas = tkinter.Canvas(root, width=shown.shape[1], height=shown.shape[0], cursor="crosshair", highlightthickness=0)
+    canvas.pack()
+    frame_item = canvas.create_image(0, 0, anchor="nw")
+    zoom_item = canvas.create_image(0, 0, anchor="nw")
+    # Tk only shows the images Python still references.
+    photos: dict[int, tkinter.PhotoImage] = {}
     clicks = Clicks()
 
-    def on_mouse(event: int, x: int, y: int, *_) -> None:
-        if event == cv2.EVENT_LBUTTONDOWN:
-            clicks.click(x / scale, y / scale)
+    def show(item: int, array: np.ndarray) -> None:
+        png = cv2.imencode(".png", array, [cv2.IMWRITE_PNG_COMPRESSION, 0])[1]
+        photos[item] = tkinter.PhotoImage(data=base64.b64encode(png.tobytes()).decode())
+        canvas.itemconfigure(item, image=photos[item])
 
-    cv2.namedWindow("court")
-    cv2.setMouseCallback("court", on_mouse)
-    while True:
-        cv2.imshow("court", draw_clicks(shown, clicks, scale))
-        key = cv2.waitKey(30) & 0xFF
-        if key == ord("s"):
-            clicks.skip()
-        elif key == ord("u"):
-            clicks.undo()
-        elif key in (13, 27, ord("q")):
-            break
-    cv2.destroyAllWindows()
+    def redraw() -> None:
+        show(frame_item, draw_clicks(shown, clicks, scale))
+
+    def on_motion(event: tkinter.Event) -> None:
+        inset = magnifier(image, (event.x / scale, event.y / scale))
+        size = inset.shape[0]
+        # Beside the cursor, flipped near the right and bottom edges so it never hides the target.
+        x = event.x + 30 if event.x + 30 + size < shown.shape[1] else event.x - 30 - size
+        y = event.y + 30 if event.y + 30 + size < shown.shape[0] else event.y - 30 - size
+        canvas.coords(zoom_item, x, y)
+        show(zoom_item, inset)
+
+    def on_click(event: tkinter.Event) -> None:
+        clicks.click(event.x / scale, event.y / scale)
+        redraw()
+
+    def on_key(action) -> None:
+        action()
+        redraw()
+
+    canvas.bind("<Motion>", on_motion)
+    canvas.bind("<Button-1>", on_click)
+    root.bind("s", lambda _: on_key(clicks.skip))
+    root.bind("u", lambda _: on_key(clicks.undo))
+    for key in ("<Return>", "<Escape>", "q"):
+        root.bind(key, lambda _: root.destroy())
+    redraw()
+    root.mainloop()
     return clicks.points
 
 
