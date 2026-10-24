@@ -6,16 +6,16 @@ import { Legend } from '@/components/Court';
 import { clock, useFormat } from '@/lib/format';
 import { color, groupName, match, sets, TYPES } from '@/lib/match';
 import { usePlayer, useVideoTime } from '@/lib/player';
-import { rallyAt, rallyClips } from '@/lib/playlist';
+import { rallyClips, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 
-/** One card per rally with the letters of its touches; the current rally stands out. */
+/** One card per rally with the letters of its touches; the current rally (`rallyNear`) stands out. */
 export function RallyCards() {
   const { t } = useTranslation();
   const f = useFormat();
   const { play } = usePlayer();
   const { set, rallies } = useSet();
-  const current = useVideoTime((time) => rallyAt(rallies, time)?.i ?? -1);
+  const current = useVideoTime((time) => rallyNear(rallies, time)?.i ?? -1);
   const list = useRef<HTMLOListElement>(null);
   const present = TYPES.filter((type) => rallies.some((r) => r.contacts.some((c) => c.type === type)));
 

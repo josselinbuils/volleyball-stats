@@ -19,13 +19,11 @@
   "watchN_other": "Revoir ces {{count, number}} moments",
   "video": "Vidéo",
   "videoCaption": "Cliquez sur un échange pour le revoir. À côté de la vidéo, une vue du dessus du terrain suit le jeu.",
-  "idle": "Rien de sélectionné. Cliquez sur un nombre, un échange ou un point du terrain pour le revoir.",
   "nowPlaying": "En cours",
   "iOfN": "{{i}} sur {{n}}",
   "prev": "Précédent",
   "next": "Suivant",
   "stop": "Arrêter",
-  "watchAll": "Revoir tous les échanges",
   "replayLabel": "Vue du dessus du terrain avec les joueurs et le ballon, synchronisée avec la vidéo",
   "replayNote": "La hauteur du ballon n'est pas connue : sa trajectoire entre deux touches est approximative.",
   "noPlayers": "Les positions des joueurs ne sont pas disponibles pour ce match.",
@@ -38,7 +36,6 @@
   "betweenRallies": "Entre deux échanges",
   "lastTouch": "dernière touche : {{type}}, {{who}}",
   "rallies": "Échanges",
-  "allRallies": "Tous les échanges",
   "watchRally": "Revoir cet échange, puis les suivants",
   "noRallies": "Aucun échange n'a été trouvé dans cette vidéo.",
   "letters": "Lettres :",
@@ -172,5 +169,10 @@
   "sideFilter": "Côté",
   "bothSides": "Les deux côtés",
   "teamFilter": "Équipe",
-  "bothTeams": "Les deux équipes"
+  "bothTeams": "Les deux équipes",
+  "selectedRally": "Échange sélectionné",
+  "playRally": "Lire",
+  "prevRally": "Échange précédent",
+  "nextRally": "Échange suivant",
+  "noRally": "Aucun échange trouvé dans la vidéo."
 }

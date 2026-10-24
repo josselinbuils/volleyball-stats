@@ -50,6 +50,12 @@ export function rallyAt<R extends { start: number; end: number }>(rallies: R[], 
   return rallies.find((r) => time >= r.start - PAD && time <= r.end + PAD);
 }
 
+/** The rally to show at `time` when nothing plays: the one whose clip holds it, else the next one,
+ * else the last. */
+export function rallyNear<R extends { start: number; end: number }>(rallies: R[], time: number): R | undefined {
+  return rallyAt(rallies, time) ?? rallies.find((r) => r.start - PAD > time) ?? rallies[rallies.length - 1];
+}
+
 /** What a clip shows, `name` naming a team. */
 export function clipLabel(clip: Clip, t: TFunction, f: Format, name: (g: Group) => string): string {
   if (clip.length !== undefined) {

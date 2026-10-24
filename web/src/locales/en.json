@@ -19,13 +19,11 @@
   "watchN_other": "Watch these {{count, number}} moments",
   "video": "Video",
   "videoCaption": "Click a rally to watch it. Beside the video, a top view of the court follows the play.",
-  "idle": "Nothing selected yet. Click a number, a rally or a dot on the court to watch it.",
   "nowPlaying": "Now playing",
   "iOfN": "{{i}} of {{n}}",
   "prev": "Previous",
   "next": "Next",
   "stop": "Stop",
-  "watchAll": "Watch all rallies",
   "replayLabel": "Top view of the court with the players and the ball, in sync with the video",
   "replayNote": "The ball's height is unknown, so its path between two touches is approximate.",
   "noPlayers": "Player positions are not available for this match.",
@@ -38,7 +36,6 @@
   "betweenRallies": "Between rallies",
   "lastTouch": "last touch: {{type}}, {{who}}",
   "rallies": "Rallies",
-  "allRallies": "All rallies",
   "watchRally": "Watch this rally, then the next ones",
   "noRallies": "No rally was found in this video.",
   "letters": "Letters:",
@@ -172,5 +169,10 @@
   "sideFilter": "Side",
   "bothSides": "Both sides",
   "teamFilter": "Team",
-  "bothTeams": "Both teams"
+  "bothTeams": "Both teams",
+  "selectedRally": "Selected rally",
+  "playRally": "Play",
+  "prevRally": "Previous rally",
+  "nextRally": "Next rally",
+  "noRally": "No rally found in the video."
 }

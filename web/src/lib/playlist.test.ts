@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Contact, Rally } from '@/lib/match';
 import type { TFunction } from 'i18next';
 import type { Format } from '@/lib/format';
-import { clipLabel, contactClips, rallyAt, rallyClips } from '@/lib/playlist';
+import { clipLabel, contactClips, rallyAt, rallyClips, rallyNear } from '@/lib/playlist';
 
 describe('contactClips', () => {
   const touch = (t: number, type: string, g: number, rally = 0, player: number | null = null) => ({ t, type, g, rally, player }) as Contact;
@@ -46,5 +46,20 @@ describe('rallyClips', () => {
     expect(rallyAt(rallies, 4.9)?.i).toBe(0);
     expect(rallyAt(rallies, 19.2)?.i).toBe(7);
     expect(rallyAt(rallies, 10)).toBeUndefined();
+  });
+
+  describe('rallyNear', () => {
+    const rallies = [
+      { i: 0, start: 10, end: 15 },
+      { i: 1, start: 30, end: 40 },
+    ];
+
+    it('takes the rally being played, else the next one, else the last', () => {
+      expect(rallyNear(rallies, 12)?.i).toBe(0);
+      expect(rallyNear(rallies, 0)?.i).toBe(0);
+      expect(rallyNear(rallies, 20)?.i).toBe(1);
+      expect(rallyNear(rallies, 90)?.i).toBe(1);
+      expect(rallyNear([], 5)).toBeUndefined();
+    });
   });
 });
