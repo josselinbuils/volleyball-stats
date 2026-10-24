@@ -124,5 +124,12 @@
   "onTheLeft": "{{team}} on the left",
   "teamFilter": "Team",
   "bothTeams": "Both teams",
-  "mirrored": "Each team stays on the same half: the rallies it played on the other end are turned around."
+  "mirrored": "Each team stays on the same half: the rallies it played on the other end are turned around.",
+  "theme": "Theme",
+  "themes": {
+    "light": "Light",
+    "dark": "Dark",
+    "auto": "Automatic (follows the device)"
+  },
+  "matchTitle": "Match {{one}} vs {{two}}"
 }

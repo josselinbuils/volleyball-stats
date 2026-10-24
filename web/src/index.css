@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* index.html sets .dark on <html> before the first paint, from the saved theme or the system's. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-heading: var(--font-sans);
@@ -76,44 +79,42 @@
   --net: #52514e;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --background: #111110;
-    --foreground: #f0efec;
-    --card: #1b1b1a;
-    --card-foreground: #f0efec;
-    --popover: #242422;
-    --popover-foreground: #f0efec;
-    --primary: #2d6fcb;
-    --primary-foreground: #ffffff;
-    --secondary: #2a2a28;
-    --secondary-foreground: #f0efec;
-    --muted: #242422;
-    --muted-foreground: #a8a69d;
-    --accent: #2a2a28;
-    --accent-foreground: #f0efec;
-    --destructive: #e66060;
-    --border: #2f2f2c;
-    --input: #45453f;
-    --ring: #5b9ae8;
-    --link: #93bff3;
-    --chart: #4b8fe2;
-    --court: #262624;
-    --court-line: #5d5c56;
-    --point: #3fbf47;
-    --error: #ec6262;
-    --play: #84827b;
-    --serve: #3f8ae6;
-    --pass: #e0682f;
-    --set: #1fa877;
-    --attack: #d49200;
-    --relance: #db5a8a;
-    --block: #2f9e2f;
-    --dig: #9085e9;
-    --floor: #8e8c85;
-    --net: #c3c2b7;
-  }
+.dark {
+  color-scheme: dark;
+  --background: #111110;
+  --foreground: #f0efec;
+  --card: #1b1b1a;
+  --card-foreground: #f0efec;
+  --popover: #242422;
+  --popover-foreground: #f0efec;
+  --primary: #2d6fcb;
+  --primary-foreground: #ffffff;
+  --secondary: #2a2a28;
+  --secondary-foreground: #f0efec;
+  --muted: #242422;
+  --muted-foreground: #a8a69d;
+  --accent: #2a2a28;
+  --accent-foreground: #f0efec;
+  --destructive: #e66060;
+  --border: #2f2f2c;
+  --input: #45453f;
+  --ring: #5b9ae8;
+  --link: #93bff3;
+  --chart: #4b8fe2;
+  --court: #262624;
+  --court-line: #5d5c56;
+  --point: #3fbf47;
+  --error: #ec6262;
+  --play: #84827b;
+  --serve: #3f8ae6;
+  --pass: #e0682f;
+  --set: #1fa877;
+  --attack: #d49200;
+  --relance: #db5a8a;
+  --block: #2f9e2f;
+  --dig: #9085e9;
+  --floor: #8e8c85;
+  --net: #c3c2b7;
 }
 
 @layer base {
@@ -141,9 +142,9 @@
     cursor: pointer;
     outline: none;
   }
+  /* Team dots take their outline from the --teamN-edge stroke attribute. */
   .dot-mark {
     r: 0.36px;
-    stroke: var(--card);
     stroke-width: 2px;
     vector-effect: non-scaling-stroke;
   }
@@ -163,7 +164,6 @@
   }
   .player-mark {
     r: 0.7px;
-    stroke: var(--card);
     stroke-width: 1.5px;
     vector-effect: non-scaling-stroke;
   }

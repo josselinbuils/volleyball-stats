@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useFormat } from '@/lib/format';
-import { groupName, match, teamColor, type Contact } from '@/lib/match';
+import { groupName, match, teamColor, teamRing, type Contact } from '@/lib/match';
 import { cellContacts } from '@/components/CourtChart/helpers/zones';
 import { SvgButton } from '@/components/CourtChart/SvgButton';
 
@@ -15,7 +15,7 @@ export function ZoneGrid({ shown, onPlay }: { shown: Contact[]; onPlay: (title: 
     const n = inside[k].length;
     const cell = (
       <>
-        <rect x={z.x + 0.06} y={z.y + 0.06} width={z.w - 0.12} height={z.h - 0.12} rx={0.2} fill={teamColor(z.x < 0 ? 1 : 2)} fillOpacity={0.06 + (0.5 * n) / max} className="[vector-effect:non-scaling-stroke]" />
+        <rect x={z.x + 0.06} y={z.y + 0.06} width={z.w - 0.12} height={z.h - 0.12} rx={0.2} fill={teamColor(z.x < 0 ? 1 : 2)} stroke={teamRing(z.x < 0 ? 1 : 2)} fillOpacity={0.06 + (0.5 * n) / max} className="[vector-effect:non-scaling-stroke]" />
         <text x={z.x + 0.3} y={z.y + 0.5} fontSize={0.5} fill="var(--muted-foreground)" dominantBaseline="central">
           {z.zone}
         </text>

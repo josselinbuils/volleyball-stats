@@ -7,7 +7,8 @@ a script rather than fetched JSON so it opens from the disk by double-clicking i
 players' positions over the whole video from players.js, which it loads once it has rendered. Every
 path is relative: the site directory serves as plain static files. The video is symlinked unless
 --copy-video, for hosting; a poster frame stands in for it until it plays. Teams (names, colours,
-sets) come from teams.json, written by match.py --players. --theme picks a club theme from
+sets, the match's date and title) come from teams.json, written by match.py --players; a teams.json
+from before the date takes the video's recording date. --theme picks a club theme from
 branding/NAME/brand.json (logo, colours), `none` for the neutral one.
 """
 
@@ -23,6 +24,7 @@ import numpy as np
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, box_at
 from volleyball_stats.court import ATTACK, LENGTH, WIDTH, Calibration
+from volleyball_stats.teams import recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
 BRANDING = Path("branding")
@@ -234,6 +236,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "fps": round(fps, 3),
         "duration": round(frame_count / fps, 2),
         "teams": teams and [{"name": t["name"], "colour": t["colour"] or t["jersey"]} for t in teams["teams"]],
+        "date": teams and (teams.get("date") or recording_date(video)),
+        "title": teams and teams.get("title"),
         "rallies": rallies,
         "contacts": found,
         "zones": zone_cells(),

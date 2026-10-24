@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
-import { GROUPS, groupName, hasTeams, match, playerNumber, rallies, teamColor, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasTeams, match, playerNumber, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
 import { useVideoTime } from '@/lib/player';
 import { usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
@@ -34,7 +34,7 @@ export function Replay() {
             const n = rally ? playerNumber(track, rally) : null;
             return (
               <g key={track}>
-                <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} />
+                <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} stroke={teamEdge(team)} />
                 {n !== null && (
                   <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>
                     {n}
@@ -58,7 +58,7 @@ export function Replay() {
         <Legend>
           {GROUPS.map((g) => (
             <span key={g} className="inline-flex min-w-0 items-center gap-2">
-              <Swatch color={teamColor(g)} />
+              <Swatch color={teamColor(g)} ring={teamRing(g)} />
               <span className="truncate">{hasTeams ? groupName(t, g) : t(g === 1 ? 'leftTeam' : 'rightTeam')}</span>
             </span>
           ))}

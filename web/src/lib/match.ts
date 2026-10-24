@@ -80,6 +80,10 @@ interface Data {
   zones: ZoneCell[];
   tracks: Record<string, { team: Group; jersey: number | null }>;
   brand?: Brand | null;
+  /** yyyy-mm-dd, with teams. */
+  date?: string | null;
+  /** The title the user typed, null for the default one. */
+  title?: string | null;
 }
 
 declare global {
@@ -99,6 +103,8 @@ export const match = {
   zones: data.zones,
   tracks: data.tracks,
   brand: data.brand ?? null,
+  date: data.date ?? null,
+  title: data.title ?? null,
 };
 export const teams = data.teams;
 export const hasTeams = teams !== null;
@@ -141,3 +147,7 @@ export function playerNumber(track: number | null, rally: Rally): number | null 
 
 export const color = (key: string) => `var(--${key})`;
 export const teamColor = (g: Group) => `var(--team${g})`;
+/** The outline a team's colour needs on the current theme, transparent when none. */
+export const teamRing = (g: Group) => `var(--team${g}-ring)`;
+/** A team dot's outline: its ring, else the card's colour parting overlapping dots. */
+export const teamEdge = (g: Group) => `var(--team${g}-edge)`;

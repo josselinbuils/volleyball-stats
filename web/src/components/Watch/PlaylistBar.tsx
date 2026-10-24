@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
-import { groupName, match, teamColor } from '@/lib/match';
+import { groupName, match, teamColor, teamRing } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { clipLabel, rallyClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
@@ -28,7 +28,7 @@ export function PlaylistBar() {
               {`${t('nowPlaying')} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}`}
             </span>
             <span className="line-clamp-2" title={details}>
-              {clip.team && <Swatch color={teamColor(clip.team)} className="mr-1.5 align-[-1px]" />}
+              {clip.team && <Swatch color={teamColor(clip.team)} ring={teamRing(clip.team)} className="mr-1.5 align-[-1px]" />}
               <b className="font-semibold text-foreground">{playlist.title(t)}</b>
               {` · ${clipLabel(clip, t, f, (g) => groupName(t, g))}`}
             </span>

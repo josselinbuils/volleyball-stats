@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
 
-export function Swatch({ color, className }: { color: string; className?: string }) {
-  return <span aria-hidden className={cn('inline-block size-2.5 shrink-0 rounded-full', className)} style={{ background: color }} />;
+export function Swatch({ color, ring, className }: { color: string; ring?: string; className?: string }) {
+  return <span aria-hidden className={cn('inline-block size-2.5 shrink-0 rounded-full', className)} style={{ background: color, boxShadow: ring && `inset 0 0 0 1.5px ${ring}` }} />;
 }

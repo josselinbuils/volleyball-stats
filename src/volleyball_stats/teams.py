@@ -11,7 +11,8 @@ team on the left at the first rally. A new set starts when the teams change ends
 
     uv run python -m volleyball_stats.teams VIDEO PLAYERS_CSV RALLIES_CSV [--out DIR]
 
-`match.py --players` runs this step, names the teams (--teams or a prompt) and writes teams.json.
+`match.py --players` runs this step, names the teams and dates and titles the match (flags or a
+prompt) and writes teams.json.
 """
 
 import argparse
@@ -22,6 +23,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -291,8 +293,42 @@ def parse_teams(flag: str) -> list[tuple[str | None, str | None]]:
     return out + [(None, None)] * (2 - len(out))
 
 
-def default_name(team: int) -> str:
-    return f"Team {team}"
+def default_name(team: int, french: bool = False) -> str:
+    return f"{'Équipe' if french else 'Team'} {team}"
+
+
+def recording_date(video: Path) -> str:
+    """yyyy-mm-dd the video was recorded: its creation_time tag (UTC) in local time, else the file's
+    modification date.
+
+    ponytail: a camera writing its local time as UTC shifts the date by a day near midnight only.
+    """
+    command = ["ffprobe", "-v", "error", "-show_entries", "format_tags=creation_time", "-of", "default=nw=1:nk=1", str(video)]
+    try:
+        tag = subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
+        return datetime.fromisoformat(tag).astimezone().date().isoformat()
+    except (OSError, subprocess.CalledProcessError, ValueError):
+        return datetime.fromtimestamp(video.stat().st_mtime).date().isoformat()
+
+
+def parse_date(text: str) -> str | None:
+    """yyyy-mm-dd of a date given as dd/mm/yyyy or yyyy-mm-dd; None when not a date."""
+    for pattern in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text.strip(), pattern).date().isoformat()
+        except ValueError:
+            pass
+    return None
+
+
+def day_month_year(day: str) -> str:
+    """dd/mm/yyyy of yyyy-mm-dd."""
+    return datetime.strptime(day, "%Y-%m-%d").strftime("%d/%m/%Y")
+
+
+def default_title(names: list[str]) -> str:
+    """The title the page builds when the user typed none."""
+    return f"Match {names[0]} vs {names[1]}"
 
 
 def sheet(teams: Teams, height: int = 160) -> np.ndarray:
@@ -325,33 +361,75 @@ def ask(teams: Teams, image: Path) -> list[tuple[str | None, str | None]]:
     if viewer:
         subprocess.Popen([viewer, str(image)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     out = []
+    french_names = {english: french for french, english in FRENCH.items() if french != "gray"}
     for team in (1, 2):
-        side = "left" if team == 1 else "right"
-        name = input(f"Name of Team {team} ({side} at the start, {hex_name(teams.colours[team])}) [{default_name(team)}]: ").strip()
+        side = "à gauche" if team == 1 else "à droite"
+        detected = french_names.get(hex_name(teams.colours[team]), hex_name(teams.colours[team]))
+        name = input(f"Nom de l'équipe {team} ({side} au début, {detected}) [{default_name(team, french=True)}] : ").strip()
         while True:
-            text = input(f"Colour of Team {team} [detected: {teams.colours[team]}]: ").strip()
+            text = input(f"Couleur de l'équipe {team} [détectée : {detected}] : ").strip()
             colour = parse_colour(text) if text else None
             if not text or colour:
                 break
-            print("Use #rrggbb or a colour name: white, black, red, navy, blanc, rouge, marine...")
+            print("Saisir #rrggbb ou un nom de couleur : blanc, noir, rouge, marine, bleu, vert, jaune...")
         out.append((name or None, colour))
     return out
 
 
-def settle(path: Path, teams: Teams, windows: list[tuple[int, int]], fps: float, flag: str | None, interactive: bool) -> dict:
-    """teams.json's content: names and colours from `flag`, else from the existing file, else asked
-    when `interactive` and the file is new; set starts from the file when it has them; jersey
-    colours and starting sides always from `teams`. Written back to `path`."""
+def ask_date(detected: str) -> str:
+    """Asks the match's date on the terminal; Enter keeps `detected`."""
+    while True:
+        text = input(f"Date du match [détectée : {day_month_year(detected)}] : ").strip()
+        day = parse_date(text) if text else detected
+        if day:
+            return day
+        print("Format : jj/mm/aaaa ou aaaa-mm-jj")
+
+
+def ask_title(names: list[str]) -> str | None:
+    """Asks the match's title on the terminal; None for the default one (Enter), which the page
+    translates."""
+    default = default_title(names)
+    title = input(f"Titre du match [{default}] : ").strip()
+    return title if title and title != default else None
+
+
+def settle(
+    path: Path,
+    teams: Teams,
+    windows: list[tuple[int, int]],
+    fps: float,
+    flag: str | None,
+    interactive: bool,
+    recorded: str,
+    day: str | None = None,
+    title: str | None = None,
+) -> dict:
+    """teams.json's content: names and colours from `flag`, the match's date (yyyy-mm-dd) from `day`
+    and its title from `title` ("" for the default one); else each from the existing file; else
+    asked when `interactive` and the file is new; else the defaults: Team 1 and 2 in the detected
+    colours, `recorded` (the video's recording date) and no title (the page builds it). Set starts
+    from the file when it has them; jersey colours and starting sides always from `teams`. Written
+    back to `path`."""
     old = json.loads(path.read_text()) if path.exists() else {}
+    prompt = interactive and not old
     given = parse_teams(flag) if flag else None
-    if given is None and not old and interactive:
+    if given is None and prompt:
         given = ask(teams, path.with_suffix(".jpg"))
     entries = []
     for team in (1, 2):
         before = old.get("teams", [{}, {}])[team - 1]
         name, colour = given[team - 1] if given else (before.get("name"), before.get("colour"))
         entries.append({"name": name, "colour": colour, "jersey": teams.colours[team], "start": "left" if team == 1 else "right"})
-    data = {"teams": entries, "sets": old.get("sets") or [clock(s) for s in set_starts(windows, teams.left, fps)]}
+    if day is None:
+        day = old.get("date") or (ask_date(recorded) if prompt else recorded)
+    if title is not None:
+        title = title.strip() or None
+    elif old:
+        title = old.get("title")
+    elif prompt:
+        title = ask_title([e["name"] or default_name(k, french=True) for k, e in enumerate(entries, 1)])
+    data = {"teams": entries, "date": day, "title": title, "sets": old.get("sets") or [clock(s) for s in set_starts(windows, teams.left, fps)]}
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return data
 

@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -11,11 +14,14 @@ from volleyball_stats.teams import (
     clock,
     colour_name,
     contact_teams,
+    default_title,
     lefts,
+    parse_date,
     parse_colour,
     parse_teams,
     seconds,
     set_numbers,
+    recording_date,
     set_starts,
     settle,
     torso,
@@ -142,41 +148,103 @@ class TestColours:
             parse_teams("A:sparkly,B")
 
 
+class TestDate:
+    def test_parses_day_month_year_and_iso_dates(self):
+        assert parse_date("12/11/2026") == parse_date(" 2026-11-12 ") == "2026-11-12"
+        assert parse_date("1/2/2026") == "2026-02-01"
+        assert parse_date("31/02/2026") is None
+        assert parse_date("2026-13-01") is None
+        assert parse_date("12.11.2026") is None
+        assert parse_date("") is None
+
+    def test_takes_the_recording_date_from_the_creation_time_tag(self, tmp_path, monkeypatch):
+        video = tmp_path / "match.mp4"
+        video.write_bytes(b"")
+        monkeypatch.setattr(teams.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "2026-11-12T12:30:00.000000Z\n", ""))
+
+        assert recording_date(video) == "2026-11-12"
+
+    def test_falls_back_to_the_modification_date_without_a_tag_or_ffprobe(self, tmp_path, monkeypatch):
+        video = tmp_path / "match.mp4"
+        video.write_bytes(b"")
+        stamp = datetime(2016, 12, 21, 18, 0).timestamp()
+        os.utime(video, (stamp, stamp))
+        monkeypatch.setattr(teams.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "\n", ""))
+        assert recording_date(video) == "2016-12-21"
+
+        def missing(*args, **kwargs):
+            raise FileNotFoundError("ffprobe")
+
+        monkeypatch.setattr(teams.subprocess, "run", missing)
+        assert recording_date(video) == "2016-12-21"
+
+    def test_titles_the_match_with_the_team_names(self):
+        assert default_title(["ASPOM Bègles", "VC Talence"]) == "Match ASPOM Bègles vs VC Talence"
+
+
 class TestSettle:
     found = Teams({1: 1, 2: 2}, [1, 2], {1: "#f4f4f4", 2: "#1b2a4a"}, {1: [], 2: []})
     windows = [(0, 100), (3000, 3100)]
+    recorded = "2026-11-12"
 
-    def test_writes_default_names_and_detected_colours_without_a_terminal(self, tmp_path):
-        data = settle(tmp_path / "teams.json", self.found, self.windows, 10.0, None, interactive=False)
+    def test_writes_default_names_detected_colours_and_the_recording_date_without_a_terminal(self, tmp_path):
+        data = settle(tmp_path / "teams.json", self.found, self.windows, 10.0, None, False, self.recorded)
 
         assert data == {
             "teams": [
                 {"name": None, "colour": None, "jersey": "#f4f4f4", "start": "left"},
                 {"name": None, "colour": None, "jersey": "#1b2a4a", "start": "right"},
             ],
+            "date": "2026-11-12",
+            "title": None,
             "sets": ["0:00", "2:35"],
         }
         assert json.loads((tmp_path / "teams.json").read_text()) == data
 
     def test_asks_on_a_terminal_the_first_time_and_reuses_the_file_after(self, tmp_path, monkeypatch):
-        answers = iter(["Bègles", "", "", "sparkly", "rouge"])
-        monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
+        answers = iter(["Bègles", "", "", "sparkly", "rouge", "", ""])
+        prompts = []
+        monkeypatch.setattr("builtins.input", lambda prompt: prompts.append(prompt) or next(answers))
         monkeypatch.setattr(teams.shutil, "which", lambda name: None)
         path = tmp_path / "teams.json"
 
-        first = settle(path, self.found, self.windows, 10.0, None, interactive=True)
-        again = settle(path, self.found, self.windows, 10.0, None, interactive=True)
+        first = settle(path, self.found, self.windows, 10.0, None, True, self.recorded)
+        again = settle(path, self.found, self.windows, 10.0, None, True, self.recorded)
 
         assert [(t["name"], t["colour"]) for t in first["teams"]] == [("Bègles", None), (None, teams.COLOURS["red"])]
+        assert (first["date"], first["title"]) == ("2026-11-12", None)
+        assert prompts[-2:] == ["Date du match [détectée : 12/11/2026] : ", "Titre du match [Match Bègles vs Équipe 2] : "]
         assert again == first
         assert (tmp_path / "teams.jpg").exists()
 
-    def test_takes_the_flag_over_the_file_and_keeps_edited_sets(self, tmp_path):
+    def test_asks_the_date_again_until_it_is_one_and_keeps_a_typed_title(self, tmp_path, monkeypatch):
+        answers = iter(["21.12.2016", "21/12/2016", "Finale"])
+        prompts = []
+        monkeypatch.setattr("builtins.input", lambda prompt: prompts.append(prompt) or next(answers))
+
+        data = settle(tmp_path / "teams.json", self.found, self.windows, 10.0, "ASPOM,Talence", True, self.recorded)
+
+        assert (data["date"], data["title"]) == ("2016-12-21", "Finale")
+        assert prompts[-1] == "Titre du match [Match ASPOM vs Talence] : "
+
+    def test_takes_the_flags_over_the_file_and_keeps_edited_sets(self, tmp_path):
         path = tmp_path / "teams.json"
-        settle(path, self.found, self.windows, 10.0, None, interactive=False)
+        settle(path, self.found, self.windows, 10.0, None, False, self.recorded, title="Finale")
         path.write_text(path.read_text().replace('"2:35"', '"3:00"'))
 
-        data = settle(path, self.found, self.windows, 10.0, "Home:blanc,Away", interactive=True)
+        kept = settle(path, self.found, self.windows, 10.0, None, True, "2030-01-01")
+        data = settle(path, self.found, self.windows, 10.0, "Home:blanc,Away", True, self.recorded, "2016-12-21", "")
 
+        assert (kept["date"], kept["title"]) == ("2026-11-12", "Finale")
         assert [(t["name"], t["colour"]) for t in data["teams"]] == [("Home", teams.COLOURS["white"]), ("Away", None)]
+        assert (data["date"], data["title"]) == ("2016-12-21", None)
         assert data["sets"] == ["0:00", "3:00"]
+
+    def test_gives_a_file_from_before_the_date_the_recording_date_without_asking(self, tmp_path, monkeypatch):
+        path = tmp_path / "teams.json"
+        path.write_text(json.dumps({"teams": [{"name": "Home", "colour": None}, {"name": None, "colour": None}], "sets": ["0:00"]}))
+        monkeypatch.setattr("builtins.input", lambda prompt: pytest.fail(prompt))
+
+        data = settle(path, self.found, self.windows, 10.0, None, True, self.recorded)
+
+        assert (data["teams"][0]["name"], data["date"], data["title"]) == ("Home", "2026-11-12", None)

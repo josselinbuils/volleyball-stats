@@ -6,17 +6,20 @@ import { LANGUAGES, setLanguage, type Language } from '@/i18n';
 import { clock, useFormat } from '@/lib/format';
 import { hasTeams, match } from '@/lib/match';
 import { useSet } from '@/lib/sets';
+import { matchTitle, tabTitle } from '@/components/Header/helpers/title';
 import { SetFilter } from '@/components/Header/SetFilter';
 import { TeamLegend } from '@/components/Header/TeamLegend';
+import { ThemeSwitch } from '@/components/Header/ThemeSwitch';
 
 export function Header() {
   const { t, i18n } = useTranslation();
   const f = useFormat();
   const { set, rallies, contacts } = useSet();
 
+  const tab = tabTitle(t, f);
   useEffect(() => {
-    document.title = `${match.name} · ${t('report')}`;
-  }, [t]);
+    document.title = tab;
+  }, [tab]);
 
   // A set lasts from its first serve to its last ball.
   const span = set === null ? match.duration : rallies.length ? rallies[rallies.length - 1].end - rallies[0].start : 0;
@@ -36,29 +39,40 @@ export function Header() {
     <header className="grid gap-6 px-1">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-muted-foreground">{t('report')}</p>
-          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{match.name}</h1>
+          <p className="text-sm font-medium text-muted-foreground">
+            {t('report')}
+            {match.date && (
+              <>
+                {' · '}
+                <time dateTime={match.date}>{f.date(match.date)}</time>
+              </>
+            )}
+          </p>
+          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{matchTitle(t) ?? match.name}</h1>
         </div>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
-          spacing={0}
-          value={i18n.language}
-          onValueChange={(lang) => {
-            if (lang) {
-              setLanguage(lang as Language);
-            }
-          }}
-          aria-label={`${t('language')} / ${i18n.language === 'fr' ? 'Language' : 'Langue'}`}
-          className="shrink-0 bg-card"
-        >
-          {Object.entries(LANGUAGES).map(([code, name]) => (
-            <ToggleGroupItem key={code} value={code} lang={code} aria-label={name} className="px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-              {code.toUpperCase()}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
+          <ThemeSwitch />
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={i18n.language}
+            onValueChange={(lang) => {
+              if (lang) {
+                setLanguage(lang as Language);
+              }
+            }}
+            aria-label={`${t('language')} / ${i18n.language === 'fr' ? 'Language' : 'Langue'}`}
+            className="shrink-0 bg-card"
+          >
+            {Object.entries(LANGUAGES).map(([code, name]) => (
+              <ToggleGroupItem key={code} value={code} lang={code} aria-label={name} className="px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                {code.toUpperCase()}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
       </div>
       <div className="-mt-3 grid max-w-2xl gap-2.5">
         <p className="text-muted-foreground">{t(hasTeams ? 'intro' : 'introSides')}</p>

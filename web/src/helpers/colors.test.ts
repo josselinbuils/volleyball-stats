@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrast, display, distance, teamColors, textOn } from '@/helpers/colors';
+import { contrast, distance, ring, teamColors, textOn } from '@/helpers/colors';
 
 describe('team colours', () => {
   const light = ['#ffffff', '#ecebe5'];
@@ -10,34 +10,46 @@ describe('team colours', () => {
     expect(contrast('#777777', '#ffffff')).toBeCloseTo(4.48, 1);
   });
 
-  it('darkens a white jersey on the light theme and lightens a navy one on the dark theme, keeping the hue', () => {
-    const white = display('#f4f4f4', light, false);
-    expect(Math.min(...light.map((bg) => contrast(white, bg)))).toBeGreaterThanOrEqual(3);
-    expect(display('#f4f4f4', dark, true)).toBe('#f4f4f4');
-    const navy = display('#1b2a4a', dark, true);
-    expect(Math.min(...dark.map((bg) => contrast(navy, bg)))).toBeGreaterThanOrEqual(3);
-    const [r, g, b] = [1, 3, 5].map((k) => parseInt(navy.slice(k, k + 2), 16));
-    expect(b).toBeGreaterThan(r);
-    expect(b).toBeGreaterThan(g);
-    expect(display('#1b2a4a', light, false)).toBe('#1b2a4a');
+  it('keeps the jerseys and swaps team 2 for a distinct colour only when the two look alike', () => {
+    expect(teamColors(['#f4f4f4', '#1b2a4a'])).toEqual(['#f4f4f4', '#1b2a4a']);
+    expect(teamColors(['#d22630', '#7a1426'])).toEqual(['#d22630', '#7a1426']);
+    const [black, other] = teamColors(['#151515', '#1b2a4a']);
+    expect(black).toBe('#151515');
+    expect(distance(black, other)).toBeGreaterThan(0.12);
   });
 
-  it('keeps two distinct jerseys and swaps team 2 for a distinct colour when the two look alike', () => {
-    for (const [bgs, isDark] of [[light, false], [dark, true]] as const) {
-      const [white, navy] = teamColors(['#f4f4f4', '#1b2a4a'], [...bgs], isDark);
-      expect(navy).toBe(display('#1b2a4a', [...bgs], isDark));
-      expect(distance(white, navy)).toBeGreaterThan(0.12);
-      const [black, blue] = teamColors(['#151515', '#1b2a4a'], [...bgs], isDark);
-      expect(black).toBe(display('#151515', [...bgs], isDark));
-      expect(distance(black, blue)).toBeGreaterThan(0.12);
+  it('outlines white in dark grey on the light theme and navy in light grey on the dark theme', () => {
+    expect(ring('#f4f4f4', light, false)).toBe('#5f5d58');
+    expect(ring('#f4f4f4', dark, true)).toBeNull();
+    expect(ring('#1b2a4a', dark, true)).toBe('#a8a69d');
+    expect(ring('#151515', dark, true)).toBe('#a8a69d');
+    expect(ring('#1b2a4a', light, false)).toBeNull();
+  });
+
+  it('does not outline a colour that stands out from every background', () => {
+    expect(ring('#d22630', light, false)).toBeNull();
+    expect(ring('#2a78d6', dark, true)).toBeNull();
+    // Fine on the card, too pale on the court.
+    expect(ring('#c8c8c8', ['#1b1b1a', '#c0c0c0'], true)).toBe('#a8a69d');
+  });
+
+  it('gives the outline at least the non-text contrast against the background', () => {
+    for (const bg of light) {
+      expect(contrast('#5f5d58', bg)).toBeGreaterThanOrEqual(3);
     }
-    expect(teamColors(['#d22630', '#7a1426'], light, false)).toEqual(['#d22630', '#7a1426']);
-    const [red, darkRed] = teamColors(['#d22630', '#7a1426'], dark, true);
-    expect(distance(red, darkRed)).toBeGreaterThan(0.12);
+    for (const bg of dark) {
+      expect(contrast('#a8a69d', bg)).toBeGreaterThanOrEqual(3);
+    }
   });
 
-  it('writes black on light colours and white on dark ones', () => {
+  it('writes dark on light fills and white on dark ones, whichever contrasts more', () => {
     expect(textOn('#f4f4f4')).toBe('#141413');
+    expect(textOn('#eda100')).toBe('#141413');
     expect(textOn('#1b2a4a')).toBe('#ffffff');
+    expect(textOn('#d22630')).toBe('#ffffff');
+    for (const fill of ['#f4f4f4', '#eda100', '#1b2a4a', '#d22630', '#808080']) {
+      const other = textOn(fill) === '#ffffff' ? '#141413' : '#ffffff';
+      expect(contrast(textOn(fill), fill)).toBeGreaterThanOrEqual(contrast(other, fill));
+    }
   });
 });

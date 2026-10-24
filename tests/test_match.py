@@ -44,3 +44,14 @@ class TestReport:
 
     def test_handles_a_video_without_rallies(self):
         assert "- Rallies: 0, ball in play 0.0 min (0%)\n" in report(Path("m.mp4"), 30.0, 300, [], [], [], {})
+
+    def test_heads_with_the_default_title_built_from_the_tables_names_and_the_date(self):
+        text = report(Path("m.mp4"), 30.0, 300, [], [], [], {}, {}, ["ASPOM Bègles", "Team 2"], [], [], "2016-12-21")
+
+        assert text.startswith("# Match ASPOM Bègles vs Team 2 · 21 December 2016\n")
+        assert "| Action | ASPOM Bègles | Team 2 |" in text
+        assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}, {}, ["A", "B"], [], []).startswith("# Match A vs B\n")
+
+    def test_heads_with_a_typed_title_or_the_video_name_without_teams(self):
+        assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}, {}, ["A", "B"], [], [], "2026-11-02", "Finale").startswith("# Finale · 2 November 2026\n")
+        assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}).startswith("# m\n")

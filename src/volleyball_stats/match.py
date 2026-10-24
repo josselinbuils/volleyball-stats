@@ -1,11 +1,11 @@
 """Run the whole pipeline on a match video and write a first report.
 
-    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"]] [--force]
+    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE]] [--force]
 
 Each step writes its output to outputs/<video>/; the ball and player tracks, the slow steps, are
-reused when they exist unless --force. With the players, teams.json holds the teams' names, colours
-and the set starts: written on the first run (names asked on a terminal), edited by hand if need be,
-reused on the next runs.
+reused when they exist unless --force. With the players, teams.json holds the teams' names, colours,
+the match's date and title and the set starts: written on the first run (asked on a terminal),
+edited by hand if need be, reused on the next runs unless the flags override them.
 """
 
 import argparse
@@ -13,6 +13,7 @@ import csv
 import sys
 import time
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -70,18 +71,28 @@ def report(
     names: list[str] | None = None,
     contact_teams: list[int | None] | None = None,
     sets: list[int] | None = None,
+    day: str | None = None,
+    title: str | None = None,
 ) -> str:
     """The match summary. With `names` (team 1, team 2) and each contact's team the actions are split
     by team, otherwise by side of the net; `sets` (each rally's) adds a section per set when the
-    match has more than one."""
+    match has more than one. With `names` the heading is the match's `title`, by default "Match
+    <team 1> vs <team 2>" with the table's names, and its date (yyyy-mm-dd `day`); else the video's
+    name."""
     lengths = np.array([(end - start) / fps for start, end in windows])
     duration = frame_count / fps
     if names and contact_teams is not None:
         groups, labels = contact_teams, {1: names[0], 2: names[1]}
     else:
         groups, labels = [t[4] for t in typed], {"left": "Left of the net", "right": "Right of the net"}
+    heading = video.stem
+    if names:
+        heading = title or teams.default_title(names)
+        if day:
+            date = datetime.strptime(day, "%Y-%m-%d")
+            heading += f" · {date.day} {date:%B %Y}"
     lines = [
-        f"# {video.stem}",
+        f"# {heading}",
         "",
         f"- Duration: {duration / 60:.1f} min",
         f"- Rallies: {len(windows)}, ball in play {lengths.sum() / 60:.1f} min ({lengths.sum() / duration:.0%})"
@@ -120,8 +131,16 @@ def main() -> None:
         "at the first rally; COLOUR is #rrggbb or a name (white, navy, rouge...). Default: the names in teams.json, else asked "
         "on a terminal, else Team 1 and Team 2 with the detected colours",
     )
+    parser.add_argument("--date", help="The match's date, YYYY-MM-DD. Default: the one in teams.json, else asked on a terminal, else the video's recording date")
+    parser.add_argument(
+        "--title",
+        help="The match's title. Default: the one in teams.json, else asked on a terminal, else \"Match NAME_1 vs NAME_2\" in the page's language (\"\" for it)",
+    )
     parser.add_argument("--force", action="store_true", help="Track the ball and players again even if tracks exist")
     args = parser.parse_args()
+    day = teams.parse_date(args.date) if args.date else None
+    if args.date and day is None:
+        parser.error(f"Not a date: {args.date!r} (use YYYY-MM-DD)")
 
     out = args.out / args.video.stem
     out.mkdir(parents=True, exist_ok=True)
@@ -166,12 +185,12 @@ def main() -> None:
         found_teams = teams.assign(args.video, rows, windows)
         timings["teams"] = time.perf_counter() - start
         try:
-            settled = teams.settle(out / "teams.json", found_teams, windows, fps, args.teams, sys.stdin.isatty())
+            settled = teams.settle(out / "teams.json", found_teams, windows, fps, args.teams, sys.stdin.isatty(), teams.recording_date(args.video), day, args.title)
         except ValueError as error:
             parser.error(str(error))
         write_csv(out / "tracks.csv", ["track", "team"], sorted(found_teams.tracks.items()))
-    elif args.teams:
-        parser.error("--teams needs --players")
+    elif args.teams or args.date or args.title is not None:
+        parser.error("--teams, --date and --title need --players")
 
     if found_teams is None:
         write_csv(out / "rallies.csv", ["start_frame", "end_frame"], windows)
@@ -186,7 +205,7 @@ def main() -> None:
         names = [team["name"] or teams.default_name(k) for k, team in enumerate(settled["teams"], 1)]
         counts = Counter(found_teams.tracks.values())
         tracks = {names[0]: counts[1], names[1]: counts[2]}
-        text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks, names, contact_teams, sets)
+        text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks, names, contact_teams, sets, settled["date"], settled["title"])
     (out / "report.md").write_text(text)
     print(text, end="")
     print(out / "report.md")

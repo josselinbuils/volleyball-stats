@@ -84,7 +84,7 @@ WSL2 is several times slower.
 uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
 uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens outputs/lens.json]
 uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
-uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"]]
+uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE]]
 ```
 
 `--court` takes `outputs/court/VIDEO.json` from `auto`, or `outputs/courts/NAME.json` from `fit` on
@@ -96,14 +96,18 @@ gets the team on its side (actions CSV `team`), each rally the team on the left 
 
 Teams are Team 1 and Team 2, Team 1 being the team on the left of the camera at the first rally;
 they keep their names when they change ends. `outputs/VIDEO/teams.json` holds their names (`null`
-for the default "Team 1" / "Équipe 1"), colours (`colour`, `null` for the detected `jersey`) and the
-set starts (`"m:ss"`, the first `"0:00"`). It is written on the first run: names and colours come
-from `--teams` (the first name is the team on the left at the first rally; a colour is `#rrggbb` or
-a name such as `white`, `navy`, `rouge`, `marine`), else, on a terminal, the pipeline opens an image
-of a few players of each team and asks for them (Enter keeps the default name and detected
-colour), else the defaults. Later runs reuse the file: edit it to fix a name, a colour or a set
-start (a new set starts when the teams change ends after a set break, see the
-[teams benchmark](benchmarks/teams/README.md)), or pass `--teams` again.
+for the default "Team 1" / "Équipe 1"), colours (`colour`, `null` for the detected `jersey`), the
+match's date (`"yyyy-mm-dd"`) and title (`null` for the default "Match NAME_1 vs NAME_2",
+translated on the page) and the set starts (`"m:ss"`, the first `"0:00"`). It is
+written on the first run: names and colours come from `--teams` (the first name is the team on the
+left at the first rally; a colour is `#rrggbb` or a name such as `white`, `navy`, `rouge`,
+`marine`), the date from `--date`, the title from `--title`; else, on a terminal, the pipeline
+opens an image of a few players of each team and asks for them, then for the date (dd/mm/yyyy or
+yyyy-mm-dd) and the title (Enter keeps the default name, the detected colour, the video's
+recording date and the default title); else the defaults. Later runs reuse the file: edit it to fix
+a name, a colour, the date, the title or a set start (a new set starts when the teams change ends
+after a set break, see the [teams benchmark](benchmarks/teams/README.md)), or pass the flags again
+(`--title ""` goes back to the default title).
 
 ```bash
 uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video] [--theme NAME]
@@ -111,10 +115,12 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
 
 `web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default): every
 number and chart element plays its moments in the video, with a top view of the court following
-the play, its players numbered within each rally. Everything is split by team, in each team's
-colour (made readable on the light and the dark theme, and changed for Team 2 when the two look
-alike); without player tracks it falls back to the sides of the net. With several sets, one filter
-at the top shows a single set. The players' positions over the whole video come in `players.js`,
+the play, its players numbered within each rally. The match's title and date head the page.
+Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
+to the background, and changed for Team 2 when the two look alike); without player tracks it falls
+back to the sides of the net. With several sets, one filter at the top shows a single set. A switch
+next to the language picks the light, dark or automatic theme (the system's, by default),
+remembered by the browser. The players' positions over the whole video come in `players.js`,
 loaded right after the first paint (0.9 MB, 0.23 MB gzipped, for 10 minutes). `--theme` picks a club
 theme, `branding/NAME/brand.json` with its logo (default `aspom`, `none` for the neutral one; see
 `branding/brand.example.json`): logo and club name in a band at the top linking to `url`, accent

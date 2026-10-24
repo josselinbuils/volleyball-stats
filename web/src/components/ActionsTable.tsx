@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
-import { color, GROUPS, groupName, hasTeams, match, teamColor, TYPES, type Contact } from '@/lib/match';
+import { color, GROUPS, groupName, hasTeams, match, teamColor, teamRing, TYPES, type Contact } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
@@ -41,7 +41,7 @@ export function ActionsTable() {
               {GROUPS.map((g) => (
                 <TableHead key={g} className="text-right whitespace-normal text-muted-foreground max-sm:px-1 max-sm:leading-tight">
                   <span className="inline-flex items-center gap-2 [overflow-wrap:anywhere]">
-                    <Swatch color={teamColor(g)} className="max-sm:hidden" />
+                    <Swatch color={teamColor(g)} ring={teamRing(g)} className="max-sm:hidden" />
                     {groupName(t, g)}
                   </span>
                 </TableHead>

@@ -10,7 +10,7 @@ import { Court, Legend } from '@/components/Court';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
-import { color, contacts as all, GROUPS, groupName, hasTeams, match, placed, rallies, teamColor, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
+import { color, contacts as all, GROUPS, groupName, hasTeams, match, placed, rallies, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
@@ -145,7 +145,7 @@ export function CourtChart() {
           <Legend>
             {GROUPS.filter((g) => group === 'both' || g === group).map((g) => (
               <span key={g} className="inline-flex min-w-0 items-center gap-2">
-                <Swatch color={teamColor(g)} />
+                <Swatch color={teamColor(g)} ring={teamRing(g)} />
                 <span className="truncate">{groupName(t, g)}</span>
               </span>
             ))}

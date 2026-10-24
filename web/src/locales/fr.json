@@ -124,5 +124,12 @@
   "onTheLeft": "{{team}} à gauche",
   "teamFilter": "Équipe",
   "bothTeams": "Les deux équipes",
-  "mirrored": "Chaque équipe reste sur la même moitié : les échanges qu'elle a joués de l'autre côté sont retournés."
+  "mirrored": "Chaque équipe reste sur la même moitié : les échanges qu'elle a joués de l'autre côté sont retournés.",
+  "theme": "Thème",
+  "themes": {
+    "light": "Clair",
+    "dark": "Sombre",
+    "auto": "Automatique (comme l'appareil)"
+  },
+  "matchTitle": "Match {{one}} vs {{two}}"
 }
