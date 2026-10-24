@@ -67,12 +67,13 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
 uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens outputs/lens.json]
 uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
-uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json
+uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players]
 ```
 
 `--court` takes `outputs/court/VIDEO.json` from `auto`, or `outputs/courts/NAME.json` from `fit` on
 the first match of a court. `match` writes the ball track, rallies, typed contacts, net crossings and a
 report to `outputs/VIDEO/`; the actions CSV holds each contact with its type and side of the net.
+`--players` adds the player tracks (about 2.5× the ball tracking time).
 
 ## Pipeline
 

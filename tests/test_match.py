@@ -20,5 +20,9 @@ class TestReport:
         assert "| serve | 1 | 1 |" in text and "| pass | 0 | 1 |" in text
         assert "ball 2.0 min" in text
 
+    def test_counts_the_player_tracks_per_side_when_tracked(self):
+        assert "- Player tracks: 7 left of the net, 6 right" in report(Path("m.mp4"), 30.0, 300, [], [], [], {}, {"left": 7, "right": 6})
+        assert "Player tracks" not in report(Path("m.mp4"), 30.0, 300, [], [], [], {})
+
     def test_handles_a_video_without_rallies(self):
         assert "- Rallies: 0, ball in play 0.0 min (0%)\n" in report(Path("m.mp4"), 30.0, 300, [], [], [], {})

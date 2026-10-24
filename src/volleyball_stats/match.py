@@ -1,9 +1,9 @@
 """Run the whole pipeline on a match video and write a first report.
 
-    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--force]
+    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players] [--force]
 
-Each step writes its output to outputs/<video>/; the ball track, the slow step, is reused when it
-exists unless --force.
+Each step writes its output to outputs/<video>/; the ball and player tracks, the slow steps, are
+reused when they exist unless --force.
 """
 
 import argparse
@@ -15,7 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, ball, contacts, court, rallies
+from volleyball_stats import actions, ball, contacts, court, players, rallies
 
 TYPES = ["serve", "pass", "set", "attack", "block", "dig", "floor", "net"]
 
@@ -40,7 +40,16 @@ def write_csv(path: Path, header: list[str], rows: list) -> None:
         csv.writer(f).writerows([header, *rows])
 
 
-def report(video: Path, fps: float, frame_count: int, windows: list[tuple[int, int]], typed: list[actions.Typed], crossings: list[int], timings: dict[str, float]) -> str:
+def report(
+    video: Path,
+    fps: float,
+    frame_count: int,
+    windows: list[tuple[int, int]],
+    typed: list[actions.Typed],
+    crossings: list[int],
+    timings: dict[str, float],
+    tracks: dict[str, int] | None = None,
+) -> str:
     lengths = np.array([(end - start) / fps for start, end in windows])
     duration = frame_count / fps
     counts = Counter((kind, side) for _, _, _, kind, side in typed)
@@ -52,6 +61,7 @@ def report(video: Path, fps: float, frame_count: int, windows: list[tuple[int, i
         + (f", median rally {np.median(lengths):.1f} s" if len(windows) else ""),
         f"- Contacts in rallies: {len(typed)}" + (f", {len(typed) / len(windows):.1f} per rally" if windows else ""),
         f"- Net crossings in rallies: {len(crossings)}",
+        *([f"- Player tracks: {tracks.get('left', 0)} left of the net, {tracks.get('right', 0)} right"] if tracks is not None else []),
         "",
         "| Action | Left of the net | Right of the net |",
         "| --- | --- | --- |",
@@ -69,7 +79,8 @@ def main() -> None:
     net.add_argument("--court", type=Path, help="Court calibration JSON (court.py fit or auto)")
     net.add_argument("--net-x", type=float, help="Net position in frame pixels, without a calibration (no floor contacts)")
     parser.add_argument("--out", type=Path, default=Path("outputs"))
-    parser.add_argument("--force", action="store_true", help="Track the ball again even if a track exists")
+    parser.add_argument("--players", action="store_true", help="Also track the players (about 2.5x the ball's time)")
+    parser.add_argument("--force", action="store_true", help="Track the ball and players again even if tracks exist")
     args = parser.parse_args()
 
     out = args.out / args.video.stem
@@ -102,7 +113,20 @@ def main() -> None:
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     timings["contacts and actions"] = time.perf_counter() - start
 
-    text = report(args.video, fps, frame_count, windows, typed, crossings, timings)
+    tracks = None
+    if args.players:
+        if calibration is None:
+            parser.error("--players needs --court")
+        players_path = out / "players.csv"
+        if args.force or not players_path.exists():
+            start = time.perf_counter()
+            players.write_csv(players.track(args.video, calibration), players_path)
+            timings["players"] = time.perf_counter() - start
+        with open(players_path) as f:
+            teams = {(row["track"], row["team"]) for row in csv.DictReader(f)}
+        tracks = dict(Counter(team for _, team in teams))
+
+    text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks)
     (out / "report.md").write_text(text)
     print(text, end="")
     print(out / "report.md")
