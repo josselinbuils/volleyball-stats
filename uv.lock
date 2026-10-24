@@ -1608,6 +1608,7 @@ dependencies = [
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "torch" },
+    { name = "ultralytics" },
 ]
 
 [package.dev-dependencies]
@@ -1615,8 +1616,6 @@ bench = [
     { name = "onnxruntime" },
     { name = "pillow" },
     { name = "pyyaml" },
-    { name = "torchvision" },
-    { name = "ultralytics" },
 ]
 dev = [
     { name = "pytest" },
@@ -1628,6 +1627,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "torch" },
+    { name = "ultralytics" },
 ]
 
 [package.metadata.requires-dev]
@@ -1635,7 +1635,5 @@ bench = [
     { name = "onnxruntime" },
     { name = "pillow" },
     { name = "pyyaml" },
-    { name = "torchvision" },
-    { name = "ultralytics" },
 ]
 dev = [{ name = "pytest" }]
