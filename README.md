@@ -55,11 +55,28 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 ## Development setup
 
 - Training and match processing run on an NVIDIA GPU (RTX 5080), in WSL2 with Ubuntu. The Windows
-  NVIDIA driver covers WSL2: do not install a Linux driver.
-- RTX 50 series requires PyTorch 2.7+ built for CUDA 12.8+. Older repositories pinning older
-  PyTorch or TensorFlow versions are ported to this environment rather than run as-is.
+  NVIDIA driver covers WSL2: do not install a Linux driver. The locked PyTorch is the CUDA 13
+  build, which supports the RTX 50 series and needs a recent driver (R580 or later).
+- Older repositories pinning older PyTorch or TensorFlow versions are ported to this environment
+  rather than run as-is.
 - Code can be written on any machine and run on the GPU machine over SSH (e.g. VS Code
   Remote-SSH).
+
+On the Windows PC:
+
+```bash
+wsl --install -d Ubuntu-24.04                     # in PowerShell, then reboot
+# in Ubuntu:
+sudo apt update && sudo apt install -y ffmpeg git
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/josselinbuils/volleyball-stats.git && cd volleyball-stats
+uv sync
+uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name())"
+uv run python benchmarks/speed.py VIDEO          # projected processing time of a match
+```
+
+Keep the videos in the Ubuntu file system (`~/`), not under `/mnt/c`: reading Windows files from
+WSL2 is several times slower.
 
 ## Run on a match
 
