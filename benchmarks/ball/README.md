@@ -76,8 +76,9 @@ with thresholds tuned on one side-view clip and scored on the other, `wasb-step1
 
 `wasb-step1` finds 63 of 71 and 61 of 63 labelled balls against 59 and 55 for `wasb`, but its F1
 gain (+0.03 and +0.02; paired bootstrap 95% intervals −0.01 to +0.06 and −0.03 to +0.07) is
-within noise at 3× the compute, so `ball.py` moves the window 3 frames at a time by default and
-keeps the overlap behind `--stride 1`.
+within noise at 3× the compute. Downstream it is not: contact detection loses about 7% of the
+contacts on `wasb` tracks ([contacts benchmark](../contacts/README.md)), so `ball.py` runs
+`wasb-step1` by default and keeps `--stride 3` for quick runs.
 
 ### Behind the baseline
 

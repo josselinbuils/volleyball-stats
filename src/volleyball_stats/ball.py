@@ -2,9 +2,9 @@
 
 Model and weights come from https://github.com/nttcom/WASB-SBDT (MIT, NTT Communications). The
 model reads 3 consecutive RGB frames at 512x288 and returns one ball heatmap per frame. The window
-moves `stride` frames at a time: 3 sees each frame once; 1 sees it in up to 3 windows and keeps
-the strongest blob, which found 6-10% more balls on the side-view clips of benchmarks/ball, at 3x
-the compute and for an F1 gain within noise.
+moves `stride` frames at a time: 1 sees each frame in up to 3 windows and keeps the strongest
+blob, 3 sees it once at a third of the compute but finds 6-10% fewer balls (benchmarks/ball) and
+loses about 7% of the contacts (benchmarks/contacts).
 """
 
 import argparse
@@ -24,7 +24,7 @@ WEIGHTS_GDRIVE_ID = "1M9y4wPJqLc0K-z-Bo5DP8Ft5XwJuLqIS"
 WEIGHTS_PATH = Path("models/wasb_volleyball.pth.tar")
 WIDTH, HEIGHT = 512, 288
 WINDOW = 3
-STRIDE = 3
+STRIDE = 1
 # Chosen per stride on the side-view clips of benchmarks/ball.
 THRESHOLD = {1: 0.2, 3: 0.3}
 # Heatmap value bounding a blob.
