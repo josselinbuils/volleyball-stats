@@ -27,10 +27,11 @@ export function Replay() {
 
   return (
     <figure className="m-0 min-w-0">
-      <p className="mb-2 line-clamp-2 h-12 font-semibold" aria-live="off" title={now}>
+      <p className="line-clamp-2 h-12 font-semibold" aria-live="off" title={now}>
         {now}
       </p>
-      <div className="relative">
+      {/* Up into the room left for a second line of the title: the court's top margin is mostly empty. */}
+      <div className="relative -mt-4">
         <Court role="img" aria-label={t('replayLabel')} ends={ends}>
           {dots.map(({ person, x, y }) => {
             const team = match.people[person]?.team ?? 1;
