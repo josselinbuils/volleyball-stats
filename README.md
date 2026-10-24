@@ -61,6 +61,17 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - Code can be written on any machine and run on the GPU machine over SSH (e.g. VS Code
   Remote-SSH).
 
+## Run on a match
+
+```bash
+uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
+uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens outputs/lens.json]
+uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
+uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json
+```
+
+`match` writes the ball track, rallies, contacts, net crossings and a report to `outputs/VIDEO/`.
+
 ## Pipeline
 
 | Step | What it does | Starting point |
