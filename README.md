@@ -90,7 +90,11 @@ scouting ([UFP thesis, 2026](https://bdigital.ufp.pt/bitstreams/9e2cbd9e-89d4-41
   [tprlab/vball](https://github.com/tprlab/vball).
 - [SFU Volleyball dataset](https://github.com/mostafa-saad/deep-activity-rec): annotated frames
   with player actions.
+- [DL-Volleyball-Analysis](https://github.com/DL-Volleyball-Analysis/volleyball-analysis) (MIT):
+  the same goal, with per-stage numbers.
 - Commercial: Balltime / Hudl Assist.
+
+Scientific literature per pipeline step, with recommendations: [docs/literature.md](docs/literature.md).
 
 ## License
 
