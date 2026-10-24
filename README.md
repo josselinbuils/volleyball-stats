@@ -92,6 +92,15 @@ the first match of a court. `match` writes the ball track, rallies, typed contac
 report to `outputs/VIDEO/`; the actions CSV holds each contact with its type and side of the net.
 `--players` adds the player tracks (about 2.5× the ball tracking time).
 
+```bash
+uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video]
+```
+
+`web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default): every
+number and chart element plays its moments in the video, with a top view of the court following
+the play. To host it, copy the folder with `--copy-video` to a server that supports HTTP range
+requests (nginx does), behind a password: the footage shows minors.
+
 ## Pipeline
 
 | Step | What it does | Starting point |
