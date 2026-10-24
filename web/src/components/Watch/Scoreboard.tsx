@@ -20,7 +20,7 @@ export function Scoreboard() {
       aria-label={t('scoreLabel', { set: now.set, a, b, s1: now.score[0], s2: now.score[1] })}
       className="mb-3 flex h-11 items-center gap-3 rounded-lg bg-muted px-3 text-sm"
     >
-      <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 font-semibold text-primary-foreground">{t('set', { n: now.set })}</span>
+      <span className="shrink-0 font-semibold">{t('set', { n: now.set })}</span>
       <span className="flex min-w-0 flex-1 items-center justify-center gap-2.5 font-semibold">
         <Swatch color={teamColor(1)} ring={teamRing(1)} />
         <span className="truncate">{a}</span>

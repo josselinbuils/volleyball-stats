@@ -34,7 +34,7 @@
   "ball": "Ball",
   "leftEnd": "Left",
   "rightEnd": "Right",
-  "cameraSide": "camera side",
+  "cameraSide": "Camera side",
   "rally": "Rally {{n}}",
   "rallyLower": "rally {{n}}",
   "betweenRallies": "Between rallies",
@@ -62,7 +62,6 @@
     "directions": "Point: the ball landed in the other court. Error: out, on its own side or in the net. Arrows start at the feet of the player who served or attacked."
   },
   "typeFilter": "Action",
-  "setSelect": "Set",
   "allActions": "All actions",
   "reset": "Reset filters",
   "watchShown_one": "Watch this one",
@@ -165,5 +164,13 @@
     "answers_other": "{{count, number}} answers",
     "left_one": "{{count, number}} question left",
     "left_other": "{{count, number}} questions left"
-  }
+  },
+  "playVideo": "Play",
+  "pauseVideo": "Pause",
+  "seekVideo": "Position in the video",
+  "slowVideo": "Slow motion (half speed)",
+  "muteVideo": "Mute",
+  "unmuteVideo": "Unmute",
+  "fullscreen": "Full screen",
+  "exitFullscreen": "Exit full screen"
 }

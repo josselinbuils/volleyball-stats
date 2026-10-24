@@ -141,7 +141,8 @@ or the final score you gave once the set is over) above the video. The match's t
 the page.
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls
-back to the sides of the net. With several sets, one filter at the top shows a single set. A switch
+back to the sides of the net. With several sets, one filter, which stays at the top of the screen, shows a single set: every
+section follows it and the video's timeline then covers that set only. A switch
 next to the language picks the light, dark or automatic theme (the system's, by default),
 remembered by the browser. The players' positions over the whole video come in `players.js`,
 loaded right after the first paint (0.9 MB, 0.23 MB gzipped, for 10 minutes). `--theme` picks a club

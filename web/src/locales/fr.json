@@ -34,7 +34,7 @@
   "ball": "Ballon",
   "leftEnd": "Gauche",
   "rightEnd": "Droite",
-  "cameraSide": "côté caméra",
+  "cameraSide": "Côté caméra",
   "rally": "Échange {{n}}",
   "rallyLower": "échange {{n}}",
   "betweenRallies": "Entre deux échanges",
@@ -62,7 +62,6 @@
     "directions": "Point : le ballon est tombé dans le camp adverse. Faute : dehors, dans son propre camp ou dans le filet. Les flèches partent des pieds du joueur qui a servi ou attaqué."
   },
   "typeFilter": "Action",
-  "setSelect": "Set",
   "allActions": "Toutes les actions",
   "reset": "Réinitialiser",
   "watchShown_one": "Revoir celle-ci",
@@ -165,5 +164,13 @@
     "answers_other": "{{count, number}} réponses",
     "left_one": "{{count, number}} question restante",
     "left_other": "{{count, number}} questions restantes"
-  }
+  },
+  "playVideo": "Lecture",
+  "pauseVideo": "Pause",
+  "seekVideo": "Position dans la vidéo",
+  "slowVideo": "Ralenti (moitié de la vitesse)",
+  "muteVideo": "Couper le son",
+  "unmuteVideo": "Remettre le son",
+  "fullscreen": "Plein écran",
+  "exitFullscreen": "Quitter le plein écran"
 }

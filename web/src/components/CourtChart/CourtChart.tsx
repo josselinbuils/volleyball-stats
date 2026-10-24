@@ -10,11 +10,10 @@ import { Court, Legend } from '@/components/Court';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
-import { color, contacts as all, GROUPS, groupName, match, placed, sets, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
+import { color, contacts as all, GROUPS, groupName, match, placed, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
-import { cn } from '@/lib/utils';
 import { Arrows } from '@/components/CourtChart/Arrows';
 import { ContactDots } from '@/components/CourtChart/ContactDots';
 import { arrows as toArrows } from '@/components/CourtChart/helpers/arrows';
@@ -27,7 +26,7 @@ type View = (typeof VIEWS)[number];
 export function CourtChart() {
   const { t } = useTranslation();
   const { play } = usePlayer();
-  const { set, pick, rallies, contacts } = useSet();
+  const { rallies, contacts } = useSet();
   const [view, setView] = useState<View>('contacts');
   const [type, setType] = useState<ActionType | 'all'>('all');
   // Touches stay where they were played: a half holds one team only when the shown rallies were
@@ -76,36 +75,19 @@ export function CourtChart() {
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          <div className={cn('grid w-full gap-3 sm:flex sm:w-auto', sets.length > 1 && 'grid-cols-2')}>
-            <Select value={type} onValueChange={(v) => setType(v as ActionType | 'all')}>
-              <SelectTrigger aria-label={t('typeFilter')} className="w-full bg-card sm:w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('allActions')}</SelectItem>
-                {present.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {t(`types.${p}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {sets.length > 1 && (
-              <Select value={set === null ? 'all' : String(set)} onValueChange={(v) => pick(v === 'all' ? null : Number(v))}>
-                <SelectTrigger aria-label={t('setSelect')} className="w-full bg-card sm:w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('allSets')}</SelectItem>
-                  {sets.map((n) => (
-                    <SelectItem key={n} value={String(n)}>
-                      {t('set', { n })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+          <Select value={type} onValueChange={(v) => setType(v as ActionType | 'all')}>
+            <SelectTrigger aria-label={t('typeFilter')} className="w-full bg-card sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('allActions')}</SelectItem>
+              {present.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {t(`types.${p}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {type !== 'all' && (
             <Button variant="ghost" onClick={() => setType('all')}>
               <RotateCcw aria-hidden />

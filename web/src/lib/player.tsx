@@ -17,6 +17,7 @@ interface Player {
   go: (at: number) => void;
   /** Leaves the playlist and pauses the video. */
   stop: () => void;
+  video: HTMLVideoElement | null;
   setVideo: (video: HTMLVideoElement | null) => void;
 }
 
@@ -135,6 +136,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [video, update]);
 
-  const value = useMemo(() => ({ playlist, play, go, stop, setVideo }), [playlist, play, go, stop]);
+  const value = useMemo(() => ({ playlist, play, go, stop, video, setVideo }), [playlist, play, go, stop, video]);
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
