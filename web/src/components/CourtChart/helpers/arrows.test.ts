@@ -13,10 +13,21 @@ describe('arrows', () => {
       ['serve', 'pass', 'play', false],
       ['attack', 'floor', 'point', true],
     ]);
-    // The tip stops 0.4 m before a touch, 0.75 m before a landing, the line 0.3 m before the tip.
-    expect(out[0].line).toEqual([-9, 0, 5.3, 0]);
-    expect(out[0].head.split(' ')[0]).toBe('5.6,0');
-    expect(out[1].line).toEqual([1, 0, -3.95, 0]);
+    // The flight leaves the player and stops 0.45 m before a touch, 0.38 m before a landing.
+    expect(out[0].curve).toMatch(/^M-9,0Q.* 5\.55,0$/);
+    expect(out[1].curve).toMatch(/^M1,0Q.* -4\.62,0$/);
+  });
+
+  it('widens from the player to the end, thinner for a ball still in play', () => {
+    const all = [contact(0, 0, 'serve', 0, 0), contact(1, 0, 'pass', 10, 0), contact(2, 1, 'attack', 0, 0, 'point'), contact(3, 1, 'floor', 10, 0)];
+    const width = (shape: string, k: number) => {
+      const pts = shape.slice(1, -1).split('L').map((p) => p.split(',').map(Number));
+      return Math.hypot(pts[k][0] - pts[pts.length - 1 - k][0], pts[k][1] - pts[pts.length - 1 - k][1]);
+    };
+    const [play, point] = arrows(all, all);
+    expect(width(point.shape, 0)).toBeCloseTo(0.06);
+    expect(width(point.shape, 16)).toBeCloseTo(0.38);
+    expect(width(play.shape, 16)).toBeCloseTo(0.228);
   });
 
   it('skips a touch without a placed next touch in its rally', () => {

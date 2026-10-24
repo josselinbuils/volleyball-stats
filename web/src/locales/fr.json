@@ -52,12 +52,12 @@
   "captions": {
     "contacts": "Chaque point est une touche de balle, à l'endroit où elle a été jouée, dans la couleur de son équipe. Cliquez sur un point pour la revoir.",
     "zones": "Part des touches dans chaque zone de chaque demi-terrain. Cliquez sur une zone pour revoir ses touches.",
-    "directions": "Où sont allés les services et les attaques : jusqu'à la touche suivante ou jusqu'à l'endroit où le ballon est tombé. Cliquez sur une flèche pour la revoir."
+    "directions": "Où sont allés les services et les attaques : du joueur jusqu'à la touche suivante ou jusqu'au ballon au sol. Cliquez sur un trajet pour le revoir."
   },
   "notes": {
     "contacts": "Chaque touche est placée aux pieds du joueur qui l'a jouée, ou du joueur le plus proche sous le ballon quand ce joueur n'est pas connu. Un ballon au sol est placé exactement.",
     "zones": "Les zones sont numérotées depuis la ligne de fond de chaque équipe : 1 arrière droit, 2 avant droit, 3 avant centre, 4 avant gauche, 5 arrière gauche, 6 arrière centre. Les touches hors du terrain comptent dans la zone la plus proche.",
-    "directions": "Point : le ballon est tombé dans le camp adverse. Faute : dehors, dans son propre camp ou dans le filet. Les flèches partent des pieds du joueur qui a servi ou attaqué."
+    "directions": "Point : le ballon est tombé dans le camp adverse. Faute : dehors, dans son propre camp ou dans le filet. Chaque trajet part du joueur qui a servi ou attaqué et s'élargit vers là où le ballon est allé ; passez dessus pour le suivre seul."
   },
   "typeFilter": "Action",
   "allActions": "Toutes les actions",

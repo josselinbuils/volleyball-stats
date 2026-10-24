@@ -1,47 +1,62 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { color, teamColor, teamEdge, type Contact } from '@/lib/match';
+import { color, teamColor, teamEdge, type Contact, type Placed } from '@/lib/match';
 import type { Arrow } from '@/components/CourtChart/helpers/arrows';
 import { SvgButton } from '@/components/CourtChart/SvgButton';
 
-/** Serve and attack arrows, coloured by outcome, from the player who played them: their team's
- * colour and number. */
+const DIM = 0.12;
+
+/** Serves and attacks as the ball's flights, coloured by outcome, from the player who played them
+ * to the next player or the ball on the floor. Points and faults lie over the balls still in play;
+ * pointing at one flight dims the others. */
 export function Arrows({ arrows, describe, onPlay }: { arrows: Arrow[]; describe: (c: Contact) => string; onPlay: (c: Contact) => void }) {
   const { t } = useTranslation();
+  const [active, setActive] = useState<number | null>(null);
+  const order = [...arrows].sort((a, b) => Number(a.result !== 'play') - Number(b.result !== 'play'));
+  const opacity = (a: Arrow) => (active === null || a.from.i === active ? 1 : DIM);
+
   return (
     <>
-      {arrows.map(({ from, to, result, landing, line: [x1, y1, x2, y2], head }) => (
+      {order.map((a) => (
         <SvgButton
-          key={from.i}
-          label={`${describe(from)} → ${t(`types.${to.type}`).toLowerCase()} · ${t(`results.${result}`).toLowerCase()}`}
-          onActivate={() => onPlay(from)}
-          opacity={0.8}
-          className="hover:opacity-100 focus-visible:opacity-100 [&:focus-visible_.shaft]:stroke-[0.18]"
-          style={{ color: color(result) }}
+          key={a.from.i}
+          label={`${describe(a.from)} → ${t(`types.${a.to.type}`).toLowerCase()} · ${t(`results.${a.result}`).toLowerCase()}`}
+          onActivate={() => onPlay(a.from)}
+          onMouseEnter={() => setActive(a.from.i)}
+          onMouseLeave={() => setActive(null)}
+          onFocus={() => setActive(a.from.i)}
+          onBlur={() => setActive(null)}
+          opacity={opacity(a)}
+          className="transition-opacity duration-150"
+          style={{ color: color(a.result) }}
         >
-          <line x1={x1} y1={y1} x2={x2} y2={y2} className="shaft" stroke="currentColor" strokeWidth={0.09} strokeLinecap="round" />
-          <polygon points={head} fill="currentColor" />
-          {landing && (
-            <>
-              <circle cx={to.x} cy={to.y} r={0.4} fill="currentColor" fillOpacity={0.25} />
-              <circle cx={to.x} cy={to.y} r={0.18} fill="currentColor" stroke="var(--card)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            </>
-          )}
-          <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="transparent" strokeWidth={0.8} />
+          <path d={a.shape} fill="currentColor" fillOpacity={a.result === 'play' ? 0.5 : 0.9} />
+          <path d={a.curve} fill="none" stroke="transparent" strokeWidth={0.8} />
         </SvgButton>
       ))}
-      {/* The players above every arrow; a click goes through to the arrow. */}
+      {/* The players and balls above every flight; a click goes through to the flight. */}
       <g aria-hidden pointerEvents="none">
-        {arrows.map(({ from }) => (
-          <g key={from.i}>
-            <circle cx={from.x} cy={from.y} className="dot-mark" fill={teamColor(from.g)} stroke={teamEdge(from.g)} />
-            {from.player !== null && (
-              <text x={from.x} y={from.y} className="dot-text" fill={`var(--team${from.g}-text)`}>
-                {from.player}
-              </text>
-            )}
+        {order.map((a) => (
+          <g key={a.from.i} opacity={opacity(a)} className="transition-opacity duration-150">
+            {a.landing ? <circle cx={a.to.x} cy={a.to.y} className="ball-mark" /> : <Dot c={a.to} />}
+            <Dot c={a.from} />
           </g>
         ))}
       </g>
+    </>
+  );
+}
+
+/** A player's dot in their team's colour, with their number when known. */
+function Dot({ c }: { c: Placed }) {
+  return (
+    <>
+      <circle cx={c.x} cy={c.y} className="dot-mark" fill={teamColor(c.g)} stroke={teamEdge(c.g)} />
+      {c.player !== null && (
+        <text x={c.x} y={c.y} className="dot-text" fill={`var(--team${c.g}-text)`}>
+          {c.player}
+        </text>
+      )}
     </>
   );
 }

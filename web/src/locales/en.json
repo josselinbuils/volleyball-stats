@@ -52,12 +52,12 @@
   "captions": {
     "contacts": "Each dot is a touch of the ball, where it was played, in its team's colour. Click a dot to watch it.",
     "zones": "Share of the touches in each zone of each half. Click a zone to watch its touches.",
-    "directions": "Where each serve and attack went: to the next touch, or to where the ball hit the floor. Click an arrow to watch it."
+    "directions": "Where each serve and attack went: from the player to the next touch, or to the ball on the floor. Click a flight to watch it."
   },
   "notes": {
     "contacts": "Each touch is placed at the feet of the player who played it, or of the player closest under the ball when that player is unknown. A ball on the floor is placed exactly.",
     "zones": "Zones are numbered from each team's own end line: 1 back right, 2 front right, 3 front middle, 4 front left, 5 back left, 6 back middle. Touches outside the court count in the nearest zone.",
-    "directions": "Point: the ball landed in the other court. Error: out, on its own side or in the net. Arrows start at the feet of the player who served or attacked."
+    "directions": "Point: the ball landed in the other court. Error: out, on its own side or in the net. Each flight starts at the player who served or attacked and widens toward where the ball went; point at one to follow it alone."
   },
   "typeFilter": "Action",
   "allActions": "All actions",
