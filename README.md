@@ -35,6 +35,8 @@ name each identity once. Jersey numbers map to names through a roster kept acros
       overheating.
 - [ ] Lock the settings: 50 fps, widest field of view, shutter 1/250 or faster, exposure and white
       balance locked, audio on.
+- [ ] Calibrate the lens once with a checkerboard at those settings (OpenCV fisheye) and save the
+      lens JSON: without it the court mapping is off by 0.3–1.4 m (see the court benchmark).
 - [ ] At the gym: get approval for the handball goals, check they are anchored, check the framing
       from the stand shows both end lines and the near corners.
 
@@ -52,7 +54,7 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 | Step | What it does | Starting point |
 | --- | --- | --- |
 | 1. Rallies | Find when the ball is in play, drop dead time | Motion + whistle detection |
-| 2. Court | Detect court lines, map pixels to court coordinates | Line detection + homography |
+| 2. Court | Map pixels to court coordinates | Lens undistortion + homography from a dozen landmarks read once per camera setup ([benchmark](benchmarks/court/README.md)); automatic line detection tried, not reliable |
 | 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)) |
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Contact order per side + position |
 | 5. Players | Detect and track players, attribute each contact | YOLO + ByteTrack + pose (wrists) |

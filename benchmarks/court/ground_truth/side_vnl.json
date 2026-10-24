@@ -1,0 +1,14 @@
+{
+  "frame": 785,
+  "points": {
+    "corner_left_far": [267.4, 343.6],
+    "attack_left_far": [561.3, 345.0],
+    "attack_right_far": [852.3, 346.5],
+    "corner_right_far": [1157.1, 348.4],
+    "corner_left_near": [166.6, 530.9],
+    "attack_left_near": [530.2, 530.8],
+    "attack_right_near": [887.9, 534.4],
+    "corner_right_near": [1269.9, 542.2]
+  },
+  "tolerance": {}
+}
