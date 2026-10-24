@@ -62,8 +62,6 @@
   "typeFilter": "Action",
   "allActions": "Toutes les actions",
   "reset": "Réinitialiser",
-  "watchShown_one": "Revoir celle-ci",
-  "watchShown_other": "Revoir ces {{count, number}}",
   "emptyContacts": "Aucune touche ne correspond à ces filtres.",
   "emptyDirections": "Choisissez les services, les attaques ou toutes les actions pour voir où ils sont allés.",
   "zoneTitle": "Zone {{z}}, {{half}}",

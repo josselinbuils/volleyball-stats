@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Button } from '@/components/ui/button';
@@ -111,12 +111,6 @@ export function CourtChart() {
             >
               <RotateCcw aria-hidden />
               {t('reset')}
-            </Button>
-          )}
-          {shown.length > 0 && (
-            <Button className="lg:ml-auto" onClick={() => play(title, contactClips(shown, match.duration))}>
-              <Play aria-hidden className="fill-current" />
-              {t('watchShown', { count: shown.length })}
             </Button>
           )}
         </div>

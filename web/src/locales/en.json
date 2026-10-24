@@ -62,8 +62,6 @@
   "typeFilter": "Action",
   "allActions": "All actions",
   "reset": "Reset filters",
-  "watchShown_one": "Watch this one",
-  "watchShown_other": "Watch these {{count, number}}",
   "emptyContacts": "No touch matches these filters.",
   "emptyDirections": "Pick serves or attacks, or all actions, to see where they went.",
   "zoneTitle": "Zone {{z}}, {{half}}",
