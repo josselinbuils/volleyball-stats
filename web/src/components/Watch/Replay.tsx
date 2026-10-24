@@ -29,11 +29,11 @@ export function Replay() {
     <figure className="m-0 min-w-0">
       <div className="relative">
         <Court role="img" aria-label={t('replayLabel')} ends={ends}>
-          {dots.map(({ track, x, y }) => {
-            const team = match.tracks[track]?.team ?? 1;
-            const n = rally ? playerNumber(track, rally) : null;
+          {dots.map(({ person, x, y }) => {
+            const team = match.people[person]?.team ?? 1;
+            const n = playerNumber(person);
             return (
-              <g key={track}>
+              <g key={person}>
                 <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} stroke={teamEdge(team)} />
                 {n !== null && (
                   <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>

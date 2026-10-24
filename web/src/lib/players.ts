@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { match } from '@/lib/match';
 
-/** Player feet sampled every `step` frames from frame 0, each sample a flat [track, x, y, ...] list. */
+/** Player feet sampled every `step` frames from frame 0, each sample a flat [person, x, y, ...] list. */
 export interface Players {
   step: number;
   samples: number[][];
@@ -16,7 +16,7 @@ declare global {
 /** `loading` until players.js has run, `none` when the match has no player positions. */
 type State = Players | 'loading' | 'none';
 
-let state: State = Object.keys(match.tracks).length ? 'loading' : 'none';
+let state: State = Object.keys(match.people).length ? 'loading' : 'none';
 let started = false;
 const listeners = new Set<() => void>();
 

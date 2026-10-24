@@ -1,11 +1,13 @@
 """Run the whole pipeline on a match video and write a first report.
 
-    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE]] [--force]
+    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE] [--sets M:SS,...] [--scores 25-21,...] [--squad N[,N]]] [--force]
 
 Each step writes its output to outputs/<video>/; the ball and player tracks, the slow steps, are
 reused when they exist unless --force. With the players, teams.json holds the teams' names, colours,
-the match's date and title and the set starts: written on the first run (asked on a terminal),
-edited by hand if need be, reused on the next runs unless the flags override them.
+the match's date and title, the set starts and the sets' final scores: written on the first run
+(asked on a terminal), edited by hand if need be, reused on the next runs unless the flags override
+them. The players also give each rally's winner and the score (points.csv) and one identity per
+player for the whole match (identities.csv, identity.py).
 """
 
 import argparse
@@ -19,7 +21,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, contacts, court, players, rallies, teams
+from volleyball_stats import actions, attribution, ball, contacts, court, identity, players, points, rallies, teams
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 
@@ -136,6 +138,9 @@ def main() -> None:
         "--title",
         help="The match's title. Default: the one in teams.json, else asked on a terminal, else \"Match NAME_1 vs NAME_2\" in the page's language (\"\" for it)",
     )
+    parser.add_argument("--sets", help="Set starts in the video, M:SS or H:MM:SS, comma separated, the first 0:00. Default: the ones in teams.json, else asked on a terminal, else detected from the changes of ends")
+    parser.add_argument("--scores", help="Final score of each set, team 1 first, comma separated (25-21,23-25), empty for an unknown one. Default: the ones in teams.json, else asked on a terminal")
+    parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2, when known: the identities to find")
     parser.add_argument("--force", action="store_true", help="Track the ball and players again even if tracks exist")
     args = parser.parse_args()
     day = teams.parse_date(args.date) if args.date else None
@@ -179,18 +184,26 @@ def main() -> None:
             start = time.perf_counter()
             players.write_csv(players.track(args.video, calibration), players_path)
             timings["players"] = time.perf_counter() - start
+            # New tracks: the identities and their embeddings start over.
+            for stale in ("identities.csv", "embeddings.npz"):
+                (out / stale).unlink(missing_ok=True)
+            if (out / "identity_answers.json").exists():
+                print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
         rows = attribution.read_players(players_path)
         touchers = attribution.attribute(typed, rows, fps)
         start = time.perf_counter()
         found_teams = teams.assign(args.video, rows, windows)
         timings["teams"] = time.perf_counter() - start
         try:
-            settled = teams.settle(out / "teams.json", found_teams, windows, fps, args.teams, sys.stdin.isatty(), teams.recording_date(args.video), day, args.title)
+            settled = teams.settle(
+                out / "teams.json", found_teams, windows, fps, args.teams, sys.stdin.isatty(), teams.recording_date(args.video), day, args.title,
+                args.sets and args.sets.split(","), args.scores and args.scores.split(","),
+            )
         except ValueError as error:
             parser.error(str(error))
         write_csv(out / "tracks.csv", ["track", "team"], sorted(found_teams.tracks.items()))
-    elif args.teams or args.date or args.title is not None:
-        parser.error("--teams, --date and --title need --players")
+    elif args.teams or args.date or args.title is not None or args.sets or args.scores or args.squad:
+        parser.error("--teams, --date, --title, --sets, --scores and --squad need --players")
 
     if found_teams is None:
         write_csv(out / "rallies.csv", ["start_frame", "end_frame"], windows)
@@ -200,12 +213,21 @@ def main() -> None:
         sets = teams.set_numbers(windows, [teams.seconds(s) for s in settled["sets"]], fps)
         write_csv(out / "rallies.csv", ["start_frame", "end_frame", "left", "set"], [[*w, "" if g is None else g, s] for w, g, s in zip(windows, found_teams.left, sets)])
         contact_teams = teams.contact_teams(typed, windows, found_teams.left, round(actions.LEAD_S * fps))
-        rows_out = [[*t, "" if k is None else k, "" if g is None else g] for t, k, g in zip(typed, touchers, contact_teams)]
-        write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track", "team"], rows_out)
+        start = time.perf_counter()
+        attributed = [(t[0], k) for t, k in zip(typed, touchers) if k is not None]
+        known = identity.run(out, args.video, rows, windows, found_teams.left, fps, args.squad, attributed)
+        timings["identity"] = time.perf_counter() - start
+        who = [identity.lookup(known, k, t[0]) if k is not None else None for t, k in zip(typed, touchers)]
+        rows_out = [[*t, "" if k is None else k, "" if g is None else g, "" if w is None else w[1]] for t, k, g, w in zip(typed, touchers, contact_teams, who)]
+        write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track", "team", "identity"], rows_out)
+        # ponytail: a rally with unknown sides counts team 1 on the left, as points.main does.
+        found_points = points.points(typed, crossings, windows, [g or 1 for g in found_teams.left], sets, fps, calibration)
+        points.write_points(out / "points.csv", windows, found_points)
         names = [team["name"] or teams.default_name(k) for k, team in enumerate(settled["teams"], 1)]
         counts = Counter(found_teams.tracks.values())
         tracks = {names[0]: counts[1], names[1]: counts[2]}
         text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks, names, contact_teams, sets, settled["date"], settled["title"])
+        text += "\n" + "\n".join(f"- {line}" for line in points.summary(found_points, settled["scores"])) + "\n"
     (out / "report.md").write_text(text)
     print(text, end="")
     print(out / "report.md")

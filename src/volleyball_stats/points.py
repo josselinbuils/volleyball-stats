@@ -177,6 +177,26 @@ def points(typed: list[Typed], crossings: list[int], windows: list[tuple[int, in
     return out
 
 
+def write_points(path: Path, windows: list[tuple[int, int]], found: list[dict]) -> None:
+    """points.csv: each rally's set, server, winner, reason and the score after it."""
+    with open(path, "w", newline="") as f:
+        out = csv.writer(f)
+        out.writerow(["start_frame", "end_frame", "set", "server", "winner", "reason", "score_1", "score_2"])
+        for (start, end), p in zip(windows, found):
+            out.writerow([start, end, p["set"], p["server"] or "", p["winner"] or "", p["reason"], *p["score"]])
+
+
+def summary(found: list[dict], given: list[str | None]) -> list[str]:
+    """One line per set: its estimated final score and, when `given` (teams.json's scores), the
+    drift from it."""
+    totals = {p["set"]: p["score"] for p in found}
+    lines = []
+    for number, drift in set_drift(totals, given).items():
+        one, two = totals[number]
+        lines.append(f"Set {number}: {one}-{two} estimated" + ("" if drift is None else f", {given[number - 1]} given, drift {drift[0]:+d} {drift[1]:+d}"))
+    return lines
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Find who won each rally and the running score.")
     parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO)")
@@ -195,17 +215,10 @@ def main() -> None:
         crossings = [int(r["frame"]) for r in csv.DictReader(f)]
     calibration = Calibration.load(args.court) if args.court else None
     found = points(typed, crossings, windows, lefts, sets, args.fps, calibration)
-    with open(args.match / "points.csv", "w", newline="") as f:
-        out = csv.writer(f)
-        out.writerow(["start_frame", "end_frame", "set", "server", "winner", "reason", "score_1", "score_2"])
-        for (start, end), p in zip(windows, found):
-            out.writerow([start, end, p["set"], p["server"] or "", p["winner"] or "", p["reason"], *p["score"]])
+    write_points(args.match / "points.csv", windows, found)
     teams_path = args.match / "teams.json"
     given = json.loads(teams_path.read_text()).get("scores") or [] if teams_path.exists() else []
-    totals = {p["set"]: p["score"] for p in found}
-    for number, drift in set_drift(totals, given).items():
-        one, two = totals[number]
-        print(f"Set {number}: {one}-{two} estimated" + ("" if drift is None else f", {given[number - 1]} given, drift {drift[0]:+d} {drift[1]:+d}"))
+    print("\n".join(summary(found, given)))
     print(args.match / "points.csv")
 
 

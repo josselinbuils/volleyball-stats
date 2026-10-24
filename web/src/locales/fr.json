@@ -118,18 +118,20 @@
   "ofSet": "{{p}} du set",
   "clubSite": "Site du club {{name}} (nouvel onglet)",
   "loadingPlayers": "Chargement des positions…",
-  "numbersNote": "Les numéros distinguent les joueurs et joueuses au sein d'un échange seulement, en attendant que l'équipe soit nommée.",
+  "numbersNote": "Chaque numéro désigne le même joueur ou la même joueuse pendant tout le match, en attendant que l'équipe soit nommée.",
   "player": "n° {{n}}",
   "onTheLeft": "{{team}} à gauche",
-  "mirrored": "Avec tous les sets, chaque équipe est montrée sur sa moitié habituelle, celle du premier échange : les échanges joués de l'autre côté sont retournés.",
-  "homeHalves": "Positions ramenées du côté habituel de chaque équipe",
-  "sidesSet": "Le terrain est montré tel qu'il a été joué pendant ce set, vu depuis la caméra.",
-  "sidesSwap": "Les équipes ont changé de côté à 8 points dans ce set décisif : les échanges joués ensuite sont retournés pour que chaque équipe garde son côté du début du set.",
+  "sidesSet": "Vu depuis la caméra, chaque équipe sur la moitié où elle a joué.",
   "theme": "Thème",
   "themes": {
     "light": "Clair",
     "dark": "Sombre",
     "auto": "Automatique (comme l'appareil)"
   },
-  "matchTitle": "Match {{one}} vs {{two}}"
+  "matchTitle": "Match {{one}} vs {{two}}",
+  "scoreLabel": "Set {{set}}, score : {{a}} {{s1}}, {{b}} {{s2}}",
+  "scoreEstimated": "Score estimé",
+  "scoreFinal": "Score final",
+  "scoreHint": "Calculé automatiquement à partir de la fin de chaque échange : il peut avoir un point d'écart quand un échange n'a pas été repéré.",
+  "sidesMixed": "Vu depuis la caméra, là où chaque touche a été jouée : les équipes changent de côté entre les sets, chaque moitié montre donc les touches des deux équipes."
 }

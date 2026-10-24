@@ -23,13 +23,13 @@ describe('ballAt', () => {
 describe('playersAt', () => {
   const players = { step: 3, samples: [[], [4, 1, 2], [4, 3, 4, 9, 5, 6]] };
 
-  it('takes the nearest sample as track and court feet', () => {
+  it('takes the nearest sample as player and court feet', () => {
     // Sample 2 is frame 6, 0.2 s at 30 fps.
     expect(playersAt(players, 30, 0.19)).toEqual([
-      { track: 4, x: 3, y: 4 },
-      { track: 9, x: 5, y: 6 },
+      { person: 4, x: 3, y: 4 },
+      { person: 9, x: 5, y: 6 },
     ]);
-    expect(playersAt(players, 30, 0.1)).toEqual([{ track: 4, x: 1, y: 2 }]);
+    expect(playersAt(players, 30, 0.1)).toEqual([{ person: 4, x: 1, y: 2 }]);
   });
 
   it('has no players past the samples', () => {

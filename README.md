@@ -84,7 +84,7 @@ WSL2 is several times slower.
 uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
 uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens outputs/lens.json]
 uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
-uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE]]
+uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE] [--sets M:SS,...] [--scores 25-21,...] [--squad N[,N]]]
 ```
 
 `--court` takes `outputs/court/VIDEO.json` from `auto`, or `outputs/courts/NAME.json` from `fit` on
@@ -92,22 +92,35 @@ the first match of a court. `match` writes the ball track, rallies, typed contac
 report to `outputs/VIDEO/`; the actions CSV holds each contact with its type and side of the net.
 `--players` adds the player tracks (about 2.5× the ball tracking time) and the teams: each contact
 gets the team on its side (actions CSV `team`), each rally the team on the left and its set
-(rallies CSV `left`, `set`), and the report counts per team and per set instead of per side.
+(rallies CSV `left`, `set`), and the report counts per team and per set instead of per side. It also
+gives each player one identity for the whole match (`identities.csv`, actions CSV `identity`; see
+the [identity benchmark](benchmarks/identity/README.md)), numbered 1, 2, ... per team, and each
+rally's winner and the running score of its set (`points.csv`, see the
+[points benchmark](benchmarks/points/README.md)). `--squad` gives the number of players of each
+team when known (team 1 first): the identities to find.
 
 Teams are Team 1 and Team 2, Team 1 being the team on the left of the camera at the first rally;
 they keep their names when they change ends. `outputs/VIDEO/teams.json` holds their names (`null`
 for the default "Team 1" / "Équipe 1"), colours (`colour`, `null` for the detected `jersey`), the
 match's date (`"yyyy-mm-dd"`) and title (`null` for the default "Match NAME_1 vs NAME_2",
-translated on the page) and the set starts (`"m:ss"`, the first `"0:00"`). It is
-written on the first run: names and colours come from `--teams` (the first name is the team on the
-left at the first rally; a colour is `#rrggbb` or a name such as `white`, `navy`, `rouge`,
-`marine`), the date from `--date`, the title from `--title`; else, on a terminal, the pipeline
-opens an image of a few players of each team and asks for them, then for the date (dd/mm/yyyy or
-yyyy-mm-dd) and the title (Enter keeps the default name, the detected colour, the video's
-recording date and the default title); else the defaults. Later runs reuse the file: edit it to fix
-a name, a colour, the date, the title or a set start (a new set starts when the teams change ends
-after a set break, see the [teams benchmark](benchmarks/teams/README.md)), or pass the flags again
-(`--title ""` goes back to the default title).
+translated on the page), the set starts (`"m:ss"`, the first `"0:00"`) and the sets' final scores
+(`"25-21"`, team 1 first, `null` when unknown). It is written on the first run: names and colours
+come from `--teams` (the first name is the team on the left at the first rally; a colour is
+`#rrggbb` or a name such as `white`, `navy`, `rouge`, `marine`), the date from `--date`, the title
+from `--title`, the set starts from `--sets` and the scores from `--scores`; else, on a terminal,
+the pipeline opens an image of a few players of each team and asks for them, then for the date
+(dd/mm/yyyy or yyyy-mm-dd), the title, each set's start and its final score (Enter keeps the
+default name, the detected colour, the video's recording date, the default title, the detected set
+start and an unknown score); else the defaults. Later runs reuse the file: edit it to fix a name, a
+colour, the date, the title, a set start (a new set starts when the teams change ends after a set
+break, see the [teams benchmark](benchmarks/teams/README.md)) or a score, or pass the flags again
+(`--title ""` goes back to the default title). The final scores show on the page once a set is
+over and the report gives the estimated score's drift from them.
+
+The identity step reruns alone in seconds (`uv run python -m volleyball_stats.identity
+outputs/VIDEO --video VIDEO [--squad N[,N]]`), keeping the numbers of the previous run. It writes
+`identity_candidates.json`, the identities it is least sure of; answers in
+`identity_answers.json` (same player, different players, not a player) override it on the next run.
 
 ```bash
 uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video] [--theme NAME]
@@ -115,7 +128,9 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
 
 `web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default): every
 number and chart element plays its moments in the video, with a top view of the court following
-the play, its players numbered within each rally. The match's title and date head the page.
+the play, each player keeping one number for the whole match, and the set and its score (estimated,
+or the final score you gave once the set is over) above the video. The match's title and date head
+the page.
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls
 back to the sides of the net. With several sets, one filter at the top shows a single set. A switch
@@ -143,7 +158,7 @@ install`, `npm run dev` (reads `web/public/data.js`, copied from a built match),
 | 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)); contacts from velocity changes with gravity removed ([benchmark](benchmarks/contacts/README.md)) |
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](benchmarks/actions/README.md)) |
 | 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the torso colour of the tracks, the side of the net each team holds rally by rally, and sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
-| 6. Identity | Merge tracklets into one identity per player for the match | Jersey number OCR + re-ID, within each team |
+| 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run); jersey numbers (4K) as constraints later ([benchmark](benchmarks/identity/README.md)) |
 | 7. Naming | Show one thumbnail gallery per identity, store number → name | Simple local UI |
 | 8. Stats | Per-player counts and outcomes (kill, error, ace) | Ball landing spot + next action |
 

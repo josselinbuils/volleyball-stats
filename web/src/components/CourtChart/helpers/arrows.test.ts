@@ -4,7 +4,7 @@ import { arrows } from '@/components/CourtChart/helpers/arrows';
 
 describe('arrows', () => {
   const contact = (i: number, rally: number, type: string, x: number | null, y: number | null, result = 'play') =>
-    ({ i, rally, type, x, y, result, t: i, side: 'left', zone: null, track: null }) as Contact;
+    ({ i, rally, type, x, y, result, t: i, side: 'left', zone: null, person: null }) as Contact;
 
   it('draws serves and attacks to the next touch with their outcome', () => {
     const all = [contact(0, 0, 'serve', -9, 0), contact(1, 0, 'pass', 6, 0), contact(2, 0, 'set', 2, 0), contact(3, 0, 'attack', 1, 0, 'point'), contact(4, 0, 'floor', -5, 0)];

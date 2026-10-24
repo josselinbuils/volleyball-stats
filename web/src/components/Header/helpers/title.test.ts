@@ -16,7 +16,7 @@ describe('match title', () => {
   /** The helpers and team names over a match with these fields. */
   async function load(fields: object) {
     vi.resetModules();
-    vi.stubGlobal('window', { MATCH: { name: 'side_setend', video: 'v.mp4', fps: 25, duration: 60, teams: null, rallies: [], contacts: [], zones: [], tracks: {}, ...fields } });
+    vi.stubGlobal('window', { MATCH: { name: 'side_setend', video: 'v.mp4', fps: 25, duration: 60, teams: null, rallies: [], contacts: [], zones: [], people: {}, ...fields } });
     const { matchTitle, tabTitle } = await import('@/components/Header/helpers/title');
     const { groupName } = await import('@/lib/match');
     return { matchTitle, tabTitle, groupName };

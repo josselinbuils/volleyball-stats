@@ -24,12 +24,15 @@ export interface Contact {
   y: number | null;
   zone: number | null;
   result: Result;
-  track: number | null;
+  /** Key of the attributed player in `match.people`. */
+  person: number | null;
+  /** The number that player shows. */
   player: number | null;
 }
 
 /** A rally, `left` the team on the left of the net, `flipped` when the teams play on the other ends
- * than at the first rally, `numbers` the number of each team's player tracks during it. */
+ * than at the first rally, `winner` its estimated winner and `score` the estimated score of its set
+ * after it (team 1, team 2), null without teams. */
 export interface Rally {
   i: number;
   start: number;
@@ -37,8 +40,17 @@ export interface Rally {
   set: number;
   left: Group;
   flipped: boolean;
-  numbers: Record<string, number>;
+  winner: Group | null;
+  score: [number, number] | null;
   contacts: Contact[];
+}
+
+/** A player on the page: an identity for the whole match with its `number` in its team, or a player
+ * track without one (`number` null). */
+export interface Person {
+  team: Group;
+  number: number | null;
+  jersey: number | null;
 }
 
 export interface ZoneCell {
@@ -75,10 +87,12 @@ interface Data {
   fps: number;
   duration: number;
   teams: [Team, Team] | null;
-  rallies: { start: number; end: number; set: number; left: Group | null; numbers: Record<string, number> }[];
+  rallies: { start: number; end: number; set: number; left: Group | null; winner?: Group | null; score?: [number, number] | null }[];
   contacts: Omit<Contact, 'i' | 'g' | 'player'>[];
   zones: ZoneCell[];
-  tracks: Record<string, { team: Group; jersey: number | null }>;
+  people: Record<string, Person>;
+  /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
+  scores?: (string | null)[] | null;
   brand?: Brand | null;
   /** yyyy-mm-dd, with teams. */
   date?: string | null;
@@ -101,7 +115,8 @@ export const match = {
   fps: data.fps,
   duration: data.duration,
   zones: data.zones,
-  tracks: data.tracks,
+  people: data.people,
+  scores: data.scores ?? [],
   brand: data.brand ?? null,
   date: data.date ?? null,
   title: data.title ?? null,
@@ -109,12 +124,20 @@ export const match = {
 export const teams = data.teams;
 export const hasTeams = teams !== null;
 const firstLeft = data.rallies.find((r) => r.left !== null)?.left ?? 1;
-export const rallies: Rally[] = data.rallies.map((r, i) => ({ ...r, i, left: r.left ?? firstLeft, flipped: (r.left ?? firstLeft) !== firstLeft, contacts: [] }));
+export const rallies: Rally[] = data.rallies.map((r, i) => ({
+  ...r,
+  i,
+  left: r.left ?? firstLeft,
+  flipped: (r.left ?? firstLeft) !== firstLeft,
+  winner: r.winner ?? null,
+  score: r.score ?? null,
+  contacts: [],
+}));
 export const contacts: Contact[] = data.contacts.map((c, i) => ({
   ...c,
   i,
   g: (hasTeams && c.team) || (c.side === 'left' ? 1 : 2),
-  player: playerNumber(c.track, rallies[c.rally]),
+  player: playerNumber(c.person),
 }));
 for (const c of contacts) {
   rallies[c.rally].contacts.push(c);
@@ -136,13 +159,12 @@ export function groupName(t: TFunction, g: Group): string {
   return teams[g - 1].name ?? t('team', { n: g });
 }
 
-/** The number a player track shows in a rally: its jersey number when known, else its number in
- * the rally. */
-export function playerNumber(track: number | null, rally: Rally): number | null {
-  if (track === null) {
+/** The number a player shows: their jersey number when known, else their number for the match. */
+export function playerNumber(person: number | null): number | null {
+  if (person === null) {
     return null;
   }
-  return match.tracks[track]?.jersey ?? rally.numbers[track] ?? null;
+  return match.people[person]?.jersey ?? match.people[person]?.number ?? null;
 }
 
 export const color = (key: string) => `var(--${key})`;

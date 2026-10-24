@@ -4,7 +4,7 @@ import pytest
 
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
-from volleyball_stats.web import brand, contacts, numbers, player_samples, result, spot, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import brand, contacts, people, player_samples, result, spot, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -105,7 +105,7 @@ class TestContacts:
         assert out[2]["x"] is None and out[2]["zone"] is None
         assert out[3]["x"] is None  # no player at that frame
         assert [c["result"] for c in out] == ["point", "play", "play", "play"]
-        assert [c["track"] for c in out] == [None, None, None, None]
+        assert [c["person"] for c in out] == [None, None, None, None]
         assert [c["team"] for c in out] == [None, None, None, None]
 
     def test_places_an_attributed_contact_at_its_players_feet_else_under_the_ball(self):
@@ -121,7 +121,7 @@ class TestContacts:
 
         out = contacts(typed, [(5, 30)], players, 10.0, IDENTITY, 15)
 
-        assert [(c["x"], c["y"], c["track"], c["team"]) for c in out] == [(-4.0, 2.0, 7, None), (2.0, 0.5, 9, 2)]
+        assert [(c["x"], c["y"], c["person"], c["team"]) for c in out] == [(-4.0, 2.0, 7, None), (2.0, 0.5, 9, 2)]
 
 
 class TestPlayerSamples:
@@ -136,23 +136,15 @@ class TestPlayerSamples:
         assert player_samples(rows, 3, 10) == [[], [5, 3.14, -1.0, 2, -2.0, 1.23], [], [2, -4.0, 0.0]]
 
 
-class TestNumbers:
-    def test_numbers_each_teams_players_by_zone_at_the_serve_then_the_late_ones_as_they_appear(self):
-        def at(track: int, x: float, y: float) -> dict:
-            return {"track": str(track), "court_x": str(x), "court_y": str(y)}
+class TestPeople:
+    def test_one_player_per_identity_across_its_tracks_and_one_per_track_without_identity(self):
+        # Track 1 is identity 3 then, past a crowd at frame 50, identity 4; track 2 continues 4.
+        identities = [(1, 0, 49, 1, 3), (1, 51, 90, 1, 4), (2, 100, 200, 1, 4)]
 
-        players = {
-            8: [at(1, -1.0, 3.0), at(2, -6.0, 3.0), at(3, -1.0, -3.0), at(4, 6.0, -3.0), at(9, 0.0, 9.0)],
-            10: [at(1, -1.0, 3.0), at(5, 1.0, 0.0)],
-            14: [at(6, -5.0, 0.0), at(7, 2.0, 0.0)],
-            30: [at(8, 1.0, 1.0)],
-        }
+        who, table = people({1: 1, 2: 1, 5: 2}, identities)
 
-        # Zones of the left team: 1 back right (y > 0), 2 front right, 4 front left. Track 9 has no
-        # team; track 8 comes after the window.
-        out = numbers(players, (5, 20), 10, {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 1, 7: 2, 8: 2})
-
-        assert out == {2: 1, 1: 2, 3: 3, 6: 4, 4: 1, 5: 2, 7: 3}
+        assert [who(1, 10), who(1, 60), who(2, 150), who(5, 10), who(None, 10)] == [0, 1, 1, 2, None]
+        assert table == {0: {"team": 1, "number": 3, "jersey": None}, 1: {"team": 1, "number": 4, "jersey": None}, 2: {"team": 2, "number": None, "jersey": None}}
 
 
 class TestBrand:

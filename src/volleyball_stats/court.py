@@ -94,6 +94,17 @@ Lens = dict
 Points = dict[str, tuple[float, float]]
 
 
+def zone(x: float, y: float) -> int:
+    """Volleyball zone of (x, y) in its half, seen from that half's end line: front row 4-3-2 and
+    back row 5-6-1 from left to right. A point off the court takes the nearest zone."""
+    # Thirds of the width from the far sideline: the left half's players face the net, their
+    # left hand toward the far sideline; the right half's toward the near one.
+    third = min(2, max(0, int((y + WIDTH / 2) // (WIDTH / 3))))
+    if x > 0:
+        third = 2 - third
+    return (4, 3, 2)[third] if abs(x) < ATTACK else (5, 6, 1)[third]
+
+
 def undistort(points: np.ndarray, lens: Lens) -> np.ndarray:
     """Distorted pixels to pinhole pixels of the same intrinsics."""
     k, d = np.array(lens["K"], float), np.array(lens["D"], float)

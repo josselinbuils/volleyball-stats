@@ -118,18 +118,20 @@
   "ofSet": "{{p}} of the set",
   "clubSite": "{{name}} website (new tab)",
   "loadingPlayers": "Loading players…",
-  "numbersNote": "Numbers tell players apart within a rally only, until the players are named.",
+  "numbersNote": "Each number is the same player for the whole match, until the players are named.",
   "player": "player {{n}}",
   "onTheLeft": "{{team}} on the left",
-  "mirrored": "With all sets, each team is shown on its usual half, the one of the first rally: the rallies played on the other end are turned around.",
-  "homeHalves": "Positions moved to each team's usual half",
-  "sidesSet": "The court is shown as it was played in this set, seen from the camera.",
-  "sidesSwap": "The teams changed ends at 8 points in this deciding set: the rallies played after that are turned around so each team keeps the end it started the set on.",
+  "sidesSet": "Seen from the camera, each team on the half it played on.",
   "theme": "Theme",
   "themes": {
     "light": "Light",
     "dark": "Dark",
     "auto": "Automatic (follows the device)"
   },
-  "matchTitle": "Match {{one}} vs {{two}}"
+  "matchTitle": "Match {{one}} vs {{two}}",
+  "scoreLabel": "Set {{set}}, score: {{a}} {{s1}}, {{b}} {{s2}}",
+  "scoreEstimated": "Estimated score",
+  "scoreFinal": "Final score",
+  "scoreHint": "Worked out from how each rally ends: it can be a point off when a rally was missed.",
+  "sidesMixed": "Seen from the camera, where each touch was played: the teams change ends between sets, so each half shows both teams' touches."
 }

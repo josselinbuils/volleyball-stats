@@ -7,15 +7,17 @@ a script rather than fetched JSON so it opens from the disk by double-clicking i
 players' positions over the whole video from players.js, which it loads once it has rendered. Every
 path is relative: the site directory serves as plain static files. The video is symlinked unless
 --copy-video, for hosting; a poster frame stands in for it until it plays. Teams (names, colours,
-sets, the match's date and title) come from teams.json, written by match.py --players; a teams.json
-from before the date takes the video's recording date. --theme picks a club theme from
-branding/NAME/brand.json (logo, colours), `none` for the neutral one.
+sets, the match's date and title, the sets' final scores) come from teams.json, written by match.py
+--players, with each player's identity for the whole match (identities.csv) and the score
+(points.csv); a teams.json from before the date takes the video's recording date. --theme picks a
+club theme from branding/NAME/brand.json (logo, colours), `none` for the neutral one.
 """
 
 import argparse
 import csv
 import json
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 import cv2
@@ -23,15 +25,14 @@ import numpy as np
 
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, box_at
-from volleyball_stats.court import ATTACK, LENGTH, WIDTH, Calibration
+from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
+from volleyball_stats.identity import lookup, read_identities
 from volleyball_stats.teams import recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
 BRANDING = Path("branding")
 # Player positions are kept every STEP frames over the whole video, to the centimetre.
 STEP = 3
-# The page plays a rally with a second around it, and numbers its players over that time.
-PAD_S = 1.0
 POSTER_WIDTH = 800
 # The club logo shows at most 64 px tall: kept at twice that for sharp high-density screens.
 LOGO_PX = 128
@@ -62,17 +63,6 @@ def spot(kind: str, ball: tuple[float, float], boxes: np.ndarray, feet: np.ndarr
     return tuple(feet[player_under(ball, boxes, max(reach, gap.min()))].tolist())
 
 
-def zone(x: float, y: float) -> int:
-    """Volleyball zone of (x, y) in its half, seen from that half's end line: front row 4-3-2 and
-    back row 5-6-1 from left to right. A point off the court takes the nearest zone."""
-    # Thirds of the width from the far sideline: the left half's players face the net, their
-    # left hand toward the far sideline; the right half's toward the near one.
-    third = min(2, max(0, int((y + WIDTH / 2) // (WIDTH / 3))))
-    if x > 0:
-        third = 2 - third
-    return (4, 3, 2)[third] if abs(x) < ATTACK else (5, 6, 1)[third]
-
-
 def zone_cells() -> list[dict]:
     """The 12 zone rectangles of the court, numbered by `zone` at their center."""
     cells = []
@@ -92,10 +82,15 @@ def result(contact: dict, after: dict | None) -> str:
     return "point" if after["type"] == "floor" and after["side"] != contact["side"] and inside else "error"
 
 
-def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[int, list[dict]], fps: float, calibration: Calibration, reach: float) -> list[dict]:
+# The player a (track, frame) shows on the page, None without a track.
+Who = Callable[[int | None, int], int | None]
+
+
+def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[int, list[dict]], fps: float, calibration: Calibration, reach: float, who: Who = lambda track, _: track) -> list[dict]:
     """The page's contacts from the actions CSV rows: time, type, side, team (None without teams),
-    rally index, court position, zone, result and attributed track. A contact with a track is placed
-    at that player's feet, else by `spot`. `players` holds the player CSV rows by frame."""
+    rally index, court position, zone, result and the attributed track's player (`who`). A contact
+    with a track is placed at that player's feet, else by `spot`. `players` holds the player CSV
+    rows by frame."""
     lead, gap = round(LEAD_S * fps), round(GAP_S * fps)
     out: list[dict] = []
     for row in typed:
@@ -120,45 +115,45 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
             "x": None if xy is None else round(xy[0], 2),
             "y": None if xy is None else round(xy[1], 2),
             "zone": None if xy is None else zone(*xy),
-            "track": track,
+            "person": who(track, frame),
         })
     for contact, after in zip(out, out[1:] + [None]):
         contact["result"] = result(contact, after if after and after["rally"] == contact["rally"] else None)
     return out
 
 
-def player_samples(rows: list[dict], step: int, frame_count: int) -> list[list[float]]:
+def player_samples(rows: list[dict], step: int, frame_count: int, who: Who = lambda track, _: track) -> list[list[float]]:
     """The players' court feet every `step` frames of the video, from frame 0, each sample a flat
-    [track, x, y, ...] list rounded to the centimetre."""
+    [player, x, y, ...] list rounded to the centimetre, `who` naming the player of a row's track."""
     samples: list[list[float]] = [[] for _ in range(-(-frame_count // step))]
     for row in rows:
         frame = int(row["frame"])
         if frame % step == 0 and frame // step < len(samples):
-            samples[frame // step] += [int(row["track"]), round(float(row["court_x"]), 2), round(float(row["court_y"]), 2)]
+            samples[frame // step] += [who(int(row["track"]), frame), round(float(row["court_x"]), 2), round(float(row["court_y"]), 2)]
     return samples
 
 
-def numbers(players: dict[int, list[dict]], window: tuple[int, int], serve: int, teams: dict[int, int]) -> dict[int, int]:
-    """Numbers 1, 2, ... of each team's tracks over a rally `window`, for the page to tell them apart
-    until they are named: the tracks already there at the `serve` frame by their zone then (1 back
-    right, 2 front right, 3 front middle, 4 front left, 5 back left, 6 back middle), then the later
-    ones as they appear. `players` holds the player CSV rows by frame."""
-    first: dict[int, int] = {}
-    near: dict[int, tuple[int, tuple[float, float]]] = {}
-    for frame in range(window[0], window[1] + 1):
-        for row in players.get(frame, []):
-            track = int(row["track"])
-            if track in teams:
-                first.setdefault(track, frame)
-                if track not in near or abs(frame - serve) < near[track][0]:
-                    near[track] = (abs(frame - serve), (float(row["court_x"]), float(row["court_y"])))
-    out = {}
-    for team in (1, 2):
-        mine = [t for t in first if teams[t] == team]
-        starters = sorted((t for t in mine if first[t] <= serve), key=lambda t: (zone(*near[t][1]), near[t][1][1]))
-        later = sorted((t for t in mine if first[t] > serve), key=lambda t: first[t])
-        out.update((t, k) for k, t in enumerate(starters + later, 1))
-    return out
+def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int, int]]) -> tuple[Who, dict[int, dict]]:
+    """The page's players, keyed 0, 1, ... as they are first asked for: one per identity
+    (identities.csv's rows) with its team and number, one per track without identity, with its
+    team and no number; and `who`, the key of the player a track shows at a frame."""
+    by_track: dict[int, list] = {}
+    for r in identities:
+        by_track.setdefault(r[0], []).append(r)
+    keys: dict[tuple, int] = {}
+    table: dict[int, dict] = {}
+
+    def who(track: int | None, frame: int) -> int | None:
+        if track is None:
+            return None
+        found = lookup(by_track.get(track, []), track, frame)
+        name = ("identity", *found) if found else ("track", track)
+        if name not in keys:
+            keys[name] = len(keys)
+            table[keys[name]] = {"team": found[0] if found else track_team.get(track, 1), "number": found[1] if found else None, "jersey": None}
+        return keys[name]
+
+    return who, table
 
 
 def read_teams(match: Path) -> dict | None:
@@ -217,16 +212,18 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     else:
         # Without teams, tracks are grouped by their side of the net: 1 left, 2 right.
         teams, track_team = None, {int(r["track"]): 1 if r["team"] == "left" else 2 for r in rows}
-    found = contacts(read_csv(match / "actions.csv"), windows, by_frame, fps, calibration, UNDER_PX * height / 720)
-    pad = round(PAD_S * fps)
+    who, table = people(track_team, read_identities(match / "identities.csv") if teams and (match / "identities.csv").exists() else [])
+    found = contacts(read_csv(match / "actions.csv"), windows, by_frame, fps, calibration, UNDER_PX * height / 720, who)
+    scores = read_csv(match / "points.csv") if teams and (match / "points.csv").exists() else [{}] * len(windows)
     rallies = []
-    for (start, end), row in zip(windows, rally_rows):
+    for (start, end), row, point in zip(windows, rally_rows, scores):
         rallies.append({
             "start": round(start / fps, 2),
             "end": round(end / fps, 2),
             "set": int(row.get("set") or 1),
             "left": int(row["left"]) if row.get("left") else None,
-            "numbers": numbers(by_frame, (start - pad, end + pad), start, track_team),
+            "winner": int(point["winner"]) if point.get("winner") else None,
+            "score": [int(point["score_1"]), int(point["score_2"])] if point.get("score_1") else None,
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
@@ -241,9 +238,11 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "rallies": rallies,
         "contacts": found,
         "zones": zone_cells(),
-        "tracks": {track: {"team": team, "jersey": None} for track, team in sorted(track_team.items())},
+        "scores": teams and teams.get("scores"),
     }
-    return data, {"step": STEP, "samples": player_samples(rows, STEP, frame_count)} if rows else None
+    samples = player_samples(rows, STEP, frame_count, who) if rows else None
+    data["people"] = table
+    return data, samples and {"step": STEP, "samples": samples}
 
 
 def write_site(data: dict, players: dict | None, video: Path, site: Path, copy: bool) -> None:

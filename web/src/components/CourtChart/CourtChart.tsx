@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Play, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -10,7 +10,7 @@ import { Court, Legend } from '@/components/Court';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
-import { color, contacts as all, GROUPS, groupName, match, placed, rallies as allRallies, sets, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
+import { color, contacts as all, GROUPS, groupName, match, placed, sets, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils';
 import { Arrows } from '@/components/CourtChart/Arrows';
 import { ContactDots } from '@/components/CourtChart/ContactDots';
 import { arrows as toArrows } from '@/components/CourtChart/helpers/arrows';
-import { flips, onOwnHalf } from '@/components/CourtChart/helpers/halves';
 import { ZoneGrid } from '@/components/CourtChart/ZoneGrid';
 
 const VIEWS = ['contacts', 'zones', 'directions'] as const;
@@ -31,17 +30,13 @@ export function CourtChart() {
   const { set, pick, rallies, contacts } = useSet();
   const [view, setView] = useState<View>('contacts');
   const [type, setType] = useState<ActionType | 'all'>('all');
-  // Every set: each team on the half it played at the first rally. One set: the sides it was
-  // played on, a deciding set's swap at 8 points turned back.
-  const flipped = useMemo(() => flips(allRallies, set), [set]);
-  const home = useMemo(() => onOwnHalf(all, flipped), [flipped]);
-  const mirrored = rallies.some((r) => flipped[r.i]);
-  const left = rallies[0]?.left ?? 1;
-  const sides = set === null ? mirrored && 'mirrored' : mirrored ? 'sidesSwap' : 'sidesSet';
+  // Touches stay where they were played: a half holds one team only when the shown rallies were
+  // all played on the same ends.
+  const left = rallies.length && rallies.every((r) => r.left === rallies[0].left) ? rallies[0].left : null;
 
   const present = TYPES.filter((p) => contacts.some((c) => c.type === p));
-  const picked = contacts.filter((c) => type === 'all' || c.type === type).map((c) => home[c.i]);
-  const arrows = view === 'directions' ? toArrows(picked, home) : [];
+  const picked = contacts.filter((c) => type === 'all' || c.type === type);
+  const arrows = view === 'directions' ? toArrows(picked, all) : [];
   const shown = view === 'directions' ? arrows.map((a) => a.from) : picked.filter(placed);
   const title = (tr: TFunction) => [tr(`views.${view}`), type !== 'all' && tr(`types.${type}`)].filter(Boolean).join(', ');
   const describe = (c: Contact) => `${t(`types.${c.type}`)}, ${groupName(t, c.g)} · ${t('rallyLower', { n: c.rally + 1 })} · ${clock(c.t)}`;
@@ -57,8 +52,7 @@ export function CourtChart() {
           </h2>
         </CardTitle>
         <CardDescription>
-          {t(`captions.${view}`)}
-          {sides && ` ${t(sides)}`}
+          {t(`captions.${view}`)} {t(left === null ? 'sidesMixed' : 'sidesSet')}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -127,16 +121,11 @@ export function CourtChart() {
         </div>
 
         <div className="relative mx-auto w-full max-w-4xl">
-          <Court zones role="group" aria-label={t(`captions.${view}`)} ends={[groupName(t, left), groupName(t, (3 - left) as Group)]} camera={!mirrored}>
+          <Court zones role="group" aria-label={t(`captions.${view}`)} ends={left === null ? undefined : [groupName(t, left), groupName(t, (3 - left) as Group)]}>
             {view === 'contacts' && <ContactDots shown={shown} describe={describe} onPlay={playFrom} />}
             {view === 'zones' && <ZoneGrid shown={shown} left={left} onPlay={(zoneTitle, inside) => play(() => zoneTitle, contactClips(inside, match.duration))} />}
             {view === 'directions' && <Arrows arrows={arrows} describe={describe} onPlay={playFrom} />}
           </Court>
-          {set === null && mirrored && (
-            <p className="pointer-events-none absolute inset-x-0 top-0 m-0 flex justify-center px-2">
-              <span className="rounded-md bg-card/90 px-2 py-0.5 text-center text-xs text-muted-foreground">{t('homeHalves')}</span>
-            </p>
-          )}
           {!shown.length && (
             <p className="pointer-events-none absolute inset-x-0 top-0 bottom-6 m-0 grid place-items-center p-4">
               <span className="rounded-lg border bg-card px-3.5 py-2 text-center shadow-sm">{t(view === 'directions' ? 'emptyDirections' : 'emptyContacts')}</span>

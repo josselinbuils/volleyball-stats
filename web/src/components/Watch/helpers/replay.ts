@@ -21,9 +21,9 @@ export function ballAt(contacts: Contact[], time: number): { x: number; y: numbe
 }
 
 /** The players' feet at the sample nearest to `time`; none past the samples. */
-export function playersAt(players: Players, fps: number, time: number): { track: number; x: number; y: number }[] {
+export function playersAt(players: Players, fps: number, time: number): { person: number; x: number; y: number }[] {
   const flat = players.samples[Math.round((time * fps) / players.step)] ?? [];
-  return Array.from({ length: flat.length / 3 }, (_, k) => ({ track: flat[3 * k], x: flat[3 * k + 1], y: flat[3 * k + 2] }));
+  return Array.from({ length: flat.length / 3 }, (_, k) => ({ person: flat[3 * k], x: flat[3 * k + 1], y: flat[3 * k + 2] }));
 }
 
 /** The rally whose ends the teams play on at `time`: the one being played, else the last one started
