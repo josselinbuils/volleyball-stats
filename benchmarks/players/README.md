@@ -221,9 +221,9 @@ The detector's input is 1280 px wide whatever the source, so the cost per frame 
   tracks their median feet within 1 m and 0.5 m. A player who runs out for a ball keeps a track; a
   substitute warming up at the end line, or a coach standing on the line, would be kept (none in
   these clips). Measure the gym's free zone and the bench position on the first match.
-- Team is the side of the net, true within a set; sides swap between sets and the identity step has
-  to link them. Jersey colour clustering was not used: each libero wears another colour than the
-  team (white for navy, black for white), so a colour team would be wrong exactly for them.
+- `players.py` labels a track by its side of the net (`left`/`right`); naming the teams across side
+  changes is `teams.py`'s job, which uses the jersey colours for the side map and the side of the
+  net per track (liberos wear another colour), see [benchmarks/teams](../teams/README.md).
 - The test clips are 720p30 YouTube footage of another camera, not the Osmo at 4K50: far players
   are 60-90 px tall here. The thresholds and the inference size need checking on the first match.
 - The offline pass holds the whole match in memory and compares all track pairs (see the

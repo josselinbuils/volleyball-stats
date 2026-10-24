@@ -1,13 +1,16 @@
 """Run the whole pipeline on a match video and write a first report.
 
-    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players] [--force]
+    uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"]] [--force]
 
 Each step writes its output to outputs/<video>/; the ball and player tracks, the slow steps, are
-reused when they exist unless --force.
+reused when they exist unless --force. With the players, teams.json holds the teams' names, colours
+and the set starts: written on the first run (names asked on a terminal), edited by hand if need be,
+reused on the next runs.
 """
 
 import argparse
 import csv
+import sys
 import time
 from collections import Counter
 from pathlib import Path
@@ -15,7 +18,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, contacts, court, players, rallies
+from volleyball_stats import actions, attribution, ball, contacts, court, players, rallies, teams
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 
@@ -40,6 +43,21 @@ def write_csv(path: Path, header: list[str], rows: list) -> None:
         csv.writer(f).writerows([header, *rows])
 
 
+def rally_of(frame: int, windows: list[tuple[int, int]], lead: int) -> int | None:
+    """Index of the rally window, started `lead` frames early, holding `frame`."""
+    return next((k for k, (start, end) in enumerate(windows) if start - lead <= frame <= end), None)
+
+
+def table(typed: list[actions.Typed], groups: list, names: dict) -> list[str]:
+    """Markdown table of the actions per group (team or side), `groups` holding each contact's."""
+    counts = Counter((t[3], g) for t, g in zip(typed, groups))
+    return [
+        "| Action | " + " | ".join(names.values()) + " |",
+        "| --- |" + " --- |" * len(names),
+        *(f"| {kind} | " + " | ".join(str(counts[kind, g]) for g in names) + " |" for kind in TYPES),
+    ]
+
+
 def report(
     video: Path,
     fps: float,
@@ -49,10 +67,19 @@ def report(
     crossings: list[int],
     timings: dict[str, float],
     tracks: dict[str, int] | None = None,
+    names: list[str] | None = None,
+    contact_teams: list[int | None] | None = None,
+    sets: list[int] | None = None,
 ) -> str:
+    """The match summary. With `names` (team 1, team 2) and each contact's team the actions are split
+    by team, otherwise by side of the net; `sets` (each rally's) adds a section per set when the
+    match has more than one."""
     lengths = np.array([(end - start) / fps for start, end in windows])
     duration = frame_count / fps
-    counts = Counter((kind, side) for _, _, _, kind, side in typed)
+    if names and contact_teams is not None:
+        groups, labels = contact_teams, {1: names[0], 2: names[1]}
+    else:
+        groups, labels = [t[4] for t in typed], {"left": "Left of the net", "right": "Right of the net"}
     lines = [
         f"# {video.stem}",
         "",
@@ -61,14 +88,21 @@ def report(
         + (f", median rally {np.median(lengths):.1f} s" if len(windows) else ""),
         f"- Contacts in rallies: {len(typed)}" + (f", {len(typed) / len(windows):.1f} per rally" if windows else ""),
         f"- Net crossings in rallies: {len(crossings)}",
-        *([f"- Player tracks: {tracks.get('left', 0)} left of the net, {tracks.get('right', 0)} right"] if tracks is not None else []),
+        *([f"- Player tracks: " + ", ".join(f"{n} {label}" for label, n in tracks.items())] if tracks is not None else []),
+        *([f"- Sets: {max(sets)}"] if sets and max(sets) > 1 else []),
         "",
-        "| Action | Left of the net | Right of the net |",
-        "| --- | --- | --- |",
-        *(f"| {kind} | {counts[kind, 'left']} | {counts[kind, 'right']} |" for kind in TYPES),
-        "",
-        "Processing time: " + ", ".join(f"{step} {seconds / 60:.1f} min" for step, seconds in timings.items()),
+        *table(typed, groups, labels),
+        *([] if names else ["", "Teams need the player tracks (--players): actions are split by side of the net."]),
     ]
+    if sets and max(sets) > 1:
+        lead = round(actions.LEAD_S * fps)
+        contact_sets = [sets[k] if (k := rally_of(t[0], windows, lead)) is not None else None for t in typed]
+        for number in range(1, max(sets) + 1):
+            inside = [k for k, c in enumerate(contact_sets) if c == number]
+            rallies = sum(s == number for s in sets)
+            lines += ["", f"## Set {number}", "", f"- Rallies: {rallies}, contacts: {len(inside)}", ""]
+            lines += table([typed[k] for k in inside], [groups[k] for k in inside], labels)
+    lines += ["", "Processing time: " + ", ".join(f"{step} {seconds / 60:.1f} min" for step, seconds in timings.items())]
     return "\n".join(lines) + "\n"
 
 
@@ -79,7 +113,13 @@ def main() -> None:
     net.add_argument("--court", type=Path, help="Court calibration JSON (court.py fit or auto)")
     net.add_argument("--net-x", type=float, help="Net position in frame pixels, without a calibration (no floor contacts)")
     parser.add_argument("--out", type=Path, default=Path("outputs"))
-    parser.add_argument("--players", action="store_true", help="Also track the players (about 2.5x the ball's time)")
+    parser.add_argument("--players", action="store_true", help="Also track the players (about 2.5x the ball's time) and tell the teams apart")
+    parser.add_argument(
+        "--teams",
+        help='Team names and optional jersey colours, "NAME_1[:COLOUR],NAME_2[:COLOUR]": the first is the team on the LEFT of the camera '
+        "at the first rally; COLOUR is #rrggbb or a name (white, navy, rouge...). Default: the names in teams.json, else asked "
+        "on a terminal, else Team 1 and Team 2 with the detected colours",
+    )
     parser.add_argument("--force", action="store_true", help="Track the ball and players again even if tracks exist")
     args = parser.parse_args()
 
@@ -102,7 +142,6 @@ def main() -> None:
 
     start = time.perf_counter()
     windows = rallies.segment(rallies.load_track(track_path), rallies.whistles(rallies.read_audio(args.video)), fps)
-    write_csv(out / "rallies.csv", ["start_frame", "end_frame"], windows)
     timings["rallies"] = time.perf_counter() - start
 
     start = time.perf_counter()
@@ -112,7 +151,7 @@ def main() -> None:
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     timings["contacts and actions"] = time.perf_counter() - start
 
-    tracks, touchers = None, [None] * len(typed)
+    tracks, touchers, found_teams, settled = None, [None] * len(typed), None, None
     if args.players:
         if calibration is None:
             parser.error("--players needs --court")
@@ -122,12 +161,32 @@ def main() -> None:
             players.write_csv(players.track(args.video, calibration), players_path)
             timings["players"] = time.perf_counter() - start
         rows = attribution.read_players(players_path)
-        tracks = dict(Counter(team for _, team in {(r.track, r.team) for r in rows}))
         touchers = attribution.attribute(typed, rows, fps)
-    rows_out = [[*t, "" if k is None else k] for t, k in zip(typed, touchers)]
-    write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track"], rows_out)
+        start = time.perf_counter()
+        found_teams = teams.assign(args.video, rows, windows)
+        timings["teams"] = time.perf_counter() - start
+        try:
+            settled = teams.settle(out / "teams.json", found_teams, windows, fps, args.teams, sys.stdin.isatty())
+        except ValueError as error:
+            parser.error(str(error))
+        write_csv(out / "tracks.csv", ["track", "team"], sorted(found_teams.tracks.items()))
+    elif args.teams:
+        parser.error("--teams needs --players")
 
-    text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks)
+    if found_teams is None:
+        write_csv(out / "rallies.csv", ["start_frame", "end_frame"], windows)
+        write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track"], [[*t, "" if k is None else k] for t, k in zip(typed, touchers)])
+        text = report(args.video, fps, frame_count, windows, typed, crossings, timings)
+    else:
+        sets = teams.set_numbers(windows, [teams.seconds(s) for s in settled["sets"]], fps)
+        write_csv(out / "rallies.csv", ["start_frame", "end_frame", "left", "set"], [[*w, "" if g is None else g, s] for w, g, s in zip(windows, found_teams.left, sets)])
+        contact_teams = teams.contact_teams(typed, windows, found_teams.left, round(actions.LEAD_S * fps))
+        rows_out = [[*t, "" if k is None else k, "" if g is None else g] for t, k, g in zip(typed, touchers, contact_teams)]
+        write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track", "team"], rows_out)
+        names = [team["name"] or teams.default_name(k) for k, team in enumerate(settled["teams"], 1)]
+        counts = Counter(found_teams.tracks.values())
+        tracks = {names[0]: counts[1], names[1]: counts[2]}
+        text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks, names, contact_teams, sets)
     (out / "report.md").write_text(text)
     print(text, end="")
     print(out / "report.md")

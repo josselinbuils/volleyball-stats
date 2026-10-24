@@ -1,56 +1,77 @@
 import { useTranslation } from 'react-i18next';
 import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
-import { color, match, rallies } from '@/lib/match';
+import { GROUPS, groupName, hasTeams, match, playerNumber, rallies, teamColor, type Group } from '@/lib/match';
 import { useVideoTime } from '@/lib/player';
+import { usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
-import { ballAt, playersAt } from '@/components/Watch/helpers/replay';
-
-const hasPlayers = match.players.spans.some((span) => span.samples.some(([left, right]) => left.length || right.length));
+import { ballAt, playersAt, sidesAt } from '@/components/Watch/helpers/replay';
 
 /** The court seen from above, players and ball following the video. */
 export function Replay() {
   const { t } = useTranslation();
   const time = useVideoTime((now) => now);
+  const players = usePlayers();
   const rally = rallyAt(rallies, time);
+  const sides = sidesAt(rallies, time);
   const ball = rally ? ballAt(rally.contacts, time) : null;
   const last = rally?.contacts.filter((c) => c.t <= time).pop();
-  const players = playersAt(match.players, match.fps, time);
+  const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
 
   let now = rally ? t('rally', { n: rally.i + 1 }) : t('betweenRallies');
   if (last) {
-    now += ` · ${t('lastTouch', { type: t(`types.${last.type}`).toLowerCase(), side: t(`${last.side}Side`).toLowerCase() })}`;
+    const who = [groupName(t, last.g), last.player !== null && t('player', { n: last.player })].filter(Boolean).join(', ');
+    now += ` · ${t('lastTouch', { type: t(`types.${last.type}`).toLowerCase(), who })}`;
   }
+  const ends: [string, string] | undefined = hasTeams && sides ? [groupName(t, sides.left), groupName(t, (3 - sides.left) as Group)] : undefined;
 
   return (
     <figure className="m-0 min-w-0">
-      <Court role="img" aria-label={t('replayLabel')}>
-        {players.map((flat, team) =>
-          Array.from({ length: flat.length / 2 }, (_, i) => (
-            <circle key={`${team}-${i}`} cx={flat[2 * i]} cy={flat[2 * i + 1]} r={0.34} className="player-mark" fill={color(team ? 'right' : 'left')} />
-          )),
+      <div className="relative">
+        <Court role="img" aria-label={t('replayLabel')} ends={ends}>
+          {dots.map(({ track, x, y }) => {
+            const team = match.tracks[track]?.team ?? 1;
+            const n = rally ? playerNumber(track, rally) : null;
+            return (
+              <g key={track}>
+                <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} />
+                {n !== null && (
+                  <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>
+                    {n}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          {ball && <circle cx={ball.x} cy={ball.y} r={0.28} className="ball-mark" />}
+        </Court>
+        {players === 'loading' && (
+          <p className="pointer-events-none absolute inset-x-0 top-0 bottom-6 m-0 grid place-items-center">
+            <span className="rounded-md bg-card/90 px-2.5 py-1 text-sm text-muted-foreground shadow-xs">{t('loadingPlayers')}</span>
+          </p>
         )}
-        {ball && <circle cx={ball.x} cy={ball.y} r={0.28} className="ball-mark" />}
-      </Court>
+      </div>
       <figcaption className="mt-3 grid gap-2">
-        <p className="min-h-6 font-semibold" aria-live="off">
+        <p className="line-clamp-2 h-12 font-semibold" aria-live="off" title={now}>
           {now}
         </p>
         <Legend>
+          {GROUPS.map((g) => (
+            <span key={g} className="inline-flex min-w-0 items-center gap-2">
+              <Swatch color={teamColor(g)} />
+              <span className="truncate">{hasTeams ? groupName(t, g) : t(g === 1 ? 'leftTeam' : 'rightTeam')}</span>
+            </span>
+          ))}
           <span className="inline-flex items-center gap-2">
-            <Swatch color={color('left')} />
-            {t('leftTeam')}
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <Swatch color={color('right')} />
-            {t('rightTeam')}
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <Swatch color={color('foreground')} />
+            <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full border-2 border-foreground" />
             {t('ball')}
           </span>
         </Legend>
-        <p className="text-[13px] text-muted-foreground">{hasPlayers ? t('replayNote') : `${t('noPlayers')} ${t('replayNote')}`}</p>
+        <p className="text-[13px] text-muted-foreground">
+          {players === 'none' && `${t('noPlayers')} `}
+          {players !== 'none' && `${t('numbersNote')} `}
+          {t('replayNote')}
+        </p>
       </figcaption>
     </figure>
   );

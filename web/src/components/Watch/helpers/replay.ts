@@ -1,4 +1,6 @@
-import type { Contact, Players } from '@/lib/match';
+import type { Contact } from '@/lib/match';
+import type { Players } from '@/lib/players';
+import { PAD } from '@/lib/playlist';
 
 /** The ball between the placed touches of a rally, straight from one to the next; at the first
  * touch before it, at the last one after. */
@@ -18,10 +20,14 @@ export function ballAt(contacts: Contact[], time: number): { x: number; y: numbe
   return { x: a.x + f * (b.x - a.x), y: a.y + f * (b.y - a.y) };
 }
 
-/** The players' feet at the sample nearest to `time`: flat [x, y, ...] lists of the left team,
- * then of the right team; none outside the sampled spans. */
-export function playersAt(players: Players, fps: number, time: number): number[][] {
-  const k = Math.round((time * fps) / players.step);
-  const span = players.spans.find((s) => k >= s.from && k < s.from + s.samples.length);
-  return span ? span.samples[k - span.from] : [[], []];
+/** The players' feet at the sample nearest to `time`; none past the samples. */
+export function playersAt(players: Players, fps: number, time: number): { track: number; x: number; y: number }[] {
+  const flat = players.samples[Math.round((time * fps) / players.step)] ?? [];
+  return Array.from({ length: flat.length / 3 }, (_, k) => ({ track: flat[3 * k], x: flat[3 * k + 1], y: flat[3 * k + 2] }));
+}
+
+/** The rally whose ends the teams play on at `time`: the one being played, else the last one started
+ * before, else the first. */
+export function sidesAt<R extends { start: number }>(rallies: R[], time: number): R | undefined {
+  return rallies.filter((r) => r.start - PAD <= time).pop() ?? rallies[0];
 }

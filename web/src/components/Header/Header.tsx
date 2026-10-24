@@ -4,21 +4,27 @@ import { Card } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { LANGUAGES, setLanguage, type Language } from '@/i18n';
 import { clock, useFormat } from '@/lib/format';
-import { contacts, match, rallies } from '@/lib/match';
+import { hasTeams, match } from '@/lib/match';
+import { useSet } from '@/lib/sets';
+import { SetFilter } from '@/components/Header/SetFilter';
+import { TeamLegend } from '@/components/Header/TeamLegend';
 
 export function Header() {
   const { t, i18n } = useTranslation();
   const f = useFormat();
+  const { set, rallies, contacts } = useSet();
 
   useEffect(() => {
     document.title = `${match.name} · ${t('report')}`;
   }, [t]);
 
+  // A set lasts from its first serve to its last ball.
+  const span = set === null ? match.duration : rallies.length ? rallies[rallies.length - 1].end - rallies[0].start : 0;
   const inPlay = rallies.reduce((sum, r) => sum + r.end - r.start, 0);
   const stats = [
-    { label: t('duration'), value: clock(match.duration) },
+    { label: t(set === null ? 'duration' : 'setDuration'), value: clock(span) },
     { label: t('ralliesStat'), value: f.num(rallies.length) },
-    { label: t('inPlay'), value: clock(inPlay), more: t('ofVideo', { p: f.pct(inPlay / match.duration) }) },
+    { label: t('inPlay'), value: clock(inPlay), more: span ? t(set === null ? 'ofVideo' : 'ofSet', { p: f.pct(inPlay / span) }) : undefined },
     {
       label: t('contactsStat'),
       value: f.num(contacts.length),
@@ -54,7 +60,11 @@ export function Header() {
           ))}
         </ToggleGroup>
       </div>
-      <p className="-mt-3 max-w-2xl text-muted-foreground">{t('intro')}</p>
+      <div className="-mt-3 grid max-w-2xl gap-2.5">
+        <p className="text-muted-foreground">{t(hasTeams ? 'intro' : 'introSides')}</p>
+        {hasTeams && <TeamLegend />}
+      </div>
+      <SetFilter />
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map(({ label, value, more }) => (
           <Card key={label} className="gap-0.5 px-4 py-3.5 shadow-xs">

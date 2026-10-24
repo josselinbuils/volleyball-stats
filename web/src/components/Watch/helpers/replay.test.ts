@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '@/lib/match';
-import { ballAt, playersAt } from '@/components/Watch/helpers/replay';
+import { ballAt, playersAt, sidesAt } from '@/components/Watch/helpers/replay';
 
 describe('ballAt', () => {
   const touch = (t: number, x: number | null, y: number | null) => ({ t, x, y }) as Contact;
@@ -21,16 +21,30 @@ describe('ballAt', () => {
 });
 
 describe('playersAt', () => {
-  const players = { step: 3, spans: [{ from: 10, samples: [[[1, 2], []], [[3, 4], [5, 6]]] }] };
+  const players = { step: 3, samples: [[], [4, 1, 2], [4, 3, 4, 9, 5, 6]] };
 
-  it('takes the nearest sample of the span holding the time', () => {
-    // Sample 11 is frame 33, 1.1 s at 30 fps.
-    expect(playersAt(players, 30, 1.12)).toEqual([[3, 4], [5, 6]]);
-    expect(playersAt(players, 30, 1.0)).toEqual([[1, 2], []]);
+  it('takes the nearest sample as track and court feet', () => {
+    // Sample 2 is frame 6, 0.2 s at 30 fps.
+    expect(playersAt(players, 30, 0.19)).toEqual([
+      { track: 4, x: 3, y: 4 },
+      { track: 9, x: 5, y: 6 },
+    ]);
+    expect(playersAt(players, 30, 0.1)).toEqual([{ track: 4, x: 1, y: 2 }]);
   });
 
-  it('has no players outside the spans', () => {
-    expect(playersAt(players, 30, 0.5)).toEqual([[], []]);
-    expect(playersAt(players, 30, 1.3)).toEqual([[], []]);
+  it('has no players past the samples', () => {
+    expect(playersAt(players, 30, 0)).toEqual([]);
+    expect(playersAt(players, 30, 5)).toEqual([]);
+  });
+});
+
+describe('sidesAt', () => {
+  const rallies = [{ start: 10 }, { start: 30 }];
+
+  it('takes the rally being played, else the last one before, else the first', () => {
+    expect(sidesAt(rallies, 29.5)).toBe(rallies[1]);
+    expect(sidesAt(rallies, 20)).toBe(rallies[0]);
+    expect(sidesAt(rallies, 2)).toBe(rallies[0]);
+    expect(sidesAt([], 2)).toBeUndefined();
   });
 });

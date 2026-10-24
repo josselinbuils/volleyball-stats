@@ -1,22 +1,42 @@
+import { useEffect } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ActionsTable } from '@/components/ActionsTable';
+import { BrandBar } from '@/components/BrandBar';
 import { CourtChart } from '@/components/CourtChart/CourtChart';
-import { Header } from '@/components/Header';
+import { Header } from '@/components/Header/Header';
 import { RallyCharts } from '@/components/RallyCharts/RallyCharts';
 import { Watch } from '@/components/Watch/Watch';
 import { PlayerProvider } from '@/lib/player';
+import { loadPlayers } from '@/lib/players';
+import { SetProvider } from '@/lib/sets';
 
 export function App() {
+  // The players' positions start loading right after the first paint: well before anyone presses
+  // play, without delaying that paint.
+  useEffect(() => {
+    let timer = 0;
+    const frame = requestAnimationFrame(() => {
+      timer = window.setTimeout(loadPlayers);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, []);
+
   return (
     <TooltipProvider delayDuration={200}>
       <PlayerProvider>
-        <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:pt-5 max-sm:gap-4">
-          <Header />
-          <ActionsTable />
-          <Watch />
-          <CourtChart />
-          <RallyCharts />
-        </main>
+        <SetProvider>
+          <BrandBar />
+          <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:pt-5 max-sm:gap-4">
+            <Header />
+            <ActionsTable />
+            <Watch />
+            <CourtChart />
+            <RallyCharts />
+          </main>
+        </SetProvider>
       </PlayerProvider>
     </TooltipProvider>
   );

@@ -1,19 +1,21 @@
 import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormat } from '@/lib/format';
-import { match, rallies } from '@/lib/match';
+import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { rallyClips } from '@/lib/playlist';
+import { useSet } from '@/lib/sets';
 
 const BINS = ['0', '1', '2', '3', '4', '5', '6', '7+'];
-const binned = BINS.map((_, k) => rallies.filter((r) => Math.min(r.contacts.length, BINS.length - 1) === k));
-const most = Math.max(1, ...binned.map((rs) => rs.length));
 
 /** Rallies by number of touches. */
 export function Histogram() {
   const { t } = useTranslation();
   const f = useFormat();
   const { play } = usePlayer();
+  const { rallies } = useSet();
+  const binned = BINS.map((_, k) => rallies.filter((r) => Math.min(r.contacts.length, BINS.length - 1) === k));
+  const most = Math.max(1, ...binned.map((rs) => rs.length));
 
   return (
     <div className="text-xs text-muted-foreground tabular-nums">

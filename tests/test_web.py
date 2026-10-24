@@ -1,7 +1,10 @@
+import cv2
 import numpy as np
+import pytest
 
 from volleyball_stats.court import Calibration
-from volleyball_stats.web import contacts, padded, player_spans, result, spot, track_feet, write_site, zone, zone_cells
+from volleyball_stats import web
+from volleyball_stats.web import brand, contacts, numbers, player_samples, result, spot, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -103,11 +106,12 @@ class TestContacts:
         assert out[3]["x"] is None  # no player at that frame
         assert [c["result"] for c in out] == ["point", "play", "play", "play"]
         assert [c["track"] for c in out] == [None, None, None, None]
+        assert [c["team"] for c in out] == [None, None, None, None]
 
     def test_places_an_attributed_contact_at_its_players_feet_else_under_the_ball(self):
         typed = [
             {"frame": "10", "x": "0", "y": "0", "type": "attack", "side": "left", "track": "7"},
-            {"frame": "20", "x": "0", "y": "0", "type": "dig", "side": "right", "track": "9"},  # track not found
+            {"frame": "20", "x": "0", "y": "0", "type": "dig", "side": "right", "track": "9", "team": "2"},  # track not found
         ]
         under = {"x1": "-1", "y1": "-1", "x2": "1", "y2": "1", "court_x": "-1.0", "court_y": "0.5", "track": "8"}
         players = {
@@ -117,29 +121,55 @@ class TestContacts:
 
         out = contacts(typed, [(5, 30)], players, 10.0, IDENTITY, 15)
 
-        assert [(c["x"], c["y"], c["track"]) for c in out] == [(-4.0, 2.0, 7), (2.0, 0.5, 9)]
+        assert [(c["x"], c["y"], c["track"], c["team"]) for c in out] == [(-4.0, 2.0, 7, None), (2.0, 0.5, 9, 2)]
 
 
-class TestPadded:
-    def test_widens_the_windows_within_the_video_and_merges_overlaps(self):
-        assert padded([(5, 20), (45, 50), (58, 70), (95, 99)], 10, 100) == [(0, 30), (35, 80), (85, 99)]
-
-
-class TestPlayerSpans:
-    def test_keeps_every_steps_frame_of_each_window_rounded_to_the_centimetre_left_team_first(self):
+class TestPlayerSamples:
+    def test_keeps_every_steps_frame_of_the_video_as_track_and_feet_rounded_to_the_centimetre(self):
         rows = [
-            {"frame": "3", "team": "right", "court_x": "3.14159", "court_y": "-1.005"},
-            {"frame": "3", "team": "left", "court_x": "-2.0", "court_y": "1.234"},
-            {"frame": "4", "team": "left", "court_x": "-2.1", "court_y": "1.2"},
-            {"frame": "9", "team": "left", "court_x": "-4.0", "court_y": "0.0"},
-            {"frame": "12", "team": "left", "court_x": "-1.0", "court_y": "0.0"},  # between the windows
-            {"frame": "21", "team": "right", "court_x": "5.0", "court_y": "1.0"},
+            {"frame": "3", "track": "5", "court_x": "3.14159", "court_y": "-1.005"},
+            {"frame": "3", "track": "2", "court_x": "-2.0", "court_y": "1.234"},
+            {"frame": "4", "track": "2", "court_x": "-2.1", "court_y": "1.2"},
+            {"frame": "9", "track": "2", "court_x": "-4.0", "court_y": "0.0"},
         ]
 
-        assert player_spans(rows, 3, [(2, 10), (20, 22)]) == [
-            {"from": 1, "samples": [[[-2.0, 1.23], [3.14, -1.0]], [[], []], [[-4.0, 0.0], []]]},
-            {"from": 7, "samples": [[[], [5.0, 1.0]]]},
-        ]
+        assert player_samples(rows, 3, 10) == [[], [5, 3.14, -1.0, 2, -2.0, 1.23], [], [2, -4.0, 0.0]]
+
+
+class TestNumbers:
+    def test_numbers_each_teams_players_by_zone_at_the_serve_then_the_late_ones_as_they_appear(self):
+        def at(track: int, x: float, y: float) -> dict:
+            return {"track": str(track), "court_x": str(x), "court_y": str(y)}
+
+        players = {
+            8: [at(1, -1.0, 3.0), at(2, -6.0, 3.0), at(3, -1.0, -3.0), at(4, 6.0, -3.0), at(9, 0.0, 9.0)],
+            10: [at(1, -1.0, 3.0), at(5, 1.0, 0.0)],
+            14: [at(6, -5.0, 0.0), at(7, 2.0, 0.0)],
+            30: [at(8, 1.0, 1.0)],
+        }
+
+        # Zones of the left team: 1 back right (y > 0), 2 front right, 4 front left. Track 9 has no
+        # team; track 8 comes after the window.
+        out = numbers(players, (5, 20), 10, {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 1, 7: 2, 8: 2})
+
+        assert out == {2: 1, 1: 2, 3: 3, 6: 4, 4: 1, 5: 2, 7: 3}
+
+
+class TestBrand:
+    def test_copies_a_themes_logo_into_the_site_shrunk_and_lists_the_themes_for_an_unknown_name(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(web, "BRANDING", tmp_path / "branding")
+        theme = tmp_path / "branding" / "club"
+        theme.mkdir(parents=True)
+        cv2.imwrite(str(theme / "logo.png"), np.zeros((500, 400, 4), np.uint8))
+        (theme / "brand.json").write_text('{"name": "Club", "logo": "logo.png", "light": {}, "dark": {}}')
+
+        data = brand("club", tmp_path / "site")
+
+        assert data["logo"] == "brand/logo.png"
+        assert cv2.imread(str(tmp_path / "site" / "brand" / "logo.png"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
+        assert brand("none", tmp_path / "site") is None
+        with pytest.raises(SystemExit, match="club, none"):
+            brand("other", tmp_path / "site")
 
 
 class TestWriteSite:
@@ -150,10 +180,15 @@ class TestWriteSite:
         (site / "assets").mkdir(parents=True)
         (site / "assets" / "old.js").write_text("")
 
-        write_site({"fps": 25.0, "rallies": []}, video, site, copy=True)
+        write_site({"fps": 25.0, "rallies": [], "name": "Bègles"}, {"step": 3, "samples": [[]]}, video, site, copy=True)
 
         assert (site / "index.html").read_text().count('src="data.js"') == 1
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == 'window.MATCH = {"fps":25.0,"rallies":[]};\n'
+        assert (site / "data.js").read_text() == 'window.MATCH = {"fps":25.0,"rallies":[],"name":"Bègles"};\n'
+        assert (site / "players.js").read_text() == 'window.MATCH_PLAYERS = {"step":3,"samples":[[]]};\n'
+
+        write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
+
+        assert not (site / "players.js").exists()
         assert (site / "match.mp4").read_bytes() == b"not a video"
         assert not (site / "poster.webp").exists()

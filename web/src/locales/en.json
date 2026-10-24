@@ -1,7 +1,7 @@
 {
   "report": "Match report",
   "language": "Language",
-  "intro": "Statistics computed automatically from one camera on the sideline. Left and right are the two halves of the court as the camera sees them.",
+  "intro": "Statistics computed automatically from one camera on the sideline. The two teams are recognised by their jersey colour and keep their names when they change ends.",
   "duration": "Video length",
   "ralliesStat": "Rallies",
   "inPlay": "Ball in play",
@@ -9,7 +9,7 @@
   "ofVideo": "{{p}} of the video",
   "perRally": "{{n}} per rally",
   "actions": "Actions",
-  "actionsCaption": "How many times each action happened on each side of the net. Click a number to watch those moments.",
+  "actionsCaption": "How many times each action happened for each team (a ball on the floor counts for the team on whose court it lands). Click a number to watch those moments.",
   "action": "Action",
   "leftSide": "Left side",
   "rightSide": "Right side",
@@ -38,7 +38,7 @@
   "rally": "Rally {{n}}",
   "rallyLower": "rally {{n}}",
   "betweenRallies": "Between rallies",
-  "lastTouch": "last touch: {{type}}, {{side}}",
+  "lastTouch": "last touch: {{type}}, {{who}}",
   "rallies": "Rallies",
   "allRallies": "All rallies",
   "watchRally": "Watch this rally, then the next ones",
@@ -52,7 +52,7 @@
   },
   "viewsLabel": "What to show",
   "captions": {
-    "contacts": "Each dot is a touch of the ball, where it was played. Click a dot to watch it.",
+    "contacts": "Each dot is a touch of the ball, where it was played, in its team's colour. Click a dot to watch it.",
     "zones": "Share of the touches in each zone of each half. Click a zone to watch its touches.",
     "directions": "Where each serve and attack went: to the next touch, or to where the ball hit the floor. Click an arrow to watch it."
   },
@@ -71,8 +71,6 @@
   "emptyContacts": "No touch matches these filters.",
   "emptyDirections": "Pick serves or attacks, or all actions, to see where they went.",
   "zoneTitle": "Zone {{z}}, {{half}}",
-  "leftHalf": "left half",
-  "rightHalf": "right half",
   "touchesN_one": "{{count, number}} touch",
   "touchesN_other": "{{count, number}} touches",
   "results": {
@@ -109,5 +107,22 @@
     "dig": "D",
     "floor": "F",
     "net": "N"
-  }
+  },
+  "introSides": "Statistics computed automatically from one camera on the sideline. Left and right are the two halves of the court as the camera sees them: teams are only recognised with player tracking (the --players option).",
+  "actionsCaptionSides": "How many times each action happened on each side of the net. Click a number to watch those moments.",
+  "team": "Team {{n}}",
+  "jersey": "Jersey colour",
+  "setFilter": "Show",
+  "allSets": "All sets",
+  "set": "Set {{n}}",
+  "setDuration": "Set length",
+  "ofSet": "{{p}} of the set",
+  "clubSite": "{{name}} website (new tab)",
+  "loadingPlayers": "Loading players…",
+  "numbersNote": "Numbers tell players apart within a rally only, until the players are named.",
+  "player": "player {{n}}",
+  "onTheLeft": "{{team}} on the left",
+  "teamFilter": "Team",
+  "bothTeams": "Both teams",
+  "mirrored": "Each team stays on the same half: the rallies it played on the other end are turned around."
 }

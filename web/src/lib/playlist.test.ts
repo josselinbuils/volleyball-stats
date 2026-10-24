@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Rally } from '@/lib/match';
-import { contactClips, rallyAt, rallyClips } from '@/lib/playlist';
+import type { TFunction } from 'i18next';
+import type { Format } from '@/lib/format';
+import { clipLabel, contactClips, rallyAt, rallyClips } from '@/lib/playlist';
 
 describe('contactClips', () => {
-  const touch = (t: number, type: string, side: string, rally = 0) => ({ t, type, side, rally }) as Contact;
+  const touch = (t: number, type: string, g: number, rally = 0, player: number | null = null) => ({ t, type, g, rally, player }) as Contact;
 
   it('plays from 2 s before each touch to 1.5 s after, within the video', () => {
-    const clips = contactClips([touch(1, 'serve', 'left'), touch(50, 'serve', 'left', 3), touch(59, 'serve', 'left', 4)], 60);
+    const clips = contactClips([touch(1, 'serve', 1), touch(50, 'serve', 1, 3), touch(59, 'serve', 1, 4)], 60);
     expect(clips.map((c) => [c.start, c.end, c.rally, c.time])).toEqual([
       [0, 2.5, 0, 1],
       [48, 51.5, 3, 50],
@@ -14,10 +16,16 @@ describe('contactClips', () => {
     ]);
   });
 
-  it('names the action and the side only when the playlist mixes them', () => {
-    expect(contactClips([touch(5, 'serve', 'left'), touch(9, 'serve', 'left')], 60)[0]).toMatchObject({ type: undefined, side: undefined });
-    expect(contactClips([touch(5, 'serve', 'left'), touch(9, 'attack', 'left')], 60)[1]).toMatchObject({ type: 'attack', side: undefined });
-    expect(contactClips([touch(5, 'serve', 'left'), touch(9, 'serve', 'right')], 60)[1]).toMatchObject({ type: undefined, side: 'right' });
+  it('names the action and the team only when the playlist mixes them, and the player when known', () => {
+    expect(contactClips([touch(5, 'serve', 1), touch(9, 'serve', 1)], 60)[0]).toMatchObject({ type: undefined, team: undefined, player: undefined });
+    expect(contactClips([touch(5, 'serve', 1), touch(9, 'attack', 1)], 60)[1]).toMatchObject({ type: 'attack', team: undefined });
+    expect(contactClips([touch(5, 'serve', 1), touch(9, 'serve', 2, 0, 3)], 60)[1]).toMatchObject({ type: undefined, team: 2, player: 3 });
+  });
+
+  it('labels a touch with its action, team, player, rally and time', () => {
+    const t = ((key: string, o?: { n: number }) => `${key}${o ? ` ${o.n}` : ''}`) as TFunction;
+    const clip = contactClips([touch(5, 'serve', 1), touch(65, 'attack', 2, 3, 4)], 70)[1];
+    expect(clipLabel(clip, t, {} as Format, (g) => `Team ${g}`)).toBe('types.attack · Team 2 · player 4 · rallyLower 4 · 1:05');
   });
 });
 
@@ -25,7 +33,7 @@ describe('rallyClips', () => {
   const rallies = [
     { i: 0, start: 0.5, end: 4, contacts: [] },
     { i: 7, start: 20, end: 29.5, contacts: [] },
-  ] as Rally[];
+  ] as unknown as Rally[];
 
   it('plays each rally with a second around it, within the video, keeping its number', () => {
     expect(rallyClips(rallies, 30)).toEqual([

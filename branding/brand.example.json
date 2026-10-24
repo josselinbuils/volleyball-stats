@@ -1,0 +1,29 @@
+{
+  "name": "My Volleyball Club",
+  "url": "https://example.org",
+  "logo": "logo.png",
+  "font": "Arial, Helvetica, sans-serif",
+  "radius": "10px",
+  "light": {
+    "accent": "#1f6bc4",
+    "accentHover": "#174f93",
+    "accentText": "#1a5aa6",
+    "header": "#111111",
+    "background": "#f5f5f5",
+    "card": "#ffffff",
+    "text": "#111111",
+    "muted": "#444444",
+    "cardShadow": "0 4px 15px rgba(0, 0, 0, 0.10)"
+  },
+  "dark": {
+    "accent": "#2d6fcb",
+    "accentHover": "#4a88dc",
+    "accentText": "#93bff3",
+    "header": "#000000",
+    "background": "#0e0e0e",
+    "card": "#1a1a1a",
+    "text": "#f2f2f2",
+    "muted": "#b3b3b3",
+    "cardShadow": "0 4px 15px rgba(0, 0, 0, 0.45)"
+  }
+}

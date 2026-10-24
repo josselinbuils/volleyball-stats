@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SetBadge } from '@/components/SetBadge';
 import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { PlaylistBar } from '@/components/Watch/PlaylistBar';
@@ -14,7 +15,10 @@ export function Watch() {
     <Card>
       <CardHeader>
         <CardTitle>
-          <h2 className="text-lg font-semibold">{t('video')}</h2>
+          <h2 className="text-lg font-semibold">
+            {t('video')}
+            <SetBadge />
+          </h2>
         </CardTitle>
         <CardDescription>{t('videoCaption')}</CardDescription>
       </CardHeader>

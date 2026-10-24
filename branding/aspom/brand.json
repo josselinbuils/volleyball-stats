@@ -1,0 +1,29 @@
+{
+  "name": "ASPOM Bègles Volley",
+  "url": "https://aspom-begles-volley.fr",
+  "logo": "Logo_ASPOM.png",
+  "font": "Arial, Helvetica, sans-serif",
+  "radius": "10px",
+  "light": {
+    "accent": "#e30613",
+    "accentHover": "#b9000c",
+    "accentText": "#b9000c",
+    "header": "#111111",
+    "background": "#f5f5f5",
+    "card": "#ffffff",
+    "text": "#111111",
+    "muted": "#444444",
+    "cardShadow": "0 4px 15px rgba(0, 0, 0, 0.10)"
+  },
+  "dark": {
+    "accent": "#e30613",
+    "accentHover": "#f2323d",
+    "accentText": "#ff6b72",
+    "header": "#000000",
+    "background": "#0e0e0e",
+    "card": "#1a1a1a",
+    "text": "#f2f2f2",
+    "muted": "#b3b3b3",
+    "cardShadow": "0 4px 15px rgba(0, 0, 0, 0.45)"
+  }
+}

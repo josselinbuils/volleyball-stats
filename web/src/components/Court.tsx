@@ -1,10 +1,18 @@
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 /** A top view of the court in court metres: x along the length, net at 0, y toward the camera,
- * which films from beyond the near sideline (bottom). */
-export function Court({ zones = false, className, children, ...props }: { zones?: boolean } & ComponentProps<'svg'>) {
+ * which films from beyond the near sideline (bottom). `ends` names the halves (default: left and
+ * right), `camera` marks the camera's side. */
+export function Court({
+  zones = false,
+  ends,
+  camera = true,
+  className,
+  children,
+  ...props
+}: { zones?: boolean; ends?: [ReactNode, ReactNode]; camera?: boolean } & ComponentProps<'svg'>) {
   const { t } = useTranslation();
   return (
     <div className={className}>
@@ -18,10 +26,10 @@ export function Court({ zones = false, className, children, ...props }: { zones?
         <line x1={0} x2={0} y1={-5.25} y2={5.25} stroke="var(--muted-foreground)" strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         {children}
       </svg>
-      <div aria-hidden className="flex justify-between px-[9%] text-xs text-muted-foreground">
-        <span>{t('leftEnd')}</span>
-        <span>{t('cameraSide')}</span>
-        <span>{t('rightEnd')}</span>
+      <div aria-hidden className="grid grid-cols-[1fr_auto_1fr] gap-2 px-[9%] text-xs text-muted-foreground">
+        <span className="truncate">{ends?.[0] ?? t('leftEnd')}</span>
+        <span>{camera && t('cameraSide')}</span>
+        <span className="truncate text-right">{ends?.[1] ?? t('rightEnd')}</span>
       </div>
     </div>
   );

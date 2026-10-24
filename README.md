@@ -84,23 +84,44 @@ WSL2 is several times slower.
 uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
 uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens outputs/lens.json]
 uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
-uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players]
+uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"]]
 ```
 
 `--court` takes `outputs/court/VIDEO.json` from `auto`, or `outputs/courts/NAME.json` from `fit` on
 the first match of a court. `match` writes the ball track, rallies, typed contacts, net crossings and a
 report to `outputs/VIDEO/`; the actions CSV holds each contact with its type and side of the net.
-`--players` adds the player tracks (about 2.5× the ball tracking time).
+`--players` adds the player tracks (about 2.5× the ball tracking time) and the teams: each contact
+gets the team on its side (actions CSV `team`), each rally the team on the left and its set
+(rallies CSV `left`, `set`), and the report counts per team and per set instead of per side.
+
+Teams are Team 1 and Team 2, Team 1 being the team on the left of the camera at the first rally;
+they keep their names when they change ends. `outputs/VIDEO/teams.json` holds their names (`null`
+for the default "Team 1" / "Équipe 1"), colours (`colour`, `null` for the detected `jersey`) and the
+set starts (`"m:ss"`, the first `"0:00"`). It is written on the first run: names and colours come
+from `--teams` (the first name is the team on the left at the first rally; a colour is `#rrggbb` or
+a name such as `white`, `navy`, `rouge`, `marine`), else, on a terminal, the pipeline opens an image
+of a few players of each team and asks for them (Enter keeps the default name and detected
+colour), else the defaults. Later runs reuse the file: edit it to fix a name, a colour or a set
+start (a new set starts when the teams change ends after a set break, see the
+[teams benchmark](benchmarks/teams/README.md)), or pass `--teams` again.
 
 ```bash
-uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video]
+uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video] [--theme NAME]
 ```
 
 `web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default): every
 number and chart element plays its moments in the video, with a top view of the court following
-the play. The same files open from disk and host well (Lighthouse mobile performance 99). To host
-it, copy the folder with `--copy-video` to a server that supports HTTP range requests (nginx does),
-with long cache headers on `assets/`, behind a password: the footage shows minors.
+the play, its players numbered within each rally. Everything is split by team, in each team's
+colour (made readable on the light and the dark theme, and changed for Team 2 when the two look
+alike); without player tracks it falls back to the sides of the net. With several sets, one filter
+at the top shows a single set. The players' positions over the whole video come in `players.js`,
+loaded right after the first paint (0.9 MB, 0.23 MB gzipped, for 10 minutes). `--theme` picks a club
+theme, `branding/NAME/brand.json` with its logo (default `aspom`, `none` for the neutral one; see
+`branding/brand.example.json`): logo and club name in a band at the top linking to `url`, accent
+colours, page and card styles per colour scheme. The same files open from disk and host well
+(Lighthouse mobile performance 98 with gzip). To host it, copy the folder with `--copy-video` to a
+server that supports HTTP range requests and gzip (nginx does), with long cache headers on
+`assets/`, behind a password: the footage shows minors.
 
 The page is a React + shadcn/ui app in `web/`; its build is committed in
 `src/volleyball_stats/site/`, so processing a match needs no Node. To change it: `cd web && npm
@@ -115,8 +136,8 @@ install`, `npm run dev` (reads `web/public/data.js`, copied from a built match),
 | 2. Court | Map pixels to court coordinates | Lens undistortion + homography: rough clicks once per court, snapped to the painted lines; known courts recognised automatically when the stand moves a little ([benchmark](benchmarks/court/README.md)) |
 | 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)); contacts from velocity changes with gravity removed ([benchmark](benchmarks/contacts/README.md)) |
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](benchmarks/actions/README.md)) |
-| 5. Players | Detect and track players, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
-| 6. Identity | Merge tracklets into one identity per player for the match | Jersey number OCR + re-ID + team color |
+| 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the torso colour of the tracks, the side of the net each team holds rally by rally, and sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
+| 6. Identity | Merge tracklets into one identity per player for the match | Jersey number OCR + re-ID, within each team |
 | 7. Naming | Show one thumbnail gallery per identity, store number → name | Simple local UI |
 | 8. Stats | Per-player counts and outcomes (kill, error, ace) | Ball landing spot + next action |
 

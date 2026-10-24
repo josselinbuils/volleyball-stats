@@ -1,41 +1,45 @@
 import { useEffect, useRef } from 'react';
+import { ArrowLeftRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Legend } from '@/components/Court';
 import { clock, useFormat } from '@/lib/format';
-import { color, match, present, rallies } from '@/lib/match';
+import { color, groupName, match, sets, TYPES } from '@/lib/match';
 import { usePlayer, useVideoTime } from '@/lib/player';
 import { rallyAt, rallyClips } from '@/lib/playlist';
+import { useSet } from '@/lib/sets';
 
 /** One card per rally with the letters of its touches; the current rally stands out. */
 export function RallyCards() {
   const { t } = useTranslation();
   const f = useFormat();
   const { play } = usePlayer();
+  const { set, rallies } = useSet();
   const current = useVideoTime((time) => rallyAt(rallies, time)?.i ?? -1);
   const list = useRef<HTMLOListElement>(null);
+  const present = TYPES.filter((type) => rallies.some((r) => r.contacts.some((c) => c.type === type)));
 
   // Keeps the current rally's card in view inside the list, without scrolling the page.
   useEffect(() => {
     const box = list.current;
-    const item = box?.children[current] as HTMLElement | undefined;
+    const item = box?.children[rallies.findIndex((r) => r.i === current)] as HTMLElement | undefined;
     if (box && item && (item.offsetTop < box.scrollTop || item.offsetTop + item.offsetHeight > box.scrollTop + box.clientHeight)) {
       box.scrollTop = item.offsetTop - 8;
     }
-  }, [current]);
+  }, [current, rallies]);
 
   return (
     <div>
       <h3 className="font-semibold">{t('rallies')}</h3>
       {rallies.length ? (
         <ol ref={list} className="relative mt-3 grid max-h-80 grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-2 overflow-y-auto p-0.5">
-          {rallies.map((r) => (
+          {rallies.map((r, k) => (
             <li key={r.i}>
               <button
                 type="button"
                 title={t('watchRally')}
                 aria-current={r.i === current || undefined}
-                onClick={() => play((tr) => tr('rallies'), rallyClips(rallies, match.duration), r.i)}
+                onClick={() => play((tr) => (set === null ? tr('rallies') : tr('set', { n: set })), rallyClips(rallies, match.duration), k)}
                 className={cn(
                   'grid h-full w-full content-start gap-1.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
                   r.i === current && 'border-primary bg-primary/8 hover:bg-primary/12',
@@ -45,7 +49,14 @@ export function RallyCards() {
                   <b className="font-semibold text-foreground">{t('rally', { n: r.i + 1 })}</b>
                   <span>{clock(r.start)}</span>
                   <span>{f.secs(r.end - r.start)}</span>
+                  {set === null && sets.length > 1 && <span>{t('set', { n: r.set })}</span>}
                 </span>
+                {r.flipped && (
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground" title={t('onTheLeft', { team: groupName(t, r.left) })}>
+                    <ArrowLeftRight aria-hidden className="size-3.5 shrink-0" />
+                    <span className="truncate">{t('onTheLeft', { team: groupName(t, r.left) })}</span>
+                  </span>
+                )}
                 {r.contacts.length > 0 && (
                   <span className="flex flex-wrap gap-1">
                     {r.contacts.map((c) => (

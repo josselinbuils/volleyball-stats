@@ -1,7 +1,7 @@
 {
   "report": "Bilan du match",
   "language": "Langue",
-  "intro": "Statistiques calculées automatiquement à partir d'une caméra placée sur le bord du terrain. Gauche et droite désignent les deux moitiés du terrain vues depuis la caméra.",
+  "intro": "Statistiques calculées automatiquement à partir d'une caméra placée sur le bord du terrain. Les deux équipes sont reconnues à la couleur de leur maillot et gardent leur nom quand elles changent de côté.",
   "duration": "Durée de la vidéo",
   "ralliesStat": "Échanges",
   "inPlay": "Ballon en jeu",
@@ -9,7 +9,7 @@
   "ofVideo": "{{p}} de la vidéo",
   "perRally": "{{n}} par échange",
   "actions": "Actions",
-  "actionsCaption": "Nombre de fois où chaque action a eu lieu de chaque côté du filet. Cliquez sur un nombre pour revoir ces moments.",
+  "actionsCaption": "Nombre de fois où chaque action a eu lieu pour chaque équipe (un ballon au sol compte pour l'équipe dans le camp de laquelle il tombe). Cliquez sur un nombre pour revoir ces moments.",
   "action": "Action",
   "leftSide": "Côté gauche",
   "rightSide": "Côté droit",
@@ -38,7 +38,7 @@
   "rally": "Échange {{n}}",
   "rallyLower": "échange {{n}}",
   "betweenRallies": "Entre deux échanges",
-  "lastTouch": "dernière touche : {{type}}, {{side}}",
+  "lastTouch": "dernière touche : {{type}}, {{who}}",
   "rallies": "Échanges",
   "allRallies": "Tous les échanges",
   "watchRally": "Revoir cet échange, puis les suivants",
@@ -52,7 +52,7 @@
   },
   "viewsLabel": "Que montrer",
   "captions": {
-    "contacts": "Chaque point est une touche de balle, à l'endroit où elle a été jouée. Cliquez sur un point pour la revoir.",
+    "contacts": "Chaque point est une touche de balle, à l'endroit où elle a été jouée, dans la couleur de son équipe. Cliquez sur un point pour la revoir.",
     "zones": "Part des touches dans chaque zone de chaque demi-terrain. Cliquez sur une zone pour revoir ses touches.",
     "directions": "Où sont allés les services et les attaques : jusqu'à la touche suivante ou jusqu'à l'endroit où le ballon est tombé. Cliquez sur une flèche pour la revoir."
   },
@@ -71,8 +71,6 @@
   "emptyContacts": "Aucune touche ne correspond à ces filtres.",
   "emptyDirections": "Choisissez les services, les attaques ou toutes les actions pour voir où ils sont allés.",
   "zoneTitle": "Zone {{z}}, {{half}}",
-  "leftHalf": "moitié gauche",
-  "rightHalf": "moitié droite",
   "touchesN_one": "{{count, number}} touche",
   "touchesN_other": "{{count, number}} touches",
   "results": {
@@ -109,5 +107,22 @@
     "dig": "D",
     "floor": "Sol",
     "net": "Fi"
-  }
+  },
+  "introSides": "Statistiques calculées automatiquement à partir d'une caméra placée sur le bord du terrain. Gauche et droite désignent les deux moitiés du terrain vues depuis la caméra : les équipes ne sont reconnues qu'avec le suivi des joueurs (option --players).",
+  "actionsCaptionSides": "Nombre de fois où chaque action a eu lieu de chaque côté du filet. Cliquez sur un nombre pour revoir ces moments.",
+  "team": "Équipe {{n}}",
+  "jersey": "Couleur du maillot",
+  "setFilter": "Afficher",
+  "allSets": "Tous les sets",
+  "set": "Set {{n}}",
+  "setDuration": "Durée du set",
+  "ofSet": "{{p}} du set",
+  "clubSite": "Site du club {{name}} (nouvel onglet)",
+  "loadingPlayers": "Chargement des positions…",
+  "numbersNote": "Les numéros distinguent les joueurs et joueuses au sein d'un échange seulement, en attendant que l'équipe soit nommée.",
+  "player": "n° {{n}}",
+  "onTheLeft": "{{team}} à gauche",
+  "teamFilter": "Équipe",
+  "bothTeams": "Les deux équipes",
+  "mirrored": "Chaque équipe reste sur la même moitié : les échanges qu'elle a joués de l'autre côté sont retournés."
 }

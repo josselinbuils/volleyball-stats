@@ -60,8 +60,8 @@
   --chart: #2a78d6;
   --court: #ecebe5;
   --court-line: #b4b3a9;
-  --left: #2a78d6;
-  --right: #e2612d;
+  --primary-hover: color-mix(in srgb, var(--primary) 80%, transparent);
+  --brand-header: #111111;
   --point: #12941a;
   --error: #d03b3b;
   --play: #9a9890;
@@ -101,8 +101,6 @@
     --chart: #4b8fe2;
     --court: #262624;
     --court-line: #5d5c56;
-    --left: #3f8ae6;
-    --right: #e0682f;
     --point: #3fbf47;
     --error: #ec6262;
     --play: #84827b;
@@ -164,16 +162,30 @@
     pointer-events: none;
   }
   .player-mark {
-    r: 0.34px;
+    r: 0.7px;
     stroke: var(--card);
     stroke-width: 1.5px;
     vector-effect: non-scaling-stroke;
   }
+  .player-text {
+    font-size: 0.86px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  /* Text readable on any fill: a ring of the court's colour around the letters. */
+  .halo {
+    paint-order: stroke;
+    stroke: var(--court);
+    stroke-width: 0.12px;
+    stroke-linejoin: round;
+  }
+  /* A ring, unlike the filled player dots whatever the teams' colours. */
   .ball-mark {
-    r: 0.28px;
-    fill: var(--foreground);
-    stroke: var(--card);
-    stroke-width: 2px;
+    r: 0.3px;
+    fill: var(--court);
+    stroke: var(--foreground);
+    stroke-width: 3px;
     vector-effect: non-scaling-stroke;
   }
   @media (max-width: 639px) {
@@ -185,7 +197,10 @@
       font-size: 0.5px;
     }
     .player-mark {
-      r: 0.45px;
+      r: 0.75px;
+    }
+    .player-text {
+      font-size: 0.92px;
     }
     .ball-mark {
       r: 0.38px;
