@@ -36,7 +36,7 @@ import numpy as np
 
 from volleyball_stats.court import zone
 from volleyball_stats.players import Row
-from volleyball_stats.teams import SEEK, track_teams
+from volleyball_stats.teams import SEEK, side_group
 
 REID = Path("models/osnet_ain_x1_0_msmt17.pth")
 REID_GDRIVE_ID = "1SigwBE6mPdqiJMqhuIY4aqC7--5CsMal"
@@ -97,7 +97,7 @@ class Segment:
 
 def covers(rows: list[Row]) -> dict[Key, float]:
     """Share of each (frame, track) box lying under the box of another track of the frame, the most
-    covering one."""
+    covering one; boxes nobody covers are left out (0)."""
     by_frame: dict[int, list[Row]] = {}
     for r in rows:
         by_frame.setdefault(r.frame, []).append(r)
@@ -110,7 +110,8 @@ def covers(rows: list[Row]) -> dict[Key, float]:
         inter = w * h
         np.fill_diagonal(inter, 0)
         for r, c in zip(here, (inter / area[:, None]).max(axis=1)):
-            out[r.frame, r.track] = float(c)
+            if c > 0:
+                out[r.frame, r.track] = float(c)
     return out
 
 
@@ -123,7 +124,7 @@ def split(rows: list[Row], cover: dict[Key, float]) -> list[Segment]:
     for track, track_rows in by_track.items():
         episodes: list[list[int]] = []
         for r in track_rows:
-            if cover[r.frame, track] >= CROWD:
+            if cover.get((r.frame, track), 0.0) >= CROWD:
                 if episodes and r.frame - episodes[-1][1] <= CROWD_GAP:
                     episodes[-1][1] = r.frame
                 else:
@@ -141,9 +142,9 @@ def split(rows: list[Row], cover: dict[Key, float]) -> list[Segment]:
 def picks(segment: Segment, cover: dict[Key, float]) -> list[int]:
     """Frames of up to CROPS boxes spread over the segment, among its clear boxes when it has some,
     else among its least covered ones."""
-    frames = [f for f in segment.frames if cover[f, segment.track] < CLEAR]
+    frames = [f for f in segment.frames if cover.get((f, segment.track), 0.0) < CLEAR]
     if not frames:
-        frames = sorted(sorted(segment.frames, key=lambda f: cover[f, segment.track])[:CROPS])
+        frames = sorted(sorted(segment.frames, key=lambda f: cover.get((f, segment.track), 0.0))[:CROPS])
     return sorted({frames[i] for i in np.linspace(0, len(frames) - 1, min(CROPS, len(frames))).astype(int)})
 
 
@@ -213,7 +214,9 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
     ponytail: a second decoding pass over the video (sparse, ~1 min for 10 min at 720p); fold it into
     players.track's frame loop if it shows on a 2-hour match.
     """
-    boxes = {(r.frame, r.track): r.box for r in rows}
+    # Boxes of the segments' first frames, the cache's keys; those of the picked frames on a miss.
+    firsts = {(s.start, s.track) for s in segments}
+    boxes = {(r.frame, r.track): r.box for r in rows if (r.frame, r.track) in firsts}
     keys = [(s.track, s.start, s.end, *boxes[s.start, s.track]) for s in segments]
     stored: dict[tuple, tuple[np.ndarray, float]] = {}
     if cache and cache.exists():
@@ -228,6 +231,8 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
         for k in missing:
             for f in picks(segments[k], cover):
                 wanted.setdefault(f, []).append(k)
+        picked = {(f, segments[k].track) for f, ks in wanted.items() for k in ks}
+        boxes.update({(r.frame, r.track): r.box for r in rows if (r.frame, r.track) in picked})
         model, crops, owners = load_reid(device), [], []
         for frame, image in frames_at(video, wanted):
             for k in wanted[frame]:
@@ -247,27 +252,26 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
     return v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-9), np.array([max(1.0, stored[k][1]) for k in keys])
 
 
-# ponytail: a dense segments x segments matrix, ~2,100 segments per 10 minutes: fine for clips, but a
-# 2-hour match (~25,000) needs GBs here and in `group` and `doubts`' float products. Keep the
-# cannot-links sparse (pairs overlapping in time or within LINK_GAP_S) before a full match.
-def cannot_links(segments: list[Segment], fps: float) -> np.ndarray:
-    """Pairs of segments (sorted by start) that cannot be one player: of different teams, sharing a
-    frame, or one starting within LINK_GAP_S after the other ended, farther than a player runs."""
-    n = len(segments)
-    teams = np.array([s.team for s in segments])
-    out = teams[:, None] != teams[None]
-    sets = [set(s.frames) for s in segments]
+def cannot_links(segments: list[Segment], fps: float) -> list[set[int]]:
+    """Per segment (sorted by start), the segments of its team it cannot be one player with: sharing
+    a frame, or starting within LINK_GAP_S after it ended (or it after them), farther than a player
+    runs. Teams are grouped apart, so segments of different teams are not listed."""
+    out: list[set[int]] = [set() for _ in segments]
+    frames = [set(s.frames) for s in segments]
     for i, a in enumerate(segments):
-        for j in range(i + 1, n):
+        for j in range(i + 1, len(segments)):
             b = segments[j]
             if b.start > a.end + LINK_GAP_S * fps:
                 break
+            if b.team != a.team:
+                continue
             if b.start <= a.end:
-                blocked = not sets[i].isdisjoint(sets[j])
+                blocked = not frames[i].isdisjoint(frames[j])
             else:
                 blocked = float(np.hypot(*np.subtract(a.feet[-1], b.feet[0]))) > RUN_SPEED * (b.start - a.end) / fps + RUN_REACH
             if blocked:
-                out[i, j] = out[j, i] = True
+                out[i].add(j)
+                out[j].add(i)
     return out
 
 
@@ -275,13 +279,16 @@ def whiten(v: np.ndarray, weights: np.ndarray, dims: int) -> np.ndarray:
     """Unit vectors of `v` centred and whitened by their weighted principal components, the first
     `dims` kept: teammates' embeddings differ in faint directions next to the shared jersey's."""
     x = v - weights @ v / weights.sum()
-    _, scale, axes = np.linalg.svd(x * np.sqrt(weights[:, None] / weights.sum()), full_matrices=False)
-    out = x @ axes[:dims].T / (scale[:dims] + 1e-3)
+    # The principal axes from the weighted covariance, the size of a vector squared, not of the team.
+    values, axes = np.linalg.eigh((x * (weights[:, None] / weights.sum())).T @ x)
+    order = np.argsort(values)[::-1][:dims]
+    scale, axes = np.sqrt(np.maximum(values[order], 0)), axes[:, order].T
+    out = x @ axes.T / (scale + 1e-3)
     out = np.pad(out, ((0, 0), (0, dims - out.shape[1])))
     return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
 
 
-def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: np.ndarray, before: np.ndarray, order: np.ndarray, count: int | None = None, protos: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: list[set[int]], before: np.ndarray, order: np.ndarray, count: int | None = None, protos: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Identity of the segments of `order` (-1 for the others) and the identities' prototypes:
     segments taken by start, those starting within BATCH frames of each other together, each batch
     given the free identities (no segment assigned to it that a segment of the batch cannot be with)
@@ -295,10 +302,11 @@ def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: np.nd
     fixed = protos is not None
     sums = list(protos) if fixed else []
     blocked = [np.zeros(len(v), bool) for _ in sums]
-    queue = list(order[np.argsort(starts[order], kind="stable")])
-    while queue:
-        batch = [k for k in queue if starts[k] - starts[queue[0]] <= BATCH]
-        queue = queue[len(batch) :]
+    queue = order[np.argsort(starts[order], kind="stable")]
+    first = 0
+    while first < len(queue):
+        last = int(np.searchsorted(starts[queue], starts[queue[first]] + BATCH, side="right"))
+        batch, first = queue[first:last], last
         known = np.array([s / max(np.linalg.norm(s), 1e-9) for s in sums]).reshape(len(sums), v.shape[1])
         cost = np.full((len(batch), len(sums) + len(batch)), 9.0)
         for i, k in enumerate(batch):
@@ -317,7 +325,7 @@ def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: np.nd
                 sums.append(np.zeros(v.shape[1]))
                 blocked.append(np.zeros(len(v), bool))
             label[k] = c
-            blocked[c] |= cannot[k]
+            blocked[c][list(cannot[k])] = True
             if not fixed:
                 sums[c] = sums[c] + weights[k] * v[k]
     known = np.array([s / max(np.linalg.norm(s), 1e-9) for s in sums]).reshape(len(sums), v.shape[1])
@@ -325,17 +333,16 @@ def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: np.nd
 
 
 def segment_teams(segments: list[Segment], windows: list[tuple[int, int]], left: list[int | None]) -> None:
-    """Team of each segment: the team on its median side of the net in its rally (teams.track_teams,
+    """Team of each segment: the team on its median side of the net in its rally (teams.side_group,
     team 1 on the left without rally sides), so a track swapping players across the net splits
     between the teams."""
-    rows = [Row(f, k, (0.0, 0.0, 0.0, 0.0), 0.0, (0.0, 0.0), xy) for k, s in enumerate(segments) for f, xy in zip(s.frames, s.feet)]
-    side = {k: int(np.median([x for x, _ in s.feet]) >= 0) for k, s in enumerate(segments)}
-    found = track_teams(rows, windows, [None if g is None else g - 1 for g in left], side)
-    for k, s in enumerate(segments):
-        s.team = found[k] + 1
+    known = [(w, g - 1) for w, g in zip(windows, left) if g is not None]
+    for s in segments:
+        found = side_group(np.array(s.frames), np.array([x for x, _ in s.feet]), known)
+        s.team = (int(np.median([x for x, _ in s.feet]) >= 0) if found is None else found) + 1
 
 
-def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarray, cannot: np.ndarray, must: Iterable[tuple[int, int]], before: np.ndarray, fps: float, count: int | None = None) -> np.ndarray:
+def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarray, cannot: list[set[int]], must: Iterable[tuple[int, int]], before: np.ndarray, fps: float, count: int | None = None) -> np.ndarray:
     """Identity (0, 1, ...) of each segment of a team: the `must` pairs joined into units first;
     units of CORE_S seconds or more followed twice (`follow`), building the prototypes then with
     them fixed; then the other units, heaviest first, each to the nearest prototype it can join
@@ -345,23 +352,27 @@ def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarr
         unit[unit == unit[b]] = unit[a]
     unit = np.unique(unit, return_inverse=True)[1]
     n = unit.max() + 1 if len(v) else 0
-    member = np.zeros((len(v), n))
-    member[np.arange(len(v)), unit] = 1
-    uv = member.T @ (v * weights[:, None])
+    uv = np.zeros((n, v.shape[1]))
+    np.add.at(uv, unit, v * weights[:, None])
     uv /= np.maximum(np.linalg.norm(uv, axis=1, keepdims=True), 1e-9)
-    uw, umass = member.T @ weights, member.T @ mass
-    ustart = np.array([starts[unit == u].min() for u in range(n)])
-    ucannot = (member.T @ cannot.astype(float) @ member) > 0
+    uw, umass = np.bincount(unit, weights, n), np.bincount(unit, mass, n)
+    ustart = np.full(n, np.inf)
+    np.minimum.at(ustart, unit, starts)
+    ucannot: list[set[int]] = [set() for _ in range(n)]
+    for k, others in enumerate(cannot):
+        ucannot[unit[k]].update(unit[j] for j in others)
     ubefore = np.full(n, -1)
     after: list[list[int]] = [[] for _ in range(n)]
     for k, b in enumerate(before):
         if b >= 0 and unit[b] != unit[k]:
             ubefore[unit[k]] = unit[b]
             after[unit[b]].append(unit[k])
-    core = np.nonzero((umass >= CORE_S * fps) | (member.sum(0) > 1))[0]
+    core = np.nonzero((umass >= CORE_S * fps) | (np.bincount(unit, minlength=n) > 1))[0]
     label, protos = follow(uv, uw, ustart, ucannot, ubefore, core, count)
     label, protos = follow(uv, uw, ustart, ucannot, ubefore, core, count, protos)
-    blocked = [ucannot[label == c].any(0) for c in range(len(protos))]
+    blocked = [np.zeros(n, bool) for _ in range(len(protos))]
+    for u in np.nonzero(label >= 0)[0]:
+        blocked[label[u]][list(ucannot[u])] = True
     for k in sorted(set(range(n)) - set(core[label[core] >= 0]), key=lambda k: -uw[k]):
         cost = 1 - protos @ uv[k] if len(protos) else np.empty(0)
         for nb in [ubefore[k], *after[k]]:
@@ -376,7 +387,7 @@ def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarr
             blocked.append(np.zeros(n, bool))
         else:
             continue
-        blocked[label[k]] |= ucannot[k]
+        blocked[label[k]][list(ucannot[k])] = True
     longest = np.zeros(len(protos))
     np.maximum.at(longest, label[label >= 0], umass[label >= 0])
     label[(label >= 0) & (longest[np.maximum(label, 0)] < LONGEST_S * fps)] = -1
@@ -465,7 +476,7 @@ def number(segments: list[Segment], serve: int | None, fps: float, previous: dic
         s.identity = numbers.get(s.identity, 0)
 
 
-def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: np.ndarray, fps: float, contacts: dict[int, int]) -> dict:
+def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: list[set[int]], fps: float, contacts: dict[int, int]) -> dict:
     """identity_candidates.json's content, each list ranked by impact, (seconds + CONTACT_S per
     contact) x exp(-gap / GAP_SCALE), and each segment's `runner_up` and `confidence`
     (1 - exp(-gap / GAP_SCALE)):
@@ -476,10 +487,21 @@ def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: 
       `gap`: their prototypes' distance minus NEW.
     `v` holds the segments' embeddings in their team's whitened space."""
     keys = sorted({(s.team, s.identity) for s in segments if s.identity})
-    member = np.array([[(s.team, s.identity) == key for key in keys] for s in segments], float).reshape(len(segments), len(keys))
+    index = {key: c for c, key in enumerate(keys)}
+    key_of = np.array([index.get((s.team, s.identity), -1) for s in segments], int)
+    member = np.zeros((len(segments), len(keys)))
+    member[key_of >= 0, key_of[key_of >= 0]] = 1
     sums = member.T @ (v * weights[:, None])
     protos = sums / np.maximum(np.linalg.norm(sums, axis=1, keepdims=True), 1e-9)
-    blocked = (cannot.astype(float) @ member) > 0
+    # Identities a segment cannot join, and pairs of identities seen together.
+    blocked = np.zeros((len(segments), len(keys)), bool)
+    together = np.zeros((len(keys), len(keys)), bool)
+    for k, others in enumerate(cannot):
+        for j in others:
+            if key_of[j] >= 0:
+                blocked[k, key_of[j]] = True
+                if key_of[k] >= 0:
+                    together[key_of[k], key_of[j]] = True
     seconds = np.array([len(s.frames) / fps for s in segments])
     touches = np.array([contacts.get(k, 0) for k in range(len(segments))])
 
@@ -503,7 +525,6 @@ def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: 
         })
         s.runner_up, s.confidence = keys[best][1], found["confidence"]
         out["segments"].append(found)
-    together = member.T @ cannot.astype(float) @ member > 0
     longest = {key: max((s for s in segments if (s.team, s.identity) == key), key=lambda s: len(s.frames)) for key in keys}
     for a in range(len(keys)):
         for b in range(a + 1, len(keys)):
@@ -560,11 +581,15 @@ def identify(
     v, weights = embed(video, rows, segments, cover, cache)
     cannot = cannot_links(segments, fps)
     for group_ in same:
-        cannot[np.ix_(group_, group_)] = False
+        for k in group_:
+            cannot[k].difference_update(group_)
     for group_ in different:
         for a in range(len(group_)):
             for b in range(a + 1, len(group_)):
-                cannot[np.ix_(group_[a], group_[b])] = cannot[np.ix_(group_[b], group_[a])] = True
+                for x in group_[a]:
+                    for y in group_[b]:
+                        cannot[x].add(y)
+                        cannot[y].add(x)
     last: dict[int, int] = {}
     pieces = []
     for k, s in enumerate(segments):
@@ -583,7 +608,8 @@ def identify(
         mass = np.array([len(segments[k].frames) for k in idx], float)
         count = squad[team - 1] if squad and team in (1, 2) else None
         wv[idx] = whiten(v[idx], weights[idx], WHITEN)
-        found = group(wv[idx], weights[idx], mass, np.array([segments[k].start for k in idx]), cannot[np.ix_(idx, idx)], must, earlier, fps, count)
+        local_cannot = [{local[j] for j in cannot[k] if j in local} for k in idx]
+        found = group(wv[idx], weights[idx], mass, np.array([segments[k].start for k in idx]), local_cannot, must, earlier, fps, count)
         labels[idx] = np.where(found >= 0, found + labels.max() + 1, -1)
     for s, label in zip(segments, labels):
         s.identity = int(label) + 1

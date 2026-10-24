@@ -20,9 +20,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 import cv2
+import numpy as np
 
 from volleyball_stats import identity, web
-from volleyball_stats.attribution import read_players
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
@@ -42,21 +42,28 @@ class Questions:
 
     def __init__(self, match: Path, fps: float):
         self.match, self.fps = match, fps
-        self.boxes: dict[int, dict[int, tuple]] = {}
-        self.frames: dict[int, list[tuple]] = {}
-        for r in read_players(match / "players.csv"):
-            box = tuple(round(v) for v in r.box)
-            self.boxes.setdefault(r.track, {})[r.frame] = box
-            self.frames.setdefault(r.frame, []).append(box)
+        # frame, track, x1, y1, x2, y2 of every player box, sorted by frame (players.csv's order):
+        # compact arrays, a 2-hour match holds millions of boxes.
+        table = np.loadtxt(match / "players.csv", delimiter=",", skiprows=1, usecols=(0, 1, 3, 4, 5, 6), ndmin=2).round().astype(np.int32)
+        self.frame_of, self.box_of = table[:, 0], table[:, 2:]
+        by_track = np.lexsort((table[:, 0], table[:, 1]))
+        tracks, firsts = np.unique(table[by_track, 1], return_index=True)
+        self.rows = {int(t): by_track[a:b] for t, a, b in zip(tracks, firsts, [*firsts[1:], len(by_track)])}
         self.load()
 
     def load(self) -> None:
         self.table = identity.read_identities(self.match / "identities.csv")
         self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
 
+    def track_rows(self, track: int, start: int, end: int) -> np.ndarray:
+        """Indices of a track's boxes from `start` to `end`, by frame."""
+        rows = self.rows[track]
+        frames = self.frame_of[rows]
+        return rows[np.searchsorted(frames, start) : np.searchsorted(frames, end, side="right")]
+
     def box(self, track: int, frame: int) -> tuple:
-        frames = self.boxes[track]
-        return frames.get(frame) or frames[min(frames, key=lambda f: abs(f - frame))]
+        rows = self.rows[track]
+        return tuple(int(v) for v in self.box_of[rows[np.argmin(np.abs(self.frame_of[rows] - frame))]])
 
     def crop(self, track: int, frame: int) -> str:
         return f"crop?f={frame}&b={','.join(map(str, self.box(track, frame)))}"
@@ -65,16 +72,20 @@ class Questions:
         """The frame of a piece where the track's box overlaps the other boxes least, among
         CANDIDATES spread over it: a picture of the player alone."""
 
-        def covered(frame: int) -> float:
-            x1, y1, x2, y2 = box = self.boxes[track][frame]
-            area = max(1, (x2 - x1) * (y2 - y1))
-            return max((max(0, min(x2, b[2]) - max(x1, b[0])) * max(0, min(y2, b[3]) - max(y1, b[1])) / area for b in self.frames[frame] if b != box), default=0.0)
+        def covered(row: int) -> float:
+            frame, (x1, y1, x2, y2) = self.frame_of[row], self.box_of[row]
+            others = self.box_of[np.searchsorted(self.frame_of, frame) : np.searchsorted(self.frame_of, frame, side="right")]
+            w = np.clip(np.minimum(x2, others[:, 2]) - np.maximum(x1, others[:, 0]), 0, None)
+            h = np.clip(np.minimum(y2, others[:, 3]) - np.maximum(y1, others[:, 1]), 0, None)
+            share = w * h / max(1, (x2 - x1) * (y2 - y1))
+            # The box itself covers all of itself.
+            return float(np.sort(share)[-2]) if len(share) > 1 else 0.0
 
-        frames = [f for f in self.boxes[track] if start <= f <= end]
-        if not frames:
+        rows = self.track_rows(track, start, end)
+        if not len(rows):
             return mid(start, end)
-        picks = frames[:: max(1, len(frames) // CANDIDATES)]
-        return min(picks, key=lambda f: (covered(f), abs(f - mid(start, end))))
+        picks = rows[:: max(1, len(rows) // CANDIDATES)]
+        return int(self.frame_of[min(picks, key=lambda r: (covered(r), abs(self.frame_of[r] - mid(start, end))))])
 
     def pieces(self, team: int, number: int) -> list[tuple[int, int, int, int, int]]:
         """An identity's pieces, longest first."""
@@ -89,11 +100,11 @@ class Questions:
         return [self.crop(track, self.clear(track, start, end)) for track, start, end, _, _ in self.pieces(team, number)[:IDENTITY_CROPS]]
 
     def clip(self, track: int, start: int, end: int) -> dict:
-        frames = self.boxes[track]
+        rows = [r for r in self.track_rows(track, start, end) if (self.frame_of[r] - start) % BOX_STEP == 0]
         return {
             "start": round(start / self.fps, 2),
             "end": round(end / self.fps, 2),
-            "boxes": [[round(f / self.fps, 3), *frames[f]] for f in range(start, end + 1, BOX_STEP) if f in frames],
+            "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
 
     def build(self, asked: set[str]) -> tuple[list[dict], dict[str, dict]]:
@@ -102,7 +113,7 @@ class Questions:
         for c in self.candidates["segments"]:
             qid = f"piece:{c['track']}:{c['start_frame']}"
             options = [n for n in (c["identity"], c["runner_up"]) if n]
-            if qid in asked or not options or c["track"] not in self.boxes:
+            if qid in asked or not options or c["track"] not in self.rows:
                 continue
             track, start, end = c["track"], c["start_frame"], c["end_frame"]
             cuts = [start + (end - start) * k // PIECE_CROPS for k in range(PIECE_CROPS + 1)]

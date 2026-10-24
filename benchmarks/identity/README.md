@@ -109,5 +109,7 @@ merges 1.07 and 1.14. The page shows no number on 1.8% of the player dots of `si
 - The user's answers on the doubtful pieces (`identity_candidates.json`) fix the rest; the review
   page asks them on the video.
 - Two clips of the same club and camera; the constants need a check on the user's footage.
-- Memory: the cannot-links are a dense matrix over all pieces, ~2,100 per 10 minutes. A 2-hour
-  match (~25,000 pieces) needs them sparse first (see `cannot_links`).
+- Long matches: the cannot-links are kept per piece, the pairs of a team close in time only. On a
+  match of 43,000 pieces (the player rows of 2 hours at 50 fps, `benchmarks/scale.py`) the step
+  takes 47 s and 6.8 GB at its peak, half of it the players' rows; a dense pieces x pieces matrix
+  needed over 20 GB.

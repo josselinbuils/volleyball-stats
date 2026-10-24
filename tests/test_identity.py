@@ -38,7 +38,7 @@ class TestSplit:
 
 
 class TestCannotLinks:
-    def test_blocks_teammates_seen_together_other_teams_and_runs_too_fast(self):
+    def test_blocks_teammates_seen_together_and_runs_too_fast(self):
         segments = [
             Segment(1, list(range(0, 20)), [(0.0, 0.0)] * 20, team=1),
             Segment(2, list(range(10, 30)), [(1.0, 0.0)] * 20, team=1),  # seen with 1
@@ -49,9 +49,8 @@ class TestCannotLinks:
 
         cannot = cannot_links(segments, FPS)
 
-        assert cannot[0].tolist() == [False, True, False, True, True]
-        assert cannot[1, 2] and cannot[2, 3]
-        assert (cannot == cannot.T).all()
+        # The other team's segment is never compared: teams are grouped apart.
+        assert cannot == [{1, 3}, {0, 2, 3}, {1, 3}, {0, 1, 2}, set()]
 
 
 class TestGroup:
@@ -63,8 +62,7 @@ class TestGroup:
         v /= np.linalg.norm(v, axis=1, keepdims=True)
         length = int(LONGEST_S * FPS) + 20
         starts = np.array([0, 0, 2 * length, 2 * length])
-        cannot = np.zeros((4, 4), bool)
-        cannot[0, 1] = cannot[1, 0] = cannot[2, 3] = cannot[3, 2] = True
+        cannot = [{1}, {0}, {3}, {2}]
 
         found = group(v, np.ones(4), np.full(4, float(length)), starts, cannot, [], np.full(4, -1), FPS)
 
@@ -75,14 +73,14 @@ class TestGroup:
         v = np.array([a, b])
         length = int(max(CORE_S, LONGEST_S) * FPS) + 20
 
-        found = group(v, np.ones(2), np.full(2, float(length)), np.array([0, 2 * length]), np.zeros((2, 2), bool), [(0, 1)], np.full(2, -1), FPS)
+        found = group(v, np.ones(2), np.full(2, float(length)), np.array([0, 2 * length]), [set(), set()], [(0, 1)], np.full(2, -1), FPS)
 
         assert found[0] == found[1] == 0
 
     def test_identities_too_short_get_none(self):
         v = np.eye(8)[:1]
 
-        assert group(v, np.ones(1), np.array([LONGEST_S * FPS - 1]), np.array([0]), np.zeros((1, 1), bool), [], np.array([-1]), FPS).tolist() == [-1]
+        assert group(v, np.ones(1), np.array([LONGEST_S * FPS - 1]), np.array([0]), [set()], [], np.array([-1]), FPS).tolist() == [-1]
 
 
 class TestNumber:

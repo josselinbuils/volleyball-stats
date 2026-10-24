@@ -11,6 +11,7 @@ benchmarks/players/README.md for the numbers behind the constants.
 """
 
 import argparse
+import bisect
 import csv
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -134,15 +135,18 @@ def stitch(rows: list[Row], fps: float) -> list[Row]:
     by_track: dict[int, list[Row]] = {}
     for row in sorted(rows, key=lambda r: r.frame):
         by_track.setdefault(row.track, []).append(row)
+    # Each end looks at the tracks starting within MAX_GAP_S after it, by bisection on the starts.
+    starts = sorted((track_rows[0].frame, b) for b, track_rows in by_track.items())
+    first_frames = [f for f, _ in starts]
     pairs = []
     for a, first in by_track.items():
-        for b, second in by_track.items():
-            gap = second[0].frame - first[-1].frame
-            if 0 < gap <= MAX_GAP_S * fps:
-                distance = float(np.hypot(*np.subtract(first[-1].court, second[0].court)))
-                if distance <= MAX_SPEED * gap / fps + REACH:
-                    pairs.append((distance, a, b))
-    # ponytail: greedy over all track pairs, O(tracks²); fine for a rally, window it for a 2-hour match.
+        end = first[-1].frame
+        for start, b in starts[bisect.bisect_right(first_frames, end) : bisect.bisect_right(first_frames, end + MAX_GAP_S * fps)]:
+            gap = start - end
+            distance = float(np.hypot(*np.subtract(first[-1].court, by_track[b][0].court)))
+            if distance <= MAX_SPEED * gap / fps + REACH:
+                pairs.append((distance, a, b))
+    # Closest pairs first, each end and start used once.
     after, before = {}, {}
     for _, a, b in sorted(pairs):
         if a not in after and b not in before:

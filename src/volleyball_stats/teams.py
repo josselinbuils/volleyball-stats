@@ -32,6 +32,8 @@ import numpy as np
 from volleyball_stats.players import Row
 
 SAMPLES = 8
+# Height in pixels of the player crops of the naming sheet.
+CROP_PX = 160
 # Torso box as fractions of the player box: x from, x to, y from, y to.
 TORSO = (0.3, 0.7, 0.2, 0.45)
 # Frames to the next sampled frame beyond which the reader seeks instead of decoding through.
@@ -86,6 +88,7 @@ def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[i
             wanted.setdefault(track_rows[i].frame, []).append(track_rows[i])
     colours: dict[int, list[np.ndarray]] = {}
     crops: dict[int, np.ndarray] = {}
+    tallest: dict[int, int] = {}
     cap, position = cv2.VideoCapture(str(video)), 0
     for frame in sorted(wanted):
         if frame - position > SEEK:
@@ -104,8 +107,11 @@ def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[i
             if len(pixels):
                 colours.setdefault(r.track, []).append(np.median(pixels, axis=0))
                 x1, y1, x2, y2 = map(int, r.box)
-                if r.track not in crops or y2 - y1 > crops[r.track].shape[0]:
-                    crops[r.track] = image[max(0, y1) : y2, max(0, x1) : x2].copy()
+                if y2 - y1 > tallest.get(r.track, 0):
+                    # Kept at the naming sheet's height: a 4K match has thousands of tracks.
+                    tallest[r.track] = y2 - y1
+                    part = image[max(0, y1) : y2, max(0, x1) : x2]
+                    crops[r.track] = cv2.resize(part, (max(1, round(part.shape[1] * CROP_PX / part.shape[0])), CROP_PX), interpolation=cv2.INTER_AREA) if part.size else part
     cap.release()
     return {track: np.median(c, axis=0) for track, c in colours.items()}, crops
 
@@ -146,21 +152,26 @@ def lefts(rows: list[Row], windows: list[tuple[int, int]], group: dict[int, int]
     return out
 
 
+def side_group(frames: np.ndarray, xs: np.ndarray, known: list[tuple[tuple[int, int], int]]) -> int | None:
+    """Group on the median side of the net of a player's `frames` (court x `xs`) in the rally of
+    `known` ((window, group on the left)) it plays most frames of, else in the nearest one; None
+    without any."""
+    if not known:
+        return None
+    inside = [int(((frames >= s) & (frames <= e)).sum()) for (s, e), _ in known]
+    middle = float(np.median(frames))
+    k = int(np.argmax(inside)) if max(inside) else int(np.argmin([max(s - middle, middle - e, 0) for (s, e), _ in known]))
+    return known[k][1] if float(np.median(xs)) < 0 else 1 - known[k][1]
+
+
 def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int | None], group: dict[int, int]) -> dict[int, int]:
-    """Group of each track: the group on the track's median side of the net in the rally it plays
-    most frames of, else in the nearest rally (with a side known); its colour group without any."""
+    """Group of each track: `side_group` in the rallies with a side known; its colour group without
+    any."""
     known = [(w, g) for w, g in zip(windows, left) if g is not None]
     out = {}
     for track, track_rows in by_track(rows).items():
-        frames = np.array([r.frame for r in track_rows])
-        if not known:
-            out[track] = group.get(track, 0)
-            continue
-        inside = [int(((frames >= s) & (frames <= e)).sum()) for (s, e), _ in known]
-        middle = float(np.median(frames))
-        k = int(np.argmax(inside)) if max(inside) else int(np.argmin([max(s - middle, middle - e, 0) for (s, e), _ in known]))
-        on_left = float(np.median([r.court[0] for r in track_rows])) < 0
-        out[track] = known[k][1] if on_left else 1 - known[k][1]
+        found = side_group(np.array([r.frame for r in track_rows]), np.array([r.court[0] for r in track_rows]), known)
+        out[track] = group.get(track, 0) if found is None else found
     return out
 
 
@@ -331,7 +342,7 @@ def default_title(names: list[str]) -> str:
     return f"Match {names[0]} vs {names[1]}"
 
 
-def sheet(teams: Teams, height: int = 160) -> np.ndarray:
+def sheet(teams: Teams, height: int = CROP_PX) -> np.ndarray:
     """The player crops of each team side by side, one row per team, labelled with its number, jersey
     colour and starting side."""
     rows = []

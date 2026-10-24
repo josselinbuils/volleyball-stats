@@ -15,8 +15,9 @@ import cv2
 import numpy as np
 
 SAMPLE_RATE = 16000
-# STFT: 1024-point Hann windows every 10 ms.
+# STFT: 1024-point Hann windows every 10 ms, BLOCK windows at a time (~80 MB of spectrum).
 FFT_SIZE, HOP = 1024, 160
+BLOCK = 8192
 # A whistle is a narrow peak between 3.3 and 4.3 kHz, 30x the median of the 1.5-6 kHz band,
 # for at least 80 ms. Peaks under 15 (rfft magnitude of float PCM) are too far away to be the
 # referee's.
@@ -116,12 +117,15 @@ def whistles(audio: np.ndarray) -> list[tuple[float, float]]:
     if len(audio) < FFT_SIZE:
         return []
     frames = np.lib.stride_tricks.sliding_window_view(audio, FFT_SIZE)[::HOP]
-    spectrum = np.abs(np.fft.rfft(frames * np.hanning(FFT_SIZE), axis=1))
     freqs = np.fft.rfftfreq(FFT_SIZE, 1 / SAMPLE_RATE)
-    noise = spectrum[:, (freqs >= NOISE_BAND[0]) & (freqs <= NOISE_BAND[1])]
-    band = spectrum[:, (freqs >= WHISTLE_BAND[0]) & (freqs <= WHISTLE_BAND[1])]
-    peak = band.max(axis=1)
-    tonal = (peak >= MIN_PEAK) & (peak >= TONALITY * np.median(noise, axis=1)) & (peak >= noise.max(axis=1))
+    in_noise = (freqs >= NOISE_BAND[0]) & (freqs <= NOISE_BAND[1])
+    in_band = (freqs >= WHISTLE_BAND[0]) & (freqs <= WHISTLE_BAND[1])
+    window = np.hanning(FFT_SIZE)
+    tonal = np.zeros(len(frames), bool)
+    for start in range(0, len(frames), BLOCK):
+        spectrum = np.abs(np.fft.rfft(frames[start : start + BLOCK] * window, axis=1))
+        noise, peak = spectrum[:, in_noise], spectrum[:, in_band].max(axis=1)
+        tonal[start : start + BLOCK] = (peak >= MIN_PEAK) & (peak >= TONALITY * np.median(noise, axis=1)) & (peak >= noise.max(axis=1))
     step = HOP / SAMPLE_RATE
     found = runs(tonal, round(WHISTLE_GAP_S / step), round(MIN_WHISTLE_S / step))
     return [(start * step, (end + 1) * step) for start, end in found]

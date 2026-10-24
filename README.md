@@ -78,6 +78,11 @@ uv run python benchmarks/speed.py VIDEO          # projected processing time of 
 Keep the videos in the Ubuntu file system (`~/`), not under `/mnt/c`: reading Windows files from
 WSL2 is several times slower.
 
+A 2-hour match at 50 fps needs about 8 GB of RAM at its peak, the identity step holding the
+players' rows (`benchmarks/scale.py` measures each step on a synthetic long match). WSL2 gets half
+of the PC's RAM by default: with 16 GB, raise it in `%UserProfile%\.wslconfig` (`[wsl2]`, then
+`memory=12GB`) and restart WSL (`wsl --shutdown`).
+
 ## Run on a match
 
 ```bash

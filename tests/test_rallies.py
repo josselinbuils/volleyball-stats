@@ -65,6 +65,17 @@ class TestWhistles:
     def test_short_audio_has_no_whistle(self):
         assert whistles(np.zeros(FFT_SIZE - 1)) == []
 
+    def test_finds_the_same_whistles_spectrum_block_by_block(self, monkeypatch):
+        rng = np.random.default_rng(1)
+        audio = 0.02 * rng.standard_normal(3 * SAMPLE_RATE)
+        audio[SAMPLE_RATE : SAMPLE_RATE + round(0.5 * SAMPLE_RATE)] += tone(0.5, 3700)
+        whole = whistles(audio)
+
+        # Blocks of 70 windows: the whistle spans a block boundary.
+        monkeypatch.setattr("volleyball_stats.rallies.BLOCK", 70)
+
+        assert whistles(audio) == whole and len(whole) == 1
+
 
 class TestSegment:
     rally = np.concatenate([np.full((30, 2), np.nan), flight(60, 1100, -15.0), np.full((300, 2), np.nan)])

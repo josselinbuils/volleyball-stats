@@ -17,7 +17,7 @@ import argparse
 import csv
 import json
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 import cv2
@@ -31,8 +31,8 @@ from volleyball_stats.teams import recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
 BRANDING = Path("branding")
-# Player positions are kept every STEP frames over the whole video, to the centimetre.
-STEP = 3
+# Player positions are kept every STEP_S seconds over the whole video, to the centimetre.
+STEP_S = 0.1
 POSTER_WIDTH = 800
 # The club logo shows at most 64 px tall: kept at twice that for sharp high-density screens.
 LOGO_PX = 128
@@ -122,7 +122,7 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
     return out
 
 
-def player_samples(rows: list[dict], step: int, frame_count: int, who: Who = lambda track, _: track) -> list[list[float]]:
+def player_samples(rows: Iterable[dict], step: int, frame_count: int, who: Who = lambda track, _: track) -> list[list[float]]:
     """The players' court feet every `step` frames of the video, from frame 0, each sample a flat
     [player, x, y, ...] list rounded to the centimetre, `who` naming the player of a row's track."""
     samples: list[list[float]] = [[] for _ in range(-(-frame_count // step))]
@@ -202,18 +202,31 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     cap.release()
     rally_rows = read_csv(match / "rallies.csv")
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rally_rows]
-    rows = read_csv(match / "players.csv") if (match / "players.csv").exists() else []
-    by_frame: dict[int, list[dict]] = {}
-    for row in rows:
-        by_frame.setdefault(int(row["frame"]), []).append(row)
+    actions = read_csv(match / "actions.csv")
+    gap = round(GAP_S * fps)
+    # The player rows around the touches place them; all the rows feed the samples, read once.
+    near = {f for row in actions for f in range(int(row["frame"]) - gap, int(row["frame"]) + gap + 1)}
     teams = read_teams(match)
-    if teams and (match / "tracks.csv").exists():
-        track_team = {int(r["track"]): int(r["team"]) for r in read_csv(match / "tracks.csv")}
-    else:
-        # Without teams, tracks are grouped by their side of the net: 1 left, 2 right.
-        teams, track_team = None, {int(r["track"]): 1 if r["team"] == "left" else 2 for r in rows}
+    with_teams = bool(teams) and (match / "tracks.csv").exists()
+    track_team = {int(r["track"]): int(r["team"]) for r in read_csv(match / "tracks.csv")} if with_teams else {}
+    teams = teams if with_teams else None
     who, table = people(track_team, read_identities(match / "identities.csv") if teams and (match / "identities.csv").exists() else [])
-    found = contacts(read_csv(match / "actions.csv"), windows, by_frame, fps, calibration, UNDER_PX * height / 720, who)
+    by_frame: dict[int, list[dict]] = {}
+
+    def rows() -> Iterator[dict]:
+        with open(match / "players.csv") as f:
+            for row in csv.DictReader(f):
+                frame = int(row["frame"])
+                if frame in near:
+                    by_frame.setdefault(frame, []).append(row)
+                if not with_teams:
+                    # Without teams, tracks are grouped by their side of the net: 1 left, 2 right.
+                    track_team.setdefault(int(row["track"]), 1 if row["team"] == "left" else 2)
+                yield row
+
+    step = max(1, round(STEP_S * fps))
+    samples = player_samples(rows(), step, frame_count, who) if (match / "players.csv").exists() else []
+    found = contacts(actions, windows, by_frame, fps, calibration, UNDER_PX * height / 720, who)
     scores = read_csv(match / "points.csv") if teams and (match / "points.csv").exists() else [{}] * len(windows)
     rallies = []
     for (start, end), row, point in zip(windows, rally_rows, scores):
@@ -240,9 +253,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "zones": zone_cells(),
         "scores": teams and teams.get("scores"),
     }
-    samples = player_samples(rows, STEP, frame_count, who) if rows else None
     data["people"] = table
-    return data, samples and {"step": STEP, "samples": samples}
+    return data, {"step": step, "samples": samples} if any(samples) else None
 
 
 def write_site(data: dict, players: dict | None, video: Path, site: Path, copy: bool) -> None:
