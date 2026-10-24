@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 /** A top view of the court in court metres: x along the length, net at 0, y toward the camera,
- * which films from beyond the near sideline (bottom). `ends` names the halves (default: left and
- * right), `camera` marks the camera's side. */
+ * which films from beyond the near sideline (bottom). `ends` names the halves (default: none),
+ * `camera` marks the camera's side. */
 export function Court({
   zones = false,
   ends,
@@ -27,9 +27,9 @@ export function Court({
         {children}
       </svg>
       <div aria-hidden className="grid grid-cols-[1fr_auto_1fr] gap-2 px-[9%] text-xs text-muted-foreground">
-        <span className="truncate">{ends?.[0] ?? t('leftEnd')}</span>
+        <span className="truncate">{ends?.[0]}</span>
         <span>{camera && t('cameraSide')}</span>
-        <span className="truncate text-right">{ends?.[1] ?? t('rightEnd')}</span>
+        <span className="truncate text-right">{ends?.[1]}</span>
       </div>
     </div>
   );

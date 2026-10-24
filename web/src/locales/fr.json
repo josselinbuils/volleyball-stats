@@ -32,8 +32,6 @@
   "leftTeam": "Équipe de gauche",
   "rightTeam": "Équipe de droite",
   "ball": "Ballon",
-  "leftEnd": "Gauche",
-  "rightEnd": "Droite",
   "cameraSide": "Côté caméra",
   "rally": "Échange {{n}}",
   "rallyLower": "échange {{n}}",
