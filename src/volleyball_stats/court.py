@@ -600,8 +600,8 @@ def main() -> None:
                 print(f"{path.stem}: other frame size")
                 continue
             print(
-                f"{path.stem}: line samples on lines {found:.0%}, {len(calibration.points)}/{len(court.points)} "
-                f"landmarks snapped again, RMS {calibration.error:.1f} px -> {'match' if accepted else 'no match'}"
+                f"{path.stem}: line samples on lines {found:.0%}, {len(calibration.points)} landmarks snapped "
+                f"({len(court.points)} when calibrated), RMS {calibration.error:.1f} px -> {'match' if accepted else 'no match'}"
             )
             if accepted and found > best_found:
                 best, best_found = calibration, found
