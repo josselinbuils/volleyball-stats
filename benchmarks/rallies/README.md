@@ -1,14 +1,16 @@
 # Rally segmentation benchmark
 
 Three signals for finding the rallies (serve contact to dead ball) of a sideline video, scored
-alone and combined against hand-labelled rallies of two clips of the same school match.
+alone and combined against hand-labelled rallies of two tuning clips of a school match, then checked
+on a held-out clip of the same match.
 
 ## Run
 
 ```bash
 uv run --group bench python benchmarks/rallies/bench.py \
   data/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/rallies/ground_truth/side_club.csv \
-  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/rallies/ground_truth/side_long.csv --show
+  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/rallies/ground_truth/side_long.csv \
+  data/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/rallies/ground_truth/side_holdout.csv --show
 uv run --group bench python -m volleyball_stats.rallies data/side_club.mp4 outputs/ball/side_club_ball.csv
 ```
 
@@ -21,6 +23,7 @@ under `outputs/bench/rallies/`.
 | --- | --- | --- | --- |
 | `side_club.mp4` | same clip as [benchmarks/ball](../ball/README.md) | 180 s | 8 rallies, one already running when the clip starts |
 | `side_long.mp4` | same match and camera, 600 s | 600 s | 9 rallies; 0–230 s is warm-up including serving practice, 544–582 s a break |
+| `side_holdout.mp4` | same match and camera, 33:00–43:00 of the source video; held out | 600 s | 21 rallies; breaks at 230–270 s and 420–450 s |
 
 Wide-angle camera raised next to the net post, 1280×720 at 29.97 fps, other courts in view and
 within earshot.
@@ -66,8 +69,8 @@ is a 95% bootstrap of F1 over rallies (matched pairs, misses and false alarms re
 | **ball + whistle** | 9 | **1.00** | **1.00** | **1.00** [1.00–1.00] | 0.25 s | 1.00 [1.00–1.00] |
 
 The combination misses only the rally already running when `side_club` starts (1 s of ball
-flight, under the 300 px travel floor). All constants were set by looking at both clips: there is
-no held-out match, so expect the F1 to drop on another gym, referee or whistle.
+flight, under the 300 px travel floor). All constants were set by looking at both clips; on a
+held-out clip of the same match the F1 drops to 0.72 (see [Held-out check](#held-out-check)).
 
 ### Why each signal fails alone
 
@@ -83,6 +86,55 @@ no held-out match, so expect the F1 to drop on another gym, referee or whistle.
   of `side_long`) and re-whistles when the server waits break the pairing.
 - **Motion energy**: players warm up, celebrate and walk between rallies; the frame-difference
   energy is as high then as during play. Useless here.
+
+## Held-out check
+
+`side_holdout.mp4` was not looked at while setting the constants. Its 21 rallies were labelled
+blind, with the procedure above, before running `rallies.py` or the benchmark on it. Two rallies
+end on a fault whistle. Two balls fly out of the frame high and land unseen; they are labelled at
+the frame they leave, and the whistle follows 1.1 s and 4.3 s later. The dig into the net at
+151–162 s drops out of sight, so its floor contact is estimated to ±0.3 s.
+
+| ball + whistle | n | P ±1 s | R ±1 s | F1 ±1 s | MAE | F1 ±2 s |
+| --- | --- | --- | --- | --- | --- | --- |
+| side_club (tuning) | 7 | 1.00 | 0.88 | 0.93 [0.77–1.00] | 0.26 s | 0.93 [0.77–1.00] |
+| side_long (tuning) | 9 | 1.00 | 1.00 | 1.00 [1.00–1.00] | 0.25 s | 1.00 [1.00–1.00] |
+| **side_holdout** | 15 | 0.87 | 0.62 | **0.72** [0.56–0.88] | 0.27 s | 0.72 [0.56–0.88] |
+
+Each signal alone on `side_holdout`, F1 ±1 s: ball 0.45 [0.27–0.62], whistle 0.42 [0.23–0.57],
+motion 0.00.
+
+The module overfits the whistles of the tuning clips. The ball runs carry over: every true rally
+overlaps one, and the matched boundaries are off by 0.27 s on average. All 8 misses and both false
+rallies come from closing the run with a whistle:
+
+| Rally (s) | Result | Cause |
+| --- | --- | --- |
+| 151.1–162.5, 373.0–387.3, 473.0–476.9 | missed | soft end whistle: peak 17–19 and tonality 24–34, above `MIN_PEAK` 15 and `TONALITY` 30 together for under 80 ms |
+| 280.9–286.0 | missed | a louder 3 kHz whistle from another court at the same moment, so the end whistle's peak is not the band maximum |
+| 215.3–219.9 | missed | whistle found but rejected by the live-ball test: 2 s later, the dead ball is rolled back across the court at ≥15 px/frame |
+| 405.6–408.9 | end 5 s late (miss + false) | same test: the shanked reception falls from above the frame and bounces high, so the next whistle, 4.4 s later, closes the rally |
+| 553.1–555.3 | missed | same test: a fault whistle after the reception, then the ball falls untouched |
+| 101.7–112.1 | missed | the dig flies out of the frame, and the whistle comes 4.3 s later, past the 2 s window |
+| 482.7–488.6 | false | a ball thrown back to the server, closed by the authorization whistle of the next serve (0.9 s) |
+
+So `MIN_PEAK`, `TONALITY` and the live-ball test (`LIVE_SPEED`, `LIVE_WINDOW_S`) fit the loud
+whistles and the dead balls of the two tuning clips. On this clip the end whistle is soft or masked
+in 4 of 21 rallies, and the dead ball moves fast after 3 of 21 end whistles. Proposed fixes, not
+applied:
+
+- Set the whistle threshold per clip from the referee's authorization whistles (one per rally, long
+  and loud) instead of absolute constants. Compare the peak to the 3.3–4.3 kHz band only, so that
+  another whistle at 3 kHz cannot mask it. The four missed whistles stay above peak 8 and
+  tonality 15 for 50–170 ms.
+- Replace the speed test with a test that the ball is still played: a contact from `contacts.py`
+  1–3 s after the whistle, or the court position of a dead ball.
+- Never close a rally with a whistle of 0.6 s or more that a serve follows within 16 s (the next
+  authorization). The window after the last ball motion can then grow for balls that leave the
+  frame.
+
+These fixes would be designed after seeing this clip, so checking them needs a clip from another
+match. Limits of this check: same match, referee, gym and camera, and one annotator.
 
 ## Method (`rallies.py`)
 

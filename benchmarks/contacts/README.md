@@ -1,7 +1,7 @@
 # Contact detection benchmark
 
 Contact and net crossing detectors on the WASB ball tracks of `side_club` and `side_long`, scored
-against hand-labelled rallies.
+against hand-labelled rallies, then checked on a held-out clip of the same match, `side_holdout`.
 
 ## Run
 
@@ -9,14 +9,17 @@ against hand-labelled rallies.
 uv run --group bench python benchmarks/contacts/bench.py score \
   outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv \
   outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv --verbose
-uv run --group bench python benchmarks/contacts/bench.py sweep <the same pairs>
+uv run --group bench python benchmarks/contacts/bench.py score \
+  outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv --verbose
+uv run --group bench python benchmarks/contacts/bench.py sweep <the two tuning pairs>
 ```
 
-`score` runs `contacts.detect` with its defaults, `sweep` searches the parameters of the three
-candidates. The tracks come from `python -m volleyball_stats.ball VIDEO --stride 1 --out
-outputs/ball`. Both clips are 29.97 fps with the net at x=612: on this side camera the net plane
-projects to x≈598 at the near post and x≈625 at the far post (measured on frame 0 of
-`side_club`); the court calibration module will provide that x later.
+`score` runs `contacts.detect` with its defaults and pools the pairs it is given, `sweep` searches
+the parameters of the three candidates. The tracks come from `python -m volleyball_stats.ball VIDEO
+--stride 1 --out outputs/ball`. All clips are 29.97 fps with the net at x=612: on this side camera
+the net plane projects to x≈598 at the near post and x≈625 at the far post (measured on frame 0 of
+`side_club`; `side_holdout` is shifted by under 0.1 px); the court calibration module will provide
+that x later.
 
 ## Ground truth
 
@@ -36,9 +39,10 @@ hit outside the frame (rally 1 of `side_club`), catches and balls rolling after 
 | --- | --- | --- | --- |
 | `side_club` | 7 (frames 400–5056) | 37 | 10 |
 | `side_long` | 5 (frames 7140–14290) | 48 | 16 |
+| `side_holdout` (held out) | 7 (frames 3040–17444) | 53 | 19 |
 
-Types: 11 serves, 10 passes, 19 sets, 16 attacks, 13 digs, 1 block, 10 floor bounces, 1 ball into
-the net, 4 unclear touches.
+Types on the tuning clips: 11 serves, 10 passes, 19 sets, 16 attacks, 13 digs, 1 block, 10 floor
+bounces, 1 ball into the net, 4 unclear touches.
 
 ## Method
 
@@ -81,6 +85,8 @@ at 320–340 px/s ties on F1 (P 0.976, R 0.953).
 
 ### Chosen detector (`contacts.detect`)
 
+On the 12 tuning rallies:
+
 | What | Tol | P | R | F1 | 95% interval |
 | --- | --- | --- | --- | --- | --- |
 | contacts | ±2 | 0.988 | 0.941 | 0.964 | [0.92–0.99] |
@@ -104,6 +110,44 @@ default detector scores F1 0.919 at ±2 (P 0.974, R 0.871, interval 0.86–0.95)
 missed (2 serves, 2 floor bounces, a set, an unclear touch), the net crossings unchanged.
 Re-sweeping on those tracks gets at best 0.931 (`delta_v`, 0.10 s window, 0.10 s gap, 300–340
 px/s, R 0.871). The lighter track costs about 7% of the contacts.
+
+## Held-out check
+
+`side_holdout` was not looked at while setting the constants (same match and camera, 600 s, see
+[benchmarks/rallies](../rallies/README.md)). 7 rallies spread over the clip (101–582 s) were
+labelled blind, with the procedure above, before running `contacts.py` or the benchmark on it.
+Types: 7 serves, 7 passes, 11 sets, 9 attacks, 6 digs, 2 blocks, 5 floor bounces, 1 ball into the
+net, 5 unclear touches. 5 contacts are hidden in the track on one side and placed from the crops,
+±2 frames: a serve whose ball is untracked until the hit, a serve whose toss is lost before the
+hit, a ball into the net, and two floor contacts behind a player and behind the net post.
+
+| What | Tol | Tuning (12 rallies) | Held-out (7 rallies) |
+| --- | --- | --- | --- |
+| contacts | ±2 | 0.964 [0.92–0.99] | **0.865** [0.77–0.95] (P 0.882, R 0.849) |
+| contacts | ±4 | 0.964 [0.92–0.99] | 0.923 [0.88–0.97] |
+| net crossings | ±2 and ±4 | 0.981 [0.93–1.00] | 0.947 [0.82–1.00] |
+
+Held-out recall per type: serves 5/7, passes 7/7, sets 11/11, attacks 8/9, digs 6/6, floor
+bounces 3/5, blocks 0/2, ball into the net 0/1, unclear touches 5/5.
+
+The 8 misses:
+
+- 5 are the contacts hidden in the track: with no visible frames on one side, there is no velocity
+  to compare.
+- A block 3 frames after its attack is merged by the 0.2 s gap.
+- An attack and a block 6 frames apart, in a joust at the net: one wrong tracker position (a
+  130 px jump) puts the peaks 3–4 frames late, so they match at ±4 only.
+
+The 6 false contacts are those two late peaks, the ball leaving the frame twice (top edge), and a
+blocked ball sliding down the net (net touches not labelled). The missed crossing and the false one
+are the same crossing, placed 7 frames late by that wrong tracker position.
+
+The constants hold: F1 stays at 0.865 for any threshold from 280 to 400 px/s. Every contact with
+the ball visible on both sides is found within 2 frames, except the 3 at the net. The drop comes
+from the tracker (gaps, one outlier) and from the known 0.2 s merge. A 0.15 s gap ties on the
+tuning clips and scores 0.914 here, leaving only the 5 track gaps. It is not applied, because this
+clip chose it; another match should confirm it. Limits of this check: same match and camera, and
+one annotator.
 
 ## Limits
 
