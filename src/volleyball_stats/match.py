@@ -17,7 +17,7 @@ import numpy as np
 
 from volleyball_stats import actions, ball, contacts, court, players, rallies
 
-TYPES = ["serve", "pass", "set", "attack", "block", "dig", "floor", "net"]
+TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 
 
 def track_ball(video: Path, out: Path) -> None:
@@ -107,7 +107,7 @@ def main() -> None:
 
     start = time.perf_counter()
     found, crossings = contacts.detect(contacts.read_track(track_path), fps, net_x)
-    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    typed = actions.mark_relances(args.video, actions.classify(found, crossings, windows, fps, net_x, calibration), fps)
     crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
     write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side"], typed)
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])

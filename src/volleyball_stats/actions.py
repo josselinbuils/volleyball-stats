@@ -16,9 +16,22 @@ import argparse
 import csv
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 from volleyball_stats.court import Calibration
+
+# Relances (free balls): a third touch played without attacking, ball not above the player's head
+# and feet on the floor; an attack is hit above the head, often jumping. Measured on the player's
+# box from a pose model, whose boxes leave out the blurred hitting arm: on the labelled clips the
+# ball is above the box top for 21 of 22 attacks, at or below it for the relances.
+# ponytail: thresholds from 1 labelled relance and 3 likely ones; set them on labelled matches.
+POSE_MODEL = Path("models/yolo11m-pose.pt")
+ABOVE, LIFT = 0.0, 0.1
+# The player under the ball is within UNDER_PX of it horizontally (at 720p); their feet are followed
+# back LIFT_S seconds by box overlap.
+UNDER_PX = 15
+LIFT_S = 1.0
 
 # ponytail: rallies.py starts a window 1-7 frames after the serve contact, so windows start this
 # many seconds earlier; drop it once rallies.py starts at the contact.
@@ -104,6 +117,68 @@ def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[
     return out
 
 
+def player_under(ball: tuple[float, float], boxes: np.ndarray, reach: float) -> int | None:
+    """Index of the box horizontally within `reach` of the ball whose top is nearest to it."""
+    dx = np.maximum(0, np.maximum(boxes[:, 0] - ball[0], ball[0] - boxes[:, 2])) if len(boxes) else np.array([])
+    near = np.flatnonzero(dx <= reach)
+    return int(near[np.argmin(np.abs(boxes[near, 1] - ball[1]))]) if len(near) else None
+
+
+def relance_cues(ball: tuple[float, float], box: np.ndarray, feet: list[float]) -> tuple[float, float]:
+    """Ball height above the box top, and how far the feet (box bottoms, the contact's first) are
+    lifted over the lowest of them, both in player heights."""
+    height = box[3] - box[1]
+    return (box[1] - ball[1]) / height, (max(feet) - feet[0]) / height
+
+
+def overlap(box: np.ndarray, boxes: np.ndarray) -> np.ndarray:
+    x1, y1 = np.maximum(box[:2], boxes[:, :2]).T
+    x2, y2 = np.minimum(box[2:], boxes[:, 2:]).T
+    inter = np.clip(x2 - x1, 0, None) * np.clip(y2 - y1, 0, None)
+    return inter / ((box[2] - box[0]) * (box[3] - box[1]) + (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1]) - inter)
+
+
+def mark_relances(video: Path, typed: list[Typed], fps: float) -> list[Typed]:
+    """`typed` with the attacks played as relances retyped "relance".
+
+    ponytail: runs after the rules, so a touch right after a relance stays typed as its block.
+    """
+    attacks = [t for t in typed if t[3] == "attack"]
+    if not attacks:
+        return typed
+    from ultralytics import YOLO
+
+    model = YOLO(str(POSE_MODEL))
+    cap = cv2.VideoCapture(str(video))
+    reach = UNDER_PX * cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 720
+
+    def boxes_at(frame: int) -> np.ndarray:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+        ok, image = cap.read()
+        return model.predict(image, imgsz=1280, conf=0.25, verbose=False)[0].boxes.xyxy.cpu().numpy() if ok else np.empty((0, 4))
+
+    relances = set()
+    step = max(1, round(0.1 * fps))
+    for frame, x, y, _, _ in attacks:
+        boxes = boxes_at(frame)
+        i = player_under((x, y), boxes, reach)
+        if i is None:
+            continue
+        box = current = boxes[i]
+        feet = [box[3]]
+        for earlier in range(frame - step, frame - round(LIFT_S * fps) - 1, -step):
+            candidates = boxes_at(earlier)
+            if not len(candidates) or overlap(current, candidates).max() < 0.3:
+                break
+            current = candidates[overlap(current, candidates).argmax()]
+            feet.append(current[3])
+        above, lift = relance_cues((x, y), box, feet)
+        if above <= ABOVE and lift < LIFT:
+            relances.add(frame)
+    cap.release()
+    return [(f, x, y, "relance" if f in relances else kind, side) for f, x, y, kind, side in typed]
+
+
 def read_rows(path: Path) -> list[list[int]]:
     with open(path) as f:
         return [[int(v) for v in row.values()] for row in csv.DictReader(f)]
@@ -117,6 +192,7 @@ def main() -> None:
     parser.add_argument("--fps", type=float, required=True)
     parser.add_argument("--net-x", type=float, help="Net plane in pixels, needed without --court")
     parser.add_argument("--court", type=Path, help="Court calibration JSON from court.py")
+    parser.add_argument("--video", type=Path, help="The match video, to tell relances from attacks")
     parser.add_argument("--out", type=Path, default=Path("outputs"))
     args = parser.parse_args()
     if args.court is None and args.net_x is None:
@@ -126,6 +202,8 @@ def main() -> None:
     contacts = [tuple(r) for r in read_rows(args.contacts)]
     crossings = [r[0] for r in read_rows(args.net)]
     typed = classify(contacts, crossings, [tuple(r) for r in read_rows(args.rallies)], args.fps, args.net_x, calibration)
+    if args.video:
+        typed = mark_relances(args.video, typed, args.fps)
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.contacts.stem.removesuffix('_contacts')}_actions.csv"
     with open(path, "w", newline="") as f:

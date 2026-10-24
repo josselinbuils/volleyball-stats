@@ -167,6 +167,33 @@ tuning, 42/48 and 37/48 held-out; without a calibration (no floor at all), 70/81
 tuning, 42/48 and 37/48 held-out. On `side_holdout` every floor found comes from the last-contact
 rule: no floor bounce there is close enough to the camera for the first one.
 
+## Relances
+
+`actions.mark_relances` retypes as `relance` (free ball) an attack played without attacking: the
+ball not above the player's box top and the feet lifted under 0.1 player height over the previous
+second, on boxes from YOLO11m-pose run on the attack frames only (the pose model's boxes leave out
+the motion-blurred hitting arm; its wrists miss that arm too, so hands are not counted).
+`relance.py` runs it on every labelled 3rd-or-later touch of the three clips:
+
+| Label | Typed attack | Typed relance |
+| --- | --- | --- |
+| attack | 24 | 1 |
+| relance (labelled dig) | 0 | 1 |
+| unclear | 0 | 3 |
+| set (4th touch) | 1 | 0 |
+
+The 3 unclear touches are, by eye, two two-handed forearm passes at chest height and a low save
+around the knees, all feet down. The false relance is a crowded net (side_long 13662): the rule
+takes the player in front, ball at her head, while the hitter jumps behind her. The jump alone is
+weak at 720p: about half the youth attacks show no measurable lift of the box bottom.
+
+```bash
+uv run python benchmarks/actions/relance.py \
+  data/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv \
+  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv \
+  data/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv
+```
+
 ## Limits
 
 - The order rules are only as good as the contacts and crossings: a missed contact shifts the

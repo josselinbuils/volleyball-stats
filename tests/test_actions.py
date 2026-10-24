@@ -1,6 +1,6 @@
 import numpy as np
 
-from volleyball_stats.actions import classify, classify_rally
+from volleyball_stats.actions import classify, classify_rally, player_under, relance_cues
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -80,3 +80,26 @@ class TestClassify:
         typed = classify(contacts, [70, 400], [(55, 200)], FPS, NET_X)
 
         assert [(t[0], t[3]) for t in typed] == [(50, "serve"), (100, "pass")]
+
+
+class TestRelanceCues:
+    def test_measures_the_ball_above_the_head_and_the_jump_in_player_heights(self):
+        box = np.array([100.0, 200.0, 140.0, 300.0])
+
+        above, lift = relance_cues((120.0, 180.0), box, [300.0, 330.0, 325.0])
+
+        assert (round(above, 2), round(lift, 2)) == (0.2, 0.3)
+
+    def test_a_ball_at_chest_height_with_the_feet_down_reads_below_the_head_and_no_jump(self):
+        above, lift = relance_cues((120.0, 230.0), np.array([100.0, 200.0, 140.0, 300.0]), [300.0, 300.0])
+
+        assert above < 0 and lift == 0
+
+
+class TestPlayerUnder:
+    def test_picks_the_box_under_the_ball_with_the_nearest_top(self):
+        boxes = np.array([[0.0, 100, 40, 200], [90, 150, 130, 250], [95, 300, 135, 400], [400, 140, 440, 240]])
+
+        assert player_under((110.0, 140.0), boxes, reach=15) == 1
+        assert player_under((250.0, 140.0), boxes, reach=15) is None
+        assert player_under((110.0, 140.0), np.empty((0, 4)), reach=15) is None
