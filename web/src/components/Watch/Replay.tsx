@@ -27,10 +27,11 @@ export function Replay() {
 
   return (
     <figure className="m-0 min-w-0">
-      <p className="line-clamp-2 h-12 font-semibold" aria-live="off" title={now}>
-        {now}
+      {/* Boxed like the score bar beside it, at the same height. */}
+      <p className="mb-3 flex h-11 items-center rounded-lg bg-muted px-3 text-sm leading-5 font-semibold" aria-live="off" title={now}>
+        <span className="line-clamp-2">{now}</span>
       </p>
-      {/* Up into the room left for a second line of the title: the court's top margin is mostly empty. */}
+      {/* The court's top margin is mostly empty: it tucks under the box. */}
       <div className="relative -mt-4">
         <Court role="img" aria-label={t('replayLabel')} ends={ends}>
           {dots.map(({ person, x, y }) => {
