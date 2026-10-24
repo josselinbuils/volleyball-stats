@@ -15,7 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, ball, contacts, court, players, rallies
+from volleyball_stats import actions, attribution, ball, contacts, court, players, rallies
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 
@@ -109,11 +109,10 @@ def main() -> None:
     found, crossings = contacts.detect(contacts.read_track(track_path), fps, net_x)
     typed = actions.mark_relances(args.video, actions.classify(found, crossings, windows, fps, net_x, calibration), fps)
     crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
-    write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side"], typed)
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     timings["contacts and actions"] = time.perf_counter() - start
 
-    tracks = None
+    tracks, touchers = None, [None] * len(typed)
     if args.players:
         if calibration is None:
             parser.error("--players needs --court")
@@ -122,9 +121,11 @@ def main() -> None:
             start = time.perf_counter()
             players.write_csv(players.track(args.video, calibration), players_path)
             timings["players"] = time.perf_counter() - start
-        with open(players_path) as f:
-            teams = {(row["track"], row["team"]) for row in csv.DictReader(f)}
-        tracks = dict(Counter(team for _, team in teams))
+        rows = attribution.read_players(players_path)
+        tracks = dict(Counter(team for _, team in {(r.track, r.team) for r in rows}))
+        touchers = attribution.attribute(typed, rows, fps)
+    rows_out = [[*t, "" if k is None else k] for t, k in zip(typed, touchers)]
+    write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track"], rows_out)
 
     text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks)
     (out / "report.md").write_text(text)
