@@ -119,7 +119,8 @@ def track_frames(frames: Iterable[np.ndarray], calibration: Calibration, model, 
         court = calibration.to_court(feet(boxes)) if len(boxes) else np.empty((0, 2))
         keep = on_court(court)
         boxes, court = boxes[keep], court[keep]
-        tracks = online.update(Boxes(np.c_[boxes, np.zeros(len(boxes))], frame.shape[:2]), frame)
+        # The tracker returns a flat empty array on frames without tracks.
+        tracks = online.update(Boxes(np.c_[boxes, np.zeros(len(boxes))], frame.shape[:2]), frame).reshape(-1, 8)
         rows = []
         for track_id, i in tracks[:, [4, 7]].astype(int).tolist():
             box = tuple(boxes[i, :4].tolist())

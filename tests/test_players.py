@@ -111,3 +111,13 @@ class TestTrackFrames:
         assert len(tracks) == 2
         assert sorted(xs[0] for xs in tracks.values()) == [120.0, 420.0]
         assert all(np.all(np.diff(xs) == 5) for xs in tracks.values())
+
+    def test_frames_without_any_track_give_no_rows(self):
+        class EmptyTracker:
+            def update(self, boxes, frame):
+                return np.array([])
+
+        calibration = Calibration(np.array([[50.0, 0, 300], [0, 50, 400], [0, 0, 1]]))
+        frames = [np.zeros((360, 640, 3), np.uint8)] * 2
+
+        assert list(track_frames(frames, calibration, self.FakeModel(), "cpu", EmptyTracker())) == [[], []]
