@@ -2,9 +2,10 @@
 
     uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court COURT_JSON [--out DIR] [--copy-video]
 
-The page (web.html, copied as is) reads the match from data.js, a script rather than fetched JSON so
-it opens from the disk by double-clicking index.html. Every path is relative: the site directory
-serves as plain static files. The video is symlinked unless --copy-video, for hosting.
+The page (site/, built from web/ with `npm run build` and copied as is) reads the match from data.js,
+a script rather than fetched JSON so it opens from the disk by double-clicking index.html. Every
+path is relative: the site directory serves as plain static files. The video is symlinked unless
+--copy-video, for hosting; a poster frame stands in for it until it plays.
 """
 
 import argparse
@@ -17,11 +18,15 @@ import cv2
 import numpy as np
 
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
+from volleyball_stats.attribution import GAP_S, box_at
 from volleyball_stats.court import ATTACK, LENGTH, WIDTH, Calibration
 
-TEMPLATE = Path(__file__).with_name("web.html")
-# Player positions are kept every STEP frames, to the centimetre.
+TEMPLATE = Path(__file__).with_name("site")
+# Player positions are kept every STEP frames, to the centimetre, from PAD_S before each rally to
+# PAD_S after: the page plays a rally with a second around it.
 STEP = 3
+PAD_S = 1.0
+POSTER_WIDTH = 800
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -29,14 +34,18 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def spot(kind: str, ball: tuple[float, float], boxes: np.ndarray, feet: np.ndarray, calibration: Calibration, reach: float) -> tuple[float, float] | None:
-    """Court position of a contact: the ball's floor projection for a floor contact, exact for a
-    ball on the floor; otherwise the feet of the player under the ball, among the player boxes
-    nearest to it horizontally (`reach` pixels at least) the one whose top is nearest to it.
+def track_feet(track: int, frame: int, players: dict[int, list[dict]], gap: int) -> tuple[float, float] | None:
+    """Court feet of `track` at `frame`, interpolated over a detection gap of up to `gap` frames on
+    each side as attribution.py does; None when the track has no row that close."""
+    feet = {f: (float(p["court_x"]), float(p["court_y"])) for f in range(frame - gap, frame + gap + 1) for p in players.get(f, []) if int(p["track"]) == track}
+    return box_at(feet, frame, gap)
 
-    ponytail: the player under the ball stands in for the contact's player until contact
-    attribution exists; a far player behind the near one, or a block, can take the touch.
-    """
+
+def spot(kind: str, ball: tuple[float, float], boxes: np.ndarray, feet: np.ndarray, calibration: Calibration, reach: float) -> tuple[float, float] | None:
+    """Court position of a contact without an attributed player: the ball's floor projection for a
+    floor contact, exact for a ball on the floor; otherwise the feet of the player under the ball,
+    among the player boxes nearest to it horizontally (`reach` pixels at least) the one whose top
+    is nearest to it. A far player behind the near one, or a block, can take the touch."""
     if kind == "floor":
         return tuple(calibration.to_court(np.array([ball], float))[0].tolist())
     if not len(boxes):
@@ -77,8 +86,9 @@ def result(contact: dict, after: dict | None) -> str:
 
 def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[int, list[dict]], fps: float, calibration: Calibration, reach: float) -> list[dict]:
     """The page's contacts from the actions CSV rows: time, type, side, rally index, court position,
-    zone and result. `players` holds the player CSV rows by frame."""
-    lead = round(LEAD_S * fps)
+    zone, result and attributed track. A contact with a track is placed at that player's feet, else
+    by `spot`. `players` holds the player CSV rows by frame."""
+    lead, gap = round(LEAD_S * fps), round(GAP_S * fps)
     out: list[dict] = []
     for row in typed:
         frame, kind = int(row["frame"]), row["type"]
@@ -88,7 +98,11 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
         feet = np.array([[float(p["court_x"]), float(p["court_y"])] for p in here]).reshape(-1, 2)
         # A floor contact after the floor one is a dead ball's, anywhere in the air.
         dead = kind == "floor" and bool(out) and out[-1]["rally"] == rally and out[-1]["type"] == "floor"
-        xy = None if dead else spot(kind, (float(row["x"]), float(row["y"])), boxes, feet, calibration, reach)
+        track = int(row["track"]) if row.get("track") else None
+        xy = None
+        if not dead:
+            xy = track_feet(track, frame, players, gap) if track is not None else None
+            xy = xy or spot(kind, (float(row["x"]), float(row["y"])), boxes, feet, calibration, reach)
         out.append({
             "t": round(frame / fps, 2),
             "type": kind,
@@ -97,21 +111,52 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
             "x": None if xy is None else round(xy[0], 2),
             "y": None if xy is None else round(xy[1], 2),
             "zone": None if xy is None else zone(*xy),
+            "track": track,
         })
     for contact, after in zip(out, out[1:] + [None]):
         contact["result"] = result(contact, after if after and after["rally"] == contact["rally"] else None)
     return out
 
 
-def player_samples(rows: list[dict], step: int, frame_count: int) -> list[list[list[float]]]:
-    """Per sample (every `step` frames), the court feet of the players as flat [x, y, ...] lists,
-    left team first, right team second."""
-    out: list[list[list[float]]] = [[[], []] for _ in range(frame_count // step + 1)]
+def padded(windows: list[tuple[int, int]], pad: int, frame_count: int) -> list[tuple[int, int]]:
+    """The (first, last) frame windows widened by `pad` frames within the video, overlaps merged."""
+    out: list[tuple[int, int]] = []
+    for start, end in windows:
+        start, end = max(0, start - pad), min(frame_count - 1, end + pad)
+        if out and start <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], end))
+        else:
+            out.append((start, end))
+    return out
+
+
+def player_spans(rows: list[dict], step: int, windows: list[tuple[int, int]]) -> list[dict]:
+    """Per window, the court feet of the players every `step` frames as flat [x, y, ...] lists, left
+    team first, right team second; `from` is the index (frame // step) of the window's first sample."""
+    out, index = [], {}
+    for start, end in windows:
+        first = -(-start // step)
+        samples: list[list[list[float]]] = [[[], []] for _ in range(first, end // step + 1)]
+        out.append({"from": first, "samples": samples})
+        index.update((first + k, sample) for k, sample in enumerate(samples))
     for row in rows:
         frame = int(row["frame"])
-        if frame % step == 0 and frame < frame_count:
-            out[frame // step][row["team"] == "right"] += [round(float(row["court_x"]), 2), round(float(row["court_y"]), 2)]
+        if frame % step == 0 and (sample := index.get(frame // step)) is not None:
+            sample[row["team"] == "right"] += [round(float(row["court_x"]), 2), round(float(row["court_y"]), 2)]
     return out
+
+
+def poster(video: Path, frame: int, path: Path) -> bool:
+    """Writes `frame` as a POSTER_WIDTH pixels wide WebP; False when the video has no such frame."""
+    cap = cv2.VideoCapture(str(video))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+    ok, image = cap.read()
+    cap.release()
+    if ok:
+        height, width = image.shape[:2]
+        image = cv2.resize(image, (POSTER_WIDTH, round(height * POSTER_WIDTH / width)), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(str(path), image, [cv2.IMWRITE_WEBP_QUALITY, 65])
+    return ok
 
 
 def match_data(match: Path, video: Path, calibration: Calibration) -> dict:
@@ -131,13 +176,18 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> dict:
         "rallies": [{"start": round(start / fps, 2), "end": round(end / fps, 2)} for start, end in windows],
         "contacts": contacts(read_csv(match / "actions.csv"), windows, by_frame, fps, calibration, UNDER_PX * height / 720),
         "zones": zone_cells(),
-        "players": {"step": STEP, "samples": player_samples(rows, STEP, frame_count)},
+        "players": {"step": STEP, "spans": player_spans(rows, STEP, padded(windows, round(PAD_S * fps), frame_count))},
     }
 
 
 def write_site(data: dict, video: Path, site: Path, copy: bool) -> None:
+    """The page, data.js, the video and its poster, a frame from the middle of the first rally."""
     site.mkdir(parents=True, exist_ok=True)
-    shutil.copy(TEMPLATE, site / "index.html")
+    shutil.rmtree(site / "assets", ignore_errors=True)
+    shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
+    first = data["rallies"][0] if data["rallies"] else {"start": 0, "end": 0}
+    if poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
+        data = {**data, "poster": "poster.webp"}
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'))};\n")
     target = site / video.name
     target.unlink(missing_ok=True)

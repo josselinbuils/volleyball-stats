@@ -98,8 +98,14 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
 
 `web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default): every
 number and chart element plays its moments in the video, with a top view of the court following
-the play. To host it, copy the folder with `--copy-video` to a server that supports HTTP range
-requests (nginx does), behind a password: the footage shows minors.
+the play. The same files open from disk and host well (Lighthouse mobile performance 99). To host
+it, copy the folder with `--copy-video` to a server that supports HTTP range requests (nginx does),
+with long cache headers on `assets/`, behind a password: the footage shows minors.
+
+The page is a React + shadcn/ui app in `web/`; its build is committed in
+`src/volleyball_stats/site/`, so processing a match needs no Node. To change it: `cd web && npm
+install`, `npm run dev` (reads `web/public/data.js`, copied from a built match), `npm test`, then
+`npm run build` to update `src/volleyball_stats/site/`.
 
 ## Pipeline
 

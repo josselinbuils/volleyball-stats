@@ -1,0 +1,194 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-heading: var(--font-sans);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-court: var(--court);
+  --color-court-line: var(--court-line);
+  --color-link: var(--link);
+  --color-chart: var(--chart);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  color-scheme: light;
+  --radius: 0.625rem;
+  --background: #f6f6f3;
+  --foreground: #141413;
+  --card: #ffffff;
+  --card-foreground: #141413;
+  --popover: #ffffff;
+  --popover-foreground: #141413;
+  --primary: #1f6bc4;
+  --primary-foreground: #ffffff;
+  --secondary: #efeee9;
+  --secondary-foreground: #141413;
+  --muted: #f1f0eb;
+  --muted-foreground: #5f5d58;
+  --accent: #efeee9;
+  --accent-foreground: #141413;
+  --destructive: #c53434;
+  --border: #e3e2db;
+  --input: #cfcec6;
+  --ring: #2a78d6;
+  /* Text and links on a light blue tint. */
+  --link: #1a5aa6;
+  --chart: #2a78d6;
+  --court: #ecebe5;
+  --court-line: #b4b3a9;
+  --left: #2a78d6;
+  --right: #e2612d;
+  --point: #12941a;
+  --error: #d03b3b;
+  --play: #9a9890;
+  --serve: #2a78d6;
+  --pass: #eb6834;
+  --set: #1baf7a;
+  --attack: #eda100;
+  --relance: #e87ba4;
+  --block: #008300;
+  --dig: #6250d6;
+  --floor: #9a9890;
+  --net: #52514e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: #111110;
+    --foreground: #f0efec;
+    --card: #1b1b1a;
+    --card-foreground: #f0efec;
+    --popover: #242422;
+    --popover-foreground: #f0efec;
+    --primary: #2d6fcb;
+    --primary-foreground: #ffffff;
+    --secondary: #2a2a28;
+    --secondary-foreground: #f0efec;
+    --muted: #242422;
+    --muted-foreground: #a8a69d;
+    --accent: #2a2a28;
+    --accent-foreground: #f0efec;
+    --destructive: #e66060;
+    --border: #2f2f2c;
+    --input: #45453f;
+    --ring: #5b9ae8;
+    --link: #93bff3;
+    --chart: #4b8fe2;
+    --court: #262624;
+    --court-line: #5d5c56;
+    --left: #3f8ae6;
+    --right: #e0682f;
+    --point: #3fbf47;
+    --error: #ec6262;
+    --play: #84827b;
+    --serve: #3f8ae6;
+    --pass: #e0682f;
+    --set: #1fa877;
+    --attack: #d49200;
+    --relance: #db5a8a;
+    --block: #2f9e2f;
+    --dig: #9085e9;
+    --floor: #8e8c85;
+    --net: #c3c2b7;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* Court drawings: one SVG unit is a court metre. */
+@layer components {
+  .court-line {
+    fill: none;
+    stroke: var(--court-line);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+  }
+  .svg-button {
+    cursor: pointer;
+    outline: none;
+  }
+  .dot-mark {
+    r: 0.36px;
+    stroke: var(--card);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+  }
+  .svg-button:hover .dot-mark {
+    stroke: var(--foreground);
+  }
+  .svg-button:focus-visible .dot-mark {
+    stroke: var(--ring);
+    stroke-width: 3px;
+  }
+  .dot-text {
+    font-size: 0.34px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+  .player-mark {
+    r: 0.34px;
+    stroke: var(--card);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+  }
+  .ball-mark {
+    r: 0.28px;
+    fill: var(--foreground);
+    stroke: var(--card);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+  }
+  @media (max-width: 639px) {
+    /* Bigger marks on a small court. */
+    .dot-mark {
+      r: 0.55px;
+    }
+    .dot-text {
+      font-size: 0.5px;
+    }
+    .player-mark {
+      r: 0.45px;
+    }
+    .ball-mark {
+      r: 0.38px;
+    }
+  }
+}

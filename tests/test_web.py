@@ -1,7 +1,7 @@
 import numpy as np
 
 from volleyball_stats.court import Calibration
-from volleyball_stats.web import contacts, player_samples, result, spot, zone, zone_cells
+from volleyball_stats.web import contacts, padded, player_spans, result, spot, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -23,6 +23,23 @@ class TestSpot:
 
     def test_has_no_position_without_players(self):
         assert spot("set", (120.0, 40.0), np.empty((0, 4)), np.empty((0, 2)), IDENTITY, 15) is None
+
+
+class TestTrackFeet:
+    players = {
+        10: [{"track": "4", "court_x": "1.0", "court_y": "2.0"}, {"track": "5", "court_x": "-3.0", "court_y": "0.0"}],
+        14: [{"track": "4", "court_x": "3.0", "court_y": "4.0"}],
+    }
+
+    def test_takes_the_tracks_feet_at_the_frame(self):
+        assert track_feet(4, 10, self.players, 2) == (1.0, 2.0)
+
+    def test_interpolates_over_a_detection_gap(self):
+        assert track_feet(4, 12, self.players, 2) == (2.0, 3.0)
+
+    def test_has_no_position_when_the_track_is_not_that_close(self):
+        assert track_feet(5, 13, self.players, 2) is None
+        assert track_feet(7, 10, self.players, 2) is None
 
 
 class TestZone:
@@ -85,15 +102,58 @@ class TestContacts:
         assert out[2]["x"] is None and out[2]["zone"] is None
         assert out[3]["x"] is None  # no player at that frame
         assert [c["result"] for c in out] == ["point", "play", "play", "play"]
+        assert [c["track"] for c in out] == [None, None, None, None]
+
+    def test_places_an_attributed_contact_at_its_players_feet_else_under_the_ball(self):
+        typed = [
+            {"frame": "10", "x": "0", "y": "0", "type": "attack", "side": "left", "track": "7"},
+            {"frame": "20", "x": "0", "y": "0", "type": "dig", "side": "right", "track": "9"},  # track not found
+        ]
+        under = {"x1": "-1", "y1": "-1", "x2": "1", "y2": "1", "court_x": "-1.0", "court_y": "0.5", "track": "8"}
+        players = {
+            10: [under, {"x1": "5", "y1": "5", "x2": "6", "y2": "7", "court_x": "-4.0", "court_y": "2.0", "track": "7"}],
+            20: [{**under, "court_x": "2.0"}],
+        }
+
+        out = contacts(typed, [(5, 30)], players, 10.0, IDENTITY, 15)
+
+        assert [(c["x"], c["y"], c["track"]) for c in out] == [(-4.0, 2.0, 7), (2.0, 0.5, 9)]
 
 
-class TestPlayerSamples:
-    def test_keeps_every_steps_frame_rounded_to_the_centimetre_left_team_first(self):
+class TestPadded:
+    def test_widens_the_windows_within_the_video_and_merges_overlaps(self):
+        assert padded([(5, 20), (45, 50), (58, 70), (95, 99)], 10, 100) == [(0, 30), (35, 80), (85, 99)]
+
+
+class TestPlayerSpans:
+    def test_keeps_every_steps_frame_of_each_window_rounded_to_the_centimetre_left_team_first(self):
         rows = [
-            {"frame": "0", "team": "right", "court_x": "3.14159", "court_y": "-1.005"},
-            {"frame": "0", "team": "left", "court_x": "-2.0", "court_y": "1.234"},
-            {"frame": "1", "team": "left", "court_x": "-2.1", "court_y": "1.2"},
-            {"frame": "6", "team": "left", "court_x": "-4.0", "court_y": "0.0"},
+            {"frame": "3", "team": "right", "court_x": "3.14159", "court_y": "-1.005"},
+            {"frame": "3", "team": "left", "court_x": "-2.0", "court_y": "1.234"},
+            {"frame": "4", "team": "left", "court_x": "-2.1", "court_y": "1.2"},
+            {"frame": "9", "team": "left", "court_x": "-4.0", "court_y": "0.0"},
+            {"frame": "12", "team": "left", "court_x": "-1.0", "court_y": "0.0"},  # between the windows
+            {"frame": "21", "team": "right", "court_x": "5.0", "court_y": "1.0"},
         ]
 
-        assert player_samples(rows, 3, 8) == [[[-2.0, 1.23], [3.14, -1.0]], [[], []], [[-4.0, 0.0], []]]
+        assert player_spans(rows, 3, [(2, 10), (20, 22)]) == [
+            {"from": 1, "samples": [[[-2.0, 1.23], [3.14, -1.0]], [[], []], [[-4.0, 0.0], []]]},
+            {"from": 7, "samples": [[[], [5.0, 1.0]]]},
+        ]
+
+
+class TestWriteSite:
+    def test_copies_the_page_next_to_data_js_and_the_video(self, tmp_path):
+        video = tmp_path / "match.mp4"
+        video.write_bytes(b"not a video")
+        site = tmp_path / "site"
+        (site / "assets").mkdir(parents=True)
+        (site / "assets" / "old.js").write_text("")
+
+        write_site({"fps": 25.0, "rallies": []}, video, site, copy=True)
+
+        assert (site / "index.html").read_text().count('src="data.js"') == 1
+        assert not (site / "assets" / "old.js").exists()
+        assert (site / "data.js").read_text() == 'window.MATCH = {"fps":25.0,"rallies":[]};\n'
+        assert (site / "match.mp4").read_bytes() == b"not a video"
+        assert not (site / "poster.webp").exists()
