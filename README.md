@@ -40,6 +40,15 @@ name each identity once. Jersey numbers map to names through a roster kept acros
 - [ ] At the gym: get approval for the handball goals, check they are anchored, check the framing
       from the stand shows both end lines and the near corners.
 
+### After the first match
+
+- [ ] Label rallies and the contacts of a few rallies, rerun the ball, rally and contact
+      benchmarks on it.
+- [ ] Rallies: apply and test the fixes of the [held-out check](benchmarks/rallies/README.md#held-out-check)
+      (whistle threshold per video, "ball still in play" from contacts, authorization whistles never
+      closing a rally).
+- [ ] Contact pixel thresholds: rerun the sweep for 4K 50 fps.
+
 ## Development setup
 
 - Training and match processing run on an NVIDIA GPU (RTX 5080), in WSL2 with Ubuntu. The Windows
