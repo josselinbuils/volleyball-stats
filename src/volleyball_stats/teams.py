@@ -394,6 +394,41 @@ def ask_title(names: list[str]) -> str | None:
     return title if title and title != default else None
 
 
+def parse_score(text: str) -> str | None:
+    """"25-21" of a set score given as 25-21, 25–21 or 25:21, team 1 first; None when not a score."""
+    found = re.fullmatch(r"\s*(\d{1,2})\s*[-–:]\s*(\d{1,2})\s*", text)
+    return f"{int(found[1])}-{int(found[2])}" if found else None
+
+
+def ask_sets(starts: list[str], names: list[str], ask_starts: bool = True, ask_scores: bool = True) -> tuple[list[str], list[str | None]]:
+    """Asks on the terminal, set by set, to confirm or correct its start from set 2 (Enter keeps the
+    detected one) and its final score (Enter leaves it unknown)."""
+    print(f"Sets détectés : {len(starts)}. Les débuts de set se corrigent aussi dans teams.json.")
+    out: list[str] = []
+    scores: list[str | None] = []
+    for k, start in enumerate(starts, 1):
+        while ask_starts and k > 1:
+            text = input(f"Début du set {k} [détecté : {start}] : ").strip()
+            try:
+                typed = seconds(text) if text else seconds(start)
+            except ValueError:
+                typed = -1.0
+            if typed > seconds(out[-1]):
+                start = clock(typed)
+                break
+            print(f"Format : m:ss ou h:mm:ss, après le début du set {k - 1} ({out[-1]})")
+        out.append(start)
+        score = None
+        while ask_scores:
+            text = input(f"Score final du set {k} ({names[0]} – {names[1]}) [vide si inconnu] : ").strip()
+            score = parse_score(text) if text else None
+            if not text or score:
+                break
+            print(f"Format : 25-21, les points de {names[0]} d'abord")
+        scores.append(score)
+    return out, scores
+
+
 def settle(
     path: Path,
     teams: Teams,
@@ -404,13 +439,27 @@ def settle(
     recorded: str,
     day: str | None = None,
     title: str | None = None,
+    sets: list[str] | None = None,
+    scores: list[str] | None = None,
 ) -> dict:
-    """teams.json's content: names and colours from `flag`, the match's date (yyyy-mm-dd) from `day`
-    and its title from `title` ("" for the default one); else each from the existing file; else
-    asked when `interactive` and the file is new; else the defaults: Team 1 and 2 in the detected
-    colours, `recorded` (the video's recording date) and no title (the page builds it). Set starts
-    from the file when it has them; jersey colours and starting sides always from `teams`. Written
-    back to `path`."""
+    """teams.json's content: names and colours from `flag`, the match's date (yyyy-mm-dd) from `day`,
+    its title from `title` ("" for the default one), the set starts (m:ss or h:mm:ss) from `sets` and
+    the sets' final scores ("25-21", team 1 first, "" when unknown) from `scores`; else each from the
+    existing file; else asked when `interactive` and the file is new; else the defaults: Team 1 and 2
+    in the detected colours, `recorded` (the video's recording date), no title (the page builds it),
+    the detected set starts and unknown scores. Jersey colours and starting sides always come from
+    `teams`. Written back to `path`."""
+    if sets is not None:
+        try:
+            sets = [clock(seconds(s)) for s in sets]
+        except ValueError:
+            raise ValueError(f"Not set starts: {','.join(sets)!r} (use m:ss or h:mm:ss, e.g. 0:00,24:10)") from None
+    if scores is not None:
+        parsed = [parse_score(s) if s.strip() else None for s in scores]
+        bad = [s for s, p in zip(scores, parsed) if s.strip() and p is None]
+        if bad:
+            raise ValueError(f"Not a set score: {bad[0]!r} (use 25-21, team 1 first)")
+        scores = parsed
     old = json.loads(path.read_text()) if path.exists() else {}
     prompt = interactive and not old
     given = parse_teams(flag) if flag else None
@@ -429,7 +478,15 @@ def settle(
         title = old.get("title")
     elif prompt:
         title = ask_title([e["name"] or default_name(k, french=True) for k, e in enumerate(entries, 1)])
-    data = {"teams": entries, "date": day, "title": title, "sets": old.get("sets") or [clock(s) for s in set_starts(windows, teams.left, fps)]}
+    starts = sets or old.get("sets") or [clock(s) for s in set_starts(windows, teams.left, fps)]
+    known = scores if scores is not None else old.get("scores") or []
+    if prompt and (sets is None or scores is None):
+        names = [e["name"] or default_name(k, french=True) for k, e in enumerate(entries, 1)]
+        starts, asked = ask_sets(starts, names, sets is None, scores is None)
+        known = asked if scores is None else known
+    if len(known) > len(starts):
+        raise ValueError(f"{len(known)} set scores for {len(starts)} sets: give the set starts too")
+    data = {"teams": entries, "date": day, "title": title, "sets": starts, "scores": [*known, *[None] * (len(starts) - len(known))]}
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return data
 

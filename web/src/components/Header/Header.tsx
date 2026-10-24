@@ -74,7 +74,7 @@ export function Header() {
           </ToggleGroup>
         </div>
       </div>
-      <div className="-mt-3 grid max-w-2xl gap-2.5">
+      <div className="-mt-3 grid gap-2.5">
         <p className="text-muted-foreground">{t(hasTeams ? 'intro' : 'introSides')}</p>
         {hasTeams && <TeamLegend />}
       </div>

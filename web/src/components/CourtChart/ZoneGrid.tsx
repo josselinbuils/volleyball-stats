@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { useFormat } from '@/lib/format';
-import { groupName, match, teamColor, teamRing, type Contact } from '@/lib/match';
+import { groupName, match, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { cellContacts } from '@/components/CourtChart/helpers/zones';
 import { SvgButton } from '@/components/CourtChart/SvgButton';
 
-/** Each zone of each half, shaded in the colour of the team playing there by its share of the touches. */
-export function ZoneGrid({ shown, onPlay }: { shown: Contact[]; onPlay: (title: string, contacts: Contact[]) => void }) {
+/** Each zone of each half, shaded in the colour of the team playing there (`left` on the left half)
+ * by its share of the touches. */
+export function ZoneGrid({ shown, left, onPlay }: { shown: Contact[]; left: Group; onPlay: (title: string, contacts: Contact[]) => void }) {
   const { t } = useTranslation();
   const f = useFormat();
   const inside = cellContacts(shown, match.zones);
@@ -13,9 +14,10 @@ export function ZoneGrid({ shown, onPlay }: { shown: Contact[]; onPlay: (title: 
 
   return match.zones.map((z, k) => {
     const n = inside[k].length;
+    const team = (z.x < 0 ? left : 3 - left) as Group;
     const cell = (
       <>
-        <rect x={z.x + 0.06} y={z.y + 0.06} width={z.w - 0.12} height={z.h - 0.12} rx={0.2} fill={teamColor(z.x < 0 ? 1 : 2)} stroke={teamRing(z.x < 0 ? 1 : 2)} fillOpacity={0.06 + (0.5 * n) / max} className="[vector-effect:non-scaling-stroke]" />
+        <rect x={z.x + 0.06} y={z.y + 0.06} width={z.w - 0.12} height={z.h - 0.12} rx={0.2} fill={teamColor(team)} stroke={teamRing(team)} fillOpacity={0.06 + (0.5 * n) / max} className="[vector-effect:non-scaling-stroke]" />
         <text x={z.x + 0.3} y={z.y + 0.5} fontSize={0.5} fill="var(--muted-foreground)" dominantBaseline="central">
           {z.zone}
         </text>
@@ -34,7 +36,7 @@ export function ZoneGrid({ shown, onPlay }: { shown: Contact[]; onPlay: (title: 
     if (!n) {
       return <g key={k}>{cell}</g>;
     }
-    const title = t('zoneTitle', { z: z.zone, half: groupName(t, z.x < 0 ? 1 : 2) });
+    const title = t('zoneTitle', { z: z.zone, half: groupName(t, team) });
     return (
       <SvgButton key={k} label={`${title} · ${t('touchesN', { count: n })}`} onActivate={() => onPlay(title, inside[k])} className="[&:focus-visible_rect]:stroke-ring [&:focus-visible_rect]:stroke-[3px] [&:hover_rect]:stroke-foreground [&:hover_rect]:stroke-2">
         {cell}

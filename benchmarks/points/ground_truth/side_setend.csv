@@ -1,0 +1,11 @@
+start_frame,end_frame,set,server,winner,end,note
+28,142,1,navy,navy,in,white's set drops in the left court; navy serves next
+577,613,1,navy,white,in,white's pass flies over the net and drops in navy's court; white serves next
+1056,1112,1,white,white,in,ace: serve lands at the right end (missed by rallies.py); white serves next
+1596,1782,1,white,navy,in,navy's attack over the block drops in the left court; navy wins set 1
+12969,13131,2,white,navy,,set 2: the teams changed ends; navy serves next
+13639,13854,2,navy,white,,white serves next
+14480,14933,2,white,navy,,navy serves next
+15673,16011,2,navy,white,,white serves next
+16518,17214,2,white,white,fault,fault whistle on navy's attack (574.4 s) while white digs; the referee points to white; white serves next
+17779,17866,2,white,white,out,navy's reception shanked out at the far left; the clip ends before the whistle (missed by rallies.py)

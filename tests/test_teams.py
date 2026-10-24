@@ -198,11 +198,12 @@ class TestSettle:
             "date": "2026-11-12",
             "title": None,
             "sets": ["0:00", "2:35"],
+            "scores": [None, None],
         }
         assert json.loads((tmp_path / "teams.json").read_text()) == data
 
     def test_asks_on_a_terminal_the_first_time_and_reuses_the_file_after(self, tmp_path, monkeypatch):
-        answers = iter(["Bègles", "", "", "sparkly", "rouge", "", ""])
+        answers = iter(["Bègles", "", "", "sparkly", "rouge", "", "", "", "", ""])
         prompts = []
         monkeypatch.setattr("builtins.input", lambda prompt: prompts.append(prompt) or next(answers))
         monkeypatch.setattr(teams.shutil, "which", lambda name: None)
@@ -213,19 +214,19 @@ class TestSettle:
 
         assert [(t["name"], t["colour"]) for t in first["teams"]] == [("Bègles", None), (None, teams.COLOURS["red"])]
         assert (first["date"], first["title"]) == ("2026-11-12", None)
-        assert prompts[-2:] == ["Date du match [détectée : 12/11/2026] : ", "Titre du match [Match Bègles vs Équipe 2] : "]
+        assert prompts[5:7] == ["Date du match [détectée : 12/11/2026] : ", "Titre du match [Match Bègles vs Équipe 2] : "]
         assert again == first
         assert (tmp_path / "teams.jpg").exists()
 
     def test_asks_the_date_again_until_it_is_one_and_keeps_a_typed_title(self, tmp_path, monkeypatch):
-        answers = iter(["21.12.2016", "21/12/2016", "Finale"])
+        answers = iter(["21.12.2016", "21/12/2016", "Finale", "", "", ""])
         prompts = []
         monkeypatch.setattr("builtins.input", lambda prompt: prompts.append(prompt) or next(answers))
 
         data = settle(tmp_path / "teams.json", self.found, self.windows, 10.0, "ASPOM,Talence", True, self.recorded)
 
         assert (data["date"], data["title"]) == ("2016-12-21", "Finale")
-        assert prompts[-1] == "Titre du match [Match ASPOM vs Talence] : "
+        assert prompts[2] == "Titre du match [Match ASPOM vs Talence] : "
 
     def test_takes_the_flags_over_the_file_and_keeps_edited_sets(self, tmp_path):
         path = tmp_path / "teams.json"
@@ -248,3 +249,28 @@ class TestSettle:
         data = settle(path, self.found, self.windows, 10.0, None, True, self.recorded)
 
         assert (data["teams"][0]["name"], data["date"], data["title"]) == ("Home", "2026-11-12", None)
+
+    def test_asks_each_set_start_and_final_score_once(self, tmp_path, monkeypatch):
+        answers = iter(["", "", "", "", "", "", "25-21", "2:3x", "0:00", "3:10", "vingt", "18 – 25"])
+        prompts = []
+        monkeypatch.setattr("builtins.input", lambda prompt: prompts.append(prompt) or next(answers))
+        monkeypatch.setattr(teams.shutil, "which", lambda name: None)
+        path = tmp_path / "teams.json"
+
+        first = settle(path, self.found, self.windows, 10.0, None, True, self.recorded)
+        monkeypatch.setattr("builtins.input", lambda prompt: pytest.fail(prompt))
+        again = settle(path, self.found, self.windows, 10.0, None, True, self.recorded)
+
+        assert (first["sets"], first["scores"]) == (["0:00", "3:10"], ["25-21", "18-25"])
+        assert prompts[6:8] == ["Score final du set 1 (Équipe 1 – Équipe 2) [vide si inconnu] : ", "Début du set 2 [détecté : 2:35] : "]
+        assert again == first
+
+    def test_takes_set_starts_and_scores_from_the_parameters(self, tmp_path):
+        path = tmp_path / "teams.json"
+
+        data = settle(path, self.found, self.windows, 10.0, None, False, self.recorded, sets=["0:00", "4:06"], scores=["25:21", ""])
+
+        assert (data["sets"], data["scores"]) == (["0:00", "4:06"], ["25-21", None])
+        for sets, scores in ((None, ["25"]), (None, ["25-21", "1-2", "3-4"]), (["soon"], None)):
+            with pytest.raises(ValueError):
+                settle(path, self.found, self.windows, 10.0, None, False, self.recorded, sets=sets, scores=scores)
