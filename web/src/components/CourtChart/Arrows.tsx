@@ -22,7 +22,7 @@ export function Arrows({ arrows, describe, onPlay }: { arrows: Arrow[]; describe
           <polygon points={head} fill="currentColor" />
           {landing && (
             <>
-              <ellipse cx={to.x} cy={to.y} rx={0.45} ry={0.3} fill="currentColor" fillOpacity={0.25} />
+              <circle cx={to.x} cy={to.y} r={0.4} fill="currentColor" fillOpacity={0.25} />
               <circle cx={to.x} cy={to.y} r={0.18} fill="currentColor" stroke="var(--card)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
             </>
           )}
