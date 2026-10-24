@@ -81,7 +81,7 @@ report to `outputs/VIDEO/`.
 | 1. Rallies | Find when the ball is in play, drop dead time | Ball-track runs closed by the referee's whistle ([benchmark](benchmarks/rallies/README.md)) |
 | 2. Court | Map pixels to court coordinates | Lens undistortion + homography: rough clicks once per court, snapped to the painted lines; known courts recognised automatically when the stand moves a little ([benchmark](benchmarks/court/README.md)) |
 | 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)); contacts from velocity changes with gravity removed ([benchmark](benchmarks/contacts/README.md)) |
-| 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Contact order per side + position |
+| 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](benchmarks/actions/README.md)) |
 | 5. Players | Detect and track players, attribute each contact | YOLO + ByteTrack + pose (wrists) |
 | 6. Identity | Merge tracklets into one identity per player for the match | Jersey number OCR + re-ID + team color |
 | 7. Naming | Show one thumbnail gallery per identity, store number → name | Simple local UI |

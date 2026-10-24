@@ -1,0 +1,137 @@
+"""Action classification of a rally's ball contacts, by the rules of volleyball.
+
+The first contact of a rally is the serve. After each net crossing the receiving side touches the
+ball at most 3 times: 1 is the pass when the ball comes from the serve and the dig otherwise, 2 the
+set, 3 the attack. A touch shortly after an attack is the opposing block, which does not count. A
+touch by the serving side before the ball crosses is the net. A contact at floor level is the floor,
+and every contact after it too: the ball is dead.
+
+Sides are left and right of the net as seen from the camera, which films from a sideline aligned
+with the net: the net plane projects to a line, whichever the ball's height. Floor level comes from
+the court calibration: a contact taken on the floor (its floor projection) lands where the ball is
+only if the ball is on the floor; a ball in the air projects farther from the camera.
+"""
+
+import argparse
+import csv
+from pathlib import Path
+
+import numpy as np
+
+from volleyball_stats.court import Calibration
+
+# ponytail: rallies.py starts a window 1-7 frames after the serve contact, so windows start this
+# many seconds earlier; drop it once rallies.py starts at the contact.
+LEAD_S = 0.33
+# Seconds after an attack within which a touch is the block: 0.1-0.2 s on the labelled clips, the
+# next dig 0.67 s or more.
+BLOCK_S = 0.33
+# Court y (meters, toward the camera) from which a contact's floor projection is on the floor: any
+# contact past FLOOR_Y (digs project under 1.3 m on the labelled clips), the rally's last contact
+# past the far sideline. Projections over MARGIN outside the court are balls in the air, or above
+# the horizon (mapped behind the camera).
+FLOOR_Y, LAST_FLOOR_Y = 2.0, -4.5
+MARGIN = 2.0
+
+Contact = tuple[int, int, int]
+Typed = tuple[int, int, int, str, str]
+
+
+def net_u(calibration: Calibration | None, net_x: float, v: float) -> float:
+    """Image x of the net at image row v: the line through the net's feet on both sidelines.
+
+    ponytail: a straight line only from a camera in the net plane; the labelled clips' camera is
+    within about 1 m of it (the net spans x 598-632 px), so a ball at the net can fall on either side.
+    """
+    if calibration is None:
+        return net_x
+    (u0, v0), (u1, v1) = calibration.to_image(np.array([[0.0, -4.5], [0.0, 4.5]]))
+    return u0 + (v - v0) * (u1 - u0) / (v1 - v0)
+
+
+def on_floor(calibration: Calibration | None, x: float, y: float, last: bool) -> bool:
+    """Whether the contact at image (x, y) is on the floor, `last` when it is the rally's last.
+
+    ponytail: one image point cannot tell a low dig far from the camera from a floor bounce, so
+    away from the camera only the last contact can be the floor; it assumes the window ends at the
+    dead ball. The ball's height from its parabola (3D by physics) is the upgrade. Without a
+    calibration there is no floor.
+    """
+    if calibration is None:
+        return False
+    cx, cy = calibration.to_court(np.array([[x, y]]))[0]
+    return abs(cx) <= 9 + MARGIN and (LAST_FLOOR_Y if last else FLOOR_Y) <= cy <= 4.5 + MARGIN
+
+
+def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
+    """(frame, x, y, type, side) of a rally's contacts, in frame order."""
+    out: list[Typed] = []
+    touches, crossed, blocked, attack, dead = 0, 0, False, None, False
+    contacts = sorted(contacts)
+    for frame, x, y in contacts:
+        now = sum(c <= frame for c in crossings)
+        if now > crossed:
+            touches, crossed = 0, now
+        side = "left" if x < net_u(calibration, net_x, y) else "right"
+        if dead or on_floor(calibration, x, y, frame == contacts[-1][0]):
+            kind, dead = "floor", True
+        elif not out and not crossed:
+            kind = "serve"
+        elif attack and frame - attack[0] <= BLOCK_S * fps:
+            kind, side, touches, blocked = "block", "left" if attack[1] == "right" else "right", 0, True
+        elif not crossed:
+            # ponytail: only a serve into the net; a ball into the net after a crossing is typed by
+            # its touch number. Add a rule at the net line once a few are labelled (1 today).
+            kind = "net"
+        else:
+            touches += 1
+            # A crossing before the first contact is an unseen serve's. ponytail: every touch from the
+            # 3rd is the attack, a bump that saves a bad set included.
+            kind = {1: "pass" if crossed == 1 and not blocked else "dig", 2: "set"}.get(touches, "attack")
+        # A second blocker's touch is a block too.
+        attack = (frame, side) if kind == "attack" else attack if kind == "block" else None
+        out.append((frame, x, y, kind, side))
+    return out
+
+
+def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[int, int]], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
+    """Typed contacts of every rally; contacts outside the rallies are dropped."""
+    out: list[Typed] = []
+    for start, end in rallies:
+        start -= round(LEAD_S * fps)
+        inside = [c for c in contacts if start <= c[0] <= end]
+        out += classify_rally(inside, [c for c in crossings if start <= c <= end], fps, net_x, calibration)
+    return out
+
+
+def read_rows(path: Path) -> list[list[int]]:
+    with open(path) as f:
+        return [[int(v) for v in row.values()] for row in csv.DictReader(f)]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Classify the ball contacts of each rally.")
+    parser.add_argument("contacts", type=Path, help="frame,x,y CSV from contacts.py")
+    parser.add_argument("net", type=Path, help="Net crossing frames CSV from contacts.py")
+    parser.add_argument("rallies", type=Path, help="start_frame,end_frame CSV from rallies.py")
+    parser.add_argument("--fps", type=float, required=True)
+    parser.add_argument("--net-x", type=float, help="Net plane in pixels, needed without --court")
+    parser.add_argument("--court", type=Path, help="Court calibration JSON from court.py")
+    parser.add_argument("--out", type=Path, default=Path("outputs"))
+    args = parser.parse_args()
+    if args.court is None and args.net_x is None:
+        parser.error("--net-x is needed without --court")
+
+    calibration = Calibration.load(args.court) if args.court else None
+    contacts = [tuple(r) for r in read_rows(args.contacts)]
+    crossings = [r[0] for r in read_rows(args.net)]
+    typed = classify(contacts, crossings, [tuple(r) for r in read_rows(args.rallies)], args.fps, args.net_x, calibration)
+    args.out.mkdir(parents=True, exist_ok=True)
+    path = args.out / f"{args.contacts.stem.removesuffix('_contacts')}_actions.csv"
+    with open(path, "w", newline="") as f:
+        csv.writer(f).writerows([["frame", "x", "y", "type", "side"], *typed])
+    print(f"{len(typed)} contacts -> {path}")
+
+
+if __name__ == "__main__":
+    main()
