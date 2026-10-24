@@ -25,6 +25,8 @@ WEIGHTS_PATH = Path("models/wasb_volleyball.pth.tar")
 WIDTH, HEIGHT = 512, 288
 WINDOW = 3
 STRIDE = 1
+# Windows per forward pass.
+BATCH = 16
 # Chosen per stride on the side-view clips of benchmarks/ball.
 THRESHOLD = {1: 0.2, 3: 0.3}
 # Heatmap value bounding a blob.
@@ -103,42 +105,57 @@ def track_frames(
     device: str,
     stride: int = STRIDE,
     threshold: float | None = None,
+    batch: int = BATCH,
 ) -> Iterator[tuple[np.ndarray, Position]]:
-    """Yield each frame with the ball position in frame pixels, or None when not found."""
+    """Yield each frame with the ball position in frame pixels, or None when not found.
+
+    Windows are run `batch` at a time; frames wait, up to `batch * stride` of them, until the
+    batch holding their last window has run.
+    """
     if threshold is None:
         threshold = THRESHOLD[stride]
     pending: deque[tuple[int, np.ndarray, np.ndarray]] = deque()
+    windows: list[tuple[list[tuple[int, np.ndarray, np.ndarray]], int]] = []
+    ready: list[tuple[int, np.ndarray]] = []
     best: dict[int, tuple[float, float, float]] = {}
 
     @torch.no_grad()
-    def run(window: list[tuple[int, np.ndarray, np.ndarray]], real: int) -> None:
-        # ponytail: one window per forward pass, batch windows if GPU throughput matters.
-        batch = torch.from_numpy(np.concatenate([inputs for _, _, inputs in window])[None]).to(device)
-        heatmaps = model(batch)[0].sigmoid()[0].cpu().numpy()
-        for (index, _, _), heatmap in zip(window[:real], heatmaps[:real]):
-            blob = best_blob(heatmap)
-            if blob and blob[2] > best.get(index, (0.0, 0.0, -1.0))[2]:
-                best[index] = blob
+    def run() -> None:
+        if not windows:
+            return
+        inputs = np.stack([np.concatenate([x for _, _, x in window]) for window, _ in windows])
+        heatmaps = model(torch.from_numpy(inputs).to(device))[0].sigmoid().cpu().numpy()
+        for (window, real), maps in zip(windows, heatmaps):
+            for (index, _, _), heatmap in zip(window[:real], maps[:real]):
+                blob = best_blob(heatmap)
+                if blob and blob[2] > best.get(index, (0.0, 0.0, -1.0))[2]:
+                    best[index] = blob
+        windows.clear()
 
-    def position(index: int, frame: np.ndarray) -> Position:
-        blob = best.pop(index, None)
-        if blob is None or blob[2] < threshold:
-            return None
-        return round(blob[0] * frame.shape[1] / WIDTH), round(blob[1] * frame.shape[0] / HEIGHT)
+    def flush() -> Iterator[tuple[np.ndarray, Position]]:
+        run()
+        for index, frame in ready:
+            blob = best.pop(index, None)
+            if blob is None or blob[2] < threshold:
+                yield frame, None
+            else:
+                yield frame, (round(blob[0] * frame.shape[1] / WIDTH), round(blob[1] * frame.shape[0] / HEIGHT))
+        ready.clear()
 
     for index, frame in enumerate(frames):
         pending.append((index, frame, preprocess(frame)))
         if len(pending) == WINDOW:
-            run(list(pending), WINDOW)
-            # The next window starts after these frames: their last view is in.
+            windows.append((list(pending), WINDOW))
+            # The next window starts after these frames: their last view is queued.
             for _ in range(stride):
                 index, frame, _ = pending.popleft()
-                yield frame, position(index, frame)
+                ready.append((index, frame))
+            if len(windows) == batch:
+                yield from flush()
     if pending:
-        real = len(pending)
-        run(list(pending) + [pending[-1]] * (WINDOW - real), real)
-        for index, frame, _ in pending:
-            yield frame, position(index, frame)
+        windows.append((list(pending) + [pending[-1]] * (WINDOW - len(pending)), len(pending)))
+        ready.extend((index, frame) for index, frame, _ in pending)
+    yield from flush()
 
 
 def read_frames(video: Path) -> Iterator[np.ndarray]:

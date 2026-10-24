@@ -29,10 +29,11 @@ class TestTrackFrames:
             self.calls = 0
 
         def forward(self, batch):
-            logits = torch.full((1, WINDOW, HEIGHT, WIDTH), -10.0)
-            for k in range(WINDOW):
-                logits[0, k, 100, 10 * self.calls + k] = 0.5 + k
-            self.calls += 1
+            logits = torch.full((len(batch), WINDOW, HEIGHT, WIDTH), -10.0)
+            for b in range(len(batch)):
+                for k in range(WINDOW):
+                    logits[b, k, 100, 10 * self.calls + k] = 0.5 + k
+                self.calls += 1
             return {0: logits}
 
     def frames(self, count, scale=1):
@@ -51,6 +52,12 @@ class TestTrackFrames:
 
         # Frames 3 and 4 come from the padded last window (1).
         assert [position for _, position in results] == [(0, 200), (2, 200), (4, 200), (20, 200), (22, 200)]
+
+    def test_gives_the_same_positions_whatever_the_batch(self):
+        def positions(batch):
+            return [p for _, p in track_frames(self.frames(10), self.FakeModel(), "cpu", stride=1, threshold=0.5, batch=batch)]
+
+        assert positions(1) == positions(4) == positions(16)
 
     def test_drops_positions_below_the_threshold(self):
         results = list(track_frames(self.frames(3), self.FakeModel(), "cpu", threshold=0.9))
