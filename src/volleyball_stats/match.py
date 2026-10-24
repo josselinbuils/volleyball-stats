@@ -9,16 +9,15 @@ exists unless --force.
 import argparse
 import csv
 import time
+from collections import Counter
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from volleyball_stats import ball, contacts, court, rallies
+from volleyball_stats import actions, ball, contacts, court, rallies
 
-# Seconds around a rally window still counted as its contacts: the serve contact comes slightly
-# before the window's start, which is placed where the served ball has travelled.
-RALLY_MARGIN = 0.5
+TYPES = ["serve", "pass", "set", "attack", "block", "dig", "floor", "net"]
 
 
 def track_ball(video: Path, out: Path) -> None:
@@ -31,8 +30,9 @@ def track_ball(video: Path, out: Path) -> None:
             rows.writerow([index, int(position is not None), *(position or ("", ""))])
 
 
-def in_rallies(frames: list[int], windows: list[tuple[int, int]], margin: int) -> list[int]:
-    return [f for f in frames if any(start - margin <= f <= end + margin for start, end in windows)]
+def in_rallies(frames: list[int], windows: list[tuple[int, int]], lead: int) -> list[int]:
+    """Frames inside a rally window started `lead` frames early, like actions.classify's."""
+    return [f for f in frames if any(start - lead <= f <= end for start, end in windows)]
 
 
 def write_csv(path: Path, header: list[str], rows: list) -> None:
@@ -40,17 +40,22 @@ def write_csv(path: Path, header: list[str], rows: list) -> None:
         csv.writer(f).writerows([header, *rows])
 
 
-def report(video: Path, fps: float, frame_count: int, windows: list[tuple[int, int]], hits: list[int], crossings: list[int], timings: dict[str, float]) -> str:
+def report(video: Path, fps: float, frame_count: int, windows: list[tuple[int, int]], typed: list[actions.Typed], crossings: list[int], timings: dict[str, float]) -> str:
     lengths = np.array([(end - start) / fps for start, end in windows])
     duration = frame_count / fps
+    counts = Counter((kind, side) for _, _, _, kind, side in typed)
     lines = [
         f"# {video.stem}",
         "",
         f"- Duration: {duration / 60:.1f} min",
         f"- Rallies: {len(windows)}, ball in play {lengths.sum() / 60:.1f} min ({lengths.sum() / duration:.0%})"
         + (f", median rally {np.median(lengths):.1f} s" if len(windows) else ""),
-        f"- Contacts in rallies: {len(hits)}" + (f", {len(hits) / len(windows):.1f} per rally" if windows else ""),
+        f"- Contacts in rallies: {len(typed)}" + (f", {len(typed) / len(windows):.1f} per rally" if windows else ""),
         f"- Net crossings in rallies: {len(crossings)}",
+        "",
+        "| Action | Left of the net | Right of the net |",
+        "| --- | --- | --- |",
+        *(f"| {kind} | {counts[kind, 'left']} | {counts[kind, 'right']} |" for kind in TYPES),
         "",
         "Processing time: " + ", ".join(f"{step} {seconds / 60:.1f} min" for step, seconds in timings.items()),
     ]
@@ -62,7 +67,7 @@ def main() -> None:
     parser.add_argument("video", type=Path)
     net = parser.add_mutually_exclusive_group(required=True)
     net.add_argument("--court", type=Path, help="Court calibration JSON (court.py fit or auto)")
-    net.add_argument("--net-x", type=float, help="Net position in frame pixels, without a calibration")
+    net.add_argument("--net-x", type=float, help="Net position in frame pixels, without a calibration (no floor contacts)")
     parser.add_argument("--out", type=Path, default=Path("outputs"))
     parser.add_argument("--force", action="store_true", help="Track the ball again even if a track exists")
     args = parser.parse_args()
@@ -72,9 +77,10 @@ def main() -> None:
     cap = cv2.VideoCapture(str(args.video))
     fps, frame_count = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
-    # ponytail: the net as a vertical line through the court center; the calibration could give
-    # its leaning plane (about 25 px between the posts at 720p) if crossings near the posts matter.
-    net_x = args.net_x if args.net_x is not None else float(court.Calibration.load(args.court).to_image(np.array([[0.0, 0.0]]))[0, 0])
+    calibration = court.Calibration.load(args.court) if args.court else None
+    # ponytail: net crossings use a vertical line through the court center; actions.py follows the
+    # net's leaning line, which contacts.py could use too if crossings near the posts matter.
+    net_x = args.net_x if calibration is None else float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
     timings: dict[str, float] = {}
 
     track_path = out / "ball.csv"
@@ -90,15 +96,13 @@ def main() -> None:
 
     start = time.perf_counter()
     found, crossings = contacts.detect(contacts.read_track(track_path), fps, net_x)
-    margin = round(RALLY_MARGIN * fps)
-    kept = set(in_rallies([frame for frame, _, _ in found], windows, margin))
-    hits = [c for c in found if c[0] in kept]
-    crossings = in_rallies(crossings, windows, margin)
-    write_csv(out / "contacts.csv", ["frame", "x", "y"], hits)
+    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
+    write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side"], typed)
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
-    timings["contacts"] = time.perf_counter() - start
+    timings["contacts and actions"] = time.perf_counter() - start
 
-    text = report(args.video, fps, frame_count, windows, [c[0] for c in hits], crossings, timings)
+    text = report(args.video, fps, frame_count, windows, typed, crossings, timings)
     (out / "report.md").write_text(text)
     print(text, end="")
     print(out / "report.md")

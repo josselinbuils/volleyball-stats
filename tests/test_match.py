@@ -4,17 +4,20 @@ from volleyball_stats.match import in_rallies, report
 
 
 class TestInRallies:
-    def test_keeps_frames_inside_a_window_widened_by_the_margin(self):
-        assert in_rallies([5, 10, 25, 31, 50, 70], [(10, 30), (60, 65)], margin=1) == [10, 25, 31]
+    def test_keeps_frames_inside_a_window_started_early(self):
+        assert in_rallies([5, 8, 25, 31, 50, 70], [(10, 30), (60, 65)], lead=2) == [8, 25]
 
 
 class TestReport:
-    def test_summarizes_rallies_contacts_and_timings(self):
-        text = report(Path("m.mp4"), 30.0, 18000, [(0, 300), (600, 1200)], [10, 20, 650], [15], {"ball": 120.0})
+    def test_summarizes_rallies_actions_and_timings(self):
+        typed = [(10, 0, 0, "serve", "left"), (20, 0, 0, "pass", "right"), (650, 0, 0, "serve", "right")]
+
+        text = report(Path("m.mp4"), 30.0, 18000, [(0, 300), (600, 1200)], typed, [15], {"ball": 120.0})
 
         assert "- Duration: 10.0 min" in text
         assert "- Rallies: 2, ball in play 0.5 min (5%), median rally 15.0 s" in text
         assert "- Contacts in rallies: 3, 1.5 per rally" in text
+        assert "| serve | 1 | 1 |" in text and "| pass | 0 | 1 |" in text
         assert "ball 2.0 min" in text
 
     def test_handles_a_video_without_rallies(self):

@@ -71,8 +71,8 @@ uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json
 ```
 
 `--court` takes `outputs/court/VIDEO.json` from `auto`, or `outputs/courts/NAME.json` from `fit` on
-the first match of a court. `match` writes the ball track, rallies, contacts, net crossings and a
-report to `outputs/VIDEO/`.
+the first match of a court. `match` writes the ball track, rallies, typed contacts, net crossings and a
+report to `outputs/VIDEO/`; the actions CSV holds each contact with its type and side of the net.
 
 ## Pipeline
 
