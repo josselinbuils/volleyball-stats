@@ -61,8 +61,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
 
   return (
     <figure className="m-0 min-w-0 [:fullscreen_&]:relative [:fullscreen_&]:flex [:fullscreen_&]:h-full [:fullscreen_&]:flex-col">
-      {/* Boxed like the score bar beside it, at the same height; over the view in full screen. */}
-      <div className="mb-3 flex h-11 items-center gap-2 rounded-lg bg-muted px-3 text-sm leading-5 font-semibold [:fullscreen_&]:absolute [:fullscreen_&]:inset-x-2 [:fullscreen_&]:top-2 [:fullscreen_&]:z-10 [:fullscreen_&]:mb-0 [:fullscreen_&]:bg-muted/85 [:fullscreen_&]:backdrop-blur-sm">
+      {/* Boxed like the score bar beside it, at the same height; in full screen its content alone over the view. */}
+      <div className="mb-3 flex h-11 items-center gap-2 rounded-lg bg-muted px-3 text-sm leading-5 font-semibold [:fullscreen_&]:absolute [:fullscreen_&]:inset-x-2 [:fullscreen_&]:top-2 [:fullscreen_&]:z-10 [:fullscreen_&]:mb-0 [:fullscreen_&]:bg-transparent [:fullscreen_&]:[text-shadow:0_0_4px_var(--background),0_0_10px_var(--background)]">
         <p className="m-0 line-clamp-2 min-w-0 flex-1" aria-live="off" title={now}>
           {now}
         </p>
