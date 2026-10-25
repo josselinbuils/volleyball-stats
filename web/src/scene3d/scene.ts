@@ -415,30 +415,6 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       scene.add(board);
     }
   }
-  // Each team's bench on the near side: a row of blue chairs facing the court.
-  const chair = new THREE.Group();
-  const seatGeometry = new THREE.BoxGeometry(0.45, 0.06, 0.42);
-  const backGeometry = new THREE.BoxGeometry(0.45, 0.45, 0.05);
-  const legGeometry = new THREE.BoxGeometry(0.4, 0.42, 0.04);
-  const legs = solid(0x9aa3ad);
-  const plastic = solid(0x2c5fa8);
-  for (const [geometry, material, h, depth] of [
-    [seatGeometry, plastic, 0.45, 0],
-    [backGeometry, plastic, 0.7, 0.2],
-    [legGeometry, legs, 0.21, 0],
-  ] as const) {
-    const part = new THREE.Mesh(geometry, material);
-    part.position.set(0, h, depth);
-    chair.add(part);
-  }
-  castShadows(chair);
-  for (const side of [-1, 1]) {
-    for (let k = 0; k < 6; k++) {
-      const one = chair.clone();
-      one.position.copy(at(side * (3.5 + 0.55 * k), 7.5));
-      scene.add(one);
-    }
-  }
 
   // Players: chibi figures about 1.65 m tall facing +z, shirt and shorts in their team's colours, a
   // soft shadow and their number above them; made as they first show.
