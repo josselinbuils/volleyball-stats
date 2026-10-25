@@ -26,9 +26,10 @@ type CardRow = Row & { key: number };
  * count playing its moments; their strengths and things to work on under it. */
 export function PlayerCards({ id, rows, g }: { id: string; rows: CardRow[]; g: Group }) {
   return (
-    <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-4 gap-y-6 p-0">
+    // Phones: one card a row, narrower than the screen.
+    <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-4 gap-y-6 p-0 max-sm:justify-items-center">
       {rows.map((r) => (
-        <li key={r.key} className="grid content-start gap-2">
+        <li key={r.key} className="grid w-full content-start gap-2 max-sm:max-w-64">
           <FifaCard id={`${id}:${r.key}`} row={r} g={g} />
           {r.insights && r.insights.length > 0 && (
             <div className="flex flex-wrap gap-1">
