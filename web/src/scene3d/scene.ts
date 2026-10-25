@@ -24,10 +24,14 @@ export interface Scene {
   dispose: () => void;
 }
 
-// The camera, from the stand behind the camera's sideline, a little to the left so the net shows in
-// perspective, and the point it looks at; the pointer turns it around that point.
+// The camera's direction, from the stand behind the camera's sideline, a little to the left so the
+// net shows in perspective, and the point it looks at; the pointer turns it around that point.
 const EYE = new THREE.Vector3(-3.5, 7.5, 15.5);
 const TARGET = new THREE.Vector3(0.5, 0.6, 0);
+// What the first view holds whatever the view's shape: the court with half a metre behind its end lines,
+// the net posts, inside FIT of the view's half width and height.
+const FRAMED = [-9.5, 9.5].flatMap((x) => [-5, 5].map((y) => new THREE.Vector3(x, 0, y))).concat([-5, 5].map((y) => new THREE.Vector3(0, 2.6, y)));
+const FIT = 0.96;
 const NET_TOP = 2.35;
 // The trail spans the ball's last TRAIL_S (the page's trail3dAt); it shows from SLOW m/s and is
 // full from FAST: a set flies at 5-8 m/s, a serve or an attack at 12-25.
@@ -74,8 +78,27 @@ export function mount(element: HTMLElement): Scene {
   controls.maxPolarAngle = Math.PI / 2 - 0.05;
   controls.minDistance = 4;
   controls.maxDistance = 40;
-  camera.position.copy(EYE);
   controls.target.copy(TARGET);
+  // The nearest distance along EYE's direction framing FRAMED, found by halving.
+  const frame3d = () => {
+    const direction = new THREE.Vector3().subVectors(EYE, TARGET).normalize();
+    let [near, far] = [controls.minDistance, controls.maxDistance];
+    for (let k = 0; k < 24; k++) {
+      const distance = (near + far) / 2;
+      camera.position.copy(TARGET).addScaledVector(direction, distance);
+      camera.lookAt(TARGET);
+      camera.updateMatrixWorld();
+      const fits = FRAMED.every((p) => {
+        const q = p.clone().project(camera);
+        return Math.abs(q.x) <= FIT && Math.abs(q.y) <= FIT;
+      });
+      [near, far] = fits ? [near, distance] : [distance, far];
+    }
+    camera.position.copy(TARGET).addScaledVector(direction, far);
+    controls.update();
+  };
+  // Until the pointer turns the view, each new shape of it frames the court again.
+  let turned = false;
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 2.2));
   const sun = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -191,6 +214,7 @@ export function mount(element: HTMLElement): Scene {
   let moving = false;
   controls.addEventListener('start', () => {
     moving = true;
+    turned = true;
   });
   controls.addEventListener('end', () => {
     setTimeout(() => (moving = false), 600);
@@ -205,6 +229,9 @@ export function mount(element: HTMLElement): Scene {
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();
+    if (!turned) {
+      frame3d();
+    }
     // Resizing clears the canvas: drawn at once, not a frame later, or it shows empty for a frame.
     renderer.render(scene, camera);
   };
