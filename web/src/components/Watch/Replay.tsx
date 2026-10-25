@@ -11,6 +11,7 @@ import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 import { ball3dAt, jumpAt, trail3dAt } from '@/components/Watch/helpers/flight';
 import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
+import { scoreAt } from '@/components/Watch/helpers/score';
 
 const STORED = 'court-view';
 
@@ -31,6 +32,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const landings = rally ? landingsAt(rally.contacts, time) : [];
   const last = rally?.contacts.filter((c) => c.t <= time).pop();
   const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
+  const score = scoreAt(rallies, time, match.scores);
   // The player under the pointer, named above their mark.
   const [hover, setHover] = useState<number | null>(null);
   const hovered = dots.find((d) => d.person === hover);
@@ -115,6 +117,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
                 return at ? [{ x: at.x, y: at.y, f }] : [];
               }),
               landings,
+              board: score && { teams: [groupName(t, 1), groupName(t, 2)], score: score.score, set: t('set', { n: score.set }) },
             }}
             onHover={setHover}
           />

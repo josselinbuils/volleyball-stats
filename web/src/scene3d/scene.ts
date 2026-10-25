@@ -18,6 +18,8 @@ export interface SceneState {
   trail: Point3[];
   rings: { x: number; y: number; f: number }[];
   landings: { x: number; y: number; f: number }[];
+  /** The hall's scoreboard: the teams, team 1 first, their points and the set; null before the first rally. */
+  board: { teams: [string, string]; score: [number, number]; set: string } | null;
   colors: { team: [string, string]; teamText: [string, string]; floor: string; foreground: string; primary: string };
 }
 
@@ -131,24 +133,24 @@ const windowPanes = () =>
     }
   });
 
-/** The hall's scoreboard: home and guest, no score shown. */
-const scoreboard = () =>
-  painted(300, 140, (g) => {
-    g.fillStyle = '#1d2a4a';
-    g.fillRect(0, 0, 300, 140);
-    g.fillStyle = '#ffffff';
-    g.font = 'bold 22px system-ui, sans-serif';
-    g.textAlign = 'center';
-    g.fillText('HOME', 60, 34);
-    g.fillText('GUEST', 240, 34);
-    g.fillStyle = '#ff3b30';
-    g.font = 'bold 56px ui-monospace, monospace';
-    g.fillText('--', 60, 104);
-    g.fillText('--', 240, 104);
-    g.fillStyle = '#ffc531';
-    g.font = 'bold 40px ui-monospace, monospace';
-    g.fillText('--:--', 150, 60);
-  });
+/** Paints the hall's scoreboard on `canvas`: each team's name over its points, the set between them;
+ * dashes without a score. */
+function paintScoreboard(canvas: HTMLCanvasElement, board: SceneState['board']) {
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#1d2a4a';
+  g.fillRect(0, 0, 600, 280);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 40px system-ui, sans-serif';
+  (board?.teams ?? ['', '']).forEach((name, k) => g.fillText(name.toUpperCase(), 120 + 360 * k, 52, 220));
+  g.fillStyle = '#ff3b30';
+  g.font = 'bold 120px ui-monospace, monospace';
+  (board?.score ?? ['--', '--']).forEach((points, k) => g.fillText(String(points), 120 + 360 * k, 176));
+  g.fillStyle = '#ffc531';
+  g.font = 'bold 44px ui-monospace, monospace';
+  g.fillText((board?.set ?? '').toUpperCase(), 300, 140, 120);
+}
 
 /** A net's mesh: 10 cm squares of dark cord, see-through between. */
 const netMesh = () => {
@@ -361,7 +363,10 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     return side;
   };
   const far = wall(36, 0, -14, 0, [-14, -9, 9, 14], []);
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.4), new THREE.MeshBasicMaterial({ map: scoreboard() }));
+  // The scoreboard, repainted when the score changes.
+  const boardTexture = painted(600, 280, (g) => paintScoreboard(g.canvas, null));
+  let shown = '';
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.4), new THREE.MeshBasicMaterial({ map: boardTexture }));
   board.position.set(0, 4.4, 0.03);
   far.add(board);
   wall(36, 0, 14, Math.PI, [-9, 9], []);
@@ -604,6 +609,11 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
         if (!seen.has(key)) {
           body.group.visible = body.shadow.visible = false;
         }
+      }
+      if (JSON.stringify(state.board) !== shown) {
+        shown = JSON.stringify(state.board);
+        paintScoreboard(boardTexture.image as HTMLCanvasElement, state.board);
+        boardTexture.needsUpdate = true;
       }
       const tipped = state.players.find((p) => p.tip);
       if (tip && tip.text !== tipped?.tip) {
