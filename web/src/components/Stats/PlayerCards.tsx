@@ -1,4 +1,3 @@
-import type { PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
@@ -11,6 +10,13 @@ import { InsightChip, type Row } from '@/components/Stats/StatsTable';
 
 const SIX: Stat[] = ['serves', 'receptions', 'sets', 'attacks', 'blocks', 'digs'];
 const GOLD = 'linear-gradient(135deg, #fbe38e, #d4a017 45%, #fff1b8 55%, #b8860b)';
+// The stars over a hovered picture: left and top (% of the picture), size (px), delay (s).
+const SPARKLES: [number, number, number, number][] = [
+  [10, 12, 16, 0],
+  [66, 6, 12, 0.35],
+  [74, 44, 18, 0.7],
+  [20, 56, 11, 1.05],
+];
 // A FIFA card's shield: notched top, pointed bottom.
 const SHIELD = 'polygon(0% 6%, 8% 6%, 14% 3%, 30% 3%, 38% 0%, 50% 2%, 62% 0%, 70% 3%, 86% 3%, 92% 6%, 100% 6%, 100% 87%, 50% 100%, 0% 87%)';
 
@@ -75,11 +81,6 @@ function cardName(t: TFunction, person: number): string {
 
 function FifaCard({ id, row: r, g }: CardProps) {
   const { t } = useTranslation();
-  const follow = (event: PointerEvent<HTMLElement>) => {
-    const box = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.style.setProperty('--x', `${((event.clientX - box.left) / box.width) * 100}%`);
-    event.currentTarget.style.setProperty('--y', `${((event.clientY - box.top) / box.height) * 100}%`);
-  };
   const photo = match.people[r.key]?.photo;
   return (
     <article className="aspect-[5/7] p-[5px] drop-shadow-md" style={{ clipPath: SHIELD, background: GOLD }}>
@@ -98,10 +99,20 @@ function FifaCard({ id, row: r, g }: CardProps) {
             <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
           </div>
           {photo && (
-            <div className="group/photo relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }} onPointerMove={follow}>
+            <div className="group/photo relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
               <img src={photo} alt="" loading="lazy" className="h-full object-cover object-top" />
-              {/* A glint following the pointer over the picture. */}
-              <div aria-hidden className="holo absolute inset-0 opacity-0 mix-blend-soft-light transition-opacity duration-300 group-hover/photo:opacity-60" />
+              {/* A few stars twinkling over the picture while it is hovered. */}
+              {SPARKLES.map(([left, top, size, delay]) => (
+                <svg
+                  key={`${left}${top}`}
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  className="sparkle absolute"
+                  style={{ left: `${left}%`, top: `${top}%`, width: size, height: size, animationDelay: `${delay}s` }}
+                >
+                  <path d="M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z" />
+                </svg>
+              ))}
             </div>
           )}
         </div>
