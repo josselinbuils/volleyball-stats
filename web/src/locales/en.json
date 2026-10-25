@@ -187,13 +187,6 @@
   "prevRally": "Previous rally",
   "nextRally": "Next rally",
   "noRally": "No rally found in the video.",
-  "teams": {
-    "title": "Teams",
-    "caption": "What each team did with the ball. Click a number to watch those moments again.",
-    "captionSides": "Without player tracking, touches are counted per side of the net, as seen from the camera. Click a number to watch those moments again.",
-    "team": "Team",
-    "side": "Side"
-  },
   "stats": {
     "names": {
       "touches": "Touches",
@@ -230,11 +223,11 @@
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player."
   },
   "players": {
-    "title": "Players",
+    "title": "Statistics",
     "caption": "What each player did with the ball. Click a number to watch those moments again.",
     "player": "Player",
     "rest": "Unidentified player",
     "total": "Whole team",
-    "note": "The same columns as the teams table, explained under it."
+    "captionSides": "Without player tracking, touches are counted per side of the net, as seen from the camera. Click a number to watch those moments again."
   }
 }

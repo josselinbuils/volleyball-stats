@@ -187,13 +187,6 @@
   "prevRally": "Échange précédent",
   "nextRally": "Échange suivant",
   "noRally": "Aucun échange trouvé dans la vidéo.",
-  "teams": {
-    "title": "Équipes",
-    "caption": "Ce que chaque équipe a fait du ballon. Cliquez sur un nombre pour revoir ces moments.",
-    "captionSides": "Sans le suivi des joueurs, les touches sont comptées par côté du filet, vu depuis la caméra. Cliquez sur un nombre pour revoir ces moments.",
-    "team": "Équipe",
-    "side": "Côté"
-  },
   "stats": {
     "names": {
       "touches": "Touches",
@@ -230,11 +223,11 @@
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur."
   },
   "players": {
-    "title": "Joueurs",
+    "title": "Statistiques",
     "caption": "Ce que chaque joueur et chaque joueuse a fait du ballon. Cliquez sur un nombre pour revoir ces moments.",
     "player": "Joueur",
     "rest": "Joueur non identifié",
     "total": "Toute l'équipe",
-    "note": "Mêmes colonnes que le tableau des équipes, expliquées sous celui-ci."
+    "captionSides": "Sans le suivi des joueurs, les touches sont comptées par côté du filet, vu depuis la caméra. Cliquez sur un nombre pour revoir ces moments."
   }
 }

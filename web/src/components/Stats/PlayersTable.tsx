@@ -11,26 +11,27 @@ import { useSet } from '@/lib/sets';
 import { lines } from '@/components/Stats/helpers/stats';
 import { StatsTable } from '@/components/Stats/StatsTable';
 
-/** What each player of a team did with the ball, a count per action and how it ended. */
+/** What each player of a team did with the ball, a count per action and how it ended, and the whole
+ * team's; without identified players, the team's alone (each side of the net's without teams). */
 export function PlayersTable() {
   const { t } = useTranslation();
   const { set, contacts } = useSet();
   const [group, setGroup] = useState<Group>(1);
-  if (!hasTeams || !Object.values(match.people).some((p) => p.number !== null)) {
-    return null;
-  }
-  const rows = lines(contacts, match.people, group).map((line) => ({
-    key: line.id,
-    name:
-      typeof line.id === 'number' ? (
-        <Who person={line.id} g={group} />
-      ) : (
-        <span className={cn('flex min-h-8 items-center', line.id === 'rest' && 'text-muted-foreground')}>{t(`players.${line.id}`)}</span>
-      ),
-    title: (tr: TFunction) => (line.id === 'rest' ? tr('players.rest') : line.id === 'total' ? groupName(tr, group) : (playerLabel(tr, line.id) ?? '')),
-    stats: line.stats,
-    total: line.id === 'total',
-  }));
+  const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
+  const rows = lines(contacts, match.people, group)
+    .filter((line) => withPlayers || line.id === 'total')
+    .map((line) => ({
+      key: line.id,
+      name:
+        typeof line.id === 'number' ? (
+          <Who person={line.id} g={group} />
+        ) : (
+          <span className={cn('flex min-h-8 items-center', line.id === 'rest' && 'text-muted-foreground')}>{line.id === 'total' && !hasTeams ? groupName(t, group) : t(`players.${line.id}`)}</span>
+        ),
+      title: (tr: TFunction) => (line.id === 'rest' ? tr('players.rest') : line.id === 'total' ? groupName(tr, group) : (playerLabel(tr, line.id) ?? '')),
+      stats: line.stats,
+      total: line.id === 'total',
+    }));
 
   return (
     <Card>
@@ -41,7 +42,7 @@ export function PlayersTable() {
             <SetBadge />
           </h2>
         </CardTitle>
-        <CardDescription>{t('players.caption')}</CardDescription>
+        <CardDescription>{t(hasTeams ? 'players.caption' : 'players.captionSides')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <ToggleGroup
@@ -69,7 +70,7 @@ export function PlayersTable() {
           ))}
         </ToggleGroup>
         <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} />
-        <p className="text-[13px] text-muted-foreground">{[t('players.note'), t('stats.noteVideo')].join(' ')}</p>
+        <p className="text-[13px] text-muted-foreground">{[t('stats.note'), t('stats.noteUnattacked'), t('stats.noteVideo')].join(' ')}</p>
       </CardContent>
     </Card>
   );
