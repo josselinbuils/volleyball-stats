@@ -1,3 +1,4 @@
+import type { PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
@@ -74,9 +75,14 @@ function cardName(t: TFunction, person: number): string {
 
 function FifaCard({ id, row: r, g }: CardProps) {
   const { t } = useTranslation();
+  const follow = (event: PointerEvent<HTMLElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty('--x', `${((event.clientX - box.left) / box.width) * 100}%`);
+    event.currentTarget.style.setProperty('--y', `${((event.clientY - box.top) / box.height) * 100}%`);
+  };
   const photo = match.people[r.key]?.photo;
   return (
-    <article className="aspect-[5/7] p-[5px] drop-shadow-md" style={{ clipPath: SHIELD, background: GOLD }}>
+    <article className="group aspect-[5/7] p-[5px] drop-shadow-md" style={{ clipPath: SHIELD, background: GOLD }} onPointerMove={follow}>
       <div
         className="relative flex h-full flex-col overflow-hidden"
         style={{ clipPath: SHIELD, background: `linear-gradient(160deg, ${teamColor(g)}, color-mix(in oklch, ${teamColor(g)} 55%, black))`, color: `var(--team${g}-text)` }}
@@ -91,7 +97,13 @@ function FifaCard({ id, row: r, g }: CardProps) {
             <span className="text-5xl leading-none font-black tabular-nums">{playerNumber(r.key)}</span>
             <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
           </div>
-          {photo && <img src={photo} alt="" loading="lazy" className="ml-auto h-full min-w-0 object-cover object-top" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }} />}
+          {photo && (
+            <div className="relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
+              <img src={photo} alt="" loading="lazy" className="h-full object-cover object-top" />
+              {/* A holographic sheen, faint at rest, following the pointer over the card. */}
+              <div aria-hidden className="holo absolute inset-0 opacity-30 mix-blend-color-dodge transition-opacity duration-300 group-hover:opacity-70" />
+            </div>
+          )}
         </div>
         <h3 className="relative mx-[9%] border-b border-current/40 pb-1 text-center text-xl font-black tracking-wide uppercase [overflow-wrap:anywhere]">{cardName(t, r.key)}</h3>
         {/* Each number above its label: room for a whole match's counts. */}

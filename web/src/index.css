@@ -199,6 +199,29 @@
       animation: none;
     }
   }
+  /* A rainbow band and a glint, placed by --x and --y (the pointer over the card); they drift on
+     their own until it moves. */
+  .holo {
+    background:
+      radial-gradient(circle at var(--x, 30%) var(--y, 20%), rgb(255 255 255 / 0.7), transparent 40%),
+      linear-gradient(115deg, transparent 20%, rgb(255 0 170 / 0.55) 36%, rgb(0 255 230 / 0.55) 50%, rgb(255 230 0 / 0.55) 64%, transparent 80%);
+    background-size: 100% 100%, 250% 250%;
+    background-position: center, var(--x, 0%) var(--y, 0%);
+    animation: holo-drift 6s ease-in-out infinite alternate;
+  }
+  .group:hover .holo {
+    animation: none;
+  }
+  @keyframes holo-drift {
+    to {
+      background-position: center, 100% 100%;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .holo {
+      animation: none;
+    }
+  }
   .touch-ring {
     fill: none;
     stroke: var(--foreground);
