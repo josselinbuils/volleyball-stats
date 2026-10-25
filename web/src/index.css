@@ -199,6 +199,16 @@
       animation: none;
     }
   }
+  .touch-ring {
+    fill: none;
+    stroke: var(--foreground);
+    stroke-width: 2.5px;
+    vector-effect: non-scaling-stroke;
+  }
+  .ball-trail {
+    stroke: var(--foreground);
+    stroke-linecap: round;
+  }
   /* A ring, unlike the filled player dots whatever the teams' colours. */
   .ball-mark {
     r: 0.3px;

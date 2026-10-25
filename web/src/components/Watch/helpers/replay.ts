@@ -20,6 +20,25 @@ export function ballAt(contacts: Contact[], time: number): { x: number; y: numbe
   return { x: a.x + f * (b.x - a.x), y: a.y + f * (b.y - a.y) };
 }
 
+/** The ball's path over the last `span` seconds, `steps` points from the oldest to `time`'s: a trail
+ * as long as the ball is fast. */
+export function trailAt(contacts: Contact[], time: number, span = 0.35, steps = 6): { x: number; y: number }[] {
+  const out = [];
+  for (let k = steps - 1; k >= 0; k--) {
+    const at = ballAt(contacts, time - (span * k) / (steps - 1));
+    if (at) {
+      out.push(at);
+    }
+  }
+  return out;
+}
+
+/** The touches of a known player around `time`, from `before` seconds before each to `after` seconds
+ * after, with how far along that window it is (0 to 1). */
+export function touchesAt(contacts: Contact[], time: number, before = 0.1, after = 0.6): { touch: Contact; f: number }[] {
+  return contacts.filter((c) => c.person !== null && time >= c.t - before && time <= c.t + after).map((touch) => ({ touch, f: (time - touch.t + before) / (before + after) }));
+}
+
 /** The players' feet at the sample nearest to `time`; none past the samples. */
 export function playersAt(players: Players, fps: number, time: number): { person: number; x: number; y: number }[] {
   const flat = players.samples[Math.round((time * fps) / players.step)] ?? [];

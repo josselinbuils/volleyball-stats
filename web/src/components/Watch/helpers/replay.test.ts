@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '@/lib/match';
-import { ballAt, playersAt, sidesAt } from '@/components/Watch/helpers/replay';
+import { ballAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 
 describe('ballAt', () => {
   const touch = (t: number, x: number | null, y: number | null) => ({ t, x, y }) as Contact;
@@ -17,6 +17,36 @@ describe('ballAt', () => {
 
   it('has no ball without a placed touch', () => {
     expect(ballAt([touch(1, null, null)], 1)).toBeNull();
+  });
+});
+
+describe('trailAt', () => {
+  const touch = (t: number, x: number, y: number) => ({ t, x, y }) as Contact;
+
+  it('follows the ball back in time, longer for a faster ball', () => {
+    expect(trailAt([touch(0, 0, 0), touch(1, 10, 0)], 0.5, 0.2, 3)).toEqual([
+      { x: 3, y: 0 },
+      { x: 4, y: 0 },
+      { x: 5, y: 0 },
+    ]);
+    expect(trailAt([touch(0, 0, 0), touch(2, 10, 0)], 1, 0.2, 2)).toEqual([
+      { x: 4, y: 0 },
+      { x: 5, y: 0 },
+    ]);
+  });
+
+  it('stands still where the ball waits', () => {
+    expect(new Set(trailAt([touch(5, 1, 2), touch(6, 3, 2)], 1).map((p) => `${p.x},${p.y}`))).toEqual(new Set(['1,2']));
+  });
+});
+
+describe('touchesAt', () => {
+  const touch = (t: number, person: number | null) => ({ t, person }) as Contact;
+
+  it('keeps the touches of a known player from just before them to half a second after', () => {
+    const found = touchesAt([touch(1, 3), touch(1.2, null), touch(2, 5)], 1.25);
+    expect(found.map(({ touch: c, f }) => [c.person, Math.round(f * 100) / 100])).toEqual([[3, 0.5]]);
+    expect(touchesAt([touch(1, 3)], 0.85)).toEqual([]);
   });
 });
 
