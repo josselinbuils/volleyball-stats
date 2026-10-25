@@ -115,8 +115,8 @@ function FifaCard({ id, row: r, g }: CardProps) {
               ))}
             </div>
           ) : (
-            // No picture: a silhouette in the card's colours.
-            <svg aria-hidden viewBox="0 0 60 80" className="ml-auto h-full opacity-35" fill="currentColor">
+            // No picture: a silhouette in the card's colours, fading out above the name like a picture.
+            <svg aria-hidden viewBox="0 0 60 80" className="mb-2 ml-auto h-[88%] self-start opacity-35" fill="currentColor" style={{ maskImage: 'linear-gradient(to bottom, black 60%, transparent)' }}>
               <circle cx="30" cy="24" r="13" />
               <path d="M4 80C4 57 16 45 30 45S56 57 56 80Z" />
             </svg>
