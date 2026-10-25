@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && vite build -c vite.scene.config.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -17,13 +17,15 @@
     "radix-ui": "1.8.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-i18next": "17.1.8"
+    "react-i18next": "17.1.8",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.1.2",
     "shadcn": "4.22.1",
     "tailwindcss": "4.3.3",

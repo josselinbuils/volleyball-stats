@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerNumber, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
@@ -6,6 +9,10 @@ import { useVideoTime } from '@/lib/player';
 import { usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+import { ball3dAt, jumpAt, trail3dAt } from '@/components/Watch/helpers/flight';
+import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
+
+const STORED = 'court-view';
 
 /** The court seen from above, players and ball following the video; its legend under it unless
  * `captioned` is false, the page then showing `ReplayCaption` itself. */
@@ -21,6 +28,22 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const landings = rally ? landingsAt(rally.contacts, time) : [];
   const last = rally?.contacts.filter((c) => c.t <= time).pop();
   const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
+  // The view chosen last time, remembered by the browser when it can.
+  const [view, setView] = useState<'2d' | '3d'>(() => {
+    try {
+      return localStorage.getItem(STORED) === '3d' && canDraw3d() ? '3d' : '2d';
+    } catch {
+      return '2d';
+    }
+  });
+  const choose = (next: '2d' | '3d') => {
+    setView(next);
+    try {
+      localStorage.setItem(STORED, next);
+    } catch {
+      // Private browsing: the choice lasts for the page only.
+    }
+  };
 
   let now = rally ? t('rally', { n: rally.i + 1 }) : t('betweenRallies');
   if (last) {
@@ -32,11 +55,52 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   return (
     <figure className="m-0 min-w-0">
       {/* Boxed like the score bar beside it, at the same height. */}
-      <p className="mb-3 flex h-11 items-center rounded-lg bg-muted px-3 text-sm leading-5 font-semibold" aria-live="off" title={now}>
-        <span className="line-clamp-2">{now}</span>
-      </p>
+      <div className="mb-3 flex h-11 items-center gap-2 rounded-lg bg-muted px-3 text-sm leading-5 font-semibold">
+        <p className="m-0 line-clamp-2 min-w-0 flex-1" aria-live="off" title={now}>
+          {now}
+        </p>
+        {canDraw3d() && (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={view}
+            onValueChange={(v) => v && choose(v as '2d' | '3d')}
+            aria-label={t('scene3d.label')}
+            className="shrink-0 bg-card"
+          >
+            {(['2d', '3d'] as const).map((v) => (
+              <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                {t(`scene3d.${v}`)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
+      </div>
+      {view === '3d' && (
+        <Scene3D
+          state={{
+            players: dots.map(({ person, x, y }) => ({
+              key: person,
+              x,
+              y,
+              jump: rally ? jumpAt(rally.contacts, person, time) : 0,
+              team: match.people[person]?.team ?? 1,
+              label: String(playerNumber(person) ?? ''),
+            })),
+            ball: rally ? ball3dAt(rally.contacts, time) : null,
+            trail: rally ? trail3dAt(rally.contacts, time) : [],
+            rings: touches.flatMap(({ touch, f }) => {
+              const at = dots.find((d) => d.person === touch.person) ?? (touch.x !== null && touch.y !== null ? { x: touch.x, y: touch.y } : null);
+              return at ? [{ x: at.x, y: at.y, f }] : [];
+            }),
+            landings,
+          }}
+        />
+      )}
       {/* The court's top margin is mostly empty: it tucks under the box. */}
-      <div className="relative -mt-4">
+      <div className={cn('relative -mt-4', view === '3d' && 'hidden')}>
         <Court role="img" aria-label={t('replayLabel')} ends={ends}>
           {dots.map(({ person, x, y }) => {
             const team = match.people[person]?.team ?? 1;
@@ -62,12 +126,12 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
               {f > 0.2 && <circle cx={x} cy={y} r={0.4 + 1.6 * (f - 0.2)} className="landing-ring" />}
             </g>
           ))}
-          {/* A comet tail behind the ball, widening and darkening towards it. */}
           {/* A ring widening and fading around the player who touches the ball. */}
           {touches.map(({ touch, f }) => {
             const at = dots.find((d) => d.person === touch.person) ?? (touch.x !== null && touch.y !== null ? { x: touch.x, y: touch.y } : null);
             return at && <circle key={touch.i} cx={at.x} cy={at.y} r={0.9 + 0.9 * f} className="touch-ring" opacity={1 - f} />;
           })}
+          {/* A comet tail behind the ball, widening and darkening towards it. */}
           {trail.slice(1).map((p, k) => (
             <line key={k} x1={trail[k].x} y1={trail[k].y} x2={p.x} y2={p.y} className="ball-trail" strokeWidth={0.12 + (0.5 * (k + 1)) / trail.length} opacity={(0.65 * (k + 1)) / trail.length} />
           ))}

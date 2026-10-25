@@ -23,7 +23,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - Format web files with `npx prettier --single-quote --print-width 200` (no config file: the
   defaults restyle everything). Some files already differ; only format the ones you touch.
 - The page's build is committed in `src/volleyball_stats/site/`: after any `web/` change run
-  `npm run build` in `web/` and commit the build with it.
+  `npm run build` in `web/` and commit the build with it. It makes two scripts: the page, and
+  `scene3d.js` (three.js) that the page loads only when the 3D view is shown.
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
 

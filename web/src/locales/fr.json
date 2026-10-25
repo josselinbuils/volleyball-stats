@@ -271,5 +271,18 @@
       "faults_one": "faute",
       "faults_other": "fautes"
     }
+  },
+  "scene3d": {
+    "label": "Vue du terrain",
+    "2d": "Dessus",
+    "3d": "3D",
+    "loading": "Chargement de la vue 3D…",
+    "failed": "La vue 3D n'a pas pu se charger.",
+    "views": "Point de vue",
+    "stand": "Tribune",
+    "server": "Fond du terrain",
+    "top": "Dessus",
+    "badge": "Reconstitution : hauteur du ballon estimée",
+    "note": "La caméra ne donne pas la hauteur du ballon : chaque trajectoire monte autant que la pesanteur l'exige pour sa durée, et chaque touche est placée à une hauteur typique de son action. Faites glisser pour tourner autour du terrain, pincez ou faites défiler pour zoomer."
   }
 }

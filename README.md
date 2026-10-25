@@ -168,7 +168,10 @@ the play, each player keeping one number for the whole match (their jersey numbe
 named), and the set and its score (estimated, or the final score you gave once the set is over)
 above the video. The match's title and date head the page. The video player skips 10 s back or
 forward; beside it, the court seen from above shows the players, the ball with a trail as long as it
-is fast, and a ring around the player touching it.
+is fast, and a ring around the player touching it. A switch turns that view into a 3D scene
+(three.js, in its own `scene3d.js` loaded only then) to turn around with the pointer: the players
+as figures jumping to attack and block, and the ball's height reconstructed, each flight rising as
+high as gravity requires for its duration, each touch at a typical height for its action.
 
 The "Statistiques" table gives, team by team, each player's and the whole team's touches, serves
 (aces, faults), receptions and digs (faults, an ace counting against the receiver nearest to where
