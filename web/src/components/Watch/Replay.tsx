@@ -33,8 +33,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
   // The player under the pointer, named above their mark.
   const [hover, setHover] = useState<number | null>(null);
-  const tipOf = (person: number) => [playerLabel(t, person), hasTeams && groupName(t, match.people[person]?.team ?? 1)].filter(Boolean).join(' · ');
   const hovered = dots.find((d) => d.person === hover);
+  const tip = hovered && playerLabel(t, hovered.person);
   // The view chosen last time, remembered by the browser when it can.
   const [view, setView] = useState<'2d' | '3d'>(() => {
     try {
@@ -106,7 +106,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
                 jump: rally ? jumpAt(rally.contacts, person, time) : 0,
                 team: match.people[person]?.team ?? 1,
                 label: String(playerNumber(person) ?? ''),
-                tip: person === hover ? tipOf(person) : undefined,
+                tip: person === hover ? (tip ?? undefined) : undefined,
               })),
               ball: rally ? ball3dAt(rally.contacts, time) : null,
               trail: rally ? trail3dAt(rally.contacts, time) : [],
@@ -154,7 +154,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
               <line key={k} x1={trail[k].x} y1={trail[k].y} x2={p.x} y2={p.y} className="ball-trail" strokeWidth={0.12 + (0.5 * (k + 1)) / trail.length} opacity={(0.65 * (k + 1)) / trail.length} />
             ))}
             {ball && <circle cx={ball.x} cy={ball.y} r={0.28} className="ball-mark" />}
-            {hovered && <CourtTip x={hovered.x} y={hovered.y} text={tipOf(hovered.person)} />}
+            {hovered && tip && <CourtTip x={hovered.x} y={hovered.y} text={tip} />}
           </Court>
           {players === 'loading' && (
             <p className="pointer-events-none absolute inset-x-0 top-0 bottom-6 m-0 grid place-items-center">
