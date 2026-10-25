@@ -7,8 +7,8 @@ export const BEFORE = 2;
 export const AFTER = 1.5;
 export const PAD = 1;
 
-/** A stretch of video to play. A touch's clip names its action and team only when its playlist
- * mixes them, and its player's number when known; a rally's clip has its length. */
+/** A stretch of video to play. A touch's clip names its action, team and player (name or number,
+ * when known) only when its playlist mixes them; a rally's clip has its length. */
 export interface Clip {
   start: number;
   end: number;
@@ -17,13 +17,15 @@ export interface Clip {
   type?: ActionType;
   team?: Group;
   player?: number;
+  name?: string;
   length?: number;
 }
 
 export function contactClips(contacts: Contact[], duration: number): Clip[] {
-  const mixed = (key: 'type' | 'g') => new Set(contacts.map((c) => c[key])).size > 1;
+  const mixed = (key: 'type' | 'g' | 'person') => new Set(contacts.map((c) => c[key])).size > 1;
   const showType = mixed('type');
   const showTeam = mixed('g');
+  const showPlayer = mixed('person');
   return contacts.map((c) => ({
     start: Math.max(0, c.t - BEFORE),
     end: Math.min(duration, c.t + AFTER),
@@ -31,7 +33,8 @@ export function contactClips(contacts: Contact[], duration: number): Clip[] {
     time: c.t,
     type: showType ? c.type : undefined,
     team: showTeam ? c.g : undefined,
-    player: c.player ?? undefined,
+    player: showPlayer ? (c.player ?? undefined) : undefined,
+    name: showPlayer ? (c.name ?? undefined) : undefined,
   }));
 }
 
@@ -64,7 +67,7 @@ export function clipLabel(clip: Clip, t: TFunction, f: Format, name: (g: Group) 
   return [
     clip.type && t(`types.${clip.type}`),
     clip.team && name(clip.team),
-    clip.player && t('player', { n: clip.player }),
+    clip.name ?? (clip.player && t('player', { n: clip.player })),
     t('rallyLower', { n: clip.rally + 1 }),
     clock(clip.time),
   ]

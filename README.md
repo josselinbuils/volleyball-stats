@@ -3,7 +3,8 @@
 Automatic per-player volleyball statistics from a match video.
 
 The only manual step is naming players: the pipeline groups every touch into identities, and you
-name each identity once. Jersey numbers map to names through a roster kept across matches.
+name each identity once. A roster kept across matches suggests the names of the players it has
+already seen.
 
 ## Recording
 
@@ -123,7 +124,7 @@ break, see the [teams benchmark](benchmarks/teams/README.md)) or a score, or pas
 over and the report gives the estimated score's drift from them.
 
 ```bash
-uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--squad N[,N]]
+uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--squad N[,N]] [--roster PATH]
 ```
 
 `review` opens, on this machine only, the players the identity step is least sure of, most at stake
@@ -133,7 +134,14 @@ on court together, 1: same person, 2: two people). Answers are saved at once to
 `identity_answers.json` and hold as hard constraints; "apply" (or "undo") reruns the identity step
 and rebuilds the match page in seconds, keeping the other numbers. The identity step also reruns
 alone: `uv run python -m volleyball_stats.identity outputs/VIDEO --video VIDEO [--squad N[,N]]`.
-Answers refer to pieces of player tracks: tracking the players again (`--force`) drops them.
+Its "Noms" tab names the players: pictures of each one, a name and an optional jersey number, which
+the page then shows instead of the match number. Names are saved at once to `player_names.json` and
+apply like answers: one name is one player, two names two, so naming two numbers alike joins them.
+Applying also updates the roster (`--roster`, `outputs/roster.json` by default, outside the
+repository since it names people): each named player's appearance over their last 5 matches, from
+which the next matches suggest names, to confirm with a click (on two clips of the same club, the
+right name came first for 7 of 12 players, among the 3 shown for 9). Answers and names refer to
+pieces of player tracks: tracking the players again (`--force`) drops them.
 
 ```bash
 uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video] [--theme NAME]
@@ -141,9 +149,11 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
 
 `web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default): every
 number and chart element plays its moments in the video, with a top view of the court following
-the play, each player keeping one number for the whole match, and the set and its score (estimated,
-or the final score you gave once the set is over) above the video. The match's title and date head
-the page.
+the play, each player keeping one number for the whole match (their jersey number and name once
+named), and the set and its score (estimated, or the final score you gave once the set is over)
+above the video. The match's title and date head the page. A "Joueurs" table gives each player's
+touches, serves (aces, faults), receptions (missed: reception faults and the aces that landed
+nearest to them), attacks (points, faults), blocks, digs, sets, points and faults.
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls
 back to the sides of the net. With several sets, one filter, which stays at the top of the screen, shows a single set: every
@@ -173,8 +183,8 @@ install`, `npm run dev` (reads `web/public/data.js`, copied from a built match),
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](benchmarks/actions/README.md)) |
 | 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the torso colour of the tracks, the side of the net each team holds rally by rally, and sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
 | 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run); jersey numbers (4K) as constraints later ([benchmark](benchmarks/identity/README.md)) |
-| 7. Naming | Show one thumbnail gallery per identity, store number → name | Simple local UI |
-| 8. Stats | Per-player counts and outcomes (kill, error, ace) | Ball landing spot + next action |
+| 7. Naming | Name each identity once, suggest names across matches | The review page's "Noms" tab; a roster of re-ID embeddings per named player |
+| 8. Stats | Per-player counts and outcomes (point, fault, ace, missed reception) | The page's "Joueurs" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands |
 
 ## Roadmap
 

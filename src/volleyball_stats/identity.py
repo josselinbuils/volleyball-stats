@@ -18,10 +18,11 @@ the constants.
 
 Reads players.csv, rallies.csv and actions.csv of a match run with --players and, when present,
 identity_answers.json (the user's answers, hard constraints overriding the model), the previous
-identities.csv and the embedding cache embeddings.npz. Writes identities.csv,
-identity_candidates.json and the cache, and refreshes actions.csv's identity column: a rerun without
-new tracks takes seconds. Jersey numbers, once read (4K footage), enter `identify` as `jerseys`:
-the same number is one player, two numbers are two.
+identities.csv, the embedding cache embeddings.npz and player_names.json (the names the user gave,
+constraints too: one name one player). Writes identities.csv, identity_candidates.json and the
+cache, and refreshes actions.csv's identity column: a rerun without new tracks takes seconds.
+Jersey numbers, once read (4K footage), enter `identify` as `jerseys`: the same number is one
+player, two numbers are two.
 """
 
 import argparse
@@ -69,6 +70,7 @@ LINK_GAP_S, RUN_SPEED, RUN_REACH = 3.0, 8.0, 2.0
 GAP_SCALE, CONTACT_S, QUESTIONS = 0.1, 10.0, 50
 # The first serve's positions are read within SERVE_S of the first rally's start.
 SERVE_S = 1.0
+NAMES = "player_names.json"
 
 Key = tuple[int, int]
 
@@ -430,6 +432,21 @@ def jersey_links(segments: list[Segment], jerseys: dict[Key, int]) -> tuple[list
         numbers = {jerseys[f, s.track] for f in s.frames if (f, s.track) in jerseys}
         if len(numbers) == 1:
             read.setdefault((s.team, numbers.pop()), []).append(k)
+    return links(read)
+
+
+def name_links(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> tuple[list[list[int]], list[list[list[int]]]]:
+    """`jersey_links` for the names the user gave, (ref, name): one name one player, whatever the
+    case, two names of a team two."""
+    read: dict[tuple[int, str], list[int]] = {}
+    for ref, name in names:
+        for k in resolve(ref, segments, before):
+            read.setdefault((segments[k].team, name.strip().casefold()), []).append(k)
+    return links(read)
+
+
+def links(read: dict[tuple[int, int | str], list[int]]) -> tuple[list[list[int]], list[list[list[int]]]]:
+    """"same" groups and "different" pairs of groups from the segments of each (team, label)."""
     same = [g for g in read.values() if len(g) > 1]
     different = [[a, b] for (ta, na), a in read.items() for (tb, nb), b in read.items() if ta == tb and na < nb]
     return same, different
@@ -554,6 +571,7 @@ def identify(
     squad: tuple[int, int] | None = None,
     contacts: Iterable[Key] = (),
     jerseys: dict[Key, int] | None = None,
+    names: list[tuple[dict, str]] | None = None,
 ) -> tuple[list[Segment], dict]:
     """The segments of the players' tracks with their team, identity number (0 for none) and doubt,
     and the doubts' questions (`doubts`). `answers` (identity_answers.json, segments referred to as
@@ -561,7 +579,8 @@ def identify(
     player, each "different" group's members are different players; `previous` holds a previous
     run's (team, number) by (frame, track); `squad` the number of players of each team, when known;
     `contacts` the (frame, track) of the attributed contacts, for the questions' ranking; `jerseys`
-    the jersey numbers read by (frame, track), as constraints (`jersey_links`)."""
+    the jersey numbers read by (frame, track), as constraints (`jersey_links`), and `names` the
+    names the user gave, (ref, name), likewise (`name_links`)."""
     answers = answers or {}
     cover = covers(rows)
     segments = split(rows, cover)
@@ -575,6 +594,9 @@ def identify(
     if jerseys:
         read_same, read_different = jersey_links(segments, jerseys)
         same, different = same + read_same, different + read_different
+    if names:
+        named_same, named_different = name_links(segments, names, before)
+        same, different = same + named_same, different + named_different
     for group_ in same:
         for k in group_:
             segments[k].team = segments[group_[0]].team
@@ -649,11 +671,33 @@ def lookup(table: list[tuple[int, int, int, int, int]], track: int | None, frame
     return (team, identity) if identity else None
 
 
+def read_names(match: Path) -> list[dict]:
+    """player_names.json's entries: a player's `ref` (a piece of track, as answers refer to it), the
+    `name` and `jersey` number the user gave them, either None."""
+    path = match / NAMES
+    return json.loads(path.read_text())["players"] if path.exists() else []
+
+
+def named(table: list[tuple[int, int, int, int, int]], names: list[dict]) -> dict[tuple[int, int], dict]:
+    """The name and jersey number of each (team, identity) of identities.csv's `table` that the user
+    named, the first entry winning."""
+    by_track: dict[int, list] = {}
+    for r in table:
+        by_track.setdefault(r[0], []).append(r)
+    out: dict[tuple[int, int], dict] = {}
+    for e in names:
+        found = lookup(by_track.get(e["ref"]["track"], []), e["ref"]["track"], e["ref"]["frame"])
+        if found and found not in out:
+            out[found] = {"name": e.get("name") or None, "jersey": e.get("jersey")}
+    return out
+
+
 def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]], left: list[int | None], fps: float, squad: tuple[int, int] | None = None, contacts: Iterable[Key] = ()) -> list[tuple[int, int, int, int, int]]:
     """`identify` with the match folder's answers, previous numbers and embedding cache; writes
     identities.csv and identity_candidates.json and returns identities.csv's rows."""
     answers_path, path = match / "identity_answers.json", match / "identities.csv"
     answers = json.loads(answers_path.read_text()) if answers_path.exists() else None
+    names = [(e["ref"], e["name"]) for e in read_names(match) if e.get("name")]
     previous = None
     if path.exists():
         frames: dict[int, list[int]] = {}
@@ -663,7 +707,7 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
         for track, start, end, team, number_ in read_identities(path):
             if number_:
                 previous.update(((f, track), (team, number_)) for f in frames.get(track, []) if start <= f <= end)
-    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts)
+    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, names=names)
     write_identities(path, segments)
     (match / "identity_candidates.json").write_text(json.dumps(found, indent=1) + "\n")
     return read_identities(path)

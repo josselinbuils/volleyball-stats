@@ -1,6 +1,10 @@
 import json
+from types import SimpleNamespace
 
-from volleyball_stats.review import constraints, range_of, save
+import numpy as np
+
+from volleyball_stats.identity import read_names
+from volleyball_stats.review import constraints, load_roster, range_of, remember, save, set_name, suggest
 
 
 class TestConstraints:
@@ -45,3 +49,41 @@ class TestRange:
     def test_has_no_range_without_a_header_or_past_the_end(self):
         assert range_of(None, 1000) is None
         assert range_of("bytes=2000-", 1000) is None
+
+
+class TestNames:
+    def test_names_an_identity_in_place_of_its_entries_and_unnames_it(self, tmp_path):
+        questions = SimpleNamespace(table=[(1, 0, 10, 1, 3), (2, 0, 10, 1, 4)], ref=lambda team, number: {"track": 1 if number == 3 else 2, "frame": 5})
+
+        set_name(tmp_path, questions, 1, 3, " Julie ", 7)
+        set_name(tmp_path, questions, 1, 4, "Léa", None)
+        set_name(tmp_path, questions, 1, 3, "Julia", None)
+
+        assert read_names(tmp_path) == [{"ref": {"track": 2, "frame": 5}, "name": "Léa", "jersey": None}, {"ref": {"track": 1, "frame": 5}, "name": "Julia", "jersey": None}]
+        set_name(tmp_path, questions, 1, 4, "", None)
+        assert [e["name"] for e in read_names(tmp_path)] == ["Julia"]
+
+
+class TestRoster:
+    a, b = np.array([1.0, 0.0]), np.array([0.0, 1.0])
+
+    def test_remembers_the_named_players_and_suggests_those_who_look_most_alike(self, tmp_path):
+        path = tmp_path / "roster.json"
+        names = {(1, 1): {"name": "Julie", "jersey": 7}, (1, 2): {"name": "Léa", "jersey": None}, (2, 1): {"name": None, "jersey": 4}}
+
+        remember(path, "m1", names, {(1, 1): self.a, (1, 2): self.b, (2, 1): self.a}, ["ASPOM", None])
+
+        roster = load_roster(path)
+        assert [(p["name"], p["team"], p["jersey"]) for p in roster] == [("Julie", "ASPOM", 7), ("Léa", "ASPOM", None)]
+        assert [s["name"] for s in suggest(np.array([0.1, 0.9]), roster, "ASPOM")] == ["Léa", "Julie"]
+        assert suggest(self.a, roster, "Other club") == []
+
+    def test_a_match_applied_again_replaces_what_it_taught(self, tmp_path):
+        path = tmp_path / "roster.json"
+        remember(path, "m1", {(1, 1): {"name": "Julie", "jersey": 7}}, {(1, 1): self.a}, ["ASPOM", None])
+        remember(path, "m2", {(1, 1): {"name": "Julie", "jersey": None}}, {(1, 1): self.b}, ["ASPOM", None])
+
+        remember(path, "m1", {(1, 1): {"name": "Léa", "jersey": 3}}, {(1, 1): self.a}, ["ASPOM", None])
+
+        assert [(p["name"], p["jersey"], list(p["vectors"])) for p in load_roster(path)] == [("Julie", 7, ["m2"]), ("Léa", 3, ["m1"])]
+

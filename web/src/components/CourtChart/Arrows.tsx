@@ -48,16 +48,17 @@ export function Arrows({ arrows, describe, onPlay }: { arrows: Arrow[]; describe
   );
 }
 
-/** A player's dot in their team's colour, with their number when known. */
+/** A player's dot in their team's colour, with their number when known and their name on hover. */
 function Dot({ c }: { c: Placed }) {
   return (
-    <>
+    <g>
+      {c.name && <title>{c.name}</title>}
       <circle cx={c.x} cy={c.y} className="dot-mark" fill={teamColor(c.g)} stroke={teamEdge(c.g)} />
       {c.player !== null && (
         <text x={c.x} y={c.y} className="dot-text" fill={`var(--team${c.g}-text)`}>
           {c.player}
         </text>
       )}
-    </>
+    </g>
   );
 }

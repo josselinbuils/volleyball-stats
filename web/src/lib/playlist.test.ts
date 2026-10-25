@@ -5,7 +5,8 @@ import type { Format } from '@/lib/format';
 import { clipLabel, contactClips, rallyAt, rallyClips, rallyNear } from '@/lib/playlist';
 
 describe('contactClips', () => {
-  const touch = (t: number, type: string, g: number, rally = 0, player: number | null = null) => ({ t, type, g, rally, player }) as Contact;
+  // The player's key is their number here.
+  const touch = (t: number, type: string, g: number, rally = 0, player: number | null = null) => ({ t, type, g, rally, player, person: player, name: null }) as Contact;
 
   it('plays from 2 s before each touch to 1.5 s after, within the video', () => {
     const clips = contactClips([touch(1, 'serve', 1), touch(50, 'serve', 1, 3), touch(59, 'serve', 1, 4)], 60);
@@ -16,10 +17,16 @@ describe('contactClips', () => {
     ]);
   });
 
-  it('names the action and the team only when the playlist mixes them, and the player when known', () => {
+  it('names the action, the team and the player only when the playlist mixes them', () => {
     expect(contactClips([touch(5, 'serve', 1), touch(9, 'serve', 1)], 60)[0]).toMatchObject({ type: undefined, team: undefined, player: undefined });
     expect(contactClips([touch(5, 'serve', 1), touch(9, 'attack', 1)], 60)[1]).toMatchObject({ type: 'attack', team: undefined });
     expect(contactClips([touch(5, 'serve', 1), touch(9, 'serve', 2, 0, 3)], 60)[1]).toMatchObject({ type: undefined, team: 2, player: 3 });
+  });
+
+  it('names the player when the user named them', () => {
+    const t = ((key: string, o?: { n: number }) => `${key}${o ? ` ${o.n}` : ''}`) as TFunction;
+    const clip = contactClips([touch(1, 'serve', 1, 0, 3), { ...touch(5, 'serve', 1, 0, 4), name: 'Julie' }], 60)[1];
+    expect(clipLabel(clip, t, {} as Format, (g) => `Team ${g}`)).toBe('Julie · rallyLower 1 · 0:05');
   });
 
   it('labels a touch with its action, team, player, rally and time', () => {

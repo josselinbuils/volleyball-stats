@@ -108,6 +108,20 @@ class TestContacts:
         assert [c["person"] for c in out] == [None, None, None, None]
         assert [c["team"] for c in out] == [None, None, None, None]
 
+    def test_an_ace_names_the_receiver_nearest_to_where_it_lands(self):
+        typed = [
+            {"frame": "10", "x": "-8", "y": "0", "type": "serve", "side": "left", "track": "1"},
+            {"frame": "30", "x": "5", "y": "2", "type": "floor", "side": "right"},
+        ]
+        feet = lambda track, x, y: {"x1": "0", "y1": "0", "x2": "1", "y2": "1", "court_x": str(x), "court_y": str(y), "track": str(track)}
+        players = {10: [feet(1, -8.0, 0.0)], 30: [feet(1, -2.0, 2.0), feet(5, 7.0, -3.0), feet(6, 4.0, 3.0)]}
+
+        out = contacts(typed, [(5, 40)], players, 10.0, IDENTITY, 15)
+
+        assert out[0]["result"] == "point"
+        assert out[0]["receiver"] == 6
+        assert "receiver" not in out[1]
+
     def test_places_an_attributed_contact_at_its_players_feet_else_under_the_ball(self):
         typed = [
             {"frame": "10", "x": "0", "y": "0", "type": "attack", "side": "left", "track": "7"},
@@ -144,7 +158,17 @@ class TestPeople:
         who, table = people({1: 1, 2: 1, 5: 2}, identities)
 
         assert [who(1, 10), who(1, 60), who(2, 150), who(5, 10), who(None, 10)] == [0, 1, 1, 2, None]
-        assert table == {0: {"team": 1, "number": 3, "jersey": None}, 1: {"team": 1, "number": 4, "jersey": None}, 2: {"team": 2, "number": None, "jersey": None}}
+        assert table == {
+            0: {"team": 1, "number": 3, "jersey": None, "name": None},
+            1: {"team": 1, "number": 4, "jersey": None, "name": None},
+            2: {"team": 2, "number": None, "jersey": None, "name": None},
+        }
+
+    def test_an_identity_takes_the_name_and_jersey_number_the_user_gave_it(self):
+        who, table = people({1: 1}, [(1, 0, 49, 1, 3)], {(1, 3): {"name": "Julie", "jersey": 7}})
+
+        assert who(1, 10) == 0
+        assert table == {0: {"team": 1, "number": 3, "jersey": 7, "name": "Julie"}}
 
 
 class TestBrand:

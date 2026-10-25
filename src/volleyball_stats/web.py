@@ -26,7 +26,7 @@ import numpy as np
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, box_at
 from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
-from volleyball_stats.identity import lookup, read_identities
+from volleyball_stats.identity import lookup, named, read_identities, read_names
 from volleyball_stats.teams import recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
@@ -88,9 +88,9 @@ Who = Callable[[int | None, int], int | None]
 
 def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[int, list[dict]], fps: float, calibration: Calibration, reach: float, who: Who = lambda track, _: track) -> list[dict]:
     """The page's contacts from the actions CSV rows: time, type, side, team (None without teams),
-    rally index, court position, zone, result and the attributed track's player (`who`). A contact
-    with a track is placed at that player's feet, else by `spot`. `players` holds the player CSV
-    rows by frame."""
+    rally index, court position, zone, result and the attributed track's player (`who`); an ace
+    also has the player who missed it (`receiver`). A contact with a track is placed at that
+    player's feet, else by `spot`. `players` holds the player CSV rows by frame."""
     lead, gap = round(LEAD_S * fps), round(GAP_S * fps)
     out: list[dict] = []
     for row in typed:
@@ -117,9 +117,26 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
             "zone": None if xy is None else zone(*xy),
             "person": who(track, frame),
         })
-    for contact, after in zip(out, out[1:] + [None]):
+    for k, (contact, after) in enumerate(zip(out, out[1:] + [None])):
         contact["result"] = result(contact, after if after and after["rally"] == contact["rally"] else None)
+        if contact["type"] == "serve" and contact["result"] == "point":
+            frame = int(typed[k + 1]["frame"])
+            contact["receiver"] = receiver(after, players.get(frame, []), lambda track: who(track, frame))
     return out
+
+
+def receiver(landing: dict, here: list[dict], who: Callable[[int], int | None]) -> int | None:
+    """The player who missed an ace: on the side it lands on, the nearest to where it lands.
+
+    ponytail: the nearest player, not the one whose zone it was; None without a landing position.
+    """
+    if landing["x"] is None:
+        return None
+    mine = [p for p in here if (float(p["court_x"]) < 0) == (landing["x"] < 0)]
+    if not mine:
+        return None
+    nearest = min(mine, key=lambda p: np.hypot(float(p["court_x"]) - landing["x"], float(p["court_y"]) - landing["y"]))
+    return who(int(nearest["track"]))
 
 
 def player_samples(rows: Iterable[dict], step: int, frame_count: int, who: Who = lambda track, _: track) -> list[list[float]]:
@@ -133,10 +150,12 @@ def player_samples(rows: Iterable[dict], step: int, frame_count: int, who: Who =
     return samples
 
 
-def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int, int]]) -> tuple[Who, dict[int, dict]]:
+def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int, int]], names: dict[tuple[int, int], dict] | None = None) -> tuple[Who, dict[int, dict]]:
     """The page's players, keyed 0, 1, ... as they are first asked for: one per identity
-    (identities.csv's rows) with its team and number, one per track without identity, with its
-    team and no number; and `who`, the key of the player a track shows at a frame."""
+    (identities.csv's rows) with its team, number and the name and jersey number the user gave it
+    (`names`, by (team, identity)), one per track without identity, with its team and no number;
+    and `who`, the key of the player a track shows at a frame."""
+    names = names or {}
     by_track: dict[int, list] = {}
     for r in identities:
         by_track.setdefault(r[0], []).append(r)
@@ -150,7 +169,8 @@ def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int
         name = ("identity", *found) if found else ("track", track)
         if name not in keys:
             keys[name] = len(keys)
-            table[keys[name]] = {"team": found[0] if found else track_team.get(track, 1), "number": found[1] if found else None, "jersey": None}
+            given = names.get(found, {}) if found else {}
+            table[keys[name]] = {"team": found[0] if found else track_team.get(track, 1), "number": found[1] if found else None, "jersey": given.get("jersey"), "name": given.get("name")}
         return keys[name]
 
     return who, table
@@ -210,7 +230,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     with_teams = bool(teams) and (match / "tracks.csv").exists()
     track_team = {int(r["track"]): int(r["team"]) for r in read_csv(match / "tracks.csv")} if with_teams else {}
     teams = teams if with_teams else None
-    who, table = people(track_team, read_identities(match / "identities.csv") if teams and (match / "identities.csv").exists() else [])
+    identities = read_identities(match / "identities.csv") if teams and (match / "identities.csv").exists() else []
+    who, table = people(track_team, identities, named(identities, read_names(match)))
     by_frame: dict[int, list[dict]] = {}
 
     def rows() -> Iterator[dict]:

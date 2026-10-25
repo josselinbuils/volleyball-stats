@@ -28,12 +28,34 @@ export interface Question {
   choices: Choice[];
 }
 
+/** A player to name: an identity with pictures of their clearest moments, their time on court, their
+ * touches, the name and jersey number given, and the roster's players who look most like them. */
+export interface Named {
+  team: Group;
+  identity: number;
+  seconds: number;
+  contacts: number;
+  crops: string[];
+  name: string | null;
+  jersey: number | null;
+  suggestions: Suggestion[];
+}
+
+/** A player of the roster: the players named in earlier matches. */
+export interface Suggestion {
+  name: string;
+  jersey: number | null;
+}
+
 /** review.js, served by volleyball_stats.review. */
 interface ReviewData {
   width: number;
   height: number;
   answered: number;
   questions: Question[];
+  players: Named[];
+  /** The roster's players of each team, for typing a name. */
+  roster: [Suggestion[], Suggestion[]];
 }
 
 declare global {
@@ -44,8 +66,8 @@ declare global {
 
 export const review = window.REVIEW ?? null;
 
-/** Sends an answer, an undo or the apply request to the review server. */
-export async function post(path: 'answer' | 'undo' | 'apply', body: object = {}): Promise<void> {
+/** Sends an answer, a name, an undo or the apply request to the review server. */
+export async function post(path: 'answer' | 'name' | 'undo' | 'apply', body: object = {}): Promise<void> {
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) {
     throw new Error(`${path}: ${response.status}`);

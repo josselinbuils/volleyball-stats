@@ -29,7 +29,9 @@ the model:
 ```
 
 A reference is a whole track, the piece of a track holding a frame, or an identity of the previous
-run. `--squad` (team 1 first) caps the identities per team.
+run. `--squad` (team 1 first) caps the identities per team. The names given on the review page
+(`player_names.json`, a reference per name) are constraints too: one name one player, two names
+two.
 
 ## Run
 

@@ -9,6 +9,8 @@ from volleyball_stats.identity import (
     group,
     jersey_links,
     lookup,
+    name_links,
+    named,
     number,
     resolve,
     split,
@@ -130,6 +132,24 @@ class TestAnswers:
         jerseys = {(5, 1): 12, (25, 1): 12, (5, 2): 7}
 
         assert jersey_links(self.segments, jerseys) == ([[0, 1]], [[[2], [0, 1]]])
+
+
+    def test_names_join_the_same_name_whatever_the_case_and_part_two_names(self):
+        names = [({"track": 1, "frame": 5}, "Julie"), ({"track": 1, "frame": 25}, "julie "), ({"track": 2, "frame": 5}, "Léa")]
+
+        assert name_links(self.segments, names, [None] * 3) == ([[0, 1]], [[[0, 1], [2]]])
+
+
+class TestNamed:
+    def test_names_the_identity_holding_each_entrys_piece_the_first_entry_winning(self):
+        table = [(1, 0, 10, 1, 3), (1, 11, 30, 1, 5), (2, 0, 30, 2, 1)]
+        names = [
+            {"ref": {"track": 1, "frame": 20}, "name": "Julie", "jersey": 7},
+            {"ref": {"track": 1, "frame": 25}, "name": "Léa", "jersey": None},
+            {"ref": {"track": 2, "frame": 5}, "name": None, "jersey": 4},
+        ]
+
+        assert named(table, names) == {(1, 5): {"name": "Julie", "jersey": 7}, (2, 1): {"name": None, "jersey": 4}}
 
 
 class TestLookup:

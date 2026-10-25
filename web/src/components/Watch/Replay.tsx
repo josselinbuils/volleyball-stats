@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
-import { GROUPS, groupName, hasTeams, match, playerNumber, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerNumber, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
 import { useVideoTime } from '@/lib/player';
 import { usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
@@ -20,7 +20,7 @@ export function Replay() {
 
   let now = rally ? t('rally', { n: rally.i + 1 }) : t('betweenRallies');
   if (last) {
-    const who = [groupName(t, last.g), last.player !== null && t('player', { n: last.player })].filter(Boolean).join(', ');
+    const who = [groupName(t, last.g), playerLabel(t, last.person)].filter(Boolean).join(', ');
     now += ` · ${t('lastTouch', { type: t(`types.${last.type}`).toLowerCase(), who })}`;
   }
   const ends: [string, string] | undefined = hasTeams && sides ? [groupName(t, sides.left), groupName(t, (3 - sides.left) as Group)] : undefined;
@@ -37,8 +37,10 @@ export function Replay() {
           {dots.map(({ person, x, y }) => {
             const team = match.people[person]?.team ?? 1;
             const n = playerNumber(person);
+            const name = match.people[person]?.name;
             return (
               <g key={person}>
+                {name && <title>{name}</title>}
                 <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} stroke={teamEdge(team)} />
                 {n !== null && (
                   <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>
@@ -71,7 +73,7 @@ export function Replay() {
         </Legend>
         <p className="text-[13px] text-muted-foreground">
           {players === 'none' && `${t('noPlayers')} `}
-          {players !== 'none' && `${t('numbersNote')} `}
+          {players !== 'none' && `${t(hasNames ? 'numbersNoteNamed' : 'numbersNote')} `}
           {t('replayNote')}
         </p>
       </figcaption>

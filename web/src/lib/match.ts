@@ -9,8 +9,7 @@ export type Side = 'left' | 'right';
 export type Group = (typeof GROUPS)[number];
 export type Result = 'point' | 'error' | 'play';
 
-/** One touch of the ball, `i` its index in `contacts`, `track` the player track that played it and
- * `player` that player's number, `g` its team (its side without teams). */
+/** One touch of the ball, `i` its index in `contacts`, `g` its team (its side without teams). */
 export interface Contact {
   i: number;
   t: number;
@@ -28,6 +27,10 @@ export interface Contact {
   person: number | null;
   /** The number that player shows. */
   player: number | null;
+  /** That player's name, when the user gave one. */
+  name: string | null;
+  /** For an ace, key of the receiver who missed it: the nearest to where it landed. */
+  receiver?: number | null;
 }
 
 /** A rally, `left` the team on the left of the net, `flipped` when the teams play on the other ends
@@ -46,11 +49,12 @@ export interface Rally {
 }
 
 /** A player on the page: an identity for the whole match with its `number` in its team, or a player
- * track without one (`number` null). */
+ * track without one (`number` null); `name` and `jersey` as the user gave them. */
 export interface Person {
   team: Group;
   number: number | null;
   jersey: number | null;
+  name?: string | null;
 }
 
 export interface ZoneCell {
@@ -88,7 +92,7 @@ interface Data {
   duration: number;
   teams: [Team, Team] | null;
   rallies: { start: number; end: number; set: number; left: Group | null; winner?: Group | null; score?: [number, number] | null }[];
-  contacts: Omit<Contact, 'i' | 'g' | 'player'>[];
+  contacts: Omit<Contact, 'i' | 'g' | 'player' | 'name'>[];
   zones: ZoneCell[];
   people: Record<string, Person>;
   /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
@@ -138,6 +142,7 @@ export const contacts: Contact[] = data.contacts.map((c, i) => ({
   i,
   g: (hasTeams && c.team) || (c.side === 'left' ? 1 : 2),
   player: playerNumber(c.person),
+  name: c.person === null ? null : (data.people[c.person]?.name ?? null),
 }));
 for (const c of contacts) {
   rallies[c.rally].contacts.push(c);
@@ -165,6 +170,16 @@ export function playerNumber(person: number | null): number | null {
     return null;
   }
   return match.people[person]?.jersey ?? match.people[person]?.number ?? null;
+}
+
+/** Whether the user named any player. */
+export const hasNames = Object.values(data.people).some((p) => p.name);
+
+/** A player in text: their name, else their number ("no. 4"); null when neither is known. */
+export function playerLabel(t: TFunction, person: number | null): string | null {
+  const name = person === null ? null : match.people[person]?.name;
+  const n = playerNumber(person);
+  return name || (n === null ? null : t('player', { n }));
 }
 
 export const color = (key: string) => `var(--${key})`;

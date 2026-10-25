@@ -1,16 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { CountButton } from '@/components/CountButton';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
-import { useFormat } from '@/lib/format';
-import { color, GROUPS, groupName, hasTeams, match, teamColor, teamRing, TYPES, type Contact } from '@/lib/match';
-import { usePlayer } from '@/lib/player';
-import { contactClips } from '@/lib/playlist';
+import { color, GROUPS, groupName, hasTeams, teamColor, teamRing, TYPES, type Contact } from '@/lib/match';
 import { useSet } from '@/lib/sets';
 
 // The first and last cells of each row keep the content off the row's edges.
@@ -86,39 +82,9 @@ function Counts({ id, label, of }: { id: string; label: (t: TFunction) => string
 }
 
 function Count({ id, title, picked, last = false }: { id: string; title: (t: TFunction) => string; picked: Contact[]; last?: boolean }) {
-  const { t } = useTranslation();
-  const f = useFormat();
-  const { playlist, play } = usePlayer();
-
-  if (!picked.length) {
-    return (
-      <TableCell className={cn('text-right max-sm:pl-1', last ? LAST : 'pr-0')}>
-        <span className="inline-block min-w-12 text-center text-muted-foreground max-sm:min-w-10" aria-label="0">
-          –
-        </span>
-      </TableCell>
-    );
-  }
-  const on = playlist?.key === id;
   return (
-    <TableCell className={cn('py-1.5 text-right max-sm:pl-1', last ? LAST : 'pr-0')}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            aria-pressed={on}
-            aria-label={`${f.num(picked.length)} · ${title(t)} · ${t('watchN', { count: picked.length })}`}
-            className={cn(
-              'min-w-12 text-base font-semibold max-sm:min-w-10',
-              on ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground' : 'bg-primary/10 text-link hover:bg-primary hover:text-primary-foreground',
-            )}
-            onClick={() => play(title, contactClips(picked, match.duration), 0, id)}
-          >
-            {f.num(picked.length)}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t('watchN', { count: picked.length })}</TooltipContent>
-      </Tooltip>
+    <TableCell className={cn('text-right max-sm:pl-1', picked.length && 'py-1.5', last ? LAST : 'pr-0')}>
+      <CountButton id={id} title={title} picked={picked} />
     </TableCell>
   );
 }

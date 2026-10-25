@@ -1,22 +1,43 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, HelpCircle, Undo2, UserX, Users } from 'lucide-react';
+import { Check, HelpCircle, PenLine, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { BrandBar } from '@/components/BrandBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing } from '@/lib/match';
-import { post, type Question } from '@/lib/review';
+import { post, type Named, type Question, type Suggestion } from '@/lib/review';
 import { ClipVideo } from '@/components/Review/ClipVideo';
+import { Names } from '@/components/Review/Names';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
 const KEYS: Record<string, string> = { '1': '0', '2': '1', '3': 'other', x: 'not_player', s: 'skip' };
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
 
-/** The review: the identity step's doubts one at a time, answered on the video. */
-export function Review({ width, height, answered: before, questions: initial }: { width: number; height: number; answered: number; questions: Question[] }) {
+type Tab = 'questions' | 'names';
+// The tab survives the reload that applies the answers.
+const NAMES_HASH = '#noms';
+
+/** The review: the identity step's doubts one at a time, answered on the video, then the players'
+ * names. */
+export function Review({
+  width,
+  height,
+  answered: before,
+  questions: initial,
+  players,
+  roster,
+}: {
+  width: number;
+  height: number;
+  answered: number;
+  questions: Question[];
+  players: Named[];
+  roster: [Suggestion[], Suggestion[]];
+}) {
   const { t } = useTranslation();
   const f = useFormat();
   const [questions, setQuestions] = useState(initial);
@@ -24,7 +45,13 @@ export function Review({ width, height, answered: before, questions: initial }: 
   const [busy, setBusy] = useState<'apply' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
+  const [tab, setTab] = useState<Tab>(location.hash === NAMES_HASH ? 'names' : 'questions');
+  const [named, setNamed] = useState(() => players.filter((p) => p.name || p.jersey !== null).length);
   const question = questions[0];
+  const show = (next: Tab) => {
+    setTab(next);
+    history.replaceState(null, '', next === 'names' ? NAMES_HASH : location.pathname);
+  };
 
   const answer = useCallback(
     async (choice: string) => {
@@ -57,7 +84,8 @@ export function Review({ width, height, answered: before, questions: initial }: 
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey || !question || busy) {
+      const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
+      if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || tab !== 'questions' || typing) {
         return;
       }
       const choice = (question.kind === 'merge' ? MERGE_KEYS : KEYS)[event.key.toLowerCase()];
@@ -68,7 +96,7 @@ export function Review({ width, height, answered: before, questions: initial }: 
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [question, answer, busy]);
+  }, [question, answer, busy, tab]);
 
   const title = matchTitle(t) ?? match.name;
   useEffect(() => {
@@ -95,19 +123,43 @@ export function Review({ width, height, answered: before, questions: initial }: 
               <Undo2 aria-hidden />
               {t('review.undo')}
             </Button>
-            <Button disabled={!answered || busy !== null} onClick={() => void reload('apply')}>
+            <Button disabled={(!answered && !named) || busy !== null} onClick={() => void reload('apply')}>
               <Check aria-hidden />
-              {busy === 'apply' ? t('review.applying') : answered ? t('review.apply', { count: answered }) : t('review.applyNone')}
+              {busy === 'apply' ? t('review.applying') : named ? t(answered ? 'review.applyBoth' : 'review.applyNames') : answered ? t('review.apply', { count: answered }) : t('review.applyNone')}
             </Button>
           </div>
         </header>
-        <p className="px-1 text-muted-foreground">{t('review.intro')}</p>
+        {players.length > 0 && (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={tab}
+            onValueChange={(v) => {
+              if (v) {
+                show(v as Tab);
+              }
+            }}
+            aria-label={t('review.tabs')}
+            className="w-full items-stretch bg-card sm:w-auto sm:justify-self-start"
+          >
+            <ToggleGroupItem value="questions" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
+              {t('review.tabQuestions', { count: questions.length })}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="names" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
+              {t('review.tabNames', { n: named, total: players.length })}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
+        <p className="px-1 text-muted-foreground">{t(tab === 'names' ? 'review.namesIntro' : 'review.intro')}</p>
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}
           </p>
         )}
-        {question ? (
+        {tab === 'names' ? (
+          <Names players={players} roster={roster} onNamed={setNamed} onError={() => setError(true)} />
+        ) : question ? (
           <Card>
             <CardHeader>
               <CardTitle>
@@ -179,6 +231,12 @@ export function Review({ width, height, answered: before, questions: initial }: 
             <CardContent className="py-10 text-center">
               <p className="text-lg font-semibold">{t('review.done')}</p>
               <p className="mt-1 text-muted-foreground">{t(answered ? 'review.doneApply' : 'review.doneNothing')}</p>
+              {players.length > 0 && (
+                <Button className="mt-4" onClick={() => show('names')}>
+                  <PenLine aria-hidden />
+                  {t('review.goNames')}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

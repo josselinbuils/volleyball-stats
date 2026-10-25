@@ -1,18 +1,25 @@
 """Review, on the video, the player identities the identity step is least sure of.
 
-    uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court COURT_JSON [--squad N[,N]] [--theme NAME] [--port PORT]
+    uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court COURT_JSON [--squad N[,N]] [--theme NAME] [--roster PATH] [--port PORT]
 
 Builds the match page like web.py, then serves it on this machine only, with a review mode at
 /review: one question at a time from identity_candidates.json, the player outlined on the video
 beside pictures of the identities they could be. Each answer is saved at once to
 identity_answers.json as hard constraints (identity.py); "apply" and "undo" rerun the identity step
-and rebuild the page, in seconds. Answers refer to pieces of player tracks, so they hold until the
-players are tracked again.
+and rebuild the page, in seconds. The review also names the players: each identity's name and
+jersey number go to player_names.json, applied likewise. Answers and names refer to pieces of
+player tracks, so they hold until the players are tracked again.
+
+The roster (--roster, outputs/roster.json by default, kept out of the repository: it names people)
+remembers the named players across matches with their re-identification embedding of their last
+ROSTER_MATCHES matches, and suggests the names of those who look most like each new identity.
 """
 
 import argparse
+import csv
 import json
 import threading
+from collections import Counter
 import webbrowser
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -29,6 +36,9 @@ from volleyball_stats import identity, web
 BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 4, 12
 CROP_PX, CROP_MARGIN = 192, 0.15
 KINDS = ("same", "different", "not_player")
+ROSTER = Path("outputs/roster.json")
+# Matches of a player the roster keeps (the latest), and names suggested per identity.
+ROSTER_MATCHES, SUGGESTIONS = 5, 3
 
 Ref = dict
 
@@ -54,6 +64,7 @@ class Questions:
     def load(self) -> None:
         self.table = identity.read_identities(self.match / "identities.csv")
         self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
+        self.vectors = prototypes(self.match / "embeddings.npz", self.table)
 
     def track_rows(self, track: int, start: int, end: int) -> np.ndarray:
         """Indices of a track's boxes from `start` to `end`, by frame."""
@@ -106,6 +117,27 @@ class Questions:
             "end": round(end / self.fps, 2),
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
+
+    def players(self, roster: list[dict], teams: list[str | None]) -> list[dict]:
+        """Every identity, longest on court first, with pictures, seconds of play, touches, the name
+        and jersey number given and the roster's players of its team (`teams`' names) who look most
+        like it."""
+        names = identity.named(self.table, identity.read_names(self.match))
+        with open(self.match / "actions.csv") as f:
+            touches = Counter((int(r["team"]), int(r["identity"])) for r in csv.DictReader(f) if r.get("identity"))
+        seconds: dict[tuple[int, int], float] = {}
+        for _, start, end, team, number in self.table:
+            if number:
+                seconds[team, number] = seconds.get((team, number), 0.0) + (end - start + 1) / self.fps
+        out = []
+        for (team, number), played in sorted(seconds.items(), key=lambda kv: -kv[1]):
+            given = names.get((team, number), {})
+            out.append({
+                "team": team, "identity": number, "seconds": round(played, 1), "contacts": touches[team, number],
+                "crops": self.faces(team, number), "name": given.get("name"), "jersey": given.get("jersey"),
+                "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1]),
+            })
+        return out
 
     def build(self, asked: set[str]) -> tuple[list[dict], dict[str, dict]]:
         """The questions not asked yet, most at stake first, and what each answer means (the refs)."""
@@ -166,6 +198,76 @@ def save(path: Path, log: list[dict]) -> None:
     path.write_text(json.dumps({**data, "log": log}, indent=1) + "\n")
 
 
+def prototypes(cache: Path, table: list[tuple[int, int, int, int, int]]) -> dict[tuple[int, int], np.ndarray]:
+    """Each identity's unit re-identification embedding, its pieces' (the embedding cache) averaged by
+    length; not whitened, the roster compares them across matches."""
+    if not cache.exists():
+        return {}
+    data = np.load(cache)
+    vectors = {tuple(round(v) for v in k[:3]): x for k, x in zip(data["keys"].tolist(), data["vectors"].astype(float))}
+    sums: dict[tuple[int, int], np.ndarray] = {}
+    for track, start, end, team, number in table:
+        v = vectors.get((track, start, end))
+        if number and v is not None:
+            sums[team, number] = sums.get((team, number), 0.0) + (end - start + 1) * v / max(float(np.linalg.norm(v)), 1e-9)
+    return {k: v / max(float(np.linalg.norm(v)), 1e-9) for k, v in sums.items()}
+
+
+def load_roster(path: Path) -> list[dict]:
+    return json.loads(path.read_text())["players"] if path.exists() else []
+
+
+def suggest(vector: np.ndarray | None, roster: list[dict], team: str | None) -> list[dict]:
+    """The names and jersey numbers of the roster's players of `team` (every player for an unnamed
+    team) who look most like `vector`, best first."""
+    if vector is None:
+        return []
+    scored = []
+    for player in roster:
+        if team and player.get("team") and player["team"] != team:
+            continue
+        mean = np.mean(list(player["vectors"].values()), axis=0)
+        scored.append((float(mean @ vector) / max(float(np.linalg.norm(mean)), 1e-9), player))
+    return [{"name": p["name"], "jersey": p.get("jersey")} for _, p in sorted(scored, key=lambda sp: -sp[0])[:SUGGESTIONS]]
+
+
+def remember(path: Path, match: str, names: dict[tuple[int, int], dict], vectors: dict[tuple[int, int], np.ndarray], teams: list[str | None]) -> None:
+    """The roster with this match's named players (`names` by (team, identity)) in place of the
+    ones it held for it: their name, latest jersey number and embedding."""
+    roster = load_roster(path)
+    for player in roster:
+        player["vectors"].pop(match, None)
+    by_key = {(p.get("team"), p["name"].casefold()): p for p in roster}
+    for (team, number), given in names.items():
+        if not given.get("name") or (team, number) not in vectors:
+            continue
+        name = given["name"].strip()
+        player = by_key.get((teams[team - 1], name.casefold()))
+        if player is None:
+            player = by_key[teams[team - 1], name.casefold()] = {"name": name, "team": teams[team - 1], "jersey": None, "vectors": {}}
+            roster.append(player)
+        player["name"] = name
+        player["jersey"] = given["jersey"] if given.get("jersey") is not None else player["jersey"]
+        player["vectors"][match] = [round(float(x), 4) for x in vectors[team, number]]
+        while len(player["vectors"]) > ROSTER_MATCHES:
+            player["vectors"].pop(next(iter(player["vectors"])))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"players": [p for p in roster if p["vectors"]]}, ensure_ascii=False) + "\n")
+
+
+def set_name(match: Path, questions: Questions, team: int, number: int, given: str | None, jersey: int | None) -> None:
+    """player_names.json with identity `number` of `team` named `given` and its `jersey` number,
+    in place of the entries naming it; both None unnames it. A new entry refers to the identity's
+    longest piece."""
+    entries = identity.read_names(match)
+    mine = [e for e in entries if identity.lookup(questions.table, e["ref"]["track"], e["ref"]["frame"]) == (team, number)]
+    entries = [e for e in entries if e not in mine]
+    given = (given or "").strip() or None
+    if given or jersey is not None:
+        entries.append({"ref": mine[0]["ref"] if mine else questions.ref(team, number), "name": given, "jersey": jersey})
+    (match / identity.NAMES).write_text(json.dumps({"players": entries}, indent=1, ensure_ascii=False) + "\n")
+
+
 def load_log(path: Path) -> list[dict]:
     return json.loads(path.read_text()).get("log", []) if path.exists() else []
 
@@ -179,7 +281,7 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
     return (max(0, first), min(last, size - 1)) if first < size else None
 
 
-def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True) -> None:
+def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
     site = match / "site"
     web.build(match, video, court, site, theme=theme)
     cap = cv2.VideoCapture(str(video))
@@ -205,10 +307,18 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         part = cv2.resize(part, (max(1, round(part.shape[1] * CROP_PX / part.shape[0])), CROP_PX), interpolation=cv2.INTER_CUBIC)
         return cv2.imencode(".jpg", part, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
 
+    def team_names() -> list[str | None]:
+        teams = web.read_teams(match)
+        return [t["name"] for t in teams["teams"]] if teams else [None, None]
+
     def review_js() -> bytes:
         log = load_log(answers)
         found, _ = questions.build({entry["id"] for entry in log})
-        data = {"width": width, "height": height, "answered": len(log), "questions": found}
+        known, teams = load_roster(roster), team_names()
+        players = questions.players(known, teams)
+        # The roster's players of each team, for typing names: all of them for an unnamed team.
+        names = [[{"name": p["name"], "jersey": p.get("jersey")} for p in known if not team or not p.get("team") or p["team"] == team] for team in teams]
+        data = {"width": width, "height": height, "answered": len(log), "questions": found, "players": players, "roster": names}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -269,6 +379,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
             with lock:
                 log = load_log(answers)
+                if self.path == "/name":
+                    jersey = body.get("jersey")
+                    set_name(match, questions, int(body["team"]), int(body["identity"]), body.get("name"), None if jersey in (None, "") else int(jersey))
+                    return self.send(b"{}", "application/json")
                 if self.path == "/answer":
                     _, refs = questions.build({entry["id"] for entry in log})
                     if body["id"] not in refs:
@@ -280,8 +394,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 # Undoing an answer may undo an applied one: both recompute.
                 if self.path in ("/apply", "/undo"):
                     identity.rerun(match, video, squad)
-                    web.build(match, video, court, site, theme=theme)
                     questions.load()
+                    if self.path == "/apply":
+                        remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())
+                    web.build(match, video, court, site, theme=theme)
             self.send(json.dumps({"answered": len(log)}).encode(), "application/json")
 
         def log_message(self, *args) -> None:
@@ -306,10 +422,11 @@ def main() -> None:
     parser.add_argument("--court", type=Path, required=True, help="Court calibration JSON the match was run with")
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2")
     parser.add_argument("--theme", default="aspom", help="Club theme of the match page (web.py)")
+    parser.add_argument("--roster", type=Path, default=ROSTER, help=f"The club's named players across matches (default: {ROSTER})")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true", help="Do not open the page in the browser")
     args = parser.parse_args()
-    serve(args.match, args.video, args.court, args.squad, args.theme, args.port, not args.no_browser)
+    serve(args.match, args.video, args.court, args.squad, args.theme, args.port, not args.no_browser, args.roster)
 
 
 if __name__ == "__main__":
