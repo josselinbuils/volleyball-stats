@@ -11,8 +11,8 @@ import { span as allowed } from '@/components/Watch/helpers/span';
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
 
-/** The video's controls, its timeline limited to the set the page shows. */
-export function VideoControls() {
+/** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
+export function VideoControls({ light = false }: { light?: boolean }) {
   const { t } = useTranslation();
   const { video } = usePlayer();
   const { set, rallies } = useSet();
@@ -77,7 +77,10 @@ export function VideoControls() {
       (video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null)?.webkitEnterFullscreen?.();
     }
   };
-  const button = 'inline-flex size-9 max-sm:size-8 shrink-0 items-center justify-center rounded-md outline-none hover:bg-white/15 focus-visible:ring-3 focus-visible:ring-white/70 [&_svg]:size-5';
+  const button = cn(
+    'inline-flex size-9 max-sm:size-8 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-3 [&_svg]:size-5',
+    light ? 'hover:bg-foreground/10 focus-visible:ring-ring/50' : 'hover:bg-white/15 focus-visible:ring-white/70',
+  );
   const skip = (by: number) => video && (video.currentTime = Math.min(span.end, Math.max(span.start, video.currentTime + by)));
   // A circular arrow with the seconds inside it, as video players draw it.
   const skipButton = (by: number) => (
@@ -97,7 +100,7 @@ export function VideoControls() {
 
   return (
     // On a phone the timeline takes its own row above the buttons.
-    <div className="flex flex-wrap items-center gap-x-1 px-2 py-1 text-white">
+    <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'text-white')}>
       <button
         type="button"
         className={button}
@@ -126,14 +129,14 @@ export function VideoControls() {
         className="h-9 min-w-0 flex-1 cursor-pointer accent-(--primary) max-sm:order-first max-sm:h-7 max-sm:basis-full"
       />
       {/* A phone's row has no room for it: the timeline shows where the video is. */}
-      <span className="shrink-0 px-1 text-sm text-white/75 tabular-nums max-sm:hidden" aria-hidden>
+      <span className={cn('shrink-0 px-1 text-sm tabular-nums max-sm:hidden', light ? 'text-muted-foreground' : 'text-white/75')} aria-hidden>
         {clock(span.end)}
       </span>
       {skipButton(-SKIP)}
       {skipButton(SKIP)}
       <button
         type="button"
-        className={cn(button, state.slow && 'bg-white/25')}
+        className={cn(button, state.slow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
         aria-pressed={state.slow}
         aria-label={t('slowVideo')}
         title={t('slowVideo')}

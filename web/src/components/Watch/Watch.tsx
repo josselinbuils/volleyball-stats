@@ -48,8 +48,8 @@ export function Watch() {
               <div className="p-3 pb-0">
                 <Replay />
               </div>
-              <div className="bg-black">
-                <VideoControls />
+              <div className="border-t bg-muted">
+                <VideoControls light />
               </div>
             </div>
             <PlaylistBar />
