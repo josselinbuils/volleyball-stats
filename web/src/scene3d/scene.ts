@@ -17,7 +17,7 @@ export interface SceneState {
   trail: Point3[];
   rings: { x: number; y: number; f: number }[];
   landings: { x: number; y: number; f: number }[];
-  colors: { team: [string, string]; teamText: [string, string]; court: string; floor: string; line: string; foreground: string; primary: string };
+  colors: { team: [string, string]; teamText: [string, string]; floor: string; foreground: string; primary: string };
 }
 
 export interface Scene {
@@ -183,7 +183,7 @@ export function mount(element: HTMLElement): Scene {
   scene.add(sun);
 
   const solid = (color = 0xffffff) => new THREE.MeshLambertMaterial({ color });
-  // The floor's layers (floor, court, lines, then shadows and rings) are drawn in that order without
+  // The floor's layers (wood, lines, then shadows and rings) are drawn in that order without
   // writing depth, not told apart by millimetres of height: no flicker between them.
   const layer = (order: number) => {
     const material = solid();
@@ -191,23 +191,19 @@ export function mount(element: HTMLElement): Scene {
     return { material, order };
   };
   const floorLayer = layer(-3);
-  const courtLayer = layer(-2);
-  const lineLayer = layer(-1);
   floorLayer.material.map = wood();
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(36, 28), floorLayer.material);
   floor.rotation.x = -Math.PI / 2;
   floor.renderOrder = floorLayer.order;
-  const court = new THREE.Mesh(new THREE.PlaneGeometry(18, 9), courtLayer.material);
-  court.rotation.x = -Math.PI / 2;
-  court.renderOrder = courtLayer.order;
-  scene.add(floor, court);
+  scene.add(floor);
   // The lines: the boundary, the centre line and the attack lines, 5 cm wide.
   const lines = new THREE.Group();
-  const line = lineLayer.material;
+  // The court is the same wood, drawn by its lines in a shiny blue.
+  const line = new THREE.MeshPhongMaterial({ color: 0x1f6fe0, specular: 0x8899aa, shininess: 90, depthWrite: false });
   const strip = (x: number, y: number, w: number, d: number) => {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), line);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.renderOrder = lineLayer.order;
+    mesh.renderOrder = -1;
     mesh.position.copy(at(x, y, 0));
     lines.add(mesh);
   };
@@ -395,8 +391,6 @@ export function mount(element: HTMLElement): Scene {
     update(state) {
       const { colors } = state;
       floor.material.color.set(colors.floor);
-      court.material.color.set(colors.court);
-      line.color.set(colors.line);
       teamMaterials.forEach((m, k) => m.color.set(colors.team[k]));
       shortsMaterials.forEach((m, k) => m.color.set(colors.team[k]).multiplyScalar(0.78));
       ringMaterial.color.set(colors.foreground);

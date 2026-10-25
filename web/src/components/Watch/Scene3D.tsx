@@ -95,9 +95,7 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
       colors: {
         team: [get('team1'), get('team2')],
         teamText: [get('team1-text'), get('team2-text')],
-        court: get('court'),
         floor: get('muted'),
-        line: get('court-line'),
         foreground: get('foreground'),
         primary: get('primary'),
       },
