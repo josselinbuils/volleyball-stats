@@ -22,6 +22,7 @@ const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'receptions', of: 'receptions', label: 'total' },
   { stat: 'missed', of: 'receptions', label: 'faults' },
   { stat: 'unattacked', of: 'receptions', label: 'unattacked' },
+  { stat: 'sets', of: 'sets', label: 'total' },
   { stat: 'attacks', of: 'attacks', label: 'total' },
   { stat: 'kills', of: 'attacks', label: 'kills' },
   { stat: 'attackFaults', of: 'attacks', label: 'faults' },
@@ -29,7 +30,6 @@ const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'digs', of: 'digs', label: 'total' },
   { stat: 'digFaults', of: 'digs', label: 'faults' },
   { stat: 'unattackedDigs', of: 'digs', label: 'unattacked' },
-  { stat: 'sets', of: 'sets', label: 'total' },
   { stat: 'points', of: 'overall', label: 'points' },
   { stat: 'faults', of: 'overall', label: 'faults' },
 ];
