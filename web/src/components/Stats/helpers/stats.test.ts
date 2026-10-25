@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
-import { lines, unattacked } from '@/components/PlayersTable/helpers/stats';
+import { lines, unattacked } from '@/components/Stats/helpers/stats';
 
 describe('lines', () => {
   const people: Record<string, Person> = {
@@ -36,6 +36,11 @@ describe('lines', () => {
     expect(count(two.stats)).toEqual({ touches: 1, receptions: 2, missed: 2, faults: 2 });
     expect(count(rest.stats)).toEqual({ touches: 2, attacks: 1, attackFaults: 1, digs: 1, faults: 1 });
     expect(count(total.stats)).toEqual({ touches: 5, serves: 1, aces: 1, receptions: 2, missed: 2, attacks: 2, kills: 1, attackFaults: 1, digs: 1, points: 2, faults: 3 });
+  });
+
+  it('counts free balls and their faults', () => {
+    const [one] = lines([touch('relance', 1, 0, 'error')], people, 1);
+    expect(count(one.stats)).toEqual({ touches: 1, relances: 1, relanceFaults: 1, faults: 1 });
   });
 
   it('counts an ace missed by no identified player in the rest', () => {

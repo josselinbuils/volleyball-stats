@@ -8,13 +8,8 @@
   "contactsStat": "Touches de balle",
   "ofVideo": "{{p}} de la vidéo",
   "perRally": "{{n}} par échange",
-  "actions": "Actions",
-  "actionsCaption": "Nombre de fois où chaque action a eu lieu pour chaque équipe (un ballon au sol compte pour l'équipe dans le camp de laquelle il tombe). Cliquez sur un nombre pour revoir ces moments.",
-  "action": "Action",
   "leftSide": "Côté gauche",
   "rightSide": "Côté droit",
-  "total": "Total",
-  "allTouches": "Toutes les touches",
   "watchN_one": "Revoir ce moment",
   "watchN_other": "Revoir ces {{count, number}} moments",
   "video": "Vidéo",
@@ -100,7 +95,6 @@
     "net": "Fi"
   },
   "introSides": "Statistiques calculées automatiquement à partir d'une caméra placée sur le bord du terrain. Gauche et droite désignent les deux moitiés du terrain vues depuis la caméra : les équipes ne sont reconnues qu'avec le suivi des joueurs (option --players).",
-  "actionsCaptionSides": "Nombre de fois où chaque action a eu lieu de chaque côté du filet. Cliquez sur un nombre pour revoir ces moments.",
   "team": "Équipe {{n}}",
   "jersey": "Couleur du maillot",
   "setFilter": "Afficher",
@@ -193,13 +187,15 @@
   "prevRally": "Échange précédent",
   "nextRally": "Échange suivant",
   "noRally": "Aucun échange trouvé dans la vidéo.",
-  "players": {
-    "title": "Joueurs",
-    "caption": "Ce que chaque joueur et chaque joueuse a fait du ballon. Cliquez sur un nombre pour revoir ces moments.",
-    "player": "Joueur",
-    "rest": "Joueur non identifié",
-    "total": "Toute l'équipe",
-    "stats": {
+  "teams": {
+    "title": "Équipes",
+    "caption": "Ce que chaque équipe a fait du ballon. Cliquez sur un nombre pour revoir ces moments.",
+    "captionSides": "Sans le suivi des joueurs, les touches sont comptées par côté du filet, vu depuis la caméra. Cliquez sur un nombre pour revoir ces moments.",
+    "team": "Équipe",
+    "side": "Côté"
+  },
+  "stats": {
+    "names": {
       "touches": "Touches",
       "serves": "Services",
       "aces": "Aces",
@@ -217,9 +213,10 @@
       "overall": "Bilan",
       "digFaults": "Défenses fautées",
       "unattacked": "Réceptions sans attaque",
-      "unattackedDigs": "Défenses sans attaque"
+      "unattackedDigs": "Défenses sans attaque",
+      "relances": "Relances",
+      "relanceFaults": "Relances fautées"
     },
-    "note": "Points : les ballons joués qui tombent chez l'adversaire. Fautes : les ballons envoyés dehors, dans le filet ou tombés de son côté. Les réceptions comptent aussi les aces subis, en fautes, au joueur le plus proche de la chute du ballon.",
     "columns": {
       "total": "Total",
       "aces": "Aces",
@@ -228,7 +225,16 @@
       "points": "Points",
       "unattacked": "Sans attaque"
     },
-    "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
-    "noteUnattacked": "Une réception ou une défense est sans attaque quand son équipe renvoie le ballon ou le perd sans avoir attaqué."
+    "note": "Points : les ballons joués qui tombent chez l'adversaire. Fautes : les ballons envoyés dehors, dans le filet ou tombés de son côté. Les réceptions comptent aussi les aces subis, en fautes, au joueur le plus proche de la chute du ballon.",
+    "noteUnattacked": "Une réception ou une défense est sans attaque quand son équipe renvoie le ballon ou le perd sans avoir attaqué.",
+    "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur."
+  },
+  "players": {
+    "title": "Joueurs",
+    "caption": "Ce que chaque joueur et chaque joueuse a fait du ballon. Cliquez sur un nombre pour revoir ces moments.",
+    "player": "Joueur",
+    "rest": "Joueur non identifié",
+    "total": "Toute l'équipe",
+    "note": "Mêmes colonnes que le tableau des équipes, expliquées sous celui-ci."
   }
 }

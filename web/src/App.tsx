@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ActionsTable } from '@/components/ActionsTable';
 import { BrandBar } from '@/components/BrandBar';
 import { CourtChart } from '@/components/CourtChart/CourtChart';
 import { Header } from '@/components/Header/Header';
-import { PlayersTable } from '@/components/PlayersTable/PlayersTable';
+import { PlayersTable } from '@/components/Stats/PlayersTable';
+import { TeamsTable } from '@/components/Stats/TeamsTable';
 import { RallyCharts } from '@/components/RallyCharts/RallyCharts';
 import { Watch } from '@/components/Watch/Watch';
 import { PlayerProvider } from '@/lib/player';
@@ -32,7 +32,7 @@ export function App() {
           <BrandBar />
           <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:pt-5 max-sm:gap-4">
             <Header />
-            <ActionsTable />
+            <TeamsTable />
             <PlayersTable />
             <Watch />
             <CourtChart />

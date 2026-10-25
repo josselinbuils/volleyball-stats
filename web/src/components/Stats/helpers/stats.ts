@@ -12,6 +12,8 @@ export const STATS = [
   'attacks',
   'kills',
   'attackFaults',
+  'relances',
+  'relanceFaults',
   'blocks',
   'digs',
   'digFaults',
@@ -79,6 +81,8 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       }
     } else if (c.type === 'attack') {
       add('attacks', 'kills', 'attackFaults');
+    } else if (c.type === 'relance') {
+      add('relances', null, 'relanceFaults');
     } else if (c.type === 'block') {
       add('blocks', null, null);
     } else if (c.type === 'dig') {

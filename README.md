@@ -151,10 +151,12 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
 number and chart element plays its moments in the video, with a top view of the court following
 the play, each player keeping one number for the whole match (their jersey number and name once
 named), and the set and its score (estimated, or the final score you gave once the set is over)
-above the video. The match's title and date head the page. A "Joueurs" table gives each player's
-touches, serves (aces, faults), receptions and digs (faults, an ace counting against the receiver
-nearest to where it landed; and those after which the team did not attack), attacks (winning,
-faults), blocks, sets, points and faults; the video player skips 10 s back or forward.
+above the video. The match's title and date head the page. An "Équipes" table and a
+"Joueurs" table give each team's and each player's touches, serves (aces, faults), receptions and
+digs (faults, an ace counting against the receiver nearest to where it landed; and those after which
+the team did not attack), sets, attacks (winning, faults), free balls (faults), blocks, points and
+faults; without player tracks the teams table counts each side of the net. The video player skips
+10 s back or forward.
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls
 back to the sides of the net. With several sets, one filter, which stays at the top of the screen, shows a single set: every
