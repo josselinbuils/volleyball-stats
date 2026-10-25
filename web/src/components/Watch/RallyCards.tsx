@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,14 @@ import { usePlayer, useVideoTime } from '@/lib/player';
 import { rallyClips, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 
-/** One card per rally with the letters of its touches; the current rally (`rallyNear`) stands out. */
+// The cards' smallest width in px, below and from Tailwind's sm breakpoint, and the gap between them.
+const CARD = 9.5 * 16;
+const CARD_SM = 12 * 16;
+const GAP = 8;
+const ROWS = 3;
+
+/** One card per rally with the letters of its touches; the current rally (`rallyNear`) stands out.
+ * Rows filling the width, up to ROWS then scrolling sideways. */
 export function RallyCards() {
   const { t } = useTranslation();
   const f = useFormat();
@@ -17,7 +24,22 @@ export function RallyCards() {
   const { set, rallies } = useSet();
   const current = useVideoTime((time) => rallyNear(rallies, time)?.i ?? -1);
   const list = useRef<HTMLOListElement>(null);
+  const [width, setWidth] = useState(0);
+  const card = typeof matchMedia === 'function' && matchMedia('(min-width: 40rem)').matches ? CARD_SM : CARD;
+  // As many columns as auto-fill makes: more cards than ROWS of them scroll sideways.
+  const scrolls = rallies.length > Math.max(1, Math.floor((width + GAP) / (card + GAP))) * ROWS;
   const present = TYPES.filter((type) => rallies.some((r) => r.contacts.some((c) => c.type === type)));
+
+  const listed = rallies.length > 0;
+  useEffect(() => {
+    const box = list.current;
+    if (!box) {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [listed]);
 
   // Keeps the current rally's card in view inside the list, without scrolling the page.
   useEffect(() => {
@@ -32,7 +54,15 @@ export function RallyCards() {
     <div className="min-w-0">
       <h3 className="font-semibold">{t('rallies')}</h3>
       {rallies.length ? (
-        <ol ref={list} className="relative mt-3 grid grid-flow-col grid-rows-[repeat(4,auto)] auto-cols-[9.5rem] sm:auto-cols-[12rem] gap-2 overflow-x-auto p-0.5 pb-2">
+        <ol
+          ref={list}
+          className={cn(
+            'relative mt-3 grid gap-2 p-0.5',
+            scrolls
+              ? 'grid-flow-col grid-rows-[repeat(3,auto)] auto-cols-[9.5rem] sm:auto-cols-[12rem] overflow-x-auto pb-2'
+              : 'grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(12rem,1fr))]',
+          )}
+        >
           {rallies.map((r, k) => (
             <li key={r.i}>
               <button
