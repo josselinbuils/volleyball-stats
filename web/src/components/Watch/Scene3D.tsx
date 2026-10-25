@@ -19,13 +19,21 @@ function load(): Promise<void> {
   return loading;
 }
 
-/** Whether the browser can draw 3D. */
+let drawable: boolean | undefined;
+
+/** Whether the browser can draw 3D, asked once: each check opens a WebGL context, and past a few
+ * the browser drops the oldest, the scene's own. */
 export function canDraw3d(): boolean {
-  try {
-    return !!document.createElement('canvas').getContext('webgl2');
-  } catch {
-    return false;
+  if (drawable === undefined) {
+    try {
+      const gl = document.createElement('canvas').getContext('webgl2');
+      drawable = !!gl;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    } catch {
+      drawable = false;
+    }
   }
+  return drawable;
 }
 
 let pixel: CanvasRenderingContext2D | null = null;
