@@ -1,6 +1,6 @@
 import numpy as np
 
-from volleyball_stats.actions import classify, classify_rally, player_under, relance_cues
+from volleyball_stats.actions import classify, classify_rally, mark_dead, player_under, relance_cues
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -85,6 +85,21 @@ class TestClassify:
         typed = classify(contacts, [70, 400], [(55, 200)], FPS, NET_X)
 
         assert [(t[0], t[3]) for t in typed] == [(50, "serve"), (100, "pass")]
+
+
+class TestMarkDead:
+    def test_three_touches_in_a_row_by_one_player_make_the_ball_dead_for_the_rest_of_its_rally(self):
+        typed = [(f, 0, 0, kind, "left") for f, kind in enumerate(["pass", "set", "attack", "attack", "attack", "attack", "serve"])]
+
+        marked, touchers = mark_dead(typed, [1, 2, 3, 3, 3, 4, 5], [0, 0, 0, 0, 0, 0, 1])
+
+        assert kinds(marked) == ["pass", "set", "floor", "floor", "floor", "floor", "serve"]
+        assert touchers == [1, 2, None, None, None, None, 5]
+
+    def test_two_touches_in_a_row_by_one_player_stay(self):
+        typed = [(f, 0, 0, kind, "left") for f, kind in enumerate(["dig", "set", "attack"])]
+
+        assert mark_dead(typed, [1, 1, 2], [0, 0, 0]) == (typed, [1, 1, 2])
 
 
 class TestRelanceCues:

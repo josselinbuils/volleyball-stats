@@ -49,6 +49,10 @@ MARGIN = 2.0
 # Court x (meters from the net) under which a first contact's floor projection is inside the court:
 # a ball in the air only projects farther, and the labelled serves project from 12.3 m.
 SERVE_X = 8.0
+# Touches in a row by one player from which the ball is dead, held or bounced (before a serve, say):
+# nobody plays it twice running. ponytail: from 2 examples; runs of 2 are mostly attribution errors
+# (71-83% right), set it on labelled matches.
+DEAD_RUN = 3
 
 Contact = tuple[int, int, int]
 Typed = tuple[int, int, int, str, str]
@@ -131,6 +135,25 @@ def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[
         inside = [c for c in contacts if start <= c[0] <= end]
         out += classify_rally(inside, [c for c in crossings if start <= c <= end], fps, net_x, calibration)
     return out
+
+
+def mark_dead(typed: list[Typed], touchers: list[int | None], rallies: list[int | None]) -> tuple[list[Typed], list[int | None]]:
+    """`typed` and `touchers` with each run of DEAD_RUN touches or more in a row by one track, and
+    the rest of its rally, retyped "floor" without a toucher; `rallies` holds each contact's rally."""
+    typed, touchers = list(typed), list(touchers)
+    k = 0
+    while k < len(typed):
+        end = k + 1
+        while end < len(typed) and touchers[k] is not None and touchers[end] == touchers[k] and rallies[end] == rallies[k]:
+            end += 1
+        if end - k >= DEAD_RUN:
+            while end < len(typed) and rallies[end] == rallies[k]:
+                end += 1
+            for m in range(k, end):
+                typed[m] = (*typed[m][:3], "floor", typed[m][4])
+                touchers[m] = None
+        k = end
+    return typed, touchers
 
 
 def player_under(ball: tuple[float, float], boxes: np.ndarray, reach: float) -> int | None:

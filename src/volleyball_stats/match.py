@@ -203,6 +203,7 @@ def main() -> None:
     if args.players:
         rows = attribution.read_players(players_path)
         touchers = attribution.attribute(typed, rows, fps)
+        typed, touchers = actions.mark_dead(typed, touchers, [rally_of(t[0], windows, round(actions.LEAD_S * fps)) for t in typed])
         start = time.perf_counter()
         found_teams = teams.assign(args.video, rows, windows)
         timings["teams"] = time.perf_counter() - start
