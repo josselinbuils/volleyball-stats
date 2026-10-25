@@ -274,7 +274,7 @@
   },
   "scene3d": {
     "label": "Vue du terrain",
-    "2d": "Dessus",
+    "2d": "2D",
     "3d": "3D",
     "loading": "Chargement de la vue 3D…",
     "failed": "La vue 3D n'a pas pu se charger.",

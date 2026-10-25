@@ -274,7 +274,7 @@
   },
   "scene3d": {
     "label": "Court view",
-    "2d": "Top",
+    "2d": "2D",
     "3d": "3D",
     "loading": "Loading the 3D view…",
     "failed": "The 3D view could not load.",
