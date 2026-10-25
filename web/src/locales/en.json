@@ -14,6 +14,8 @@
   "watchN_other": "Watch these {{count, number}} moments",
   "video": "Video",
   "videoCaption": "Click a rally to watch it. Beside the video, a top view of the court follows the play.",
+  "replayTitle": "Replay the play",
+  "replayCaption": "Click a rally to watch it again on a top view of the court: the players and the ball follow the play.",
   "nowPlaying": "Now playing",
   "iOfN": "{{i}} of {{n}}",
   "prev": "Previous",

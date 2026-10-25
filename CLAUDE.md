@@ -35,6 +35,9 @@ cd web && npx tsc --noEmit -p . && npm test && npm run build
 uv run python -m volleyball_stats.web outputs/side_setend --video data/side_setend.mp4 --court outputs/court/side_holdout.json
 ```
 
+The page holds no video by default; `--footage full --club 1 --pictures` (saved in
+`outputs/VIDEO/page.json`) brings back the video and the club's pictures for features that need them.
+
 Then open `outputs/side_setend/site/index.html` (two sets) or `outputs/side_holdout/site/` (one
 set). In browser checks mute the videos and check a phone width (no horizontal page scroll). The
 "Analyse" columns stay empty on these short clips: lower `MIN_TRIES` in

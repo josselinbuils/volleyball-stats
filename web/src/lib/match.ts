@@ -88,7 +88,8 @@ export interface Brand {
 /** The match as data.js writes it. */
 interface Data {
   name: string;
-  video: string;
+  /** The video's file, null when the page holds none. */
+  video: string | null;
   poster?: string;
   fps: number;
   duration: number;

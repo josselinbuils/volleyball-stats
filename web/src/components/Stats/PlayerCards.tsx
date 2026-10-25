@@ -98,7 +98,7 @@ function FifaCard({ id, row: r, g }: CardProps) {
             <span className="text-5xl leading-none font-black tabular-nums">{playerNumber(r.key)}</span>
             <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
           </div>
-          {photo && (
+          {photo ? (
             <div className="group/photo relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
               <img src={photo} alt="" loading="lazy" className="h-full object-cover object-top" />
               {/* A few stars twinkling over the picture while it is hovered. */}
@@ -114,6 +114,12 @@ function FifaCard({ id, row: r, g }: CardProps) {
                 </svg>
               ))}
             </div>
+          ) : (
+            // No picture: a silhouette in the card's colours.
+            <svg aria-hidden viewBox="0 0 60 80" className="ml-auto h-full opacity-35" fill="currentColor">
+              <circle cx="30" cy="24" r="13" />
+              <path d="M4 80C4 57 16 45 30 45S56 57 56 80Z" />
+            </svg>
           )}
         </div>
         <h3 className="relative mx-[9%] border-b border-current/40 pb-1 text-center text-xl font-black tracking-wide uppercase [overflow-wrap:anywhere]">{cardName(t, r.key)}</h3>

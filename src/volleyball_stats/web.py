@@ -1,12 +1,18 @@
 """The match page: a static site built from the pipeline's outputs, index.html + data.js + the video.
 
-    uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court COURT_JSON [--out DIR] [--copy-video] [--theme NAME]
+    uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court COURT_JSON [--club N] [--footage MODE] [--pictures] [--out DIR] [--copy-video] [--theme NAME]
 
 The page (site/, built from web/ with `npm run build` and copied as is) reads the match from data.js,
 a script rather than fetched JSON so it opens from the disk by double-clicking index.html, and the
 players' positions over the whole video from players.js, which it loads once it has rendered. Every
-path is relative: the site directory serves as plain static files. The video is symlinked unless
---copy-video, for hosting; a poster frame stands in for it until it plays. Teams (names, colours,
+path is relative: the site directory serves as plain static files. The page holds no footage by
+default (`--footage none`): its moments replay on the top view of the court. `--footage full` adds
+the video, `blur-opponents` the video with the team other than the `--club` one blurred (blur.py),
+`blur-all` the video with both teams blurred. The cards show a silhouette, the `--club` team's
+players their picture with `--pictures`. MATCH/page.json remembers these choices: a later build
+without them keeps them, a flag changes only its own (`--no-pictures` takes the pictures off); the
+blurred copy is kept beside the outputs and made again only when the player tracks change. The video is symlinked unless --copy-video, for hosting; a
+poster frame stands in for it until it plays. Teams (names, colours,
 sets, the match's date and title, the sets' final scores) come from teams.json, written by match.py
 --players, with each player's identity for the whole match (identities.csv) and the score
 (points.csv); a teams.json from before the date takes the video's recording date. --theme picks a
@@ -34,6 +40,8 @@ BRANDING = Path("branding")
 # Player positions are kept every STEP_S seconds over the whole video, to the centimetre.
 STEP_S = 0.1
 POSTER_WIDTH = 800
+# What the page shows of the video: nothing, all of it, or the video with some players blurred.
+FOOTAGE = ("none", "full", "blur-opponents", "blur-all")
 # The club logo shows at most 64 px tall, the players' pictures about 240 px: kept at twice that for
 # sharp high-density screens, never enlarged. The pictures are 3 wide for 4 tall, like a photo.
 LOGO_PX, PHOTO_PX, PHOTO_RATIO = 128, 480, 0.75
@@ -279,40 +287,43 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 
-def write_site(data: dict, players: dict | None, video: Path, site: Path, copy: bool) -> None:
-    """The page, data.js, players.js, the video and its poster, a frame from the middle of the first
-    rally."""
+def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool) -> None:
+    """The page, data.js, players.js and, unless `video` is None, the video and its poster, a frame
+    from the middle of the first rally."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
+    # A previous build's footage goes: the page may now hold none, or another copy.
+    for old in [site / "poster.webp", *site.glob("*.mp4")]:
+        old.unlink(missing_ok=True)
     first = data["rallies"][0] if data["rallies"] else {"start": 0, "end": 0}
-    if poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
-        data = {**data, "poster": "poster.webp"}
+    data = {**data, "video": video and video.name}
+    if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
+        data["poster"] = "poster.webp"
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     (site / "players.js").unlink(missing_ok=True)
     if players:
         (site / "players.js").write_text(f"window.MATCH_PLAYERS = {json.dumps(players, separators=(',', ':'))};\n")
-    target = site / video.name
-    target.unlink(missing_ok=True)
-    if copy:
-        shutil.copy(video, target)
-    else:
-        target.symlink_to(video.resolve())
+    if video:
+        if copy:
+            shutil.copy(video, site / video.name)
+        else:
+            (site / video.name).symlink_to(video.resolve())
 
 
-def photos(match: Path, video: Path, people: dict[int, dict], folder: Path) -> None:
-    """A picture of each numbered player of `people` in `folder`, as their `photo`: the clearest
+def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}) -> None:
+    """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: the clearest
     moment of their longest piece of track, a little room above and below them, widened to
     PHOTO_RATIO."""
     from volleyball_stats.identity import frames_at
     from volleyball_stats.review import CROP_MARGIN, Questions
 
-    if not (match / "identity_candidates.json").exists():
+    if not teams or not (match / "identity_candidates.json").exists():
         return
     questions = Questions(match, cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS))
     wanted: dict[int, list] = {}
     for key, person in people.items():
-        pieces = questions.pieces(person["team"], person["number"]) if person["number"] else []
+        pieces = questions.pieces(person["team"], person["number"]) if person["number"] and person["team"] in teams else []
         if pieces and pieces[0][0] in questions.rows:
             track, start, end, _, _ = pieces[0]
             frame = questions.clear(track, start, end)
@@ -332,15 +343,48 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path) -> N
                 people[key]["photo"] = f"{folder.name}/{key}.webp"
 
 
-def build(match: Path, video: Path, court: Path, site: Path, copy: bool = False, theme: str = "aspom") -> dict:
-    """The match page in `site`; returns data.js's match."""
+def footage_video(match: Path, video: Path, blurred: set[int]) -> Path:
+    """The video to publish: `video` itself, or its copy with the `blurred` teams' players blurred,
+    made again when the player tracks are newer."""
+    if not blurred:
+        return video
+    from volleyball_stats import blur
+
+    out = match / f"{video.stem}_blurred_{''.join(map(str, sorted(blurred)))}.mp4"
+    tracks = max((match / name).stat().st_mtime for name in ("players.csv", "tracks.csv"))
+    if not out.exists() or out.stat().st_mtime < tracks:
+        blur.write(match, video, blurred, out)
+    return out
+
+
+def build(
+    match: Path, video: Path, court: Path, site: Path, copy: bool = False, theme: str = "aspom", footage: str = "none", club: int | None = None, pictured: set[int] = frozenset()
+) -> dict:
+    """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
+    pictures of the `pictured` teams' players; returns data.js's match."""
     data, players = match_data(match, video, Calibration.load(court))
+    blurred = {"none": None, "full": set(), "blur-all": {1, 2}}.get(footage, {3 - (club or 1)})
     shutil.rmtree(site / "players", ignore_errors=True)
-    photos(match, video, data["people"], site / "players")
+    photos(match, video, data["people"], site / "players", pictured)
     shutil.rmtree(site / "brand", ignore_errors=True)
     data["brand"] = brand(theme, site)
-    write_site(data, players, video, site, copy)
+    write_site(data, players, None if blurred is None else footage_video(match, video, blurred), site, copy)
     return data
+
+
+def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None) -> tuple[dict, dict]:
+    """The page to publish, MATCH/site/ unless `site`, built with page.json's choices, those `given`
+    (not None) replacing theirs and saved back; returns data.js's match and the choices. ValueError
+    for a choice needing a club without one."""
+    path = match / "page.json"
+    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, **(json.loads(path.read_text()) if path.exists() else {})}
+    settings.update({k: v for k, v in given.items() if v is not None})
+    if settings["club"] is None and (settings["footage"] == "blur-opponents" or settings["pictures"]):
+        raise ValueError("--footage blur-opponents and --pictures need --club 1 or 2")
+    path.write_text(json.dumps(settings, indent=2) + "\n")
+    pictured = {settings["club"]} if settings["pictures"] else set()
+    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured)
+    return data, settings
 
 
 def main() -> None:
@@ -350,14 +394,20 @@ def main() -> None:
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--court", type=Path, required=True, help="Court calibration JSON the match was run with")
     parser.add_argument("--out", type=Path, help="Site directory (default: MATCH/site)")
-    parser.add_argument("--copy-video", action="store_true", help="Copy the video instead of symlinking it, for hosting")
+    parser.add_argument("--footage", choices=FOOTAGE, help="What the page shows of the video (default: the previous build's, else none: the court's top view replays the moments)")
+    parser.add_argument("--club", type=int, choices=(1, 2), help="Your team, 1 or 2 (team 1 is on the left at the first rally)")
+    parser.add_argument("--pictures", action=argparse.BooleanOptionalAction, help="Your team's players' pictures on their cards (needs --club)")
+    parser.add_argument("--copy-video", action=argparse.BooleanOptionalAction, help="Copy the video instead of symlinking it, for hosting")
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
     args = parser.parse_args()
-
+    try:
+        data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video}, args.out)
+    except ValueError as error:
+        parser.error(str(error))
     site = args.out or args.match / "site"
-    data = build(args.match, args.video, args.court, site, args.copy_video, args.theme)
     sizes = ", ".join(f"{name} {(site / name).stat().st_size / 1e3:.0f} KB" for name in ("data.js", "players.js") if (site / name).exists())
-    print(f"{len(data['contacts'])} contacts, {len(data['rallies'])} rallies, {sizes} -> {site / 'index.html'}")
+    shown = {"none": "no video", "full": "video", "blur-opponents": "video, opponents blurred", "blur-all": "video, both teams blurred"}[settings["footage"]]
+    print(f"{len(data['contacts'])} contacts, {len(data['rallies'])} rallies, {sizes}, {shown}{', pictures' if settings['pictures'] else ''} -> {site / 'index.html'}")
 
 
 if __name__ == "__main__":

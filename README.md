@@ -150,11 +150,20 @@ right name came first for 7 of 12 players, among the 3 shown for 9). Answers and
 pieces of player tracks: tracking the players again (`--force`) drops them.
 
 ```bash
-uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--copy-video] [--theme NAME]
+uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--club N] [--footage none|full|blur-opponents|blur-all] [--pictures] [--copy-video] [--theme NAME]
 ```
 
-`web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default): every
-number and chart element plays its moments in the video, with a top view of the court following
+`web` builds the match page in `outputs/VIDEO/site/` (open `index.html`; French by default). By
+default it holds no footage: every moment replays on an animated top view of the court, and the
+player cards show a silhouette. `--footage full` adds the video, `blur-opponents` the video with the
+team other than `--club` (your team, 1 or 2) pixelated, `blur-all` the video with both teams
+pixelated (`volleyball_stats.blur`: the tracked players' boxes, carried across tracking gaps; people
+never tracked, such as the bench or the public, stay visible). `--pictures` puts your team's
+players' pictures on their cards. The choices are saved in `outputs/VIDEO/page.json`: rebuild with
+only the flag to change (`--no-pictures`, `--footage none`...); the blurred copy is kept beside the
+outputs. The review page builds its own copy with the video in `outputs/VIDEO/review/` and rebuilds
+the published page on "apply". Every number and chart element plays its moments in the video or the
+animated court, with a top view of the court following
 the play, each player keeping one number for the whole match (their jersey number and name once
 named), and the set and its score (estimated, or the final score you gave once the set is over)
 above the video. The match's title and date head the page. The video player skips 10 s back or

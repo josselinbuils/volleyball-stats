@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
+import type { Clock } from '@/lib/clock';
 import type { Clip } from '@/lib/playlist';
+
+/** What plays the moments: the video, or the clock replaying the court when the page has none. */
+export type Media = HTMLVideoElement | Clock;
 
 /** Clips played one after another, each stopping at its end. `key` names the control that started
  * it, to highlight it. */
@@ -17,8 +21,8 @@ interface Player {
   go: (at: number) => void;
   /** Leaves the playlist and pauses the video. */
   stop: () => void;
-  video: HTMLVideoElement | null;
-  setVideo: (video: HTMLVideoElement | null) => void;
+  video: Media | null;
+  setVideo: (video: Media | null) => void;
 }
 
 const PlayerContext = createContext<Player | null>(null);
@@ -48,7 +52,7 @@ export function usePlayer(): Player {
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  const [video, setVideo] = useState<Media | null>(null);
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   // The playlist for the loop and the event handlers, ahead of the next render.
   const current = useRef<Playlist | null>(null);
@@ -75,11 +79,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [video, update],
   );
-  const go = useCallback((at: number) => {
-    if (current.current) {
-      update({ ...current.current, at });
-    }
-  }, [update]);
+  const go = useCallback(
+    (at: number) => {
+      if (current.current) {
+        update({ ...current.current, at });
+      }
+    },
+    [update],
+  );
   const stop = useCallback(() => {
     video?.pause();
     update(null);

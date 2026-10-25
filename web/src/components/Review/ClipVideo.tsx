@@ -35,7 +35,7 @@ export function ClipVideo({ clip, width, height }: { clip: Clip; width: number; 
   const box = boxAt(clip, time);
   return (
     <div className="relative">
-      <video ref={video} src={match.video} muted playsInline controls aria-label={t('review.video')} className="block aspect-video w-full rounded-lg bg-black" />
+      <video ref={video} src={match.video ?? undefined} muted playsInline controls aria-label={t('review.video')} className="block aspect-video w-full rounded-lg bg-black" />
       <svg viewBox={`0 0 ${width} ${height}`} aria-hidden className="pointer-events-none absolute inset-0 size-full">
         {box && (
           <rect

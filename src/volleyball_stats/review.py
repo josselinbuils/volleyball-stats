@@ -2,8 +2,9 @@
 
     uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court COURT_JSON [--squad N[,N]] [--theme NAME] [--roster PATH] [--port PORT]
 
-Builds the match page like web.py, then serves it on this machine only, with a review mode at
-/review: one question at a time from identity_candidates.json, the player outlined on the video
+Builds the match page like web.py, with the video and every player's picture, into MATCH/review/,
+apart from the page to publish (MATCH/site/, rebuilt with its own choices on "apply"), then serves
+it on this machine only, with a review mode at /review: one question at a time from identity_candidates.json, the player outlined on the video
 beside pictures of the identities they could be. Each answer is saved at once to
 identity_answers.json as hard constraints (identity.py); "apply" and "undo" rerun the identity step
 and rebuild the page, in seconds. The review also names the players: each identity's name and
@@ -282,8 +283,9 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
 
 
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
-    site = match / "site"
-    web.build(match, video, court, site, theme=theme)
+    # Its own page, with the video and every picture: the published one stays as it was built.
+    site = match / "review"
+    web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2})
     cap = cv2.VideoCapture(str(video))
     fps, width, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cap.release()
@@ -397,7 +399,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     questions.load()
                     if self.path == "/apply":
                         remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())
-                    web.build(match, video, court, site, theme=theme)
+                    web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2})
+                    # The published page follows, with its own choices.
+                    if (match / "page.json").exists():
+                        web.publish(match, video, court, theme, {})
             self.send(json.dumps({"answered": len(log)}).encode(), "application/json")
 
         def log_message(self, *args) -> None:

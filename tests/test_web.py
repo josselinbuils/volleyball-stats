@@ -4,7 +4,7 @@ import pytest
 
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
-from volleyball_stats.web import brand, contacts, people, photos, player_samples, result, spot, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import brand, contacts, people, photos, player_samples, publish, result, spot, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -200,7 +200,7 @@ class TestWriteSite:
 
         assert (site / "index.html").read_text().count('src="data.js"') == 1
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == 'window.MATCH = {"fps":25.0,"rallies":[],"name":"Bègles"};\n'
+        assert (site / "data.js").read_text() == 'window.MATCH = {"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4"};\n'
         assert (site / "players.js").read_text() == 'window.MATCH_PLAYERS = {"step":3,"samples":[[]]};\n'
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
@@ -208,6 +208,17 @@ class TestWriteSite:
         assert not (site / "players.js").exists()
         assert (site / "match.mp4").read_bytes() == b"not a video"
         assert not (site / "poster.webp").exists()
+
+    def test_leaves_the_video_out_and_removes_a_previous_one(self, tmp_path):
+        video = tmp_path / "match.mp4"
+        video.write_bytes(b"not a video")
+        site = tmp_path / "site"
+        write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
+
+        write_site({"fps": 25.0, "rallies": []}, None, None, site, copy=True)
+
+        assert not (site / "match.mp4").exists()
+        assert '"video":null' in (site / "data.js").read_text()
 
 
 class TestPhotos:
@@ -229,3 +240,19 @@ class TestPhotos:
         # The 10x30 box, 38 px tall with its margins and widened to 3 for 4.
         assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (38, 28)
         assert "photo" not in people[1]
+
+
+class TestPublish:
+    def test_keeps_the_previous_choices_each_given_one_replacing_its_own(self, tmp_path, monkeypatch):
+        built = []
+        monkeypatch.setattr(web, "build", lambda *args: built.append(args[4:]) or {})
+
+        publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "blur-opponents", "club": 1, "pictures": True})
+        publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": None, "pictures": False})
+
+        # copy, theme, footage, club, pictured teams
+        assert built == [(False, "aspom", "blur-opponents", 1, {1}), (False, "aspom", "blur-opponents", 1, set())]
+
+    def test_refuses_pictures_or_a_blurred_opponent_without_a_club(self, tmp_path):
+        with pytest.raises(ValueError):
+            publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"pictures": True})

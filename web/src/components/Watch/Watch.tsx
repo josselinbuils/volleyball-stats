@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
 import { match } from '@/lib/match';
+import { Clock } from '@/lib/clock';
 import { usePlayer } from '@/lib/player';
 import { PlaylistBar } from '@/components/Watch/PlaylistBar';
 import { RallyCards } from '@/components/Watch/RallyCards';
@@ -12,6 +14,51 @@ import { VideoControls } from '@/components/Watch/VideoControls';
 export function Watch() {
   const { t } = useTranslation();
   const { video, setVideo } = usePlayer();
+  const court = useRef<HTMLDivElement>(null);
+  // Without a video, a clock plays the moments on the court's top view.
+  useEffect(() => {
+    if (match.video || !court.current) {
+      return;
+    }
+    const clock = new Clock(court.current, match.duration);
+    setVideo(clock);
+    return () => {
+      clock.pause();
+      setVideo(null);
+    };
+  }, [setVideo]);
+
+  if (!match.video) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-lg font-semibold">
+              {t('replayTitle')}
+              <SetBadge />
+            </h2>
+          </CardTitle>
+          <CardDescription>{t('replayCaption')}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-8">
+          <div className="mx-auto grid w-full max-w-3xl min-w-0 gap-3">
+            <Scoreboard />
+            {/* Full screen takes the court with its controls. */}
+            <div ref={court} className="overflow-hidden rounded-lg border bg-card [&:fullscreen]:grid [&:fullscreen]:content-center [&:fullscreen]:p-6">
+              <div className="p-3 pb-0">
+                <Replay />
+              </div>
+              <div className="bg-black">
+                <VideoControls />
+              </div>
+            </div>
+            <PlaylistBar />
+          </div>
+          <RallyCards />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

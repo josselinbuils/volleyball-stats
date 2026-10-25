@@ -141,15 +141,18 @@ export function VideoControls() {
       >
         <Snail aria-hidden />
       </button>
-      <button
-        type="button"
-        className={button}
-        aria-label={t(state.muted ? 'unmuteVideo' : 'muteVideo')}
-        title={t(state.muted ? 'unmuteVideo' : 'muteVideo')}
-        onClick={() => video && (video.muted = !video.muted)}
-      >
-        {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
-      </button>
+      {/* The court's replay has no sound. */}
+      {match.video && (
+        <button
+          type="button"
+          className={button}
+          aria-label={t(state.muted ? 'unmuteVideo' : 'muteVideo')}
+          title={t(state.muted ? 'unmuteVideo' : 'muteVideo')}
+          onClick={() => video && (video.muted = !video.muted)}
+        >
+          {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+        </button>
+      )}
       <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} title={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
         {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
       </button>
