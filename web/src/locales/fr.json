@@ -223,6 +223,7 @@
     "noteInsights": "Points forts et à travailler : ce qu'un joueur réussit ou rate nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart ; cliquez dessus pour revoir ces moments.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
     "insights": {
+      "title": "Analyse",
       "strengths": "Points forts",
       "toWorkOn": "À travailler",
       "aces_one": "Aces · {{count}} sur {{of}}",

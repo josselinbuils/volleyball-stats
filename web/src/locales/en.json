@@ -223,6 +223,7 @@
     "noteInsights": "Strengths and to work on: what a player does clearly better or worse than the rest of their team, with at least 5 attempts on each side and a 20-point gap; click one to watch those moments.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",
     "insights": {
+      "title": "Analysis",
       "strengths": "Strengths",
       "toWorkOn": "To work on",
       "aces_one": "Aces · {{count}} of {{of}}",

@@ -66,7 +66,7 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
       ))}
       {insights &&
         [true, false].map((strength) => (
-          <TableCell key={String(strength)} className="min-w-44 px-2 py-1.5">
+          <TableCell key={String(strength)} className={cn('min-w-44 px-2 py-1.5', strength && 'border-l')}>
             <div className="flex flex-wrap gap-1">
               {r.insights
                 ?.filter((i) => i.strength === strength)
@@ -90,15 +90,15 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
           {COLUMNS.map(
             ({ of }, k) =>
               (k === 0 || parts(k)) && (
-                // The strengths and things to work on close the overall group.
-                <TableHead
-                  key={of}
-                  colSpan={COLUMNS.filter((c) => c.of === of).length + (insights && of === 'overall' ? 2 : 0)}
-                  className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}
-                >
+                <TableHead key={of} colSpan={COLUMNS.filter((c) => c.of === of).length} className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}>
                   {t(`stats.names.${of}`)}
                 </TableHead>
               ),
+          )}
+          {insights && (
+            <TableHead colSpan={2} className={cn(HEAD, 'h-8 border-b border-l font-semibold text-foreground')}>
+              {t('stats.insights.title')}
+            </TableHead>
           )}
         </TableRow>
         <TableRow className="hover:bg-transparent">
@@ -109,7 +109,7 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
           ))}
           {insights &&
             (['strengths', 'toWorkOn'] as const).map((key) => (
-              <TableHead key={key} className={cn(HEAD, 'h-8')}>
+              <TableHead key={key} className={cn(HEAD, 'h-8', key === 'strengths' && 'border-l')}>
                 {t(`stats.insights.${key}`)}
               </TableHead>
             ))}
