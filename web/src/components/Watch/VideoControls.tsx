@@ -71,7 +71,15 @@ export function VideoControls({ light = false }: { light?: boolean }) {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
     } else if (video?.parentElement?.requestFullscreen) {
-      void video.parentElement.requestFullscreen();
+      // A phone turns to landscape, the court's shape, until full screen ends; iPhones cannot lock it.
+      video.parentElement
+        .requestFullscreen()
+        .then(() => {
+          if (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600) {
+            return (screen.orientation as ScreenOrientation & { lock?: (orientation: string) => Promise<void> }).lock?.('landscape');
+          }
+        })
+        .catch(() => {});
     } else {
       // iPhone: only the video itself goes full screen, in the system's player.
       (video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null)?.webkitEnterFullscreen?.();
