@@ -70,6 +70,52 @@ function badge(text: string, background: string, color: string): THREE.Sprite {
 // The hovered player's name: its height on screen in pixels.
 const TIP_PX = 26;
 
+// The figures' skin, and hair colours given out by player key: made up, not the players' own.
+const SKIN = 0xe2b48e;
+const HAIRS = [0x2b1d14, 0x4a2f1d, 0x6e4a2a, 0x161210, 0xa7834f];
+
+// Spectators' shirts, a crowd's mix.
+const CROWD = [0xc0392b, 0x2e86c1, 0x27ae60, 0xf1c40f, 0x8e44ad, 0xe67e22, 0x7f8c8d, 0xecf0f1, 0x34495e];
+
+/** A gym's wooden floor: planks of varied shades with dark joints, tinted by the material's colour. */
+function wood(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 512;
+  const g = canvas.getContext('2d')!;
+  let seed = 7;
+  const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  for (let row = 0; row < 16; row++) {
+    for (let x = -random() * 256; x < 512; x += 192 + random() * 128) {
+      const shade = 0.9 + random() * 0.14;
+      g.fillStyle = `rgb(${Math.round(214 * shade)}, ${Math.round(172 * shade)}, ${Math.round(122 * shade)})`;
+      g.fillRect(x, row * 32, 320, 32);
+      g.fillStyle = 'rgba(90, 60, 30, 0.35)';
+      g.fillRect(x, row * 32, 2, 32);
+    }
+    g.fillStyle = 'rgba(90, 60, 30, 0.3)';
+    g.fillRect(0, row * 32, 512, 1);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  // One canvas is 4 m of floor, its planks 25 cm wide.
+  texture.repeat.set(36 / 4, 28 / 4);
+  return texture;
+}
+
+/** A jersey number painted on a transparent square, for the front and back of a shirt. */
+function shirtNumber(text: string, color: string): THREE.MeshBasicMaterial {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = color;
+  g.font = 'bold 92px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, 64, 70);
+  return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true });
+}
+
 /** Text on a rounded sprite facing the camera, the same size on screen at any distance (scaled by
  * the caller), standing on its position. */
 function tag(text: string, background: string, color: string): THREE.Sprite {
@@ -147,7 +193,8 @@ export function mount(element: HTMLElement): Scene {
   const floorLayer = layer(-3);
   const courtLayer = layer(-2);
   const lineLayer = layer(-1);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 18), floorLayer.material);
+  floorLayer.material.map = wood();
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(36, 28), floorLayer.material);
   floor.rotation.x = -Math.PI / 2;
   floor.renderOrder = floorLayer.order;
   const court = new THREE.Mesh(new THREE.PlaneGeometry(18, 9), courtLayer.material);
@@ -170,12 +217,15 @@ export function mount(element: HTMLElement): Scene {
     strip(x, 0, 0.05, 9);
   }
   scene.add(lines);
-  // The net: two posts, a see-through mesh, a white band on top.
+  // The net: two posts in red pads, a see-through mesh, a white band on top.
   const post = solid(0x555555);
+  const pad = solid(0xc0392b);
   for (const y of [-5, 5]) {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, NET_TOP + 0.2, 12), post);
     mesh.position.copy(at(0, y, (NET_TOP + 0.2) / 2));
-    scene.add(mesh);
+    const padding = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.9, 16), pad);
+    padding.position.copy(at(0, y, 0.95));
+    scene.add(mesh, padding);
   }
   const net = new THREE.Mesh(new THREE.PlaneGeometry(10, 1), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
   net.rotation.y = Math.PI / 2;
@@ -184,11 +234,73 @@ export function mount(element: HTMLElement): Scene {
   band.position.copy(at(0, 0, NET_TOP - 0.035));
   scene.add(net, band);
 
-  // Players: a body, a head, a soft shadow and their number above them; made as they first show.
+  // Players: chibi figures about 1.65 m tall facing +z, shirt and shorts in their team's colours, a
+  // soft shadow and their number above them; made as they first show.
   const shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false });
   const disc = new THREE.CircleGeometry(1, 24);
   const bodies = new Map<number, { group: THREE.Group; shadow: THREE.Mesh; label: string; team: number }>();
   const teamMaterials = [solid(), solid()];
+  const shortsMaterials = [solid(), solid()];
+  const skin = solid(SKIN);
+  const white = solid(0xf2f2f2);
+  const pads = solid(0x222222);
+  const eye = solid(0x1c1410);
+  const hairs = HAIRS.map((color) => solid(color));
+  /** A figure in `shirt` and `shorts`; `seated` leaves out the legs, hidden by the seat. */
+  const figure = (hair: number, shirt: THREE.Material, shorts: THREE.Material, seated = false) => {
+    const group = new THREE.Group();
+    const part = (geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, z);
+      group.add(mesh);
+      return mesh;
+    };
+    for (const side of [-1, 1]) {
+      if (!seated) {
+        part(new THREE.BoxGeometry(0.12, 0.08, 0.23), white, side * 0.1, 0.04, 0.03);
+        part(new THREE.CylinderGeometry(0.06, 0.055, 0.22, 10), white, side * 0.1, 0.19);
+        part(new THREE.CylinderGeometry(0.066, 0.06, 0.22, 10), skin, side * 0.1, 0.39);
+        part(new THREE.CylinderGeometry(0.075, 0.075, 0.1, 10), pads, side * 0.1, 0.4);
+      }
+      part(new THREE.CapsuleGeometry(0.075, 0.1, 4, 10), shirt, side * 0.26, 1.0).rotation.z = side * 0.3;
+      part(new THREE.CapsuleGeometry(0.055, 0.22, 4, 10), skin, side * 0.3, 0.78).rotation.z = side * 0.12;
+      part(new THREE.SphereGeometry(0.03, 10, 8), eye, side * 0.085, 1.39, 0.235);
+    }
+    part(new THREE.CylinderGeometry(0.21, 0.22, 0.2, 18), shorts, 0, 0.58).scale.z = 0.75;
+    part(new THREE.CylinderGeometry(0.24, 0.2, 0.42, 18), shirt, 0, 0.88).scale.z = 0.7;
+    part(new THREE.SphereGeometry(0.24, 18, 10), shirt, 0, 1.08).scale.set(1, 0.42, 0.7);
+    part(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 10), skin, 0, 1.15);
+    part(new THREE.SphereGeometry(0.25, 24, 18), skin, 0, 1.38);
+    // A cap of hair over the top, tilted back to leave the forehead bare.
+    part(new THREE.SphereGeometry(0.265, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), hairs[Math.abs(hair) % hairs.length], 0, 1.4).rotation.x = -0.35;
+    return group;
+  };
+  // The first referee on a stand behind the far post, facing the court.
+  const black = solid(0x202020);
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.6), post);
+  stand.position.copy(at(0, -5.8, 0.5));
+  const referee = figure(3, black, black);
+  referee.position.copy(at(0, -5.8, 1.0));
+  scene.add(stand, referee);
+  // Stands along the far side: three tiers, spectators seated on them with gaps between groups.
+  const tier = solid(0x7d8794);
+  const shirts = CROWD.map((color) => solid(color));
+  for (let row = 0; row < 3; row++) {
+    const top = 0.45 * (row + 1);
+    const depth = -10.2 - 0.8 * row;
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(24, top, 0.8), tier);
+    bench.position.copy(at(0, depth, top / 2));
+    scene.add(bench);
+    for (let k = 0; k < 22; k++) {
+      const n = row * 22 + k;
+      if ((n * 5) % 7 < 3) {
+        continue;
+      }
+      const fan = figure(n, shirts[(n * 7 + 3) % shirts.length], black, true);
+      fan.position.copy(at(-11 + k + 0.4 * (row % 2), depth, top - 0.5));
+      scene.add(fan);
+    }
+  }
   const player = (key: number, team: number, label: string, colors: SceneState['colors']) => {
     const known = bodies.get(key);
     if (known && known.label === label && known.team === team) {
@@ -197,14 +309,18 @@ export function mount(element: HTMLElement): Scene {
     if (known) {
       scene.remove(known.group, known.shadow);
     }
-    const group = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.9, 4, 12), teamMaterials[team - 1]);
-    body.position.y = 0.67;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), teamMaterials[team - 1]);
-    head.position.y = 1.52;
+    const group = figure(key, teamMaterials[team - 1], shortsMaterials[team - 1]);
+    const numbers = shirtNumber(label, colors.teamText[team - 1]);
+    const plane = new THREE.PlaneGeometry(0.22, 0.22);
+    for (const side of [1, -1]) {
+      const mesh = new THREE.Mesh(plane, numbers);
+      mesh.position.set(0, 0.9, side * 0.158);
+      mesh.rotation.y = side === 1 ? 0 : Math.PI;
+      group.add(mesh);
+    }
     const number = badge(label, colors.team[team - 1], colors.teamText[team - 1]);
-    number.position.y = 2.05;
-    group.add(body, head, number);
+    number.position.y = 2.0;
+    group.add(number);
     group.userData.key = key;
     const ground = new THREE.Mesh(disc, shadow);
     ground.rotation.x = -Math.PI / 2;
@@ -282,12 +398,18 @@ export function mount(element: HTMLElement): Scene {
       court.material.color.set(colors.court);
       line.color.set(colors.line);
       teamMaterials.forEach((m, k) => m.color.set(colors.team[k]));
+      shortsMaterials.forEach((m, k) => m.color.set(colors.team[k]).multiplyScalar(0.78));
       ringMaterial.color.set(colors.foreground);
       landingMaterial.color.set(colors.primary);
       const seen = new Set<number>();
       for (const p of state.players) {
         const body = player(p.key, p.team, p.label, colors);
         body.group.position.copy(at(p.x, p.y, p.jump));
+        // Facing the ball, else the net.
+        const [tx, ty] = state.ball ? [state.ball.x, state.ball.y] : [0, p.y];
+        if (Math.hypot(tx - p.x, ty - p.y) > 0.3) {
+          body.group.rotation.y = Math.atan2(tx - p.x, ty - p.y);
+        }
         body.shadow.position.copy(at(p.x, p.y, 0.006));
         body.group.visible = body.shadow.visible = true;
         seen.add(p.key);

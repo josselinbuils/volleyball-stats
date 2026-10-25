@@ -58,6 +58,13 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
   const box = useRef<HTMLDivElement>(null);
   const scene = useRef<Scene | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+  // The theme, the `dark` class on <html>: the scene recolours when it changes, paused or not.
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const observer = new MutationObserver(() => setDark(document.documentElement.classList.contains('dark')));
+    observer.observe(document.documentElement, { attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let gone = false;
@@ -76,7 +83,7 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
     };
   }, []);
 
-  // The page's colours, read on every update: the theme can change at any time.
+  // The page's colours, read on every update and theme change.
   useEffect(() => {
     if (status !== 'ready' || !scene.current) {
       return;
@@ -95,7 +102,7 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
         primary: get('primary'),
       },
     });
-  }, [state, status]);
+  }, [state, status, dark]);
 
   return (
     <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40">
