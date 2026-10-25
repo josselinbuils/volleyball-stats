@@ -198,10 +198,15 @@ export function mount(element: HTMLElement): Scene {
   controls.addEventListener('change', request);
   const resize = () => {
     const { width, height } = element.getBoundingClientRect();
+    const size = renderer.getSize(new THREE.Vector2());
+    if (Math.round(width) === size.x && Math.round(height) === size.y) {
+      return;
+    }
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();
-    request();
+    // Resizing clears the canvas: drawn at once, not a frame later, or it shows empty for a frame.
+    renderer.render(scene, camera);
   };
   const observer = new ResizeObserver(resize);
   observer.observe(element);
