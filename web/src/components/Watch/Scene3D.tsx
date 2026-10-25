@@ -104,7 +104,7 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
   }, [state, status, dark]);
 
   return (
-    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40 [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full">
+    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40 [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full [:fullscreen_&]:rounded-none">
       <div
         ref={box}
         className="absolute inset-0 touch-none [&>canvas]:block [&>canvas]:size-full"
@@ -113,7 +113,10 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
       />
       {status !== 'ready' && <p className="absolute inset-0 m-0 grid place-items-center text-sm text-muted-foreground">{t(status === 'failed' ? 'scene3d.failed' : 'scene3d.loading')}</p>}
       {status === 'ready' && (
-        <p className="absolute top-2 right-2 m-0 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground" title={t('scene3d.note')}>
+        <p
+          className="absolute top-2 right-2 m-0 [:fullscreen_&]:top-auto [:fullscreen_&]:bottom-2 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground"
+          title={t('scene3d.note')}
+        >
           {t('scene3d.badge')}
         </p>
       )}

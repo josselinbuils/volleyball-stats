@@ -44,13 +44,10 @@ export function Watch() {
           {/* Wide screens: the legend and the rally controls in a column beside the court. */}
           <div className="mx-auto grid w-full max-w-3xl min-w-0 gap-3 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-6">
             <Scoreboard />
-            {/* Full screen: the court centred and as large as the screen allows, the controls along the bottom. */}
+            {/* Full screen: the view fills the screen above the controls, its title bar over it. */}
             <div ref={court} className="overflow-hidden lg:col-start-1 rounded-lg border bg-card [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
-              <div className="p-3 pb-2 [:fullscreen>&]:grid [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:place-items-center [:fullscreen>&]:p-6">
-                {/* The top view's width keeps it on screen; the 3D view takes the whole space left. */}
-                <div className="w-full [:fullscreen_&]:max-w-[calc((100dvh-9rem)*1.9)] [:fullscreen_&:has(.replay-3d)]:h-full [:fullscreen_&:has(.replay-3d)]:max-w-none">
-                  <Replay captioned={false} />
-                </div>
+              <div className="p-3 pb-2 [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:p-0">
+                <Replay captioned={false} />
               </div>
               <div className="border-t bg-muted">
                 <VideoControls light />
