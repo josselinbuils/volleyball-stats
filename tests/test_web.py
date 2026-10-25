@@ -4,7 +4,7 @@ import pytest
 
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
-from volleyball_stats.web import brand, contacts, people, player_samples, result, spot, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import brand, contacts, people, photos, player_samples, result, spot, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -208,3 +208,23 @@ class TestWriteSite:
         assert not (site / "players.js").exists()
         assert (site / "match.mp4").read_bytes() == b"not a video"
         assert not (site / "poster.webp").exists()
+
+
+class TestPhotos:
+    def test_saves_a_picture_of_each_numbered_player_from_their_longest_piece(self, tmp_path):
+        video = tmp_path / "clip.mp4"
+        writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
+        for _ in range(20):
+            writer.write(np.full((48, 64, 3), 128, np.uint8))
+        writer.release()
+        rows = [f"{f},1,left,10,10,20,40,0.9,15,40,-3,0" for f in range(20)]
+        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "\n".join(rows) + "\n")
+        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity,runner_up,confidence\n1,0,19,1,3,,1.0\n")
+        (tmp_path / "identity_candidates.json").write_text('{"segments": [], "merges": []}')
+        people = {0: {"team": 1, "number": 3}, 1: {"team": 2, "number": None}}
+
+        photos(tmp_path, video, people, tmp_path / "players")
+
+        assert people[0]["photo"] == "players/0.webp"
+        assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[0] == web.PHOTO_PX
+        assert "photo" not in people[1]

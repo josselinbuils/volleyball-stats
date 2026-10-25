@@ -55,6 +55,8 @@ export interface Person {
   number: number | null;
   jersey: number | null;
   name?: string | null;
+  /** A picture of them from the video, beside data.js. */
+  photo?: string;
 }
 
 export interface ZoneCell {

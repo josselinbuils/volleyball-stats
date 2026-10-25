@@ -257,6 +257,12 @@
     "player": "Player",
     "rest": "Unidentified player",
     "total": "Whole team",
-    "captionSides": "Without player tracking, touches are counted per side of the net, as seen from the camera. Click a number to watch those moments again."
+    "captionSides": "Without player tracking, touches are counted per side of the net, as seen from the camera. Click a number to watch those moments again.",
+    "views": {
+      "table": "Table",
+      "cards": "Cards"
+    },
+    "viewsLabel": "View",
+    "noTouch": "No touch"
   }
 }

@@ -19,8 +19,8 @@ import argparse
 import csv
 import json
 import threading
-from collections import Counter
 import webbrowser
+from collections import Counter
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path

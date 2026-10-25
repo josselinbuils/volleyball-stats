@@ -34,8 +34,9 @@ BRANDING = Path("branding")
 # Player positions are kept every STEP_S seconds over the whole video, to the centimetre.
 STEP_S = 0.1
 POSTER_WIDTH = 800
-# The club logo shows at most 64 px tall: kept at twice that for sharp high-density screens.
-LOGO_PX = 128
+# The club logo shows at most 64 px tall, the players' pictures 120 px: kept at twice that for sharp
+# high-density screens.
+LOGO_PX, PHOTO_PX = 128, 240
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -299,9 +300,39 @@ def write_site(data: dict, players: dict | None, video: Path, site: Path, copy: 
         target.symlink_to(video.resolve())
 
 
+def photos(match: Path, video: Path, people: dict[int, dict], folder: Path) -> None:
+    """A picture of each numbered player of `people` in `folder`, as their `photo`: the clearest
+    moment of their longest piece of track, a little room around them."""
+    from volleyball_stats.identity import frames_at
+    from volleyball_stats.review import CROP_MARGIN, Questions
+
+    if not (match / "identity_candidates.json").exists():
+        return
+    questions = Questions(match, cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS))
+    wanted: dict[int, list] = {}
+    for key, person in people.items():
+        pieces = questions.pieces(person["team"], person["number"]) if person["number"] else []
+        if pieces and pieces[0][0] in questions.rows:
+            track, start, end, _, _ = pieces[0]
+            frame = questions.clear(track, start, end)
+            wanted.setdefault(frame, []).append((key, questions.box(track, frame)))
+    folder.mkdir(parents=True, exist_ok=True)
+    for frame, image in frames_at(video, wanted):
+        for key, (x1, y1, x2, y2) in wanted[frame]:
+            mx, my = round((x2 - x1) * CROP_MARGIN), round((y2 - y1) * CROP_MARGIN)
+            part = image[max(0, y1 - my) : y2 + my, max(0, x1 - mx) : x2 + mx]
+            if part.size:
+                size = (max(1, round(part.shape[1] * PHOTO_PX / part.shape[0])), PHOTO_PX)
+                part = cv2.resize(part, size, interpolation=cv2.INTER_CUBIC if part.shape[0] < PHOTO_PX else cv2.INTER_AREA)
+                cv2.imwrite(str(folder / f"{key}.webp"), part, [cv2.IMWRITE_WEBP_QUALITY, 75])
+                people[key]["photo"] = f"{folder.name}/{key}.webp"
+
+
 def build(match: Path, video: Path, court: Path, site: Path, copy: bool = False, theme: str = "aspom") -> dict:
     """The match page in `site`; returns data.js's match."""
     data, players = match_data(match, video, Calibration.load(court))
+    shutil.rmtree(site / "players", ignore_errors=True)
+    photos(match, video, data["people"], site / "players")
     shutil.rmtree(site / "brand", ignore_errors=True)
     data["brand"] = brand(theme, site)
     write_site(data, players, video, site, copy)

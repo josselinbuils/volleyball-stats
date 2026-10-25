@@ -14,7 +14,7 @@ import type { Stat, Stats } from '@/components/Stats/helpers/stats';
 
 /** The columns, each a count of touches (`stat`) under its group's title (`of`), named by `label`
  * within it. */
-const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
+export const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'touches', of: 'touches', label: 'total' },
   { stat: 'serves', of: 'serves', label: 'total' },
   { stat: 'aces', of: 'serves', label: 'aces' },
@@ -123,7 +123,7 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
 
 /** A strength (green) or a thing to work on (amber), its comparison with the rest of the team on
  * hover; a click plays its touches. */
-function InsightChip({ id, insight: i, who }: { id: string; insight: Insight; who: (t: TFunction) => string }) {
+export function InsightChip({ id, insight: i, who }: { id: string; insight: Insight; who: (t: TFunction) => string }) {
   const { t } = useTranslation();
   const f = useFormat();
   const { playlist, play } = usePlayer();

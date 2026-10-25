@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LayoutGrid, Table2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
@@ -10,6 +11,7 @@ import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColo
 import { useSet } from '@/lib/sets';
 import { insights } from '@/components/Stats/helpers/insights';
 import { lines } from '@/components/Stats/helpers/stats';
+import { PlayerCards } from '@/components/Stats/PlayerCards';
 import { StatsTable } from '@/components/Stats/StatsTable';
 
 /** What each player of a team did with the ball, a count per action and how it ended, and the whole
@@ -18,6 +20,7 @@ export function PlayersTable() {
   const { t } = useTranslation();
   const { set, contacts } = useSet();
   const [group, setGroup] = useState<Group>(1);
+  const [view, setView] = useState<'table' | 'cards'>('table');
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
   const found = lines(contacts, match.people, group);
   const team = found[found.length - 1].stats;
@@ -49,31 +52,59 @@ export function PlayersTable() {
         <CardDescription>{t(hasTeams ? 'players.caption' : 'players.captionSides')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          spacing={0}
-          value={String(group)}
-          onValueChange={(v) => {
-            if (v) {
-              setGroup(Number(v) as Group);
-            }
-          }}
-          aria-label={t('teamFilter')}
-          className="w-full items-stretch bg-card sm:w-auto"
-        >
-          {GROUPS.map((g) => (
-            <ToggleGroupItem
-              key={g}
-              value={String(g)}
-              className="h-auto min-h-8 flex-1 gap-2 py-1.5 leading-tight whitespace-normal data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:flex-none"
+        <div className="flex flex-wrap items-center gap-3">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={String(group)}
+            onValueChange={(v) => {
+              if (v) {
+                setGroup(Number(v) as Group);
+              }
+            }}
+            aria-label={t('teamFilter')}
+            className="w-full items-stretch bg-card sm:w-auto"
+          >
+            {GROUPS.map((g) => (
+              <ToggleGroupItem
+                key={g}
+                value={String(g)}
+                className="h-auto min-h-8 flex-1 gap-2 py-1.5 leading-tight whitespace-normal data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:flex-none"
+              >
+                <Swatch color={teamColor(g)} ring={teamRing(g)} />
+                {groupName(t, g)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          {withPlayers && (
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              spacing={0}
+              value={view}
+              onValueChange={(v) => {
+                if (v) {
+                  setView(v as 'table' | 'cards');
+                }
+              }}
+              aria-label={t('players.viewsLabel')}
+              className="w-full items-stretch bg-card sm:w-auto"
             >
-              <Swatch color={teamColor(g)} ring={teamRing(g)} />
-              {groupName(t, g)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} insights={withPlayers} />
+              {(['table', 'cards'] as const).map((v) => (
+                <ToggleGroupItem key={v} value={v} className="h-auto min-h-8 flex-1 gap-2 py-1.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:flex-none">
+                  {v === 'table' ? <Table2 aria-hidden /> : <LayoutGrid aria-hidden />}
+                  {t(`players.views.${v}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
+        </div>
+        {view === 'cards' && withPlayers ? (
+          <PlayerCards id={`cards:${set}:${group}`} rows={rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number')} g={group} />
+        ) : (
+          <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} insights={withPlayers} />
+        )}
         <p className="text-[13px] text-muted-foreground">{[t('stats.note'), t('stats.noteUnattacked'), withPlayers && t('stats.noteInsights'), t('stats.noteVideo')].filter(Boolean).join(' ')}</p>
       </CardContent>
     </Card>

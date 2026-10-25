@@ -257,6 +257,12 @@
     "player": "Joueur",
     "rest": "Joueur non identifié",
     "total": "Toute l'équipe",
-    "captionSides": "Sans le suivi des joueurs, les touches sont comptées par côté du filet, vu depuis la caméra. Cliquez sur un nombre pour revoir ces moments."
+    "captionSides": "Sans le suivi des joueurs, les touches sont comptées par côté du filet, vu depuis la caméra. Cliquez sur un nombre pour revoir ces moments.",
+    "views": {
+      "table": "Tableau",
+      "cards": "Cartes"
+    },
+    "viewsLabel": "Affichage",
+    "noTouch": "Aucune touche"
   }
 }
