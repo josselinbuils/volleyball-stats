@@ -3,7 +3,7 @@ import { Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Snail, Volume2, V
 import { useTranslation } from 'react-i18next';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
-import { usePlayer, useVideoTime } from '@/lib/player';
+import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
 import { span as allowed } from '@/components/Watch/helpers/span';
@@ -101,13 +101,7 @@ export function VideoControls({ light = false }: { light?: boolean }) {
   return (
     // On a phone the timeline takes its own row above the buttons.
     <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'text-white')}>
-      <button
-        type="button"
-        className={button}
-        aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')}
-        title={t(state.paused ? 'playVideo' : 'pauseVideo')}
-        onClick={() => (video?.paused ? void video.play().catch(() => {}) : video?.pause())}
-      >
+      <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} title={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
         {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
       </button>
       <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>

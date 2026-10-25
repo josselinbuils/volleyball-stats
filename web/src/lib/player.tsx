@@ -43,6 +43,15 @@ export function useVideoTime<T>(select: (time: number) => T): T {
   return useSyncExternalStore(subscribe, () => select(now));
 }
 
+/** Plays the video if paused, else pauses it. */
+export function togglePlay(video: Media | null): void {
+  if (video?.paused) {
+    video.play().catch(() => {});
+  } else {
+    video?.pause();
+  }
+}
+
 export function usePlayer(): Player {
   const player = useContext(PlayerContext);
   if (!player) {
