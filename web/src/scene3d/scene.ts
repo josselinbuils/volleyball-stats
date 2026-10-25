@@ -35,7 +35,8 @@ const VIEWS: Record<View, [THREE.Vector3, THREE.Vector3]> = {
   top: [new THREE.Vector3(0, 21, 0.01), new THREE.Vector3(0, 0, 0)],
 };
 const NET_TOP = 2.35;
-const BALL_R = 0.11;
+// Twice the real ball's radius, to follow it at a glance as on the top view.
+const BALL_R = 0.21;
 
 // Court metres to the scene's axes: x, height up, y towards the viewer.
 const at = (x: number, y: number, h = 0) => new THREE.Vector3(x, h, y);
@@ -147,7 +148,8 @@ export function mount(element: HTMLElement): Scene {
     return made;
   };
 
-  const ballMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  // A match ball's yellow: it stands out from the floor and both teams.
+  const ballMaterial = new THREE.MeshLambertMaterial({ color: 0xf5c518, emissive: 0x3a2a00 });
   const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 24, 16), ballMaterial);
   const ballShadow = new THREE.Mesh(disc, shadow);
   ballShadow.rotation.x = -Math.PI / 2;
