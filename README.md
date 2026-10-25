@@ -152,8 +152,8 @@ number and chart element plays its moments in the video, with a top view of the 
 the play, each player keeping one number for the whole match (their jersey number and name once
 named), and the set and its score (estimated, or the final score you gave once the set is over)
 above the video. The match's title and date head the page. A "Joueurs" table gives each player's
-touches, serves (aces, faults), receptions (missed: reception faults and the aces that landed
-nearest to them), attacks (points, faults), blocks, digs, sets, points and faults.
+touches, serves (aces, faults), receptions, missed receptions (reception faults and the aces that
+landed nearest to them), attacks (faults), winning attacks, blocks, digs, sets, points and faults.
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls
 back to the sides of the net. With several sets, one filter, which stays at the top of the screen, shows a single set: every

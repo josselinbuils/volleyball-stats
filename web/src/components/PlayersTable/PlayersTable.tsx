@@ -19,8 +19,10 @@ import { lines, type Line, type Stat } from '@/components/PlayersTable/helpers/s
 const COLUMNS: { stat: Stat; sub: Stat[] }[] = [
   { stat: 'touches', sub: [] },
   { stat: 'serves', sub: ['aces', 'serveFaults'] },
-  { stat: 'receptions', sub: ['missed'] },
-  { stat: 'attacks', sub: ['kills', 'attackFaults'] },
+  { stat: 'receptions', sub: [] },
+  { stat: 'missed', sub: [] },
+  { stat: 'attacks', sub: ['attackFaults'] },
+  { stat: 'kills', sub: [] },
   { stat: 'blocks', sub: ['blockPoints'] },
   { stat: 'digs', sub: [] },
   { stat: 'sets', sub: [] },
@@ -109,7 +111,7 @@ export function PlayersTable() {
             <TableRow className="hover:bg-transparent">
               <TableHead className={cn(FIRST, 'text-muted-foreground')}>{t('players.player')}</TableHead>
               {COLUMNS.map(({ stat }) => (
-                <TableHead key={stat} className="px-1 text-center text-muted-foreground">
+                <TableHead key={stat} className="min-w-20 px-1 text-center leading-tight whitespace-normal text-muted-foreground">
                   {t(`players.stats.${stat}`)}
                 </TableHead>
               ))}
