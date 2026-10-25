@@ -39,6 +39,12 @@ export function touchesAt(contacts: Contact[], time: number, before = 0.1, after
   return contacts.filter((c) => c.person !== null && time >= c.t - before && time <= c.t + after).map((touch) => ({ touch, f: (time - touch.t + before) / (before + after) }));
 }
 
+/** The placed floor touches of the ball from `time` back to `after` seconds earlier, with how far
+ * along that window it is (0 to 1): where an impact ripples out. */
+export function landingsAt(contacts: Contact[], time: number, after = 0.9): { x: number; y: number; f: number; i: number }[] {
+  return contacts.filter((c) => c.type === 'floor' && c.x !== null && c.y !== null && time >= c.t && time <= c.t + after).map((c) => ({ x: c.x!, y: c.y!, f: (time - c.t) / after, i: c.i }));
+}
+
 /** The players' feet at the sample nearest to `time`; none past the samples. */
 export function playersAt(players: Players, fps: number, time: number): { person: number; x: number; y: number }[] {
   const flat = players.samples[Math.round((time * fps) / players.step)] ?? [];

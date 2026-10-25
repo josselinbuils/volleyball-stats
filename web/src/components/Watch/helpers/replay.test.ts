@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '@/lib/match';
-import { ballAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+import { ballAt, landingsAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 
 describe('ballAt', () => {
   const touch = (t: number, x: number | null, y: number | null) => ({ t, x, y }) as Contact;
@@ -47,6 +47,17 @@ describe('touchesAt', () => {
     const found = touchesAt([touch(1, 3), touch(1.2, null), touch(2, 5)], 1.25);
     expect(found.map(({ touch: c, f }) => [c.person, Math.round(f * 100) / 100])).toEqual([[3, 0.5]]);
     expect(touchesAt([touch(1, 3)], 0.85)).toEqual([]);
+  });
+});
+
+describe('landingsAt', () => {
+  const touch = (i: number, t: number, type: string, x: number | null) => ({ i, t, type, x, y: x === null ? null : 1 }) as Contact;
+
+  it('ripples from a placed floor touch for under a second after it', () => {
+    const rally = [touch(0, 1, 'serve', -8), touch(1, 2, 'floor', 5), touch(2, 2.1, 'floor', null)];
+    expect(landingsAt(rally, 2.45).map(({ f, ...at }) => ({ ...at, f: Math.round(f * 100) / 100 }))).toEqual([{ x: 5, y: 1, f: 0.5, i: 1 }]);
+    expect(landingsAt(rally, 1.9)).toEqual([]);
+    expect(landingsAt(rally, 3)).toEqual([]);
   });
 });
 

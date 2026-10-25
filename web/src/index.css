@@ -228,6 +228,16 @@
       transform: none;
     }
   }
+  /* In the accent colour, apart from the players' dots. */
+  .landing-mark {
+    fill: var(--primary);
+  }
+  .landing-ring {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+  }
   .touch-ring {
     fill: none;
     stroke: var(--foreground);

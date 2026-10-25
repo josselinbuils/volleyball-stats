@@ -5,7 +5,7 @@ import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerNumber
 import { useVideoTime } from '@/lib/player';
 import { usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
-import { ballAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+import { ballAt, landingsAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 
 /** The court seen from above, players and ball following the video. */
 export function Replay() {
@@ -17,6 +17,7 @@ export function Replay() {
   const ball = rally ? ballAt(rally.contacts, time) : null;
   const trail = rally ? trailAt(rally.contacts, time) : [];
   const touches = rally ? touchesAt(rally.contacts, time) : [];
+  const landings = rally ? landingsAt(rally.contacts, time) : [];
   const last = rally?.contacts.filter((c) => c.t <= time).pop();
   const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
 
@@ -52,6 +53,14 @@ export function Replay() {
               </g>
             );
           })}
+          {/* Where the ball hits the floor: a mark and two rings rippling out, fading. */}
+          {landings.map(({ x, y, f, i }) => (
+            <g key={i} className="landing" opacity={1 - f}>
+              <circle cx={x} cy={y} r={0.2 + 0.25 * f} className="landing-mark" />
+              <circle cx={x} cy={y} r={0.4 + 1.6 * f} className="landing-ring" />
+              {f > 0.2 && <circle cx={x} cy={y} r={0.4 + 1.6 * (f - 0.2)} className="landing-ring" />}
+            </g>
+          ))}
           {/* A comet tail behind the ball, widening and darkening towards it. */}
           {/* A ring widening and fading around the player who touches the ball. */}
           {touches.map(({ touch, f }) => {
