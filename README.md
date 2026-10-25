@@ -166,9 +166,9 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 it landed; and those after which the team did not attack), sets, attacks (winning, faults), free
 balls (faults), blocks and "Bilan" (points, faults). Its "Analyse" group lists each player's
 strengths and things to work on: the rates at least 20 points apart from the rest of their team's,
-with 5 attempts or more on each side. A switch shows the same as one card per player instead, with
+with 5 attempts or more on each side. A switch shows it as one FIFA-style card per player instead, with
 their picture from the video (`site/players/`, the clearest moment of their longest stretch on
-court). Without player tracks it counts each side of the net.
+court, 3 wide for 4 tall). Without player tracks it counts each side of the net.
 
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls

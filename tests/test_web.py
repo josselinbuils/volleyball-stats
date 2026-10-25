@@ -226,5 +226,6 @@ class TestPhotos:
         photos(tmp_path, video, people, tmp_path / "players")
 
         assert people[0]["photo"] == "players/0.webp"
-        assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[0] == web.PHOTO_PX
+        # The 10x30 box, 38 px tall with its margins and widened to 3 for 4.
+        assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (38, 28)
         assert "photo" not in people[1]

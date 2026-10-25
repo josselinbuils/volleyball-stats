@@ -263,6 +263,11 @@
       "cards": "Cartes"
     },
     "viewsLabel": "Affichage",
-    "noTouch": "Aucune touche"
+    "cards": {
+      "points_one": "point",
+      "points_other": "points",
+      "faults_one": "faute",
+      "faults_other": "fautes"
+    }
   }
 }
