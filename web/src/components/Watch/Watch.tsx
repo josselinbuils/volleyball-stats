@@ -43,10 +43,12 @@ export function Watch() {
         <CardContent className="grid gap-8">
           <div className="mx-auto grid w-full max-w-3xl min-w-0 gap-3">
             <Scoreboard />
-            {/* Full screen takes the court with its controls. */}
-            <div ref={court} className="overflow-hidden rounded-lg border bg-card [&:fullscreen]:grid [&:fullscreen]:content-center [&:fullscreen]:p-6">
-              <div className="p-3 pb-2">
-                <Replay captioned={false} />
+            {/* Full screen: the court centred and as large as the screen allows, the controls along the bottom. */}
+            <div ref={court} className="overflow-hidden rounded-lg border bg-card [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
+              <div className="p-3 pb-2 [:fullscreen>&]:grid [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:place-items-center [:fullscreen>&]:p-6">
+                <div className="w-full [:fullscreen_&]:max-w-[calc((100dvh-9rem)*1.9)]">
+                  <Replay captioned={false} />
+                </div>
               </div>
               <div className="border-t bg-muted">
                 <VideoControls light />
