@@ -1,8 +1,9 @@
 """Action classification of a rally's ball contacts, by the rules of volleyball.
 
-The first contact of a rally is the serve. After each net crossing the receiving side touches the
-ball at most 3 times: 1 is the pass when the ball comes from the serve and the dig otherwise, 2 the
-set, 3 the attack. A touch shortly after an attack is the opposing block, which does not count. A
+The first contact of a rally is the serve, unless it is inside the court, where no serve is taken:
+the ball was thrown in (by a coach between rallies) and that contact is a dig. After each net
+crossing the receiving side touches the ball at most 3 times: 1 is the pass when the ball comes from
+the serve and the dig otherwise, 2 the set, 3 the attack. A touch shortly after an attack is the opposing block, which does not count. A
 touch by the serving side before the ball crosses is the net. A contact at floor level is the floor,
 and every contact after it too: the ball is dead.
 
@@ -45,6 +46,9 @@ BLOCK_S = 0.33
 # the horizon (mapped behind the camera).
 FLOOR_Y, LAST_FLOOR_Y = 2.0, -4.5
 MARGIN = 2.0
+# Court x (meters from the net) under which a first contact's floor projection is inside the court:
+# a ball in the air only projects farther, and the labelled serves project from 12.3 m.
+SERVE_X = 8.0
 
 Contact = tuple[int, int, int]
 Typed = tuple[int, int, int, str, str]
@@ -76,13 +80,25 @@ def on_floor(calibration: Calibration | None, x: float, y: float, last: bool) ->
     return abs(cx) <= 9 + MARGIN and (LAST_FLOOR_Y if last else FLOOR_Y) <= cy <= 4.5 + MARGIN
 
 
+def in_court(calibration: Calibration | None, x: float, y: float) -> bool:
+    """Whether the contact at image (x, y) is surely over the court, short of its end lines."""
+    if calibration is None:
+        return False
+    cx, cy = calibration.to_court(np.array([[x, y]]))[0]
+    return abs(cx) < SERVE_X and abs(cy) <= 4.5 + MARGIN
+
+
 def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
     """(frame, x, y, type, side) of a rally's contacts, in frame order."""
     out: list[Typed] = []
-    touches, crossed, blocked, attack, dead = 0, 0, False, None, False
+    touches, crossed, blocked, attack, dead, thrown = 0, 0, False, None, False, 0
     contacts = sorted(contacts)
     for frame, x, y in contacts:
         now = sum(c <= frame for c in crossings)
+        if not out and not now and in_court(calibration, x, y):
+            # Counted as after a crossing that was no serve's.
+            thrown = 1
+        now += thrown
         if now > crossed:
             touches, crossed = 0, now
         side = "left" if x < net_u(calibration, net_x, y) else "right"
@@ -100,7 +116,7 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
             touches += 1
             # A crossing before the first contact is an unseen serve's. ponytail: every touch from the
             # 3rd is the attack, a bump that saves a bad set included.
-            kind = {1: "pass" if crossed == 1 and not blocked else "dig", 2: "set"}.get(touches, "attack")
+            kind = {1: "pass" if crossed == 1 and not blocked and not thrown else "dig", 2: "set"}.get(touches, "attack")
         # A second blocker's touch is a block too.
         attack = (frame, side) if kind == "attack" else attack if kind == "block" else None
         out.append((frame, x, y, kind, side))
