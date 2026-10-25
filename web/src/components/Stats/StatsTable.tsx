@@ -66,7 +66,7 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
       ))}
       {insights &&
         [true, false].map((strength) => (
-          <TableCell key={String(strength)} className="min-w-44 border-l px-2 py-1.5">
+          <TableCell key={String(strength)} className="min-w-44 px-2 py-1.5">
             <div className="flex flex-wrap gap-1">
               {r.insights
                 ?.filter((i) => i.strength === strength)
@@ -90,17 +90,16 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
           {COLUMNS.map(
             ({ of }, k) =>
               (k === 0 || parts(k)) && (
-                <TableHead key={of} colSpan={COLUMNS.filter((c) => c.of === of).length} className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}>
+                // The strengths and things to work on close the overall group.
+                <TableHead
+                  key={of}
+                  colSpan={COLUMNS.filter((c) => c.of === of).length + (insights && of === 'overall' ? 2 : 0)}
+                  className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}
+                >
                   {t(`stats.names.${of}`)}
                 </TableHead>
               ),
           )}
-          {insights &&
-            (['strengths', 'toWorkOn'] as const).map((key) => (
-              <TableHead key={key} rowSpan={2} className={cn(HEAD, 'border-l font-semibold text-foreground')}>
-                {t(`stats.insights.${key}`)}
-              </TableHead>
-            ))}
         </TableRow>
         <TableRow className="hover:bg-transparent">
           {COLUMNS.map(({ stat, label }, k) => (
@@ -108,6 +107,12 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
               {t(`stats.columns.${label}`)}
             </TableHead>
           ))}
+          {insights &&
+            (['strengths', 'toWorkOn'] as const).map((key) => (
+              <TableHead key={key} className={cn(HEAD, 'h-8')}>
+                {t(`stats.insights.${key}`)}
+              </TableHead>
+            ))}
         </TableRow>
       </TableHeader>
       <TableBody>{rows.filter((r) => !r.total).map(row)}</TableBody>
