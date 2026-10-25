@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { match } from '@/lib/match';
+import { match, versioned } from '@/lib/match';
 
 /** Player feet sampled every `step` frames from frame 0, each sample a flat [person, x, y, ...] list. */
 export interface Players {
@@ -33,7 +33,7 @@ export function loadPlayers() {
   }
   started = true;
   const script = document.createElement('script');
-  script.src = 'players.js';
+  script.src = versioned('players.js');
   script.onload = () => settle(window.MATCH_PLAYERS ?? 'none');
   script.onerror = () => settle('none');
   document.head.append(script);

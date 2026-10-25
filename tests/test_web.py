@@ -198,12 +198,15 @@ class TestWriteSite:
 
         write_site({"fps": 25.0, "rallies": [], "name": "Bègles"}, {"step": 3, "samples": [[]]}, video, site, copy=True)
 
-        assert (site / "index.html").read_text().count('src="data.js"') == 1
+        version = (site / "index.html").read_text().split('src="data.js?v=')[1].split('"')[0]
+        assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == 'window.MATCH = {"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4"};\n'
+        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","v":"{version}"}};\n'
         assert (site / "players.js").read_text() == 'window.MATCH_PLAYERS = {"step":3,"samples":[[]]};\n'
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
+
+        assert f'src="data.js?v={version}"' not in (site / "index.html").read_text()
 
         assert not (site / "players.js").exists()
         assert (site / "match.mp4").read_bytes() == b"not a video"

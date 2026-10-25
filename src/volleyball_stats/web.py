@@ -21,6 +21,7 @@ club theme from branding/NAME/brand.json (logo, colours), `none` for the neutral
 
 import argparse
 import csv
+import hashlib
 import json
 import shutil
 from collections.abc import Callable, Iterable, Iterator
@@ -300,10 +301,17 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     data = {**data, "video": video and video.name}
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
         data["poster"] = "poster.webp"
-    (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     (site / "players.js").unlink(missing_ok=True)
-    if players:
-        (site / "players.js").write_text(f"window.MATCH_PLAYERS = {json.dumps(players, separators=(',', ':'))};\n")
+    players_js = players and f"window.MATCH_PLAYERS = {json.dumps(players, separators=(',', ':'))};\n"
+    if players_js:
+        (site / "players.js").write_text(players_js)
+    # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
+    # serves each build its own.
+    built = json.dumps(data, sort_keys=True) + (players_js or "") + (site / "scene3d.js").read_text()
+    data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
+    index = site / "index.html"
+    index.write_text(index.read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
     if video:
         if copy:
             shutil.copy(video, site / video.name)

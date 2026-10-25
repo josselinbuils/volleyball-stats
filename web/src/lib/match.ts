@@ -105,6 +105,8 @@ interface Data {
   date?: string | null;
   /** The title the user typed, null for the default one. */
   title?: string | null;
+  /** The build's hash, in the unhashed scripts' URLs. */
+  v?: string;
 }
 
 declare global {
@@ -128,6 +130,8 @@ export const match = {
   date: data.date ?? null,
   title: data.title ?? null,
 };
+/** `file`, beside the page, at this build's URL: a cache never serves another build's. */
+export const versioned = (file: string) => (data.v ? `${file}?v=${data.v}` : file);
 export const teams = data.teams;
 export const hasTeams = teams !== null;
 const firstLeft = data.rallies.find((r) => r.left !== null)?.left ?? 1;

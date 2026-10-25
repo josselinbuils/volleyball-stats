@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { versioned } from '@/lib/match';
 import type { Scene, SceneState } from '@/scene3d/scene';
 
 let loading: Promise<void> | null = null;
@@ -8,7 +9,7 @@ let loading: Promise<void> | null = null;
 function load(): Promise<void> {
   loading ??= new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = 'scene3d.js';
+    script.src = versioned('scene3d.js');
     script.onload = () => resolve();
     script.onerror = () => {
       loading = null;

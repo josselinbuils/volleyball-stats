@@ -56,14 +56,15 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## Hosting
 
-https://josselinbuils.dev/volleyball/ serves `side_setend` from the OVH server (`ssh root@<OVH IP>
+https://josselinbuils.dev/volleyball/ serves `full_match` from the OVH server (`ssh root@<OVH IP>
 -i ~/.ssh/id_ed25519_ovh`): a `volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's
 `docker` repo; that service is only in the server's copy), the page in `volleyball-stats/site`, the
-`/volleyball` route in `reverse-proxy/config.json`. Update it by building the page without footage
-or pictures and copying it over; nothing restarts:
+`/volleyball` route in `reverse-proxy/config.json`. Cloudflare caches the `.js` files for 4 hours:
+the unhashed ones load with the build's hash (`?v=`), so a new build shows at once. Update it by
+building the page without footage or pictures and copying it over; nothing restarts:
 
 ```bash
-uv run python -m volleyball_stats.web outputs/side_setend --video data/side_setend.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out /tmp/site
+uv run python -m volleyball_stats.web outputs/full_match --video data/full_match.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out /tmp/site
 ```
 
-That run rewrites `outputs/side_setend/page.json`: put back the local build's options after.
+That run rewrites `outputs/full_match/page.json`: put back the local build's options after.
