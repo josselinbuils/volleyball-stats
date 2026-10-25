@@ -278,10 +278,6 @@
     "3d": "3D",
     "loading": "Loading the 3D view…",
     "failed": "The 3D view could not load.",
-    "views": "Viewpoint",
-    "stand": "Stand",
-    "server": "End line",
-    "top": "Top",
     "badge": "Reconstruction: estimated ball height",
     "note": "The camera does not give the ball's height: each flight rises as high as gravity requires for its duration, and each touch sits at a typical height for its action. Drag to turn around the court, pinch or scroll to zoom."
   }
