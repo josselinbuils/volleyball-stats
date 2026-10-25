@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -15,13 +16,23 @@ export function RallyCards() {
   const { play } = usePlayer();
   const { set, rallies } = useSet();
   const current = useVideoTime((time) => rallyNear(rallies, time)?.i ?? -1);
+  const list = useRef<HTMLOListElement>(null);
   const present = TYPES.filter((type) => rallies.some((r) => r.contacts.some((c) => c.type === type)));
 
+  // Keeps the current rally's card in view inside the list, without scrolling the page.
+  useEffect(() => {
+    const box = list.current;
+    const item = box?.children[rallies.findIndex((r) => r.i === current)] as HTMLElement | undefined;
+    if (box && item && (item.offsetLeft < box.scrollLeft || item.offsetLeft + item.offsetWidth > box.scrollLeft + box.clientWidth)) {
+      box.scrollLeft = item.offsetLeft - 8;
+    }
+  }, [current, rallies]);
+
   return (
-    <div>
+    <div className="min-w-0">
       <h3 className="font-semibold">{t('rallies')}</h3>
       {rallies.length ? (
-        <ol className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-2 p-0.5">
+        <ol ref={list} className="relative mt-3 grid grid-flow-col grid-rows-[repeat(4,auto)] auto-cols-[9.5rem] sm:auto-cols-[12rem] gap-2 overflow-x-auto p-0.5 pb-2">
           {rallies.map((r, k) => (
             <li key={r.i}>
               <button
