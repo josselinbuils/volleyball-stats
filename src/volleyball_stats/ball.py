@@ -106,8 +106,10 @@ def track_frames(
     stride: int = STRIDE,
     threshold: float | None = None,
     batch: int = BATCH,
+    size: tuple[int, int] | None = None,
 ) -> Iterator[tuple[np.ndarray, Position]]:
-    """Yield each frame with the ball position in frame pixels, or None when not found.
+    """Yield each frame with the ball position in the pixels of a frame of `size` (width, height),
+    by default the frames' own, or None when not found.
 
     Windows are run `batch` at a time; frames wait, up to `batch * stride` of them, until the
     batch holding their last window has run.
@@ -139,7 +141,8 @@ def track_frames(
             if blob is None or blob[2] < threshold:
                 yield frame, None
             else:
-                yield frame, (round(blob[0] * frame.shape[1] / WIDTH), round(blob[1] * frame.shape[0] / HEIGHT))
+                width, height = size or (frame.shape[1], frame.shape[0])
+                yield frame, (round(blob[0] * width / WIDTH), round(blob[1] * height / HEIGHT))
         ready.clear()
 
     for index, frame in enumerate(frames):

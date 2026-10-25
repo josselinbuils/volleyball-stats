@@ -47,6 +47,11 @@ class TestTrackFrames:
         # of frames 3 and 4.
         assert [position for _, position in results] == [(0, 200), (2, 200), (4, 200), (24, 200), (44, 200)]
 
+    def test_gives_positions_in_the_pixels_of_the_given_size(self):
+        results = list(track_frames(self.frames(5), self.FakeModel(), "cpu", stride=1, threshold=0.5, size=(2 * WIDTH, 2 * HEIGHT)))
+
+        assert [position for _, position in results] == [(0, 200), (2, 200), (4, 200), (24, 200), (44, 200)]
+
     def test_with_stride_3_each_frame_is_seen_once(self):
         results = list(track_frames(self.frames(5, scale=2), self.FakeModel(), "cpu", stride=3, threshold=0.5))
 

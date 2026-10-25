@@ -79,6 +79,12 @@ uv run python benchmarks/speed.py VIDEO          # projected processing time of 
 Keep the videos in the Ubuntu file system (`~/`), not under `/mnt/c`: reading Windows files from
 WSL2 is several times slower.
 
+The ball and the players are tracked from one reading of the video by `ffmpeg`, on the graphics card
+(NVDEC) when it can, the frames shrunk to 1280 px before the models: `speed.py` compares it with the
+old two readings and projects both over a 2-hour match. On the M4 Pro the models set the pace (7.8 h
+instead of 8.4 h for 2 hours of 4K 50 fps); the RTX 5080 should run them several times faster, so
+the saved reading matters more there. `sudo apt install ffmpeg` in WSL2 is enough for NVDEC.
+
 A 2-hour match at 50 fps needs about 8 GB of RAM at its peak, the identity step holding the
 players' rows (`benchmarks/scale.py` measures each step on a synthetic long match). WSL2 gets half
 of the PC's RAM by default: with 16 GB, raise it in `%UserProfile%\.wslconfig` (`[wsl2]`, then

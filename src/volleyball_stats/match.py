@@ -15,25 +15,39 @@ import csv
 import sys
 import time
 from collections import Counter
+from collections.abc import Iterator
 from datetime import datetime
+from itertools import repeat, tee
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, contacts, court, identity, players, points, rallies, teams
+from volleyball_stats import actions, attribution, ball, contacts, court, decode, identity, players, points, rallies, teams
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 
 
-def track_ball(video: Path, out: Path) -> None:
-    device = ball.default_device()
-    model = ball.load_model(device)
-    with open(out, "w", newline="") as f:
-        rows = csv.writer(f)
-        rows.writerow(["frame", "visible", "x", "y"])
-        for index, (_, position) in enumerate(ball.track_frames(ball.read_frames(video), model, device)):
-            rows.writerow([index, int(position is not None), *(position or ("", ""))])
+def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool) -> Iterator[tuple[ball.Position, list[players.Row]]]:
+    """Per frame, the ball's position (None when not found or not tracked) and the players' rows
+    (none when not tracked), from one decoding pass of the video; `with_ball` or `with_players`."""
+    device, native = ball.default_device(), decode.size(video)
+    branches = iter(tee(decode.frames(video), with_ball + with_players))
+    balls = (p for _, p in ball.track_frames(next(branches), ball.load_model(device), device, size=native)) if with_ball else repeat(None)
+    found = players.track_frames(next(branches), calibration, players.load_model(), device, size=native) if with_players else repeat([])
+    return zip(balls, found)
+
+
+def track(video: Path, calibration: court.Calibration | None, fps: float, ball_path: Path | None, players_path: Path | None) -> None:
+    """The ball track into `ball_path` and the players' into `players_path`, either None to skip it."""
+    positions, rows = [], []
+    for index, (position, frame_rows) in enumerate(tracked(video, calibration, ball_path is not None, players_path is not None)):
+        positions.append([index, int(position is not None), *(position or ("", ""))])
+        rows += frame_rows
+    if ball_path:
+        write_csv(ball_path, ["frame", "visible", "x", "y"], positions)
+    if players_path:
+        players.write_csv(players.finish(rows, fps), players_path)
 
 
 def in_rallies(frames: list[int], windows: list[tuple[int, int]], lead: int) -> list[int]:
@@ -158,11 +172,21 @@ def main() -> None:
     net_x = args.net_x if calibration is None else float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
     timings: dict[str, float] = {}
 
-    track_path = out / "ball.csv"
-    if args.force or not track_path.exists():
+    if args.players and calibration is None:
+        parser.error("--players needs --court")
+    track_path, players_path = out / "ball.csv", out / "players.csv"
+    new_ball = args.force or not track_path.exists()
+    new_players = args.players and (args.force or not players_path.exists())
+    if new_ball or new_players:
         start = time.perf_counter()
-        track_ball(args.video, track_path)
-        timings["ball"] = time.perf_counter() - start
+        track(args.video, calibration, fps, track_path if new_ball else None, players_path if new_players else None)
+        timings[" and ".join(name for name, new in (("ball", new_ball), ("players", new_players)) if new)] = time.perf_counter() - start
+    if new_players:
+        # New tracks: the identities and their embeddings start over.
+        for stale in ("identities.csv", "embeddings.npz"):
+            (out / stale).unlink(missing_ok=True)
+        if (out / "identity_answers.json").exists():
+            print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
     start = time.perf_counter()
     windows = rallies.segment(rallies.load_track(track_path), rallies.whistles(rallies.read_audio(args.video)), fps)
@@ -177,18 +201,6 @@ def main() -> None:
 
     tracks, touchers, found_teams, settled = None, [None] * len(typed), None, None
     if args.players:
-        if calibration is None:
-            parser.error("--players needs --court")
-        players_path = out / "players.csv"
-        if args.force or not players_path.exists():
-            start = time.perf_counter()
-            players.write_csv(players.track(args.video, calibration), players_path)
-            timings["players"] = time.perf_counter() - start
-            # New tracks: the identities and their embeddings start over.
-            for stale in ("identities.csv", "embeddings.npz"):
-                (out / stale).unlink(missing_ok=True)
-            if (out / "identity_answers.json").exists():
-                print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
         rows = attribution.read_players(players_path)
         touchers = attribution.attribute(typed, rows, fps)
         start = time.perf_counter()

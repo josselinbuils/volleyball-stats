@@ -50,6 +50,8 @@ HALF, DIM = 0.7, 3 * 512
 CROWD, CROWD_GAP = 0.3, 5
 # Up to CROPS boxes per segment are embedded, the clear ones (covered less than CLEAR) first.
 CROPS, CLEAR = 12, 0.1
+# Crops embedded per `describe` call, a multiple of its batch, as the frames are read.
+CHUNK = 16 * 64
 # Segments of CORE_S seconds or more build the identities, the shorter ones join them after.
 CORE_S = 5.0
 # A segment leans to its track's neighbouring pieces' identity by CONTINUITY.
@@ -213,8 +215,10 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
     averages; read from `cache` for the segments it holds (same track, frames and first box), else
     computed and the cache rewritten.
 
-    ponytail: a second decoding pass over the video (sparse, ~1 min for 10 min at 720p); fold it into
-    players.track's frame loop if it shows on a 2-hour match.
+    ponytail: a second decoding pass over the video, by OpenCV on the CPU at full size for the crops:
+    on 4K footage 60% of the frames are picked and all decoded, 37 s for 2 min on the M4 Pro.
+    ffmpeg's GPU decoding (decode.py) would need the picked frames selected before the pipe, 4K
+    frames being 25 MB each.
     """
     # Boxes of the segments' first frames, the cache's keys; those of the picked frames on a miss.
     firsts = {(s.start, s.track) for s in segments}
@@ -235,18 +239,29 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
                 wanted.setdefault(f, []).append(k)
         picked = {(f, segments[k].track) for f, ks in wanted.items() for k in ks}
         boxes.update({(r.frame, r.track): r.box for r in rows if (r.frame, r.track) in picked})
-        model, crops, owners = load_reid(device), [], []
+        model, sums, counts = load_reid(device), np.zeros((len(segments), DIM)), np.zeros(len(segments))
+        crops: list[np.ndarray] = []
+        owners: list[int] = []
+
+        def add(n: int) -> None:
+            if n:
+                np.add.at(sums, np.array(owners[:n]), describe(crops[:n], model, device))
+                np.add.at(counts, np.array(owners[:n]), 1)
+                del crops[:n], owners[:n]
+
         for frame, image in frames_at(video, wanted):
             for k in wanted[frame]:
                 x1, y1, x2, y2 = (round(v) for v in boxes[frame, segments[k].track])
                 crop = image[max(0, y1) : max(y2, y1 + 2), max(0, x1) : max(x2, x1 + 2)]
                 if crop.size:
-                    crops.append(crop)
+                    # A copy, not a view holding the whole frame: crops wait for a chunk to fill.
+                    crops.append(crop.copy())
                     owners.append(k)
-        vectors, owners = describe(crops, model, device), np.array(owners, int)
+            if len(crops) >= CHUNK:
+                add(CHUNK)
+        add(len(crops))
         for k in missing:
-            mine = vectors[owners == k]
-            stored[keys[k]] = (mine.mean(axis=0) if len(mine) else np.zeros(DIM), float(len(mine)))
+            stored[keys[k]] = (sums[k] / counts[k] if counts[k] else np.zeros(DIM), float(counts[k]))
         if cache:
             np.savez_compressed(cache, keys=np.array(keys, float), vectors=np.array([stored[k][0] for k in keys], np.float16).reshape(len(keys), DIM),
                                 counts=np.array([stored[k][1] for k in keys]))

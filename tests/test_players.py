@@ -112,6 +112,14 @@ class TestTrackFrames:
         assert sorted(xs[0] for xs in tracks.values()) == [120.0, 420.0]
         assert all(np.all(np.diff(xs) == 5) for xs in tracks.values())
 
+    def test_gives_the_boxes_in_the_pixels_of_the_given_size(self):
+        calibration = Calibration(np.array([[50.0, 0, 300], [0, 50, 400], [0, 0, 1]]))
+        frames = [np.full((360, 640, 3), i, np.uint8) for i in range(2)]
+
+        rows = [r for frame_rows in track_frames(frames, calibration, self.FakeModel(), "cpu", size=(1280, 720)) for r in frame_rows]
+
+        assert sorted(r.box for r in rows if r.frame == 0) == [(200.0, 300.0, 280.0, 500.0), (800.0, 340.0, 880.0, 540.0)]
+
     def test_frames_without_any_track_give_no_rows(self):
         class EmptyTracker:
             def update(self, boxes, frame):

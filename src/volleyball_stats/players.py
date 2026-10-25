@@ -20,6 +20,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from volleyball_stats import decode
 from volleyball_stats.ball import default_device, read_frames
 from volleyball_stats.court import LENGTH, WIDTH, Calibration
 
@@ -109,19 +110,26 @@ def make_tracker(kind: str = TRACKER, conf: float = CONF, **overrides):
     return TRACKER_MAP[kind](args=IterableSimpleNamespace(**config))
 
 
-def track_frames(frames: Iterable[np.ndarray], calibration: Calibration, model, device: str, tracker=None, imgsz: int = IMGSZ) -> Iterator[list[Row]]:
+def track_frames(
+    frames: Iterable[np.ndarray], calibration: Calibration, model, device: str, tracker=None, imgsz: int = IMGSZ, size: tuple[int, int] | None = None
+) -> Iterator[list[Row]]:
     """Yield, frame by frame, the rows of the on-court detections the tracker (default
-    `make_tracker()`) assigned to a track."""
+    `make_tracker()`) assigned to a track, boxes in the pixels of a frame of `size` (width, height),
+    by default the frames' own."""
     from ultralytics.engine.results import Boxes
 
     online = tracker or make_tracker()
     for index, frame in enumerate(frames):
         boxes = detect(frame, model, device, imgsz, LOW)
+        shape = frame.shape[:2]
+        if size:
+            boxes[:, :4] *= np.array([size[0] / shape[1], size[1] / shape[0]] * 2, np.float32)
+            shape = size[1], size[0]
         court = calibration.to_court(feet(boxes)) if len(boxes) else np.empty((0, 2))
         keep = on_court(court)
         boxes, court = boxes[keep], court[keep]
         # The tracker returns a flat empty array on frames without tracks.
-        tracks = online.update(Boxes(np.c_[boxes, np.zeros(len(boxes))], frame.shape[:2]), frame).reshape(-1, 8)
+        tracks = online.update(Boxes(np.c_[boxes, np.zeros(len(boxes))], shape), frame).reshape(-1, 8)
         rows = []
         for track_id, i in tracks[:, [4, 7]].astype(int).tolist():
             box = tuple(boxes[i, :4].tolist())
@@ -180,7 +188,7 @@ def finish(rows: list[Row], fps: float) -> list[Row]:
 def track(video: Path, calibration: Calibration) -> list[Row]:
     """The players' tracks of a video, offline pass done, sorted by frame then track."""
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-    frames = track_frames(read_frames(video), calibration, load_model(), default_device())
+    frames = track_frames(decode.frames(video), calibration, load_model(), default_device(), size=decode.size(video))
     return finish([row for rows in frames for row in rows], fps)
 
 
