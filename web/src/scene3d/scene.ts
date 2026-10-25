@@ -11,7 +11,8 @@ export interface Point3 {
 
 /** What the scene shows at a moment. Colours are CSS colours. */
 export interface SceneState {
-  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string }[];
+  /** `tip` names the player under the pointer, shown above them. */
+  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string; tip?: string }[];
   ball: Point3 | null;
   trail: Point3[];
   rings: { x: number; y: number; f: number }[];
@@ -21,6 +22,8 @@ export interface SceneState {
 
 export interface Scene {
   update: (state: SceneState) => void;
+  /** The key of the player at a point of the page, if any. */
+  pick: (clientX: number, clientY: number) => number | null;
   dispose: () => void;
 }
 
@@ -61,6 +64,34 @@ function badge(text: string, background: string, color: string): THREE.Sprite {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false }));
   sprite.scale.set(0.55, 0.55, 1);
   sprite.renderOrder = 2;
+  return sprite;
+}
+
+// The hovered player's name: its height on screen in pixels.
+const TIP_PX = 26;
+
+/** Text on a rounded sprite facing the camera, the same size on screen at any distance (scaled by
+ * the caller), standing on its position. */
+function tag(text: string, background: string, color: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  const g = canvas.getContext('2d')!;
+  const font = '600 44px system-ui, sans-serif';
+  g.font = font;
+  canvas.width = Math.ceil(g.measureText(text).width) + 48;
+  canvas.height = 72;
+  g.fillStyle = background;
+  g.beginPath();
+  g.roundRect(0, 0, canvas.width, canvas.height, 18);
+  g.fill();
+  g.font = font;
+  g.fillStyle = color;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, canvas.width / 2, canvas.height / 2 + 2);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false, sizeAttenuation: false }));
+  sprite.center.set(0.5, 0);
+  sprite.userData.aspect = canvas.width / canvas.height;
+  sprite.renderOrder = 3;
   return sprite;
 }
 
@@ -174,6 +205,7 @@ export function mount(element: HTMLElement): Scene {
     const number = badge(label, colors.team[team - 1], colors.teamText[team - 1]);
     number.position.y = 2.05;
     group.add(body, head, number);
+    group.userData.key = key;
     const ground = new THREE.Mesh(disc, shadow);
     ground.rotation.x = -Math.PI / 2;
     ground.scale.setScalar(0.32);
@@ -197,6 +229,10 @@ export function mount(element: HTMLElement): Scene {
   const ringMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
   const landingMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
   const ringGeometry = new THREE.RingGeometry(0.92, 1, 40);
+
+  // The hovered player's name, above their number.
+  let tip: { text: string; sprite: THREE.Sprite } | null = null;
+  const raycaster = new THREE.Raycaster();
 
   let frame = 0;
   const draw = () => {
@@ -261,6 +297,21 @@ export function mount(element: HTMLElement): Scene {
           body.group.visible = body.shadow.visible = false;
         }
       }
+      const tipped = state.players.find((p) => p.tip);
+      if (tip && tip.text !== tipped?.tip) {
+        scene.remove(tip.sprite);
+        tip.sprite.material.map?.dispose();
+        tip.sprite.material.dispose();
+        tip = null;
+      }
+      if (tipped?.tip) {
+        tip ??= { text: tipped.tip, sprite: tag(tipped.tip, colors.foreground, colors.floor) };
+        // Unattenuated sprites are sized as at 1 m from the camera.
+        const height = (TIP_PX / Math.max(1, renderer.domElement.clientHeight)) * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        tip.sprite.scale.set(height * tip.sprite.userData.aspect, height, 1);
+        tip.sprite.position.copy(at(tipped.x, tipped.y, tipped.jump + 2.4));
+        scene.add(tip.sprite);
+      }
       ball.visible = ballShadow.visible = state.ball !== null;
       if (state.ball) {
         ball.position.copy(at(state.ball.x, state.ball.y, Math.max(BALL_R, state.ball.h)));
@@ -319,6 +370,16 @@ export function mount(element: HTMLElement): Scene {
       ringMaterial.opacity = 1 - (state.rings[0]?.f ?? 0);
       landingMaterial.opacity = 1 - (state.landings[0]?.f ?? 0);
       request();
+    },
+    pick(clientX, clientY) {
+      const box = renderer.domElement.getBoundingClientRect();
+      raycaster.setFromCamera(new THREE.Vector2(((clientX - box.left) / box.width) * 2 - 1, 1 - ((clientY - box.top) / box.height) * 2), camera);
+      const shown = [...bodies.values()].filter((b) => b.group.visible).map((b) => b.group);
+      let hit: THREE.Object3D | null = raycaster.intersectObjects(shown, true)[0]?.object ?? null;
+      while (hit && hit.userData.key === undefined) {
+        hit = hit.parent;
+      }
+      return hit ? (hit.userData.key as number) : null;
     },
     dispose() {
       observer.disconnect();

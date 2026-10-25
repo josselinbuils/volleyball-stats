@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,10 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const landings = rally ? landingsAt(rally.contacts, time) : [];
   const last = rally?.contacts.filter((c) => c.t <= time).pop();
   const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
+  // The player under the pointer, named above their mark.
+  const [hover, setHover] = useState<number | null>(null);
+  const tipOf = (person: number) => [playerLabel(t, person), hasTeams && groupName(t, match.people[person]?.team ?? 1)].filter(Boolean).join(' · ');
+  const hovered = dots.find((d) => d.person === hover);
   // The view chosen last time, remembered by the browser when it can.
   const [view, setView] = useState<'2d' | '3d'>(() => {
     try {
@@ -102,6 +106,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
                 jump: rally ? jumpAt(rally.contacts, person, time) : 0,
                 team: match.people[person]?.team ?? 1,
                 label: String(playerNumber(person) ?? ''),
+                tip: person === hover ? tipOf(person) : undefined,
               })),
               ball: rally ? ball3dAt(rally.contacts, time) : null,
               trail: rally ? trail3dAt(rally.contacts, time) : [],
@@ -111,6 +116,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
               }),
               landings,
             }}
+            onHover={setHover}
           />
         )}
         {/* The court's top margin is mostly empty: it tucks under the box. */}
@@ -119,10 +125,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
             {dots.map(({ person, x, y }) => {
               const team = match.people[person]?.team ?? 1;
               const n = playerNumber(person);
-              const name = match.people[person]?.name;
               return (
-                <g key={person}>
-                  {name && <title>{name}</title>}
+                <g key={person} onPointerEnter={() => setHover(person)} onPointerLeave={() => setHover((h) => (h === person ? null : h))}>
                   <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} stroke={teamEdge(team)} />
                   {n !== null && (
                     <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>
@@ -150,6 +154,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
               <line key={k} x1={trail[k].x} y1={trail[k].y} x2={p.x} y2={p.y} className="ball-trail" strokeWidth={0.12 + (0.5 * (k + 1)) / trail.length} opacity={(0.65 * (k + 1)) / trail.length} />
             ))}
             {ball && <circle cx={ball.x} cy={ball.y} r={0.28} className="ball-mark" />}
+            {hovered && <CourtTip x={hovered.x} y={hovered.y} text={tipOf(hovered.person)} />}
           </Court>
           {players === 'loading' && (
             <p className="pointer-events-none absolute inset-x-0 top-0 bottom-6 m-0 grid place-items-center">
@@ -160,6 +165,21 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
       </div>
       {captioned && <ReplayCaption />}
     </figure>
+  );
+}
+
+/** `text` on a dark band above the player standing at (x, y), sized to the text once drawn. */
+function CourtTip({ x, y, text }: { x: number; y: number; text: string }) {
+  const label = useRef<SVGTextElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => setWidth(label.current?.getComputedTextLength() ?? 0), [text]);
+  return (
+    <g className="pointer-events-none" opacity={width ? 1 : 0}>
+      <rect x={x - width / 2 - 0.3} y={y - 1.95} width={width + 0.6} height={0.95} rx={0.22} className="fill-foreground" />
+      <text ref={label} x={x} y={y - 1.47} className="player-tip">
+        {text}
+      </text>
+    </g>
   );
 }
 

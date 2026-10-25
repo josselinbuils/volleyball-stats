@@ -173,6 +173,14 @@
     text-anchor: middle;
     dominant-baseline: central;
   }
+  /* The hovered player's name above their mark. */
+  .player-tip {
+    font-size: 0.56px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    fill: var(--background);
+  }
   /* Text readable on any fill: a ring of the court's colour around the letters. */
   .halo {
     paint-order: stroke;

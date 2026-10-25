@@ -51,8 +51,9 @@ function rgb(color: string): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/** The 3D scene of the court at the moment `state` describes, turned with the pointer. */
-export function Scene3D({ state }: { state: Omit<SceneState, 'colors'> }) {
+/** The 3D scene of the court at the moment `state` describes, turned with the pointer; `onHover`
+ * hears of the player under the pointer, null when none or while turning. */
+export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>; onHover: (key: number | null) => void }) {
   const { t } = useTranslation();
   const box = useRef<HTMLDivElement>(null);
   const scene = useRef<Scene | null>(null);
@@ -98,7 +99,12 @@ export function Scene3D({ state }: { state: Omit<SceneState, 'colors'> }) {
 
   return (
     <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40">
-      <div ref={box} className="absolute inset-0 touch-none [&>canvas]:block [&>canvas]:size-full" />
+      <div
+        ref={box}
+        className="absolute inset-0 touch-none [&>canvas]:block [&>canvas]:size-full"
+        onPointerMove={(e) => onHover(e.buttons || !scene.current ? null : scene.current.pick(e.clientX, e.clientY))}
+        onPointerLeave={() => onHover(null)}
+      />
       {status !== 'ready' && <p className="absolute inset-0 m-0 grid place-items-center text-sm text-muted-foreground">{t(status === 'failed' ? 'scene3d.failed' : 'scene3d.loading')}</p>}
       {status === 'ready' && (
         <p className="absolute top-2 right-2 m-0 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground" title={t('scene3d.note')}>
