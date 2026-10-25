@@ -100,7 +100,7 @@ function FifaCard({ id, row: r, g }: CardProps) {
           {photo && (
             <div className="group/photo relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }} onPointerMove={follow}>
               <img src={photo} alt="" loading="lazy" className="h-full object-cover object-top" />
-              {/* A glint and a faint rainbow following the pointer over the picture. */}
+              {/* A glint following the pointer over the picture. */}
               <div aria-hidden className="holo absolute inset-0 opacity-0 mix-blend-soft-light transition-opacity duration-300 group-hover/photo:opacity-60" />
             </div>
           )}
