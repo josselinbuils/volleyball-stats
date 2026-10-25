@@ -104,7 +104,7 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
   }, [state, status, dark]);
 
   return (
-    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40">
+    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40 [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full">
       <div
         ref={box}
         className="absolute inset-0 touch-none [&>canvas]:block [&>canvas]:size-full"

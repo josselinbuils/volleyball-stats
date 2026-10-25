@@ -47,7 +47,8 @@ export function Watch() {
             {/* Full screen: the court centred and as large as the screen allows, the controls along the bottom. */}
             <div ref={court} className="overflow-hidden lg:col-start-1 rounded-lg border bg-card [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
               <div className="p-3 pb-2 [:fullscreen>&]:grid [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:place-items-center [:fullscreen>&]:p-6">
-                <div className="w-full [:fullscreen_&]:max-w-[calc((100dvh-9rem)*1.9)]">
+                {/* The top view's width keeps it on screen; the 3D view takes the whole space left. */}
+                <div className="w-full [:fullscreen_&]:max-w-[calc((100dvh-9rem)*1.9)] [:fullscreen_&:has(.replay-3d)]:h-full [:fullscreen_&:has(.replay-3d)]:max-w-none">
                   <Replay captioned={false} />
                 </div>
               </div>

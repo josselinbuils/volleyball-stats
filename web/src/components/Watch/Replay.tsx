@@ -60,7 +60,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const ends: [string, string] | undefined = hasTeams && sides ? [groupName(t, sides.left), groupName(t, (3 - sides.left) as Group)] : undefined;
 
   return (
-    <figure className="m-0 min-w-0">
+    <figure className={cn('m-0 min-w-0', view === '3d' && 'replay-3d [:fullscreen_&]:flex [:fullscreen_&]:h-full [:fullscreen_&]:flex-col')}>
       {/* Boxed like the score bar beside it, at the same height. */}
       <div className="mb-3 flex h-11 items-center gap-2 rounded-lg bg-muted px-3 text-sm leading-5 font-semibold">
         <p className="m-0 line-clamp-2 min-w-0 flex-1" aria-live="off" title={now}>
@@ -86,7 +86,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
         )}
       </div>
       <div
-        className="cursor-default select-none"
+        className={cn('cursor-default select-none', view === '3d' && '[:fullscreen_&]:min-h-0 [:fullscreen_&]:flex-1')}
         onPointerDown={(e) => {
           down.current = { x: e.clientX, y: e.clientY };
         }}
