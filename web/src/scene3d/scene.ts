@@ -77,7 +77,7 @@ const HAIRS = [0x2b1d14, 0x4a2f1d, 0x6e4a2a, 0x161210, 0xa7834f];
 // Spectators' shirts, a crowd's mix.
 const CROWD = [0xc0392b, 0x2e86c1, 0x27ae60, 0xf1c40f, 0x8e44ad, 0xe67e22, 0x7f8c8d, 0xecf0f1, 0x34495e];
 
-/** A gym's wooden floor: planks of varied shades with dark joints, tinted by the material's colour. */
+/** A wooden court: planks of varied shades with dark joints. */
 function wood(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 512;
@@ -99,9 +99,80 @@ function wood(): THREE.CanvasTexture {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   // One canvas is 4 m of floor, its planks 25 cm wide.
-  texture.repeat.set(36 / 4, 28 / 4);
+  texture.repeat.set(18 / 4, 9 / 4);
   return texture;
 }
+
+/** A canvas of `width` × `height` pixels drawn by `paint`, as a texture. */
+function painted(width: number, height: number, paint: (g: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  paint(canvas.getContext('2d')!);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** A window: pale sky panes in a dark frame. */
+const windowPanes = () =>
+  painted(240, 140, (g) => {
+    g.fillStyle = '#2b2f36';
+    g.fillRect(0, 0, 240, 140);
+    for (let col = 0; col < 4; col++) {
+      for (let row = 0; row < 2; row++) {
+        const sky = g.createLinearGradient(0, row * 64, 0, row * 64 + 58);
+        sky.addColorStop(0, '#ffffff');
+        sky.addColorStop(1, '#dce9f7');
+        g.fillStyle = sky;
+        g.fillRect(8 + col * 58, 8 + row * 64, 52, 58);
+      }
+    }
+  });
+
+/** The hall's scoreboard: home and guest, no score shown. */
+const scoreboard = () =>
+  painted(300, 140, (g) => {
+    g.fillStyle = '#1d2a4a';
+    g.fillRect(0, 0, 300, 140);
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 22px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('HOME', 60, 34);
+    g.fillText('GUEST', 240, 34);
+    g.fillStyle = '#ff3b30';
+    g.font = 'bold 56px ui-monospace, monospace';
+    g.fillText('--', 60, 104);
+    g.fillText('--', 240, 104);
+    g.fillStyle = '#ffc531';
+    g.font = 'bold 40px ui-monospace, monospace';
+    g.fillText('--:--', 150, 60);
+  });
+
+/** A net's mesh: 10 cm squares of dark cord, see-through between. */
+const netMesh = () => {
+  const texture = painted(32, 32, (g) => {
+    g.strokeStyle = 'rgba(20, 20, 20, 0.85)';
+    g.lineWidth = 3;
+    g.strokeRect(0, 0, 32, 32);
+  });
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(95, 9);
+  return texture;
+};
+
+/** An antenna's red and white stripes, 10 cm each. */
+const stripes = () => {
+  const texture = painted(4, 32, (g) => {
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, 4, 32);
+    g.fillStyle = '#d32f2f';
+    g.fillRect(0, 0, 4, 16);
+  });
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 9);
+  return texture;
+};
 
 /** A jersey number painted on a transparent square, for the front and back of a shirt. */
 function shirtNumber(text: string, color: string): THREE.MeshBasicMaterial {
@@ -146,6 +217,8 @@ function tag(text: string, background: string, color: string): THREE.Sprite {
 export function mount(element: HTMLElement): Scene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   element.append(renderer.domElement);
   const scene = new THREE.Scene();
   // A depth range no wider than the scene: depth stays precise near the floor.
@@ -178,28 +251,32 @@ export function mount(element: HTMLElement): Scene {
   let turned = false;
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 2.2));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-  sun.position.set(-6, 14, 8);
+  // The hall's lights, high above: the players, the referee and the net cast soft shadows on the floor.
+  const sun = new THREE.DirectionalLight(0xffffff, 1.3);
+  sun.position.set(-4, 16, 6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 40 });
+  sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 4;
   scene.add(sun);
+  const castShadows = (object: THREE.Object3D) => object.traverse((o) => (o.castShadow = o instanceof THREE.Mesh));
 
   const solid = (color = 0xffffff) => new THREE.MeshLambertMaterial({ color });
-  // The floor's layers (wood, lines, then shadows and rings) are drawn in that order without
-  // writing depth, not told apart by millimetres of height: no flicker between them.
-  const layer = (order: number) => {
-    const material = solid();
-    material.depthWrite = false;
-    return { material, order };
+  // The floor's layers (hall, court, lines, then shadows and rings) are drawn in that order without
+  // writing depth, not told apart by millimetres of height: no flicker between them. A glossy blue
+  // hall floor, the wooden court on it, both taking the shadows.
+  const glossy = (geometry: THREE.PlaneGeometry, color: number, order: number, map?: THREE.Texture) => {
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color, map, specular: 0x3a3a3a, shininess: 70, depthWrite: false }));
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.renderOrder = order;
+    mesh.receiveShadow = true;
+    return mesh;
   };
-  const floorLayer = layer(-3);
-  floorLayer.material.map = wood();
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(36, 28), floorLayer.material);
-  floor.rotation.x = -Math.PI / 2;
-  floor.renderOrder = floorLayer.order;
-  scene.add(floor);
+  scene.add(glossy(new THREE.PlaneGeometry(36, 28), 0x2f6db5, -3), glossy(new THREE.PlaneGeometry(18, 9), 0xffffff, -2, wood()));
   // The lines: the boundary, the centre line and the attack lines, 5 cm wide.
   const lines = new THREE.Group();
-  // The court is the same wood, drawn by its lines in a shiny blue.
-  const line = new THREE.MeshPhongMaterial({ color: 0x1f6fe0, specular: 0x8899aa, shininess: 90, depthWrite: false });
+  const line = new THREE.MeshPhongMaterial({ color: 0xf6f6f6, specular: 0x666666, shininess: 90, depthWrite: false });
   const strip = (x: number, y: number, w: number, d: number) => {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), line);
     mesh.rotation.x = -Math.PI / 2;
@@ -221,14 +298,98 @@ export function mount(element: HTMLElement): Scene {
     mesh.position.copy(at(0, y, (NET_TOP + 0.2) / 2));
     const padding = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.9, 16), pad);
     padding.position.copy(at(0, y, 0.95));
+    castShadows(mesh);
+    castShadows(padding);
     scene.add(mesh, padding);
   }
-  const net = new THREE.Mesh(new THREE.PlaneGeometry(10, 1), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+  const net = new THREE.Mesh(new THREE.PlaneGeometry(9.5, 0.9), new THREE.MeshBasicMaterial({ map: netMesh(), transparent: true, side: THREE.DoubleSide, depthWrite: false }));
   net.rotation.y = Math.PI / 2;
   net.position.copy(at(0, 0, NET_TOP - 0.5));
-  const band = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.07, 10), solid());
-  band.position.copy(at(0, 0, NET_TOP - 0.035));
-  scene.add(net, band);
+  scene.add(net);
+  // White bands along its top and bottom; an antenna over each sideline.
+  for (const [h, high] of [
+    [NET_TOP - 0.035, 0.07],
+    [NET_TOP - 0.98, 0.05],
+  ]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.02, high, 9.6), solid());
+    band.position.copy(at(0, 0, h));
+    castShadows(band);
+    scene.add(band);
+  }
+  const antenna = new THREE.MeshLambertMaterial({ map: stripes() });
+  for (const y of [-4.5, 4.5]) {
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.8, 8), antenna);
+    rod.position.copy(at(0, y, NET_TOP - 0.1));
+    scene.add(rod);
+  }
+
+  // The hall's walls, seen only from inside: the one between the camera and the court is not drawn.
+  // A blue band along the bottom, pale above, windows high up, a scoreboard and doors.
+  const WALL = 7;
+  const BAND = 2.4;
+  // Lit from above, the walls glow a little to read as pale as a real hall's.
+  const pale = new THREE.MeshLambertMaterial({ color: 0xe9ebee, emissive: 0x6b6d70 });
+  const banded = new THREE.MeshLambertMaterial({ color: 0x2a5ea8, emissive: 0x122a4c });
+  const panes = new THREE.MeshBasicMaterial({ map: windowPanes() });
+  const doorMaterial = solid(0x23345c);
+  const exit = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });
+  const wall = (length: number, x: number, y: number, turn: number, windows: number[], doors: number[]) => {
+    const side = new THREE.Group();
+    const face = (height: number, h: number, material: THREE.Material) => {
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(length, height), material);
+      mesh.position.set(0, h, 0);
+      side.add(mesh);
+    };
+    face(BAND, BAND / 2, banded);
+    face(WALL - BAND, (WALL + BAND) / 2, pale);
+    for (const along of windows) {
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), panes);
+      pane.position.set(along, 5.5, 0.02);
+      side.add(pane);
+    }
+    for (const along of doors) {
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.2), doorMaterial);
+      door.position.set(along, 1.1, 0.02);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.15), exit);
+      sign.position.set(along, 2.5, 0.02);
+      side.add(door, sign);
+    }
+    side.position.copy(at(x, y));
+    side.rotation.y = turn;
+    scene.add(side);
+    return side;
+  };
+  const far = wall(36, 0, -14, 0, [-14, -9, 9, 14], []);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.4), new THREE.MeshBasicMaterial({ map: scoreboard() }));
+  board.position.set(0, 4.4, 0.03);
+  far.add(board);
+  wall(36, 0, 14, Math.PI, [-9, 9], []);
+  wall(28, -18, 0, Math.PI / 2, [-6, 6], [-9, 9]);
+  wall(28, 18, 0, -Math.PI / 2, [-6, 6], [-9, 9]);
+  // Each team's bench on the near side: a row of blue chairs facing the court.
+  const chair = new THREE.Group();
+  const seatGeometry = new THREE.BoxGeometry(0.45, 0.06, 0.42);
+  const backGeometry = new THREE.BoxGeometry(0.45, 0.45, 0.05);
+  const legGeometry = new THREE.BoxGeometry(0.4, 0.42, 0.04);
+  const legs = solid(0x9aa3ad);
+  const plastic = solid(0x2c5fa8);
+  for (const [geometry, material, h, depth] of [
+    [seatGeometry, plastic, 0.45, 0],
+    [backGeometry, plastic, 0.7, 0.2],
+    [legGeometry, legs, 0.21, 0],
+  ] as const) {
+    const part = new THREE.Mesh(geometry, material);
+    part.position.set(0, h, depth);
+    chair.add(part);
+  }
+  castShadows(chair);
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < 6; k++) {
+      const one = chair.clone();
+      one.position.copy(at(side * (3.5 + 0.55 * k), 7.5));
+      scene.add(one);
+    }
+  }
 
   // Players: chibi figures about 1.65 m tall facing +z, shirt and shorts in their team's colours, a
   // soft shadow and their number above them; made as they first show.
@@ -273,20 +434,25 @@ export function mount(element: HTMLElement): Scene {
   };
   // The first referee on a stand behind the far post, facing the court.
   const black = solid(0x202020);
-  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.6), post);
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.6), solid(0xa7afb8));
   stand.position.copy(at(0, -5.8, 0.5));
   const referee = figure(3, black, black);
   referee.position.copy(at(0, -5.8, 1.0));
+  castShadows(stand);
+  castShadows(referee);
   scene.add(stand, referee);
-  // Stands along the far side: three tiers, spectators seated on them with gaps between groups.
-  const tier = solid(0x7d8794);
+  // Stands along the far side: three pale tiers with blue seats, spectators seated with gaps between groups.
+  const tier = solid(0xd3d7dc);
+  const seat = solid(0x2c5fa8);
   const shirts = CROWD.map((color) => solid(color));
   for (let row = 0; row < 3; row++) {
     const top = 0.45 * (row + 1);
     const depth = -10.2 - 0.8 * row;
     const bench = new THREE.Mesh(new THREE.BoxGeometry(24, top, 0.8), tier);
     bench.position.copy(at(0, depth, top / 2));
-    scene.add(bench);
+    const seats = new THREE.Mesh(new THREE.BoxGeometry(24, 0.08, 0.4), seat);
+    seats.position.copy(at(0, depth + 0.15, top + 0.04));
+    scene.add(bench, seats);
     for (let k = 0; k < 22; k++) {
       const n = row * 22 + k;
       if ((n * 5) % 7 < 3) {
@@ -318,6 +484,7 @@ export function mount(element: HTMLElement): Scene {
     number.position.y = 2.0;
     group.add(number);
     group.userData.key = key;
+    castShadows(group);
     const ground = new THREE.Mesh(disc, shadow);
     ground.rotation.x = -Math.PI / 2;
     ground.scale.setScalar(0.32);
@@ -335,6 +502,7 @@ export function mount(element: HTMLElement): Scene {
   ballShadow.scale.setScalar(BALL_R * 1.2);
   const trailMaterial = new THREE.MeshBasicMaterial({ transparent: true, vertexColors: true, depthWrite: false, side: THREE.DoubleSide });
   const trail = new THREE.Mesh(new THREE.BufferGeometry(), trailMaterial);
+  ball.castShadow = true;
   scene.add(ball, ballShadow, trail);
   // Rings on the floor: around a player touching the ball, where it lands.
   const rings: THREE.Mesh[] = [];
@@ -390,7 +558,6 @@ export function mount(element: HTMLElement): Scene {
   return {
     update(state) {
       const { colors } = state;
-      floor.material.color.set(colors.floor);
       teamMaterials.forEach((m, k) => m.color.set(colors.team[k]));
       shortsMaterials.forEach((m, k) => m.color.set(colors.team[k]).multiplyScalar(0.78));
       ringMaterial.color.set(colors.foreground);
