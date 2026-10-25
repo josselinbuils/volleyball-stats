@@ -102,7 +102,7 @@ uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [
 `--court` takes `outputs/court/VIDEO.json` from `auto`, or `outputs/courts/NAME.json` from `fit` on
 the first match of a court. `match` writes the ball track, rallies, typed contacts, net crossings and a
 report to `outputs/VIDEO/`; the actions CSV holds each contact with its type and side of the net.
-`--players` adds the player tracks (about 2.5× the ball tracking time) and the teams: each contact
+`--players` adds the player tracks (from the same reading of the video as the ball) and the teams: each contact
 gets the team on its side (actions CSV `team`), each rally the team on the left and its set
 (rallies CSV `left`, `set`), and the report counts per team and per set instead of per side. It also
 gives each player one identity for the whole match (`identities.csv`, actions CSV `identity`; see
@@ -157,17 +157,21 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
 number and chart element plays its moments in the video, with a top view of the court following
 the play, each player keeping one number for the whole match (their jersey number and name once
 named), and the set and its score (estimated, or the final score you gave once the set is over)
-above the video. The match's title and date head the page. A "Statistiques" table gives,
-team by team, each player's and the whole team's touches, serves (aces, faults), receptions and
-digs (faults, an ace counting against the receiver nearest to where it landed; and those after which
-the team did not attack), sets, attacks (winning, faults), free balls (faults), blocks, points and
-faults, and each player's strengths and things to work on: the rates set at least 20 points apart
-from the rest of their team's, with 5 attempts or more on each side; without player tracks, each
-side of the net's. The video player skips 10 s back or forward.
+above the video. The match's title and date head the page. The video player skips 10 s back or
+forward; beside it, the court seen from above shows the players, the ball with a trail as long as it
+is fast, and a ring around the player touching it.
+
+The "Statistiques" table gives, team by team, each player's and the whole team's touches, serves
+(aces, faults), receptions and digs (faults, an ace counting against the receiver nearest to where
+it landed; and those after which the team did not attack), sets, attacks (winning, faults), free
+balls (faults), blocks and "Bilan" (points, faults). Its "Analyse" group lists each player's
+strengths and things to work on: the rates at least 20 points apart from the rest of their team's,
+with 5 attempts or more on each side. Without player tracks it counts each side of the net.
+
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls
-back to the sides of the net. With several sets, one filter, which stays at the top of the screen, shows a single set: every
-section follows it and the video's timeline then covers that set only. A switch
+back to the sides of the net. With several sets, one filter, which stays at the top of the screen,
+shows a single set: every section follows it and the video's timeline then covers that set only. A switch
 next to the language picks the light, dark or automatic theme (the system's, by default),
 remembered by the browser. The players' positions over the whole video come in `players.js`,
 loaded right after the first paint (0.9 MB, 0.23 MB gzipped, for 10 minutes). `--theme` picks a club
@@ -194,22 +198,21 @@ install`, `npm run dev` (reads `web/public/data.js`, copied from a built match),
 | 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the torso colour of the tracks, the side of the net each team holds rally by rally, and sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
 | 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run); jersey numbers (4K) as constraints later ([benchmark](benchmarks/identity/README.md)) |
 | 7. Naming | Name each identity once, suggest names across matches | The review page's "Noms" tab; a roster of re-ID embeddings per named player |
-| 8. Stats | Per-player counts and outcomes (point, fault, ace, missed reception) | The page's "Joueurs" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands |
+| 8. Stats | Per-player counts and outcomes, strengths and things to work on | The page's "Statistiques" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands; a player's rates compared with the rest of their team's |
 
 ## Roadmap
 
-1. Film a first match.
-2. Rally segmentation and court detection.
-3. Ball tracking and contact detection.
-4. Action classification.
-5. Player tracking and contact attribution.
-6. Identity clustering and naming.
-7. Stats report.
-8. Later: quality grades (reception 0–3, attack efficiency), second camera on the opposite
-   sideline if the far side is unreliable.
+Every step of the pipeline runs, benchmarked on YouTube clips of another club (720p, 30 fps). Next:
 
-Each step is validated on real footage against a manual scout of the same rallies before the next
-one starts. Reference: a fixed-camera semi-automatic system reached 77% agreement with human
+1. Film a first match (with the players' consent) and work through the checklists above.
+2. Measure `benchmarks/speed.py` on the RTX 5080.
+3. Tune on that 4K footage: rally detection (it misses about a third of the held-out clip's rallies),
+   how rallies end, contacts at 50 fps, jersey numbers as identity clues.
+4. Host the match page behind a password.
+5. Later: stats over several matches per named player, attack efficiency, a second camera on the
+   opposite sideline if the far side is unreliable.
+
+Each step is checked on real footage against a manual scout of the same rallies. Reference: a fixed-camera semi-automatic system reached 77% agreement with human
 scouting ([UFP thesis, 2026](https://bdigital.ufp.pt/bitstreams/9e2cbd9e-89d4-4191-a1bc-7a0533e97f9f/download)).
 
 ## Prior art
