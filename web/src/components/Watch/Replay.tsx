@@ -7,8 +7,9 @@ import { usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, playersAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 
-/** The court seen from above, players and ball following the video. */
-export function Replay() {
+/** The court seen from above, players and ball following the video; its legend under it unless
+ * `captioned` is false, the page then showing `ReplayCaption` itself. */
+export function Replay({ captioned = true }: { captioned?: boolean }) {
   const { t } = useTranslation();
   const time = useVideoTime((now) => now);
   const players = usePlayers();
@@ -78,25 +79,34 @@ export function Replay() {
           </p>
         )}
       </div>
-      <figcaption className="mt-3 grid gap-2">
-        <Legend>
-          {GROUPS.map((g) => (
-            <span key={g} className="inline-flex min-w-0 items-center gap-2">
-              <Swatch color={teamColor(g)} ring={teamRing(g)} />
-              <span className="truncate">{hasTeams ? groupName(t, g) : t(g === 1 ? 'leftTeam' : 'rightTeam')}</span>
-            </span>
-          ))}
-          <span className="inline-flex items-center gap-2">
-            <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full border-2 border-foreground" />
-            {t('ball')}
-          </span>
-        </Legend>
-        <p className="text-[13px] text-muted-foreground">
-          {players === 'none' && `${t('noPlayers')} `}
-          {players !== 'none' && `${t(hasNames ? 'numbersNoteNamed' : 'numbersNote')} `}
-          {t('replayNote')}
-        </p>
-      </figcaption>
+      {captioned && <ReplayCaption />}
     </figure>
+  );
+}
+
+/** The court replay's legend: the teams, the ball, and how to read the players and the ball. */
+export function ReplayCaption() {
+  const { t } = useTranslation();
+  const players = usePlayers();
+  return (
+    <div className="mt-3 grid gap-2">
+      <Legend>
+        {GROUPS.map((g) => (
+          <span key={g} className="inline-flex min-w-0 items-center gap-2">
+            <Swatch color={teamColor(g)} ring={teamRing(g)} />
+            <span className="truncate">{hasTeams ? groupName(t, g) : t(g === 1 ? 'leftTeam' : 'rightTeam')}</span>
+          </span>
+        ))}
+        <span className="inline-flex items-center gap-2">
+          <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full border-2 border-foreground" />
+          {t('ball')}
+        </span>
+      </Legend>
+      <p className="text-[13px] text-muted-foreground">
+        {players === 'none' && `${t('noPlayers')} `}
+        {players !== 'none' && `${t(hasNames ? 'numbersNoteNamed' : 'numbersNote')} `}
+        {t('replayNote')}
+      </p>
+    </div>
   );
 }

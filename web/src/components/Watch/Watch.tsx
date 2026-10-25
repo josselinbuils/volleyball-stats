@@ -7,7 +7,7 @@ import { Clock } from '@/lib/clock';
 import { usePlayer } from '@/lib/player';
 import { PlaylistBar } from '@/components/Watch/PlaylistBar';
 import { RallyCards } from '@/components/Watch/RallyCards';
-import { Replay } from '@/components/Watch/Replay';
+import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 
@@ -45,13 +45,14 @@ export function Watch() {
             <Scoreboard />
             {/* Full screen takes the court with its controls. */}
             <div ref={court} className="overflow-hidden rounded-lg border bg-card [&:fullscreen]:grid [&:fullscreen]:content-center [&:fullscreen]:p-6">
-              <div className="p-3 pb-0">
-                <Replay />
+              <div className="p-3 pb-2">
+                <Replay captioned={false} />
               </div>
               <div className="border-t bg-muted">
                 <VideoControls light />
               </div>
             </div>
+            <ReplayCaption />
             <PlaylistBar />
           </div>
           <RallyCards />
