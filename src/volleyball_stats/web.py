@@ -20,6 +20,7 @@ club theme from branding/NAME/brand.json (logo, colours), `none` for the neutral
 """
 
 import argparse
+import base64
 import csv
 import hashlib
 import json
@@ -46,6 +47,8 @@ FOOTAGE = ("none", "full", "blur-opponents", "blur-all")
 # The club logo shows at most 64 px tall, the players' pictures about 240 px: kept at twice that for
 # sharp high-density screens, never enlarged. The pictures are 3 wide for 4 tall, like a photo.
 LOGO_PX, PHOTO_PX, PHOTO_RATIO = 128, 480, 0.75
+# A sponsor's picture on the 3D view's boards, in pixels tall.
+SPONSOR_PX = 160
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -193,7 +196,9 @@ def read_teams(match: Path) -> dict | None:
 
 
 def brand(name: str, site: Path) -> dict | None:
-    """The club theme branding/NAME/brand.json with its logo copied into the site; None for `none`."""
+    """The club theme branding/NAME/brand.json with its logo copied into the site, and its sponsors from
+    branding/NAME/sponsors/sponsors.json (git-ignored: brands stay off the repository) with their
+    pictures inlined (the 3D view paints them, which a file:// page cannot do from a file); None for `none`."""
     if name == "none":
         return None
     path = BRANDING / name / "brand.json"
@@ -209,6 +214,12 @@ def brand(name: str, site: Path) -> dict | None:
         target = site / "brand" / f"{Path(data['logo']).stem}.png"
         cv2.imwrite(str(target), logo)
         data["logo"] = f"brand/{target.name}"
+    sponsors = path.parent / "sponsors"
+    data["sponsors"] = json.loads((sponsors / "sponsors.json").read_text()) if (sponsors / "sponsors.json").exists() else []
+    for sponsor in data["sponsors"]:
+        picture = cv2.imread(str(sponsors / sponsor["logo"]), cv2.IMREAD_UNCHANGED)
+        picture = cv2.resize(picture, (round(picture.shape[1] * SPONSOR_PX / picture.shape[0]), SPONSOR_PX), interpolation=cv2.INTER_AREA)
+        sponsor["logo"] = "data:image/png;base64," + base64.b64encode(cv2.imencode(".png", picture)[1]).decode()
     return data
 
 

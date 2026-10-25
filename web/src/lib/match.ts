@@ -75,12 +75,21 @@ export interface Team {
 }
 
 /** A club theme: colour tokens per colour scheme, as branding/NAME/brand.json holds them. */
+export interface Sponsor {
+  name: string;
+  logo?: string;
+  background: string;
+  text?: string;
+}
+
 export interface Brand {
   name: string;
   url?: string;
   logo?: string;
   font?: string;
   radius?: string;
+  /** Boards in the 3D view: the name, a picture (a data: URL), their colours; without a text colour, the picture alone. */
+  sponsors?: Sponsor[];
   light: Record<string, string>;
   dark: Record<string, string>;
 }

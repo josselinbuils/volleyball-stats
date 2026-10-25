@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import type { Sponsor } from '@/lib/match';
 
 /** A point of the scene in court metres: x along the court (net at 0), y across it (towards the
  * camera positive), h above the floor. */
@@ -214,7 +215,7 @@ function tag(text: string, background: string, color: string): THREE.Sprite {
 
 /** The scene in `element`: a court, its net, the players and the ball, turned with the pointer;
  * it draws only when something changes. */
-export function mount(element: HTMLElement): Scene {
+export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
@@ -366,6 +367,54 @@ export function mount(element: HTMLElement): Scene {
   wall(36, 0, 14, Math.PI, [-9, 9], []);
   wall(28, -18, 0, Math.PI / 2, [-6, 6], [-9, 9]);
   wall(28, 18, 0, -Math.PI / 2, [-6, 6], [-9, 9]);
+  // Advertising boards along the front of the stands, 3 m each: the sponsors in turn, a blank one
+  // between two of them.
+  const PANEL = 3;
+  const boards = sponsors.map((sponsor) => {
+    const texture = painted(600, 160, () => {});
+    const paint = (picture?: HTMLImageElement) => {
+      const g = (texture.image as HTMLCanvasElement).getContext('2d')!;
+      g.fillStyle = sponsor.background;
+      g.fillRect(0, 0, 600, 160);
+      // A logo alone fills the board's height, centred; a picture otherwise stands at both ends of the name.
+      if (!sponsor.text) {
+        if (picture) {
+          const width = Math.min(580, (picture.width * 150) / picture.height);
+          g.drawImage(picture, 300 - width / 2, 80 - (width * picture.height) / picture.width / 2, width, (width * picture.height) / picture.width);
+        }
+        texture.needsUpdate = true;
+        return;
+      }
+      const width = picture ? (picture.width * 140) / picture.height : 0;
+      for (const x of picture ? [20, 580 - width] : []) {
+        g.drawImage(picture!, x, 10, width, 140);
+      }
+      g.fillStyle = sponsor.text;
+      g.font = 'bold 96px system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(sponsor.name, 300, 86, 600 - 2 * (width + 40));
+      texture.needsUpdate = true;
+    };
+    paint();
+    if (sponsor.logo) {
+      const picture = new Image();
+      picture.onload = () => {
+        paint(picture);
+        request();
+      };
+      picture.src = sponsor.logo;
+    }
+    return new THREE.MeshBasicMaterial({ map: texture });
+  });
+  const blank = new THREE.MeshBasicMaterial({ color: 0xf2f2f2 });
+  if (boards.length) {
+    for (let n = 0; n < 24 / PANEL; n++) {
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(PANEL - 0.04, 0.8), n % 2 ? blank : boards[(n / 2) % boards.length]);
+      board.position.copy(at(-12 + PANEL / 2 + n * PANEL, -9.75, 0.42));
+      scene.add(board);
+    }
+  }
   // Each team's bench on the near side: a row of blue chairs facing the court.
   const chair = new THREE.Group();
   const seatGeometry = new THREE.BoxGeometry(0.45, 0.06, 0.42);

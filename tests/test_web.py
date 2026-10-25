@@ -1,3 +1,4 @@
+import base64
 import cv2
 import numpy as np
 import pytest
@@ -177,12 +178,17 @@ class TestBrand:
         theme = tmp_path / "branding" / "club"
         theme.mkdir(parents=True)
         cv2.imwrite(str(theme / "logo.png"), np.zeros((500, 400, 4), np.uint8))
+        (theme / "sponsors").mkdir()
+        cv2.imwrite(str(theme / "sponsors" / "sponsor.png"), np.zeros((320, 200, 4), np.uint8))
+        (theme / "sponsors" / "sponsors.json").write_text('[{"name": "Shop", "logo": "sponsor.png"}]')
         (theme / "brand.json").write_text('{"name": "Club", "logo": "logo.png", "light": {}, "dark": {}}')
 
         data = brand("club", tmp_path / "site")
 
         assert data["logo"] == "brand/logo.png"
         assert cv2.imread(str(tmp_path / "site" / "brand" / "logo.png"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
+        inlined = base64.b64decode(data["sponsors"][0]["logo"].removeprefix("data:image/png;base64,"))
+        assert cv2.imdecode(np.frombuffer(inlined, np.uint8), cv2.IMREAD_UNCHANGED).shape == (160, 100, 4)
         assert brand("none", tmp_path / "site") is None
         with pytest.raises(SystemExit, match="club, none"):
             brand("other", tmp_path / "site")

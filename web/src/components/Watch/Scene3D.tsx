@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { versioned } from '@/lib/match';
+import { match, versioned } from '@/lib/match';
 import type { Scene, SceneState } from '@/scene3d/scene';
 
 let loading: Promise<void> | null = null;
@@ -72,7 +72,7 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
     load()
       .then(() => {
         if (!gone && box.current && window.VolleyScene) {
-          scene.current = window.VolleyScene.mount(box.current);
+          scene.current = window.VolleyScene.mount(box.current, match.brand?.sponsors ?? []);
           setStatus('ready');
         }
       })

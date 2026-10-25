@@ -68,3 +68,5 @@ uv run python -m volleyball_stats.web outputs/full_match --video data/full_match
 ```
 
 That run rewrites `outputs/full_match/page.json`: put back the local build's options after.
+Sponsors (Nektar) live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
+hosted page's build reads them from this machine.
