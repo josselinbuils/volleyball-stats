@@ -82,7 +82,7 @@ function FifaCard({ id, row: r, g }: CardProps) {
   };
   const photo = match.people[r.key]?.photo;
   return (
-    <article className="group aspect-[5/7] p-[5px] drop-shadow-md" style={{ clipPath: SHIELD, background: GOLD }} onPointerMove={follow}>
+    <article className="aspect-[5/7] p-[5px] drop-shadow-md" style={{ clipPath: SHIELD, background: GOLD }}>
       <div
         className="relative flex h-full flex-col overflow-hidden"
         style={{ clipPath: SHIELD, background: `linear-gradient(160deg, ${teamColor(g)}, color-mix(in oklch, ${teamColor(g)} 55%, black))`, color: `var(--team${g}-text)` }}
@@ -98,10 +98,10 @@ function FifaCard({ id, row: r, g }: CardProps) {
             <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
           </div>
           {photo && (
-            <div className="relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
+            <div className="group/photo relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }} onPointerMove={follow}>
               <img src={photo} alt="" loading="lazy" className="h-full object-cover object-top" />
-              {/* A holographic sheen, faint at rest, following the pointer over the card. */}
-              <div aria-hidden className="holo absolute inset-0 opacity-30 mix-blend-color-dodge transition-opacity duration-300 group-hover:opacity-70" />
+              {/* A glint and a faint rainbow following the pointer over the picture. */}
+              <div aria-hidden className="holo absolute inset-0 opacity-0 mix-blend-soft-light transition-opacity duration-300 group-hover/photo:opacity-60" />
             </div>
           )}
         </div>
