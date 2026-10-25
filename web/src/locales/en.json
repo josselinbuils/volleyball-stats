@@ -176,6 +176,8 @@
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
+  "backVideo": "Back {{s}} s",
+  "forwardVideo": "Forward {{s}} s",
   "seekVideo": "Position in the video",
   "slowVideo": "Slow motion (half speed)",
   "muteVideo": "Mute",
@@ -208,22 +210,25 @@
       "kills": "Winning attacks",
       "attackFaults": "Attack faults",
       "blocks": "Blocks",
-      "blockPoints": "Winning blocks",
       "digs": "Digs",
       "sets": "Sets",
       "points": "Points",
-      "faults": "Faults"
+      "faults": "Faults",
+      "overall": "Overall",
+      "digFaults": "Dig faults",
+      "unattacked": "Receptions with no attack",
+      "unattackedDigs": "Digs with no attack"
     },
-    "sub": {
-      "aces_one": "{{n}} ace",
-      "aces_other": "{{n}} aces",
-      "serveFaults_one": "{{n}} fault",
-      "serveFaults_other": "{{n}} faults",
-      "attackFaults_one": "{{n}} fault",
-      "attackFaults_other": "{{n}} faults",
-      "blockPoints_one": "{{n}} point",
-      "blockPoints_other": "{{n}} points"
+    "note": "Points: balls played that land in the other court. Faults: balls sent out, into the net or landing on the player's own side. Receptions also count the aces conceded, as faults, against the player nearest to where the ball landed.",
+    "columns": {
+      "total": "Total",
+      "aces": "Aces",
+      "faults": "Faults",
+      "kills": "Winning",
+      "points": "Points",
+      "unattacked": "No attack"
     },
-    "note": "Points: balls played that land in the other court. Faults: balls sent out, into the net or landing on the player's own side. A missed reception is a reception fault or an ace conceded, counted against the player nearest to where the ball landed. It all comes from the video: touches can be missing or given to the wrong player."
+    "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",
+    "noteUnattacked": "A reception or a dig has no attack when its team sends the ball back or loses it without attacking."
   }
 }

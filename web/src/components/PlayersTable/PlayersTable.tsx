@@ -8,29 +8,36 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { CountButton } from '@/components/CountButton';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
-import { useFormat } from '@/lib/format';
-import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
-import { usePlayer } from '@/lib/player';
-import { contactClips } from '@/lib/playlist';
+import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Group } from '@/lib/match';
 import { useSet } from '@/lib/sets';
 import { lines, type Line, type Stat } from '@/components/PlayersTable/helpers/stats';
 
-/** Each column's count and the counts under it. */
-const COLUMNS: { stat: Stat; sub: Stat[] }[] = [
-  { stat: 'touches', sub: [] },
-  { stat: 'serves', sub: ['aces', 'serveFaults'] },
-  { stat: 'receptions', sub: [] },
-  { stat: 'missed', sub: [] },
-  { stat: 'attacks', sub: ['attackFaults'] },
-  { stat: 'kills', sub: [] },
-  { stat: 'blocks', sub: ['blockPoints'] },
-  { stat: 'digs', sub: [] },
-  { stat: 'sets', sub: [] },
-  { stat: 'points', sub: [] },
-  { stat: 'faults', sub: [] },
+/** The columns, each a count of touches (`stat`) under its group's title (`of`), named by `label`
+ * within it. */
+const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
+  { stat: 'touches', of: 'touches', label: 'total' },
+  { stat: 'serves', of: 'serves', label: 'total' },
+  { stat: 'aces', of: 'serves', label: 'aces' },
+  { stat: 'serveFaults', of: 'serves', label: 'faults' },
+  { stat: 'receptions', of: 'receptions', label: 'total' },
+  { stat: 'missed', of: 'receptions', label: 'faults' },
+  { stat: 'unattacked', of: 'receptions', label: 'unattacked' },
+  { stat: 'attacks', of: 'attacks', label: 'total' },
+  { stat: 'kills', of: 'attacks', label: 'kills' },
+  { stat: 'attackFaults', of: 'attacks', label: 'faults' },
+  { stat: 'blocks', of: 'blocks', label: 'total' },
+  { stat: 'digs', of: 'digs', label: 'total' },
+  { stat: 'digFaults', of: 'digs', label: 'faults' },
+  { stat: 'unattackedDigs', of: 'digs', label: 'unattacked' },
+  { stat: 'sets', of: 'sets', label: 'total' },
+  { stat: 'points', of: 'overall', label: 'points' },
+  { stat: 'faults', of: 'overall', label: 'faults' },
 ];
+// A line parts each group from its neighbours.
+const parts = (k: number) => k > 0 && COLUMNS[k - 1].of !== COLUMNS[k].of;
+const HEAD = 'px-1 text-center leading-tight whitespace-normal text-muted-foreground';
 // The player column stays in view while the table scrolls sideways on a phone.
-const FIRST = 'sticky left-0 z-10 min-w-32 bg-card pl-3 max-sm:pl-2 max-sm:shadow-[inset_-1px_0_0_var(--border)]';
+const FIRST = 'sticky left-0 z-10 min-w-32 bg-card pl-3 shadow-[inset_-1px_0_0_var(--border)] max-sm:pl-2';
 
 /** What each player of a team did with the ball, a count per action and how it ended. */
 export function PlayersTable() {
@@ -52,19 +59,9 @@ export function PlayersTable() {
           <span className={cn('flex min-h-8 items-center', line.id === 'rest' && 'text-muted-foreground')}>{t(`players.${line.id}`)}</span>
         )}
       </TableCell>
-      {COLUMNS.map(({ stat, sub }) => (
-        <TableCell key={stat} className="px-1 py-1.5 text-center align-top">
-          <CountButton id={`players:${set}:${group}:${line.id}:${stat}`} title={(tr) => `${tr(`players.stats.${stat}`)}, ${label(line)(tr)}`} picked={line.stats[stat]} />
-          {sub.some((s) => line.stats[s].length) && (
-            <div className="mt-0.5 grid justify-items-center text-xs leading-snug">
-              {sub.map(
-                (s) =>
-                  line.stats[s].length > 0 && (
-                    <SubCount key={s} id={`players:${set}:${group}:${line.id}:${s}`} stat={s} title={(tr) => `${tr(`players.stats.${s}`)}, ${label(line)(tr)}`} picked={line.stats[s]} />
-                  ),
-              )}
-            </div>
-          )}
+      {COLUMNS.map(({ stat }, k) => (
+        <TableCell key={stat} className={cn('px-1 py-1.5 text-center', parts(k) && 'border-l')}>
+          <CountButton id={`players:${set}:${group}:${line.id}:${stat}`} title={(tr) => `${tr(`players.stats.${stat}`)}, ${label(line)(tr)}`} picked={line.stats[stat]} className="min-w-10" />
         </TableCell>
       ))}
     </TableRow>
@@ -108,11 +105,23 @@ export function PlayersTable() {
         </ToggleGroup>
         <Table className="tabular-nums">
           <TableHeader>
+            <TableRow className="border-b-0 hover:bg-transparent">
+              <TableHead rowSpan={2} className={cn(FIRST, 'text-muted-foreground')}>
+                {t('players.player')}
+              </TableHead>
+              {COLUMNS.map(
+                ({ of }, k) =>
+                  (k === 0 || parts(k)) && (
+                    <TableHead key={of} colSpan={COLUMNS.filter((c) => c.of === of).length} className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}>
+                      {t(`players.stats.${of}`)}
+                    </TableHead>
+                  ),
+              )}
+            </TableRow>
             <TableRow className="hover:bg-transparent">
-              <TableHead className={cn(FIRST, 'text-muted-foreground')}>{t('players.player')}</TableHead>
-              {COLUMNS.map(({ stat }) => (
-                <TableHead key={stat} className="min-w-20 px-1 text-center leading-tight whitespace-normal text-muted-foreground">
-                  {t(`players.stats.${stat}`)}
+              {COLUMNS.map(({ stat, label }, k) => (
+                <TableHead key={stat} className={cn(HEAD, 'h-8 min-w-14', parts(k) && 'border-l')}>
+                  {t(`players.columns.${label}`)}
                 </TableHead>
               ))}
             </TableRow>
@@ -120,7 +129,7 @@ export function PlayersTable() {
           <TableBody>{table.filter((line) => line.id !== 'total').map(row)}</TableBody>
           <TableFooter className="bg-transparent">{table.filter((line) => line.id === 'total').map(row)}</TableFooter>
         </Table>
-        <p className="text-[13px] text-muted-foreground">{t('players.note')}</p>
+        <p className="text-[13px] text-muted-foreground">{[t('players.note'), t('players.noteUnattacked'), t('players.noteVideo')].join(' ')}</p>
       </CardContent>
     </Card>
   );
@@ -140,27 +149,5 @@ function Who({ person, g }: { person: number; g: Group }) {
       </span>
       <span className="break-words">{playerLabel(t, person)}</span>
     </span>
-  );
-}
-
-/** A count under a column's, as words ("2 aces"), that plays its touches. */
-function SubCount({ id, stat, title, picked }: { id: string; stat: Stat; title: (t: TFunction) => string; picked: Contact[] }) {
-  const { t } = useTranslation();
-  const f = useFormat();
-  const { playlist, play } = usePlayer();
-  const on = playlist?.key === id;
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      aria-label={`${t(`players.sub.${stat}`, { count: picked.length, n: f.num(picked.length) })} · ${title(t)} · ${t('watchN', { count: picked.length })}`}
-      className={cn(
-        'rounded px-1 whitespace-nowrap hover:text-link hover:underline focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-        on ? 'bg-primary text-primary-foreground hover:text-primary-foreground' : 'text-muted-foreground',
-      )}
-      onClick={() => play(title, contactClips(picked, match.duration), 0, id)}
-    >
-      {t(`players.sub.${stat}`, { count: picked.length, n: f.num(picked.length) })}
-    </button>
   );
 }

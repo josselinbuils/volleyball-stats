@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Maximize, Minimize, Pause, Play, Snail, Volume2, VolumeX } from 'lucide-react';
+import { Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
@@ -7,6 +7,9 @@ import { usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
 import { span as allowed } from '@/components/Watch/helpers/span';
+
+/** Seconds the skip buttons move the video by. */
+const SKIP = 10;
 
 /** The video's controls, its timeline limited to the set the page shows. */
 export function VideoControls() {
@@ -74,10 +77,27 @@ export function VideoControls() {
       (video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null)?.webkitEnterFullscreen?.();
     }
   };
-  const button = 'inline-flex size-9 shrink-0 items-center justify-center rounded-md outline-none hover:bg-white/15 focus-visible:ring-3 focus-visible:ring-white/70 [&_svg]:size-5';
+  const button = 'inline-flex size-9 max-sm:size-8 shrink-0 items-center justify-center rounded-md outline-none hover:bg-white/15 focus-visible:ring-3 focus-visible:ring-white/70 [&_svg]:size-5';
+  const skip = (by: number) => video && (video.currentTime = Math.min(span.end, Math.max(span.start, video.currentTime + by)));
+  // A circular arrow with the seconds inside it, as video players draw it.
+  const skipButton = (by: number) => (
+    <button
+      type="button"
+      className={cn(button, 'relative', by < 0 && 'max-sm:ml-auto')}
+      aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })}
+      title={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })}
+      onClick={() => skip(by)}
+    >
+      {by < 0 ? <RotateCcw aria-hidden className="size-6!" /> : <RotateCw aria-hidden className="size-6!" />}
+      <span aria-hidden className="absolute inset-0 grid place-items-center pt-px text-[8px] font-bold">
+        {SKIP}
+      </span>
+    </button>
+  );
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1 text-white">
+    // On a phone the timeline takes its own row above the buttons.
+    <div className="flex flex-wrap items-center gap-x-1 px-2 py-1 text-white">
       <button
         type="button"
         className={button}
@@ -103,11 +123,14 @@ export function VideoControls() {
         }}
         aria-label={t('seekVideo')}
         aria-valuetext={clock(time)}
-        className="h-9 min-w-0 flex-1 cursor-pointer accent-(--primary)"
+        className="h-9 min-w-0 flex-1 cursor-pointer accent-(--primary) max-sm:order-first max-sm:h-7 max-sm:basis-full"
       />
-      <span className="shrink-0 px-1 text-sm text-white/75 tabular-nums" aria-hidden>
+      {/* A phone's row has no room for it: the timeline shows where the video is. */}
+      <span className="shrink-0 px-1 text-sm text-white/75 tabular-nums max-sm:hidden" aria-hidden>
         {clock(span.end)}
       </span>
+      {skipButton(-SKIP)}
+      {skipButton(SKIP)}
       <button
         type="button"
         className={cn(button, state.slow && 'bg-white/25')}

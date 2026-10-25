@@ -1,7 +1,25 @@
 import type { Contact, Group, Person } from '@/lib/match';
 
 /** What the table counts, each the touches it holds. */
-export const STATS = ['touches', 'serves', 'aces', 'serveFaults', 'receptions', 'missed', 'attacks', 'kills', 'attackFaults', 'blocks', 'blockPoints', 'digs', 'sets', 'points', 'faults'] as const;
+export const STATS = [
+  'touches',
+  'serves',
+  'aces',
+  'serveFaults',
+  'receptions',
+  'missed',
+  'unattacked',
+  'attacks',
+  'kills',
+  'attackFaults',
+  'blocks',
+  'digs',
+  'digFaults',
+  'unattackedDigs',
+  'sets',
+  'points',
+  'faults',
+] as const;
 export type Stat = (typeof STATS)[number];
 export type Stats = Record<Stat, Contact[]>;
 
@@ -15,12 +33,26 @@ export interface Line {
 // Floor and net contacts are the ball's, not a player's.
 const TOUCHES = new Set(['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig']);
 
-/** The stats of the touches `mine` holds; `missedAce` holds the aces counted against them. */
+/** Whether a reception's or a dig's team did not attack after it: it sent the ball back or the
+ * rally ended before any attack of its team. Unknown, so false, for a fault or without a next touch
+ * in the rally. */
+export function unattacked(c: Contact, after: Contact[]): boolean {
+  const next = after.filter((n) => n.rally === c.rally);
+  if ((c.type !== 'pass' && c.type !== 'dig') || c.result !== 'play' || !next.length) {
+    return false;
+  }
+  const crossed = next.findIndex((n) => n.side !== c.side);
+  return !next.slice(0, crossed < 0 ? undefined : crossed).some((n) => n.type === 'attack');
+}
+
+/** The stats of the touches `mine` holds; `missedAce` holds the aces counted against them, as
+ * receptions and faults. */
 export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missedAce: (c: Contact) => boolean): Stats {
   const out = Object.fromEntries(STATS.map((s) => [s, [] as Contact[]])) as Stats;
-  for (const c of contacts) {
+  for (const [k, c] of contacts.entries()) {
     const ace = c.type === 'serve' && c.result === 'point';
     if (ace && missedAce(c)) {
+      out.receptions.push(c);
       out.missed.push(c);
       out.faults.push(c);
     }
@@ -41,12 +73,19 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       add('serves', 'aces', 'serveFaults');
     } else if (c.type === 'pass') {
       add('receptions', null, 'missed');
+      // A rally holds a handful of touches.
+      if (unattacked(c, contacts.slice(k + 1, k + 8))) {
+        out.unattacked.push(c);
+      }
     } else if (c.type === 'attack') {
       add('attacks', 'kills', 'attackFaults');
     } else if (c.type === 'block') {
-      add('blocks', 'blockPoints', null);
+      add('blocks', null, null);
     } else if (c.type === 'dig') {
-      add('digs', null, null);
+      add('digs', null, 'digFaults');
+      if (unattacked(c, contacts.slice(k + 1, k + 8))) {
+        out.unattackedDigs.push(c);
+      }
     } else if (c.type === 'set') {
       add('sets', null, null);
     }

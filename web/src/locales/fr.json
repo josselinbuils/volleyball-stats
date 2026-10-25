@@ -176,6 +176,8 @@
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
+  "backVideo": "Reculer de {{s}} s",
+  "forwardVideo": "Avancer de {{s}} s",
   "seekVideo": "Position dans la vidéo",
   "slowVideo": "Ralenti (moitié de la vitesse)",
   "muteVideo": "Couper le son",
@@ -208,22 +210,25 @@
       "kills": "Attaques gagnantes",
       "attackFaults": "Attaques fautées",
       "blocks": "Contres",
-      "blockPoints": "Contres gagnants",
       "digs": "Défenses",
       "sets": "Passes",
       "points": "Points",
-      "faults": "Fautes"
+      "faults": "Fautes",
+      "overall": "Bilan",
+      "digFaults": "Défenses fautées",
+      "unattacked": "Réceptions sans attaque",
+      "unattackedDigs": "Défenses sans attaque"
     },
-    "sub": {
-      "aces_one": "{{n}} ace",
-      "aces_other": "{{n}} aces",
-      "serveFaults_one": "{{n}} faute",
-      "serveFaults_other": "{{n}} fautes",
-      "attackFaults_one": "{{n}} faute",
-      "attackFaults_other": "{{n}} fautes",
-      "blockPoints_one": "{{n}} point",
-      "blockPoints_other": "{{n}} points"
+    "note": "Points : les ballons joués qui tombent chez l'adversaire. Fautes : les ballons envoyés dehors, dans le filet ou tombés de son côté. Les réceptions comptent aussi les aces subis, en fautes, au joueur le plus proche de la chute du ballon.",
+    "columns": {
+      "total": "Total",
+      "aces": "Aces",
+      "faults": "Fautes",
+      "kills": "Gagnantes",
+      "points": "Points",
+      "unattacked": "Sans attaque"
     },
-    "note": "Points : les ballons joués qui tombent chez l'adversaire. Fautes : les ballons envoyés dehors, dans le filet ou tombés de son côté. Une réception ratée est une réception fautée ou un ace subi, compté au joueur le plus proche de la chute du ballon. Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur."
+    "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
+    "noteUnattacked": "Une réception ou une défense est sans attaque quand son équipe renvoie le ballon ou le perd sans avoir attaqué."
   }
 }
