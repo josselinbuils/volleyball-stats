@@ -8,6 +8,7 @@ import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Group } from '@/lib/match';
 import { useSet } from '@/lib/sets';
+import { insights } from '@/components/Stats/helpers/insights';
 import { lines } from '@/components/Stats/helpers/stats';
 import { StatsTable } from '@/components/Stats/StatsTable';
 
@@ -18,7 +19,9 @@ export function PlayersTable() {
   const { set, contacts } = useSet();
   const [group, setGroup] = useState<Group>(1);
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
-  const rows = lines(contacts, match.people, group)
+  const found = lines(contacts, match.people, group);
+  const team = found[found.length - 1].stats;
+  const rows = found
     .filter((line) => withPlayers || line.id === 'total')
     .map((line) => ({
       key: line.id,
@@ -30,6 +33,7 @@ export function PlayersTable() {
         ),
       title: (tr: TFunction) => (line.id === 'rest' ? tr('players.rest') : line.id === 'total' ? groupName(tr, group) : (playerLabel(tr, line.id) ?? '')),
       stats: line.stats,
+      insights: typeof line.id === 'number' ? insights(line.stats, team) : undefined,
       total: line.id === 'total',
     }));
 
@@ -69,8 +73,8 @@ export function PlayersTable() {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} />
-        <p className="text-[13px] text-muted-foreground">{[t('stats.note'), t('stats.noteUnattacked'), t('stats.noteVideo')].join(' ')}</p>
+        <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} insights={withPlayers} />
+        <p className="text-[13px] text-muted-foreground">{[t('stats.note'), t('stats.noteUnattacked'), withPlayers && t('stats.noteInsights'), t('stats.noteVideo')].filter(Boolean).join(' ')}</p>
       </CardContent>
     </Card>
   );

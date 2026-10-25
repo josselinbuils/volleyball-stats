@@ -155,7 +155,9 @@ above the video. The match's title and date head the page. A "Statistiques" tabl
 team by team, each player's and the whole team's touches, serves (aces, faults), receptions and
 digs (faults, an ace counting against the receiver nearest to where it landed; and those after which
 the team did not attack), sets, attacks (winning, faults), free balls (faults), blocks, points and
-faults; without player tracks, each side of the net's. The video player skips 10 s back or forward.
+faults, and each player's strengths and things to work on: the rates set at least 20 points apart
+from the rest of their team's, with 5 attempts or more on each side; without player tracks, each
+side of the net's. The video player skips 10 s back or forward.
 Everything is split by team, in each team's jersey colour (outlined in grey where it is too close
 to the background, and changed for Team 2 when the two look alike); without player tracks it falls
 back to the sides of the net. With several sets, one filter, which stays at the top of the screen, shows a single set: every

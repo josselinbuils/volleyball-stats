@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CountButton } from '@/components/CountButton';
+import { useFormat } from '@/lib/format';
+import { match } from '@/lib/match';
+import { usePlayer } from '@/lib/player';
+import { contactClips } from '@/lib/playlist';
+import type { Insight } from '@/components/Stats/helpers/insights';
 import type { Stat, Stats } from '@/components/Stats/helpers/stats';
 
 /** The columns, each a count of touches (`stat`) under its group's title (`of`), named by `label`
@@ -35,19 +41,20 @@ const HEAD = 'px-1 text-center leading-tight whitespace-normal text-muted-foregr
 // The first column stays in view while the table scrolls sideways.
 const FIRST = 'sticky left-0 z-10 min-w-32 bg-card pl-3 shadow-[inset_-1px_0_0_var(--border)] max-sm:pl-2';
 
-/** A row: its first cell (`name`), its name in a playlist's title, its counts; a `total` row sits in
- * the footer. */
+/** A row: its first cell (`name`), its name in a playlist's title, its counts, its strengths and
+ * things to work on; a `total` row sits in the footer. */
 export interface Row {
   key: string | number;
   name: ReactNode;
   title: (t: TFunction) => string;
   stats: Stats;
+  insights?: Insight[];
   total?: boolean;
 }
 
-/** Counts of touches per action and how they ended, `first` heading the rows' column; each count
- * plays its touches. */
-export function StatsTable({ id, first, rows }: { id: string; first: string; rows: Row[] }) {
+/** Counts of touches per action and how they ended, `first` heading the rows' column, then the rows'
+ * strengths and things to work on when `insights`; each count and each of those plays its touches. */
+export function StatsTable({ id, first, rows, insights = false }: { id: string; first: string; rows: Row[]; insights?: boolean }) {
   const { t } = useTranslation();
   const row = (r: Row) => (
     <TableRow key={r.key} className={r.total ? 'hover:bg-transparent' : undefined}>
@@ -57,6 +64,18 @@ export function StatsTable({ id, first, rows }: { id: string; first: string; row
           <CountButton id={`${id}:${r.key}:${stat}`} title={(tr) => `${tr(`stats.names.${stat}`)}, ${r.title(tr)}`} picked={r.stats[stat]} className="min-w-10" />
         </TableCell>
       ))}
+      {insights &&
+        [true, false].map((strength) => (
+          <TableCell key={String(strength)} className="min-w-44 border-l px-2 py-1.5">
+            <div className="flex flex-wrap gap-1">
+              {r.insights
+                ?.filter((i) => i.strength === strength)
+                .map((i) => (
+                  <InsightChip key={i.key} id={`${id}:${r.key}:${i.key}`} insight={i} who={r.title} />
+                ))}
+            </div>
+          </TableCell>
+        ))}
     </TableRow>
   );
   const totals = rows.filter((r) => r.total);
@@ -76,6 +95,12 @@ export function StatsTable({ id, first, rows }: { id: string; first: string; row
                 </TableHead>
               ),
           )}
+          {insights &&
+            (['strengths', 'toWorkOn'] as const).map((key) => (
+              <TableHead key={key} rowSpan={2} className={cn(HEAD, 'border-l font-semibold text-foreground')}>
+                {t(`stats.insights.${key}`)}
+              </TableHead>
+            ))}
         </TableRow>
         <TableRow className="hover:bg-transparent">
           {COLUMNS.map(({ stat, label }, k) => (
@@ -88,5 +113,38 @@ export function StatsTable({ id, first, rows }: { id: string; first: string; row
       <TableBody>{rows.filter((r) => !r.total).map(row)}</TableBody>
       {totals.length > 0 && <TableFooter className="bg-transparent">{totals.map(row)}</TableFooter>}
     </Table>
+  );
+}
+
+/** A strength (green) or a thing to work on (amber), its comparison with the rest of the team on
+ * hover; a click plays its touches. */
+function InsightChip({ id, insight: i, who }: { id: string; insight: Insight; who: (t: TFunction) => string }) {
+  const { t } = useTranslation();
+  const f = useFormat();
+  const { playlist, play } = usePlayer();
+  const label = (tr: TFunction) => tr(`stats.insights.${i.key}`, { count: i.n, of: i.of });
+  const detail = t('stats.insights.detail', { n: i.n, of: i.of, p: f.pct(i.n / i.of), restN: i.restN, restOf: i.restOf, restP: f.pct(i.restN / i.restOf) });
+  const on = playlist?.key === id;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-pressed={on}
+          aria-label={`${label(t)} · ${detail} · ${t('watchN', { count: i.picked.length })}`}
+          className={cn(
+            'rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+            i.strength
+              ? 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900'
+              : 'bg-amber-100 text-amber-900 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900',
+            on && 'ring-2 ring-primary',
+          )}
+          onClick={() => play((tr) => `${label(tr)}, ${who(tr)}`, contactClips(i.picked, match.duration), 0, id)}
+        >
+          {label(t)}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{detail}</TooltipContent>
+    </Tooltip>
   );
 }
