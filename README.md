@@ -29,13 +29,39 @@ already seen.
 - Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
   handlebar mount.
 
+### Camera settings (Osmo Action 3)
+
+| Setting | Réglage | Where | Value | Why |
+| --- | --- | --- | --- | --- |
+| Resolution | Résolution | Swipe up | 4K (16:9) | Ball and jersey numbers; the ball model reads 16:9 |
+| Frame rate | Fréquence d'images | Swipe up | 50 fps | No flicker under 50 Hz lighting |
+| Loop recording | Enregistrement en boucle | Swipe up, top left | Off | Would overwrite the start of the match |
+| Stabilisation | Stabilisation | Swipe up, top right | Off (no RockSteady, no HorizonBalancing) | Fixed camera; stabilisation warps each frame |
+| Mode | Mode | Parameters icon | PRO | Locked exposure |
+| Field of view | Champ de vision | PRO | Ultra Wide, else Wide; never Standard (Dewarp) | Distortion is corrected in software; Dewarp crops |
+| Shutter speed | Vitesse d'obturation | PRO, Exposure: Manual | 1/250, 1/500 if the gym is bright | Sharp ball |
+| ISO | ISO | PRO, Exposure: Manual | Lowest correct one, set at the gym (often 800–3200) | Locked exposure |
+| White balance | Balance des blancs | PRO | Manual, set at the gym (often 4500–5500 K under LEDs) | Stable jersey colours for the teams |
+| Colour | Couleur | PRO | Normal, not D-Cinelike | Natural colours for the teams |
+| Enhanced image quality | Qualité d'image améliorée | PRO | Off, On only facing sunlit windows | Made for strong light contrast; more power and heat |
+| Video compression | Compression vidéo | Swipe down, Settings | Compatibility (H.264) or Efficiency (HEVC, smaller files) | Both decode on the GPU |
+| Anti-flicker | Anti-scintillement | Swipe down, Settings | 50 Hz | French power grid |
+| Screen off when recording | Écran éteint pendant l'enregistrement | Swipe down, Settings | Shortest delay | Less heat |
+| Auto power off | Arrêt automatique | Swipe down, Settings | 30 min (the longest) | No stop before the first serve; the 2-hour test checks it never stops a recording |
+
+There is no bitrate setting: the camera records at up to 130 Mbps, about 120 GB for 2 hours. The
+French names are approximate: the menus may word them slightly differently.
+
+Resolution, frame rate, field of view and stabilisation stay the same for the lens calibration and
+every match; ISO and white balance change with the gym only.
+
 ### Before the first match
 
 - [ ] Check the SD card with [F3](https://github.com/AltraMayor/f3) or H2testw.
 - [ ] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
       overheating.
-- [ ] Lock the settings: 50 fps, widest field of view, shutter 1/250 or faster, exposure and white
-      balance locked, audio on.
+- [ ] Set the [camera settings](#camera-settings-osmo-action-3), ISO and white balance
+      aside.
 - [ ] Calibrate the lens once at those settings: without it the court mapping is off by 0.3–1.4 m
       (see the court benchmark). Print the board (`python -m volleyball_stats.lens pattern`), tape
       it flat on cardboard, film it for a minute at 1–3 m while tilting it and sweeping it into the
