@@ -25,7 +25,12 @@ player crops per team. `match.py` writes the team on the left and the set of eac
 ```bash
 uv run --group bench python benchmarks/teams/bench.py side_club side_long [--sweep]
 uv run --group bench python benchmarks/teams/bench.py side_holdout side_setend
+uv run --group bench python benchmarks/teams/bench.py side_holdout side_setend --mixed
 ```
+
+`--mixed` dresses each player of the clip's `outputs/CLIP/identities.csv` in a random shirt (9
+common colours) and shorts (white, black or grey), over 5 seeds, and scores the side map again: kits
+that differ within a team, as in adult leisure matches.
 
 Each clip reads `data/CLIP.mp4`, its player tracks (`outputs/players/CLIP_players.csv`, else
 `outputs/CLIP/players.csv`), this folder's ground truth, and where they exist the identity labels of
@@ -64,12 +69,13 @@ black), matched to the tracks by feet within 20 px, each track taking its majori
 ## Metrics
 
 - **Side map**: rallies whose team on the left wears the labelled colour (the team's colour is the
-  detected one, named as in `teams.json`); changes of ends found against labelled.
-- **Colour vs side**: player frames inside the rallies whose colour group plays on the side its
-  group holds in that rally. Players never cross the net, so a disagreement is a colour error:
-  this scores the colour alone on every track, not only the labelled sequences.
+  detected one, named as in `teams.json`); changes of ends found against labelled. With `--mixed`,
+  rallies whose team on the left is the first rally's exactly when the labels say so.
+- **Colour vs side**: player frames inside the rallies whose torso colour group (2-means, in the
+  benchmark only) plays on the side its group holds in that rally. Players never cross the net, so
+  a disagreement is a colour error: it measures how much a team's kits agree.
 - **Tracks**: labelled tracks whose team wears their label's colour, by colour group alone and with
-  the side correction of the module.
+  the team the module gives.
 - **Attribution**: typed contacts attributed right (the attribution benchmark's `truth` and
   `detected` scores), the toucher searched among the tracks of the contact's side by
   `players.py`'s median side (today's rule), by colour group, or by team.
@@ -77,31 +83,54 @@ black), matched to the tracks by feet within 20 px, each track taking its majori
 
 ## Method
 
-1. **Jersey colour per track.** On 8 boxes spread over each track, the torso (x 30-70 %, y 20-45 % of
-   the box: chest, clear of the head, arms and shorts), median pixel in Lab; the track's colour is
-   the median of its 8. Frames are read in order, seeking over gaps of more than 150 frames:
-   6-7 s for a 10-minute 720p clip (about 1,400 frames decoded) on the M4 Pro.
-2. **Two colour groups.** 2-means in Lab weighted by track length, started from the darker and the
-   lighter half by weight. Liberos and other outliers (a referee kept by the tracker, a crop
-   mixing two players) join the nearer group.
-3. **Side map per rally.** In each rally window, the group holding the left half (feet court x < 0)
-   is the one with the most player frames on its side, counting both groups. A rally without
-   players keeps the previous rally's sides.
-4. **Team per track: the side corrects the colour.** A track's team is the team on its median side
-   of the net in the rally it plays most frames of (else the nearest rally). Colour decides which
-   team is on which side; the side decides each track. This is the deliberately simple rule for
-   liberos: they wear another colour but stay on their team's side.
-5. **Names.** Team 1 is the team on the left at the first rally. Each team's colour snaps to one of
-   about a dozen named colours: gym footage greys and blues a white jersey (L\* 55-60, chroma
-   10-15) and darkens navy nearly to black, so low chroma reads as white, grey or black, except a
-   dark one with a blue cast (navy).
+Kits may differ within a team, so a team is never a colour.
+
+1. **Look per track.** On 8 boxes spread over each track, the median Lab colour of the torso (x
+   30-70 %, y 20-45 % of the box: chest, clear of the head, arms and shorts) and of the shorts (x
+   30-70 %, y 50-65 %); the track's look is the median of its 8 (6 values). Frames are read in order,
+   seeking over gaps of more than 150 frames: 6-7 s for a 10-minute 720p clip on the M4 Pro.
+2. **Followed tracks across ordinary breaks.** From one rally to the next, when the tracks of the
+   previous rally hold 25 % or more of the rally's player frames, the rallies join a stretch, and
+   those tracks tell whether the teams changed ends: most of their frames on the other side. On the
+   four clips, ordinary breaks keep 35-89 % of the next rally's frames on followed tracks; the long
+   ones (61 s and 64 s timeouts, the set break) 0-18 %: the players left the court.
+3. **Looks across long breaks.** From one stretch to the next, each track after the break finds the
+   track of the previous stretch with the nearest look. The teams changed ends when 60 % or more of
+   the frames after the break matched a player of the other side: breaks without a change are the
+   more common case, so a change needs a clear majority.
+4. **Team per track.** A track's team is the team on its median side of the net in the rally it
+   plays most frames of (else the nearest rally). Liberos and players in other kits need nothing
+   more.
+5. **Names.** Team 1 is the team on the left at the first rally. Each team's colour is the median
+   torso colour of its tracks, snapped to one of about a dozen named colours: gym footage greys and
+   blues a white jersey (L\* 55-60, chroma 10-15) and darkens navy nearly to black, so low chroma
+   reads as white, grey or black, except a dark one with a blue cast (navy). With mixed kits it means
+   little: `--teams NAME:COLOUR` sets it.
 6. **Sets.** A new set starts when the teams change ends after at least 90 s without a rally (a set
-   break lasts 3 minutes or more); a change of ends after a shorter break is the deciding set's
-   swap at 8 points, in the same set. The set start is the middle of the break.
+   break lasts 3 minutes or more); a change of ends after a shorter break stays in the same set (a
+   deciding set's swap at 8 points, or a team's habit at a timeout). The set start is the middle of
+   the break. Teams that keep their ends between sets get no set start: `--sets` or the prompt gives
+   them.
 
 ## Results
 
-Tuning (`side_club` + `side_long`):
+The colour groups of the previous method (2-means on the torso colour, the group holding most of a
+rally's left half on the left) and the method above score the same on these white-against-navy
+clips. With mixed kits, the previous method fails:
+
+| Mixed kits, 5 seeds | Colour groups | Followed tracks and looks |
+| --- | --- | --- |
+| `side_holdout` side map | 57/105 | **105/105** |
+| `side_holdout` changes of ends found (0 labelled) | 35 | **0** |
+| `side_setend` side map | 22/40 | **35/40** |
+| `side_setend` changes of ends found (5 labelled) | 12 | 4 |
+
+Every ordinary break is decided by followed tracks (39 of 39 on the four clips), whatever the kits.
+The miss is the `side_setend` set break: no track survives its 6 minutes, and one seed's random kits
+leave fewer than 60 % of the frames matched to the other side. On the real kits the long breaks
+score 0 % and 3 % (the two timeouts) and 78 % (the change of ends).
+
+Real kits, tuning (`side_club` + `side_long`):
 
 | | `side_club` | `side_long` | both |
 | --- | --- | --- | --- |
@@ -146,17 +175,16 @@ Held out:
 
 ## Limits
 
-- One match, one camera, white against navy: two jerseys as far apart as they get in lightness.
-  Two close colours (navy against black, red against dark red) are untested; the side map only
-  needs the majority of each team's frames right, which leaves a wide margin, but nothing here
-  measures it.
-- One real change of ends (`side_setend`), no deciding set. The 90 s rule for a deciding set's swap
-  is tested on synthetic windows only.
+- One match, one camera, white against navy. Mixed kits are simulated: random colours per player of
+  the pipeline's identities, whose errors give one player two kits now and then.
+- A long break where no track survives rests on the looks alone: torso and shorts colours, close to
+  a coin flip when kits are mixed and alike (one miss in 5 seeds). The identity step's re-ID
+  embeddings would tell players apart better.
+- A wrong decision at a break flips the team names of every rally after it, until the next wrong one.
+- One real change of ends (`side_setend`), no deciding set and no change at a timeout.
 - The sides of a rally come from its window: a window starting during the warm-up or spanning a
-  set break would be voted by the players on court then. Rallies the segmenter misses are not
-  needed here, but a whole set without a detected rally would hide its change of ends.
-- A side map wrong on one rally after a long break starts a set; two in a row would also flip the
-  names for those rallies. Not seen on these clips.
+  set break holds the players on court then. Rallies the segmenter misses are not needed here: their
+  break is just longer.
 - Tracks between rallies (set breaks, warm-ups) take the sides of the nearest rally: players
   walking to the other end during a set break can carry the wrong team on the page's replay.
 - Jersey colours snap to about twelve names; the swatch is the named colour, not the measured one.
@@ -164,6 +192,5 @@ Held out:
 
 ## Next steps
 
-- A match with a deciding set, and one with close jersey colours, to measure the rule and the
-  colour margin.
-- The identity step (jersey numbers) can reuse the per-track colour to tell liberos apart.
+- The first ASPOM match: real mixed kits, and changes of ends at timeouts if the teams make them.
+- If long breaks fail on it: compare the players' re-ID embeddings instead of their colours.

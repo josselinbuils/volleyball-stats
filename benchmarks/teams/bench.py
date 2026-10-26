@@ -6,14 +6,17 @@ Each CLIP reads data/CLIP.mp4, its player tracks (outputs/players/CLIP_players.c
 outputs/CLIP/players.csv) and benchmarks/teams/ground_truth/CLIP.csv: per rally window, the jersey
 colour on each side of the net. Scores, pooled over the clips given:
 - side map: rallies whose left team has the labelled jersey colour, and changes of ends found;
-- colour vs side: player frames whose colour group plays on the side its group holds in that rally
-  (players never cross the net, so a disagreement is a colour error: liberos, mixed crops);
+- colour vs side: player frames whose torso colour group (2-means) plays on the side its group holds
+  in that rally (players never cross the net, so a disagreement is a colour error: liberos, mixed
+  crops, mixed kits);
 - tracks: tracks matched to the identity labels of benchmarks/players/ground_truth/CLIP_sequence.csv
   (W* white, N* navy) whose team has the label's colour, colour group alone then with the side;
 - attribution: attribution.attribute's typed contacts (as benchmarks/attribution) with the toucher
   searched among players.py's sides, the colour groups, or the teams;
 - sets: the set starts found.
---sweep compares samples per track and torso boxes on colour vs side.
+--sweep compares samples per track and torso boxes on colour vs side. --mixed scores the side map
+again with mixed kits: each player of the clip's identities.csv (outputs/CLIP/) gets a random shirt
+and shorts colour, over 5 seeds.
 """
 
 import argparse
@@ -42,6 +45,38 @@ def players(clip: str) -> list[Row]:
 def truth(clip: str) -> list[dict]:
     with open(f"benchmarks/teams/ground_truth/{clip}.csv") as f:
         return list(csv.DictReader(f))
+
+
+def two_means(colours: dict[int, np.ndarray], weights: dict[int, float], rounds: int = 20) -> dict[int, int]:
+    """Group (0 or 1) of each colour by 2-means weighted by `weights`, started from the darker and
+    the lighter half by weight; group 0 is the darker."""
+    tracks = sorted(colours, key=lambda t: colours[t][0])
+    x = np.array([colours[t] for t in tracks], float)
+    w = np.array([weights[t] for t in tracks], float)
+    labels = (np.cumsum(w) > w.sum() / 2).astype(int)
+    for _ in range(rounds):
+        if labels.min() == labels.max():
+            break
+        centres = np.array([np.average(x[labels == k], axis=0, weights=w[labels == k]) for k in (0, 1)])
+        labels = np.argmin(((x[:, None] - centres[None]) ** 2).sum(axis=2), axis=1)
+    if labels.max() and x[labels == 0, 0].mean() > x[labels == 1, 0].mean():
+        labels = 1 - labels
+    return dict(zip(tracks, labels.tolist()))
+
+
+def colour_lefts(rows: list[Row], windows: list[tuple[int, int]], group: dict[int, int]) -> list[int | None]:
+    """Per rally window, the colour group on the left: the one with the most frames of its tracks on
+    the left half plus frames of the other group's on the right."""
+    out: list[int | None] = []
+    frames = np.array([r.frame for r in rows])
+    left = np.array([r.court[0] < 0 for r in rows])
+    groups = np.array([group.get(r.track, -1) for r in rows])
+    for start, end in windows:
+        inside = (frames >= start) & (frames <= end) & (groups >= 0)
+        votes = [(groups[inside] == g) == left[inside] for g in (0, 1)]
+        zero, one = int(votes[0].sum()), int(votes[1].sum())
+        out.append(None if zero == one else 0 if zero > one else 1)
+    return out
 
 
 def colour_vs_side(rows: list[Row], windows: list[tuple[int, int]], group: dict[int, int], left: list[int | None]) -> tuple[int, int]:
@@ -113,16 +148,16 @@ def score(clips: list[str]) -> None:
     for clip in clips:
         rows, labelled = players(clip), truth(clip)
         windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in labelled]
-        colours, _ = teams.sample(Path(f"data/{clip}.mp4"), rows)
+        looks, _ = teams.sample(Path(f"data/{clip}.mp4"), rows)
         lengths = {t: len(r) for t, r in teams.by_track(rows).items()}
-        group = teams.two_means(colours, lengths)
+        group = two_means({t: look[:3] for t, look in looks.items()}, lengths)
         found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows)
         name = {t: teams.hex_name(c) for t, c in found.colours.items()}
         left = [name[g] if g else None for g in found.left]
         right_map = sum(l == r["left"] for l, r in zip(left, labelled))
         changes = sum(a["left"] != b["left"] for a, b in zip(labelled, labelled[1:]))
         found_changes = sum(a != b for a, b in zip(left, left[1:]))
-        agree, frames = colour_vs_side(rows, windows, group, teams.lefts(rows, windows, group))
+        agree, frames = colour_vs_side(rows, windows, group, colour_lefts(rows, windows, group))
         print(f"{clip}: side map {right_map}/{len(labelled)}, changes of ends {found_changes} found / {changes} labelled; colour vs side {agree}/{frames} ({agree / max(1, frames):.3f}); teams {name}")
         totals.update(rallies=len(labelled), right_map=right_map, agree=agree, frames=frames)
 
@@ -172,19 +207,55 @@ def sweep(clips: list[str]) -> None:
             for clip in clips:
                 rows = players(clip)
                 windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in truth(clip)]
-                colours, _ = teams.sample(Path(f"data/{clip}.mp4"), rows, samples)
-                group = teams.two_means(colours, {t: len(r) for t, r in teams.by_track(rows).items()})
-                a, n = colour_vs_side(rows, windows, group, teams.lefts(rows, windows, group))
+                looks, _ = teams.sample(Path(f"data/{clip}.mp4"), rows, samples)
+                group = two_means({t: look[:3] for t, look in looks.items()}, {t: len(r) for t, r in teams.by_track(rows).items()})
+                a, n = colour_vs_side(rows, windows, group, colour_lefts(rows, windows, group))
                 agree, frames = agree + a, frames + n
             print(f"samples {samples:2}, torso {box}: colour vs side {agree}/{frames} ({agree / frames:.3f})")
+
+
+def mixed(clips: list[str], seeds: int = 5) -> None:
+    """Side map and changes of ends with a random shirt and shorts colour per player."""
+    palette = np.array([(240, 128, 128), (30, 128, 128), (128, 128, 128), (90, 170, 150), (80, 140, 90), (60, 135, 100), (200, 125, 200), (120, 175, 110), (150, 100, 160)], float)
+    sample = teams.sample
+    for clip in clips:
+        path = Path(f"outputs/{clip}/identities.csv")
+        if not path.exists():
+            print(f"{clip}: no {path}")
+            continue
+        segments: dict[int, list[tuple[int, str, str]]] = {}
+        with open(path) as f:
+            for r in csv.DictReader(f):
+                segments.setdefault(int(r["track"]), []).append((int(r["end_frame"]) - int(r["start_frame"]), r["team"], r["identity"]))
+        owner = {t: max(v)[1:] for t, v in segments.items()}
+        rows, labelled = players(clip), truth(clip)
+        windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in labelled]
+        looks, crops = sample(Path(f"data/{clip}.mp4"), rows)
+        for seed in range(seeds):
+            rng = np.random.default_rng(seed)
+            kits: dict[tuple[str, str], np.ndarray] = {}
+            dressed = {}
+            for t in looks:
+                kit = kits.setdefault(owner.get(t, ("", str(t))), np.concatenate([palette[rng.integers(len(palette))], palette[rng.integers(3)]]))
+                dressed[t] = kit + rng.normal(0, 6, 6)
+            teams.sample = lambda video, rows, dressed=dressed: (dressed, crops)
+            found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows)
+            teams.sample = sample
+            # Team colours are random here: a rally is right when its left team is the first rally's
+            # exactly when the labels say so.
+            right_map = sum((g == found.left[0]) == (r["left"] == labelled[0]["left"]) for g, r in zip(found.left, labelled))
+            changes = sum(a["left"] != b["left"] for a, b in zip(labelled, labelled[1:]))
+            found_changes = sum(a != b for a, b in zip(found.left, found.left[1:]))
+            print(f"{clip} seed {seed}: side map {right_map}/{len(labelled)}, changes of ends {found_changes} found / {changes} labelled")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("clips", nargs="+", help="Clip stems, e.g. side_club")
     parser.add_argument("--sweep", action="store_true", help="Compare samples per track and torso boxes")
+    parser.add_argument("--mixed", action="store_true", help="Score the side map with a random kit per player")
     args = parser.parse_args()
-    sweep(args.clips) if args.sweep else score(args.clips)
+    sweep(args.clips) if args.sweep else mixed(args.clips) if args.mixed else score(args.clips)
 
 
 if __name__ == "__main__":

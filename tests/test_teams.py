@@ -11,6 +11,7 @@ from volleyball_stats import teams
 from volleyball_stats.players import Row
 from volleyball_stats.teams import (
     Teams,
+    changed_ends,
     clock,
     colour_name,
     contact_teams,
@@ -19,14 +20,13 @@ from volleyball_stats.teams import (
     parse_date,
     parse_colour,
     parse_teams,
+    part,
     seconds,
     set_numbers,
     recording_date,
     set_starts,
     settle,
-    torso,
     track_teams,
-    two_means,
 )
 
 
@@ -38,56 +38,77 @@ def lab(bgr: tuple[int, int, int]) -> np.ndarray:
     return cv2.cvtColor(np.uint8([[bgr]]), cv2.COLOR_BGR2LAB)[0, 0].astype(float)
 
 
-class TestTorso:
-    def test_takes_the_upper_middle_of_the_box(self):
+class TestPart:
+    def test_takes_the_upper_middle_of_the_box_for_the_torso(self):
         image = np.zeros((100, 100, 3), np.uint8)
         image[20:45, 30:70] = 255
 
-        pixels = torso(image, (0.0, 0.0, 100.0, 100.0))
+        pixels = part(image, (0.0, 0.0, 100.0, 100.0))
 
         assert len(pixels) == 25 * 40 and pixels.min() == 255
 
+    def test_takes_the_shorts_below_it(self):
+        image = np.zeros((100, 100, 3), np.uint8)
+        image[50:65, 30:70] = 255
 
-class TestTwoMeans:
-    def test_splits_light_and_dark_jerseys_and_an_outlier_joins_the_nearer(self):
-        colours = {1: lab((240, 240, 240)), 2: lab((230, 235, 235)), 3: lab((80, 40, 30)), 4: lab((70, 35, 25)), 5: lab((10, 10, 10))}
-        weights = {1: 100, 2: 80, 3: 90, 4: 120, 5: 60}
-
-        group = two_means(colours, weights)
-
-        assert group[1] == group[2] == 1
-        assert group[3] == group[4] == group[5] == 0
+        assert part(image, (0.0, 0.0, 100.0, 100.0), teams.SHORTS).min() == 255
 
 
 class TestLefts:
-    def test_puts_on_the_left_the_group_with_most_frames_there(self):
-        rows = [row(f, 1, -3.0) for f in range(10)] + [row(f, 2, 4.0) for f in range(10)] + [row(f, 3, 2.0) for f in range(3)]
-        rows += [row(f, 1, 3.0) for f in range(100, 110)] + [row(f, 2, -4.0) for f in range(100, 110)]
+    def test_follows_the_tracks_through_a_break_whatever_their_looks(self):
+        # Tracks 1 and 2 play both rallies; 3 and 4 only the second, dressed like the other side.
+        rows = [row(f, 1, -3.0) for f in range(10)] + [row(f, 2, 3.0) for f in range(10)]
+        rows += [row(f, 1, -3.0) for f in range(100, 110)] + [row(f, 2, 3.0) for f in range(100, 110)]
+        rows += [row(f, 3, -2.0) for f in range(100, 110)] + [row(f, 4, 2.0) for f in range(100, 110)]
+        looks = {1: np.zeros(6), 2: np.full(6, 200.0), 3: np.full(6, 200.0), 4: np.zeros(6)}
 
-        # Track 3 is a group-0 libero on the right: outvoted.
-        assert lefts(rows, [(0, 20), (95, 115), (200, 210)], {1: 0, 2: 1, 3: 0}) == [0, 1, None]
+        assert lefts(rows, [(0, 20), (95, 115), (200, 210)], looks) == [0, 0, None]
+
+    def test_matches_looks_after_a_long_break_and_sees_the_ends_changed(self):
+        rows = [row(f, 1, -3.0) for f in range(10)] + [row(f, 2, 3.0) for f in range(10)]
+        rows += [row(f, 3, 3.0) for f in range(100, 110)] + [row(f, 4, -3.0) for f in range(100, 110)]
+        looks = {1: np.zeros(6), 2: np.full(6, 200.0), 3: np.full(6, 10.0), 4: np.full(6, 190.0)}
+
+        assert lefts(rows, [(0, 20), (95, 115)], looks) == [0, 1]
+
+    def test_keeps_the_ends_when_the_looks_only_lean_to_a_change(self):
+        # Half the players after the break look like a player of the other side: no clear majority.
+        rows = [row(f, 1, -3.0) for f in range(10)] + [row(f, 2, 3.0) for f in range(10)]
+        rows += [row(f, 3, 3.0) for f in range(100, 110)] + [row(f, 4, 3.0) for f in range(100, 110)]
+        looks = {1: np.zeros(6), 2: np.full(6, 200.0), 3: np.full(6, 10.0), 4: np.full(6, 190.0)}
+
+        assert lefts(rows, [(0, 20), (95, 115)], looks) == [0, 0]
+
+
+class TestChangedEnds:
+    def test_needs_the_swap_share_of_frames_matched_to_the_other_side(self):
+        before = {1: (10, True), 2: (10, False)}
+        looks = {1: np.zeros(6), 2: np.full(6, 200.0), 3: np.full(6, 5.0), 4: np.full(6, 195.0), 5: np.full(6, 190.0)}
+
+        assert changed_ends(before, {3: (10, False), 4: (10, True)}, looks)
+        assert not changed_ends(before, {3: (10, False), 5: (10, False)}, looks)
+        assert not changed_ends({}, {3: (10, False)}, looks)
 
 
 class TestTrackTeams:
-    def test_gives_each_track_the_group_on_its_side_in_its_rally(self):
+    def test_gives_each_track_the_team_on_its_side_in_its_rally(self):
         rows = [row(f, 1, -3.0) for f in range(5, 15)] + [row(f, 2, 3.0) for f in range(5, 15)] + [row(f, 3, 3.0) for f in range(100, 110)]
         rows += [row(f, 4, -2.0) for f in range(300, 310)]
 
-        # Track 2's colour says group 0 (a libero) but it plays on the right; track 4 plays between
-        # rallies, nearest to the second one, where the groups swapped ends.
-        out = track_teams(rows, [(0, 20), (95, 120)], [0, 1], {1: 0, 2: 0, 3: 1, 4: 0})
+        # Track 4 plays between rallies, nearest to the second one, where the teams swapped ends.
+        out = track_teams(rows, [(0, 20), (95, 120)], [0, 1])
 
         assert out == {1: 0, 2: 1, 3: 0, 4: 1}
 
-    def test_keeps_the_colour_group_without_rallies(self):
-        assert track_teams([row(0, 1, -3.0)], [], [], {1: 1}) == {1: 1}
+    def test_puts_team_0_on_the_left_without_rallies(self):
+        assert track_teams([row(0, 1, -3.0), row(0, 2, 3.0)], [], []) == {1: 0, 2: 1}
 
 
 class TestAssign:
     def test_numbers_team_1_on_the_left_at_the_first_rally_and_fills_rallies_without_players(self, monkeypatch):
         rows = [row(f, 1, 3.0) for f in range(10)] + [row(f, 2, -3.0) for f in range(10)]
-        colours = {1: lab((240, 240, 240)), 2: lab((70, 35, 25))}
-        monkeypatch.setattr(teams, "sample", lambda video, rows: (colours, {}))
+        looks = {1: np.concatenate([lab((240, 240, 240)), lab((0, 0, 0))]), 2: np.concatenate([lab((70, 35, 25)), lab((0, 0, 0))])}
+        monkeypatch.setattr(teams, "sample", lambda video, rows: (looks, {}))
 
         found = teams.assign(None, rows, [(500, 600), (0, 20)])
 

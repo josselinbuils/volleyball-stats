@@ -198,7 +198,8 @@ uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [
 #### Teams, date, title, sets and scores
 
 Team 1 is the team on the left of the camera at the first rally. Teams keep their names when they
-change ends.
+change ends, at a set break or a timeout. Kits may differ within a team: a player's team is their
+side of the net.
 
 `outputs/VIDEO/teams.json` holds:
 
@@ -228,7 +229,8 @@ Later runs reuse the file. To fix something, either:
 - or pass the flags again (`--title ""` goes back to the default title).
 
 A new set starts when the teams change ends after a set break (see the
-[teams benchmark](benchmarks/teams/README.md)). The final scores show on the page once a set is
+[teams benchmark](benchmarks/teams/README.md)). Teams that keep their ends between sets get no new
+set: give the set starts with `--sets` or at the prompt. The final scores show on the page once a set is
 over, and the report gives the estimated score's drift from them.
 
 ### 3. Review and name the players
@@ -382,7 +384,7 @@ npm run build    # updates src/volleyball_stats/site/
 | 2. Court | Map pixels to court coordinates | Lens undistortion + homography: rough clicks once per court, snapped to the painted lines; known courts recognised automatically when the stand moves a little ([benchmark](benchmarks/court/README.md)) |
 | 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)); contacts from velocity changes with gravity removed ([benchmark](benchmarks/contacts/README.md)) |
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](benchmarks/actions/README.md)) |
-| 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the torso colour of the tracks, the side of the net each team holds rally by rally, and sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
+| 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the side of the net, followed from rally to rally by the tracks crossing each break and, after a long break, by the players' looks, so kits may differ within a team; sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
 | 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run); jersey numbers (4K) as constraints later ([benchmark](benchmarks/identity/README.md)) |
 | 7. Naming | Name each identity once, suggest names across matches | The review page's "Noms" tab; a roster of re-ID embeddings per named player |
 | 8. Stats | Per-player counts and outcomes, strengths and things to work on | The page's "Statistiques" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands; a player's rates compared with the rest of their team's |

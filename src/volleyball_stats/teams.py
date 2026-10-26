@@ -1,13 +1,13 @@
 """Teams: which team each player track plays for, and which side of the net each team is on, rally by
 rally, so a team keeps its name when the teams change ends.
 
-The torso of a track's boxes (the upper middle of the box, clear of the head, arms and shorts) is
-sampled on a few frames spread over the track, and its median colour taken in Lab, where lightness
-stays apart from hue. The tracks split into two colour groups by 2-means weighted by track length.
-In each rally the group holding most of the left half's player frames (feet court x < 0) is on the
-left. A track's team is then the team on its side of the net: players do not cross the net, while
-a libero wears another colour than the team and would land in the wrong colour group. Team 1 is the
-team on the left at the first rally. A new set starts when the teams change ends after a set break.
+Kits are not assumed to match within a team. Within a rally, a track's team is its side of the net:
+players do not cross it. From one rally to the next, the tracks followed through the break tell
+whether the teams changed ends (feet court x < 0 is the left). After a long break (a timeout, a set
+break) few tracks survive: each player's look then (the median Lab colour of the torso and shorts
+over a few boxes of the track) finds the nearest player of the previous stretch of rallies, and the
+teams changed ends when most of them matched a player of the other side. Team 1 is the team on the
+left at the first rally. A new set starts when the teams change ends after a set break.
 
     uv run python -m volleyball_stats.teams VIDEO PLAYERS_CSV RALLIES_CSV [--out DIR]
 
@@ -36,6 +36,14 @@ SAMPLES = 8
 CROP_PX = 160
 # Torso box as fractions of the player box: x from, x to, y from, y to.
 TORSO = (0.3, 0.7, 0.2, 0.45)
+# Shorts box, as TORSO: with the torso, a player's look.
+SHORTS = (0.3, 0.7, 0.5, 0.65)
+# Share of a rally's player frames on tracks followed from the previous rally from which those
+# tracks tell whether the teams changed ends; below it (a timeout, a set break) the looks do.
+CONTINUITY = 0.25
+# Share of the player frames after a long break whose look matches a player of the other side
+# before it from which the teams changed ends: the rarer case needs a clear majority.
+SWAP_SHARE = 0.6
 # Frames to the next sampled frame beyond which the reader seeks instead of decoding through.
 SEEK = 150
 # Seconds between two rallies from which a change of ends is a set break; in a deciding set the
@@ -65,11 +73,11 @@ class Teams:
     crops: dict[int, list[np.ndarray]]
 
 
-def torso(image: np.ndarray, box: tuple[float, float, float, float]) -> np.ndarray:
-    """Pixels of the torso part of an xyxy box, N×3."""
+def part(image: np.ndarray, box: tuple[float, float, float, float], fractions: tuple[float, float, float, float] = TORSO) -> np.ndarray:
+    """Pixels of a part of an xyxy box given as fractions of it (TORSO, SHORTS), N×3."""
     x1, y1, x2, y2 = box
     w, h = x2 - x1, y2 - y1
-    return image[int(y1 + TORSO[2] * h) : int(y1 + TORSO[3] * h), int(x1 + TORSO[0] * w) : int(x1 + TORSO[1] * w)].reshape(-1, 3)
+    return image[int(y1 + fractions[2] * h) : int(y1 + fractions[3] * h), int(x1 + fractions[0] * w) : int(x1 + fractions[1] * w)].reshape(-1, 3)
 
 
 def by_track(rows: list[Row]) -> dict[int, list[Row]]:
@@ -80,13 +88,13 @@ def by_track(rows: list[Row]) -> dict[int, list[Row]]:
 
 
 def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
-    """Median torso colour (OpenCV 8-bit Lab) of each track over `samples` of its boxes spread over
-    the track, and the BGR crop of its tallest sampled box."""
+    """Look of each track: its median torso then shorts colour (OpenCV 8-bit Lab, 6 values) over
+    `samples` of its boxes spread over the track; and the BGR crop of its tallest sampled box."""
     wanted: dict[int, list[Row]] = {}
     for track_rows in by_track(rows).values():
         for i in np.linspace(0, len(track_rows) - 1, min(samples, len(track_rows))).astype(int):
             wanted.setdefault(track_rows[i].frame, []).append(track_rows[i])
-    colours: dict[int, list[np.ndarray]] = {}
+    looks: dict[int, list[np.ndarray]] = {}
     crops: dict[int, np.ndarray] = {}
     tallest: dict[int, int] = {}
     cap, position = cv2.VideoCapture(str(video)), 0
@@ -103,52 +111,92 @@ def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[i
             break
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         for r in wanted[frame]:
-            pixels = torso(lab, r.box)
-            if len(pixels):
-                colours.setdefault(r.track, []).append(np.median(pixels, axis=0))
+            top, bottom = part(lab, r.box), part(lab, r.box, SHORTS)
+            if len(top) and len(bottom):
+                looks.setdefault(r.track, []).append(np.concatenate([np.median(top, axis=0), np.median(bottom, axis=0)]))
                 x1, y1, x2, y2 = map(int, r.box)
                 if y2 - y1 > tallest.get(r.track, 0):
                     # Kept at the naming sheet's height: a 4K match has thousands of tracks.
                     tallest[r.track] = y2 - y1
-                    part = image[max(0, y1) : y2, max(0, x1) : x2]
-                    crops[r.track] = cv2.resize(part, (max(1, round(part.shape[1] * CROP_PX / part.shape[0])), CROP_PX), interpolation=cv2.INTER_AREA) if part.size else part
+                    cut = image[max(0, y1) : y2, max(0, x1) : x2]
+                    crops[r.track] = cv2.resize(cut, (max(1, round(cut.shape[1] * CROP_PX / cut.shape[0])), CROP_PX), interpolation=cv2.INTER_AREA) if cut.size else cut
     cap.release()
-    return {track: np.median(c, axis=0) for track, c in colours.items()}, crops
+    return {track: np.median(c, axis=0) for track, c in looks.items()}, crops
 
 
-def two_means(colours: dict[int, np.ndarray], weights: dict[int, float], rounds: int = 20) -> dict[int, int]:
-    """Group (0 or 1) of each colour by 2-means weighted by `weights`, started from the darker and
-    the lighter half by weight; group 0 is the darker.
+def presence(frames: np.ndarray, tracks: np.ndarray, left: np.ndarray, window: tuple[int, int]) -> dict[int, tuple[int, bool]]:
+    """Frames of each track inside a rally window, and whether it plays most of them on the left;
+    `frames` sorted, `tracks` and `left` (feet court x < 0) along them."""
+    a, b = np.searchsorted(frames, window[0]), np.searchsorted(frames, window[1], side="right")
+    out = {}
+    for track in np.unique(tracks[a:b]):
+        on = left[a:b][tracks[a:b] == track]
+        out[int(track)] = (len(on), bool(2 * on.sum() > len(on)))
+    return out
 
-    ponytail: two groups only, outliers (liberos, a referee kept by the tracker) join the nearer;
-    the side of the net corrects them in `track_teams`.
+
+def stretch_sides(stretch: list[tuple[int, bool]], seen: list[dict[int, tuple[int, bool]]]) -> dict[int, tuple[int, bool]]:
+    """Frames of each track over a stretch of rallies ((rally, ends changed since its first rally)),
+    and whether it plays most of them on the left the stretch's first rally had."""
+    votes: dict[int, list[int]] = {}
+    for k, changed in stretch:
+        for track, (n, on_left) in seen[k].items():
+            v = votes.setdefault(track, [0, 0])
+            v[0] += n
+            v[1] += n if on_left != changed else 0
+    return {track: (n, 2 * on > n) for track, (n, on) in votes.items()}
+
+
+def changed_ends(before: dict[int, tuple[int, bool]], after: dict[int, tuple[int, bool]], looks: dict[int, np.ndarray]) -> bool:
+    """Whether the teams changed ends between two stretches of rallies (`stretch_sides`): most player
+    frames after it, SWAP_SHARE, on tracks whose nearest look before it played on the other side.
+
+    ponytail: torso and shorts colours only, near a coin flip when kits differ within the teams and
+    no track survives the break; the identity step's re-ID embeddings would tell players apart better.
     """
-    tracks = sorted(colours, key=lambda t: colours[t][0])
-    x = np.array([colours[t] for t in tracks], float)
-    w = np.array([weights[t] for t in tracks], float)
-    labels = (np.cumsum(w) > w.sum() / 2).astype(int)
-    for _ in range(rounds):
-        if labels.min() == labels.max():
-            break
-        centres = np.array([np.average(x[labels == k], axis=0, weights=w[labels == k]) for k in (0, 1)])
-        labels = np.argmin(((x[:, None] - centres[None]) ** 2).sum(axis=2), axis=1)
-    if labels.max() and x[labels == 0, 0].mean() > x[labels == 1, 0].mean():
-        labels = 1 - labels
-    return dict(zip(tracks, labels.tolist()))
+    known = [t for t in before if t in looks]
+    if not known:
+        return False
+    x = np.array([looks[t] for t in known])
+    moved = total = 0
+    for track, (n, on_left) in after.items():
+        if track in looks:
+            nearest = known[int(np.argmin(((x - looks[track]) ** 2).sum(axis=1)))]
+            total += n
+            moved += n if before[nearest][1] != on_left else 0
+    return total > 0 and moved >= SWAP_SHARE * total
 
 
-def lefts(rows: list[Row], windows: list[tuple[int, int]], group: dict[int, int]) -> list[int | None]:
-    """Per rally window, the group on the left: the one with the most frames of its tracks on the left
-    half plus frames of the other group's on the right; None when no grouped track plays in it."""
-    out: list[int | None] = []
-    frames = np.array([r.frame for r in rows])
-    left = np.array([r.court[0] < 0 for r in rows])
-    groups = np.array([group.get(r.track, -1) for r in rows])
-    for start, end in windows:
-        inside = (frames >= start) & (frames <= end) & (groups >= 0)
-        votes = [(groups[inside] == g) == left[inside] for g in (0, 1)]
-        zero, one = int(votes[0].sum()), int(votes[1].sum())
-        out.append(None if zero == one else 0 if zero > one else 1)
+def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.ndarray]) -> list[int | None]:
+    """Per rally window, the team (0 or 1) on the left, team 0 being on the left at the first rally
+    with players; None for a rally without players. Consecutive rallies sharing CONTINUITY of their
+    player frames form a stretch, where those tracks tell whether the teams changed ends; from one
+    stretch to the next, the looks do."""
+    order = sorted(rows, key=lambda r: r.frame)
+    frames = np.array([r.frame for r in order])
+    tracks = np.array([r.track for r in order])
+    left = np.array([r.court[0] < 0 for r in order])
+    seen = [presence(frames, tracks, left, w) for w in windows]
+    stretches: list[list[tuple[int, bool]]] = []
+    previous = None
+    for k, here in enumerate(seen):
+        if not here:
+            continue
+        kept = {t: v for t, v in here.items() if previous is not None and t in seen[previous]}
+        followed = sum(n for n, _ in kept.values())
+        if followed and followed >= CONTINUITY * sum(n for n, _ in here.values()):
+            moved = sum(n for t, (n, on_left) in kept.items() if on_left != seen[previous][t][1])
+            stretches[-1].append((k, stretches[-1][-1][1] != (2 * moved > followed)))
+        else:
+            stretches.append([(k, False)])
+        previous = k
+    out: list[int | None] = [None] * len(windows)
+    swapped = False
+    for i, stretch in enumerate(stretches):
+        if i:
+            swapped ^= changed_ends(stretch_sides(stretches[i - 1], seen), stretch_sides(stretch, seen), looks)
+        for k, changed in stretch:
+            out[k] = int(swapped != changed)
     return out
 
 
@@ -164,35 +212,33 @@ def side_group(frames: np.ndarray, xs: np.ndarray, known: list[tuple[tuple[int, 
     return known[k][1] if float(np.median(xs)) < 0 else 1 - known[k][1]
 
 
-def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int | None], group: dict[int, int]) -> dict[int, int]:
-    """Group of each track: `side_group` in the rallies with a side known; its colour group without
-    any."""
+def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int | None]) -> dict[int, int]:
+    """Team (0 or 1) of each track: `side_group` in the rallies with a side known; without any, 0 on
+    the left."""
     known = [(w, g) for w, g in zip(windows, left) if g is not None]
     out = {}
     for track, track_rows in by_track(rows).items():
-        found = side_group(np.array([r.frame for r in track_rows]), np.array([r.court[0] for r in track_rows]), known)
-        out[track] = group.get(track, 0) if found is None else found
+        xs = np.array([r.court[0] for r in track_rows])
+        found = side_group(np.array([r.frame for r in track_rows]), xs, known)
+        out[track] = int(float(np.median(xs)) >= 0) if found is None else found
     return out
 
 
 def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]]) -> Teams:
     """Teams of a match's player tracks, numbered so that team 1 is on the left at the first rally
-    with a known side."""
-    colours, crops = sample(video, rows)
+    with players."""
+    looks, crops = sample(video, rows)
     lengths = {track: len(r) for track, r in by_track(rows).items()}
-    group = two_means(colours, lengths) if colours else {}
-    left = lefts(rows, windows, group)
-    tracks = track_teams(rows, windows, left, group)
-    first = next((g for g in left if g is not None), 0)
-    # A rally without players keeps the previous rally's sides (the first ones: the first known).
+    left = lefts(rows, windows, looks)
+    tracks = track_teams(rows, windows, left)
+    # A rally without players keeps the previous rally's sides (the first ones: team 1 on the left).
     for k, g in enumerate(left):
-        left[k] = (left[k - 1] if k else first) if g is None else g
-    team = {first: 1, 1 - first: 2}
-    members = {t: sorted((tr for tr, g in tracks.items() if team[g] == t and tr in colours), key=lambda tr: -lengths[tr]) for t in (1, 2)}
+        left[k] = (left[k - 1] if k else 0) if g is None else g
+    members = {t: sorted((tr for tr, g in tracks.items() if g + 1 == t and tr in looks), key=lambda tr: -lengths[tr]) for t in (1, 2)}
     return Teams(
-        {tr: team[g] for tr, g in tracks.items()},
-        [team[g] for g in left],
-        {t: snap(np.median([colours[tr] for tr in members[t]], axis=0)) if members[t] else COLOURS["grey"] for t in (1, 2)},
+        {tr: g + 1 for tr, g in tracks.items()},
+        [g + 1 for g in left],
+        {t: snap(np.median([looks[tr][:3] for tr in members[t]], axis=0)) if members[t] else COLOURS["grey"] for t in (1, 2)},
         {t: [crops[tr] for tr in members[t][:6] if tr in crops] for t in (1, 2)},
     )
 
