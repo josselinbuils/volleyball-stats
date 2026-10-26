@@ -49,6 +49,10 @@ Automatic per-player volleyball statistics from a match video.
 - [x] 2 straps, 25 mm, ~2 m, no hooks (gentle on the stand column)
 - [ ] Cord loop (any, e.g. paracord), camera frame to stand column, with a little slack
 - [x] Power bank, ~10,000 mAh
+- [ ] Fan: [JISULIFE pocket fan, 4,500 mAh](https://www.amazon.fr/dp/B09PDMZKQW), held on the stand
+      column by two velcro straps and a cord, aimed at the camera's body and back, away from the mic.
+      Without a fan, the still camera overheats within about 30 minutes at 22 °C (4K or 2.7K, 50 fps).
+      With a USB desk fan on it, it recorded 2 h 10 min at 4K 50 fps and stayed cool to the touch.
 - Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
   handlebar mount.
 
