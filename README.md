@@ -82,7 +82,7 @@ faster. Lens distortion is corrected in software.
 
 ### Before the first match
 
-- [ ] Check the SD card with [F3](https://github.com/AltraMayor/f3) or H2testw.
+- [x] Check the SD card with [F3](https://github.com/AltraMayor/f3) or H2testw.
 - [x] Set the [camera settings](#camera-settings-osmo-action-3), ISO and white balance aside.
 - [ ] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
       overheating.
