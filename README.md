@@ -349,13 +349,17 @@ Without player tracks, everything counts each side of the net instead of each te
 
 ### Hosting
 
-The same files open from disk and host well (Lighthouse mobile performance 98 with gzip). To host
-the page:
+The same files open from disk and host well (Lighthouse mobile performance 98 with gzip).
 
-1. Build it with `--copy-video`.
-2. Copy the folder to a server that supports HTTP range requests and gzip (nginx does).
+The hosted page has no password, so it never carries real footage or player pictures (nor anything
+cut from them) without every player's consent. To host it:
+
+1. Build it with `--footage none --no-pictures`.
+2. Copy the folder to a server that supports gzip (nginx does).
 3. Set long cache headers on `assets/`.
-4. Put it behind a password: the footage shows minors.
+
+With every player's consent, `--footage ... --copy-video` adds the video: the server then needs HTTP
+range requests too.
 
 ### Change the page
 
@@ -394,8 +398,7 @@ Every step of the pipeline runs, benchmarked on YouTube clips of another club (7
    - how rallies end;
    - contacts at 50 fps;
    - jersey numbers as identity clues.
-4. Host the match page behind a password.
-5. Later: stats over several matches per named player, attack efficiency, a second camera on the
+4. Later: stats over several matches per named player, attack efficiency, a second camera on the
    opposite sideline if the far side is unreliable.
 
 Each step is checked on real footage against a manual scout of the same rallies. For reference, a
