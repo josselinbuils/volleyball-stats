@@ -74,6 +74,8 @@ faster. Lens distortion is corrected in software.
 | White balance | Balance des blancs | PRO | Manual, set at the gym (often 4500–5500 K under LEDs) | Stable jersey colours for the teams |
 | Colour | Couleur | PRO | Normal, not D-Cinelike | Natural colours for the teams |
 | Enhanced image quality | Qualité d'image améliorée | PRO | Off, On only facing sunlit windows | Made for strong light contrast; more power and heat |
+| Wind noise reduction | Réduction du bruit du vent | PRO, audio | On | Less fan rumble; the whistle comes through |
+| Directional audio | Audio directionnel | PRO, audio | Off | The whistle comes from anywhere around the court |
 | Video compression | Compression vidéo | Swipe down, Settings | Compatibility (H.264) or Efficiency (HEVC, smaller files) | Both decode on the GPU |
 | Anti-flicker | Anti-scintillement | Swipe down, Settings | 50 Hz | French power grid |
 | Screen off when recording | Écran éteint pendant l'enregistrement | Swipe down, Settings | Shortest delay | Less heat |
