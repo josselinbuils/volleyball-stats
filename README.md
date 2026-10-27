@@ -49,10 +49,11 @@ Automatic per-player volleyball statistics from a match video.
 - [x] 2 straps, 25 mm, ~2 m, no hooks (gentle on the stand column)
 - [ ] Cord loop (any, e.g. paracord), camera frame to stand column, with a little slack
 - [x] Power bank, ~10,000 mAh
-- [ ] Fan: [JISULIFE pocket fan, 4,500 mAh](https://www.amazon.fr/dp/B09PDMZKQW), held on the stand
-      column by two velcro straps and a cord, aimed at the camera's body and back, away from the mic.
+- [x] Fan: [JISULIFE pocket fan, 4,500 mAh](https://www.amazon.fr/dp/B09PDMZKQW), held on the stand
+      column by two velcro straps and a cord over a strip of foam, at its lowest speed, 80 cm below the
+      camera, blowing up at it. Closer, its air rumbles on the mics.
       Without a fan, the still camera overheats within about 30 minutes at 22 °C (4K or 2.7K, 50 fps).
-      With a USB desk fan on it, it recorded 2 h 10 min at 4K 50 fps and stayed cool to the touch.
+      With it, it recorded 2 h 49 min at 4K 50 fps on the power bank, a bit hot; no visible shake.
 - Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
   handlebar mount.
 
@@ -90,7 +91,7 @@ faster. Lens distortion is corrected in software.
 
 - [x] Check the SD card with [F3](https://github.com/AltraMayor/f3) or H2testw.
 - [x] Set the [camera settings](#camera-settings-osmo-action-3), ISO and white balance aside.
-- [ ] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
+- [x] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
       overheating.
 - [ ] Calibrate the lens once at those settings (see [below](#lens-calibration)).
 - [ ] At the gym: get approval for the handball goals and check they are anchored. Check the framing
