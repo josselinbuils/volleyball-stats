@@ -54,6 +54,15 @@ Automatic per-player volleyball statistics from a match video.
       camera, blowing up at it. Closer, its air rumbles on the mics.
       Without a fan, the still camera overheats within about 30 minutes at 22 °C (4K or 2.7K, 50 fps).
       With it, it recorded 2 h 49 min at 4K 50 fps on the power bank, a bit hot; no visible shake.
+      Its noise on the mics (dBFS, lower is quieter) is a low rumble under 1 kHz; whistles are
+      still detected in every case. If the camera runs hot, raise the speed before moving the fan closer.
+
+  | Fan | Speed 1 | Speed 2 | Speed 3 |
+  | --- | --- | --- | --- |
+  | 80 cm, vertical | −47 | −42 | −33 |
+  | 80 cm, turned to the camera | −46 | −42 | −36 |
+  | 50 cm, turned to the camera | −32 (+14 dB rumble) | −28 (+14 dB rumble) | −25 (+11 dB rumble) |
+
 - Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
   handlebar mount.
 
