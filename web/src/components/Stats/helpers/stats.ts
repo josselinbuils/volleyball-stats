@@ -1,4 +1,5 @@
 import type { Contact, Group, Person } from '@/lib/match';
+import type { Drop } from '@/components/Stats/helpers/between';
 
 /** What the table counts, each the touches it holds. */
 export const STATS = [
@@ -9,6 +10,10 @@ export const STATS = [
   'receptions',
   'missed',
   'unattacked',
+  'rated',
+  'perfect',
+  'good',
+  'poor',
   'attacks',
   'kills',
   'attackFaults',
@@ -21,6 +26,7 @@ export const STATS = [
   'sets',
   'points',
   'faults',
+  'between',
 ] as const;
 export type Stat = (typeof STATS)[number];
 export type Stats = Record<Stat, Contact[]>;
@@ -34,6 +40,43 @@ export interface Line {
 
 // Floor and net contacts are the ball's, not a player's.
 const TOUCHES = new Set(['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig']);
+
+// The setter's target on the left half, 1 m off the net between zones 2 and 3; the right half's is
+// its mirror.
+const TARGET = { x: -1, y: 1.5 };
+// A reception's next touch this near the target makes a perfect pass (3), this near a good one (2).
+const PERFECT_M = 1.5;
+const GOOD_M = 3;
+// A next touch sooner than this after a reception is most often the reception seen twice.
+const FLIGHT_S = 1;
+// The stats of the grades 1 to 3; a 0 is a fault, in `missed`.
+const GRADES = ['poor', 'good', 'perfect'] as const;
+
+/** A reception's grade from where its team plays the next touch: 3 within PERFECT_M of the setter's
+ * target, 2 within GOOD_M, 1 further or straight over the net, 0 for a fault. Null without a placed
+ * next touch in the rally FLIGHT_S or more after it. */
+export function rating(c: Contact, next: Contact | undefined): number | null {
+  if (c.result === 'error') {
+    return 0;
+  }
+  if (!next || next.rally !== c.rally || next.t - c.t < FLIGHT_S) {
+    return null;
+  }
+  if (next.side !== c.side) {
+    return 1;
+  }
+  if (next.x === null || next.y === null) {
+    return null;
+  }
+  const mirror = c.side === 'left' ? 1 : -1;
+  const d = Math.hypot(next.x - TARGET.x * mirror, next.y - TARGET.y * mirror);
+  return d <= PERFECT_M ? 3 : d <= GOOD_M ? 2 : 1;
+}
+
+/** The mean grade of the rated receptions of `s`, null without any. */
+export function meanRating(s: Stats): number | null {
+  return s.rated.length ? (3 * s.perfect.length + 2 * s.good.length + s.poor.length) / s.rated.length : null;
+}
 
 /** Whether a reception's or a dig's team did not attack after it: it sent the ball back or the
  * rally ended before any attack of its team. Unknown, so false, for a fault or without a next touch
@@ -57,6 +100,7 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       out.receptions.push(c);
       out.missed.push(c);
       out.faults.push(c);
+      out.rated.push(c);
     }
     if (!TOUCHES.has(c.type) || !mine(c)) {
       continue;
@@ -78,6 +122,13 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       // A rally holds a handful of touches.
       if (unattacked(c, contacts.slice(k + 1, k + 8))) {
         out.unattacked.push(c);
+      }
+      const grade = rating(c, contacts[k + 1]);
+      if (grade !== null) {
+        out.rated.push(c);
+        if (grade > 0) {
+          out[GRADES[grade - 1]].push(c);
+        }
       }
     } else if (c.type === 'attack') {
       add('attacks', 'kills', 'attackFaults');
@@ -104,31 +155,42 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
 
 /** The table of team `g`: its identified players who touched the ball or missed an ace, most touches
  * first, then the touches of no identified player and the whole team. A touch is a player's when
- * they play for the touch's team: a track swapping players across the net can lend it the other's. */
-export function lines(contacts: Contact[], people: Record<string, Person>, g: Group): Line[] {
+ * they play for the touch's team: a track swapping players across the net can lend it the other's.
+ * A ball of `dropped` counts for each of its two players, once for the team. */
+export function lines(contacts: Contact[], people: Record<string, Person>, g: Group, dropped: Drop[] = []): Line[] {
   const owner = (person: number | null | undefined, team: Group) => (person != null && people[person]?.number != null && people[person].team === team ? person : null);
+  const between = (keep: (person: number) => boolean) => dropped.filter((d) => d.landing.g === g && d.pair.some(keep)).map((d) => d.landing);
   const players = Object.keys(people)
     .map(Number)
     .filter((p) => people[p].team === g && people[p].number !== null)
     .map((p) => ({
       id: p,
-      stats: stats(
-        contacts,
-        (c) => c.g === g && owner(c.person, g) === p,
-        (c) => owner(c.receiver, g) === p,
-      ),
+      stats: {
+        ...stats(
+          contacts,
+          (c) => c.g === g && owner(c.person, g) === p,
+          (c) => owner(c.receiver, g) === p,
+        ),
+        between: between((q) => owner(q, g) === p),
+      },
     }))
     .filter((line) => line.stats.touches.length || line.stats.missed.length)
     .sort((a, b) => b.stats.touches.length - a.stats.touches.length);
-  const rest = stats(
-    contacts,
-    (c) => c.g === g && owner(c.person, g) === null,
-    (c) => c.g !== g && owner(c.receiver, g) === null,
-  );
-  const total = stats(
-    contacts,
-    (c) => c.g === g,
-    (c) => c.g !== g,
-  );
+  const rest = {
+    ...stats(
+      contacts,
+      (c) => c.g === g && owner(c.person, g) === null,
+      (c) => c.g !== g && owner(c.receiver, g) === null,
+    ),
+    between: between((q) => owner(q, g) === null),
+  };
+  const total = {
+    ...stats(
+      contacts,
+      (c) => c.g === g,
+      (c) => c.g !== g,
+    ),
+    between: between(() => true),
+  };
   return [...players, ...(rest.touches.length || rest.missed.length ? [{ id: 'rest' as const, stats: rest }] : []), { id: 'total', stats: total }];
 }

@@ -7,12 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
-import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
+import { usePlayers } from '@/lib/players';
 import { useSet } from '@/lib/sets';
+import { drops, type Drop } from '@/components/Stats/helpers/between';
 import { insights } from '@/components/Stats/helpers/insights';
 import { lines } from '@/components/Stats/helpers/stats';
 import { PlayerCards } from '@/components/Stats/PlayerCards';
-import { StatsTable } from '@/components/Stats/StatsTable';
+import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
 
 /** What each player of a team did with the ball, a count per action and how it ended, and the whole
  * team's; without identified players, the team's alone (each side of the net's without teams). */
@@ -21,8 +23,12 @@ export function PlayersTable() {
   const { set, contacts } = useSet();
   const [group, setGroup] = useState<Group>(1);
   const [view, setView] = useState<'table' | 'cards'>('table');
+  const players = usePlayers();
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
-  const found = lines(contacts, match.people, group);
+  // Without the players' positions, no ball is known to drop between two of them.
+  const dropped = typeof players === 'object' ? drops(contacts, players, match.fps, match.people) : [];
+  const columns = players === 'none' ? COLUMNS.filter((c) => c.stat !== 'between') : COLUMNS;
+  const found = lines(contacts, match.people, group, dropped);
   const team = found[found.length - 1].stats;
   const rows = found
     .filter((line) => withPlayers || line.id === 'total')
@@ -36,6 +42,7 @@ export function PlayersTable() {
         ),
       title: (tr: TFunction) => (line.id === 'rest' ? tr('players.rest') : line.id === 'total' ? groupName(tr, group) : (playerLabel(tr, line.id) ?? '')),
       stats: line.stats,
+      tips: { between: pairs(t, dropped, line.stats.between) },
       insights: typeof line.id === 'number' ? insights(line.stats, team) : undefined,
       total: line.id === 'total',
     }));
@@ -103,9 +110,9 @@ export function PlayersTable() {
         {view === 'cards' && withPlayers ? (
           <PlayerCards id={`cards:${set}:${group}`} rows={rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number')} g={group} />
         ) : (
-          <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} insights={withPlayers} />
+          <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} columns={columns} insights={withPlayers} />
         )}
-        <p className="text-[13px] text-muted-foreground">{[t('stats.note'), t('stats.noteUnattacked'), withPlayers && t('stats.noteInsights'), t('stats.noteVideo')].filter(Boolean).join(' ')}</p>
+        <p className="text-[13px] text-muted-foreground">{`${t('stats.noteTitles')} ${t('stats.noteVideo')}`}</p>
       </CardContent>
     </Card>
   );
@@ -126,4 +133,22 @@ function Who({ person, g }: { person: number; g: Group }) {
       <span className="break-words">{playerLabel(t, person)}</span>
     </span>
   );
+}
+
+/** The pairs the balls of `landings` dropped between, most first: "no. 2 & no. 7 (3), …". */
+function pairs(t: TFunction, dropped: Drop[], landings: Contact[]): string {
+  const counts = new Map<string, number>();
+  for (const d of dropped) {
+    if (landings.includes(d.landing)) {
+      const key = d.pair
+        .map((p) => playerLabel(t, p) ?? t('players.rest'))
+        .sort()
+        .join(' & ');
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .map(([pair, n]) => `${pair} (${n})`)
+    .join(', ');
 }

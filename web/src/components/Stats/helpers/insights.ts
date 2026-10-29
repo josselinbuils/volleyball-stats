@@ -13,6 +13,8 @@ const MEASURES: { key: string; of: Stat; picked: (s: Stats) => Contact[]; streng
   { key: 'goodReceptions', of: 'receptions', picked: (s) => s.receptions.filter((c) => !s.missed.includes(c) && !s.unattacked.includes(c)), strength: true },
   { key: 'receptionFaults', of: 'receptions', picked: (s) => s.missed, strength: false },
   { key: 'receptionUnattacked', of: 'receptions', picked: (s) => s.unattacked, strength: false },
+  { key: 'perfectPasses', of: 'rated', picked: (s) => s.perfect, strength: true },
+  { key: 'poorPasses', of: 'rated', picked: (s) => s.poor, strength: false },
   { key: 'kills', of: 'attacks', picked: (s) => s.kills, strength: true },
   { key: 'attackFaults', of: 'attacks', picked: (s) => s.attackFaults, strength: false },
   { key: 'cleanDigs', of: 'digs', picked: (s) => s.digs.filter((c) => !s.digFaults.includes(c)), strength: true },

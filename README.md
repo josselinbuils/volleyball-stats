@@ -340,11 +340,15 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 - serves: aces, faults;
 - receptions and digs: faults (an ace counts against the receiver nearest to where it landed), and
   those after which the team did not attack;
+- receptions: a rating out of 3 from where the next touch is played: 3 within 1.5 m of the setter's
+  target (1 m off the net, between zones 2 and 3), 2 within 3 m, 1 further or sent straight over the
+  net, 0 for a fault;
 - sets;
 - attacks: winning, faults;
 - free balls: faults;
 - blocks;
-- "Bilan": points, faults.
+- "Bilan": points, faults, and "Entre deux": the balls that landed in untouched within 2.5 m of two
+  teammates about as close as each other, the pair on hover.
 
 Its "Analyse" group lists each player's strengths and things to work on: the rates at least 20
 points apart from the rest of their team's, with 5 attempts or more on each side.
@@ -403,7 +407,7 @@ npm run build    # updates src/volleyball_stats/site/
 | 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the side of the net, followed from rally to rally by the tracks crossing each break and, after a long break, by the players' looks, so kits may differ within a team; sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
 | 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run); jersey numbers (4K) as constraints later ([benchmark](benchmarks/identity/README.md)) |
 | 7. Naming | Name each identity once, suggest names across matches | The review page's "Noms" tab; a roster of re-ID embeddings per named player |
-| 8. Stats | Per-player counts and outcomes, strengths and things to work on | The page's "Statistiques" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands; a player's rates compared with the rest of their team's |
+| 8. Stats | Per-player counts and outcomes, reception ratings, balls dropped between two players, strengths and things to work on | The page's "Statistiques" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands; a reception's rating from where the next touch is played; the players' positions where an untouched ball lands; a player's rates compared with the rest of their team's |
 
 ## Roadmap
 

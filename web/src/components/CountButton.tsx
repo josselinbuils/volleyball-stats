@@ -8,8 +8,9 @@ import { match, type Contact } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 
-/** A count of touches that plays them, highlighted while they play; a dash for none. */
-export function CountButton({ id, title, picked, className }: { id: string; title: (t: TFunction) => string; picked: Contact[]; className?: string }) {
+/** A count of touches, or `value` in its place, that plays them, highlighted while they play, `tip`
+ * on hover before the count; a dash for none. */
+export function CountButton({ id, title, picked, value, tip, className }: { id: string; title: (t: TFunction) => string; picked: Contact[]; value?: string; tip?: string; className?: string }) {
   const { t } = useTranslation();
   const f = useFormat();
   const { playlist, play } = usePlayer();
@@ -22,13 +23,15 @@ export function CountButton({ id, title, picked, className }: { id: string; titl
     );
   }
   const on = playlist?.key === id;
+  const shown = value ?? f.num(picked.length);
+  const hint = [tip, t('watchN', { count: picked.length })].filter(Boolean).join(' · ');
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           variant="ghost"
           aria-pressed={on}
-          aria-label={`${f.num(picked.length)} · ${title(t)} · ${t('watchN', { count: picked.length })}`}
+          aria-label={`${shown} · ${title(t)} · ${hint}`}
           className={cn(
             'min-w-12 text-base font-semibold max-sm:min-w-10',
             on ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground' : 'bg-primary/10 text-link hover:bg-primary hover:text-primary-foreground',
@@ -36,10 +39,10 @@ export function CountButton({ id, title, picked, className }: { id: string; titl
           )}
           onClick={() => play(title, contactClips(picked, match.duration), 0, id)}
         >
-          {f.num(picked.length)}
+          {shown}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{t('watchN', { count: picked.length })}</TooltipContent>
+      <TooltipContent>{hint}</TooltipContent>
     </Tooltip>
   );
 }

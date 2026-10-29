@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,7 @@ import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import type { Insight } from '@/components/Stats/helpers/insights';
-import type { Stat, Stats } from '@/components/Stats/helpers/stats';
+import { meanRating, type Stat, type Stats } from '@/components/Stats/helpers/stats';
 
 /** The columns, each a count of touches (`stat`) under its group's title (`of`), named by `label`
  * within it. */
@@ -22,6 +22,7 @@ export const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'receptions', of: 'receptions', label: 'total' },
   { stat: 'missed', of: 'receptions', label: 'faults' },
   { stat: 'unattacked', of: 'receptions', label: 'unattacked' },
+  { stat: 'rated', of: 'receptions', label: 'rating' },
   { stat: 'sets', of: 'sets', label: 'total' },
   { stat: 'attacks', of: 'attacks', label: 'total' },
   { stat: 'kills', of: 'attacks', label: 'kills' },
@@ -34,34 +35,47 @@ export const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'unattackedDigs', of: 'digs', label: 'unattacked' },
   { stat: 'points', of: 'overall', label: 'points' },
   { stat: 'faults', of: 'overall', label: 'faults' },
+  { stat: 'between', of: 'overall', label: 'between' },
 ];
-// A line parts each group from its neighbours.
-const parts = (k: number) => k > 0 && COLUMNS[k - 1].of !== COLUMNS[k].of;
 const HEAD = 'px-1 text-center leading-tight whitespace-normal text-muted-foreground';
 // The first column stays in view while the table scrolls sideways.
 const FIRST = 'sticky left-0 z-10 min-w-32 bg-card pl-3 shadow-[inset_-1px_0_0_var(--border)] max-sm:pl-2';
 
-/** A row: its first cell (`name`), its name in a playlist's title, its counts, its strengths and
- * things to work on; a `total` row sits in the footer. */
+/** A row: its first cell (`name`), its name in a playlist's title, its counts and what their hover
+ * adds (`tips`), its strengths and things to work on; a `total` row sits in the footer. */
 export interface Row {
   key: string | number;
   name: ReactNode;
   title: (t: TFunction) => string;
   stats: Stats;
+  tips?: Partial<Record<Stat, string>>;
   insights?: Insight[];
   total?: boolean;
 }
 
-/** Counts of touches per action and how they ended, `first` heading the rows' column, then the rows'
- * strengths and things to work on when `insights`; each count and each of those plays its touches. */
-export function StatsTable({ id, first, rows, insights = false }: { id: string; first: string; rows: Row[]; insights?: boolean }) {
+/** Counts of touches per action and how they ended in `columns`, `first` heading the rows' column,
+ * then the rows' strengths and things to work on when `insights`; each count and each of those
+ * plays its touches. The receptions' rating shows their mean grade. */
+export function StatsTable({ id, first, rows, columns = COLUMNS, insights = false }: { id: string; first: string; rows: Row[]; columns?: typeof COLUMNS; insights?: boolean }) {
   const { t } = useTranslation();
+  const f = useFormat();
+  // A line parts each group from its neighbours.
+  const parts = (k: number) => k > 0 && columns[k - 1].of !== columns[k].of;
+  const tip = (r: Row, stat: Stat) =>
+    stat === 'rated' ? t('stats.ratingDetail', { perfect: r.stats.perfect.length, good: r.stats.good.length, poor: r.stats.poor.length, missed: r.stats.missed.length }) : r.tips?.[stat];
   const row = (r: Row) => (
     <TableRow key={r.key} className={r.total ? 'hover:bg-transparent' : undefined}>
       <TableCell className={cn(FIRST, 'max-w-48 py-1.5 whitespace-normal', r.total && 'font-semibold')}>{r.name}</TableCell>
-      {COLUMNS.map(({ stat }, k) => (
+      {columns.map(({ stat }, k) => (
         <TableCell key={stat} className={cn('px-1 py-1.5 text-center', parts(k) && 'border-l')}>
-          <CountButton id={`${id}:${r.key}:${stat}`} title={(tr) => `${tr(`stats.names.${stat}`)}, ${r.title(tr)}`} picked={r.stats[stat]} className="min-w-10" />
+          <CountButton
+            id={`${id}:${r.key}:${stat}`}
+            title={(tr) => `${tr(`stats.names.${stat}`)}, ${r.title(tr)}`}
+            picked={r.stats[stat]}
+            value={stat === 'rated' && r.stats.rated.length ? f.dec(meanRating(r.stats)!) : undefined}
+            tip={tip(r, stat)}
+            className="min-w-10"
+          />
         </TableCell>
       ))}
       {insights &&
@@ -87,10 +101,10 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
           <TableHead rowSpan={2} className={cn(FIRST, 'text-muted-foreground')}>
             {first}
           </TableHead>
-          {COLUMNS.map(
+          {columns.map(
             ({ of }, k) =>
               (k === 0 || parts(k)) && (
-                <TableHead key={of} colSpan={COLUMNS.filter((c) => c.of === of).length} className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}>
+                <TableHead key={of} colSpan={columns.filter((c) => c.of === of).length} className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}>
                   {t(`stats.names.${of}`)}
                 </TableHead>
               ),
@@ -102,15 +116,15 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
           )}
         </TableRow>
         <TableRow className="hover:bg-transparent">
-          {COLUMNS.map(({ stat, label }, k) => (
+          {columns.map(({ stat, label }, k) => (
             <TableHead key={stat} className={cn(HEAD, 'h-8 min-w-14', parts(k) && 'border-l')}>
-              {t(`stats.columns.${label}`)}
+              <ColumnTitle title={t(`stats.columns.${label}`)} about={t(`stats.about.${stat}`)} />
             </TableHead>
           ))}
           {insights &&
             (['strengths', 'toWorkOn'] as const).map((key) => (
               <TableHead key={key} className={cn(HEAD, 'h-8', key === 'strengths' && 'border-l')}>
-                {t(`stats.insights.${key}`)}
+                <ColumnTitle title={t(`stats.insights.${key}`)} about={t(`stats.about.${key}`)} />
               </TableHead>
             ))}
         </TableRow>
@@ -118,6 +132,30 @@ export function StatsTable({ id, first, rows, insights = false }: { id: string; 
       <TableBody>{rows.filter((r) => !r.total).map(row)}</TableBody>
       {totals.length > 0 && <TableFooter className="bg-transparent">{totals.map(row)}</TableFooter>}
     </Table>
+  );
+}
+
+/** A column's title, `about` explaining it on hover, focus or tap: a tap does not open a tooltip on
+ * its own. */
+function ColumnTitle({ title, about }: { title: string; about: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          onClick={(e) => {
+            // Kept open: the trigger's own click handler would close it.
+            e.preventDefault();
+            setOpen(true);
+          }}
+        >
+          {title}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{about}</TooltipContent>
+    </Tooltip>
   );
 }
 
