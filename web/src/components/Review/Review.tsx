@@ -104,7 +104,7 @@ export function Review({
   }, [t, title]);
   return (
     <>
-      <BrandBar />
+      <BrandBar brand={match.brand} />
       <main className="mx-auto grid w-full max-w-6xl gap-4 px-4 pt-6 pb-16 max-sm:pt-5">
         <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-1">
           <div className="min-w-0">

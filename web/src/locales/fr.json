@@ -315,5 +315,12 @@
     "failed": "La vue 3D n'a pas pu se charger.",
     "badge": "Reconstitution : hauteur du ballon estimée",
     "note": "La caméra ne donne pas la hauteur du ballon : chaque trajectoire monte autant que la pesanteur l'exige pour sa durée, et chaque touche est placée à une hauteur typique de son action. Faites glisser pour tourner autour du terrain, pincez ou faites défiler pour zoomer."
+  },
+  "matches": {
+    "title": "Matchs",
+    "intro": "Les statistiques de chaque match, calculées automatiquement à partir de la vidéo. Choisissez un match pour voir son bilan.",
+    "none": "Aucun match pour l'instant.",
+    "setsN_one": "{{count, number}} set",
+    "setsN_other": "{{count, number}} sets"
   }
 }

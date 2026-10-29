@@ -23,8 +23,9 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - Format web files with `npx prettier --single-quote --print-width 200` (no config file: the
   defaults restyle everything). Some files already differ; only format the ones you touch.
 - The page's build is committed in `src/volleyball_stats/site/`: after any `web/` change run
-  `npm run build` in `web/` and commit the build with it. It makes two scripts: the page, and
-  `scene3d.js` (three.js) that the page loads only when the 3D view is shown.
+  `npm run build` in `web/` and commit the build with it. It makes the page, `scene3d.js` (three.js)
+  that the page loads only when the 3D view is shown, and in `matches_site/` the list of the hosted
+  matches (`matches.html`, `src/matches.tsx`).
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
 
@@ -56,17 +57,21 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## Hosting
 
-https://josselinbuils.dev/volleyball/ serves `full_match` from the OVH server (`ssh root@<OVH IP>
--i ~/.ssh/id_ed25519_ovh`): a `volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's
-`docker` repo; that service is only in the server's copy), the page in `volleyball-stats/site`, the
-`/volleyball` route in `reverse-proxy/config.json`. Cloudflare caches the `.js` files for 4 hours:
-the unhashed ones load with the build's hash (`?v=`), so a new build shows at once. Update it by
-building the page without footage or pictures and copying it over; nothing restarts:
+https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE/` (`full_match`
+at `/volleyball/2026-10-25/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
+`volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo; that service is
+only in the server's copy), the site in `volleyball-stats/site`, the `/volleyball` route in
+`reverse-proxy/config.json`. Cloudflare caches the `.js` files for 4 hours: the unhashed ones load
+with the build's hash (`?v=`), so a new build shows at once. `outputs/hosted/` holds the hosted
+site: build each match into it without footage or pictures, list them, copy it over; nothing
+restarts:
 
 ```bash
-uv run python -m volleyball_stats.web outputs/full_match --video data/full_match.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out /tmp/site
+uv run python -m volleyball_stats.web outputs/full_match --video data/full_match.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out outputs/hosted/2026-10-25
+uv run python -m volleyball_stats.matches outputs/hosted
+rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
 ```
 
-That run rewrites `outputs/full_match/page.json`: put back the local build's options after.
+The first run rewrites `outputs/full_match/page.json`: put back the local build's options after.
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.

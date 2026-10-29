@@ -1,18 +1,17 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { LANGUAGES, setLanguage, type Language } from '@/i18n';
+import { LanguageSwitch } from '@/components/LanguageSwitch';
+import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { clock, useFormat } from '@/lib/format';
 import { hasTeams, match } from '@/lib/match';
 import { useSet } from '@/lib/sets';
 import { matchTitle, tabTitle } from '@/components/Header/helpers/title';
 import { SetFilter } from '@/components/Header/SetFilter';
 import { TeamLegend } from '@/components/Header/TeamLegend';
-import { ThemeSwitch } from '@/components/Header/ThemeSwitch';
 
 export function Header() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const f = useFormat();
   const { set, rallies, contacts } = useSet();
 
@@ -57,26 +56,7 @@ export function Header() {
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
             <ThemeSwitch />
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              size="sm"
-              spacing={0}
-              value={i18n.language}
-              onValueChange={(lang) => {
-                if (lang) {
-                  setLanguage(lang as Language);
-                }
-              }}
-              aria-label={`${t('language')} / ${i18n.language === 'fr' ? 'Language' : 'Langue'}`}
-              className="shrink-0 bg-card"
-            >
-              {Object.entries(LANGUAGES).map(([code, name]) => (
-                <ToggleGroupItem key={code} value={code} lang={code} aria-label={name} className="px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                  {code.toUpperCase()}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+            <LanguageSwitch />
           </div>
         </div>
         <div className="-mt-3 grid gap-2.5">

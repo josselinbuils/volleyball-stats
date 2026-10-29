@@ -375,11 +375,14 @@ Without player tracks, everything counts each side of the net instead of each te
 The same files open from disk and host well (Lighthouse mobile performance 98 with gzip).
 
 The hosted page has no password, so it never carries real footage or player pictures (nor anything
-cut from them) without every player's consent. To host it:
+cut from them) without every player's consent. To host the matches:
 
-1. Build it with `--footage none --no-pictures`.
-2. Copy the folder to a server that supports gzip (nginx does).
-3. Set long cache headers on `assets/`.
+1. Build each one with `--footage none --no-pictures --out SITE/NAME`, NAME its address (its date,
+   say).
+2. List them, newest first, on `SITE/index.html`: `uv run python -m volleyball_stats.matches SITE`
+   (again after each new match).
+3. Copy `SITE` to a server that supports gzip (nginx does).
+4. Set long cache headers on `assets/`.
 
 With every player's consent, `--footage ... --copy-video` adds the video: the server then needs HTTP
 range requests too.
@@ -394,7 +397,7 @@ cd web
 npm install
 npm run dev      # reads web/public/data.js, copied from a built match
 npm test
-npm run build    # updates src/volleyball_stats/site/
+npm run build    # updates src/volleyball_stats/site/ and matches_site/
 ```
 
 ## Pipeline

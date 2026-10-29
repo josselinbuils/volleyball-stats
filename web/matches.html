@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // The saved theme, else the system's, set before the first paint; ThemeSwitch keeps it after.
+      (function () {
+        var theme = null;
+        try {
+          theme = localStorage.getItem('volleyball-stats-theme');
+        } catch (e) {}
+        var dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+        document.querySelector('meta[name="color-scheme"]').content = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <meta name="description" content="Les matchs de volley et leurs statistiques, calculées automatiquement à partir de la vidéo." />
+    <link rel="icon" href="data:," />
+    <title>Matchs</title>
+    <script defer src="matches.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/matches.tsx"></script>
+  </body>
+</html>

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build -c vite.scene.config.ts",
+    "build": "tsc --noEmit && vite build && vite build --mode matches && vite build -c vite.scene.config.ts",
     "test": "vitest run"
   },
   "dependencies": {

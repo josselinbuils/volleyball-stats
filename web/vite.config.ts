@@ -16,8 +16,8 @@ function classicScript(): Plugin {
   };
 }
 
-// Vite needs a default export.
-export default defineConfig({
+// Vite needs a default export. `--mode matches` builds the list of the match pages instead.
+export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [react(), tailwindcss(), classicScript()],
   resolve: {
@@ -26,14 +26,15 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../src/volleyball_stats/site',
+    outDir: mode === 'matches' ? '../src/volleyball_stats/matches_site' : '../src/volleyball_stats/site',
     emptyOutDir: true,
     // public/ holds the dev sample data and video.
     copyPublicDir: false,
     modulePreload: false,
     cssCodeSplit: false,
     rolldownOptions: {
+      input: mode === 'matches' ? 'matches.html' : 'index.html',
       output: { format: 'iife', codeSplitting: false },
     },
   },
-});
+}));

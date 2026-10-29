@@ -7,6 +7,7 @@ import { PlayersTable } from '@/components/Stats/PlayersTable';
 import { RallyCharts } from '@/components/RallyCharts/RallyCharts';
 import { Watch } from '@/components/Watch/Watch';
 import { PlayerProvider } from '@/lib/player';
+import { match } from '@/lib/match';
 import { loadPlayers } from '@/lib/players';
 import { SetProvider } from '@/lib/sets';
 
@@ -28,7 +29,7 @@ export function App() {
     <TooltipProvider delayDuration={200}>
       <PlayerProvider>
         <SetProvider>
-          <BrandBar />
+          <BrandBar brand={match.brand} />
           <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:pt-5 max-sm:gap-4">
             <Header />
             <PlayersTable />
