@@ -19,6 +19,16 @@ describe('ball3dAt', () => {
     expect(ball3dAt([touch(1, 'serve', null)], 1)).toBeNull();
   });
 
+  it('clears the net when the flight crosses it, not when it ends in it', () => {
+    // A dig at 0.7 m 2 m before the net to a pass 4 m past it: the arc alone crosses at 1.46 m.
+    const over = ball3dAt([touch(0, 'dig', -2), touch(0.8, 'pass', 4)], 0.8 / 3)!;
+    expect(over.x).toBeCloseTo(0, 5);
+    expect(over.h).toBeCloseTo(2.6, 5);
+    expect(ball3dAt([touch(0, 'dig', -2), touch(0.8, 'pass', 4)], 0.7)!.h).toBeLessThan(2.6);
+    const into = ball3dAt([touch(0, 'dig', -2), touch(0.8, 'net', 4)], 0.8 / 3)!;
+    expect(into.h).toBeLessThan(2);
+  });
+
   it('follows the ball back in time for its trail', () => {
     const trail = trail3dAt([touch(0, 'set', 0), touch(1, 'attack', 4)], 0.5, 0.2, 3);
     expect(trail.map((p) => p.x)).toEqual([1.2, 1.6, 2]);

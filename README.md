@@ -330,7 +330,7 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
   its own `scene3d.js` loaded only then):
   - the players as figures jumping to attack and block;
   - the ball's height reconstructed, each flight rising as high as gravity requires for its duration,
-    each touch at a typical height for its action.
+    and over the net when it crosses it, each touch at a typical height for its action.
 
 ### Statistics
 

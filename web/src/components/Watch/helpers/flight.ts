@@ -15,14 +15,17 @@ const LONGEST_S = 2.2;
 // Players jump to attack and block: up to JUMP_M, over JUMP_S before and after the touch.
 const JUMP_M = 0.55;
 const JUMP_S = 0.4;
+// A ball crossing the net clears it: its centre above the scene's net top (2.35 m) by the drawn ball's radius.
+const OVER_NET = 2.6;
 
 type Placed = Contact & { x: number; y: number };
 
 const height = (c: Contact) => HEIGHTS[c.type] ?? 1.5;
 
 /** The ball at `time` in 3D: straight between the placed touches of a rally seen from above, and
- * up the arc gravity gives a flight of that duration (g T² / 8 at its middle); at the first touch
- * before it, at the last one after. */
+ * up the arc gravity gives a flight of that duration (g T² / 8 at its middle), raised to clear the
+ * net when it crosses it, unless it ends or starts in the net; at the first touch before it, at the
+ * last one after. */
 export function ball3dAt(contacts: Contact[], time: number): Point3 | null {
   const pts = contacts.filter((c): c is Placed => c.x !== null && c.y !== null);
   if (!pts.length) {
@@ -38,7 +41,15 @@ export function ball3dAt(contacts: Contact[], time: number): Point3 | null {
   const span = b.t - a.t;
   const f = (time - a.t) / span;
   const flight = Math.min(span, LONGEST_S);
-  return { x: a.x + f * (b.x - a.x), y: a.y + f * (b.y - a.y), h: height(a) + f * (height(b) - height(a)) + (G * flight * flight * f * (1 - f)) / 2 };
+  const arc = (u: number) => height(a) + u * (height(b) - height(a)) + (G * flight * flight * u * (1 - u)) / 2;
+  let h = arc(f);
+  if (a.x * b.x < 0 && a.type !== 'net' && b.type !== 'net') {
+    // A bump of 1 where the ball crosses the net, 0 at the touches.
+    const over = a.x / (a.x - b.x);
+    const u = f ** (Math.log(0.5) / Math.log(over));
+    h += Math.max(0, OVER_NET - arc(over)) * 4 * u * (1 - u);
+  }
+  return { x: a.x + f * (b.x - a.x), y: a.y + f * (b.y - a.y), h };
 }
 
 /** The ball's path over the last `span` seconds, `steps` points from the oldest to `time`'s. */
