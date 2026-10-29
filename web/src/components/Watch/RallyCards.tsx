@@ -20,11 +20,11 @@ export function RallyCards() {
   const list = useRef<HTMLOListElement>(null);
   const present = TYPES.filter((type) => rallies.some((r) => r.contacts.some((c) => c.type === type)));
 
-  // Brings the current rally's card to the start of the list whenever it changes, without scrolling the page.
+  // Brings the current rally's card to the start of the list when it is not wholly in view, without scrolling the page.
   useEffect(() => {
     const box = list.current;
     const item = box?.children[rallies.findIndex((r) => r.i === current)] as HTMLElement | undefined;
-    if (box && item) {
+    if (box && item && (item.offsetLeft < box.scrollLeft || item.offsetLeft + item.offsetWidth > box.scrollLeft + box.clientWidth)) {
       const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
       box.scrollTo({ left: item.offsetLeft - (box.children[0] as HTMLElement).offsetLeft, behavior: smooth ? 'smooth' : 'auto' });
     }
