@@ -20,13 +20,13 @@ export function RallyCards() {
   const list = useRef<HTMLOListElement>(null);
   const present = TYPES.filter((type) => rallies.some((r) => r.contacts.some((c) => c.type === type)));
 
-  // Centers the current rally's card in the list whenever it changes, without scrolling the page.
+  // Brings the current rally's card to the start of the list whenever it changes, without scrolling the page.
   useEffect(() => {
     const box = list.current;
     const item = box?.children[rallies.findIndex((r) => r.i === current)] as HTMLElement | undefined;
     if (box && item) {
       const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-      box.scrollTo({ left: item.offsetLeft - (box.clientWidth - item.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
+      box.scrollTo({ left: item.offsetLeft - (box.children[0] as HTMLElement).offsetLeft, behavior: smooth ? 'smooth' : 'auto' });
     }
   }, [current, rallies]);
 
