@@ -10,7 +10,7 @@ import { Court, Legend } from '@/components/Court';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
-import { color, contacts as all, GROUPS, groupName, hasTeams, match, placed, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
+import { color, contacts as all, GROUPS, groupName, hasTeams, match, placed, playerLabel, playerNumber, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
@@ -30,6 +30,7 @@ export function CourtChart() {
   const [view, setView] = useState<View>('contacts');
   const [chosen, setType] = useState<ActionType | 'all'>('all');
   const [group, setGroup] = useState<Group | 'both'>('both');
+  const [chosenPlayer, setPlayer] = useState('all');
   // Touches stay where they were played: a half holds one team only when the shown rallies were
   // all played on the same ends.
   const left = rallies.length && rallies.every((r) => r.left === rallies[0].left) ? rallies[0].left : null;
@@ -37,10 +38,27 @@ export function CourtChart() {
   // Serves and attacks only for their arrows; the action picked for another view comes back with it.
   const present = TYPES.filter((p) => (view !== 'directions' || ARROWED.includes(p)) && contacts.some((c) => c.type === p));
   const type = chosen !== 'all' && present.includes(chosen) ? chosen : 'all';
-  const picked = contacts.filter((c) => (type === 'all' || c.type === type) && (group === 'both' || c.g === group));
+  // A player as the page shows them, their team and name or number: one player's identities share it.
+  const who = (p: number | null) => (p !== null && match.people[p]?.number != null ? `${match.people[p].team}:${match.people[p].name || playerNumber(p)}` : null);
+  // The identified players who touched the ball for their own team, as in the players' table: a track
+  // swapping players across the net can lend a touch to the other team's player.
+  const everyone = new Map<string, number>();
+  for (const c of contacts) {
+    const k = who(c.person);
+    if (k !== null && match.people[c.person as number].team === c.g) {
+      everyone.set(k, c.person as number);
+    }
+  }
+  const people = [...everyone]
+    .filter(([, p]) => group === 'both' || match.people[p].team === group)
+    .sort(([, a], [, b]) => match.people[a].team - match.people[b].team || (playerNumber(a) ?? 0) - (playerNumber(b) ?? 0));
+  const player = people.some(([k]) => k === chosenPlayer) ? chosenPlayer : 'all';
+  const one = everyone.get(player) ?? null;
+  const only = one !== null ? match.people[one].team : group === 'both' ? null : group;
+  const picked = contacts.filter((c) => (type === 'all' || c.type === type) && (only === null || c.g === only) && (player === 'all' || who(c.person) === player));
   const arrows = view === 'directions' ? toArrows(picked, all) : [];
   const shown = view === 'directions' ? arrows.map((a) => a.from) : picked.filter(placed);
-  const title = (tr: TFunction) => [tr(`views.${view}`), type !== 'all' && tr(`types.${type}`), group !== 'both' && groupName(tr, group)].filter(Boolean).join(', ');
+  const title = (tr: TFunction) => [tr(`views.${view}`), type !== 'all' && tr(`types.${type}`), only !== null && groupName(tr, only), one !== null && playerLabel(tr, one)].filter(Boolean).join(', ');
   const describe = (c: Contact) => `${t(`types.${c.type}`)}, ${groupName(t, c.g)} · ${t('rallyLower', { n: c.rally + 1 })} · ${clock(c.t)}`;
   const playFrom = (c: Contact) => play(title, contactClips(shown, match.duration), shown.indexOf(c as (typeof shown)[number]));
 
@@ -70,7 +88,11 @@ export function CourtChart() {
             className="w-full items-stretch bg-card sm:w-auto"
           >
             {VIEWS.map((v) => (
-              <ToggleGroupItem key={v} value={v} className="h-auto min-h-8 flex-1 py-1.5 leading-tight whitespace-normal data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:flex-none">
+              <ToggleGroupItem
+                key={v}
+                value={v}
+                className="h-auto min-h-8 flex-1 py-1.5 leading-tight whitespace-normal data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:flex-none"
+              >
                 {t(`views.${v}`)}
               </ToggleGroupItem>
             ))}
@@ -101,12 +123,30 @@ export function CourtChart() {
               ))}
             </SelectContent>
           </Select>
-          {(type !== 'all' || group !== 'both') && (
+          {everyone.size > 0 && (
+            <Select value={player} onValueChange={setPlayer}>
+              <SelectTrigger aria-label={t('playerFilter')} className="w-full bg-card sm:w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allPlayers')}</SelectItem>
+                {people.map(([k, p]) => (
+                  <SelectItem key={k} value={k}>
+                    <Swatch color={teamColor(match.people[p].team)} ring={teamRing(match.people[p].team)} />
+                    <span className="truncate">{playerLabel(t, p)}</span>
+                    {group === 'both' && <span className="text-muted-foreground">{groupName(t, match.people[p].team)}</span>}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {(type !== 'all' || group !== 'both' || player !== 'all') && (
             <Button
               variant="ghost"
               onClick={() => {
                 setType('all');
                 setGroup('both');
+                setPlayer('all');
               }}
             >
               <RotateCcw aria-hidden />
@@ -121,7 +161,7 @@ export function CourtChart() {
         <div className="relative mx-auto w-full max-w-4xl">
           <Court zones role="group" aria-label={t(`captions.${view}`)} ends={left === null ? undefined : [groupName(t, left), groupName(t, (3 - left) as Group)]}>
             {view === 'contacts' && <ContactDots shown={shown} describe={describe} onPlay={playFrom} />}
-            {view === 'zones' && <ZoneGrid shown={shown} left={left} only={group === 'both' ? null : group} onPlay={(zoneTitle, inside) => play(() => zoneTitle, contactClips(inside, match.duration))} />}
+            {view === 'zones' && <ZoneGrid shown={shown} left={left} only={only} onPlay={(zoneTitle, inside) => play(() => zoneTitle, contactClips(inside, match.duration))} />}
             {view === 'directions' && <Arrows arrows={arrows} describe={describe} onPlay={playFrom} />}
           </Court>
           {!shown.length && (
@@ -133,7 +173,7 @@ export function CourtChart() {
 
         {view === 'contacts' && (
           <Legend>
-            {GROUPS.filter((g) => group === 'both' || g === group).map((g) => (
+            {GROUPS.filter((g) => only === null || g === only).map((g) => (
               <span key={g} className="inline-flex min-w-0 items-center gap-2">
                 <Swatch color={teamColor(g)} ring={teamRing(g)} />
                 <span className="truncate">{groupName(t, g)}</span>

@@ -184,6 +184,8 @@
   "bothSides": "Both sides",
   "teamFilter": "Team",
   "bothTeams": "Both teams",
+  "playerFilter": "Player",
+  "allPlayers": "All players",
   "selectedRally": "Selected rally",
   "playRally": "Play",
   "prevRally": "Previous rally",
