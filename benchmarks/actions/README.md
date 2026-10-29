@@ -47,7 +47,10 @@ In frame order, within a rally window (`rallies.py` windows start 0.33 s earlier
    (y ≥ -4.5, the far sideline). Every contact after a floor is a floor. Projections more than 2 m
    outside the court are ignored: balls in the air, or above the horizon, which map behind the
    camera.
-2. **serve**: the first contact, unless a net crossing comes before it (the serve was not seen).
+2. **serve**: the first contact, unless a net crossing comes before it (the serve was not seen) or
+   its floor projection lies under 8 m from the net, below the horizon (no serve is taken inside
+   the court: typed dig). A window whose first contact comes before its start, so opens on it, is
+   then no rally but the ball thrown back to the server: `actions.served` drops it before typing.
 3. **block**: a touch within 0.33 s after an attack; its side is the attacker's opposite. It does not
    count as a touch, and the touch after it is a dig.
 4. **net**: a touch before any crossing, after the serve: the serving side cannot touch it again.

@@ -92,7 +92,7 @@ def score(clips: list[tuple[Path, Path, Path]], verbose: bool) -> None:
         track = contacts.read_track(track_path)
         filled = contacts.interpolate(track)
         found, crossings = contacts.detect(track, FPS, NET_X)
-        windows = rallies.segment(rallies.load_track(track_path), rallies.whistles(rallies.read_audio(video)), FPS)
+        windows = actions.served(rallies.segment(rallies.load_track(track_path), rallies.whistles(rallies.read_audio(video)), FPS), found, FPS, cal)
         pipeline = {f: kind for f, _, _, kind, _ in actions.classify(found, crossings, windows, FPS, NET_X, cal)}
         for rally in load_ground_truth(truth_path):
             labels, start, end = rally["contacts"], rally["start"], rally["end"]

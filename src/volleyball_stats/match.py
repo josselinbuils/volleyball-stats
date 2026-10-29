@@ -194,6 +194,7 @@ def main() -> None:
 
     start = time.perf_counter()
     found, crossings = contacts.detect(contacts.read_track(track_path), fps, net_x)
+    windows = actions.served(windows, found, fps, calibration)
     typed = actions.mark_relances(args.video, actions.classify(found, crossings, windows, fps, net_x, calibration), fps)
     crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])

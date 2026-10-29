@@ -126,7 +126,7 @@ def clip_scores(clip: str, cal, verbose: bool) -> tuple[dict[str, list], list[st
         simulated["end"] += final_drifts(found_kept, ends, true_final)
 
     # The pipeline.
-    pipe_windows = rallies.segment(rallies.load_track(track_path(clip)), rallies.whistles(rallies.read_audio(Path(f"data/{clip}.mp4"))), FPS)
+    pipe_windows = actions.served(rallies.segment(rallies.load_track(track_path(clip)), rallies.whistles(rallies.read_audio(Path(f"data/{clip}.mp4"))), FPS), found, FPS, cal)
     pipe_left = lefts(pipe_windows, sides, team_of)
     pipe_sets = teams.set_numbers(pipe_windows, teams.set_starts(pipe_windows, pipe_left, FPS), FPS)
     pipe_typed = actions.classify(found, crossings, pipe_windows, FPS, NET_X, cal)

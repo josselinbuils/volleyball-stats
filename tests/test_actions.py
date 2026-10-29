@@ -1,6 +1,6 @@
 import numpy as np
 
-from volleyball_stats.actions import classify, classify_rally, mark_dead, player_under, relance_cues
+from volleyball_stats.actions import classify, classify_rally, mark_dead, player_under, relance_cues, served
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -80,6 +80,13 @@ class TestFloor:
     def test_a_first_contact_in_the_air_over_the_court_is_no_serve_though_it_projects_past_the_far_sideline(self):
         assert kinds(classify_rally([self.at(0, 2, -14), self.at(40, 9, 0)], [], FPS, NET_X, self.CALIBRATION))[0] == "dig"
         assert kinds(classify_rally([(0, 640, 100), self.at(40, -6, -6)], [20], FPS, NET_X, self.CALIBRATION))[0] == "serve"
+
+    def test_a_window_opening_on_a_contact_inside_the_court_is_no_rally(self):
+        windows = [(105, 300), (405, 600), (705, 900)]
+        contacts = [self.at(100, 3, -2), self.at(400, 12, 0), self.at(740, 0, 0)]
+
+        assert served(windows, contacts, FPS, self.CALIBRATION) == [(405, 600), (705, 900)]
+        assert served(windows, contacts, FPS) == windows
 
 
 class TestClassify:

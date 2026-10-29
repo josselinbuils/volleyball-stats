@@ -116,7 +116,7 @@ rallies come from closing the run with a whistle:
 | 405.6–408.9 | end 5 s late (miss + false) | same test: the shanked reception falls from above the frame and bounces high, so the next whistle, 4.4 s later, closes the rally |
 | 553.1–555.3 | missed | same test: a fault whistle after the reception, then the ball falls untouched |
 | 101.7–112.1 | missed | the dig flies out of the frame, and the whistle comes 4.3 s later, past the 2 s window |
-| 482.7–488.6 | false | a ball thrown back to the server, closed by the authorization whistle of the next serve (0.9 s) |
+| 482.7–488.6 | false | a ball thrown back to the server, closed by the authorization whistle of the next serve (0.9 s); `actions.served` drops it in the pipeline |
 
 So `MIN_PEAK`, `TONALITY` and the live-ball test (`LIVE_SPEED`, `LIVE_WINDOW_S`) fit the loud
 whistles and the dead balls of the two tuning clips. On this clip the end whistle is soft or masked

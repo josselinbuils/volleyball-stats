@@ -1,7 +1,8 @@
 """Action classification of a rally's ball contacts, by the rules of volleyball.
 
 The first contact of a rally is the serve, unless it is inside the court, where no serve is taken:
-the ball was thrown in (by a coach between rallies) and that contact is a dig. After each net
+that contact is a dig. A rally window opening on such a contact is no rally but the ball thrown back
+to the server, and `served` drops it. After each net
 crossing the receiving side touches the ball at most 3 times: 1 is the pass when the ball comes from
 the serve and the dig otherwise, 2 the set, 3 the attack. A touch shortly after an attack is the opposing block, which does not count. A
 touch by the serving side before the ball crosses is the net. A contact at floor level is the floor,
@@ -132,6 +133,19 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
     return out
 
 
+def served(rallies: list[tuple[int, int]], contacts: list[Contact], fps: float, calibration: Calibration | None = None) -> list[tuple[int, int]]:
+    """`rallies` without the windows opening on a contact inside the court: their first contact
+    comes before the window, so it sent the flight the window starts on, and no serve is taken
+    there. A first contact later in the window follows a serve the detector missed."""
+    lead = round(LEAD_S * fps)
+    out = []
+    for start, end in rallies:
+        first = min((c for c in contacts if start - lead <= c[0] <= end), default=None)
+        if first is None or first[0] > start or not in_court(calibration, first[1], first[2]):
+            out.append((start, end))
+    return out
+
+
 def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[int, int]], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
     """Typed contacts of every rally; contacts outside the rallies are dropped."""
     out: list[Typed] = []
@@ -245,7 +259,8 @@ def main() -> None:
     calibration = Calibration.load(args.court) if args.court else None
     contacts = [tuple(r) for r in read_rows(args.contacts)]
     crossings = [r[0] for r in read_rows(args.net)]
-    typed = classify(contacts, crossings, [tuple(r) for r in read_rows(args.rallies)], args.fps, args.net_x, calibration)
+    windows = served([tuple(r) for r in read_rows(args.rallies)], contacts, args.fps, calibration)
+    typed = classify(contacts, crossings, windows, args.fps, args.net_x, calibration)
     if args.video:
         typed = mark_relances(args.video, typed, args.fps)
     args.out.mkdir(parents=True, exist_ok=True)

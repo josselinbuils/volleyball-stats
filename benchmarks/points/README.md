@@ -94,7 +94,7 @@ wrong. In brackets, rallies with an answer.
 | detected | next serve | 15/17 (15) | 24/31 (24) |
 | detected | **combined** | **17/17** | **28/31** |
 | pipeline | end of rally | 16/17 (16) | 13/31 (20) |
-| pipeline | next serve | 14/17 (14) | 13/31 (16) |
+| pipeline | next serve | 14/17 (14) | 14/31 (16) |
 | pipeline | **combined** | **16/17** (16) | **16/31** (21) |
 
 - The next serve is right whenever there is one (15/15, 24/24 on the labelled windows); it has no
@@ -109,6 +109,8 @@ wrong. In brackets, rallies with an answer.
   contacts at the net.
 - Pipeline: `rallies.py` misses 10 of the 48 rallies (7 of 21 on `side_holdout`, see its held-out
   check), and one window has no contact. Of the 21 held-out rallies with an answer, 16 are right.
+  `actions.served` drops its one false window, a ball thrown back to the server: one point less
+  for team 1 on `side_holdout`, where it made up for a missed rally.
 
 ### Running score
 
@@ -119,7 +121,7 @@ set (points off, both teams summed, after each labelled rally):
 | --- | --- | --- | --- | --- | --- |
 | `side_club` 1 | 2-6 | 1-6 | 1 | 1-6 | 1 |
 | `side_long` 1 | 3-6 | 3-6 | 0 | 3-6 | 0 |
-| `side_holdout` 1 | 11-10 | 10-8 | 5 | 10-4 | 7 |
+| `side_holdout` 1 | 11-10 | 9-7 | 6 | 9-4 | 8 |
 | `side_setend` 1 | 2-2 | 1-2 | 1 | 1-2 | 1 |
 | `side_setend` 2 | 4-2 | 2-3 | 3 | 2-3 | 3 |
 
