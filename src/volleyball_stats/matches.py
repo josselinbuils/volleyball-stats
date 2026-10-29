@@ -2,15 +2,18 @@
 
     uv run python -m volleyball_stats.matches SITE [--theme NAME]
 
-Each SITE/NAME/ holds a match page (web.py --out SITE/NAME). SITE/index.html lists them newest first
-from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
+Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the match's date and teams
+(SITE/2026-10-25-aspom-begles-vs-talence/) to make its address. SITE/index.html lists them newest
+first from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
 from web/ with `npm run build`), its matches in matches.js.
 """
 
 import argparse
 import hashlib
 import json
+import re
 import shutil
+import unicodedata
 from pathlib import Path
 
 from volleyball_stats.web import BRANDING, brand
@@ -34,8 +37,25 @@ def listed(folder: Path) -> dict:
     }
 
 
+def slug(text: str) -> str:
+    """Lowercase ASCII words joined by dashes: "ASPOM Bègles" -> "aspom-begles"."""
+    return "-".join(re.findall(r"[a-z0-9]+", unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()))
+
+
+def address(match: dict) -> str:
+    """The folder of a listed match: its date (else its video's name) and its named teams."""
+    return slug(" ".join([match["date"] or match["name"], " vs ".join(t["name"] for t in match["teams"] or [] if t["name"])]))
+
+
 def build(site: Path, theme: str = "aspom") -> list[dict]:
     """SITE/index.html and matches.js listing SITE/*/'s match pages; returns them."""
+    for data in sorted(site.glob("*/data.js")):
+        named = site / address(listed(data.parent))
+        if named != data.parent:
+            # ponytail: a new build replaces the folder of the same date and teams, two matches the
+            # same day between the same teams would need a number after it.
+            shutil.rmtree(named, ignore_errors=True)
+            data.parent.rename(named)
     matches = sorted((listed(p.parent) for p in site.glob("*/data.js")), key=lambda m: (m["date"] or "", m["path"]), reverse=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.rmtree(site / "brand", ignore_errors=True)

@@ -377,10 +377,11 @@ The same files open from disk and host well (Lighthouse mobile performance 98 wi
 The hosted page has no password, so it never carries real footage or player pictures (nor anything
 cut from them) without every player's consent. To host the matches:
 
-1. Build each one with `--footage none --no-pictures --out SITE/NAME`, NAME its address (its date,
-   say).
+1. Build each one with `--footage none --no-pictures --out SITE/NAME`, any NAME.
 2. List them, newest first, on `SITE/index.html`: `uv run python -m volleyball_stats.matches SITE`
-   (again after each new match).
+   (again after each new match). It renames each folder after the match's date and teams' names,
+   its address: `SITE/2026-10-25-aspom-begles-vs-talence/`. A new build of a match replaces its
+   folder.
 3. Copy `SITE` to a server that supports gzip (nginx does).
 4. Set long cache headers on `assets/`.
 

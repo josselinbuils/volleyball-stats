@@ -57,17 +57,17 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## Hosting
 
-https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE/` (`full_match`
-at `/volleyball/2026-10-25/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
+https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE-TEAM-vs-TEAM/`
+(`full_match`, its teams unnamed, at `/volleyball/2026-10-25/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
 `volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo; that service is
 only in the server's copy), the site in `volleyball-stats/site`, the `/volleyball` route in
 `reverse-proxy/config.json`. Cloudflare caches the `.js` files for 4 hours: the unhashed ones load
 with the build's hash (`?v=`), so a new build shows at once. `outputs/hosted/` holds the hosted
-site: build each match into it without footage or pictures, list them, copy it over; nothing
-restarts:
+site: build each match into it without footage or pictures, list them (which names their folders),
+copy it over; nothing restarts:
 
 ```bash
-uv run python -m volleyball_stats.web outputs/full_match --video data/full_match.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out outputs/hosted/2026-10-25
+uv run python -m volleyball_stats.web outputs/full_match --video data/full_match.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out outputs/hosted/full_match
 uv run python -m volleyball_stats.matches outputs/hosted
 rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
 ```
