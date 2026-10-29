@@ -11,8 +11,9 @@ by an optimal assignment on the distance to each identity's prototype, under har
 segments seen at the same time, or too far apart for the time between them, are never one player.
 Identities on court at the first serve are numbered by zone (1 back right, 2 front right, 3 front
 middle, 4 front left, 5 back left, 6 back middle), the later ones by first appearance; a rerun keeps
-the numbers of the previous identities.csv. See benchmarks/identity/README.md for the numbers behind
-the constants.
+the numbers of the previous identities.csv. Inside a rally, where the tracks keep their player
+through crowds, each track then holds one number. See benchmarks/identity/README.md for the numbers
+behind the constants.
 
     uv run python -m volleyball_stats.identity outputs/VIDEO --video VIDEO [--squad N[,N]]
 
@@ -28,8 +29,9 @@ player, two numbers are two.
 import argparse
 import csv
 import json
+from bisect import bisect_right
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import cv2
@@ -574,6 +576,39 @@ def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: 
     return out
 
 
+def hold(segments: list[Segment], windows: list[tuple[int, int]]) -> list[Segment]:
+    """The segments cut at the rallies' ends, each track holding one number per team inside a rally:
+    the number of most of its frames there, unless a track seen at the same time in the rally holds
+    it with more frames (then the track's next one, else none). Inside a rally the tracks keep their
+    player through crowds: a segment's number changing there is wrong."""
+    edges = sorted({a for a, _ in windows} | {b + 1 for _, b in windows})
+    starts = [a for a, _ in windows]
+    parts = []
+    rallies: dict[tuple[int, int], list[Segment]] = {}
+    for s in segments:
+        key = np.searchsorted(edges, s.frames, side="right")
+        for idx in np.split(np.arange(len(s.frames)), np.nonzero(np.diff(key))[0] + 1):
+            p = replace(s, frames=[s.frames[i] for i in idx], feet=[s.feet[i] for i in idx])
+            parts.append(p)
+            w = bisect_right(starts, p.start) - 1
+            if p.identity and w >= 0 and p.end <= windows[w][1]:
+                rallies.setdefault((w, p.team), []).append(p)
+    for inside in rallies.values():
+        mass: dict[tuple[int, int], int] = {}
+        span: dict[int, tuple[int, int]] = {}
+        for p in inside:
+            mass[p.track, p.identity] = mass.get((p.track, p.identity), 0) + len(p.frames)
+            lo, hi = span.get(p.track, (p.start, p.end))
+            span[p.track] = (min(lo, p.start), max(hi, p.end))
+        chosen: dict[int, int] = {}
+        for t, i in sorted(mass, key=mass.get, reverse=True):
+            if t not in chosen and not any(j == i and span[u][0] <= span[t][1] and span[t][0] <= span[u][1] for u, j in chosen.items()):
+                chosen[t] = i
+        for p in inside:
+            p.identity = chosen.get(p.track, 0)
+    return parts
+
+
 def identify(
     video: Path,
     rows: list[Row],
@@ -657,7 +692,7 @@ def identify(
         if found:
             touches[found[0]] = touches.get(found[0], 0) + 1
     found = doubts(segments, wv, weights, cannot, fps, touches)
-    return sorted(segments + removed, key=lambda s: (s.start, s.track)), found
+    return sorted(hold(segments, windows) + removed, key=lambda s: (s.start, s.track)), found
 
 
 def write_identities(path: Path, segments: list[Segment]) -> None:

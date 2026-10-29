@@ -142,7 +142,17 @@ def evaluate(clip: str, squad=None, quiet: bool = False, tracks_only: bool = Fal
     predicted = [identity.lookup(table, r.track, r.frame) if r else None for r in matched]
     segment_of = [next((k for k, s in enumerate(segments) if s.identity and s.track == r.track and s.start <= r.frame <= s.end), None) if r else None for r in matched]
     if not quiet:
-        print(f"{clip}: {sum(r is None for r in matched)} labelled boxes without a row; {len(segments)} segments")
+        # A player's consecutive labelled boxes in one rally, and those whose number changes.
+        rally = [next((k for k, (a, b) in enumerate(windows) if a <= int(l["frame"]) <= b), None) for l in labels]
+        seen: dict[str, tuple] = {}
+        steps = changes = 0
+        for i in sorted(range(len(labels)), key=lambda i: int(labels[i]["frame"])):
+            if players[i] != "X" and rally[i] is not None:
+                if seen.get(players[i], (None,))[0] == rally[i]:
+                    steps += 1
+                    changes += seen[players[i]][1] != predicted[i]
+                seen[players[i]] = (rally[i], predicted[i])
+        print(f"{clip}: {sum(r is None for r in matched)} labelled boxes without a row; {len(segments)} segments; {changes} of {steps} steps in a rally change number")
     return players, predicted, [r.track if r else None for r in matched], segment_of
 
 

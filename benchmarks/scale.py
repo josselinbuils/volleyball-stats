@@ -18,7 +18,7 @@ Results on the M4 Pro, 20 x side_holdout (3.8 million player rows, 43,000 identi
 | finish | 19 s | 4.1 GB |
 | teams | 19 s | 3.1 GB |
 | attribution | 11 s | 3.1 GB |
-| identity | 47 s | 6.8 GB (over 20 GB, unfinished, with dense cannot-links) |
+| identity | 48 s | 6.3 GB (over 20 GB, unfinished, with dense cannot-links) |
 | web | 10 s | 0.6 GB (4.5 GB holding every row as text) |
 | review | 2 s | 0.7 GB (4.0 GB holding every box as Python objects) |
 

@@ -66,6 +66,8 @@ with jersey numbers, hair, shoes, height and position continuity on 3× crops.
 - **splits**: identities per player; **merges**: players per identity.
 - **ceilings**: IDF1 when every track, then every piece of track, takes its majority player: what
   linking whole tracks or pieces can reach.
+- **number changes**: a player's consecutive labelled boxes in one rally (2 s apart) showing two
+  numbers, printed per clip.
 
 ## Method
 
@@ -82,18 +84,22 @@ them, are never one player; the next piece of the same track leans to its identi
 or more build the identities (two passes, the second with the prototypes fixed), the shorter ones
 join the nearest identity they can; identities never longer than 10 s get no number. Starters are
 numbered by zone at the first serve (1 back right ... 6 back middle), the others by first
-appearance.
+appearance. Inside a rally, no labelled track changed player at a cut (0 of 61) while the pieces'
+numbers changed at 16% of the cuts: there each track then holds one number, the one of most of its
+frames, unless a track seen at the same time holds it with more.
 
 | Method | Tuning IDF1 | Held-out IDF1 | Identities / players (tuning, held out) |
 | --- | --- | --- | --- |
 | Tracks alone (`--baseline tracks`) | 0.339 | 0.436 | 92 / 15, 66 / 16 |
 | Colour embedding instead of re-ID (`--baseline colour`) | 0.690 | 0.646 | 22 / 15, 19 / 16 |
 | Average-linkage clustering of the pieces, re-ID (first version) | 0.71-0.72 | - | 36-45 / 15 |
-| **Time-ordered assignment, re-ID, whitened (`identify`)** | **0.894** | **0.800** | 20 / 15, 21 / 16 |
-| Same with the squad given (`--squad 8,7`, `--squad 9,7`) | 0.892 | 0.828 | 15 / 15, 16 / 16 |
+| Time-ordered assignment, re-ID, whitened | 0.894 | 0.800 | 20 / 15, 21 / 16 |
+| **Same, one number per track inside a rally (`identify`)** | **0.895** | **0.806** | 20 / 15, 21 / 16 |
+| Same with the squad given (`--squad 8,7`, `--squad 9,7`) | 0.894 | 0.826 | 15 / 15, 16 / 16 |
 
-Per team (white / navy): 0.921 / 0.888 tuning, 0.830 / 0.775 held out. Splits 1.33 and 1.40,
-merges 1.07 and 1.14. The page shows no number on 1.8% of the player dots of `side_setend`.
+Per team (white / navy): 0.924 / 0.888 tuning, 0.841 / 0.775 held out. Splits 1.33 and 1.40,
+merges 1.07 and 1.14. Number changes in a rally: 0 of 33 tuning, 4 of 153 held out (1 and 16
+before the rally hold). The page shows no number on 1.8% of the player dots of `side_setend`.
 
 ## Failures
 
@@ -103,6 +109,9 @@ merges 1.07 and 1.14. The page shows no number on 1.8% of the player dots of `si
 - **Merges**: two teammates never on court together (a substitution, the libero and the player
   they replace) look alike in the same jersey and can share an identity: nothing forbids it.
 - Short pieces (crowd episodes at the net) are assigned last, with little evidence.
+- The 4 number changes left in a rally are hand-overs: the tracker loses a player at the net and a
+  new track picks them up 1-9 frames later, 2-6 m away on the floor (half-hidden feet), too far to
+  join them by position.
 
 ## Limits and next steps
 
@@ -113,5 +122,5 @@ merges 1.07 and 1.14. The page shows no number on 1.8% of the player dots of `si
 - Two clips of the same club and camera; the constants need a check on the user's footage.
 - Long matches: the cannot-links are kept per piece, the pairs of a team close in time only. On a
   match of 43,000 pieces (the player rows of 2 hours at 50 fps, `benchmarks/scale.py`) the step
-  takes 47 s and 6.8 GB at its peak, half of it the players' rows; a dense pieces x pieces matrix
+  takes 48 s and 6.3 GB at its peak, half of it the players' rows; a dense pieces x pieces matrix
   needed over 20 GB.

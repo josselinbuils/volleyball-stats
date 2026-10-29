@@ -7,6 +7,7 @@ from volleyball_stats.identity import (
     cannot_links,
     covers,
     group,
+    hold,
     jersey_links,
     lookup,
     name_links,
@@ -112,6 +113,29 @@ class TestNumber:
 
         # The previous 5 stays; the others come after it.
         assert [s.identity for s in segments] == [5, 6, 7, 5]
+
+
+class TestHold:
+    def test_each_track_holds_one_number_through_a_rally(self):
+        def piece(track: int, start: int, end: int, number_: int) -> Segment:
+            return Segment(track, list(range(start, end + 1)), [(0.0, 0.0)] * (end - start + 1), team=1, identity=number_)
+
+        segments = [
+            piece(1, 0, 19, 3),
+            piece(1, 20, 24, 5),
+            piece(1, 25, 49, 3),
+            # Track 2's 3 is track 1's, seen at the same time with more frames: track 2 holds its 4.
+            piece(2, 10, 21, 3),
+            piece(2, 22, 29, 4),
+            # Track 3 takes over from track 2: it keeps the same 4.
+            piece(3, 34, 39, 4),
+        ]
+
+        held = sorted(hold(segments, [(10, 39)]), key=lambda s: (s.start, s.track))
+
+        assert [(s.track, s.start, s.end, s.identity) for s in held] == [
+            (1, 0, 9, 3), (1, 10, 19, 3), (2, 10, 21, 4), (1, 20, 24, 3), (2, 22, 29, 4), (1, 25, 39, 3), (3, 34, 39, 4), (1, 40, 49, 3),
+        ]
 
 
 class TestAnswers:
