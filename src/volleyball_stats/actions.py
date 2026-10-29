@@ -47,7 +47,8 @@ BLOCK_S = 0.33
 FLOOR_Y, LAST_FLOOR_Y = 2.0, -4.5
 MARGIN = 2.0
 # Court x (meters from the net) under which a first contact's floor projection is inside the court:
-# a ball in the air only projects farther, and the labelled serves project from 12.3 m.
+# a ball in the air only projects farther, even past the far sideline, and the labelled serves
+# project from 12.3 m (11.1 m on full_match, whose balls tossed back to the server project under 6 m).
 SERVE_X = 8.0
 # Touches in a row by one player from which the ball is dead, held or bounced (before a serve, say):
 # nobody plays it twice running. ponytail: from 2 examples; runs of 2 are mostly attribution errors
@@ -85,11 +86,15 @@ def on_floor(calibration: Calibration | None, x: float, y: float, last: bool) ->
 
 
 def in_court(calibration: Calibration | None, x: float, y: float) -> bool:
-    """Whether the contact at image (x, y) is surely over the court, short of its end lines."""
+    """Whether the contact at image (x, y) is surely over the court, short of its end lines.
+
+    ponytail: a ball above the horizon maps behind the camera and is never inside; the toucher's
+    feet would tell, once attribution runs before typing.
+    """
     if calibration is None:
         return False
     cx, cy = calibration.to_court(np.array([[x, y]]))[0]
-    return abs(cx) < SERVE_X and abs(cy) <= 4.5 + MARGIN
+    return abs(cx) < SERVE_X and cy <= 4.5 + MARGIN
 
 
 def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:

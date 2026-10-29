@@ -77,6 +77,10 @@ class TestFloor:
 
         assert kinds(classify_rally(contacts, [20], FPS, NET_X, self.CALIBRATION)) == ["dig", "dig", "set"]
 
+    def test_a_first_contact_in_the_air_over_the_court_is_no_serve_though_it_projects_past_the_far_sideline(self):
+        assert kinds(classify_rally([self.at(0, 2, -14), self.at(40, 9, 0)], [], FPS, NET_X, self.CALIBRATION))[0] == "dig"
+        assert kinds(classify_rally([(0, 640, 100), self.at(40, -6, -6)], [20], FPS, NET_X, self.CALIBRATION))[0] == "serve"
+
 
 class TestClassify:
     def test_keeps_the_contacts_of_each_rally_and_a_serve_just_before_its_window(self):
