@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import type { Clock } from '@/lib/clock';
-import type { Clip } from '@/lib/playlist';
+import { rallies, type Rally } from '@/lib/match';
+import { PAD, rallyAt, type Clip } from '@/lib/playlist';
 
 /** What plays the moments: the video, or the clock replaying the court when the page has none. */
 export type Media = HTMLVideoElement | Clock;
@@ -21,6 +22,9 @@ interface Player {
   go: (at: number) => void;
   /** Leaves the playlist and pauses the video. */
   stop: () => void;
+  /** Replays the clip playing, or the rally the video is in, instead of moving on past its end. */
+  loop: boolean;
+  setLoop: (loop: boolean) => void;
   video: Media | null;
   setVideo: (video: Media | null) => void;
 }
@@ -63,6 +67,8 @@ export function usePlayer(): Player {
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [video, setVideo] = useState<Media | null>(null);
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [loop, setLoop] = useState(false);
+  const looping = useRef(false);
   // The playlist for the loop and the event handlers, ahead of the next render.
   const current = useRef<Playlist | null>(null);
   // A seek of ours is pending: clip ends and user seeks are ignored until it lands.
@@ -101,6 +107,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     update(null);
   }, [video, update]);
 
+  useEffect(() => {
+    looping.current = loop;
+  }, [loop]);
+
   // Every new playlist or clip seeks to the clip's start.
   useEffect(() => {
     if (video && playlist) {
@@ -113,6 +123,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!video) {
       return;
     }
+    // The rally the video was in at the last frame.
+    let held: Rally | undefined;
     const onSeeked = () => {
       const p = current.current;
       // The user's own seek outside the clip leaves the playlist.
@@ -123,20 +135,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
       seeking.current = false;
+      held = rallyAt(rallies, video.currentTime);
     };
     let frame = 0;
     // One loop ends the clips and publishes the video time.
     const tick = () => {
       const p = current.current;
       const time = video.currentTime;
+      const playing = !video.seeking && !video.paused;
       // A seek past the clip's end is the user's, left to onSeeked.
-      if (p && !seeking.current && !video.seeking && !video.paused && time >= p.clips[p.at].end) {
-        if (p.at + 1 < p.clips.length) {
+      if (p && !seeking.current && playing && time >= p.clips[p.at].end) {
+        if (looping.current) {
+          update({ ...p });
+        } else if (p.at + 1 < p.clips.length) {
           update({ ...p, at: p.at + 1 });
         } else {
           video.pause();
           update(null);
         }
+      }
+      if (!p && looping.current && playing && held && time > held.end + PAD) {
+        video.currentTime = Math.max(0, held.start - PAD);
+      } else {
+        held = rallyAt(rallies, time);
       }
       if (time !== now) {
         now = time;
@@ -152,6 +173,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [video, update]);
 
-  const value = useMemo(() => ({ playlist, play, go, stop, video, setVideo }), [playlist, play, go, stop, video]);
+  const value = useMemo(() => ({ playlist, play, go, stop, loop, setLoop, video, setVideo }), [playlist, play, go, stop, loop, video]);
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

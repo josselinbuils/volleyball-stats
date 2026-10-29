@@ -176,6 +176,7 @@
   "forwardVideo": "Avancer de {{s}} s",
   "seekVideo": "Position dans la vidéo",
   "slowVideo": "Ralenti (moitié de la vitesse)",
+  "loopVideo": "En boucle (rejoue l'échange ou le moment en cours)",
   "muteVideo": "Couper le son",
   "unmuteVideo": "Remettre le son",
   "fullscreen": "Plein écran",

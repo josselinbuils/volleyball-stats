@@ -176,6 +176,7 @@
   "forwardVideo": "Forward {{s}} s",
   "seekVideo": "Position in the video",
   "slowVideo": "Slow motion (half speed)",
+  "loopVideo": "Loop (replays the rally or moment playing)",
   "muteVideo": "Mute",
   "unmuteVideo": "Unmute",
   "fullscreen": "Full screen",

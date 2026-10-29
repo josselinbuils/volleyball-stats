@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
+import { Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
@@ -14,7 +14,7 @@ const SKIP = 10;
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
 export function VideoControls({ light = false }: { light?: boolean }) {
   const { t } = useTranslation();
-  const { video } = usePlayer();
+  const { video, loop, setLoop } = usePlayer();
   const { set, rallies } = useSet();
   const span = useMemo(() => allowed(rallies, set === null, match.duration), [rallies, set]);
   // Tenths of a second: enough for the timeline, without a render per frame.
@@ -145,6 +145,16 @@ export function VideoControls({ light = false }: { light?: boolean }) {
         onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}
       >
         <Snail aria-hidden />
+      </button>
+      <button
+        type="button"
+        className={cn(button, loop && (light ? 'bg-foreground/15' : 'bg-white/25'))}
+        aria-pressed={loop}
+        aria-label={t('loopVideo')}
+        title={t('loopVideo')}
+        onClick={() => setLoop(!loop)}
+      >
+        <Repeat1 aria-hidden />
       </button>
       {/* The court's replay has no sound. */}
       {match.video && (
