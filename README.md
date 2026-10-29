@@ -111,7 +111,7 @@ faster. Lens distortion is corrected in software.
 Without it, the court mapping is off by 0.3–1.4 m (see the
 [court benchmark](benchmarks/court/README.md)).
 
-1. Print the board: `uv run python -m volleyball_stats.lens pattern`.
+1. Print the [board](docs/checkerboard.png) on A4 landscape, fit to page.
 2. Tape it flat on cardboard.
 3. Film it for a minute at 1–3 m, tilting it and sweeping it into the corners and edges of the frame.
 4. Run `uv run python -m volleyball_stats.lens calibrate VIDEO`. It writes `outputs/lens.json`, to

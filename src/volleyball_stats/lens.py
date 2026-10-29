@@ -81,7 +81,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Calibrate the camera lens from a checkerboard video.")
     sub = parser.add_subparsers(dest="command", required=True)
     pattern_parser = sub.add_parser("pattern", help="Write the checkerboard to print")
-    pattern_parser.add_argument("--out", type=Path, default=Path("checkerboard.png"))
+    pattern_parser.add_argument("--out", type=Path, default=Path("docs/checkerboard.png"))
     calibrate_parser = sub.add_parser("calibrate", help="Fit the lens from a video of the printed board")
     calibrate_parser.add_argument("video", type=Path)
     calibrate_parser.add_argument("--step", type=int, default=10, help="Frames between two looks for the board")
@@ -89,8 +89,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "pattern":
+        args.out.parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(args.out), pattern())
-        print(f"{args.out}: print it at 100% on A4 landscape and tape it flat on cardboard")
+        print(f"{args.out}: print it on A4 landscape, fit to page, and tape it flat on cardboard")
         return
     views, size = detect_views(args.video, args.step)
     if len(views) < 10:
