@@ -12,6 +12,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { color, contacts as all, GROUPS, groupName, hasTeams, match, placed, playerLabel, playerNumber, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
+import { playerKey } from '@/helpers/players';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { Arrows } from '@/components/CourtChart/Arrows';
@@ -38,13 +39,11 @@ export function CourtChart() {
   // Serves and attacks only for their arrows; the action picked for another view comes back with it.
   const present = TYPES.filter((p) => (view !== 'directions' || ARROWED.includes(p)) && contacts.some((c) => c.type === p));
   const type = chosen !== 'all' && present.includes(chosen) ? chosen : 'all';
-  // A player as the page shows them, their team and name or number: one player's identities share it.
-  const who = (p: number | null) => (p !== null && match.people[p]?.number != null ? `${match.people[p].team}:${match.people[p].name || playerNumber(p)}` : null);
   // The identified players who touched the ball for their own team, as in the players' table: a track
   // swapping players across the net can lend a touch to the other team's player.
   const everyone = new Map<string, number>();
   for (const c of contacts) {
-    const k = who(c.person);
+    const k = playerKey(c.person, match.people);
     if (k !== null && match.people[c.person as number].team === c.g) {
       everyone.set(k, c.person as number);
     }
@@ -55,7 +54,7 @@ export function CourtChart() {
   const player = people.some(([k]) => k === chosenPlayer) ? chosenPlayer : 'all';
   const one = everyone.get(player) ?? null;
   const only = one !== null ? match.people[one].team : group === 'both' ? null : group;
-  const picked = contacts.filter((c) => (type === 'all' || c.type === type) && (only === null || c.g === only) && (player === 'all' || who(c.person) === player));
+  const picked = contacts.filter((c) => (type === 'all' || c.type === type) && (only === null || c.g === only) && (player === 'all' || playerKey(c.person, match.people) === player));
   const arrows = view === 'directions' ? toArrows(picked, all) : [];
   const shown = view === 'directions' ? arrows.map((a) => a.from) : picked.filter(placed);
   const title = (tr: TFunction) => [tr(`views.${view}`), type !== 'all' && tr(`types.${type}`), only !== null && groupName(tr, only), one !== null && playerLabel(tr, one)].filter(Boolean).join(', ');

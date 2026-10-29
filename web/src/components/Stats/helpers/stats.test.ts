@@ -39,6 +39,13 @@ describe('lines', () => {
     expect(count(total.stats)).toEqual({ touches: 5, serves: 1, aces: 1, receptions: 2, missed: 2, rated: 2, attacks: 2, kills: 1, attackFaults: 1, digs: 1, points: 2, faults: 3 });
   });
 
+  it('makes one player of the identities given one name, shown by the one with the most touches', () => {
+    const named: Record<string, Person> = { ...people, 0: { ...people[0], name: 'Lou' }, 1: { ...people[1], name: 'Lou' } };
+    const [lou, rest, total] = lines(contacts, named, 1);
+    expect([lou.id, rest.id, total.id]).toEqual([0, 'rest', 'total']);
+    expect(count(lou.stats)).toEqual({ touches: 3, serves: 1, aces: 1, receptions: 2, missed: 2, rated: 2, attacks: 1, kills: 1, points: 2, faults: 2 });
+  });
+
   it('counts free balls and their faults', () => {
     const [one] = lines([touch('relance', 1, 0, 'error')], people, 1);
     expect(count(one.stats)).toEqual({ touches: 1, relances: 1, relanceFaults: 1, faults: 1 });

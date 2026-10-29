@@ -1,4 +1,5 @@
 import type { Contact, Group, Person } from '@/lib/match';
+import { playerKey } from '@/helpers/players';
 import type { Drop } from '@/components/Stats/helpers/between';
 
 /** What the table counts, each the touches it holds. */
@@ -31,8 +32,8 @@ export const STATS = [
 export type Stat = (typeof STATS)[number];
 export type Stats = Record<Stat, Contact[]>;
 
-/** A row of the table: a player (`person` their key), the touches of no identified player (`rest`)
- * or the whole team (`total`). */
+/** A row of the table: a player (`id` the key in `match.people` of their identity with the most
+ * touches), the touches of no identified player (`rest`) or the whole team (`total`). */
 export interface Line {
   id: number | 'rest' | 'total';
   stats: Stats;
@@ -154,24 +155,31 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
 }
 
 /** The table of team `g`: its identified players who touched the ball or missed an ace, most touches
- * first, then the touches of no identified player and the whole team. A touch is a player's when
- * they play for the touch's team: a track swapping players across the net can lend it the other's.
- * A ball of `dropped` counts for each of its two players, once for the team. */
+ * first, then the touches of no identified player and the whole team. A player is the identities
+ * sharing their `playerKey`. A touch is a player's when they play for the touch's team: a track
+ * swapping players across the net can lend it the other's. A ball of `dropped` counts for each of
+ * its two players, once for the team. */
 export function lines(contacts: Contact[], people: Record<string, Person>, g: Group, dropped: Drop[] = []): Line[] {
-  const owner = (person: number | null | undefined, team: Group) => (person != null && people[person]?.number != null && people[person].team === team ? person : null);
-  const between = (keep: (person: number) => boolean) => dropped.filter((d) => d.landing.g === g && d.pair.some(keep)).map((d) => d.landing);
-  const players = Object.keys(people)
-    .map(Number)
-    .filter((p) => people[p].team === g && people[p].number !== null)
-    .map((p) => ({
+  const owner = (person: number | null | undefined, team: Group) => (person != null && people[person]?.team === team ? playerKey(person, people) : null);
+  const between = (keep: (key: string | null) => boolean) => dropped.filter((d) => d.landing.g === g && d.pair.some((q) => keep(owner(q, g)))).map((d) => d.landing);
+  const touched = (p: number) => contacts.filter((c) => c.g === g && c.person === p).length;
+  const shown = new Map<string, number>();
+  for (const p of Object.keys(people).map(Number)) {
+    const key = owner(p, g);
+    if (key !== null && (!shown.has(key) || touched(p) > touched(shown.get(key) as number))) {
+      shown.set(key, p);
+    }
+  }
+  const players = [...shown]
+    .map(([key, p]) => ({
       id: p,
       stats: {
         ...stats(
           contacts,
-          (c) => c.g === g && owner(c.person, g) === p,
-          (c) => owner(c.receiver, g) === p,
+          (c) => c.g === g && owner(c.person, g) === key,
+          (c) => owner(c.receiver, g) === key,
         ),
-        between: between((q) => owner(q, g) === p),
+        between: between((k) => k === key),
       },
     }))
     .filter((line) => line.stats.touches.length || line.stats.missed.length)
@@ -182,7 +190,7 @@ export function lines(contacts: Contact[], people: Record<string, Person>, g: Gr
       (c) => c.g === g && owner(c.person, g) === null,
       (c) => c.g !== g && owner(c.receiver, g) === null,
     ),
-    between: between((q) => owner(q, g) === null),
+    between: between((k) => k === null),
   };
   const total = {
     ...stats(
