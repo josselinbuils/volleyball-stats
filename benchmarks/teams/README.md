@@ -26,11 +26,13 @@ player crops per team. `match.py` writes the team on the left and the set of eac
 uv run --group bench python benchmarks/teams/bench.py side_club side_long [--sweep]
 uv run --group bench python benchmarks/teams/bench.py side_holdout side_setend
 uv run --group bench python benchmarks/teams/bench.py side_holdout side_setend --mixed
+uv run --group bench python benchmarks/teams/bench.py side_holdout side_setend --same
 ```
 
 `--mixed` dresses each player of the clip's `outputs/CLIP/identities.csv` in a random shirt (9
 common colours) and shorts (white, black or grey), over 5 seeds, and scores the side map again: kits
-that differ within a team, as in adult leisure matches.
+that differ within a team, as in adult leisure matches. `--same` dresses every player of both teams
+in one random kit: two teams of one club.
 
 Each clip reads `data/CLIP.mp4`, its player tracks (`outputs/players/CLIP_players.csv`, else
 `outputs/CLIP/players.csv`), this folder's ground truth, and where they exist the identity labels of
@@ -97,7 +99,12 @@ Kits may differ within a team, so a team is never a colour.
 3. **Looks across long breaks.** From one stretch to the next, each track after the break finds the
    track of the previous stretch with the nearest look. The teams changed ends when 60 % or more of
    the frames after the break matched a player of the other side: breaks without a change are the
-   more common case, so a change needs a clear majority.
+   more common case, so a change needs a clear majority. When the two sides of the stretch before
+   the break look alike (their tracks' median looks under 60 apart in 8-bit Lab, torso and shorts),
+   the looks cannot tell the teams apart: the rules decide instead, the teams changed ends when the
+   break lasts 90 s or more (a set break). White against navy is 84-121 apart on `side_setend`; one
+   kit on either half 12 (white) and 43 (navy: small far players take the floor's colour), and the
+   three real breaks of the four clips 91-117.
 4. **Team per track.** A track's team is the team on its median side of the net in the rally it
    plays most frames of (else the nearest rally). Liberos and players in other kits need nothing
    more.
@@ -123,12 +130,22 @@ clips. With mixed kits, the previous method fails:
 | `side_holdout` side map | 57/105 | **105/105** |
 | `side_holdout` changes of ends found (0 labelled) | 35 | **0** |
 | `side_setend` side map | 22/40 | **35/40** |
-| `side_setend` changes of ends found (5 labelled) | 12 | 4 |
+| `side_setend` changes of ends found (5 labelled) | 12 | **5** |
 
 Every ordinary break is decided by followed tracks (39 of 39 on the four clips), whatever the kits.
-The miss is the `side_setend` set break: no track survives its 6 minutes, and one seed's random kits
-leave fewer than 60 % of the frames matched to the other side. On the real kits the long breaks
-score 0 % and 3 % (the two timeouts) and 78 % (the change of ends).
+On the real kits the long breaks score 0 % and 3 % (the two timeouts) and 78 % (the change of ends).
+Before the rule for teams alike, one seed's random kits missed the `side_setend` set break (35/40,
+4 changes found): no track survives its 6 minutes, and fewer than 60 % of the frames matched the
+other side. Its two sides' kits now count as alike, and the break's 6 minutes change the ends.
+
+One kit for both teams (`--same`, 5 seeds), looks alone then with the rule for teams alike:
+
+| Same kit, 5 seeds | Looks alone | With the rule |
+| --- | --- | --- |
+| `side_holdout` side map | 98/105 | **105/105** |
+| `side_holdout` changes of ends found (0 labelled) | 2 | **0** |
+| `side_setend` side map | 19/40 | **40/40** |
+| `side_setend` changes of ends found (5 labelled) | 1 | **5** |
 
 Real kits, tuning (`side_club` + `side_long`):
 
@@ -177,9 +194,12 @@ Held out:
 
 - One match, one camera, white against navy. Mixed kits are simulated: random colours per player of
   the pipeline's identities, whose errors give one player two kits now and then.
-- A long break where no track survives rests on the looks alone: torso and shorts colours, close to
-  a coin flip when kits are mixed and alike (one miss in 5 seeds). The identity step's re-ID
-  embeddings would tell players apart better.
+- A long break where no track survives rests on the looks: torso and shorts colours, close to a coin
+  flip when kits are mixed. Teams that look alike rest on the rules instead: they get it wrong if
+  they keep their ends between sets, change them at a timeout, or stop 90 s or more without a set
+  end. The identity step's re-ID embeddings would tell players apart better; `--sets` could give the
+  set breaks.
+- `KIT_GAP` (60) rests on one camera and one pair of kits; same-kit teams are simulated only.
 - A wrong decision at a break flips the team names of every rally after it, until the next wrong one.
 - One real change of ends (`side_setend`), no deciding set and no change at a timeout.
 - The sides of a rally come from its window: a window starting during the warm-up or spanning a
@@ -192,5 +212,6 @@ Held out:
 
 ## Next steps
 
-- The first ASPOM match: real mixed kits, and changes of ends at timeouts if the teams make them.
+- The first ASPOM match: real mixed kits, and changes of ends at timeouts if the teams make them. A
+  match between two ASPOM teams: real same kits, to check `KIT_GAP`.
 - If long breaks fail on it: compare the players' re-ID embeddings instead of their colours.

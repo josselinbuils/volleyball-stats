@@ -62,14 +62,14 @@ class TestLefts:
         rows += [row(f, 3, -2.0) for f in range(100, 110)] + [row(f, 4, 2.0) for f in range(100, 110)]
         looks = {1: np.zeros(6), 2: np.full(6, 200.0), 3: np.full(6, 200.0), 4: np.zeros(6)}
 
-        assert lefts(rows, [(0, 20), (95, 115), (200, 210)], looks) == [0, 0, None]
+        assert lefts(rows, [(0, 20), (95, 115), (200, 210)], looks, 30.0) == [0, 0, None]
 
     def test_matches_looks_after_a_long_break_and_sees_the_ends_changed(self):
         rows = [row(f, 1, -3.0) for f in range(10)] + [row(f, 2, 3.0) for f in range(10)]
         rows += [row(f, 3, 3.0) for f in range(100, 110)] + [row(f, 4, -3.0) for f in range(100, 110)]
         looks = {1: np.zeros(6), 2: np.full(6, 200.0), 3: np.full(6, 10.0), 4: np.full(6, 190.0)}
 
-        assert lefts(rows, [(0, 20), (95, 115)], looks) == [0, 1]
+        assert lefts(rows, [(0, 20), (95, 115)], looks, 30.0) == [0, 1]
 
     def test_keeps_the_ends_when_the_looks_only_lean_to_a_change(self):
         # Half the players after the break look like a player of the other side: no clear majority.
@@ -77,7 +77,16 @@ class TestLefts:
         rows += [row(f, 3, 3.0) for f in range(100, 110)] + [row(f, 4, 3.0) for f in range(100, 110)]
         looks = {1: np.zeros(6), 2: np.full(6, 200.0), 3: np.full(6, 10.0), 4: np.full(6, 190.0)}
 
-        assert lefts(rows, [(0, 20), (95, 115)], looks) == [0, 0]
+        assert lefts(rows, [(0, 20), (95, 115)], looks, 30.0) == [0, 0]
+
+    def test_changes_the_ends_at_a_set_break_when_the_teams_look_alike(self):
+        # One kit, a shade lighter on the right: the looks would keep each team on its side.
+        rows = [row(f, 1, -3.0) for f in range(10)] + [row(f, 2, 3.0) for f in range(10)]
+        rows += [row(f, 3, -3.0) for f in range(3000, 3010)] + [row(f, 4, 3.0) for f in range(3000, 3010)]
+        looks = {1: np.full(6, 100.0), 2: np.full(6, 120.0), 3: np.full(6, 100.0), 4: np.full(6, 120.0)}
+
+        assert lefts(rows, [(0, 20), (2990, 3020)], looks, 30.0) == [0, 1]
+        assert lefts(rows, [(0, 20), (2990, 3020)], looks, 60.0) == [0, 0]
 
 
 class TestChangedEnds:
@@ -110,7 +119,7 @@ class TestAssign:
         looks = {1: np.concatenate([lab((240, 240, 240)), lab((0, 0, 0))]), 2: np.concatenate([lab((70, 35, 25)), lab((0, 0, 0))])}
         monkeypatch.setattr(teams, "sample", lambda video, rows: (looks, {}))
 
-        found = teams.assign(None, rows, [(500, 600), (0, 20)])
+        found = teams.assign(None, rows, [(500, 600), (0, 20)], 30.0)
 
         assert found.tracks == {1: 2, 2: 1}
         assert found.left == [1, 1]

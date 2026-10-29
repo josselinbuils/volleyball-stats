@@ -108,7 +108,7 @@ def step(name: str) -> None:
     if name == "finish":
         return print(f"{len(rows)} rows -> {len(players.finish(rows, fps))}")
     if name == "teams":
-        found = teams.assign(VIDEO, rows, windows)
+        found = teams.assign(VIDEO, rows, windows, fps)
         return print(f"{len(found.tracks)} tracks")
     if name == "attribution":
         with open(OUT / "actions.csv") as f:

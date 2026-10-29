@@ -6,8 +6,10 @@ players do not cross it. From one rally to the next, the tracks followed through
 whether the teams changed ends (feet court x < 0 is the left). After a long break (a timeout, a set
 break) few tracks survive: each player's look then (the median Lab colour of the torso and shorts
 over a few boxes of the track) finds the nearest player of the previous stretch of rallies, and the
-teams changed ends when most of them matched a player of the other side. Team 1 is the team on the
-left at the first rally. A new set starts when the teams change ends after a set break.
+teams changed ends when most of them matched a player of the other side. When the two teams look
+alike (two teams of one club), the rules decide instead: the teams change ends between sets. Team 1
+is the team on the left at the first rally. A new set starts when the teams change ends after a set
+break.
 
     uv run python -m volleyball_stats.teams VIDEO PLAYERS_CSV RALLIES_CSV [--out DIR]
 
@@ -44,6 +46,10 @@ CONTINUITY = 0.25
 # Share of the player frames after a long break whose look matches a player of the other side
 # before it from which the teams changed ends: the rarer case needs a clear majority.
 SWAP_SHARE = 0.6
+# Distance between the median looks of the two sides of a stretch (OpenCV 8-bit Lab, torso and
+# shorts) under which the teams look alike. On side_setend, white against navy is 84-121 apart; one
+# kit on either half 12 (white) and 43 apart (navy: small far players take the floor's colour).
+KIT_GAP = 60.0
 # Frames to the next sampled frame beyond which the reader seeks instead of decoding through.
 SEEK = 150
 # Seconds between two rallies from which a change of ends is a set break; in a deciding set the
@@ -167,11 +173,23 @@ def changed_ends(before: dict[int, tuple[int, bool]], after: dict[int, tuple[int
     return total > 0 and moved >= SWAP_SHARE * total
 
 
-def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.ndarray]) -> list[int | None]:
+def look_alike(sides: dict[int, tuple[int, bool]], looks: dict[int, np.ndarray]) -> bool:
+    """Whether the two sides of a stretch (`stretch_sides`) look alike: their tracks' median looks
+    are under KIT_GAP apart, or a side has none."""
+    groups = [[looks[t] for t, (_, on_left) in sides.items() if t in looks and on_left == side] for side in (True, False)]
+    return not all(groups) or float(np.linalg.norm(np.median(groups[0], axis=0) - np.median(groups[1], axis=0))) < KIT_GAP
+
+
+def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.ndarray], fps: float) -> list[int | None]:
     """Per rally window, the team (0 or 1) on the left, team 0 being on the left at the first rally
     with players; None for a rally without players. Consecutive rallies sharing CONTINUITY of their
     player frames form a stretch, where those tracks tell whether the teams changed ends; from one
-    stretch to the next, the looks do."""
+    stretch to the next, the looks do, unless the teams look alike: then the teams changed ends
+    after a break of SET_BREAK_S or more, a set break.
+
+    ponytail: teams alike that keep their ends between sets, or change them at a timeout, get it
+    wrong; `--sets` does not feed this yet.
+    """
     order = sorted(rows, key=lambda r: r.frame)
     frames = np.array([r.frame for r in order])
     tracks = np.array([r.track for r in order])
@@ -194,7 +212,13 @@ def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.n
     swapped = False
     for i, stretch in enumerate(stretches):
         if i:
-            swapped ^= changed_ends(stretch_sides(stretches[i - 1], seen), stretch_sides(stretch, seen), looks)
+            before, after = stretch_sides(stretches[i - 1], seen), stretch_sides(stretch, seen)
+            if look_alike(before, looks):
+                # From the previous stretch's first rally: its own changes, then the break's.
+                last = stretches[i - 1][-1]
+                swapped ^= last[1] != (windows[stretch[0][0]][0] - windows[last[0]][1] >= SET_BREAK_S * fps)
+            else:
+                swapped ^= changed_ends(before, after, looks)
         for k, changed in stretch:
             out[k] = int(swapped != changed)
     return out
@@ -224,12 +248,12 @@ def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int 
     return out
 
 
-def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]]) -> Teams:
+def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]], fps: float) -> Teams:
     """Teams of a match's player tracks, numbered so that team 1 is on the left at the first rally
     with players."""
     looks, crops = sample(video, rows)
     lengths = {track: len(r) for track, r in by_track(rows).items()}
-    left = lefts(rows, windows, looks)
+    left = lefts(rows, windows, looks, fps)
     tracks = track_teams(rows, windows, left)
     # A rally without players keeps the previous rally's sides (the first ones: team 1 on the left).
     for k, g in enumerate(left):
@@ -560,7 +584,7 @@ def main() -> None:
 
     with open(args.rallies) as f:
         windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
-    teams = assign(args.video, read_players(args.players), windows)
+    teams = assign(args.video, read_players(args.players), windows, cv2.VideoCapture(str(args.video)).get(cv2.CAP_PROP_FPS))
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.video.stem}_tracks.csv"
     with open(path, "w", newline="") as f:

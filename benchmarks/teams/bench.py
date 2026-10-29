@@ -16,7 +16,8 @@ colour on each side of the net. Scores, pooled over the clips given:
 - sets: the set starts found.
 --sweep compares samples per track and torso boxes on colour vs side. --mixed scores the side map
 again with mixed kits: each player of the clip's identities.csv (outputs/CLIP/) gets a random shirt
-and shorts colour, over 5 seeds.
+and shorts colour, over 5 seeds. --same does it with one kit for every player of both teams (two
+teams of one club).
 """
 
 import argparse
@@ -151,7 +152,7 @@ def score(clips: list[str]) -> None:
         looks, _ = teams.sample(Path(f"data/{clip}.mp4"), rows)
         lengths = {t: len(r) for t, r in teams.by_track(rows).items()}
         group = two_means({t: look[:3] for t, look in looks.items()}, lengths)
-        found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows)
+        found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows, FPS)
         name = {t: teams.hex_name(c) for t, c in found.colours.items()}
         left = [name[g] if g else None for g in found.left]
         right_map = sum(l == r["left"] for l, r in zip(left, labelled))
@@ -214,8 +215,9 @@ def sweep(clips: list[str]) -> None:
             print(f"samples {samples:2}, torso {box}: colour vs side {agree}/{frames} ({agree / frames:.3f})")
 
 
-def mixed(clips: list[str], seeds: int = 5) -> None:
-    """Side map and changes of ends with a random shirt and shorts colour per player."""
+def mixed(clips: list[str], seeds: int = 5, same: bool = False) -> None:
+    """Side map and changes of ends with a random shirt and shorts colour per player, or one for
+    every player when `same`."""
     palette = np.array([(240, 128, 128), (30, 128, 128), (128, 128, 128), (90, 170, 150), (80, 140, 90), (60, 135, 100), (200, 125, 200), (120, 175, 110), (150, 100, 160)], float)
     sample = teams.sample
     for clip in clips:
@@ -236,10 +238,10 @@ def mixed(clips: list[str], seeds: int = 5) -> None:
             kits: dict[tuple[str, str], np.ndarray] = {}
             dressed = {}
             for t in looks:
-                kit = kits.setdefault(owner.get(t, ("", str(t))), np.concatenate([palette[rng.integers(len(palette))], palette[rng.integers(3)]]))
+                kit = kits.setdefault(("", "") if same else owner.get(t, ("", str(t))), np.concatenate([palette[rng.integers(len(palette))], palette[rng.integers(3)]]))
                 dressed[t] = kit + rng.normal(0, 6, 6)
             teams.sample = lambda video, rows, dressed=dressed: (dressed, crops)
-            found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows)
+            found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows, FPS)
             teams.sample = sample
             # Team colours are random here: a rally is right when its left team is the first rally's
             # exactly when the labels say so.
@@ -254,8 +256,9 @@ def main() -> None:
     parser.add_argument("clips", nargs="+", help="Clip stems, e.g. side_club")
     parser.add_argument("--sweep", action="store_true", help="Compare samples per track and torso boxes")
     parser.add_argument("--mixed", action="store_true", help="Score the side map with a random kit per player")
+    parser.add_argument("--same", action="store_true", help="Score the side map with one kit for both teams")
     args = parser.parse_args()
-    sweep(args.clips) if args.sweep else mixed(args.clips) if args.mixed else score(args.clips)
+    sweep(args.clips) if args.sweep else mixed(args.clips, same=args.same) if args.mixed or args.same else score(args.clips)
 
 
 if __name__ == "__main__":
