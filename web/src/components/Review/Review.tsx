@@ -9,9 +9,10 @@ import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
-import { allMarked, post, type Named, type Question, type Suggestion } from '@/lib/review';
+import { allMarked, post, type Conflict, type Named, type Question, type Suggestion } from '@/lib/review';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
+import { Conflicts } from '@/components/Review/Conflicts';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
@@ -33,6 +34,7 @@ export function Review({
   questions: initial,
   players,
   roster,
+  conflicts,
 }: {
   width: number;
   height: number;
@@ -40,6 +42,7 @@ export function Review({
   questions: Question[];
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
+  conflicts: Conflict[];
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -177,6 +180,7 @@ export function Review({
           </ToggleGroup>
         )}
         <p className="px-1 text-muted-foreground">{t(tab === 'names' ? 'review.namesIntro' : 'review.intro')}</p>
+        <Conflicts conflicts={conflicts} width={width} height={height} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}

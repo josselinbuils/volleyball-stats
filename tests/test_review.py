@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import constraints, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
+from volleyball_stats.review import chain, constraints, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
 
 
 class TestConstraints:
@@ -174,3 +174,12 @@ class TestReanchor:
         log = mark_odd([], [self.wrong], [self.kept], [self.piece])
 
         assert reanchor(log, [], self.moved, self.segment_of)[0] == log
+
+
+class TestChain:
+    def test_gives_the_answers_on_the_shortest_path_between_two_names_pieces(self):
+        # Laeticia's piece L, a mixed piece M said to be Josselin's piece J by answer "piece:9:1".
+        links = {"L": [("M", "odd:x")], "M": [("L", "odd:x"), ("J", "piece:9:1")], "J": [("M", "piece:9:1")], "K": [("J", None)]}
+
+        assert chain(links, {"L"}, {"J", "K"}) == ["odd:x", "piece:9:1"]
+        assert chain(links, {"L"}, {"Z"}) == []

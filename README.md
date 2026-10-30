@@ -281,6 +281,8 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   name, Enter picks the one left. **"La personne change ici"** (C), the clip paused when the outlined
   person changes, cuts the piece of track there into two players.
 - Only doubts with 10 s or more at stake are asked (a touch counting as 10 s): the questions end.
+- **A warning** shows the players holding two names after an apply, with the answers joining them:
+  cut the piece showing both where the person changes, or forget a wrong answer, then apply.
 - **A picture showing someone else**, in a question or in "Noms": click it, then say who it is if you
   know, or that it is not a player. On "Apply", that piece of track becomes that player (or someone
   else, or no one) and leaves the other pictures' player. A player whose pictures are all marked is

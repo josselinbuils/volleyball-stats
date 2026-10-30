@@ -55,6 +55,18 @@ export interface Suggestion {
   jersey: number | null;
 }
 
+/** An answer joining two names in one player: a piece of track (its clip and pictures), or
+ * pictures marked as someone else. */
+export type Linking = { id: string; kind: 'piece'; clip: Clip; crops: string[] } | { id: string; kind: 'odd'; crops: string[] };
+
+/** A player holding two names or more after the last apply, and the answers joining them. */
+export interface Conflict {
+  team: Group;
+  identity: number;
+  names: string[];
+  answers: Linking[];
+}
+
 /** review.js, served by volleyball_stats.review. */
 interface ReviewData {
   width: number;
@@ -67,6 +79,7 @@ interface ReviewData {
   /** The pieces marked as showing someone else than their identity's other pictures, by `track:frame`,
    * with the player they were said to be (`team:identity`), if any. */
   odd: Record<string, string | null>;
+  conflicts: Conflict[];
 }
 
 declare global {
@@ -87,7 +100,7 @@ export interface Saved {
 
 /** Sends an answer, a name, pictures marked as someone else, an undo or the apply request to the
  * review server. */
-export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply', body: object = {}): Promise<Saved> {
+export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'cut' | 'forget', body: object = {}): Promise<Saved> {
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) {
     throw new Error(`${path}: ${response.status}`);

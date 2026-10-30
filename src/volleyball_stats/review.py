@@ -22,7 +22,7 @@ import json
 import re
 import threading
 import webbrowser
-from collections import Counter
+from collections import Counter, defaultdict, deque
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -154,6 +154,48 @@ class Questions:
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
 
+    def conflicts(self, log: list[dict], names: list[dict]) -> list[dict]:
+        """The identities of the last run holding two names or more, each with the answers that
+        chain the names' pieces through "same" links: most likely a piece showing two people. A
+        piece answer comes with its clip and pictures, marked pictures with theirs."""
+        pins: dict[str, list] = defaultdict(list)
+        held: dict[tuple[int, int], set[str]] = defaultdict(set)
+        for n in names:
+            who = n.get("name") and identity.lookup(self.table, n["ref"]["track"], n["ref"]["frame"])
+            if who:
+                held[who].add(n["name"])
+                pins[n["name"]].append(self.segment_of(n["ref"]))
+        links: dict = defaultdict(list)
+        for e in log:
+            for g in e.get("same", []):
+                for r in g[1:]:
+                    a, b = self.segment_of(g[0]), self.segment_of(r)
+                    links[a].append((b, e["id"]))
+                    links[b].append((a, e["id"]))
+        for segments in pins.values():
+            for other in segments[1:]:
+                links[segments[0]].append((other, None))
+                links[other].append((segments[0], None))
+        by_id = {e["id"]: e for e in log}
+        out = []
+        for (team, number), together in held.items():
+            if len(together) < 2:
+                continue
+            first, *rest = sorted(together)
+            ids = chain(links, set(pins[first]), {s for n in rest for s in pins[n]})
+            answers = []
+            for answer_id in ids:
+                if answer_id.startswith("piece:"):
+                    track, start = (int(v) for v in answer_id.split(":")[1:3])
+                    _, a, b = self.segment_of({"track": track, "frame": start})
+                    cuts = [a + (b - a) * k // PIECE_CROPS for k in range(PIECE_CROPS + 1)]
+                    crops = [self.crop(track, self.clear(track, x, y)) for x, y in zip(cuts, cuts[1:])]
+                    answers.append({"id": answer_id, "kind": "piece", "clip": self.clip(track, a, b), "crops": crops})
+                elif by_id[answer_id].get("choice") == "odd":
+                    answers.append({"id": answer_id, "kind": "odd", "crops": [self.crop(o["track"], o["frame"]) for o in by_id[answer_id]["odd"]]})
+            out.append({"team": team, "identity": number, "names": sorted(together), "answers": answers})
+        return out
+
     def players(self, roster: list[dict], teams: list[str | None]) -> list[dict]:
         """Every identity, longest on court first, with pictures, seconds of play, touches, the name
         and jersey number given and the roster's players of its team (`teams`' names) who look most
@@ -274,6 +316,27 @@ def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | st
     if odd:
         out.append(odd_entry(entry_id, odd, rest, to or [None] * len(odd)))
     return out
+
+
+def chain(links: dict, starts: set, goals: set) -> list[str]:
+    """The answers (ids, in order) along the shortest path of `links` ({node: [(node, answer id or
+    None)]}) from one of `starts` to one of `goals`; none without a path."""
+    seen = {s: None for s in starts}
+    queue = deque(starts)
+    while queue:
+        node = queue.popleft()
+        if node in goals:
+            ids = []
+            while seen[node]:
+                node, answer_id = seen[node]
+                if answer_id and answer_id not in ids:
+                    ids.append(answer_id)
+            return ids[::-1]
+        for other, answer_id in links[node]:
+            if other not in seen:
+                seen[other] = (node, answer_id)
+                queue.append(other)
+    return []
 
 
 def reanchor(log: list[dict], names: list[dict], moved: dict, segment_of) -> tuple[list[dict], list[dict]]:
@@ -441,7 +504,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             for o, t in zip(entry.get("odd", []), entry.get("to") or [None] * len(entry.get("odd", []))):
                 who = t if t == "not_player" else t and identity.lookup(questions.table, t["track"], t["frame"])
                 odd[piece_key(o)] = who if isinstance(who, str) or who is None else f"{who[0]}:{who[1]}"
-        data = {"width": width, "height": height, "answered": len(log), "questions": found, "players": players, "roster": names, "odd": odd}
+        conflicts = questions.conflicts(log, identity.read_names(match))
+        data = {"width": width, "height": height, "answered": len(log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -531,6 +595,17 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         moved = {questions.segment_of(o): refs[1][0] for o in refs[0]}
                         log, names = reanchor(log, identity.read_names(match), moved, questions.segment_of)
                         write_names(match, names)
+                elif self.path == "/forget":
+                    log = [e for e in log if e["id"] != body["id"]]
+                elif self.path == "/cut":
+                    # A piece answer in a conflict, cut where the person changes, in place of the answer.
+                    track, start = (int(v) for v in str(body["id"]).split(":")[1:3])
+                    _, a, b = questions.segment_of({"track": track, "frame": start})
+                    cut = questions.cut(track, a, b, float(body["at"]))
+                    if cut is None:
+                        return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
+                    log = [e for e in log if e["id"] != body["id"]]
+                    log.append({"id": f"cut:{track}:{cut[0]['frame']}", "choice": "cut", **constraints("cut", {"choices": []}, cut=cut), "applied": False})
                 elif self.path == "/undo" and log:
                     undone = log.pop()
                 elif self.path == "/apply":
