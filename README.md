@@ -408,6 +408,9 @@ npm run build    # updates src/volleyball_stats/site/ and matches_site/
 
 ## Pipeline
 
+Each step is scored against hand labels in `benchmarks/`; to label a new setup's match, see
+[docs/kili_labelling.md](docs/kili_labelling.md).
+
 | Step | What it does | Starting point |
 | --- | --- | --- |
 | 1. Rallies | Find when the ball is in play, drop dead time | Ball-track runs closed by the referee's whistle ([benchmark](benchmarks/rallies/README.md)) |

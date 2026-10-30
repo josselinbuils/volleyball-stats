@@ -53,9 +53,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   ends (in, out, fault) is the least reliable measure, attribution is right 71-83% of the time,
   identity IDF1 0.81-0.89. Free balls rest on one labelled example.
 - The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`) finds 139
-  rallies for 128 points, unscored: the owner labels it in Kili (rallies first, then contacts). Next:
-  score rallies, contacts and points on those labels; take each rally's winner from the next serve;
-  measure `speed.py` on the RTX 5080; tune jersey numbers on that footage.
+  rallies for 128 points, unscored: the owner labels it in Kili (`docs/kili_labelling.md`, rallies
+  first, then contacts). Next: score rallies, contacts and points on those labels; take each rally's
+  winner from the next serve; measure `speed.py` on the RTX 5080; tune jersey numbers on that footage.
 
 ## Hosting
 
