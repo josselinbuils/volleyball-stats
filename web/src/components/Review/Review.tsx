@@ -9,7 +9,7 @@ import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
-import { post, type Named, type Question, type Suggestion } from '@/lib/review';
+import { allMarked, post, type Named, type Question, type Suggestion } from '@/lib/review';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
@@ -53,7 +53,10 @@ export function Review({
   const nameOf = (team: Group, n: number) => given.get(`${team}:${n}`)?.name.trim() || null;
   // The questions answered here, last on top, to bring back on undo.
   const [done, setDone] = useState<Question[]>([]);
-  const question = questions[0];
+  // A proposed player whose pictures are all marked as someone else is no longer offered, and
+  // whether two players are one makes no sense with such a player: that question goes.
+  const open = questions.filter((q) => !(q.kind === 'merge' && q.choices.some(allMarked)));
+  const question = open[0];
   const show = (next: Tab) => {
     setTab(next);
     history.replaceState(null, '', next === 'questions' ? QUESTIONS_HASH : location.pathname);
@@ -67,7 +70,7 @@ export function Review({
       try {
         await post('answer', { id: question.id, choice });
         setDone((d) => [...d, question]);
-        setQuestions((qs) => qs.slice(1));
+        setQuestions((qs) => qs.filter((q) => q.id !== question.id));
         setAnswered((n) => n + 1);
         setShowOther(false);
         setError(false);
@@ -105,7 +108,7 @@ export function Review({
         return;
       }
       const choice = (question.kind === 'merge' ? MERGE_KEYS : KEYS)[event.key.toLowerCase()];
-      if (choice && (choice.length > 1 || Number(choice) < question.choices.length)) {
+      if (choice && (choice.length > 1 || (Number(choice) < question.choices.length && !allMarked(question.choices[Number(choice)])))) {
         event.preventDefault();
         void answer(choice);
       }
@@ -127,7 +130,7 @@ export function Review({
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">{t('review.title')}</h1>
             <p className="mt-1 text-sm text-muted-foreground" aria-live="polite">
-              {`${t('review.answers', { count: answered })} · ${t('review.left', { count: questions.length })}`}
+              {`${t('review.answers', { count: answered })} · ${t('review.left', { count: open.length })}`}
               {' · '}
               <a href="./" className="text-link underline underline-offset-2">
                 {t('review.matchPage')}
@@ -163,7 +166,7 @@ export function Review({
               {t('review.tabNames', { n: named, total: players.length })}
             </ToggleGroupItem>
             <ToggleGroupItem value="questions" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
-              {t('review.tabQuestions', { count: questions.length })}
+              {t('review.tabQuestions', { count: open.length })}
             </ToggleGroupItem>
           </ToggleGroup>
         )}
@@ -210,30 +213,32 @@ export function Review({
                 <p className="text-[13px] text-muted-foreground">{t(question.kind === 'piece' ? 'review.pieceNote' : 'review.mergeNote')}</p>
               </div>
               <div className="grid gap-3">
-                {question.choices.map((c, k) => (
-                  <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
-                    <Pictures
-                      crops={c.crops}
-                      pieces={c.pieces}
-                      owner={{ team: question.team, identity: c.identity }}
-                      players={players}
-                      nameOf={nameOf}
-                      onSaved={setAnswered}
-                      onError={() => setError(true)}
-                    />
-                    {question.kind === 'piece' && (
-                      <Button variant="outline" className="justify-between bg-card" onClick={() => void answer(String(k))}>
-                        {nameOf(question.team, c.identity) ? t('review.isNamed', { name: nameOf(question.team, c.identity), n: c.identity }) : t('review.isN', { n: c.identity })}
-                        <kbd className="rounded border px-1.5 text-xs text-muted-foreground">{k + 1}</kbd>
-                      </Button>
-                    )}
-                    {question.kind === 'merge' && (
-                      <p className="m-0 text-sm font-medium">
-                        {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                {question.choices.map((c, k) =>
+                  question.kind === 'piece' && allMarked(c) ? null : (
+                    <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
+                      <Pictures
+                        crops={c.crops}
+                        pieces={c.pieces}
+                        owner={{ team: question.team, identity: c.identity }}
+                        players={players}
+                        nameOf={nameOf}
+                        onSaved={setAnswered}
+                        onError={() => setError(true)}
+                      />
+                      {question.kind === 'piece' && (
+                        <Button variant="outline" className="justify-between bg-card" onClick={() => void answer(String(k))}>
+                          {nameOf(question.team, c.identity) ? t('review.isNamed', { name: nameOf(question.team, c.identity), n: c.identity }) : t('review.isN', { n: c.identity })}
+                          <kbd className="rounded border px-1.5 text-xs text-muted-foreground">{k + 1}</kbd>
+                        </Button>
+                      )}
+                      {question.kind === 'merge' && (
+                        <p className="m-0 text-sm font-medium">
+                          {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
+                        </p>
+                      )}
+                    </div>
+                  ),
+                )}
                 {question.kind === 'piece' ? (
                   <div className="grid gap-3">
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
