@@ -45,6 +45,22 @@ rallies.csv). The embedding cache is keyed by piece of track only: delete `embed
 sweeping `CROPS`, `CLEAR`, `HALF` or the crowd constants. About 1 minute per clip on the M4 Pro
 (MPS) without the cache, seconds with it.
 
+## Answers held out
+
+`answers.py` scores the step on a match's own review answers: each half of
+`identity_answers.json` held out in turn, the step run with the other half (names and cuts always
+kept), the held-out "same" groups and "different" pairs checked (37 s on the first ASPOM match).
+
+```bash
+uv run python benchmarks/identity/answers.py outputs/first_match --video data/first_match.mp4
+```
+
+First ASPOM match, 143 answers and 37 names (one club, one kit for both teams): 181/329 held-out
+constraints kept (55%) before `sharpen`, 201/329 (61%) with it at `SHARPEN` 0.5 (199, 60%, at 1).
+The questions were asked where the step doubted, so about half is the floor. Counting the pictures
+left unmarked in a card as one player adds nothing (61%). The school clips, without answers, keep
+their IDF1 (0.895 and 0.806).
+
 ## Ground truth
 
 `ground_truth/<clip>.csv`: `frame,player,x1,y1,x2,y2,track`, every tracked on-court player on

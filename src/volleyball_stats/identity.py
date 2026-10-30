@@ -60,6 +60,9 @@ CORE_S = 5.0
 CONTINUITY = 0.3
 # Principal components of a team's segment embeddings kept, whitened.
 WHITEN = 32
+# Share of each whitened direction's weight set by how well it tells apart the players the answers
+# and names confirm (`sharpen`), the rest kept even.
+SHARPEN = 0.5
 # Segments starting within BATCH frames of each other share out the free identities; a new
 # identity costs a distance of NEW.
 BATCH, NEW = 90, 0.9
@@ -305,6 +308,35 @@ def whiten(v: np.ndarray, weights: np.ndarray, dims: int) -> np.ndarray:
     scale, axes = np.sqrt(np.maximum(values[order], 0)), axes[:, order].T
     out = x @ axes.T / (scale + 1e-3)
     out = np.pad(out, ((0, 0), (0, dims - out.shape[1])))
+    return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
+
+
+def sharpen(v: np.ndarray, weights: np.ndarray, must: Iterable[tuple[int, int]], share: float = SHARPEN) -> np.ndarray:
+    """`v` (unit, whitened) with each direction weighted by how well it tells apart the players the
+    answers and names join (`must`): the spread between their prototypes over the spread within
+    them (a diagonal Fisher criterion), for `share` of the weight; unchanged with fewer than two."""
+    parent = list(range(len(v)))
+
+    def root(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for a, b in must:
+        parent[root(a)] = root(b)
+    groups: dict[int, list[int]] = {}
+    for i in range(len(v)):
+        groups.setdefault(root(i), []).append(i)
+    players = [g for g in groups.values() if len(g) > 1]
+    if len(players) < 2 or not share:
+        return v
+    mass = np.array([weights[g].sum() for g in players])
+    means = np.array([weights[g] @ v[g] / weights[g].sum() for g in players])
+    within = sum(weights[g] @ (v[g] - m) ** 2 for g, m in zip(players, means)) / mass.sum()
+    between = mass @ (means - mass @ means / mass.sum()) ** 2 / mass.sum()
+    fisher = between / (within + 1e-6)
+    out = v * np.sqrt(1 - share + share * fisher / max(fisher.mean(), 1e-9))
     return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
 
 
@@ -683,7 +715,7 @@ def identify(
                 earlier[local[b]] = local[a]
         mass = np.array([len(segments[k].frames) for k in idx], float)
         count = squad[team - 1] if squad and team in (1, 2) else None
-        wv[idx] = whiten(v[idx], weights[idx], WHITEN)
+        wv[idx] = sharpen(whiten(v[idx], weights[idx], WHITEN), weights[idx], must)
         local_cannot = [{local[j] for j in cannot[k] if j in local} for k in idx]
         found = group(wv[idx], weights[idx], mass, np.array([segments[k].start for k in idx]), local_cannot, must, earlier, fps, count)
         labels[idx] = np.where(found >= 0, found + labels.max() + 1, -1)
@@ -761,7 +793,9 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
         for track, start, end, team, number_ in read_identities(path):
             if number_:
                 previous.update(((f, track), (team, number_)) for f in frames.get(track, []) if start <= f <= end)
-    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, names=names)
+    from volleyball_stats import jerseys
+
+    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names)
     write_identities(path, segments)
     (match / "identity_candidates.json").write_text(json.dumps(found, indent=1) + "\n")
     return read_identities(path)

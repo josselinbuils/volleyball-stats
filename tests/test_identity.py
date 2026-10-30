@@ -14,6 +14,7 @@ from volleyball_stats.identity import (
     named,
     number,
     resolve,
+    sharpen,
     split,
 )
 from volleyball_stats.players import Row
@@ -193,3 +194,18 @@ class TestLookup:
         table = [(1, 0, 10, 1, 3), (1, 11, 30, 1, 0)]
 
         assert lookup(table, 1, 20) is None
+
+
+class TestSharpen:
+    def test_weights_the_direction_telling_confirmed_players_apart(self):
+        # Two players confirmed by answers differ along x; everyone varies as much along y.
+        v = np.array([[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0], [0.0, 1.0]]) / np.sqrt(2)
+        sharp = sharpen(v, np.ones(5), [(0, 1), (2, 3)], share=0.5)
+
+        assert abs(sharp[0, 0]) > abs(sharp[0, 1])
+        assert np.allclose(np.linalg.norm(sharp, axis=1), 1)
+
+    def test_leaves_the_vectors_without_two_confirmed_players(self):
+        v = np.eye(3)
+
+        assert np.array_equal(sharpen(v, np.ones(3), [(0, 1)]), v)

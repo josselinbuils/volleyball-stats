@@ -9,6 +9,9 @@ dependencies = ["gdown", "numpy", "opencv-python", "torch", "ultralytics"]
 [dependency-groups]
 dev = ["pytest"]
 bench = ["onnxruntime", "pillow", "pyyaml"]
+jerseys = [
+    "rapidocr-onnxruntime>=1.4.4",
+]
 
 [build-system]
 requires = ["hatchling"]
