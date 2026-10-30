@@ -15,7 +15,8 @@ uv run --group bench python -m volleyball_stats.rallies data/side_club.mp4 outpu
 ```
 
 The ball tracks come from `ball.py` (default stride). The motion energy of each video is cached
-under `outputs/bench/rallies/`.
+under `outputs/bench/rallies/`. Append `:outputs/players/CLIP_players.csv:outputs/court/side_holdout.json`
+to a triple to score `served` and `combined + served` too.
 
 ## Videos
 
@@ -146,12 +147,19 @@ match. Limits of this check: same match, referee, gym and camera, and one annota
    at least 0.67 s long and 300 px wide. The run starts at the first frame from which the ball
    covers 200 px of width within a second: the serve, not the toss or the bounces before it.
 3. Whistles: 16 kHz mono PCM from ffmpeg, 1024-point STFT every 10 ms, a frame is a whistle when
-   its 3.3–4.3 kHz peak is 30× the median of 1.5–6 kHz and above 15; runs of 80 ms or more, dips
-   under 0.2 s merged.
+   its 2.7–4.3 kHz peak is 30× the median of 1.5–6 kHz and above 15; runs of 80 ms or more, dips
+   under 0.2 s merged. Only the whistles within 500 Hz of the video's most common whistle pitch
+   are the referee's: 3.3–4.3 kHz on the school match, 2.9–3.3 kHz on the first ASPOM match.
 4. A run is a rally if a whistle starts between 0.5 s after its serve and 2 s after its last motion
    and the ball is not flying at 15 px/frame 1–3 s after that whistle (otherwise it was another
    court's whistle and the next one is tried). The rally ends at that whistle or at the run's last
    motion, whichever comes first.
+5. With the players tracked (`served`): a serve is the end of a stand of 1.5 s or more by a player
+   behind an end line, with the ball on the server's side then and across the net within 3 s. The
+   rally runs to the first whistle at least 0.5 s later and before the next serve, other than a
+   whistle during a stand that ends in a serve (the go); without one, to the end of the serve's
+   ball run, at the latest when the next server's stand starts. The pipeline adds these rallies
+   where step 4 found none.
 
 Prior art checked: no volleyball rally-segmentation paper with code. See et al. 2025 end a
 badminton rally when the shuttle stops moving, which fails here because the dead ball keeps
@@ -172,4 +180,15 @@ need TensorFlow or a new dependency, so the FFT band detector stays.
 - Dead-ball motion that lasts longer than 2 s past the whistle is harmless, but a serve-like throw
   closed by a stray whistle would be a false rally. The court module's floor position is the right
   cue to retire a dead ball; add it when a clip shows this.
-- Constants are in pixels of a 1280-wide frame; scale them for other resolutions.
+- Pixel constants are for the school match's court, 1032 px from end line to end line; the pipeline
+  scales them by the video's court length (2.16 on the first ASPOM match, 4K).
+- `served` needs the servers in the frame: the camera at the net post of the school match misses
+  most of them (F1 ±1 s 0.00–0.43 alone).
+
+## First ASPOM match
+
+4K at 50 fps from 6 m off the sideline, 67 minutes, 128 points (25-23, 25-12, 25-18), no labels
+yet. The referee whistles at 2.9–3.3 kHz, under the old 3.3 kHz band, and often whistles only the
+go, not the dead ball. Rallies found: 1 before; 77 with the referee's pitch, the scaled constants
+and the spare balls by the camera dropped; 139 with `served` added. Adding `served` on the school
+clips, F1 ±1 s: side_club 0.93 → 0.93, side_long 1.00 → 0.95, side_holdout 0.72 → 0.70.

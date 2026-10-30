@@ -111,7 +111,8 @@ faster.
 Without it, the court mapping is off by 0.3–1.4 m on wide footage the camera did not straighten (see
 the [court benchmark](benchmarks/court/README.md)). Film the board in the matches' field of view.
 Standard straightens most of it in the camera but still moves the 4K frame's corners by about 66 px
-and its side edges by 41 px.
+and its side edges by 41 px. On the first match the court sat in the frame's straight middle band:
+the lens moved court positions by 5 cm at most (13 cm in the free zone).
 
 1. Print the [board](docs/checkerboard.png) on A4 landscape, fit to page.
 2. Keep it flat: tape it on a wall or door and move the camera, or show it full screen on a TV.

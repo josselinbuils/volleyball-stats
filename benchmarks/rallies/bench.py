@@ -14,7 +14,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats.rallies import ball_runs, load_track, read_audio, runs, segment, whistles
+from volleyball_stats.court import Calibration
+from volleyball_stats.rallies import ball_runs, load_track, read_audio, runs, segment, served, whistles, with_serves
 
 OUT = Path("outputs/bench/rallies")
 TOLERANCES_S = (1.0, 2.0)
@@ -111,13 +112,13 @@ def bootstrap_f1(predicted: list[Rally], truth: list[Rally], tolerance: int, rou
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("triples", nargs="+", help="VIDEO:BALL_TRACK_CSV:GROUND_TRUTH_CSV")
+    parser.add_argument("triples", nargs="+", help="VIDEO:BALL_TRACK_CSV:GROUND_TRUTH_CSV[:PLAYERS_CSV:COURT_JSON], the players and the court for `served`")
     parser.add_argument("--show", action="store_true", help="Print the predicted rallies of each candidate")
     args = parser.parse_args()
 
     clips = []
     for triple in args.triples:
-        video, track_path, truth_path = map(Path, triple.split(":"))
+        video, track_path, truth_path, *more = map(Path, triple.split(":"))
         fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
         track = load_track(track_path)
         whistle_times = whistles(read_audio(video))
@@ -127,14 +128,20 @@ def main() -> None:
             "whistle": whistle_rallies(whistle_times, fps),
             "combined": segment(track, whistle_times, fps),
         }
+        if more:
+            with open(more[0]) as f:
+                players = [(int(r["frame"]), float(r["court_x"]), float(r["court_y"])) for r in csv.DictReader(f)]
+            serves = served(players, track, whistle_times, fps, Calibration.load(more[1]))
+            candidates["served"] = [(s, e) for s, e, _ in serves]
+            candidates["combined + served"] = with_serves(candidates["combined"], serves)
         for factor in MOTION_FACTORS:
             candidates[f"motion x{factor:g}"] = motion_rallies(energy, fps, factor)
         clips.append((video.stem, fps, load_ground_truth(truth_path), candidates))
 
     for stem, fps, truth, candidates in clips:
         print(f"{stem}: {len(truth)} rallies, {sum(e - s for s, e in truth) / fps:.0f} s in play\n")
-        print(f"{'candidate':12} {'n':>3} " + " ".join(f"{'±' + f'{t:g}' + ' s':^31}" for t in TOLERANCES_S))
-        print(f"{'':16} " + " ".join(f"{'P':>6} {'R':>6} {'F1':>6} {'MAE s':>5} {'[95%]':>10}" for _ in TOLERANCES_S))
+        print(f"{'candidate':17} {'n':>3} " + " ".join(f"{'±' + f'{t:g}' + ' s':^31}" for t in TOLERANCES_S))
+        print(f"{'':21} " + " ".join(f"{'P':>6} {'R':>6} {'F1':>6} {'MAE s':>5} {'[95%]':>10}" for _ in TOLERANCES_S))
         for name, predicted in candidates.items():
             cells = []
             for tol_s in TOLERANCES_S:
@@ -142,7 +149,7 @@ def main() -> None:
                 s = score(predicted, truth, tol, fps)
                 lo, hi = bootstrap_f1(predicted, truth, tol)
                 cells.append(f"{s['P']:6.2f} {s['R']:6.2f} {s['F1']:6.2f} {s['MAE']:5.2f} [{lo:.2f}-{hi:.2f}]")
-            print(f"{name:12} {len(predicted):3d} " + " ".join(f"{c:^31}" for c in cells))
+            print(f"{name:17} {len(predicted):3d} " + " ".join(f"{c:^31}" for c in cells))
             if args.show:
                 print("   " + " ".join(f"{s / fps:.1f}-{e / fps:.1f}" for s, e in predicted))
         if args.show:

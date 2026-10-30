@@ -152,6 +152,15 @@ class Calibration:
         pixels = undistort(points, self.lens) if self.lens else np.asarray(points, float).reshape(-1, 2)
         return apply_homography(np.linalg.inv(self.homography), pixels)
 
+    def in_front(self, points: np.ndarray, y: float) -> np.ndarray:
+        """Whether each image point is under the image of the line `y` meters toward the camera:
+        low and in front of it. A ball in the air over the court is above it, however high, whereas
+        its floor projection can land anywhere, behind the camera too."""
+        xs = np.linspace(-15, 15, 301)
+        line = self.to_image(np.c_[xs, np.full_like(xs, y)])
+        order = np.argsort(line[:, 0])
+        return np.asarray(points)[:, 1] > np.interp(np.asarray(points)[:, 0], line[order, 0], line[order, 1])
+
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({**vars(self), "homography": self.homography.tolist()}, indent=2))

@@ -1,6 +1,7 @@
 import numpy as np
 
-from volleyball_stats.rallies import FFT_SIZE, SAMPLE_RATE, ball_runs, runs, segment, whistles
+from volleyball_stats.court import Calibration
+from volleyball_stats.rallies import FFT_SIZE, SAMPLE_RATE, ball_runs, runs, segment, served, whistles, with_serves
 
 FPS = 30.0
 
@@ -97,3 +98,26 @@ class TestSegment:
 
         # 2.5 s: the ball is still flying 1-3 s later; 6.5 s: it has stopped.
         assert segment(track, [(2.5, 2.8), (6.5, 6.8)], FPS) == [(33, 179)]
+
+
+class TestServed:
+    # 50 px per meter, the net at x = 640.
+    calibration = Calibration(np.array([[50.0, 0, 640], [0, 50, 360], [0, 0, 1]]))
+    # A server stands 1.5 m behind the right end line for 2 s, then serves over the net.
+    server = [(f, 10.5, 0.0) for f in range(60)]
+    track = np.concatenate([np.tile([1165.0, 300.0], (60, 1)), flight(30, 1165, -20.0), np.full((300, 2), np.nan)])
+
+    def test_runs_from_the_serve_to_the_whistle_after_the_go(self):
+        # The go at 1 s sounds during the stand; the dead ball's whistle at 5 s closes the rally.
+        assert served(self.server, self.track, [(1.0, 1.4), (5.0, 5.3)], FPS, self.calibration) == [(59, 150, 1)]
+
+    def test_ends_with_the_ball_run_without_a_whistle(self):
+        assert served(self.server, self.track, [(1.0, 1.4)], FPS, self.calibration) == [(59, 89, 1)]
+
+    def test_a_stand_without_a_ball_crossing_is_no_serve(self):
+        held = np.concatenate([np.tile([1165.0, 300.0], (90, 1)), np.full((300, 2), np.nan)])
+
+        assert served(self.server, held, [(5.0, 5.3)], FPS, self.calibration) == []
+
+    def test_with_serves_adds_the_served_rallies_overlapping_none(self):
+        assert with_serves([(100, 200)], [(150, 300, 1), (400, 500, -1)]) == [(100, 200), (400, 500)]

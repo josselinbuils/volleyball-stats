@@ -28,6 +28,8 @@ MARGIN = 30
 MAX_GAP = 1.0
 # Ball speed in px/frame under which a frame does not vote for gravity.
 MOVING = 3
+# The pixel constants are for the school match's court (rallies.COURT_PX long); `scale` is a video's
+# court length over it.
 
 Contact = tuple[int, int, int]
 
@@ -43,13 +45,13 @@ def read_track(path: Path) -> np.ndarray:
     return track
 
 
-def gravity(track: np.ndarray, window: int) -> float:
+def gravity(track: np.ndarray, window: int, moving: float = MOVING) -> float:
     """Gravity in px/frame²: the median vertical acceleration of the moving ball, measured over
     `window` frames because integer positions quantize the one-frame one to 0."""
     y = track[:, 1]
     accel = (y[2 * window :] - 2 * y[window:-window] + y[: -2 * window]) / window**2
     speed = np.hypot(*(track[2 * window :] - track[: -2 * window]).T) / (2 * window)
-    votes = accel[~np.isnan(accel) & (speed > MOVING)]
+    votes = accel[~np.isnan(accel) & (speed > moving)]
     return float(np.median(votes)) if len(votes) else 0.0
 
 
@@ -96,15 +98,15 @@ def interpolate(track: np.ndarray) -> np.ndarray:
     return np.stack([np.interp(frames, frames[ok], track[ok, axis]) for axis in (0, 1)], axis=1)
 
 
-def detect_contacts(track: np.ndarray, fps: float, threshold: float = THRESHOLD, window: float = WINDOW, gap: float = GAP) -> list[Contact]:
+def detect_contacts(track: np.ndarray, fps: float, threshold: float = THRESHOLD, window: float = WINDOW, gap: float = GAP, scale: float = 1.0) -> list[Contact]:
     """Contacts as (frame, x, y), the position interpolated when the ball is not visible."""
     frames = max(2, round(window * fps))
-    change = velocity_change(track, frames, gravity(track, frames))
+    change = velocity_change(track, frames, gravity(track, frames, MOVING * scale))
     filled = interpolate(track)
-    return [(t, round(filled[t, 0]), round(filled[t, 1])) for t in peaks(change, threshold / fps, round(gap * fps))]
+    return [(t, round(filled[t, 0]), round(filled[t, 1])) for t in peaks(change, threshold * scale / fps, round(gap * fps))]
 
 
-def detect_crossings(track: np.ndarray, net_x: float, fps: float) -> list[int]:
+def detect_crossings(track: np.ndarray, net_x: float, fps: float, margin: float = MARGIN) -> list[int]:
     """Frames where the ball passes the net, interpolated between visible frames."""
     crossings: list[int] = []
     side, crossed, last = 0, None, None
@@ -114,7 +116,7 @@ def detect_crossings(track: np.ndarray, net_x: float, fps: float) -> list[int]:
             side, crossed = 0, None
         elif (x - net_x) * (last[1] - net_x) <= 0 and x != last[1]:
             crossed = last[0] + (net_x - last[1]) / (x - last[1]) * (t - last[0])
-        if abs(x - net_x) > MARGIN:
+        if abs(x - net_x) > margin:
             now = 1 if x > net_x else -1
             if side and now != side and crossed is not None:
                 crossings.append(round(crossed))
@@ -123,9 +125,9 @@ def detect_crossings(track: np.ndarray, net_x: float, fps: float) -> list[int]:
     return crossings
 
 
-def detect(track: np.ndarray, fps: float, net_x: float) -> tuple[list[Contact], list[int]]:
+def detect(track: np.ndarray, fps: float, net_x: float, scale: float = 1.0) -> tuple[list[Contact], list[int]]:
     """Contacts as (frame, x, y) and net crossing frames of a track with NaN where not visible."""
-    return detect_contacts(track, fps), detect_crossings(track, net_x, fps)
+    return detect_contacts(track, fps, scale=scale), detect_crossings(track, net_x, fps, MARGIN * scale)
 
 
 def main() -> None:

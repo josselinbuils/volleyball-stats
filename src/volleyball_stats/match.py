@@ -26,6 +26,9 @@ import numpy as np
 from volleyball_stats import actions, attribution, ball, contacts, court, decode, identity, players, points, rallies, teams
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
+# Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
+# bounced or held off the court.
+SPARE_Y = 5.5
 
 
 def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool) -> Iterator[tuple[ball.Position, list[players.Row]]]:
@@ -188,12 +191,20 @@ def main() -> None:
         if (out / "identity_answers.json").exists():
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
+    ball_track, scale = rallies.load_track(track_path), 1.0
+    if calibration is not None:
+        ball_track[calibration.in_front(ball_track, SPARE_Y)] = np.nan
+        scale = rallies.court_scale(calibration)
     start = time.perf_counter()
-    windows = rallies.segment(rallies.load_track(track_path), rallies.whistles(rallies.read_audio(args.video)), fps)
+    whistle_times = rallies.whistles(rallies.read_audio(args.video))
+    windows = rallies.segment(ball_track, whistle_times, fps, scale)
+    if args.players:
+        rows = attribution.read_players(players_path)
+        windows = rallies.with_serves(windows, rallies.served([(r.frame, *r.court) for r in rows], ball_track, whistle_times, fps, calibration))
     timings["rallies"] = time.perf_counter() - start
 
     start = time.perf_counter()
-    found, crossings = contacts.detect(contacts.read_track(track_path), fps, net_x)
+    found, crossings = contacts.detect(ball_track, fps, net_x, scale)
     windows = actions.served(windows, found, fps, calibration)
     typed = actions.mark_relances(args.video, actions.classify(found, crossings, windows, fps, net_x, calibration), fps)
     crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
@@ -202,7 +213,6 @@ def main() -> None:
 
     tracks, touchers, found_teams, settled = None, [None] * len(typed), None, None
     if args.players:
-        rows = attribution.read_players(players_path)
         touchers = attribution.attribute(typed, rows, fps)
         typed, touchers = actions.mark_dead(typed, touchers, [rally_of(t[0], windows, round(actions.LEAD_S * fps)) for t in typed])
         start = time.perf_counter()
