@@ -87,6 +87,10 @@ class TestLefts:
 
         assert lefts(rows, [(0, 20), (2990, 3020)], looks, 30.0) == [0, 1]
         assert lefts(rows, [(0, 20), (2990, 3020)], looks, 60.0) == [0, 0]
+        # Known set starts decide instead: a long break inside a set keeps the ends, a short one
+        # between sets changes them.
+        assert lefts(rows, [(0, 20), (2990, 3020)], looks, 30.0, [0.0, 200.0]) == [0, 0]
+        assert lefts(rows, [(0, 20), (2990, 3020)], looks, 60.0, [0.0, 40.0]) == [0, 1]
 
 
 class TestChangedEnds:

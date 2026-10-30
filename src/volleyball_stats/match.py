@@ -216,7 +216,7 @@ def main() -> None:
         touchers = attribution.attribute(typed, rows, fps)
         typed, touchers = actions.mark_dead(typed, touchers, [rally_of(t[0], windows, round(actions.LEAD_S * fps)) for t in typed])
         start = time.perf_counter()
-        found_teams = teams.assign(args.video, rows, windows, fps)
+        found_teams = teams.assign(args.video, rows, windows, fps, teams.known_starts(out / "teams.json", args.sets and args.sets.split(",")))
         timings["teams"] = time.perf_counter() - start
         try:
             settled = teams.settle(

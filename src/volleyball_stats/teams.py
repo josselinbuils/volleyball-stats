@@ -180,15 +180,16 @@ def look_alike(sides: dict[int, tuple[int, bool]], looks: dict[int, np.ndarray])
     return not all(groups) or float(np.linalg.norm(np.median(groups[0], axis=0) - np.median(groups[1], axis=0))) < KIT_GAP
 
 
-def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.ndarray], fps: float) -> list[int | None]:
+def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.ndarray], fps: float, starts: list[float] | None = None) -> list[int | None]:
     """Per rally window, the team (0 or 1) on the left, team 0 being on the left at the first rally
     with players; None for a rally without players. Consecutive rallies sharing CONTINUITY of their
     player frames form a stretch, where those tracks tell whether the teams changed ends; from one
-    stretch to the next, the looks do, unless the teams look alike: then the teams changed ends
-    after a break of SET_BREAK_S or more, a set break.
+    stretch to the next, the looks do, unless the teams look alike: then the teams changed ends at a
+    set start of `starts` (seconds) between them, without `starts` after a break of SET_BREAK_S or
+    more.
 
-    ponytail: teams alike that keep their ends between sets, or change them at a timeout, get it
-    wrong; `--sets` does not feed this yet.
+    ponytail: teams alike that keep their ends between sets get it wrong, and without `starts` so do
+    those changing them at a timeout or a long break.
     """
     order = sorted(rows, key=lambda r: r.frame)
     frames = np.array([r.frame for r in order])
@@ -216,7 +217,9 @@ def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.n
             if look_alike(before, looks):
                 # From the previous stretch's first rally: its own changes, then the break's.
                 last = stretches[i - 1][-1]
-                swapped ^= last[1] != (windows[stretch[0][0]][0] - windows[last[0]][1] >= SET_BREAK_S * fps)
+                gap = (windows[last[0]][1], windows[stretch[0][0]][0])
+                set_break = any(gap[0] < s * fps <= gap[1] for s in starts[1:]) if starts else gap[1] - gap[0] >= SET_BREAK_S * fps
+                swapped ^= last[1] != set_break
             else:
                 swapped ^= changed_ends(before, after, looks)
         for k, changed in stretch:
@@ -248,12 +251,12 @@ def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int 
     return out
 
 
-def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]], fps: float) -> Teams:
+def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]], fps: float, starts: list[float] | None = None) -> Teams:
     """Teams of a match's player tracks, numbered so that team 1 is on the left at the first rally
-    with players."""
+    with players; `starts` are the set starts (seconds) when known."""
     looks, crops = sample(video, rows)
     lengths = {track: len(r) for track, r in by_track(rows).items()}
-    left = lefts(rows, windows, looks, fps)
+    left = lefts(rows, windows, looks, fps, starts)
     tracks = track_teams(rows, windows, left)
     # A rally without players keeps the previous rally's sides (the first ones: team 1 on the left).
     for k, g in enumerate(left):
@@ -294,6 +297,12 @@ def set_starts(windows: list[tuple[int, int]], left: list[int | None], fps: floa
             starts.append(round((windows[previous[0]][1] + start) / 2 / fps))
         previous = (k, side)
     return starts
+
+
+def known_starts(path: Path, sets: list[str] | None) -> list[float] | None:
+    """Set starts (seconds) from `sets`, else from the teams.json at `path`; None without either."""
+    starts = sets or (json.loads(path.read_text()).get("sets") if path.exists() else None)
+    return [seconds(s) for s in starts] if starts else None
 
 
 def set_numbers(windows: list[tuple[int, int]], starts: list[float], fps: float) -> list[int]:
