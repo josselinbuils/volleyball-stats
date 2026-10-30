@@ -13,6 +13,7 @@ import { allMarked, post, type Named, type Question, type Suggestion } from '@/l
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
+import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
@@ -53,9 +54,12 @@ export function Review({
   const nameOf = (team: Group, n: number) => given.get(`${team}:${n}`)?.name.trim() || null;
   // The questions answered here, last on top, to bring back on undo.
   const [done, setDone] = useState<Question[]>([]);
-  // A proposed player whose pictures are all marked as someone else is no longer offered, and
-  // whether two players are one makes no sense with such a player: that question goes.
-  const open = questions.filter((q) => !(q.kind === 'merge' && q.choices.some(allMarked)));
+  // A proposed player whose pictures are all marked as someone else is no longer offered, nor a
+  // namesake of a player offered before; whether two players are one makes no sense with such a
+  // player, or once both carry the same name: that question goes.
+  const at = (q: Question, k: number) => ({ team: q.team, identity: q.choices[k].identity });
+  const hidden = (q: Question, k: number) => allMarked(q.choices[k]) || q.choices.slice(0, k).some((_, j) => sameName(at(q, j), at(q, k), nameOf));
+  const open = questions.filter((q) => !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
   const question = open[0];
   const show = (next: Tab) => {
     setTab(next);
@@ -108,7 +112,7 @@ export function Review({
         return;
       }
       const choice = (question.kind === 'merge' ? MERGE_KEYS : KEYS)[event.key.toLowerCase()];
-      if (choice && (choice.length > 1 || (Number(choice) < question.choices.length && !allMarked(question.choices[Number(choice)])))) {
+      if (choice && (choice.length > 1 || (Number(choice) < question.choices.length && !hidden(question, Number(choice))))) {
         event.preventDefault();
         void answer(choice);
       }
@@ -214,7 +218,7 @@ export function Review({
               </div>
               <div className="grid gap-3">
                 {question.choices.map((c, k) =>
-                  question.kind === 'piece' && allMarked(c) ? null : (
+                  question.kind === 'piece' && hidden(question, k) ? null : (
                     <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
                       <Pictures
                         crops={c.crops}
@@ -249,6 +253,7 @@ export function Review({
                     <label className="grid gap-1 text-sm font-medium">
                       {t('review.whoIs')}
                       <PlayerSelect
+                        key={question.id}
                         players={players}
                         nameOf={nameOf}
                         value=""

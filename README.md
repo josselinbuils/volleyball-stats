@@ -277,10 +277,12 @@ For two numbers never on court together: 1 for the same person, 2 for two people
 
 - **Answers** are saved at once to `identity_answers.json` and hold as hard constraints. Undoing one
   not applied yet is instant.
-- **"Ou choisissez qui c'est"** answers a question with any player of either team, by name.
+- **"Ou choisissez qui c'est"** answers a question with any player of either team: type part of a
+  name, Enter picks the one left.
 - **A picture showing someone else**, in a question or in "Noms": click it, then say who it is if you
-  know. On "Apply", that piece of track becomes that player (or someone else) and leaves the other
-  pictures' player. A player whose pictures are all marked is no longer offered in the lists.
+  know, or that it is not a player. On "Apply", that piece of track becomes that player (or someone
+  else, or no one) and leaves the other pictures' player. A player whose pictures are all marked is
+  no longer offered, and players with the same name are offered once.
 - **"Apply"** (or "undo") reruns the identity step and rebuilds the match page in seconds, keeping
   the other numbers.
 - **The identity step also reruns alone:**

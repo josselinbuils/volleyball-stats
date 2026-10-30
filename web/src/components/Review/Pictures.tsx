@@ -33,7 +33,7 @@ export function Pictures({
     const out = pieces.filter((p) => next.has(pieceKey(p)));
     const to = out.map((p) => {
       const who = next.get(pieceKey(p));
-      return who ? { team: Number(who.split(':')[0]), identity: Number(who.split(':')[1]) } : null;
+      return who === 'not_player' ? who : who ? { team: Number(who.split(':')[0]), identity: Number(who.split(':')[1]) } : null;
     });
     try {
       const { answered } = await post('odd', { odd: out, rest: pieces.filter((p) => !next.has(pieceKey(p))), to });
@@ -79,6 +79,7 @@ export function Pictures({
                   players={players}
                   nameOf={nameOf}
                   exclude={owner}
+                  notPlayer
                   value={odd.get(key) ?? ''}
                   empty={t('review.other')}
                   label={t('review.oddWho')}

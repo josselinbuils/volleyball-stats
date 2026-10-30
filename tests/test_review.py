@@ -109,7 +109,7 @@ class TestMarkOdd:
     def test_parts_each_odd_picture_from_each_other_one_but_not_the_odd_ones_from_each_other(self):
         log = mark_odd([], [self.b, self.c], [self.a])
 
-        assert log == [{"id": "odd:1:10,2:20,3:30", "choice": "odd", "odd": [self.b, self.c], "to": [None, None], "different": [[self.b, self.a], [self.c, self.a]], "applied": False}]
+        assert log == [{"id": "odd:1:10,2:20,3:30", "choice": "odd", "odd": [self.b, self.c], "to": [None, None], "rest": [self.a], "different": [[self.b, self.a], [self.c, self.a]], "applied": False}]
 
     def test_replaces_the_marks_of_the_same_pictures_and_clears_them(self):
         log = mark_odd([{"id": "piece:9:90"}], [self.b], [self.a, self.c])
@@ -130,3 +130,18 @@ class TestMarkOdd:
         entry = mark_odd([], [self.a, self.b], [], [paul, None])[0]
 
         assert entry["odd"] == [self.a, self.b] and entry["same"] == [[paul, self.a]] and entry["different"] == []
+
+    def test_unmarking_a_picture_clears_its_mark_made_among_other_pictures(self):
+        d = {"track": 4, "frame": 40}
+        # b and c marked against a; an apply then shows b with d instead.
+        log = mark_odd([], [self.b, self.c], [self.a])
+
+        log = mark_odd(log, [], [self.b, d])
+
+        assert [e["odd"] for e in log] == [[self.c]] and log[0]["different"] == [[self.c, self.a]]
+        assert mark_odd(log, [], [self.c, d]) == []
+
+    def test_a_picture_of_no_player_leaves_the_players(self):
+        entry = mark_odd([], [self.b], [self.a], ["not_player"])[0]
+
+        assert entry["not_player"] == [self.b] and "same" not in entry

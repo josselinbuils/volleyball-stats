@@ -211,19 +211,41 @@ def piece_key(ref: Ref) -> str:
     return f"{ref['track']}:{ref['frame']}"
 
 
-def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | None] | None = None) -> list[dict]:
+def odd_entry(entry_id: str, odd: list[Ref], rest: list[Ref], to: list[Ref | str | None]) -> dict:
+    """An answer marking the `odd` pictures of a player against the `rest`, with whom each one is
+    (`to`, see `mark_odd`)."""
+    same = [[t, o] for o, t in zip(odd, to) if isinstance(t, dict)]
+    gone = [o for o, t in zip(odd, to) if t == "not_player"]
+    return {
+        "id": entry_id, "choice": "odd", "odd": odd, "to": to, "rest": rest, "different": [[o, r] for o in odd for r in rest],
+        **({"same": same} if same else {}), **({"not_player": gone} if gone else {}), "applied": False,
+    }
+
+
+def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | str | None] | None = None) -> list[dict]:
     """`log` with one identity's pictures marked: the `odd` pieces show other people than the
     `rest`, each a different player from each of them, and the player of `to`'s piece when given
-    (`to` aligned with `odd`; that player first, so the piece takes their team). Kept with every
-    picture odd too, for their players and the marks; replaces the earlier marks of these pictures,
-    and removes them when none is odd."""
-    entry_id = "odd:" + ",".join(sorted(piece_key(r) for r in odd + rest))
-    log = [entry for entry in log if entry["id"] != entry_id]
+    (`to` aligned with `odd`; that player first, so the piece takes their team), or no player
+    ("not_player"). Kept with every picture odd too, for their players and the marks; replaces the
+    earlier marks of these pictures, also those made among other pictures (before an apply changed
+    them), and removes them when none is odd."""
+    shown = {piece_key(r) for r in odd + rest}
+    entry_id = "odd:" + ",".join(sorted(shown))
+    out = []
+    for entry in log:
+        if entry["id"] == entry_id:
+            continue
+        if entry.get("choice") == "odd" and any(piece_key(o) in shown for o in entry["odd"]):
+            kept = [(o, t) for o, t in zip(entry["odd"], entry.get("to") or [None] * len(entry["odd"])) if piece_key(o) not in shown]
+            if not kept:
+                continue
+            # Answers saved before "rest" was kept hold it in their pairs.
+            others = entry.get("rest") or list({piece_key(r): r for _, r in entry["different"]}.values())
+            entry = odd_entry(entry["id"], [o for o, _ in kept], others, [t for _, t in kept])
+        out.append(entry)
     if odd:
-        to = to or [None] * len(odd)
-        same = [[t, o] for o, t in zip(odd, to) if t]
-        log.append({"id": entry_id, "choice": "odd", "odd": odd, "to": to, "different": [[o, r] for o in odd for r in rest], **({"same": same} if same else {}), "applied": False})
-    return log
+        out.append(odd_entry(entry_id, odd, rest, to or [None] * len(odd)))
+    return out
 
 
 def save(path: Path, log: list[dict]) -> None:
@@ -357,8 +379,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         odd = {}
         for entry in log:
             for o, t in zip(entry.get("odd", []), entry.get("to") or [None] * len(entry.get("odd", []))):
-                who = t and identity.lookup(questions.table, t["track"], t["frame"])
-                odd[piece_key(o)] = f"{who[0]}:{who[1]}" if who else None
+                who = t if t == "not_player" else t and identity.lookup(questions.table, t["track"], t["frame"])
+                odd[piece_key(o)] = who if isinstance(who, str) or who is None else f"{who[0]}:{who[1]}"
         data = {"width": width, "height": height, "answered": len(log), "questions": found, "players": players, "roster": names, "odd": odd}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
@@ -435,7 +457,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     log.append({"id": body["id"], "choice": choice, **constraints(choice, refs[body["id"]], player), "applied": False})
                 elif self.path == "/odd":
                     refs = [[{"track": int(r["track"]), "frame": int(r["frame"])} for r in body[k]] for k in ("odd", "rest")]
-                    to = [t and questions.ref(int(t["team"]), int(t["identity"])) for t in body.get("to") or [None] * len(refs[0])]
+                    to = [t if t == "not_player" else t and questions.ref(int(t["team"]), int(t["identity"])) for t in body.get("to") or [None] * len(refs[0])]
                     log = mark_odd(log, *refs, to)
                 elif self.path == "/undo" and log:
                     undone = log.pop()
