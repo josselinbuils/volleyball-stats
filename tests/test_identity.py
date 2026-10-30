@@ -209,3 +209,24 @@ class TestSharpen:
         v = np.eye(3)
 
         assert np.array_equal(sharpen(v, np.ones(3), [(0, 1)]), v)
+
+
+class TestJerseyLinks:
+    def test_a_number_worn_by_two_people_at_once_joins_nobody(self):
+        # Number 10 on tracks 1 and 2 at the same time, then on track 3 later; number 8 on track 4.
+        segments = [Segment(1, list(range(0, 10)), []), Segment(2, list(range(5, 15)), []), Segment(3, list(range(20, 30)), []), Segment(4, list(range(0, 10)), [])]
+        for s in segments:
+            s.team = 1
+        jerseys = {(0, 1): 10, (5, 2): 10, (20, 3): 10, (0, 4): 8}
+
+        same, different = jersey_links(segments, jerseys)
+
+        assert same == []
+        assert different == [[[3], [0, 1, 2]]] or different == [[[0, 1, 2], [3]]]
+
+    def test_a_number_worn_by_one_person_joins_their_pieces(self):
+        segments = [Segment(1, list(range(0, 10)), []), Segment(3, list(range(20, 30)), [])]
+        for s in segments:
+            s.team = 1
+
+        assert jersey_links(segments, {(0, 1): 10, (20, 3): 10})[0] == [[0, 1]]

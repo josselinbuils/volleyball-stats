@@ -13,7 +13,7 @@ from pathlib import Path
 
 import cv2
 
-from volleyball_stats import identity
+from volleyball_stats import identity, jerseys
 from volleyball_stats.attribution import read_players
 
 KINDS = ("same", "different", "not_player", "cut")
@@ -59,14 +59,14 @@ def checks(segments: list[identity.Segment], entries: list[dict]) -> tuple[int, 
     return kept, total
 
 
-def run(match: Path, video: Path, inputs: dict, log: list[dict], names: list) -> tuple[int, int]:
-    """(kept, total) over both held-out halves."""
+def run(match: Path, video: Path, inputs: dict, log: list[dict], names: list, numbers: dict | None = None) -> tuple[int, int]:
+    """(kept, total) over both held-out halves, with the jersey numbers read if given."""
     kept = total = 0
     for fold in (0, 1):
         held = [e for k, e in enumerate(log) if k % 2 == fold and e.get("choice") != "cut"]
         given = [e for k, e in enumerate(log) if k % 2 != fold or e.get("choice") == "cut"]
         segments, _ = identity.identify(
-            video, inputs["rows"], inputs["windows"], inputs["left"], inputs["fps"], match / "embeddings.npz", constraints(given), contacts=inputs["contacts"], names=names
+            video, inputs["rows"], inputs["windows"], inputs["left"], inputs["fps"], match / "embeddings.npz", constraints(given), contacts=inputs["contacts"], jerseys=numbers, names=names
         )
         k, n = checks(segments, held)
         kept, total = kept + k, total + n
@@ -81,9 +81,11 @@ def main() -> None:
     inputs = load(args.match, args.video)
     log = json.loads((args.match / "identity_answers.json").read_text())["log"]
     names = [(e["ref"], e["name"]) for e in identity.read_names(args.match) if e.get("name")]
-    start = time.perf_counter()
-    kept, total = run(args.match, args.video, inputs, log, names)
-    print(f"{len(log)} answers, {len(names)} names: {kept}/{total} held-out constraints kept ({kept / max(total, 1):.0%}), {time.perf_counter() - start:.0f} s")
+    numbers = jerseys.load(args.match)
+    for label, read in (("without jersey numbers", None), ("with jersey numbers", numbers)) if numbers else (("", None),):
+        start = time.perf_counter()
+        kept, total = run(args.match, args.video, inputs, log, names, read)
+        print(f"{len(log)} answers, {len(names)} names{', ' + label if label else ''}: {kept}/{total} held-out constraints kept ({kept / max(total, 1):.0%}), {time.perf_counter() - start:.0f} s")
 
 
 if __name__ == "__main__":

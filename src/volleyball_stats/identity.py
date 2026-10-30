@@ -475,14 +475,18 @@ def previous_labels(segments: list[Segment], previous: dict[Key, tuple[int, int]
 
 def jersey_links(segments: list[Segment], jerseys: dict[Key, int]) -> tuple[list[list[int]], list[list[list[int]]]]:
     """"same" groups of segment indices and "different" pairs of such groups, from jersey numbers
-    read on (frame, track) boxes: per team, the segments read with one number are one player, two
-    numbers two."""
+    read on (frame, track) boxes: per team, two numbers are two players, and one number one player
+    unless two of its segments are on court at once (two people wear it: one club kit for both
+    teams, a spare shirt). On the first ASPOM match, joining every number merged two named players;
+    this keeps 281/389 held-out answers against 282 (benchmarks/identity/answers.py)."""
     read: dict[tuple[int, int], list[int]] = {}
     for k, s in enumerate(segments):
         numbers = {jerseys[f, s.track] for f in s.frames if (f, s.track) in jerseys}
         if len(numbers) == 1:
             read.setdefault((s.team, numbers.pop()), []).append(k)
-    return links(read)
+    same, different = links(read)
+    worn_by_one = [g for g in same if not any(segments[a].track != segments[b].track and segments[a].start <= segments[b].end and segments[b].start <= segments[a].end for i, a in enumerate(g) for b in g[i + 1 :])]
+    return worn_by_one, different
 
 
 def name_links(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> tuple[list[list[int]], list[list[list[int]]]]:
