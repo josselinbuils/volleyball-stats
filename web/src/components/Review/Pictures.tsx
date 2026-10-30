@@ -36,7 +36,7 @@ export function Pictures({
       return who === 'not_player' ? who : who ? { team: Number(who.split(':')[0]), identity: Number(who.split(':')[1]) } : null;
     });
     try {
-      const { answered, cancelled } = await post('odd', { odd: out, rest: pieces.filter((p) => !next.has(pieceKey(p))), to });
+      const { answered, cancelled } = await post('odd', { odd: out, rest: pieces.filter((p) => !next.has(pieceKey(p))), to, owner: { team: owner.team, identity: owner.identity } });
       if (cancelled) {
         return;
       }

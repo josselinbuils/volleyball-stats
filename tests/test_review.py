@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import chain, constraints, name_merges, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
+from volleyball_stats.review import chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
 
 
 class TestConstraints:
@@ -205,3 +205,30 @@ class TestNameMerges:
 
         assert name_merges(log, self.names, self.segment_of) == {frozenset({"Josselin", "Laeticia"})}
         assert name_merges(log[:1], self.names, self.segment_of) == set()
+
+
+class TestSupersede:
+    landy, milenka, piece, other = {"track": 1, "frame": 10}, {"track": 2, "frame": 20}, {"track": 3, "frame": 30}, {"track": 4, "frame": 40}
+
+    @staticmethod
+    def segment_of(ref):
+        return ref["track"]
+
+    def test_an_earlier_answer_lets_go_of_a_piece_marked_in_its_players_card(self):
+        log = [
+            {"id": "piece:3:30", "same": [[self.piece, self.landy]]},
+            {"id": "more:1:1:0", "same": [[self.landy, self.piece, self.other]]},
+            {"id": "odd:x", "same": [[self.milenka, self.piece]]},
+        ]
+
+        log = supersede(log, [self.piece], "odd:x", lambda r: r["track"] == 1, self.segment_of)
+
+        assert [e["same"] for e in log] == [[], [[self.landy, self.other]], [[self.milenka, self.piece]]]
+
+
+class TestMeeting:
+    def test_finds_the_piece_two_answers_claim(self):
+        # Manon's pin M, a card saying piece P is Manon, another card saying P is Quentin (pin Q).
+        links = {"M": [("P", "odd:a")], "P": [("M", "odd:a"), ("Q", "odd:b")], "Q": [("P", "odd:b")]}
+
+        assert meeting(path(links, {"M"}, {"Q"})) == ["P"]

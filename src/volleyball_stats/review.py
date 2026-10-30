@@ -19,11 +19,13 @@ ROSTER_MATCHES matches, and suggests the names of those who look most like each 
 import argparse
 import csv
 import json
+import queue
 import re
 import threading
+import time
 import webbrowser
 from collections import Counter, defaultdict, deque
-from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -37,6 +39,7 @@ from volleyball_stats import identity, web
 # frames looked at for the clearest picture of a piece.
 BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 CROP_PX, CROP_MARGIN = 448, 0.15
+READERS = 4
 KINDS = ("same", "different", "not_player", "cut")
 # Pieces looking most like a player offered to confirm at once, at least MORE_S long.
 MORE, MORE_S = 24, 1.0
@@ -164,6 +167,36 @@ class Questions:
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
 
+    def split(self, segment: tuple[int, int, int], log: list[dict], names: list[dict], named: dict) -> dict:
+        """A piece where two answers of a conflict meet, to look at and cut: its clip, filmstrip and
+        the moments the answers name."""
+        track, a, b = segment
+        return {
+            "id": f"split:{track}:{a}", "kind": "split", "clip": self.clip(track, a, b), "crops": [], "strip": self.strip(track, a, b),
+            "moments": self.moments(track, a, b, log, names, named, None), "claim": None,
+        }
+
+    def moments(self, track: int, a: int, b: int, log: list[dict], names: list[dict], named: dict, skip: str | None) -> list[dict]:
+        """Where the answers (but `skip`) and the names put someone inside a piece, with whom."""
+        moments: dict[int, str | None] = {}
+        inside = lambda r: isinstance(r, dict) and r["track"] == track and a <= r["frame"] <= b  # noqa: E731
+        for e in log:
+            if e["id"] == skip:
+                continue
+            for o, t in zip(e.get("odd", []), e.get("to") or [None] * len(e.get("odd", []))):
+                if inside(o):
+                    moments[o["frame"]] = self.claim(t, named, names) if isinstance(t, dict) else None
+            for g in e.get("same", []):
+                for r in g:
+                    others = [x for x in g if x is not r and not inside(x)]
+                    if inside(r) and others:
+                        moments.setdefault(r["frame"], self.claim(others[0], named, names))
+        for n in names:
+            r = n["ref"]
+            if n.get("name") and inside(r):
+                moments[r["frame"]] = n["name"]
+        return [{"time": round(f / self.fps, 2), "name": who, "crop": self.crop(track, f)} for f, who in sorted(moments.items())]
+
     def strip(self, track: int, start: int, end: int) -> list[dict]:
         """STRIP of a piece's boxes evenly spread over it, with their time and picture."""
         rows = self.track_rows(track, start, end)
@@ -207,34 +240,16 @@ class Questions:
             if len(together) < 2:
                 continue
             first, *rest = sorted(together)
-            ids = chain(links, set(pins[first]), {s for n in rest for s in pins[n]})
-            answers = []
+            steps = path(links, set(pins[first]), {s for n in rest for s in pins[n]})
+            ids = list(dict.fromkeys(a for _, a in steps if a))
+            answers = [self.split(segment, log, names, named) for segment in meeting(steps) if segment]
             for answer_id in ids:
                 if answer_id.startswith("piece:"):
                     track, start = (int(v) for v in answer_id.split(":")[1:3])
                     _, a, b = self.segment_of({"track": track, "frame": start})
                     cuts = [a + (b - a) * k // PIECE_CROPS for k in range(PIECE_CROPS + 1)]
                     crops = [self.crop(track, self.clear(track, x, y)) for x, y in zip(cuts, cuts[1:])]
-                    # Where other answers and the names put someone inside this piece: the moments to
-                    # compare, a piece showing two people having both.
-                    moments: dict[int, str | None] = {}
-                    inside = lambda r: isinstance(r, dict) and r["track"] == track and a <= r["frame"] <= b  # noqa: E731
-                    for e in log:
-                        if e["id"] == answer_id:
-                            continue
-                        for o, t in zip(e.get("odd", []), e.get("to") or [None] * len(e.get("odd", []))):
-                            if inside(o):
-                                moments[o["frame"]] = self.claim(t, named, names) if isinstance(t, dict) else None
-                        for g in e.get("same", []):
-                            for r in g:
-                                others = [x for x in g if x is not r and not inside(x)]
-                                if inside(r) and others:
-                                    moments.setdefault(r["frame"], self.claim(others[0], named, names))
-                    for n in names:
-                        r = n["ref"]
-                        if n.get("name") and r["track"] == track and a <= r["frame"] <= b:
-                            moments[r["frame"]] = n["name"]
-                    shown = [{"time": round(f / self.fps, 2), "name": who, "crop": self.crop(track, f)} for f, who in sorted(moments.items())]
+                    shown = self.moments(track, a, b, log, names, named, answer_id)
                     # The player the answer joined the piece to: the other member of its "same" group.
                     piece = {"track": track, "frame": (a + b) // 2}
                     pins = [r for g in by_id[answer_id].get("same", []) for r in g if not (r["track"] == track and a <= r["frame"] <= b)]
@@ -417,6 +432,25 @@ def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | st
     return out
 
 
+def supersede(log: list[dict], odd: list[Ref], keep: str, belongs, segment_of) -> list[dict]:
+    """`log` with the earlier answers joining one of the `odd` pieces (marked in a card) to the card's
+    player (`belongs` tells their pins) letting go of that piece: the latest judgment wins.
+    `keep` is the marking answer itself."""
+    gone = {segment_of(o) for o in odd}
+    out = []
+    for e in log:
+        if e["id"] != keep and e.get("same"):
+            same = []
+            for g in e["same"]:
+                if any(segment_of(r) in gone for r in g) and any(belongs(r) and segment_of(r) not in gone for r in g):
+                    g = [r for r in g if segment_of(r) not in gone]
+                if len(g) > 1:
+                    same.append(g)
+            e = {**e, "same": same}
+        out.append(e)
+    return out
+
+
 def name_merges(log: list[dict], names: list[dict], segment_of) -> set[frozenset[str]]:
     """The sets of different names the answers' "same" links join into one player, each name's pins
     being one player: what an apply would merge whatever the looks."""
@@ -447,25 +481,36 @@ def name_merges(log: list[dict], names: list[dict], segment_of) -> set[frozenset
     return {frozenset(v) for v in held.values() if len(v) > 1}
 
 
-def chain(links: dict, starts: set, goals: set) -> list[str]:
-    """The answers (ids, in order) along the shortest path of `links` ({node: [(node, answer id or
-    None)]}) from one of `starts` to one of `goals`; none without a path."""
+def path(links: dict, starts: set, goals: set) -> list[tuple]:
+    """The steps (node, answer id or None leading to it) of the shortest path of `links` ({node:
+    [(node, answer id or None)]}) from one of `starts` to one of `goals`; none without a path."""
     seen = {s: None for s in starts}
     queue = deque(starts)
     while queue:
         node = queue.popleft()
         if node in goals:
-            ids = []
+            steps = []
             while seen[node]:
-                node, answer_id = seen[node]
-                if answer_id and answer_id not in ids:
-                    ids.append(answer_id)
-            return ids[::-1]
+                before, answer_id = seen[node]
+                steps.append((node, answer_id))
+                node = before
+            return [(node, None), *steps[::-1]]
         for other, answer_id in links[node]:
             if other not in seen:
                 seen[other] = (node, answer_id)
                 queue.append(other)
     return []
+
+
+def chain(links: dict, starts: set, goals: set) -> list[str]:
+    """The answers (ids, in order) along the shortest path of `links` between `starts` and `goals`."""
+    return list(dict.fromkeys(a for _, a in path(links, starts, goals) if a))
+
+
+def meeting(steps: list[tuple]) -> list:
+    """The nodes of a path where two different answers meet: a piece each says is someone, most
+    likely showing both."""
+    return [steps[k][0] for k in range(1, len(steps) - 1) if steps[k][1] and steps[k + 1][1] and steps[k][1] != steps[k + 1][1]]
 
 
 def reanchor(log: list[dict], names: list[dict], moved: dict, segment_of) -> tuple[list[dict], list[dict]]:
@@ -609,20 +654,54 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         identity.rerun(match, video, squad)
     questions = Questions(match, fps)
     lock = threading.Lock()
-    capture = cv2.VideoCapture(str(video))
+    # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.35 s.
+    readers: queue.Queue = queue.Queue()
+    for _ in range(READERS):
+        readers.put(cv2.VideoCapture(str(video)))
+    kept = match / "crops"
 
-    @lru_cache(maxsize=2048)
     def picture(frame: int, box: tuple[int, int, int, int]) -> bytes:
-        with lock:
+        path = kept / f"{CROP_PX}_{frame}_{'_'.join(map(str, box))}.jpg"
+        if path.exists():
+            return path.read_bytes()
+        capture = readers.get()
+        try:
             capture.set(cv2.CAP_PROP_POS_FRAMES, frame)
             ok, image = capture.read()
+        finally:
+            readers.put(capture)
         if not ok:
             return b""
         x1, y1, x2, y2 = box
         mx, my = round((x2 - x1) * CROP_MARGIN), round((y2 - y1) * CROP_MARGIN)
         part = image[max(0, y1 - my) : y2 + my, max(0, x1 - mx) : x2 + mx]
         part = cv2.resize(part, (max(1, round(part.shape[1] * CROP_PX / part.shape[0])), CROP_PX), interpolation=cv2.INTER_CUBIC)
-        return cv2.imencode(".jpg", part, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
+        body = cv2.imencode(".jpg", part, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
+        kept.mkdir(exist_ok=True)
+        path.write_bytes(body)
+        return body
+
+    # Where an apply stands, for the page's progress bar: the steps, the one running since when, and
+    # each step's last duration (first guesses from the first ASPOM match).
+    progress: dict = {}
+    took = {"players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0}
+
+    def run_steps(steps: list) -> None:
+        progress.update(steps=[name for name, _ in steps], took=took)
+        try:
+            for k, (name, work) in enumerate(steps):
+                progress.update(done=k, since=time.time())
+                work()
+                took[name] = time.time() - progress["since"]
+        finally:
+            progress.clear()
+
+    def warm() -> None:
+        """Cuts the review's pictures ahead of the user, READERS at a time."""
+        found, _ = questions.build(set())
+        urls = re.findall(r"crop\?f=(\d+)&b=([\d,-]+)", json.dumps([found, questions.players([], team_names())]))
+        with ThreadPoolExecutor(READERS) as pool:
+            list(pool.map(lambda u: picture(int(u[0]), tuple(int(v) for v in u[1].split(","))), dict.fromkeys(urls)))
 
     def team_names() -> list[str | None]:
         teams = web.read_teams(match)
@@ -658,6 +737,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             url = urlparse(self.path)
             if url.path == "/review.js":
                 return self.send(review_js(), "text/javascript")
+            if url.path == "/progress":
+                state = dict(progress)
+                if state:
+                    state["elapsed"] = time.time() - state.pop("since")
+                return self.send(json.dumps(state).encode(), "application/json")
             if url.path == "/more":
                 q = parse_qs(url.query)
                 team, number = int(q["team"][0]), int(q["identity"][0])
@@ -737,10 +821,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     refs = [[{"track": int(r["track"]), "frame": int(r["frame"])} for r in body[k]] for k in ("odd", "rest")]
                     to = [t if t == "not_player" else t and questions.ref(int(t["team"]), int(t["identity"])) for t in body.get("to") or [None] * len(refs[0])]
                     log = mark_odd(log, *refs, to)
-                    # The player's pins on the pictures marked move to their first picture left.
+                    marking = log[-1]["id"] if refs[0] else None
+                    # The player's pins on the pictures marked move to their first picture left; then
+                    # the earlier answers giving them those pieces let go: the latest judgment wins.
                     if refs[0] and refs[1]:
                         moved = {questions.segment_of(o): refs[1][0] for o in refs[0]}
                         log, renamed = reanchor(log, identity.read_names(match), moved, questions.segment_of)
+                    if marking and body.get("owner"):
+                        owner = (int(body["owner"]["team"]), int(body["owner"]["identity"]))
+                        belongs = lambda r: identity.lookup(questions.table, r["track"], r["frame"]) == owner  # noqa: E731
+                        log = supersede(log, refs[0], marking, belongs, questions.segment_of)
                 elif self.path == "/more":
                     # Pieces looking like a player: those kept are them, the others someone else.
                     team, number = int(body["team"]), int(body["identity"])
@@ -789,14 +879,14 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 # before this flag count as applied) recomputes, as applying does.
                 rebuilt = self.path == "/apply" or (undone is not None and undone.get("applied", True))
                 if rebuilt:
-                    identity.rerun(match, video, squad)
-                    questions.load()
+                    steps = [("players", lambda: identity.rerun(match, video, squad)), ("questions", questions.load)]
                     if self.path == "/apply":
-                        remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())
-                    web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2})
+                        steps.append(("roster", lambda: remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())))
+                    steps.append(("review", lambda: web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2})))
                     # The published page follows, with its own choices.
                     if (match / "page.json").exists():
-                        web.publish(match, video, court, theme, {})
+                        steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
+                    run_steps(steps)
             self.send(json.dumps({"answered": len(log), "rebuilt": rebuilt, "undone": undone and undone["id"]}).encode(), "application/json")
 
         def log_message(self, *args) -> None:
@@ -805,6 +895,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # The footage shows minors: this machine only.
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/review"
+    threading.Thread(target=warm, daemon=True).start()
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
         webbrowser.open(url)

@@ -78,7 +78,11 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
   }
   return (
     <div className="grid gap-3">
-      <p className="m-0 text-sm font-medium">{t('review.claimPiece', { from: clock(answer.clip.start), to: clock(answer.clip.end), name: someone(answer.claim) })}</p>
+      <p className="m-0 text-sm font-medium">
+        {answer.kind === 'split'
+          ? t('review.claimSplit', { from: clock(answer.clip.start), to: clock(answer.clip.end) })
+          : t('review.claimPiece', { from: clock(answer.clip.start), to: clock(answer.clip.end), name: someone(answer.claim) })}
+      </p>
       <p className="m-0 text-sm text-muted-foreground">{t('review.diagnose')}</p>
       <div className="flex items-end gap-0.5 overflow-x-auto p-1">
         {answer.strip.map((m, k) => (
@@ -132,10 +136,12 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
             <Scissors aria-hidden />
             {t('review.cut')}
           </Button>
-          <Button variant="outline" className="justify-start bg-card" onClick={() => void act('forget')}>
-            <Trash2 aria-hidden />
-            {t('review.forget')}
-          </Button>
+          {answer.kind === 'piece' && (
+            <Button variant="outline" className="justify-start bg-card" onClick={() => void act('forget')}>
+              <Trash2 aria-hidden />
+              {t('review.forget')}
+            </Button>
+          )}
           {failed && (
             <p role="alert" className="m-0 text-sm text-destructive">
               {t('review.error')}

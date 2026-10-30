@@ -59,7 +59,7 @@ export interface Suggestion {
 /** An answer joining two names in one player: a piece of track (its clip and pictures), or
  * pictures marked as someone else. */
 export type Linking =
-  | { id: string; kind: 'piece'; clip: Clip; crops: string[]; moments: Moment[]; claim: string | null; strip: { time: number; crop: string }[] }
+  | { id: string; kind: 'piece' | 'split'; clip: Clip; crops: string[]; moments: Moment[]; claim: string | null; strip: { time: number; crop: string }[] }
   | { id: string; kind: 'odd'; crops: string[]; claims: (string | null)[] };
 
 /** A moment of a piece where another answer, or a name, puts someone: its time, who they were said

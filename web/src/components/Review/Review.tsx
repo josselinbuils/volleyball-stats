@@ -93,10 +93,27 @@ export function Review({
     [question],
   );
 
+  const [progress, setProgress] = useState<{ fraction: number; step: string } | null>(null);
   const reload = async (path: 'undo' | 'apply') => {
     setBusy(path);
+    // The server's steps, each advancing as long as it took last time.
+    const poll = window.setInterval(async () => {
+      try {
+        const p = (await (await fetch('progress')).json()) as { steps?: string[]; done: number; took: Record<string, number>; elapsed: number };
+        if (p.steps) {
+          const time = (step: string) => p.took[step] ?? 1;
+          const total = p.steps.reduce((sum, step) => sum + time(step), 0);
+          const done = p.steps.slice(0, p.done).reduce((sum, step) => sum + time(step), 0);
+          const step = p.steps[p.done];
+          setProgress({ fraction: Math.min(0.99, (done + Math.min(p.elapsed, time(step))) / total), step });
+        }
+      } catch {
+        // The bar waits for the next poll.
+      }
+    }, 400);
     try {
       const saved = await post(path);
+      window.clearInterval(poll);
       // An answer not applied yet comes back without rebuilding anything.
       const last = done[done.length - 1];
       if (path === 'undo' && !saved.rebuilt && last?.id === saved.undone) {
@@ -108,6 +125,8 @@ export function Review({
       }
       location.reload();
     } catch {
+      window.clearInterval(poll);
+      setProgress(null);
       setBusy(null);
       setError(true);
     }
@@ -160,6 +179,14 @@ export function Review({
             </Button>
           </div>
         </header>
+        {progress && (
+          <div role="progressbar" aria-label={t('review.applying')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.fraction * 100)} className="grid gap-1 px-1">
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress.fraction * 100}%` }} />
+            </div>
+            <p className="m-0 text-xs text-muted-foreground">{t(`review.step.${progress.step}`)}</p>
+          </div>
+        )}
         {players.length > 0 && (
           <ToggleGroup
             type="single"

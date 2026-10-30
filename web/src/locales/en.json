@@ -143,6 +143,13 @@
     "apply_one": "Apply my answer",
     "apply_other": "Apply my {{count}} answers",
     "applying": "Updating the match page…",
+    "step": {
+      "players": "Working out the players…",
+      "questions": "Preparing the questions…",
+      "roster": "Updating the players' roster…",
+      "review": "Rebuilding this page…",
+      "page": "Rebuilding the match page…"
+    },
     "error": "The answer was not saved: is the review server still running?",
     "who": "Who is outlined in yellow?",
     "mergeQuestion": "Are no. {{a}} and no. {{b}} the same person?",
@@ -174,6 +181,7 @@
     "claimMarks": "Pictures marked in a card, and who you said they were:",
     "diagnose": "Look at the piece's pictures. Two people? The tracking switched players midway: cut (✂) between the last picture of one and the first of the other. One person only? One of your answers is wrong: forget the one that doesn't match the picture.",
     "claimPiece": "Your answer: this piece ({{from}} – {{to}}) is {{name}}.",
+    "claimSplit": "Your answers give this piece ({{from}} – {{to}}) to several people: each picture is likely right, but the tracking switched players midway. Cut (✂) between them.",
     "moments": "Your other answers in this piece (click to see the moment):",
     "pinned": "All your answers giving a piece to {{names}}",
     "pinnedNote": "Given while these players were joined, they may sit under the wrong name. If the picture doesn't show the person named, pick who it is: the answer is corrected.",

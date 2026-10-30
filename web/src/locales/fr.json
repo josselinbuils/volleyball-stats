@@ -143,6 +143,13 @@
     "apply_one": "Appliquer ma réponse",
     "apply_other": "Appliquer mes {{count}} réponses",
     "applying": "Mise à jour de la page du match…",
+    "step": {
+      "players": "Calcul des joueurs…",
+      "questions": "Préparation des questions…",
+      "roster": "Mise à jour du répertoire des joueurs…",
+      "review": "Reconstruction de cette page…",
+      "page": "Reconstruction de la page du match…"
+    },
     "error": "La réponse n'a pas été enregistrée : le serveur de vérification est-il toujours lancé ?",
     "who": "Qui est entouré en jaune ?",
     "mergeQuestion": "Le n° {{a}} et le n° {{b}} sont-ils la même personne ?",
@@ -174,6 +181,7 @@
     "claimMarks": "Images marquées dans une carte, et qui vous avez dit que c'était :",
     "diagnose": "Regardez les images du morceau. Deux personnes ? Le suivi a changé de joueur en cours de route : coupez (✂) entre la dernière image de l'une et la première de l'autre. Une seule personne ? C'est une de vos réponses qui est fausse : oubliez celle qui ne correspond pas à l'image.",
     "claimPiece": "Votre réponse : ce morceau ({{from}} – {{to}}) est {{name}}.",
+    "claimSplit": "Vos réponses donnent ce morceau ({{from}} – {{to}}) à plusieurs personnes : chaque image est sans doute juste, mais le suivi a changé de joueur en cours de route. Coupez (✂) entre les deux.",
     "moments": "Vos autres réponses dans ce morceau (cliquez pour voir le moment) :",
     "pinned": "Toutes vos réponses qui donnent un morceau à {{names}}",
     "pinnedNote": "Données pendant que ces joueurs étaient réunis, elles ont pu être rangées sous le mauvais nom. Si l'image ne montre pas la personne indiquée, choisissez qui c'est : la réponse est corrigée.",
