@@ -17,9 +17,6 @@ frame (players removed) and stored by name; later videos of the same court find 
 CLICKS_JSON maps landmark names to image pixels: {"corner_left_far": [x, y], ...}. LENS_JSON holds
 OpenCV intrinsics for the video resolution: {"model": "fisheye" | "standard", "K": 3x3, "D": [...]}.
 """
-# ponytail: the DJI Osmo Action 3 at its widest field of view has strong barrel distortion and no
-# LENS_JSON yet: calibrate it once with a checkerboard (cv2.fisheye, settings locked) before fitting
-# a match. Without it the homography is only as good as the benchmark's side_club numbers.
 
 import argparse
 import base64

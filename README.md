@@ -32,7 +32,7 @@ Automatic per-player volleyball statistics from a match video.
 
 ### Camera placement
 
-- One fixed camera on a sideline, aligned with the net, a few meters from the court, 3.6 m high.
+- One fixed camera on a sideline, aligned with the net, about 6 m from the sideline, 3.6 m high.
 - It frames both end lines. No auto-tracking or panning camera.
 - It sits on a light stand (Manfrotto 1004BAC):
   - the stand's base on the floor behind a handball goal post;
@@ -68,8 +68,8 @@ Automatic per-player volleyball statistics from a match video.
 
 ### Camera settings (Osmo Action 3)
 
-In short: 4K (2.7K minimum) at 50 fps, widest field of view, everything locked, shutter 1/250 or
-faster. Lens distortion is corrected in software.
+In short: 4K (2.7K minimum) at 50 fps, Standard field of view, everything locked, shutter 1/250 or
+faster.
 
 | Setting | Réglage | Where | Value | Why |
 | --- | --- | --- | --- | --- |
@@ -78,7 +78,7 @@ faster. Lens distortion is corrected in software.
 | Loop recording | Enregistrement en boucle | Swipe up, top left | Off | Would overwrite the start of the match |
 | Stabilisation | Stabilisation | Swipe up, top right | Off (no RockSteady, no HorizonBalancing) | Fixed camera; stabilisation warps each frame |
 | Mode | Mode | Parameters icon | PRO | Locked exposure |
-| Field of view | Champ de vision | PRO | Ultra Wide, else Wide; never Standard (Dewarp) | Distortion is corrected in software; Dewarp crops |
+| Field of view | Champ de vision | PRO | Standard; Wide or Ultra Wide only if the stand is too close to frame the court | 6 m from the sideline it frames the whole court; wider ones shrink the players and bend the lines |
 | Shutter speed | Vitesse d'obturation | PRO, Exposure: Manual | 1/250, 1/500 if the gym is bright | Sharp ball |
 | ISO | ISO | PRO, Exposure: Manual | Lowest correct one, set at the gym (often 800–3200) | Locked exposure |
 | White balance | Balance des blancs | PRO | Manual, set at the gym (often 4500–5500 K under LEDs) | Stable jersey colours for the teams |
@@ -102,20 +102,24 @@ faster. Lens distortion is corrected in software.
 - [x] Set the [camera settings](#camera-settings-osmo-action-3), ISO and white balance aside.
 - [x] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
       overheating.
-- [ ] Calibrate the lens once at those settings (see [below](#lens-calibration)).
+- [x] Calibrate the lens in Standard (see [below](#lens-calibration)).
 - [ ] At the gym: get approval for the handball goals and check they are anchored. Check the framing
       from the stand shows both end lines and the near corners.
 
 #### Lens calibration
 
-Without it, the court mapping is off by 0.3–1.4 m (see the
-[court benchmark](benchmarks/court/README.md)).
+Without it, the court mapping is off by 0.3–1.4 m on wide footage the camera did not straighten (see
+the [court benchmark](benchmarks/court/README.md)). Film the board in the matches' field of view.
+Standard straightens most of it in the camera but still moves the 4K frame's corners by about 66 px
+and its side edges by 41 px.
 
 1. Print the [board](docs/checkerboard.png) on A4 landscape, fit to page.
-2. Tape it flat on cardboard.
-3. Film it for a minute at 1–3 m, tilting it and sweeping it into the corners and edges of the frame.
+2. Keep it flat: tape it on a wall or door and move the camera, or show it full screen on a TV.
+3. Film it for a minute at about 1 m, from several angles. Watching the camera screen, place the
+   whole board in each corner, at the middle of each edge and in the centre, 2 s each.
 4. Run `uv run python -m volleyball_stats.lens calibrate VIDEO`. It writes `outputs/lens.json`, to
-   pass as `--lens` to the court commands.
+   pass as `--lens` to the court commands. The Osmo Action 3's, in Standard at 4K, is
+   [`docs/lens_osmo_action3_standard_4k.json`](docs/lens_osmo_action3_standard_4k.json).
 
 ### After the first match
 
@@ -177,7 +181,7 @@ uv run python benchmarks/speed.py VIDEO          # projected processing time of 
 
 ```bash
 uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
-uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens outputs/lens.json]
+uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens docs/lens_osmo_action3_standard_4k.json]
 uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
 ```
 
