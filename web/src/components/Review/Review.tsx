@@ -12,6 +12,7 @@ import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
 import { post, type Named, type Question, type Suggestion } from '@/lib/review';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
+import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { Names } from '@/components/Review/Names';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
@@ -211,7 +212,15 @@ export function Review({
               <div className="grid gap-3">
                 {question.choices.map((c, k) => (
                   <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
-                    <Pictures crops={c.crops} pieces={c.pieces} onSaved={setAnswered} onError={() => setError(true)} />
+                    <Pictures
+                      crops={c.crops}
+                      pieces={c.pieces}
+                      owner={{ team: question.team, identity: c.identity }}
+                      players={players}
+                      nameOf={nameOf}
+                      onSaved={setAnswered}
+                      onError={() => setError(true)}
+                    />
                     {question.kind === 'piece' && (
                       <Button variant="outline" className="justify-between bg-card" onClick={() => void answer(String(k))}>
                         {nameOf(question.team, c.identity) ? t('review.isNamed', { name: nameOf(question.team, c.identity), n: c.identity }) : t('review.isN', { n: c.identity })}
@@ -226,10 +235,24 @@ export function Review({
                   </div>
                 ))}
                 {question.kind === 'piece' ? (
-                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                    <AnswerButton icon={<Users aria-hidden />} label={t('review.other')} hint="3" onClick={() => void answer('other')} />
-                    <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                  <div className="grid gap-3">
+                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                      <AnswerButton icon={<Users aria-hidden />} label={t('review.other')} hint="3" onClick={() => void answer('other')} />
+                      <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
+                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                    </div>
+                    <label className="grid gap-1 text-sm font-medium">
+                      {t('review.whoIs')}
+                      <PlayerSelect
+                        players={players}
+                        nameOf={nameOf}
+                        value=""
+                        empty={t('review.pickPlayer')}
+                        label={t('review.whoIs')}
+                        className="h-9 w-full text-[15px] font-normal"
+                        onChange={(who) => who && void answer(`player:${who}`)}
+                      />
+                    </label>
                   </div>
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">

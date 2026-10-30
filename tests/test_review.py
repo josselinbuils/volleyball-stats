@@ -28,6 +28,12 @@ class TestConstraints:
         assert constraints("same", refs) == {"same": [[self.three, self.five]]}
         assert constraints("different", refs) == {"different": [[self.three, self.five]]}
 
+    def test_a_player_said_by_name_joins_the_piece_to_them_first_and_parts_it_from_the_choices(self):
+        paul = {"track": 9, "frame": 90}
+
+        assert constraints("player:1:7", self.refs, paul) == {"same": [[paul, self.piece]], "different": [[self.piece, self.three, self.five]]}
+        assert constraints("player:1:3", self.refs, self.three) == {"same": [[self.three, self.piece]], "different": [[self.piece, self.five]]}
+
 
 class TestSave:
     def test_the_constraint_lists_follow_the_log(self, tmp_path):
@@ -103,10 +109,24 @@ class TestMarkOdd:
     def test_parts_each_odd_picture_from_each_other_one_but_not_the_odd_ones_from_each_other(self):
         log = mark_odd([], [self.b, self.c], [self.a])
 
-        assert log == [{"id": "odd:1:10,2:20,3:30", "choice": "odd", "odd": [self.b, self.c], "different": [[self.b, self.a], [self.c, self.a]], "applied": False}]
+        assert log == [{"id": "odd:1:10,2:20,3:30", "choice": "odd", "odd": [self.b, self.c], "to": [None, None], "different": [[self.b, self.a], [self.c, self.a]], "applied": False}]
 
     def test_replaces_the_marks_of_the_same_pictures_and_clears_them(self):
         log = mark_odd([{"id": "piece:9:90"}], [self.b], [self.a, self.c])
 
         assert [e["id"] for e in mark_odd(log, [self.b, self.c], [self.a])] == ["piece:9:90", "odd:1:10,2:20,3:30"]
         assert mark_odd(log, [], [self.a, self.b, self.c]) == [{"id": "piece:9:90"}]
+
+    def test_joins_an_odd_picture_to_the_player_it_is_said_to_be_that_player_first(self):
+        paul = {"track": 8, "frame": 80}
+
+        entry = mark_odd([], [self.b], [self.a], [paul])[0]
+
+        assert entry["same"] == [[paul, self.b]] and entry["different"] == [[self.b, self.a]]
+
+    def test_keeps_every_picture_marked_with_the_players_they_are(self):
+        paul = {"track": 8, "frame": 80}
+
+        entry = mark_odd([], [self.a, self.b], [], [paul, None])[0]
+
+        assert entry["odd"] == [self.a, self.b] and entry["same"] == [[paul, self.a]] and entry["different"] == []

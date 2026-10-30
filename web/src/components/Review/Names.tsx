@@ -87,6 +87,8 @@ export function Names({
                   others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
                   onEdit={(value) => edit(p, value)}
                   onSave={(value) => void save(p, value)}
+                  players={players}
+                  nameOf={(team, n) => given.get(`${team}:${n}`)?.name.trim() || null}
                   onMarked={onMarked}
                   onError={onError}
                 />
@@ -107,6 +109,8 @@ function NameCard({
   others,
   onEdit,
   onSave,
+  players,
+  nameOf,
   onMarked,
   onError,
 }: {
@@ -117,6 +121,8 @@ function NameCard({
   others: { identity: number; name: string }[];
   onEdit: (value: Given) => void;
   onSave: (value: Given) => void;
+  players: Named[];
+  nameOf: (team: Group, identity: number) => string | null;
   onMarked: (answered: number) => void;
   onError: () => void;
 }) {
@@ -135,7 +141,7 @@ function NameCard({
 
   return (
     <div className="grid content-start gap-2.5 rounded-lg border bg-card p-3">
-      <Pictures crops={p.crops} pieces={p.pieces} onSaved={onMarked} onError={onError} />
+      <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onMarked} onError={onError} />
       <p className="m-0 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t('player', { n: p.identity })}</span>
         <span>· {t('review.played', { time: clock(p.seconds) })}</span>

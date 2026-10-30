@@ -64,8 +64,9 @@ interface ReviewData {
   players: Named[];
   /** The roster's players of each team, for typing a name. */
   roster: [Suggestion[], Suggestion[]];
-  /** The pieces marked as showing someone else than their identity's other pictures, as `track:frame`. */
-  odd: string[];
+  /** The pieces marked as showing someone else than their identity's other pictures, by `track:frame`,
+   * with the player they were said to be (`team:identity`), if any. */
+  odd: Record<string, string | null>;
 }
 
 declare global {
@@ -96,3 +97,10 @@ export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply', b
 
 /** A piece's key in `odd`. */
 export const pieceKey = (p: Piece) => `${p.track}:${p.frame}`;
+
+/** Pieces marked as someone else, with the player (`team:identity`) they were said to be, kept up
+ * to date by every picture strip. */
+export const marked = new Map(Object.entries(review?.odd ?? {}));
+
+/** Whether every picture of a player is marked as someone else: no one left to propose. */
+export const allMarked = (p: { pieces: Piece[] }) => p.pieces.length > 0 && p.pieces.every((piece) => marked.has(pieceKey(piece)));
