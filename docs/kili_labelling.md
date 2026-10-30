@@ -19,8 +19,9 @@ ffmpeg -hwaccel videotoolbox -i data/first_match.mp4 -vf scale=1920:-2 -fps_mode
 - Upload one part per set (the whole match at 1080p is about 6 GB), cut at exact frames between
   sets and named by its first frame, which the converter adds back. For the set from 24:10 (frame
   72500) to 46:00: `ffmpeg -ss 1450 -i data/first_match_1080p.mp4 -t 1310 -fps_mode passthrough
-  -c:v h264_videotoolbox -b:v 12M -c:a aac data/first_match_1080p_from_72500.mp4`. The first
-  match's parts start at frames 0, 72500 and 138000.
+  -c:v h264_videotoolbox -b:v 12M -c:a aac data/first_match_1080p_from_72500.mp4`. A cut can land
+  a frame off: check each part's first frame against the whole file and name the part by the frame
+  it really starts on. The first match's parts start at frames 0, 72500 and 137999.
 - Keep the project private: the footage shows real players (see Privacy in the README).
 - No names in the labels: players are known by team and jersey number. The review page names them.
 
