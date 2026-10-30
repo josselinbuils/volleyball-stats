@@ -8,9 +8,10 @@ import { BrandBar } from '@/components/BrandBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
-import { groupName, match, teamColor, teamRing } from '@/lib/match';
+import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
 import { post, type Named, type Question, type Suggestion } from '@/lib/review';
 import { ClipVideo } from '@/components/Review/ClipVideo';
+import { Pictures } from '@/components/Review/Pictures';
 import { Names } from '@/components/Review/Names';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
@@ -19,10 +20,10 @@ const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: '
 
 type Tab = 'questions' | 'names';
 // The tab survives the reload that applies the answers.
-const NAMES_HASH = '#noms';
+const QUESTIONS_HASH = '#questions';
 
-/** The review: the identity step's doubts one at a time, answered on the video, then the players'
- * names. */
+/** The review: the players' names, then the identity step's doubts one at a time, answered on the
+ * video and shown with the names given. */
 export function Review({
   width,
   height,
@@ -42,15 +43,19 @@ export function Review({
   const f = useFormat();
   const [questions, setQuestions] = useState(initial);
   const [answered, setAnswered] = useState(before);
-  const [busy, setBusy] = useState<'apply' | null>(null);
+  const [busy, setBusy] = useState<'apply' | 'undo' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
-  const [tab, setTab] = useState<Tab>(location.hash === NAMES_HASH ? 'names' : 'questions');
-  const [named, setNamed] = useState(() => players.filter((p) => p.name || p.jersey !== null).length);
+  const [tab, setTab] = useState<Tab>(location.hash === QUESTIONS_HASH ? 'questions' : 'names');
+  const [given, setGiven] = useState(() => new Map(players.map((p) => [`${p.team}:${p.identity}`, { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
+  const named = [...given.values()].filter((g) => g.name.trim() || g.jersey).length;
+  const nameOf = (team: Group, n: number) => given.get(`${team}:${n}`)?.name.trim() || null;
+  // The questions answered here, last on top, to bring back on undo.
+  const [done, setDone] = useState<Question[]>([]);
   const question = questions[0];
   const show = (next: Tab) => {
     setTab(next);
-    history.replaceState(null, '', next === 'names' ? NAMES_HASH : location.pathname);
+    history.replaceState(null, '', next === 'questions' ? QUESTIONS_HASH : location.pathname);
   };
 
   const answer = useCallback(
@@ -60,6 +65,7 @@ export function Review({
       }
       try {
         await post('answer', { id: question.id, choice });
+        setDone((d) => [...d, question]);
         setQuestions((qs) => qs.slice(1));
         setAnswered((n) => n + 1);
         setShowOther(false);
@@ -72,9 +78,18 @@ export function Review({
   );
 
   const reload = async (path: 'undo' | 'apply') => {
-    setBusy(path === 'apply' ? 'apply' : null);
+    setBusy(path);
     try {
-      await post(path);
+      const saved = await post(path);
+      // An answer not applied yet comes back without rebuilding anything.
+      const last = done[done.length - 1];
+      if (path === 'undo' && !saved.rebuilt && last?.id === saved.undone) {
+        setQuestions((qs) => [last, ...qs]);
+        setDone((d) => d.slice(0, -1));
+        setAnswered(saved.answered ?? 0);
+        setBusy(null);
+        return;
+      }
       location.reload();
     } catch {
       setBusy(null);
@@ -121,7 +136,7 @@ export function Review({
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="bg-card" disabled={!answered || busy !== null} onClick={() => void reload('undo')}>
               <Undo2 aria-hidden />
-              {t('review.undo')}
+              {busy === 'undo' ? t('review.undoing') : t('review.undo')}
             </Button>
             <Button disabled={(!answered && !named) || busy !== null} onClick={() => void reload('apply')}>
               <Check aria-hidden />
@@ -143,11 +158,11 @@ export function Review({
             aria-label={t('review.tabs')}
             className="w-full items-stretch bg-card sm:w-auto sm:justify-self-start"
           >
-            <ToggleGroupItem value="questions" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
-              {t('review.tabQuestions', { count: questions.length })}
-            </ToggleGroupItem>
             <ToggleGroupItem value="names" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
               {t('review.tabNames', { n: named, total: players.length })}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="questions" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
+              {t('review.tabQuestions', { count: questions.length })}
             </ToggleGroupItem>
           </ToggleGroup>
         )}
@@ -158,7 +173,7 @@ export function Review({
           </p>
         )}
         {tab === 'names' ? (
-          <Names players={players} roster={roster} onNamed={setNamed} onError={() => setError(true)} />
+          <Names players={players} roster={roster} onNamed={setGiven} onMarked={setAnswered} onError={() => setError(true)} />
         ) : question ? (
           <Card>
             <CardHeader>
@@ -179,7 +194,7 @@ export function Review({
                   <div className="flex flex-wrap gap-2">
                     {question.choices.map((c, k) => (
                       <Button key={c.identity} variant={showOther === (k === 1) ? 'default' : 'outline'} size="sm" onClick={() => setShowOther(k === 1)}>
-                        {t('review.show', { n: c.identity })}
+                        {nameOf(question.team, c.identity) ? t('review.showNamed', { name: nameOf(question.team, c.identity) }) : t('review.show', { n: c.identity })}
                       </Button>
                     ))}
                   </div>
@@ -187,7 +202,7 @@ export function Review({
                 {question.crops.length > 0 && (
                   <div className="flex flex-wrap gap-2" aria-label={t('review.outlined')}>
                     {question.crops.map((src) => (
-                      <img key={src} src={src} alt="" className="h-32 rounded-md bg-muted ring-2 ring-[#ffd400]" />
+                      <img key={src} src={src} alt="" className="h-56 rounded-md bg-muted ring-2 ring-[#ffd400]" />
                     ))}
                   </div>
                 )}
@@ -196,18 +211,18 @@ export function Review({
               <div className="grid gap-3">
                 {question.choices.map((c, k) => (
                   <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
-                    <div className="flex gap-1.5 overflow-hidden">
-                      {c.crops.map((src) => (
-                        <img key={src} src={src} alt="" loading="lazy" className="h-24 rounded-md bg-muted" />
-                      ))}
-                    </div>
+                    <Pictures crops={c.crops} pieces={c.pieces} onSaved={setAnswered} onError={() => setError(true)} />
                     {question.kind === 'piece' && (
                       <Button variant="outline" className="justify-between bg-card" onClick={() => void answer(String(k))}>
-                        {t('review.isN', { n: c.identity })}
+                        {nameOf(question.team, c.identity) ? t('review.isNamed', { name: nameOf(question.team, c.identity), n: c.identity }) : t('review.isN', { n: c.identity })}
                         <kbd className="rounded border px-1.5 text-xs text-muted-foreground">{k + 1}</kbd>
                       </Button>
                     )}
-                    {question.kind === 'merge' && <p className="m-0 text-sm font-medium">{t('player', { n: c.identity })}</p>}
+                    {question.kind === 'merge' && (
+                      <p className="m-0 text-sm font-medium">
+                        {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
+                      </p>
+                    )}
                   </div>
                 ))}
                 {question.kind === 'piece' ? (

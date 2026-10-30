@@ -6,6 +6,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { GROUPS, groupName, teamColor, teamRing, type Group } from '@/lib/match';
 import { post, type Named, type Suggestion } from '@/lib/review';
+import { Pictures } from '@/components/Review/Pictures';
 
 interface Given {
   name: string;
@@ -19,8 +20,21 @@ const keyOf = (p: Named) => `${p.team}:${p.identity}`;
 const fold = (name: string) => name.trim().toLocaleLowerCase();
 
 /** The players of both teams to name, longest on court first; each name is saved as it is typed,
- * `onNamed` told how many players have a name or a number. */
-export function Names({ players, roster, onNamed, onError }: { players: Named[]; roster: [Suggestion[], Suggestion[]]; onNamed: (count: number) => void; onError: () => void }) {
+ * `onNamed` given the names and numbers saved by `team:identity`, `onMarked` how many answers are
+ * saved when a picture is marked as someone else. */
+export function Names({
+  players,
+  roster,
+  onNamed,
+  onMarked,
+  onError,
+}: {
+  players: Named[];
+  roster: [Suggestion[], Suggestion[]];
+  onNamed: (saved: Map<string, Given>) => void;
+  onMarked: (answered: number) => void;
+  onError: () => void;
+}) {
   const { t } = useTranslation();
   const [given, setGiven] = useState(() => new Map(players.map((p) => [keyOf(p), { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
   const [saved, setSaved] = useState<Map<string, Given>>(() => new Map(given));
@@ -35,7 +49,7 @@ export function Names({ players, roster, onNamed, onError }: { players: Named[];
       await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null });
       const next = new Map(saved).set(key, value);
       setSaved(next);
-      onNamed([...next.values()].filter((g) => g.name.trim() || g.jersey).length);
+      onNamed(next);
     } catch {
       onError();
     }
@@ -73,6 +87,8 @@ export function Names({ players, roster, onNamed, onError }: { players: Named[];
                   others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
                   onEdit={(value) => edit(p, value)}
                   onSave={(value) => void save(p, value)}
+                  onMarked={onMarked}
+                  onError={onError}
                 />
               ))}
             </div>
@@ -91,6 +107,8 @@ function NameCard({
   others,
   onEdit,
   onSave,
+  onMarked,
+  onError,
 }: {
   player: Named;
   g: Group;
@@ -99,6 +117,8 @@ function NameCard({
   others: { identity: number; name: string }[];
   onEdit: (value: Given) => void;
   onSave: (value: Given) => void;
+  onMarked: (answered: number) => void;
+  onError: () => void;
 }) {
   const { t } = useTranslation();
   const taken = new Set(others.map((o) => o.name).filter(Boolean));
@@ -115,11 +135,7 @@ function NameCard({
 
   return (
     <div className="grid content-start gap-2.5 rounded-lg border bg-card p-3">
-      <div className="flex h-24 gap-1.5 overflow-hidden">
-        {p.crops.map((src) => (
-          <img key={src} src={src} alt="" loading="lazy" className="h-24 rounded-md bg-muted" />
-        ))}
-      </div>
+      <Pictures crops={p.crops} pieces={p.pieces} onSaved={onMarked} onError={onError} />
       <p className="m-0 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t('player', { n: p.identity })}</span>
         <span>· {t('review.played', { time: clock(p.seconds) })}</span>

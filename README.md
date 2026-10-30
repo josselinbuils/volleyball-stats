@@ -261,9 +261,10 @@ over, and the report gives the estimated score's drift from them.
 uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--squad N[,N]] [--roster PATH]
 ```
 
-`review` opens, on this machine only, the players the identity step is least sure of, most at stake
-first. Each question shows the player outlined on a looping video and pictures of the numbers they
-could be.
+`review` opens, on this machine only, on the **"Noms" tab** (below), then asks about the players the
+identity step is least sure of, most at stake first. Each question shows the player outlined on a
+looping video, zoomed on them ("Voir toute l'image" for the whole frame), and pictures of the
+players they could be, with the names already given.
 
 | Key | Answer |
 | --- | --- |
@@ -274,7 +275,10 @@ could be.
 
 For two numbers never on court together: 1 for the same person, 2 for two people.
 
-- **Answers** are saved at once to `identity_answers.json` and hold as hard constraints.
+- **Answers** are saved at once to `identity_answers.json` and hold as hard constraints. Undoing one
+  not applied yet is instant.
+- **A picture showing someone else**, in a question or in "Noms": click it. On "Apply", that piece
+  of track becomes a different player from the player's other pictures.
 - **"Apply"** (or "undo") reruns the identity step and rebuilds the match page in seconds, keeping
   the other numbers.
 - **The identity step also reruns alone:**

@@ -19,6 +19,7 @@ ROSTER_MATCHES matches, and suggests the names of those who look most like each 
 import argparse
 import csv
 import json
+import re
 import threading
 import webbrowser
 from collections import Counter
@@ -35,9 +36,15 @@ from volleyball_stats import identity, web
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
 BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 4, 12
-CROP_PX, CROP_MARGIN = 192, 0.15
+CROP_PX, CROP_MARGIN = 448, 0.15
 KINDS = ("same", "different", "not_player")
 ROSTER = Path("outputs/roster.json")
+
+
+def with_review(html: str) -> str:
+    """The page loading review.js right after data.js (its build hash in the query or not), before
+    the app that reads both."""
+    return re.sub(r'(<script defer src="data\.js[^"]*"></script>)', r'\1<script defer src="review.js"></script>', html, count=1)
 # Matches of a player the roster keeps (the latest), and names suggested per identity.
 ROSTER_MATCHES, SUGGESTIONS = 5, 3
 
@@ -108,8 +115,10 @@ class Questions:
         track, start, end, _, _ = self.pieces(team, number)[0]
         return {"track": track, "frame": mid(start, end)}
 
-    def faces(self, team: int, number: int) -> list[str]:
-        return [self.crop(track, self.clear(track, start, end)) for track, start, end, _, _ in self.pieces(team, number)[:IDENTITY_CROPS]]
+    def faces(self, team: int, number: int) -> dict:
+        """Pictures of an identity's longest pieces, and those pieces as answers refer to them."""
+        pieces = [{"track": track, "frame": self.clear(track, start, end)} for track, start, end, _, _ in self.pieces(team, number)[:IDENTITY_CROPS]]
+        return {"crops": [self.crop(p["track"], p["frame"]) for p in pieces], "pieces": pieces}
 
     def clip(self, track: int, start: int, end: int) -> dict:
         rows = [r for r in self.track_rows(track, start, end) if (self.frame_of[r] - start) % BOX_STEP == 0]
@@ -135,7 +144,7 @@ class Questions:
             given = names.get((team, number), {})
             out.append({
                 "team": team, "identity": number, "seconds": round(played, 1), "contacts": touches[team, number],
-                "crops": self.faces(team, number), "name": given.get("name"), "jersey": given.get("jersey"),
+                **self.faces(team, number), "name": given.get("name"), "jersey": given.get("jersey"),
                 "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1]),
             })
         return out
@@ -155,7 +164,7 @@ class Questions:
                 "id": qid, "kind": "piece", "team": c["team"], "identity": c["identity"], "impact": c["impact"],
                 "seconds": c["seconds"], "contacts": c["contacts"], "clip": self.clip(track, start, end),
                 "crops": [self.crop(track, f) for f in picks],
-                "choices": [{"identity": n, "crops": self.faces(c["team"], n)} for n in options],
+                "choices": [{"identity": n, **self.faces(c["team"], n)} for n in options],
             })
             refs[qid] = {"piece": {"track": track, "frame": mid(start, end)}, "choices": [self.ref(c["team"], n) for n in options]}
         for c in self.candidates["merges"]:
@@ -167,7 +176,7 @@ class Questions:
             out.append({
                 "id": qid, "kind": "merge", "team": team, "identity": a, "impact": c["impact"], "seconds": sum(c["seconds"]),
                 "contacts": sum(c["contacts"]), "clip": examples[0], "other": examples[1],
-                "crops": [], "choices": [{"identity": n, "crops": self.faces(team, n)} for n in (a, b)],
+                "crops": [], "choices": [{"identity": n, **self.faces(team, n)} for n in (a, b)],
             })
             refs[qid] = {"choices": [self.ref(team, a), self.ref(team, b)]}
         return sorted(out, key=lambda q: -q["impact"]), refs
@@ -191,6 +200,21 @@ def constraints(choice: str, refs: dict) -> dict[str, list]:
         rest = [r for i, r in enumerate(options) if i != k]
         return {"same": [[piece, options[k]]], **({"different": [[piece, *rest]]} if rest else {})}
     return {}
+
+
+def piece_key(ref: Ref) -> str:
+    return f"{ref['track']}:{ref['frame']}"
+
+
+def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref]) -> list[dict]:
+    """`log` with one identity's pictures marked: the `odd` pieces show other people than the
+    `rest`, each a different player from each of them. Replaces the earlier marks of these
+    pictures, and removes them when none is odd."""
+    entry_id = "odd:" + ",".join(sorted(piece_key(r) for r in odd + rest))
+    log = [entry for entry in log if entry["id"] != entry_id]
+    if odd and rest:
+        log.append({"id": entry_id, "choice": "odd", "odd": odd, "different": [[o, r] for o in odd for r in rest], "applied": False})
+    return log
 
 
 def save(path: Path, log: list[dict]) -> None:
@@ -320,7 +344,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         players = questions.players(known, teams)
         # The roster's players of each team, for typing names: all of them for an unnamed team.
         names = [[{"name": p["name"], "jersey": p.get("jersey")} for p in known if not team or not p.get("team") or p["team"] == team] for team in teams]
-        data = {"width": width, "height": height, "answered": len(log), "questions": found, "players": players, "roster": names}
+        odd = sorted({piece_key(r) for entry in log for r in entry.get("odd", [])})
+        data = {"width": width, "height": height, "answered": len(log), "questions": found, "players": players, "roster": names, "odd": odd}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -343,7 +368,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if url.path in ("/", "/review"):
                 html = (site / "index.html").read_text()
                 if url.path == "/review":
-                    html = html.replace('<script defer src="data.js"></script>', '<script defer src="data.js"></script><script defer src="review.js"></script>')
+                    html = with_review(html)
                 return self.send(html.encode(), "text/html; charset=utf-8")
             parts = Path(unquote(url.path).lstrip("/")).parts
             path = site.joinpath(*parts)
@@ -379,6 +404,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
         def do_POST(self) -> None:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            undone = None
             with lock:
                 log = load_log(answers)
                 if self.path == "/name":
@@ -389,12 +415,20 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     _, refs = questions.build({entry["id"] for entry in log})
                     if body["id"] not in refs:
                         return self.send(b'{"error":"unknown question"}', "application/json", 400)
-                    log.append({"id": body["id"], "choice": body["choice"], **constraints(str(body["choice"]), refs[body["id"]])})
+                    log.append({"id": body["id"], "choice": body["choice"], **constraints(str(body["choice"]), refs[body["id"]]), "applied": False})
+                elif self.path == "/odd":
+                    refs = [[{"track": int(r["track"]), "frame": int(r["frame"])} for r in body[k]] for k in ("odd", "rest")]
+                    log = mark_odd(log, *refs)
                 elif self.path == "/undo" and log:
-                    log.pop()
+                    undone = log.pop()
+                elif self.path == "/apply":
+                    for entry in log:
+                        entry["applied"] = True
                 save(answers, log)
-                # Undoing an answer may undo an applied one: both recompute.
-                if self.path in ("/apply", "/undo"):
+                # An answer not applied yet is only in the log; undoing an applied one (answers saved
+                # before this flag count as applied) recomputes, as applying does.
+                rebuilt = self.path == "/apply" or (undone is not None and undone.get("applied", True))
+                if rebuilt:
                     identity.rerun(match, video, squad)
                     questions.load()
                     if self.path == "/apply":
@@ -403,7 +437,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # The published page follows, with its own choices.
                     if (match / "page.json").exists():
                         web.publish(match, video, court, theme, {})
-            self.send(json.dumps({"answered": len(log)}).encode(), "application/json")
+            self.send(json.dumps({"answered": len(log), "rebuilt": rebuilt, "undone": undone and undone["id"]}).encode(), "application/json")
 
         def log_message(self, *args) -> None:
             pass

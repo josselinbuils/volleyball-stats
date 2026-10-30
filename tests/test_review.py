@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import constraints, load_roster, range_of, remember, save, set_name, suggest
+from volleyball_stats.review import constraints, load_roster, mark_odd, range_of, remember, save, set_name, suggest, with_review
 
 
 class TestConstraints:
@@ -87,3 +87,26 @@ class TestRoster:
 
         assert [(p["name"], p["jersey"], list(p["vectors"])) for p in load_roster(path)] == [("Julie", 7, ["m2"]), ("Léa", 3, ["m1"])]
 
+
+
+class TestWithReview:
+    def test_loads_review_js_after_data_js_with_or_without_its_hash(self):
+        for src in ("data.js", "data.js?v=1b236973b3"):
+            html = f'<script defer src="{src}"></script><script defer src="./assets/index.js"></script>'
+
+            assert with_review(html) == f'<script defer src="{src}"></script><script defer src="review.js"></script><script defer src="./assets/index.js"></script>'
+
+
+class TestMarkOdd:
+    a, b, c = {"track": 1, "frame": 10}, {"track": 2, "frame": 20}, {"track": 3, "frame": 30}
+
+    def test_parts_each_odd_picture_from_each_other_one_but_not_the_odd_ones_from_each_other(self):
+        log = mark_odd([], [self.b, self.c], [self.a])
+
+        assert log == [{"id": "odd:1:10,2:20,3:30", "choice": "odd", "odd": [self.b, self.c], "different": [[self.b, self.a], [self.c, self.a]], "applied": False}]
+
+    def test_replaces_the_marks_of_the_same_pictures_and_clears_them(self):
+        log = mark_odd([{"id": "piece:9:90"}], [self.b], [self.a, self.c])
+
+        assert [e["id"] for e in mark_odd(log, [self.b, self.c], [self.a])] == ["piece:9:90", "odd:1:10,2:20,3:30"]
+        assert mark_odd(log, [], [self.a, self.b, self.c]) == [{"id": "piece:9:90"}]
