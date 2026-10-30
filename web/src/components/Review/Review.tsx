@@ -77,7 +77,10 @@ export function Review({
       }
       try {
         // A cut falls where the clip stands: paused when the outlined person changed.
-        await post('answer', { id: question.id, choice, ...(choice === 'cut' ? { at: clipTime.current } : {}) });
+        const saved = await post('answer', { id: question.id, choice, ...(choice === 'cut' ? { at: clipTime.current } : {}) });
+        if (saved.cancelled) {
+          return;
+        }
         setDone((d) => [...d, question]);
         setQuestions((qs) => qs.filter((q) => q.id !== question.id));
         setAnswered((n) => n + 1);
@@ -180,7 +183,7 @@ export function Review({
           </ToggleGroup>
         )}
         <p className="px-1 text-muted-foreground">{t(tab === 'names' ? 'review.namesIntro' : 'review.intro')}</p>
-        <Conflicts conflicts={conflicts} width={width} height={height} />
+        <Conflicts conflicts={conflicts} width={width} height={height} players={players} nameOf={nameOf} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}

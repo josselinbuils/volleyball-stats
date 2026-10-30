@@ -10,7 +10,7 @@ import { boxAt, viewAt } from '@/components/Review/helpers/box';
 const AROUND = 0.5;
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for. */
-export function ClipVideo({ clip, width, height, timeRef }: { clip: Clip; width: number; height: number; timeRef?: RefObject<number> }) {
+export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; width: number; height: number; timeRef?: RefObject<number>; seek?: { time: number; n: number } }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(clip.start);
@@ -37,6 +37,15 @@ export function ClipVideo({ clip, width, height, timeRef }: { clip: Clip; width:
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [clip]);
+
+  // A moment asked for (`n` counts the asks, so the same moment can be asked again): shown paused.
+  useEffect(() => {
+    const v = video.current;
+    if (v && seek) {
+      v.pause();
+      v.currentTime = seek.time;
+    }
+  }, [seek]);
 
   const box = boxAt(clip, time);
   const view = zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height };

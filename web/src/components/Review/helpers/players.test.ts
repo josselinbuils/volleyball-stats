@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { marked, type Named } from '@/lib/review';
-import { entryOf, playerOptions, sameName } from '@/components/Review/helpers/players';
+import { matching, playerOptions, sameName } from '@/components/Review/helpers/players';
 
 // review.ts reads window.REVIEW on import.
 vi.hoisted(() => {
@@ -48,17 +48,16 @@ describe('players', () => {
     expect(playerOptions(players, nameOf, undefined, '').options.map((p) => p.identity)).toEqual([12, 5]);
   });
 
-  it('picks the entry a typed text designates', () => {
+  it('lists the entries a typed text matches, the one it spells first', () => {
     const entries = [
+      { key: '2:5', label: 'Joueur 5 · ASPOM 02' },
       { key: '1:3', label: 'Paul (joueur 3) · ASPOM 01' },
       { key: '1:5', label: 'Léa (joueur 5) · ASPOM 01' },
-      { key: '2:5', label: 'Joueur 5 · ASPOM 02' },
     ];
 
-    expect(entryOf(entries, 'lea')).toBe('1:5');
-    expect(entryOf(entries, ' PAUL ')).toBe('1:3');
-    expect(entryOf(entries, '5')).toBeNull();
-    expect(entryOf(entries, 'joueur 5 · aspom 02')).toBe('2:5');
-    expect(entryOf(entries, '')).toBeNull();
+    expect(matching(entries, 'lea').map((e) => e.key)).toEqual(['1:5']);
+    expect(matching(entries, ' 5').map((e) => e.key)).toEqual(['2:5', '1:5']);
+    expect(matching(entries, 'joueur 5 · aspom 02').map((e) => e.key)).toEqual(['2:5']);
+    expect(matching(entries, '')).toHaveLength(3);
   });
 });

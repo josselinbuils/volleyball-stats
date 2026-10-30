@@ -282,7 +282,18 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   person changes, cuts the piece of track there into two players.
 - Only doubts with 10 s or more at stake are asked (a touch counting as 10 s): the questions end.
 - **A warning** shows the players holding two names after an apply, with the answers joining them:
-  cut the piece showing both where the person changes, or forget a wrong answer, then apply.
+  a filmstrip of each piece (two people: cut between them; one: forget the answer whose name does not
+  match), and every answer pinned on those names, each correctable. An answer that would join two
+  named players asks first.
+- **"Plus d'images de …"** on a card shows the 24 pieces looking most like the player (same team,
+  never on court at the same time as their card's pictures): click those showing someone else and
+  confirm, the rest are them.
+- **The keyboard** in "Noms": ↑ ↓ between cards, ← → between pictures, Space marks a picture (type the
+  name, Enter), N names the player.
+- **Jersey numbers** (4K footage) join the pieces read with one number and part two numbers:
+  `uv run --group jerseys python -m volleyball_stats.jerseys outputs/VIDEO --video VIDEO` writes
+  `jerseys.csv`, which every apply reads. RapidOCR reads the torsos; a piece keeps a number read
+  twice and never contradicted.
 - **A picture showing someone else**, in a question or in "Noms": click it, then say who it is if you
   know, or that it is not a player. On "Apply", that piece of track becomes that player (or someone
   else, or no one) and leaves the other pictures' player. A player whose pictures are all marked is
@@ -431,7 +442,7 @@ Each step is scored against hand labels in `benchmarks/`; to label a new setup's
 | 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)); contacts from velocity changes with gravity removed ([benchmark](benchmarks/contacts/README.md)) |
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](benchmarks/actions/README.md)) |
 | 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the side of the net, followed from rally to rally by the tracks crossing each break and, after a long break, by the players' looks (by the rules when both teams wear the same kit), so kits may differ within a team; sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
-| 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run), one number per track inside a rally; jersey numbers (4K) as constraints later ([benchmark](benchmarks/identity/README.md)) |
+| 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run), one number per track inside a rally; jersey numbers read on 4K footage as constraints; dimensions weighted by how well they tell apart the players the review confirms ([benchmark](benchmarks/identity/README.md)) |
 | 7. Naming | Name each identity once, suggest names across matches | The review page's "Noms" tab; a roster of re-ID embeddings per named player |
 | 8. Stats | Per-player counts and outcomes, reception ratings, balls dropped between two players, strengths and things to work on | The page's "Statistiques" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands; a reception's rating from where the next touch is played; the players' positions where an untouched ball lands; a player's rates compared with the rest of their team's |
 

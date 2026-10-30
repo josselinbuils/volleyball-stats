@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import chain, constraints, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
+from volleyball_stats.review import chain, constraints, name_merges, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
 
 
 class TestConstraints:
@@ -170,6 +170,13 @@ class TestReanchor:
         assert names == [{"ref": self.kept, "name": "Laeticia"}]
         assert log[0]["same"] == [[self.piece, self.kept]] and log[1]["same"] == [[self.kept, self.piece]]
 
+    def test_the_player_confirmed_with_pictures_follows_too(self):
+        log = [{"id": "more:2:5:0", "choice": "more", "pieces": [self.piece], "same": [[self.wrong, self.piece]], "different": [[self.piece, self.wrong]]}]
+
+        log, _ = reanchor(log, [], self.moved, self.segment_of)
+
+        assert log[0]["same"] == [[self.kept, self.piece]] and log[0]["different"] == [[self.piece, self.kept]]
+
     def test_the_marked_pictures_themselves_stay(self):
         log = mark_odd([], [self.wrong], [self.kept], [self.piece])
 
@@ -183,3 +190,18 @@ class TestChain:
 
         assert chain(links, {"L"}, {"J", "K"}) == ["odd:x", "piece:9:1"]
         assert chain(links, {"L"}, {"Z"}) == []
+
+
+class TestNameMerges:
+    josselin, laeticia, piece = {"track": 1, "frame": 10}, {"track": 2, "frame": 20}, {"track": 3, "frame": 30}
+    names = [{"ref": josselin, "name": "Josselin"}, {"ref": laeticia, "name": "Laeticia"}]
+
+    @staticmethod
+    def segment_of(ref):
+        return ref["track"]
+
+    def test_finds_two_names_the_answers_join(self):
+        log = [{"id": "a", "same": [[self.piece, self.josselin]]}, {"id": "b", "same": [[self.laeticia, self.piece]]}]
+
+        assert name_merges(log, self.names, self.segment_of) == {frozenset({"Josselin", "Laeticia"})}
+        assert name_merges(log[:1], self.names, self.segment_of) == set()

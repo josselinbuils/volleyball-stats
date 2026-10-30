@@ -1,3 +1,4 @@
+import i18n from 'i18next';
 import type { Group } from '@/lib/match';
 
 /** A piece of video with a player's box ([seconds, x1, y1, x2, y2] in video pixels) over it. */
@@ -57,7 +58,17 @@ export interface Suggestion {
 
 /** An answer joining two names in one player: a piece of track (its clip and pictures), or
  * pictures marked as someone else. */
-export type Linking = { id: string; kind: 'piece'; clip: Clip; crops: string[] } | { id: string; kind: 'odd'; crops: string[] };
+export type Linking =
+  | { id: string; kind: 'piece'; clip: Clip; crops: string[]; moments: Moment[]; claim: string | null; strip: { time: number; crop: string }[] }
+  | { id: string; kind: 'odd'; crops: string[]; claims: (string | null)[] };
+
+/** A moment of a piece where another answer, or a name, puts someone: its time, who they were said
+ * to be (null: someone else), and its picture. */
+export interface Moment {
+  time: number;
+  name: string | null;
+  crop: string;
+}
 
 /** A player holding two names or more after the last apply, and the answers joining them. */
 export interface Conflict {
@@ -65,6 +76,8 @@ export interface Conflict {
   identity: number;
   names: string[];
   answers: Linking[];
+  /** The question answers pinning a piece on one of the names: a picture of the piece, its time, the name. */
+  pinned: { id: string; crop: string; time: number; claim: string }[];
 }
 
 /** review.js, served by volleyball_stats.review. */
@@ -96,16 +109,41 @@ export interface Saved {
   answered?: number;
   rebuilt?: boolean;
   undone?: string | null;
+  /** The user declined an answer joining two players of different names: nothing saved. */
+  cancelled?: boolean;
 }
 
 /** Sends an answer, a name, pictures marked as someone else, an undo or the apply request to the
  * review server. */
-export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'cut' | 'forget', body: object = {}): Promise<Saved> {
+export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'cut' | 'forget' | 'more' | 'repin', body: object = {}): Promise<Saved> {
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  // An answer joining two players of different names: saved only once the user confirms.
+  if (response.status === 409) {
+    const { merges } = (await response.json()) as { merges: string[][] };
+    const list = new Intl.ListFormat(i18n.language, { type: 'conjunction' });
+    if (window.confirm(i18n.t('review.mergeWarn', { names: merges.map((m) => list.format(m)).join(' ; ') }))) {
+      return post(path, { ...body, force: true });
+    }
+    return { cancelled: true };
+  }
   if (!response.ok) {
     throw new Error(`${path}: ${response.status}`);
   }
   return (await response.json()) as Saved;
+}
+
+/** A piece of track looking like a player, with its picture. */
+export interface Found extends Piece {
+  crop: string;
+}
+
+/** The pieces looking most like identity `identity` of `team`, not confirmed nor rejected yet. */
+export async function lookAlikes(team: Group, identity: number): Promise<Found[]> {
+  const response = await fetch(`more?team=${team}&identity=${identity}`);
+  if (!response.ok) {
+    throw new Error(`more: ${response.status}`);
+  }
+  return (await response.json()) as Found[];
 }
 
 /** A piece's key in `odd`. */

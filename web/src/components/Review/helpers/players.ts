@@ -46,14 +46,10 @@ const plain = (text: string) =>
     .trim()
     .toLocaleLowerCase();
 
-/** The key of the entry `text` designates: the one whose label it is, else the only one whose
- * label holds it; null for none or several. */
-export function entryOf(entries: { key: string; label: string }[], text: string): string | null {
+/** The entries whose label holds `text` (no accents, no case), the one it spells first; all of
+ * them for no text. */
+export function matching<T extends { label: string }>(entries: T[], text: string): T[] {
   const typed = plain(text);
-  if (!typed) {
-    return null;
-  }
-  const exact = entries.find((e) => plain(e.label) === typed);
   const holding = entries.filter((e) => plain(e.label).includes(typed));
-  return exact?.key ?? (holding.length === 1 ? holding[0].key : null);
+  return [...holding.filter((e) => plain(e.label) === typed), ...holding.filter((e) => plain(e.label) !== typed)];
 }

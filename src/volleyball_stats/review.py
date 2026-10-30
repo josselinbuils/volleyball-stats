@@ -35,9 +35,13 @@ from volleyball_stats import identity, web
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
-BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 4, 12
+BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 CROP_PX, CROP_MARGIN = 448, 0.15
 KINDS = ("same", "different", "not_player", "cut")
+# Pieces looking most like a player offered to confirm at once, at least MORE_S long.
+MORE, MORE_S = 24, 1.0
+# Pictures spread over a piece in a conflict, to see whether the tracking swapped players.
+STRIP = 24
 # Doubts under MIN_IMPACT (seconds of play, a touch counting as 10, times the doubt: identity.doubts)
 # are not asked: their answers barely move the numbers, and there are always more.
 MIN_IMPACT = 10.0
@@ -135,8 +139,14 @@ class Questions:
         return track, start, end
 
     def ref(self, team: int, number: int) -> Ref:
-        """The longest piece of an identity not marked as someone else (`avoid`), as answers and
-        names pin the player."""
+        """The piece standing for an identity in answers and names: where its name was given, the
+        user's own pin (its longest piece may be someone else's, in an identity joining two
+        people), else its longest piece not marked as someone else (`avoid`)."""
+        entries = identity.read_names(self.match)
+        name = (identity.named(self.table, entries).get((team, number)) or {}).get("name")
+        pinned = next((e["ref"] for e in entries if name and e.get("name") == name and identity.lookup(self.table, e["ref"]["track"], e["ref"]["frame"]) == (team, number)), None)
+        if pinned:
+            return dict(pinned)
         pieces = self.pieces(team, number)
         track, start, end, _, _ = next((r for r in pieces if tuple(r[:3]) not in self.avoid), pieces[0])
         return {"track": track, "frame": mid(start, end)}
@@ -153,6 +163,20 @@ class Questions:
             "end": round(end / self.fps, 2),
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
+
+    def strip(self, track: int, start: int, end: int) -> list[dict]:
+        """STRIP of a piece's boxes evenly spread over it, with their time and picture."""
+        rows = self.track_rows(track, start, end)
+        picks = rows[np.linspace(0, len(rows) - 1, min(STRIP, len(rows))).astype(int)] if len(rows) else []
+        return [{"time": round(int(self.frame_of[r]) / self.fps, 2), "crop": self.crop(track, int(self.frame_of[r]))} for r in picks]
+
+    def claim(self, ref: dict, named: dict, names: list[dict]) -> str:
+        """Who a pin stands for: the name pinned on its piece, else its identity's name (identities
+        joined by a conflict hold several), else its number."""
+        piece = self.segment_of(ref)
+        pinned = next((n["name"] for n in names if n.get("name") and self.segment_of(n["ref"]) == piece), None)
+        who = identity.lookup(self.table, ref["track"], ref["frame"])
+        return pinned or (named.get(who) or {}).get("name") or (f"#{who[1]}" if who else "?")
 
     def conflicts(self, log: list[dict], names: list[dict]) -> list[dict]:
         """The identities of the last run holding two names or more, each with the answers that
@@ -177,6 +201,7 @@ class Questions:
                 links[segments[0]].append((other, None))
                 links[other].append((segments[0], None))
         by_id = {e["id"]: e for e in log}
+        named = identity.named(self.table, names)
         out = []
         for (team, number), together in held.items():
             if len(together) < 2:
@@ -190,10 +215,84 @@ class Questions:
                     _, a, b = self.segment_of({"track": track, "frame": start})
                     cuts = [a + (b - a) * k // PIECE_CROPS for k in range(PIECE_CROPS + 1)]
                     crops = [self.crop(track, self.clear(track, x, y)) for x, y in zip(cuts, cuts[1:])]
-                    answers.append({"id": answer_id, "kind": "piece", "clip": self.clip(track, a, b), "crops": crops})
+                    # Where other answers and the names put someone inside this piece: the moments to
+                    # compare, a piece showing two people having both.
+                    moments: dict[int, str | None] = {}
+                    inside = lambda r: isinstance(r, dict) and r["track"] == track and a <= r["frame"] <= b  # noqa: E731
+                    for e in log:
+                        if e["id"] == answer_id:
+                            continue
+                        for o, t in zip(e.get("odd", []), e.get("to") or [None] * len(e.get("odd", []))):
+                            if inside(o):
+                                moments[o["frame"]] = self.claim(t, named, names) if isinstance(t, dict) else None
+                        for g in e.get("same", []):
+                            for r in g:
+                                others = [x for x in g if x is not r and not inside(x)]
+                                if inside(r) and others:
+                                    moments.setdefault(r["frame"], self.claim(others[0], named, names))
+                    for n in names:
+                        r = n["ref"]
+                        if n.get("name") and r["track"] == track and a <= r["frame"] <= b:
+                            moments[r["frame"]] = n["name"]
+                    shown = [{"time": round(f / self.fps, 2), "name": who, "crop": self.crop(track, f)} for f, who in sorted(moments.items())]
+                    # The player the answer joined the piece to: the other member of its "same" group.
+                    piece = {"track": track, "frame": (a + b) // 2}
+                    pins = [r for g in by_id[answer_id].get("same", []) for r in g if not (r["track"] == track and a <= r["frame"] <= b)]
+                    claim = self.claim(pins[0], named, names) if pins else None
+                    answers.append({
+                        "id": answer_id, "kind": "piece", "clip": self.clip(track, a, b), "crops": crops, "moments": shown, "claim": claim,
+                        "strip": self.strip(track, a, b), "piece": piece,
+                    })
                 elif by_id[answer_id].get("choice") == "odd":
-                    answers.append({"id": answer_id, "kind": "odd", "crops": [self.crop(o["track"], o["frame"]) for o in by_id[answer_id]["odd"]]})
-            out.append({"team": team, "identity": number, "names": sorted(together), "answers": answers})
+                    entry = by_id[answer_id]
+                    to = entry.get("to") or [None] * len(entry["odd"])
+                    claims = [self.claim(t, named, names) if isinstance(t, dict) else None for t in to]
+                    answers.append({"id": answer_id, "kind": "odd", "crops": [self.crop(o["track"], o["frame"]) for o in entry["odd"]], "claims": claims})
+            out.append({"team": team, "identity": number, "names": sorted(together), "answers": answers, "pinned": self.pinned(log, names, together, named)})
+        return out
+
+    def pinned(self, log: list[dict], names: list[dict], together: set[str], named: dict) -> list[dict]:
+        """The question answers pinning a piece on one of `together`'s names: an answer given while
+        the names shared one player was pinned on that player's longest piece, whoever it showed.
+        Each with a picture of its own piece and who it says the piece is."""
+        pins = {self.segment_of(n["ref"]): n["name"] for n in names if n.get("name") in together}
+        out = []
+        for e in log:
+            if not e["id"].startswith("piece:"):
+                continue
+            track, start = (int(v) for v in e["id"].split(":")[1:3])
+            own = self.segment_of({"track": track, "frame": start})
+            said = next((pins[self.segment_of(r)] for g in e.get("same", []) for r in g if self.segment_of(r) != own and self.segment_of(r) in pins), None)
+            if said:
+                _, a, b = own
+                out.append({"id": e["id"], "crop": self.crop(track, self.clear(track, a, b)), "claim": said, "time": round(a / self.fps, 2)})
+        return out
+
+    def more(self, team: int, number: int, seen: set) -> list[dict]:
+        """The MORE pieces of the team's other identities (or none) looking most like identity
+        `number`'s card: its IDENTITY_CROPS longest pieces not marked as someone else, which the
+        user sees and fixes, where all its pieces may mix people. MORE_S or longer, seen at no
+        moment a card piece is (nobody is in two places), neither in `seen` nor marked. Raw
+        embeddings rank better here than the identity step's whitened ones, which magnify faint
+        directions: 23 of 24 right against 15 on two players of the first ASPOM match."""
+        vectors = piece_vectors(self.match / "embeddings.npz")
+        card = [tuple(r[:3]) for r in self.pieces(team, number) if tuple(r[:3]) not in self.avoid and tuple(r[:3]) in vectors][:IDENTITY_CROPS]
+        if not card:
+            return []
+        unit = {c: vectors[c] / max(float(np.linalg.norm(vectors[c])), 1e-9) for c in card}
+        look = np.average([unit[c] for c in card], axis=0, weights=[c[2] - c[1] + 1 for c in card])
+        look /= max(float(np.linalg.norm(look)), 1e-9)
+        starts, ends = np.array([c[1] for c in card]), np.array([c[2] for c in card])
+        ranked = []
+        for track, start, end, t, n in self.table:
+            key = (track, start, end)
+            if t != team or n == number or key not in vectors or (end - start + 1) < MORE_S * self.fps or key in seen | self.avoid or np.any((starts <= end) & (start <= ends)):
+                continue
+            ranked.append((float(vectors[key] @ look) / max(float(np.linalg.norm(vectors[key])), 1e-9), track, start, end))
+        out = []
+        for _, track, start, end in sorted(ranked, reverse=True)[:MORE]:
+            frame = self.clear(track, start, end)
+            out.append({"track": track, "frame": frame, "crop": self.crop(track, frame)})
         return out
 
     def players(self, roster: list[dict], teams: list[str | None]) -> list[dict]:
@@ -318,6 +417,36 @@ def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | st
     return out
 
 
+def name_merges(log: list[dict], names: list[dict], segment_of) -> set[frozenset[str]]:
+    """The sets of different names the answers' "same" links join into one player, each name's pins
+    being one player: what an apply would merge whatever the looks."""
+    parent: dict = {}
+
+    def root(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def join(a, b) -> None:
+        parent[root(a)] = root(b)
+
+    for e in log:
+        for g in e.get("same", []):
+            for r in g[1:]:
+                join(segment_of(g[0]), segment_of(r))
+    first: dict[str, object] = {}
+    for n in names:
+        if n.get("name"):
+            join(first.setdefault(n["name"], segment_of(n["ref"])), segment_of(n["ref"]))
+    held: dict = {}
+    for n in names:
+        if n.get("name"):
+            held.setdefault(root(segment_of(n["ref"])), set()).add(n["name"])
+    return {frozenset(v) for v in held.values() if len(v) > 1}
+
+
 def chain(links: dict, starts: set, goals: set) -> list[str]:
     """The answers (ids, in order) along the shortest path of `links` ({node: [(node, answer id or
     None)]}) from one of `starts` to one of `goals`; none without a path."""
@@ -359,6 +488,9 @@ def reanchor(log: list[dict], names: list[dict], moved: dict, segment_of) -> tup
                 e = odd_entry(e["id"], e["odd"], rest, to)
         elif e["id"].startswith("merge:"):
             e = {**e, **{k: [[fix(r) for r in g] for g in e[k]] for k in ("same", "different") if k in e}}
+        elif choice == "more":
+            # The player's pin first in "same", second in each "different" pair.
+            e = {**e, **({"same": [[fix(g[0]), *g[1:]] for g in e["same"]]} if "same" in e else {}), **({"different": [[g[0], fix(g[1])] for g in e["different"]]} if "different" in e else {})}
         elif choice.isdigit() or choice == "other" or choice.startswith("player:"):
             # The question's piece comes first in each group, but after the player said by name.
             same = [[fix(g[0]), *g[1:]] if choice.startswith("player:") else [g[0], *map(fix, g[1:])] for g in e.get("same", [])]
@@ -373,13 +505,18 @@ def save(path: Path, log: list[dict]) -> None:
     path.write_text(json.dumps({**data, "log": log}, indent=1) + "\n")
 
 
-def prototypes(cache: Path, table: list[tuple[int, int, int, int, int]]) -> dict[tuple[int, int], np.ndarray]:
-    """Each identity's unit re-identification embedding, its pieces' (the embedding cache) averaged by
-    length; not whitened, the roster compares them across matches."""
+def piece_vectors(cache: Path) -> dict[tuple[int, int, int], np.ndarray]:
+    """Each piece's (track, start, end) re-identification embedding from the embedding cache."""
     if not cache.exists():
         return {}
     data = np.load(cache)
-    vectors = {tuple(round(v) for v in k[:3]): x for k, x in zip(data["keys"].tolist(), data["vectors"].astype(float))}
+    return {tuple(round(v) for v in k[:3]): x for k, x in zip(data["keys"].tolist(), data["vectors"].astype(float))}
+
+
+def prototypes(cache: Path, table: list[tuple[int, int, int, int, int]]) -> dict[tuple[int, int], np.ndarray]:
+    """Each identity's unit re-identification embedding, its pieces' (the embedding cache) averaged by
+    length; not whitened, the roster compares them across matches."""
+    vectors = piece_vectors(cache)
     sums: dict[tuple[int, int], np.ndarray] = {}
     for track, start, end, team, number in table:
         v = vectors.get((track, start, end))
@@ -474,7 +611,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     lock = threading.Lock()
     capture = cv2.VideoCapture(str(video))
 
-    @lru_cache(maxsize=512)
+    @lru_cache(maxsize=2048)
     def picture(frame: int, box: tuple[int, int, int, int]) -> bytes:
         with lock:
             capture.set(cv2.CAP_PROP_POS_FRAMES, frame)
@@ -521,6 +658,15 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             url = urlparse(self.path)
             if url.path == "/review.js":
                 return self.send(review_js(), "text/javascript")
+            if url.path == "/more":
+                q = parse_qs(url.query)
+                team, number = int(q["team"][0]), int(q["identity"][0])
+                with lock:
+                    log = load_log(answers)
+                    questions.avoid = {questions.segment_of(o) for entry in log for o in entry.get("odd", [])}
+                    seen = {questions.segment_of(r) for entry in log if entry.get("choice") == "more" for r in entry["pieces"]}
+                    found = questions.more(team, number, seen)
+                return self.send(json.dumps(found).encode(), "application/json")
             if url.path == "/crop":
                 q = parse_qs(url.query)
                 body = picture(int(q["f"][0]), tuple(int(v) for v in q["b"][0].split(",")))
@@ -567,6 +713,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             undone = None
             with lock:
                 log = load_log(answers)
+                before, renamed = list(log), None
                 questions.avoid = {questions.segment_of(o) for entry in log for o in entry.get("odd", [])}
                 if self.path == "/name":
                     jersey = body.get("jersey")
@@ -593,8 +740,26 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # The player's pins on the pictures marked move to their first picture left.
                     if refs[0] and refs[1]:
                         moved = {questions.segment_of(o): refs[1][0] for o in refs[0]}
-                        log, names = reanchor(log, identity.read_names(match), moved, questions.segment_of)
-                        write_names(match, names)
+                        log, renamed = reanchor(log, identity.read_names(match), moved, questions.segment_of)
+                elif self.path == "/more":
+                    # Pieces looking like a player: those kept are them, the others someone else.
+                    team, number = int(body["team"]), int(body["identity"])
+                    yes, no = ([{"track": int(r["track"]), "frame": int(r["frame"])} for r in body[k]] for k in ("yes", "no"))
+                    pin = questions.ref(team, number)
+                    log.append({
+                        "id": f"more:{team}:{number}:{len(log)}", "choice": "more", "pieces": yes + no,
+                        **({"same": [[pin, *yes]]} if yes else {}), **({"different": [[r, pin] for r in no]} if no else {}), "applied": False,
+                    })
+                elif self.path == "/repin":
+                    # A question answer said again: its piece is `who`'s, pinned where they are.
+                    track, start = (int(v) for v in str(body["id"]).split(":")[1:3])
+                    own = questions.segment_of({"track": track, "frame": start})
+                    team, number = (int(v) for v in str(body["who"]).split(":"))
+                    pin = questions.ref(team, number)
+                    log = [
+                        {**e, "same": [[r if questions.segment_of(r) == own else pin for r in g] for g in e.get("same", [])], "applied": False} if e["id"] == body["id"] else e
+                        for e in log
+                    ]
                 elif self.path == "/forget":
                     log = [e for e in log if e["id"] != body["id"]]
                 elif self.path == "/cut":
@@ -611,6 +776,14 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 elif self.path == "/apply":
                     for entry in log:
                         entry["applied"] = True
+                # An answer joining two players of different names waits for the user's go.
+                if self.path in ("/answer", "/odd", "/more", "/repin") and not body.get("force"):
+                    names = identity.read_names(match)
+                    new = name_merges(log, renamed or names, questions.segment_of) - name_merges(before, names, questions.segment_of)
+                    if new:
+                        return self.send(json.dumps({"merges": sorted(sorted(m) for m in new)}).encode(), "application/json", 409)
+                if renamed is not None:
+                    write_names(match, renamed)
                 save(answers, log)
                 # An answer not applied yet is only in the log; undoing an applied one (answers saved
                 # before this flag count as applied) recomputes, as applying does.
