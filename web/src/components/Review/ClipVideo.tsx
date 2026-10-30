@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { boxAt, viewAt } from '@/components/Review/helpers/box';
 const AROUND = 0.5;
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for. */
-export function ClipVideo({ clip, width, height }: { clip: Clip; width: number; height: number }) {
+export function ClipVideo({ clip, width, height, timeRef }: { clip: Clip; width: number; height: number; timeRef?: RefObject<number> }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(clip.start);
@@ -29,6 +29,9 @@ export function ClipVideo({ clip, width, height }: { clip: Clip; width: number; 
         v.currentTime = Math.max(0, clip.start - AROUND);
       }
       setTime(v.currentTime);
+      if (timeRef) {
+        timeRef.current = v.currentTime;
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);

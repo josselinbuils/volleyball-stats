@@ -39,6 +39,11 @@ class TestSplit:
 
         assert [(s.track, s.start, s.end) for s in split(rows, covers(rows))] == [(1, 0, 29), (2, 0, 29)]
 
+    def test_cuts_a_track_after_a_frame_the_user_gave(self):
+        rows = [row(f, 1) for f in range(30)]
+
+        assert [(s.track, s.start, s.end) for s in split(rows, covers(rows), {1: [11]})] == [(1, 0, 11), (1, 12, 29)]
+
 
 class TestCannotLinks:
     def test_blocks_teammates_seen_together_and_runs_too_fast(self):

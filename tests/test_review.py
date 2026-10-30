@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import constraints, load_roster, mark_odd, range_of, remember, save, set_name, suggest, with_review
+from volleyball_stats.review import constraints, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
 
 
 class TestConstraints:
@@ -21,6 +21,11 @@ class TestConstraints:
     def test_not_a_player_and_dont_know(self):
         assert constraints("not_player", self.refs) == {"not_player": [self.piece]}
         assert constraints("skip", self.refs) == {}
+
+    def test_a_cut_ends_the_piece_before_and_parts_the_two_sides(self):
+        before, after = {"track": 7, "frame": 140}, {"track": 7, "frame": 142}
+
+        assert constraints("cut", self.refs, cut=(before, after)) == {"cut": [before], "different": [[before, after]]}
 
     def test_two_identities_are_one_player_or_two(self):
         refs = {"choices": [self.three, self.five]}
@@ -42,7 +47,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "log": log}
 
 
 class TestRange:
@@ -145,3 +150,27 @@ class TestMarkOdd:
         entry = mark_odd([], [self.b], [self.a], ["not_player"])[0]
 
         assert entry["not_player"] == [self.b] and "same" not in entry
+
+
+class TestReanchor:
+    wrong, kept, piece = {"track": 1, "frame": 15}, {"track": 2, "frame": 50}, {"track": 3, "frame": 70}
+    # Pieces are tracks here; track 1's piece was shown as someone else.
+    moved = {(1,): kept}
+
+    @staticmethod
+    def segment_of(ref):
+        return (ref["track"],)
+
+    def test_a_name_and_a_choice_pinned_on_a_wrong_picture_follow_the_player(self):
+        log = [{"id": "piece:3:60", "choice": "0", "same": [[self.piece, self.wrong]], "different": [[self.piece, {"track": 9, "frame": 1}]]},
+               {"id": "piece:3:61", "choice": "player:2:5", "same": [[self.wrong, self.piece]]}]
+
+        log, names = reanchor(log, [{"ref": self.wrong, "name": "Laeticia"}], self.moved, self.segment_of)
+
+        assert names == [{"ref": self.kept, "name": "Laeticia"}]
+        assert log[0]["same"] == [[self.piece, self.kept]] and log[1]["same"] == [[self.kept, self.piece]]
+
+    def test_the_marked_pictures_themselves_stay(self):
+        log = mark_odd([], [self.wrong], [self.kept], [self.piece])
+
+        assert reanchor(log, [], self.moved, self.segment_of)[0] == log

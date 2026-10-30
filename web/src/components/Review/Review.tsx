@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Check, HelpCircle, PenLine, Undo2, UserX, Users } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, HelpCircle, PenLine, Scissors, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
-const KEYS: Record<string, string> = { '1': '0', '2': '1', '3': 'other', x: 'not_player', s: 'skip' };
+const KEYS: Record<string, string> = { '1': '0', '2': '1', '3': 'other', x: 'not_player', c: 'cut', s: 'skip' };
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
 
 type Tab = 'questions' | 'names';
@@ -52,6 +52,7 @@ export function Review({
   const [given, setGiven] = useState(() => new Map(players.map((p) => [`${p.team}:${p.identity}`, { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
   const named = [...given.values()].filter((g) => g.name.trim() || g.jersey).length;
   const nameOf = (team: Group, n: number) => given.get(`${team}:${n}`)?.name.trim() || null;
+  const clipTime = useRef(0);
   // The questions answered here, last on top, to bring back on undo.
   const [done, setDone] = useState<Question[]>([]);
   // A proposed player whose pictures are all marked as someone else is no longer offered, nor a
@@ -72,7 +73,8 @@ export function Review({
         return;
       }
       try {
-        await post('answer', { id: question.id, choice });
+        // A cut falls where the clip stands: paused when the outlined person changed.
+        await post('answer', { id: question.id, choice, ...(choice === 'cut' ? { at: clipTime.current } : {}) });
         setDone((d) => [...d, question]);
         setQuestions((qs) => qs.filter((q) => q.id !== question.id));
         setAnswered((n) => n + 1);
@@ -197,7 +199,7 @@ export function Review({
             </CardHeader>
             <CardContent className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
               <div className="grid min-w-0 gap-3">
-                <ClipVideo key={`${question.id}${showOther}`} clip={showOther && question.other ? question.other : question.clip} width={width} height={height} />
+                <ClipVideo key={`${question.id}${showOther}`} clip={showOther && question.other ? question.other : question.clip} width={width} height={height} timeRef={clipTime} />
                 {question.kind === 'merge' && (
                   <div className="flex flex-wrap gap-2">
                     {question.choices.map((c, k) => (
@@ -248,8 +250,10 @@ export function Review({
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
                       <AnswerButton icon={<Users aria-hidden />} label={t('review.other')} hint="3" onClick={() => void answer('other')} />
                       <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
+                      <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" onClick={() => void answer('cut')} />
                       <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
                     </div>
+                    <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
                     <label className="grid gap-1 text-sm font-medium">
                       {t('review.whoIs')}
                       <PlayerSelect

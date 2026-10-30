@@ -121,8 +121,9 @@ def covers(rows: list[Row]) -> dict[Key, float]:
     return out
 
 
-def split(rows: list[Row], cover: dict[Key, float]) -> list[Segment]:
-    """Each track cut in the middle of each crowd episode, sorted by start."""
+def split(rows: list[Row], cover: dict[Key, float], cuts: dict[int, list[int]] | None = None) -> list[Segment]:
+    """Each track cut in the middle of each crowd episode and after its frames in `cuts` (where the
+    user saw the tracked player change), sorted by start."""
     by_track: dict[int, list[Row]] = {}
     for r in sorted(rows, key=lambda r: r.frame):
         by_track.setdefault(r.track, []).append(r)
@@ -135,10 +136,10 @@ def split(rows: list[Row], cover: dict[Key, float]) -> list[Segment]:
                     episodes[-1][1] = r.frame
                 else:
                     episodes.append([r.frame, r.frame])
-        cuts = [(a + b) // 2 for a, b in episodes]
+        ends = sorted({(a + b) // 2 for a, b in episodes} | set((cuts or {}).get(track, [])))
         pieces: list[list[Row]] = [[]]
         for r in track_rows:
-            while len(pieces) <= len(cuts) and r.frame > cuts[len(pieces) - 1]:
+            while len(pieces) <= len(ends) and r.frame > ends[len(pieces) - 1]:
                 pieces.append([])
             pieces[-1].append(r)
         out += [Segment(track, [r.frame for r in p], [r.court for r in p]) for p in pieces if p]
@@ -625,7 +626,7 @@ def identify(
 ) -> tuple[list[Segment], dict]:
     """The segments of the players' tracks with their team, identity number (0 for none) and doubt,
     and the doubts' questions (`doubts`). `answers` (identity_answers.json, segments referred to as
-    `resolve` says) override the model: "not_player" segments get no team nor identity, each "same" group is one
+    `resolve` says) override the model: each "cut" ends its track's piece at its frame, "not_player" segments get no team nor identity, each "same" group is one
     player, each "different" group's members are different players; `previous` holds a previous
     run's (team, number) by (frame, track); `squad` the number of players of each team, when known;
     `contacts` the (frame, track) of the attributed contacts, for the questions' ranking; `jerseys`
@@ -633,7 +634,10 @@ def identify(
     names the user gave, (ref, name), likewise (`name_links`)."""
     answers = answers or {}
     cover = covers(rows)
-    segments = split(rows, cover)
+    cuts: dict[int, list[int]] = {}
+    for c in answers.get("cut", []):
+        cuts.setdefault(c["track"], []).append(c["frame"])
+    segments = split(rows, cover, cuts)
     before = previous_labels(segments, previous)
     dropped = {k for ref in answers.get("not_player", []) for k in resolve(ref, segments, before)}
     removed = [s for k, s in enumerate(segments) if k in dropped]
