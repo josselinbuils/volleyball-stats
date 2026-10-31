@@ -479,7 +479,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     if video and av1:
         data["av1"] = av1.name
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
-        data["poster"] = "poster.webp"
+        data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
     players_js = players and f"window.MATCH_PLAYERS = {json.dumps(players, separators=(',', ':'))};\n"
     if players_js:
@@ -783,8 +783,15 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
             part = face(image, box, scores[name(frame, box)][4])
             if part.size:
                 cv2.imwrite(str(folder / f"{key}.webp"), upscaled(up, part) if up else touched_up(part), [cv2.IMWRITE_WEBP_QUALITY, 80])
-                people[key]["photo"] = f"{folder.name}/{key}.webp"
+                people[key]["photo"] = versioned(folder / f"{key}.webp", folder.name)
     return picked
+
+
+def versioned(path: Path, folder: str = "") -> str:
+    """`path`'s address beside the page with its content's hash: the host lets browsers keep it for
+    good, a new picture getting a new address."""
+    v = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+    return f"{folder}/{path.name}?v={v}" if folder else f"{path.name}?v={v}"
 
 
 def footage_video(match: Path, video: Path, blurred: set[int]) -> Path:

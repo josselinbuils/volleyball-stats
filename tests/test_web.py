@@ -394,7 +394,7 @@ class TestPhotos:
         monkeypatch.setattr(web, "upscaler", lambda: None)
         photos(tmp_path, video, people, tmp_path / "players")
 
-        assert people[0]["photo"] == "players/0.webp"
+        assert people[0]["photo"].startswith("players/0.webp?v=")
         # The 10x30 box from a little above its top down to its waist (55 %), 3 wide for 4 tall.
         assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (17, 13)
         assert "photo" not in people[1]

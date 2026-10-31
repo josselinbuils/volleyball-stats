@@ -96,8 +96,9 @@ there, assigned to the owner), the site in `volleyball-stats/site`, the `/volley
 `reverse-proxy/Caddyfile` (Caddy since 31 Oct; the Node proxy pegged the CPU gzipping `players.js`: PR
 josselinbuils/docker#2, rollback `/root/rollback-proxy.sh`). `/usr/local/bin/vbs-monitor.sh` logs the CPU every
 minute to `/var/log/vbs-monitor/` with a snapshot when busy; `matches.build` writes `.gz` copies nginx sends as
-they are (`gzip_static`). SSH is key-only. Cloudflare caches the `.js` files for 4 hours: the unhashed ones load
-with the build's hash (`?v=`), so a new build shows at once. `outputs/hosted/` holds the hosted
+they are (`gzip_static`). SSH is key-only. Cloudflare and browsers keep the hashed and `?v=` files for good (the
+unhashed ones load with the build's hash, card pictures with their own), images a day, pages are
+checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`,
 `club`, `upload` as `root@<OVH IP>:…/site/`, `key`), the review does all of it after each apply
