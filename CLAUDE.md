@@ -79,17 +79,41 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   The review also asks every touch its page credits to no named player (a player on court under
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
 - Open, most useful first:
-  1. Rally ends and winners: the estimated score is still off (+6 windows over the match); label
-     another span (set 3) to check the `served` fixes held out, then how rallies end (in, out, fault).
-  2. The review's rally answers (`identity_answers.json` "rally": 6 no play, 7 rallies) as labels to
-     drop false windows automatically.
-  3. Names: Théo and Maeva both have jersey 10 (a typo for one); a player without a jersey shows their
-     tracking number (Sylvain: 10), which can clash with real jerseys: show initials instead?
-  4. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
+  1. In progress, uncommitted in the working tree: free play in the review's report questions (owner's
+     ask: the question points at a moment, nothing holds you to its rally). Done: `review.report_answer`
+     takes changes anywhere in the match (`touches`, `added` placed by `window_of`, `rallies`: `{start,
+     winner, play, end}` by window start frame) with `Questions.page_index`; `end` answers applied by
+     `web.ended` (page build, `ball_track`, the review's touch questions), touches past an end dropped;
+     Python tests pass. `ClipVideo` has a `free` mode (no loop, bar re-anchored around the video, all
+     rallies as bands, ±10 s buttons), not yet type-checked. Left: rewrite `ReportEditor` (the touches
+     of the rallies around the video, grouped by rally with clickable headers; the winner, no play,
+     "Voir 5 s de plus" and "Finir l'échange ici" for the rally the video is in, or the one just
+     ended), `ReportChanges` in `lib/review.ts`, `Review.tsx` (`free`, no clamp on a touch's replay),
+     locales (`review.back`, `review.forward`, the end's labels); build, restart the review server
+     (it serves its built copy), check desktop and phone, commit. Until then, do not restart the review
+     server on this code: the committed page sends `winner`/`play` at the top level, which it ignores.
+  2. Ask the owner: their last 7 report answers (10:23, 11:04, 31:44, 54:56, 56:07, 57:25, 66:40) were
+     undone from a browser on 31 Oct; restore them from
+     `outputs/first_match/identity_answers.before-undo.json` unless that was meant. The 2:39 report was
+     undone on their ask (its old answer in `outputs/first_match/undone-report-2m39.json`).
+  3. Viewers' reports: 18 fetched on 31 Oct 23:10 (`outputs/feedback-20261031-231035.log`), the online log
+     not emptied yet (ask first). 32 report questions open in the review; 18:39 (Landy) and 53:12
+     (Killian) are clear enough to record if the owner wants.
+  4. The first match: answers pending, not applied; the pipeline rerun waits for the owner's go.
+  5. Rally ends and winners: `rallies.whistled` as a fallback is in (held out found R 1.00, F1 ±1 s 0.57).
+     Left on 50:00-60:00: two false windows (server bouncing the ball, a ball rolled back), ends cut by
+     another court's whistle (-4.1 s) or the ball out of sight (-3.0, -2.3, and -10 s for 58:55), a rally
+     joined to its dead-ball tail by the 8 s rule (+10 s); then how rallies end (in, out, fault).
+  6. The review's rally answers (`identity_answers.json` "rally") as labels to drop false windows
+     automatically (asked, not started).
+  7. Node.js and library updates on the owner's services (offered by the owner, not done).
+  8. Names: a player without a jersey shows their tracking number (Sylvain: 10), which can clash with
+     real jerseys: show initials instead? (Théo and Maeva sharing 10 is right.)
+  9. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
-  5. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  6. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
+  10. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+  11. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
 
 ## Hosting
 
