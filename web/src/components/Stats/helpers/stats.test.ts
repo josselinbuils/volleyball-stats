@@ -12,7 +12,7 @@ describe('lines', () => {
   };
   // Each touch alone in its rally: no touch follows it.
   let rally = 0;
-  const touch = (type: string, g: number, person: number | null, result = 'play', receiver?: number) => ({ type, g, person, result, receiver, rally: rally++ }) as Contact;
+  const touch = (type: string, g: number, person: number | null, result = 'play', receiver?: number | null) => ({ type, g, person, result, receiver, rally: rally++ }) as Contact;
   const contacts = [
     touch('serve', 1, 0, 'point', 3), // ace on team 2's no. 1
     touch('serve', 2, 3, 'point', 1), // ace on team 1's no. 2
@@ -55,6 +55,11 @@ describe('lines', () => {
     const [player, rest] = lines([touch('serve', 1, 0, 'point', 2)], people, 2);
     expect([player.id, count(player.stats)]).toEqual(['rest', { receptions: 1, missed: 1, rated: 1, faults: 1 }]);
     expect(rest.id).toBe('total');
+  });
+
+  it('counts an ace the review says no one missed for the team only', () => {
+    const [total] = lines([touch('serve', 1, 0, 'point', null)], people, 2);
+    expect([total.id, count(total.stats)]).toEqual(['total', { receptions: 1, missed: 1, rated: 1, faults: 1 }]);
   });
 
   it('counts a ball dropped between two players for each of them, once for the team', () => {
@@ -121,13 +126,21 @@ describe('mvp', () => {
     return { id, stats: { points: many(points), faults: many(faults), touches: many(touches) } as Stats };
   };
 
-  it('picks the best balance of points won minus faults, then the most points, then touches', () => {
-    expect(mvp([line(1, 6, 4), line(2, 3, 0), line('total', 20, 0)])).toBe(2);
-    expect(mvp([line(1, 5, 2), line(2, 4, 1, 30), line(3, 4, 1, 10)])).toBe(1);
-    expect(mvp([line(2, 4, 1, 10), line(3, 4, 1, 30)])).toBe(3);
+  it('picks the best balance of points won minus faults without times, then the most points, then touches', () => {
+    const none = () => 0;
+    expect(mvp([line(1, 6, 4), line(2, 3, 0), line('total', 20, 0)], none)).toBe(2);
+    expect(mvp([line(1, 5, 2), line(2, 4, 1, 30), line(3, 4, 1, 10)], none)).toBe(1);
+    expect(mvp([line(2, 4, 1, 10), line(3, 4, 1, 30)], none)).toBe(3);
+  });
+
+  it('picks the best balance per minute among those who played at least half the longest time', () => {
+    const minutes: Record<number, number> = { 1: 600, 2: 300, 3: 100 };
+    const seconds = (p: number) => minutes[p];
+    expect(mvp([line(1, 6, 1), line(2, 4, 1), line(3, 3, 0)], seconds)).toBe(2);
+    expect(mvp([line(1, 6, 1), line(2, 2, 0)], seconds)).toBe(1);
   });
 
   it('names no one without a balance above 0', () => {
-    expect(mvp([line(1, 2, 2), line(2, 0, 1)])).toBeNull();
+    expect(mvp([line(1, 2, 2), line(2, 0, 1)], () => 60)).toBeNull();
   });
 });

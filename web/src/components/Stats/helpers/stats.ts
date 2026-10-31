@@ -152,13 +152,21 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
   return out;
 }
 
-/** The best player of `found`'s (both teams' lines): the best balance of points won minus faults,
- * then the most points, then the most touches; null when no one's balance is above 0. */
-export function mvp(found: Line[]): number | null {
+// The MVP played at least this share of the longest time on the court of the players.
+const MVP_SHARE = 0.5;
+
+/** The best player of `found`'s (both teams' lines), `seconds` each one's time on the court: the
+ * best balance of points won minus faults per minute played, among those on the court at least
+ * MVP_SHARE of the longest time (the balance alone without times), then the most points, then the
+ * most touches; null when no one's balance is above 0. */
+export function mvp(found: Line[], seconds: (person: number) => number): number | null {
   const balance = (l: Line) => l.stats.points.length - l.stats.faults.length;
-  const players = found.filter((l): l is Line & { id: number } => typeof l.id === 'number' && balance(l) > 0);
-  players.sort((a, b) => balance(b) - balance(a) || b.stats.points.length - a.stats.points.length || b.stats.touches.length - a.stats.touches.length);
-  return players[0]?.id ?? null;
+  const players = found.filter((l): l is Line & { id: number } => typeof l.id === 'number');
+  const longest = Math.max(0, ...players.map((l) => seconds(l.id)));
+  const rate = (l: Line & { id: number }) => (longest ? balance(l) / seconds(l.id) : balance(l));
+  const kept = players.filter((l) => balance(l) > 0 && (!longest || seconds(l.id) >= MVP_SHARE * longest));
+  kept.sort((a, b) => rate(b) - rate(a) || b.stats.points.length - a.stats.points.length || b.stats.touches.length - a.stats.touches.length);
+  return kept[0]?.id ?? null;
 }
 
 /** The table of team `g`: its identified players who touched the ball or missed an ace, most touches
@@ -195,7 +203,7 @@ export function lines(contacts: Contact[], people: Record<string, Person>, g: Gr
     ...stats(
       contacts,
       (c) => c.g === g && owner(c.person, g) === null,
-      (c) => c.g !== g && owner(c.receiver, g) === null,
+      (c) => c.g !== g && c.receiver !== null && owner(c.receiver, g) === null,
     ),
     between: between((k) => k === null),
   };

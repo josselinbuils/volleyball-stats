@@ -105,6 +105,10 @@
   "set": "Set {{n}}",
   "setDuration": "Durée du set",
   "ofSet": "{{p}} du set",
+  "setScore": "Score du set",
+  "matchScore": "Score du match",
+  "setsScores": "Sets : {{list}}",
+  "estimatedScore": "{{score}} (estimé)",
   "clubSite": "Site du club {{name}} (nouvel onglet)",
   "loadingPlayers": "Chargement des positions…",
   "numbersNote": "Chaque numéro désigne le même joueur ou la même joueuse pendant tout le match, en attendant que l'équipe soit nommée.",
@@ -227,11 +231,15 @@
     "tabNames": "Noms · {{n}} sur {{total}}",
     "touchQuestion": "Qui touche le ballon dans le cadre jaune ?",
     "touchNote": "Seul le passage au ralenti compte, quand le cadre jaune est affiché. Si personne ne touche le ballon pendant ce ralenti, répondez « Personne ».",
+    "aceQuestion": "Qui rate la réception de ce service ?",
+    "aceNote": "Le service est passé au ralenti jusqu'à ce qu'il tombe. Choisissez le joueur ou la joueuse de l'équipe qui reçoit qui aurait dû le prendre ; si le ballon tombe hors de portée de tous, répondez « Personne ».",
+    "aceNobody": "Personne : hors de portée de tous",
     "touchProposed": "C'est bien {{name}}",
     "touchWhy": {
       "unknown": "aucun joueur reconnu",
       "twice": "le même joueur deux fois de suite",
-      "close": "deux joueurs aussi près du ballon"
+      "close": "deux joueurs aussi près du ballon",
+      "ace": "ace"
     },
     "nobody": "Personne ne le touche dans le cadre",
     "notPlay": "Pas une phase de jeu",
@@ -383,7 +391,7 @@
       "download": "Télécharger la carte",
       "copy": "Copier la carte",
       "mvp": "MVP",
-      "mvpWhy": "MVP : le meilleur bilan, points marqués moins fautes, de tous les joueurs des deux équipes. {{points}} points marqués (attaques, aces, contres) pour {{faults}} fautes : +{{balance}}."
+      "mvpWhy": "MVP : le meilleur bilan par minute de jeu, points marqués moins fautes, de tous les joueurs des deux équipes qui ont joué au moins la moitié du temps du plus présent. {{points}} points marqués (attaques, aces, contres) pour {{faults}} fautes en {{time}} de jeu : +{{balance}}."
     }
   },
   "scene3d": {

@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -60,6 +60,9 @@ MIN_IMPACT = 10.0
 # it (a contact found up to a few frames off): only that moment is asked about.
 TOUCH_AROUND_S, TOUCH_SHOWN_S, TOUCH_SLOW = 1.5, 0.25, 0.25
 UNKNOWN = ("", "0")
+# An ace's receiver is asked on its flight, slowed from the serve to its landing (ACE_FLIGHT_S after
+# the serve when unseen), zoomed out to ACE_ZOOM players' height around the landing.
+ACE_FLIGHT_S, ACE_ZOOM = 1.5, 4
 # Touches not doubted asked too, the same ones each time: how many wrong picks the doubts miss.
 SPOT_CHECKS = 20
 # A rally window asked about is played whole with RALLY_AROUND_S on both sides, unzoomed.
@@ -121,6 +124,10 @@ class Questions:
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set")) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
+        points = web.read_csv(self.match / "points.csv") if (self.match / "points.csv").exists() else [{}] * len(rallies)
+        gone = web.no_rallies(self.match)
+        played = [(w, p.get("winner")) for w, r, p in zip(windows, rallies, points) if int(r["start_frame"]) not in gone]
+        self.aces = aces([r for r in actions if r["frame"] not in nothing], [w for w, _ in played], [p for _, p in played])
 
     def track_rows(self, track: int, start: int, end: int) -> np.ndarray:
         """Indices of a track's boxes from `start` to `end`, by frame."""
@@ -442,6 +449,20 @@ class Questions:
                 "reason": reason, "proposed": None if r["identity"] in UNKNOWN else int(r["identity"]),
             })
             refs[qid] = {"touch": {"frame": frame, "team": team}}
+        missed = []
+        for serve, landing in self.aces:
+            frame, team = int(serve["frame"]), 3 - int(serve["team"])
+            qid = f"receiver:{frame}"
+            if qid in asked:
+                continue
+            at, side = (int(landing["frame"]) if landing else frame + round(ACE_FLIGHT_S * self.fps)), ACE_ZOOM * self.touch_side / 2
+            box = [[round(at / self.fps, 3), *(round(float(landing[k]) + d * side) for d, k in ((-1, "x"), (-1, "y"), (1, "x"), (1, "y")))]] if landing else []
+            missed.append({
+                "id": qid, "kind": "touch", "team": team, "identity": None, "impact": identity.CONTACT_S, "seconds": 0, "contacts": 1,
+                "action": "serve", "time": round(frame / self.fps, 2), "reason": "ace", "proposed": None, "crops": [], "choices": [],
+                "clip": {"start": round(frame / self.fps, 2), "end": round(at / self.fps, 2), "around": TOUCH_AROUND_S, "slow": TOUCH_SLOW, "boxes": box},
+            })
+            refs[qid] = {"receiver": {"frame": frame, "team": team}}
         found = []
         for (start, end), number in self.empty:
             qid = f"rally:{start}"
@@ -453,7 +474,7 @@ class Questions:
                 "clip": {"start": round(start / self.fps, 2), "end": round(end / self.fps, 2), "around": RALLY_AROUND_S, "boxes": []},
             })
             refs[qid] = {"rally": {"start": start + round(web.LEAD_S * self.fps)}}
-        return found + touches + sorted(out, key=lambda q: -q["impact"]), refs
+        return found + missed + touches + sorted(out, key=lambda q: -q["impact"]), refs
 
 
 def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[Ref, Ref] | None = None) -> dict[str, list]:
@@ -486,6 +507,28 @@ def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[R
 def touches_in(actions: list[dict], window: tuple[int, int]) -> list[dict]:
     """actions.csv's touches inside `window` (its lead included)."""
     return [r for r in actions if r["type"] not in web.NO_PLAYER and window[0] <= int(r["frame"]) <= window[1]]
+
+
+def aces(actions: list[dict], windows: list[tuple[int, int]], winners: list[str | None]) -> list[tuple[dict, dict | None]]:
+    """The serves of actions.csv's rows (frame order) that the page makes aces as their window's
+    (lead included) last touch, their team its winner (`winners`, points.csv's by window), each with
+    the row after it in the window (the landing), None when unseen."""
+    out = []
+    for (start, end), winner in zip(windows, winners):
+        rows = [r for r in actions if start <= int(r["frame"]) <= end]
+        touches = [r for r in rows if r["type"] not in web.NO_PLAYER]
+        if winner and touches and touches[-1]["type"] == "serve" and touches[-1].get("team") == winner:
+            out.append((touches[-1], next((r for r in rows if int(r["frame"]) > int(touches[-1]["frame"])), None)))
+    return out
+
+
+def receiver_answer(ace: dict, choice: str, given: dict[tuple[int, int], dict]) -> dict:
+    """What an answer to an ace's receiver question adds to identity_answers.json: the player of
+    "player:TEAM:IDENTITY" missed it, with the name `given` them, or no one ("nobody"); nothing for
+    another answer."""
+    if choice == "not_play":
+        return {}
+    return {"receiver": found} if (found := touch_answer(ace, choice, given).get("touch")) else {}
 
 
 def rally_answer(rally: dict, choice: str) -> dict:
@@ -1116,6 +1159,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     player = said and questions.ref(int(said[1]), int(said[2]))
                     if "rally" in refs[body["id"]]:
                         log.append({"id": body["id"], "choice": choice, **rally_answer(refs[body["id"]]["rally"], choice), "applied": False})
+                    elif "receiver" in refs[body["id"]]:
+                        given = identity.named(questions.table, identity.read_names(match))
+                        log.append({"id": body["id"], "choice": choice, **receiver_answer(refs[body["id"]]["receiver"], choice, given), "applied": False})
                     elif "touch" in refs[body["id"]]:
                         given = identity.named(questions.table, identity.read_names(match))
                         log.append({"id": body["id"], "choice": choice, **touch_answer(refs[body["id"]]["touch"], choice, given), "applied": False})

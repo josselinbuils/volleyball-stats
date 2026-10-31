@@ -29,7 +29,8 @@ export interface Contact {
   player: number | null;
   /** That player's name, when the user gave one. */
   name: string | null;
-  /** For an ace, key of the receiver who missed it: the nearest to where it landed. */
+  /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
+   * landed; null when the review says no one did, absent when unknown. */
   receiver?: number | null;
 }
 

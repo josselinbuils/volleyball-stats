@@ -105,6 +105,10 @@
   "set": "Set {{n}}",
   "setDuration": "Set length",
   "ofSet": "{{p}} of the set",
+  "setScore": "Set score",
+  "matchScore": "Match score",
+  "setsScores": "Sets: {{list}}",
+  "estimatedScore": "{{score}} (estimated)",
   "clubSite": "{{name}} website (new tab)",
   "loadingPlayers": "Loading players…",
   "numbersNote": "Each number is the same player for the whole match, until the players are named.",
@@ -227,11 +231,15 @@
     "tabNames": "Names · {{n}} of {{total}}",
     "touchQuestion": "Who touches the ball in the yellow frame?",
     "touchNote": "Only the slow-motion part counts, while the yellow frame shows. If nobody touches the ball during it, answer \"Nobody\".",
+    "aceQuestion": "Who misses the reception of this serve?",
+    "aceNote": "The serve plays in slow motion until it lands. Pick the player of the receiving team who should have taken it; if it lands out of everyone's reach, answer \"Nobody\".",
+    "aceNobody": "Nobody: out of everyone's reach",
     "touchProposed": "It is {{name}}",
     "touchWhy": {
       "unknown": "no player recognised",
       "twice": "the same player twice in a row",
-      "close": "two players as near the ball"
+      "close": "two players as near the ball",
+      "ace": "ace"
     },
     "nobody": "Nobody touches it in the frame",
     "notPlay": "Not during play",
@@ -383,7 +391,7 @@
       "download": "Download the card",
       "copy": "Copy the card",
       "mvp": "MVP",
-      "mvpWhy": "MVP: the best balance, points won minus faults, of every player of both teams. {{points}} points won (attacks, aces, blocks) for {{faults}} faults: +{{balance}}."
+      "mvpWhy": "MVP: the best balance per minute played, points won minus faults, of every player of both teams on the court at least half as long as the longest. {{points}} points won (attacks, aces, blocks) for {{faults}} faults in {{time}} played: +{{balance}}."
     }
   },
   "scene3d": {

@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import ball_track, brand, contacts, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import ball_track, brand, contacts, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -127,10 +127,30 @@ class TestContacts:
         players = {10: [feet(1, -8.0, 0.0)], 30: [feet(1, -2.0, 2.0), feet(5, 7.0, -3.0), feet(6, 4.0, 3.0)]}
 
         out = contacts(typed, [(5, 40)], players, 10.0, IDENTITY, 15)
+        receivers(out, typed, players)
 
         assert out[0]["result"] == "point"
         assert out[0]["receiver"] == 6
         assert "receiver" not in out[1]
+
+    def test_an_ace_without_a_landing_across_the_net_has_the_receiver_the_review_said_else_none_known(self):
+        typed = [
+            {"frame": "10", "x": "-8", "y": "0", "type": "serve", "side": "left", "track": "1"},
+            {"frame": "20", "x": "-4", "y": "2", "type": "net", "side": "left"},
+            {"frame": "50", "x": "-8", "y": "0", "type": "serve", "side": "left", "track": "1"},
+        ]
+        players = {20: [{"x1": "0", "y1": "0", "x2": "1", "y2": "1", "court_x": "-3.0", "court_y": "2.0", "track": "1"}]}
+        out = contacts(typed, [(5, 40), (45, 80)], players, 10.0, IDENTITY, 15)
+        # The points step made both serves aces: each was its rally's last touch and won it.
+        out[0]["result"] = out[2]["result"] = "point"
+        said = lambda track, frame, given=None: given[1] if given else track  # noqa: E731
+
+        receivers(out, typed, players, said, {50: (2, 4)})
+        assert "receiver" not in out[0]
+        assert out[2]["receiver"] == 4
+
+        receivers(out, typed, players, said, {10: None})
+        assert out[0]["receiver"] is None
 
     def test_places_an_attributed_contact_at_its_players_feet_else_under_the_ball(self):
         typed = [

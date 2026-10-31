@@ -14,6 +14,7 @@ import { useSet } from '@/lib/sets';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
 import { insights } from '@/components/Stats/helpers/insights';
 import { lines, mvp } from '@/components/Stats/helpers/stats';
+import { Mvp } from '@/components/Stats/Mvp';
 import { PlayerCards } from '@/components/Stats/PlayerCards';
 import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
 
@@ -37,6 +38,12 @@ export function PlayersTable() {
       .flatMap(([, p]) => Object.entries(p.seconds ?? {}))
       .reduce((sum, [n, v]) => (set === null || Number(n) === set ? sum + v : sum), 0);
   };
+  const best = withPlayers
+    ? mvp(
+        GROUPS.flatMap((g) => lines(contacts, match.people, g, dropped)),
+        seconds,
+      )
+    : null;
   const found = lines(contacts, match.people, group, dropped);
   const team = found[found.length - 1].stats;
   const rows = found
@@ -45,7 +52,10 @@ export function PlayersTable() {
       key: line.id,
       name:
         typeof line.id === 'number' ? (
-          <Who person={line.id} g={group} />
+          <span className="flex flex-wrap items-center gap-x-2">
+            <Who person={line.id} g={group} />
+            {line.id === best && <Mvp stats={line.stats} seconds={seconds(line.id)} />}
+          </span>
         ) : (
           <span className={cn('flex min-h-8 items-center', line.id === 'rest' && 'text-muted-foreground')}>{line.id === 'total' && !hasTeams ? groupName(t, group) : t(`players.${line.id}`)}</span>
         ),
@@ -57,7 +67,6 @@ export function PlayersTable() {
       total: line.id === 'total',
     }));
   const cards = rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number');
-  const best = withPlayers ? mvp(GROUPS.flatMap((g) => lines(contacts, match.people, g, dropped))) : null;
 
   return (
     <Card>

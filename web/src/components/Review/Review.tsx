@@ -281,7 +281,7 @@ export function Review({
                   {question.kind === 'piece'
                     ? t('review.who')
                     : question.kind === 'touch'
-                      ? t('review.touchQuestion')
+                      ? t(question.reason === 'ace' ? 'review.aceQuestion' : 'review.touchQuestion')
                       : question.kind === 'rally'
                         ? t('review.rallyQuestion')
                         : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
@@ -334,7 +334,7 @@ export function Review({
                     ))}
                   </div>
                 )}
-                <p className="text-[13px] text-muted-foreground">{t(`review.${question.kind}Note`)}</p>
+                <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>
               </div>
               <div className="grid gap-3">
                 {question.kind === 'rally' ? (
@@ -353,8 +353,8 @@ export function Review({
                         onClick={() => void answer(`player:${question.team}:${question.proposed}`)}
                       />
                     )}
-                    <AnswerButton icon={<CircleOff aria-hidden />} label={t('review.nobody')} hint="X" onClick={() => void answer('nobody')} />
-                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
+                    <AnswerButton icon={<CircleOff aria-hidden />} label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')} hint="X" onClick={() => void answer('nobody')} />
+                    {question.reason !== 'ace' && <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />}
                     <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
                   </div>
                 ) : question.kind === 'piece' ? (

@@ -1,8 +1,7 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Copy, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/format';
@@ -10,12 +9,12 @@ import { CARD_SHADE } from '@/helpers/colors';
 import { groupName, match, playerLabel, playerNumber, teamColor, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
-import { cardPicture, GOLD, SHIELD } from '@/components/Stats/helpers/cardPicture';
+import { cardPicture, SHIELD } from '@/components/Stats/helpers/cardPicture';
 import type { Stat } from '@/components/Stats/helpers/stats';
+import { GOLD_CSS, Mvp } from '@/components/Stats/Mvp';
 import { InsightChip, type Row } from '@/components/Stats/StatsTable';
 
 const SIX: Stat[] = ['serves', 'receptions', 'sets', 'attacks', 'blocks', 'digs'];
-const GOLD_CSS = `linear-gradient(135deg, ${GOLD.map(([at, c]) => `${c} ${at * 100}%`).join(', ')})`;
 // The stars over a hovered picture: left and top (% of the picture), size (px), delay (s).
 const SPARKLES: [number, number, number, number][] = [
   [10, 12, 16, 0],
@@ -138,7 +137,7 @@ function FifaCard({ id, row: r, g, mvp }: CardProps) {
               <div className="grid content-start justify-items-center gap-1.5 pt-2">
                 <span className="text-5xl leading-none font-black tabular-nums">{playerNumber(r.key)}</span>
                 <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
-                {mvp && <Mvp row={r} />}
+                {mvp && <Mvp stats={r.stats} seconds={r.seconds ?? 0} className="mt-1" />}
               </div>
               {photo ? (
                 <div className="relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
@@ -202,33 +201,6 @@ function FifaCard({ id, row: r, g, mvp }: CardProps) {
         )}
       </ContextMenuContent>
     </ContextMenu>
-  );
-}
-
-/** The MVP badge, why on hover, focus or tap as the tables' column titles: a tap does not open a
- * tooltip on its own. */
-function Mvp({ row: r }: { row: CardRow }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  return (
-    <Tooltip open={open} onOpenChange={setOpen}>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          data-mvp
-          className="mt-1 rounded-full px-2 py-0.5 text-xs font-black tracking-wider text-[#3a2a00] shadow-sm outline-none focus-visible:ring-3 focus-visible:ring-current/50"
-          style={{ background: GOLD_CSS }}
-          onClick={(e) => {
-            // Kept open: the trigger's own click handler would close it.
-            e.preventDefault();
-            setOpen(true);
-          }}
-        >
-          {t('players.cards.mvp')}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{t('players.cards.mvpWhy', { points: r.stats.points.length, faults: r.stats.faults.length, balance: r.stats.points.length - r.stats.faults.length })}</TooltipContent>
-    </Tooltip>
   );
 }
 

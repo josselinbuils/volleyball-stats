@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -87,6 +87,25 @@ class TestTouchAnswer:
         assert touch_answer(touch, "skip", {}) == {}
 
 
+
+class TestAces:
+    def test_asks_the_serves_that_end_a_rally_their_team_won_with_their_landing(self):
+        row = lambda frame, kind, team="": {"frame": str(frame), "type": kind, "team": team}  # noqa: E731
+        actions = [row(10, "serve", "1"), row(30, "floor"), row(100, "serve", "2"), row(200, "serve", "1"), row(220, "pass", "2"), row(300, "serve", "2")]
+
+        found = aces(actions, [(0, 50), (90, 150), (190, 250), (290, 350)], ["1", "1", "2", None])
+
+        assert [(s["frame"], l and l["frame"]) for s, l in found] == [("10", "30")]
+
+    def test_the_receiver_is_the_players_said_or_no_one(self):
+        ace = {"frame": 500, "team": 1}
+
+        assert receiver_answer(ace, "player:1:3", {(1, 3): {"name": "Léa"}}) == {"receiver": [{"frame": 500, "team": 1, "identity": 3, "name": "Léa"}]}
+        assert receiver_answer(ace, "nobody", {}) == {"receiver": [{"frame": 500, "team": 1, "identity": None, "name": None}]}
+        assert receiver_answer(ace, "not_play", {}) == {}
+        assert receiver_answer(ace, "skip", {}) == {}
+
+
 class TestSave:
     def test_the_constraint_lists_follow_the_log(self, tmp_path):
         path = tmp_path / "identity_answers.json"
@@ -94,7 +113,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "log": log}
 
 
 class TestRange:

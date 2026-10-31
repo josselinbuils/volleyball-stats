@@ -161,8 +161,7 @@ Who = Callable[..., int | None]
 def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[int, list[dict]], fps: float, calibration: Calibration, reach: float, who: Who = lambda track, *_: track, said: dict[int, tuple[int, int]] | None = None) -> list[dict]:
     """The page's contacts from the actions CSV rows: time, type, side, team (None without teams),
     rally index, court position, zone, result and the attributed track's player (`who`), or the
-    identity the review `said` touched it (by frame); an ace
-    also has the player who missed it (`receiver`). A contact with a track is placed at that
+    identity the review `said` touched it (by frame). A contact with a track is placed at that
     player's feet, else by `spot`. `players` holds the player CSV rows by frame."""
     lead, gap = round(LEAD_S * fps), round(GAP_S * fps)
     out: list[dict] = []
@@ -190,12 +189,28 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
             "zone": None if xy is None else zone(*xy),
             "person": who(track, frame, (said or {}).get(frame)),
         })
-    for k, (contact, after) in enumerate(zip(out, out[1:] + [None])):
+    for contact, after in zip(out, out[1:] + [None]):
         contact["result"] = result(contact, after if after and after["rally"] == contact["rally"] else None)
-        if contact["type"] == "serve" and contact["result"] == "point":
-            frame = int(typed[k + 1]["frame"])
-            contact["receiver"] = receiver(after, players.get(frame, []), lambda track: who(track, frame))
     return out
+
+
+def receivers(found: list[dict], typed: list[dict], players: dict[int, list[dict]], who: Who = lambda track, *_: track, said: dict[int, tuple[int, int] | None] | None = None) -> None:
+    """Each ace of `found` (the page's contacts, from actions CSV rows `typed`) gets the player who
+    missed it (`receiver`): the identity the review `said` (by the serve's frame), None when it said
+    no one; else the nearest to where it lands in its rally on the other side; unknown (no key)
+    without such a landing or a player there."""
+    said = said or {}
+    for k, (contact, after) in enumerate(zip(found, found[1:] + [None])):
+        if contact["type"] != "serve" or contact["result"] != "point":
+            continue
+        frame = int(typed[k]["frame"])
+        if frame in said:
+            contact["receiver"] = None if said[frame] is None else who(None, frame, said[frame])
+        elif after and after["rally"] == contact["rally"] and after["side"] != contact["side"]:
+            at = int(typed[k + 1]["frame"])
+            found_by = receiver(after, players.get(at, []), lambda track: who(track, at))
+            if found_by is not None:
+                contact["receiver"] = found_by
 
 
 def receiver(landing: dict, here: list[dict], who: Callable[[int], int | None]) -> int | None:
@@ -320,11 +335,12 @@ def poster(video: Path, frame: int, path: Path) -> bool:
     return ok
 
 
-def touched(match: Path, given: dict[tuple[int, int], dict]) -> dict[int, tuple[int, int] | None]:
+def touched(match: Path, given: dict[tuple[int, int], dict], kind: str = "touch") -> dict[int, tuple[int, int] | None]:
     """The touches the review's answers settle, by frame: the player's (team, identity), found by
-    the name `given` them (it outlives the identities' numbers), else by number; None for no touch."""
+    the name `given` them (it outlives the identities' numbers), else by number; None for no touch.
+    With `kind` "receiver", the aces' receivers by the serve's frame, None for no one."""
     path = match / "identity_answers.json"
-    answers = json.loads(path.read_text()).get("touch", []) if path.exists() else []
+    answers = json.loads(path.read_text()).get(kind, []) if path.exists() else []
     by_name = {(team, g["name"]): (team, number) for (team, number), g in given.items() if g.get("name")}
     return {t["frame"]: None if t["identity"] is None else by_name.get((t["team"], t.get("name")), (t["team"], t["identity"])) for t in answers}
 
@@ -409,6 +425,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
     settle(found, [r["winner"] for r in rallies])
+    receivers(found, actions, by_frame, who, touched(match, given, "receiver"))
     data = {
         "name": video.stem,
         "video": video.name,
