@@ -525,11 +525,15 @@ def aces(actions: list[dict], windows: list[tuple[int, int]], winners: list[str 
 
 def receiver_answer(ace: dict, choice: str, given: dict[tuple[int, int], dict]) -> dict:
     """What an answer to an ace's receiver question adds to identity_answers.json: the player of
-    "player:TEAM:IDENTITY" missed it, with the name `given` them, or no one ("nobody"); nothing for
-    another answer."""
+    "player:TEAM:IDENTITY" missed it, with their team (both teams are offered: one of the serve's own
+    means the window took their touch for a serve) and the name `given` them, or no one ("nobody");
+    nothing for another answer."""
     if choice == "not_play":
         return {}
-    return {"receiver": found} if (found := touch_answer(ace, choice, given).get("touch")) else {}
+    found = touch_answer(ace, choice, given).get("touch")
+    if found and choice.startswith("player:"):
+        found = [{**found[0], "team": int(choice.split(":")[1])}]
+    return {"receiver": found} if found else {}
 
 
 def rally_answer(rally: dict, choice: str) -> dict:

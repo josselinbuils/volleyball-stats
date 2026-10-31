@@ -277,7 +277,7 @@ export function Review({
             <CardHeader>
               <CardTitle>
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  {question.kind !== 'rally' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
+                  {question.kind !== 'rally' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
                   {question.kind === 'piece'
                     ? t('review.who')
                     : question.kind === 'touch'
@@ -289,7 +289,7 @@ export function Review({
               </CardTitle>
               <CardDescription>
                 {(question.kind === 'touch'
-                  ? [groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
+                  ? [question.reason !== 'ace' && groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
                   : question.kind === 'rally'
                     ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
                     : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
@@ -304,7 +304,8 @@ export function Review({
                   {t('review.whoIs')}
                   <PlayerSelect
                     key={question.id}
-                    players={question.kind === 'touch' ? players.filter((p) => p.team === question.team) : players}
+                    // Who missed an ace: both teams, the side the ball lands on is only a guess.
+                    players={question.kind === 'touch' && question.reason !== 'ace' ? players.filter((p) => p.team === question.team) : players}
                     nameOf={nameOf}
                     value=""
                     empty={t('review.pickPlayer')}

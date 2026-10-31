@@ -101,6 +101,8 @@ class TestAces:
         ace = {"frame": 500, "team": 1}
 
         assert receiver_answer(ace, "player:1:3", {(1, 3): {"name": "Léa"}}) == {"receiver": [{"frame": 500, "team": 1, "identity": 3, "name": "Léa"}]}
+        # A player of the other team than the one guessed: theirs is kept.
+        assert receiver_answer(ace, "player:2:4", {(2, 4): {"name": "Tom"}}) == {"receiver": [{"frame": 500, "team": 2, "identity": 4, "name": "Tom"}]}
         assert receiver_answer(ace, "nobody", {}) == {"receiver": [{"frame": 500, "team": 1, "identity": None, "name": None}]}
         assert receiver_answer(ace, "not_play", {}) == {}
         assert receiver_answer(ace, "skip", {}) == {}
