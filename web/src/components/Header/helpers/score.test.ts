@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Rally } from '@/lib/match';
-import { setScores, setsWon } from '@/components/Header/helpers/score';
+import type { Contact, Rally } from '@/lib/match';
+import { pointSplit, setScores, setsWon } from '@/components/Header/helpers/score';
 
 describe('setScores', () => {
   const rally = (set: number, score: [number, number] | null) => ({ set, score }) as Rally;
@@ -19,5 +19,17 @@ describe('setScores', () => {
 
   it('counts the sets each team won', () => {
     expect(setsWon(setScores(rallies, ['25-21', '23-25', '20-20']))).toEqual([1, 1]);
+  });
+});
+
+describe('pointSplit', () => {
+  const touch = (type: string, g: number, result: string) => ({ type, g, result }) as Contact;
+  const rally = (winner: number | null, ...contacts: Contact[]) => ({ winner, contacts }) as Rally;
+
+  it("splits a team's rallies won by its last touch: its own point or the other team's fault", () => {
+    const ace = touch('serve', 1, 'point');
+    const out = touch('attack', 2, 'error');
+    const rallies = [rally(1, ace, touch('floor', 2, 'play')), rally(1, touch('serve', 1, 'play'), out), rally(1), rally(2, touch('attack', 2, 'point'))];
+    expect(pointSplit(rallies, 1)).toEqual({ direct: [ace], faults: [out] });
   });
 });

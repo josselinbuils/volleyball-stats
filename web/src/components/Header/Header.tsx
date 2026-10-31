@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { Fragment, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
+import { CountButton } from '@/components/CountButton';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { clock, useFormat } from '@/lib/format';
@@ -9,7 +10,7 @@ import { GROUPS, groupName, hasTeams, match, rallies as allRallies, teamColor, t
 import { isTouch } from '@/helpers/contacts';
 import { useSet } from '@/lib/sets';
 import { matchTitle, tabTitle } from '@/components/Header/helpers/title';
-import { setScores, setsWon } from '@/components/Header/helpers/score';
+import { pointSplit, setScores, setsWon } from '@/components/Header/helpers/score';
 import { SetFilter } from '@/components/Header/SetFilter';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
@@ -99,6 +100,34 @@ export function Header() {
                 {scoreMore}
               </dd>
             )}
+            <dd className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 text-sm" title={t('pointsSplitHint')}>
+              <span />
+              <span className="text-center text-xs text-muted-foreground">{t('pointsDirectHead')}</span>
+              <span className="text-center text-xs text-muted-foreground">{t('pointsFaultsHead')}</span>
+              {GROUPS.map((g) => {
+                const split = pointSplit(rallies, g);
+                return (
+                  <Fragment key={g}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Swatch color={teamColor(g)} ring={teamRing(g)} />
+                      <span className="truncate">{groupName(t, g)}</span>
+                    </span>
+                    <CountButton
+                      id={`split:${set}:${g}:direct`}
+                      title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g) })}
+                      picked={split.direct}
+                      className="h-7 justify-self-center text-sm"
+                    />
+                    <CountButton
+                      id={`split:${set}:${g}:faults`}
+                      title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g) })}
+                      picked={split.faults}
+                      className="h-7 justify-self-center text-sm"
+                    />
+                  </Fragment>
+                );
+              })}
+            </dd>
           </Card>
         )}
         {stats.map(({ label, value, more }) => (
