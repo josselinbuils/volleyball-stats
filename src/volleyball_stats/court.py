@@ -170,6 +170,12 @@ class Calibration:
         data = json.loads(path.read_text())
         return cls(**{**data, "homography": np.array(data["homography"])})
 
+    def check(self, size: tuple[int, int]) -> None:
+        """ValueError unless made on frames of `size` (width, height), when its size is known: on
+        another copy of the video, every player lands off the court."""
+        if self.size and list(self.size) != list(size):
+            raise ValueError(f"The court calibration was made on {self.size[0]}x{self.size[1]} frames, the video is {size[0]}x{size[1]}: use the video it was made on")
+
 
 def fit(image_points: Points, lens: Lens | None = None, ransac: bool = True) -> Calibration:
     """Homography from named landmarks located in the image, RANSAC over the named points unless

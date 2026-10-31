@@ -208,7 +208,12 @@ def main() -> None:
     parser.add_argument("--overlay", action="store_true", help="Also write a video with the tracks drawn")
     args = parser.parse_args()
 
-    rows = track(args.video, Calibration.load(args.calibration))
+    calibration = Calibration.load(args.calibration)
+    try:
+        calibration.check(decode.size(args.video))
+    except ValueError as error:
+        parser.error(str(error))
+    rows = track(args.video, calibration)
     args.out.mkdir(parents=True, exist_ok=True)
     write_csv(rows, args.out / f"{args.video.stem}_players.csv")
     if args.overlay:

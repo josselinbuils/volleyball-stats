@@ -1,6 +1,8 @@
+import cv2
 import numpy as np
+import pytest
 
-from volleyball_stats.blur import boxes, pixelate
+from volleyball_stats.blur import boxes, pixelate, write
 
 
 class TestBoxes:
@@ -12,10 +14,32 @@ class TestBoxes:
         assert found[12] == [(2.0, 0.0, 12.0, 10.0)]
         assert found[8] == [(0.0, 0.0, 10.0, 10.0)] and found[16] == [(4.0, 0.0, 14.0, 10.0)]
 
-    def test_leaves_a_long_gap_open(self):
+    def test_carries_a_track_across_a_stitched_gap(self):
+        # players.stitch joins pieces up to 2 s apart: 1.5 s here.
+        found = boxes([(0, 1, (0.0, 0.0, 1.0, 1.0)), (6, 1, (0.0, 0.0, 1.0, 1.0))], 4.0)
+
+        assert set(range(7)) <= set(found)
+
+    def test_holds_both_sides_of_a_long_gap_and_leaves_its_middle_open(self):
         found = boxes([(0, 1, (0.0, 0.0, 1.0, 1.0)), (40, 1, (0.0, 0.0, 1.0, 1.0))], 4.0)
 
-        assert 20 not in found and 0 in found and 40 in found
+        assert {0, 1, 2, 38, 39, 40} <= set(found) and 20 not in found
+
+
+class TestWrite:
+    def test_refuses_players_tracked_on_a_larger_copy_of_the_video(self, tmp_path):
+        video = tmp_path / "clip.mp4"
+        writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
+        for _ in range(5):
+            writer.write(np.zeros((48, 64, 3), np.uint8))
+        writer.release()
+        (tmp_path / "tracks.csv").write_text("track,team\n1,1\n")
+        # A box of the 4K original, far past this copy's 64 px.
+        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2\n0,1,left,100,10,200,40\n")
+
+        with pytest.raises(ValueError):
+            write(tmp_path, video, {1}, tmp_path / "out.mp4")
+        assert not (tmp_path / "out.mp4").exists()
 
 
 class TestPixelate:

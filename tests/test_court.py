@@ -41,6 +41,16 @@ class TestFit:
             fit(self.project(["corner_left_far", "corner_right_far", "corner_left_near"]))
 
 
+class TestCheck:
+    def test_refuses_a_video_of_another_frame_size(self):
+        calibration = Calibration(np.eye(3), size=[3840, 2160])
+
+        calibration.check((3840, 2160))
+        Calibration(np.eye(3)).check((1920, 1080))
+        with pytest.raises(ValueError):
+            calibration.check((1920, 1080))
+
+
 class TestLens:
     K = [[800.0, 0.0, 640.0], [0.0, 800.0, 360.0], [0.0, 0.0, 1.0]]
 

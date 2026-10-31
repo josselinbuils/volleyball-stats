@@ -343,7 +343,8 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
   for the neutral one; see `branding/brand.example.json`): logo and club name in a band at the top
   linking to `url`, accent colours, page and card styles per colour scheme.
 - **Choices are saved** in `outputs/VIDEO/page.json`: rebuild with only the flag to change
-  (`--no-pictures`, `--footage none`...).
+  (`--no-pictures`, `--footage none`...). A build with `--out` (to host) neither reads nor saves
+  them: no video nor pictures unless its own flags ask.
 - **The review page** builds its own copy with the video in `outputs/VIDEO/review/`, and rebuilds the
   published page on "apply".
 

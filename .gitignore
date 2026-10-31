@@ -6,7 +6,5 @@ outputs/
 .cache/
 web/node_modules/
 web/dist/
-web/public/data.js
-web/public/*.mp4
-web/public/poster.webp
+web/public/
 branding/*/sponsors/

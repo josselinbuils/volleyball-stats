@@ -229,14 +229,15 @@ def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.n
 
 def side_group(frames: np.ndarray, xs: np.ndarray, known: list[tuple[tuple[int, int], int]]) -> int | None:
     """Group on the median side of the net of a player's `frames` (court x `xs`) in the rally of
-    `known` ((window, group on the left)) it plays most frames of, else in the nearest one; None
-    without any."""
+    `known` ((window, group on the left)) it plays most frames of, its frames there only, else in the
+    nearest one, all its frames; None without any."""
     if not known:
         return None
-    inside = [int(((frames >= s) & (frames <= e)).sum()) for (s, e), _ in known]
+    inside = [(frames >= s) & (frames <= e) for (s, e), _ in known]
     middle = float(np.median(frames))
-    k = int(np.argmax(inside)) if max(inside) else int(np.argmin([max(s - middle, middle - e, 0) for (s, e), _ in known]))
-    return known[k][1] if float(np.median(xs)) < 0 else 1 - known[k][1]
+    k = int(np.argmax([m.sum() for m in inside])) if any(m.any() for m in inside) else int(np.argmin([max(s - middle, middle - e, 0) for (s, e), _ in known]))
+    side = float(np.median(xs[inside[k]] if inside[k].any() else xs))
+    return known[k][1] if side < 0 else 1 - known[k][1]
 
 
 def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int | None]) -> dict[int, int]:

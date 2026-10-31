@@ -805,7 +805,20 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             self.end_headers()
             self.wfile.write(body)
 
+        def ours(self) -> bool:
+            """Whether a request comes from the review itself: binding 127.0.0.1 keeps other machines
+            out, not another site open in the same browser (its requests name another Origin or a
+            cross-site Sec-Fetch-Site) nor one rebinding its domain to 127.0.0.1 (another Host)."""
+            host = self.headers.get("Host", "")
+            return (
+                host in (f"127.0.0.1:{port}", f"localhost:{port}")
+                and self.headers.get("Origin") in (None, f"http://{host}")
+                and self.headers.get("Sec-Fetch-Site") in (None, "same-origin", "none")
+            )
+
         def do_GET(self) -> None:
+            if not self.ours():
+                return self.send(b"", "text/plain", 403)
             url = urlparse(self.path)
             if url.path == "/review.js":
                 return self.send(review_js(), "text/javascript")
@@ -865,6 +878,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     pass
 
         def do_POST(self) -> None:
+            # A JSON body: a page elsewhere can only send a form or plain text without asking.
+            if not self.ours() or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                return self.send(b"", "text/plain", 403)
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
             undone = None
             with lock:

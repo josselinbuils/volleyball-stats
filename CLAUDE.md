@@ -75,6 +75,5 @@ uv run python -m volleyball_stats.matches outputs/hosted
 rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
 ```
 
-The first run rewrites `outputs/full_match/page.json`: put back the local build's options after.
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.

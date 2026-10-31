@@ -1,4 +1,6 @@
 import base64
+import json
+
 import cv2
 import numpy as np
 import pytest
@@ -219,14 +221,17 @@ class TestWriteSite:
         assert not (site / "poster.webp").exists()
 
     def test_leaves_the_video_out_and_removes_a_previous_one(self, tmp_path):
-        video = tmp_path / "match.mp4"
+        # The camera names its files in capitals; a symlinked one too.
+        video, other = tmp_path / "DJI_0001.MP4", tmp_path / "clip.mov"
         video.write_bytes(b"not a video")
+        other.write_bytes(b"not a video")
         site = tmp_path / "site"
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
+        (site / other.name).symlink_to(other)
 
         write_site({"fps": 25.0, "rallies": []}, None, None, site, copy=True)
 
-        assert not (site / "match.mp4").exists()
+        assert not (site / video.name).exists() and not (site / other.name).is_symlink()
         assert '"video":null' in (site / "data.js").read_text()
 
 
@@ -261,6 +266,16 @@ class TestPublish:
 
         # copy, theme, footage, club, pictured teams
         assert built == [(False, "aspom", "blur-opponents", 1, {1}), (False, "aspom", "blur-opponents", 1, set())]
+
+    def test_a_page_to_host_shows_only_what_it_is_given_and_saves_nothing(self, tmp_path, monkeypatch):
+        built = []
+        monkeypatch.setattr(web, "build", lambda *args: built.append(args[4:]) or {})
+        publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "full", "club": 1, "pictures": True})
+
+        publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": 1}, tmp_path / "hosted")
+
+        assert built[1] == (False, "aspom", "none", 1, set())
+        assert json.loads((tmp_path / "page.json").read_text())["footage"] == "full"
 
     def test_refuses_pictures_or_a_blurred_opponent_without_a_club(self, tmp_path):
         with pytest.raises(ValueError):

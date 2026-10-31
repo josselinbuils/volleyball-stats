@@ -113,6 +113,12 @@ class TestTrackTeams:
 
         assert out == {1: 0, 2: 1, 3: 0, 4: 1}
 
+    def test_reads_the_side_inside_the_rally_only(self):
+        # Track 5 changes ends during the break, then plays the second rally on the left.
+        rows = [row(f, 5, 3.0) for f in range(30, 90)] + [row(f, 5, -3.0) for f in range(95, 120)]
+
+        assert track_teams(rows, [(0, 20), (95, 120)], [0, 1]) == {5: 1}
+
     def test_puts_team_0_on_the_left_without_rallies(self):
         assert track_teams([row(0, 1, -3.0), row(0, 2, 3.0)], [], []) == {1: 0, 2: 1}
 

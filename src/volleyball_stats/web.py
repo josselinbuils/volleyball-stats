@@ -31,6 +31,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from volleyball_stats import decode
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, box_at
 from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
@@ -44,6 +45,8 @@ STEP_S = 0.1
 POSTER_WIDTH = 800
 # What the page shows of the video: nothing, all of it, or the video with some players blurred.
 FOOTAGE = ("none", "full", "blur-opponents", "blur-all")
+# Video files a previous build may have left in the site folder, by lowercase extension.
+VIDEOS = (".mp4", ".mov", ".m4v")
 # The club logo shows at most 64 px tall, the players' pictures about 240 px: kept at twice that for
 # sharp high-density screens, never enlarged. The pictures are 3 wide for 4 tall, like a photo.
 LOGO_PX, PHOTO_PX, PHOTO_RATIO = 128, 480, 0.75
@@ -305,9 +308,10 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
-    # A previous build's footage goes: the page may now hold none, or another copy.
-    for old in [site / "poster.webp", *site.glob("*.mp4")]:
-        old.unlink(missing_ok=True)
+    # A previous build's footage goes, whatever the case of its name: the page may now hold none.
+    for old in site.iterdir():
+        if old.name == "poster.webp" or old.suffix.lower() in VIDEOS:
+            old.unlink()
     first = data["rallies"][0] if data["rallies"] else {"start": 0, "end": 0}
     data = {**data, "video": video and video.name}
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
@@ -381,7 +385,9 @@ def build(
 ) -> dict:
     """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
     pictures of the `pictured` teams' players; returns data.js's match."""
-    data, players = match_data(match, video, Calibration.load(court))
+    calibration = Calibration.load(court)
+    calibration.check(decode.size(video))
+    data, players = match_data(match, video, calibration)
     blurred = {"none": None, "full": set(), "blur-all": {1, 2}}.get(footage, {3 - (club or 1)})
     shutil.rmtree(site / "players", ignore_errors=True)
     photos(match, video, data["people"], site / "players", pictured)
@@ -392,15 +398,18 @@ def build(
 
 
 def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None) -> tuple[dict, dict]:
-    """The page to publish, MATCH/site/ unless `site`, built with page.json's choices, those `given`
-    (not None) replacing theirs and saved back; returns data.js's match and the choices. ValueError
-    for a choice needing a club without one."""
+    """The page to publish, MATCH/site/ built with page.json's choices, those `given` (not None)
+    replacing theirs and saved back, or `site` (to host) with only those `given`: no footage nor
+    pictures unless asked; returns data.js's match and the choices. ValueError for a choice needing a
+    club without one, or a court calibrated on another video."""
     path = match / "page.json"
-    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, **(json.loads(path.read_text()) if path.exists() else {})}
+    saved = json.loads(path.read_text()) if path.exists() and site is None else {}
+    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, **saved}
     settings.update({k: v for k, v in given.items() if v is not None})
     if settings["club"] is None and (settings["footage"] == "blur-opponents" or settings["pictures"]):
         raise ValueError("--footage blur-opponents and --pictures need --club 1 or 2")
-    path.write_text(json.dumps(settings, indent=2) + "\n")
+    if site is None:
+        path.write_text(json.dumps(settings, indent=2) + "\n")
     pictured = {settings["club"]} if settings["pictures"] else set()
     data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured)
     return data, settings
@@ -413,7 +422,7 @@ def main() -> None:
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--court", type=Path, required=True, help="Court calibration JSON the match was run with")
     parser.add_argument("--out", type=Path, help="Site directory (default: MATCH/site)")
-    parser.add_argument("--footage", choices=FOOTAGE, help="What the page shows of the video (default: the previous build's, else none: the court's top view replays the moments)")
+    parser.add_argument("--footage", choices=FOOTAGE, help="What the page shows of the video (default: the previous build's, none with --out: the court's top view replays the moments)")
     parser.add_argument("--club", type=int, choices=(1, 2), help="Your team, 1 or 2 (team 1 is on the left at the first rally)")
     parser.add_argument("--pictures", action=argparse.BooleanOptionalAction, help="Your team's players' pictures on their cards (needs --club)")
     parser.add_argument("--copy-video", action=argparse.BooleanOptionalAction, help="Copy the video instead of symlinking it, for hosting")

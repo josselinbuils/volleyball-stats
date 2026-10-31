@@ -170,6 +170,11 @@ def main() -> None:
     fps, frame_count = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
     calibration = court.Calibration.load(args.court) if args.court else None
+    try:
+        if calibration is not None:
+            calibration.check(decode.size(args.video))
+    except ValueError as error:
+        parser.error(str(error))
     # ponytail: net crossings use a vertical line through the court center; actions.py follows the
     # net's leaning line, which contacts.py could use too if crossings near the posts matter.
     net_x = args.net_x if calibration is None else float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
