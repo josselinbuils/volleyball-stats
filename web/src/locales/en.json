@@ -396,7 +396,7 @@
       "download": "Download the card",
       "copy": "Copy the card",
       "mvp": "MVP",
-      "mvpWhy": "MVP: the best balance per minute played, points won minus faults, of every player of both teams on the court at least half as long as the longest. {{points}} points won (attacks, aces, blocks) for {{faults}} faults in {{time}} played: +{{balance}}."
+      "mvpWhy": "Match MVP: the best balance per minute played, points won minus faults, of every player of both teams on the court at least half as long as the longest. {{points}} points won (attacks, aces, blocks) for {{faults}} faults in {{time}} played: +{{balance}}."
     }
   },
   "scene3d": {

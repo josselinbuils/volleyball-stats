@@ -7,10 +7,11 @@ import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/format';
 import { CARD_SHADE } from '@/helpers/colors';
 import { groupName, match, playerLabel, playerNumber, teamColor, type Contact, type Group } from '@/lib/match';
+import { playerKey } from '@/helpers/players';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { cardPicture, SHIELD } from '@/components/Stats/helpers/cardPicture';
-import type { Stat } from '@/components/Stats/helpers/stats';
+import type { Stat, Stats } from '@/components/Stats/helpers/stats';
 import { GOLD_CSS, Mvp } from '@/components/Stats/Mvp';
 import { InsightChip, type Row } from '@/components/Stats/StatsTable';
 
@@ -25,16 +26,22 @@ const SPARKLES: [number, number, number, number][] = [
 const SHIELD_CSS = `polygon(${SHIELD.map(([x, y]) => `${x}% ${y}%`).join(', ')})`;
 
 type CardRow = Row & { key: number };
+/** The match's MVP: their `playerKey`, stats and time on the court over the whole match. */
+interface Best {
+  key: string | null;
+  stats: Stats;
+  seconds: number;
+}
 
 /** One collection card per player of team `g`, shaped like a FIFA card, with their picture, number, name and counts, each
  * count playing its moments, the `mvp`'s marked; their strengths and things to work on under it. */
-export function PlayerCards({ id, rows, g, mvp }: { id: string; rows: CardRow[]; g: Group; mvp: number | null }) {
+export function PlayerCards({ id, rows, g, mvp }: { id: string; rows: CardRow[]; g: Group; mvp: Best | null }) {
   return (
     // Phones: one card a row, narrower than the screen.
     <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-4 gap-y-6 p-0 max-sm:justify-items-center">
       {rows.map((r) => (
         <li key={r.key} className="grid w-full content-start gap-2 max-sm:max-w-64">
-          <FifaCard id={`${id}:${r.key}`} row={r} g={g} mvp={r.key === mvp} />
+          <FifaCard id={`${id}:${r.key}`} row={r} g={g} mvp={mvp && playerKey(r.key, match.people) === mvp.key ? mvp : undefined} />
           {r.insights && r.insights.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {r.insights.map((i) => (
@@ -52,7 +59,7 @@ interface CardProps {
   id: string;
   row: CardRow;
   g: Group;
-  mvp: boolean;
+  mvp?: Best;
 }
 
 /** A count that plays its touches, in the card's own style; 0 for none. */
@@ -137,7 +144,7 @@ function FifaCard({ id, row: r, g, mvp }: CardProps) {
               <div className="grid content-start justify-items-center gap-1.5 pt-2">
                 <span className="text-5xl leading-none font-black tabular-nums">{playerNumber(r.key)}</span>
                 <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
-                {mvp && <Mvp stats={r.stats} seconds={r.seconds ?? 0} className="mt-1" />}
+                {mvp && <Mvp stats={mvp.stats} seconds={mvp.seconds} className="mt-1" />}
               </div>
               {photo ? (
                 <div className="relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
