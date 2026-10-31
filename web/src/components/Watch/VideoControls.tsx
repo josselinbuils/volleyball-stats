@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Focus, Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
@@ -102,26 +103,24 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   const skip = (by: number) => video && seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + by)));
   // A circular arrow with the seconds inside it, as video players draw it.
   const skipButton = (by: number) => (
-    <button
-      type="button"
-      className={cn(button, 'relative', by < 0 && 'max-sm:ml-auto')}
-      aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })}
-      title={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })}
-      onClick={() => skip(by)}
-    >
-      {by < 0 ? <RotateCcw aria-hidden className="size-6!" /> : <RotateCw aria-hidden className="size-6!" />}
-      <span aria-hidden className="absolute inset-0 grid place-items-center pt-px text-[8px] font-bold">
-        {SKIP}
-      </span>
-    </button>
+    <Tip label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} full={state.full}>
+      <button type="button" className={cn(button, 'relative', by < 0 && 'max-sm:ml-auto')} aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
+        {by < 0 ? <RotateCcw aria-hidden className="size-6!" /> : <RotateCw aria-hidden className="size-6!" />}
+        <span aria-hidden className="absolute inset-0 grid place-items-center pt-px text-[8px] font-bold">
+          {SKIP}
+        </span>
+      </button>
+    </Tip>
   );
 
   return (
     // On a phone the timeline takes its own row above the buttons. Over the video zoomed on the ball, which runs past its box.
     <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'relative z-10 bg-black text-white')}>
-      <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} title={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
-        {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
-      </button>
+      <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')} full={state.full}>
+        <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
+          {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
+        </button>
+      </Tip>
       <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>
         {clock(time)}
       </span>
@@ -146,55 +145,57 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       </span>
       {skipButton(-SKIP)}
       {skipButton(SKIP)}
-      <button
-        type="button"
-        className={cn(button, state.slow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
-        aria-pressed={state.slow}
-        aria-label={t('slowVideo')}
-        title={t('slowVideo')}
-        onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}
-      >
-        <Snail aria-hidden />
-      </button>
-      <button
-        type="button"
-        className={cn(button, loop && (light ? 'bg-foreground/15' : 'bg-white/25'))}
-        aria-pressed={loop}
-        aria-label={t('loopVideo')}
-        title={t('loopVideo')}
-        onClick={() => setLoop(!loop)}
-      >
-        <Repeat1 aria-hidden />
-      </button>
-      {onFollow && (
+      <Tip label={t('slowVideo')} full={state.full}>
         <button
           type="button"
-          className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
-          aria-pressed={follow}
-          aria-label={t('followBall')}
-          title={t('followBall')}
-          onClick={onFollow}
+          className={cn(button, state.slow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
+          aria-pressed={state.slow}
+          aria-label={t('slowVideo')}
+          onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}
         >
-          <Focus aria-hidden />
+          <Snail aria-hidden />
         </button>
+      </Tip>
+      <Tip label={t('loopVideo')} full={state.full}>
+        <button type="button" className={cn(button, loop && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={loop} aria-label={t('loopVideo')} onClick={() => setLoop(!loop)}>
+          <Repeat1 aria-hidden />
+        </button>
+      </Tip>
+      {onFollow && (
+        <Tip label={t('followBall')} full={state.full}>
+          <button type="button" className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={follow} aria-label={t('followBall')} onClick={onFollow}>
+            <Focus aria-hidden />
+          </button>
+        </Tip>
       )}
       {/* The court's replay has no sound. */}
       {match.video && (
-        <button
-          type="button"
-          className={button}
-          aria-label={t(state.muted ? 'unmuteVideo' : 'muteVideo')}
-          title={t(state.muted ? 'unmuteVideo' : 'muteVideo')}
-          onClick={() => video && (video.muted = !video.muted)}
-        >
-          {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
-        </button>
+        <Tip label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} full={state.full}>
+          <button type="button" className={button} aria-label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
+            {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+          </button>
+        </Tip>
       )}
       {fullscreen && (
-        <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} title={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
-          {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
-        </button>
+        <Tip label={t(state.full ? 'exitFullscreen' : 'fullscreen')} full={state.full}>
+          <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
+            {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+          </button>
+        </Tip>
       )}
     </div>
+  );
+}
+
+/** A control button with `label` in a tooltip above it, inside the full-screen element while there is
+ * one (`full`): the page around it is hidden then. */
+function Tip({ label, full, children }: { label: string; full: boolean; children: ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={4} container={full ? document.fullscreenElement : undefined}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
