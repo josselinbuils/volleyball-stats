@@ -52,7 +52,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 ## State and next steps
 
 - Weak spots: `rallies.py` misses about a third of the rallies on the held-out clip, how a rally
-  ends (in, out, fault) is the least reliable measure, attribution is right 71-83% of the time,
+  ends (in, out, fault) is the least reliable measure, attribution is right 71-83% of the time
+  (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
+  ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
   identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame
   (high serves and sets, the owner noticed): its track breaks there and the contacts and crossings
   around the gap suffer; to do: carry the flight across such gaps (a parabola from both ends).
@@ -81,11 +83,17 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 ```
 
 A match's video goes in its `video/` folder (`--out outputs/hosted/MATCH/video --footage full
---copy-video --club both --pictures`, `--light-video` for a lighter copy on the same timeline; the
-public build links to it with `--video-page video/`). The service's nginx asks a password for every
-`/volleyball/*/video/` file (`auth_basic`, `volleyball-stats/htpasswd` mounted in the container,
-`Cache-Control: private, no-store` so Cloudflare keeps nothing): check that a `curl` without it gets
-401 before uploading a video.
+--copy-video --club both --pictures`, `--light-video` for a lighter H.264 copy on the same timeline,
+`--av1-video` for an AV1 one the browsers that can play first (`ffmpeg -i VIDEO -vf
+scale=1920:1080:flags=lanczos,fps=25 -c:v libsvtav1 -preset 6 -crf 40 -g 250 -c:a aac -b:a 96k
+-movflags +faststart`, VMAF 90.7 at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s); the
+public build links to it with `--video-page video/`, whose dialog asks the password). The
+service's nginx serves every `/volleyball/*/video/` file only with the cookie `video_key`, the
+SHA-256 of `volleyball:` and the password, listed in `volleyball-stats/video_key.conf` as
+`"<sha256>" 1;` (mounted in the container, `nginx -s reload` after a change); otherwise it redirects
+to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Control: private,
+no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
+video. The copies keep their source's date, so an upload skips an unchanged video.
 
 Hosted pages are built with `--feedback /volleyball/feedback`: viewers report what is wrong in a
 moment, the service's nginx logs each report (POST only, 2 KB, 5 a minute per visitor) to

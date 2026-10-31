@@ -88,7 +88,8 @@ interpolated over up to 0.17 s, as the method sees it. None is right only for `n
 Candidates are the tracks of the contact's side of the net (`actions.py`'s side; a block's side is
 the blocker's), the team of a track being its median side (`players.py`). The toucher is the
 candidate whose box is nearest to the ball, in box heights so that a near player 200 px tall and a
-far one 60 px tall compare. Two additions, each from a failure seen on the tuning clips:
+far one 60 px tall compare. Three additions, the first two from failures seen on the tuning clips,
+the third from the first ASPOM match:
 
 - **Tracks missing up to 0.17 s around the contact.** The detector drops the toucher at the very
   frames of a touch: blurred arms, a dive, a teammate in front, the setter in the net crowd. 8 of
@@ -101,6 +102,11 @@ far one 60 px tall compare. Two additions, each from a failure seen on the tunin
   attacks), while a teammate standing by has it at her head. For these types the box reaches 0.5
   heights higher; among the candidates whose reach holds the ball, the nearest plain box wins. Any
   reach from 0.3 to 1.0 scores the same.
+- **Feet past the net at the contact frame.** A track that swaps players in the net crowd keeps the
+  median side of the player it followed first: on the first ASPOM match a block was given to a
+  player of the other team, his feet 0.6 m past the net. A candidate whose feet stand over
+  `SIDE_M` = 0.5 m past the net on the other side at the contact frame is out. It changes no
+  labelled contact here (0, 0.25, 0.5 and 1 m score the same) and that one block on the match.
 
 Comparison, typed contacts (all 4 steps are `bench.py`'s methods):
 
@@ -109,7 +115,8 @@ Comparison, typed contacts (all 4 steps are `bench.py`'s methods):
 | Nearest box, either side (baseline) | 50/70 (0.71) | 49/70 (0.70) | 31/42 (0.74) | 28/42 (0.67) |
 | Nearest box of the contact's side | 50/70 (0.71) | 49/70 (0.70) | 32/42 (0.76) | 28/42 (0.67) |
 | + tracks missing up to 0.17 s | 56/70 (0.80) | 55/70 (0.79) | 32/42 (0.76) | 29/42 (0.69) |
-| **+ an arm above serves, attacks, blocks (`attribute`)** | **58/70 (0.83)** | **56/70 (0.80)** | **33/42 (0.79)** | **30/42 (0.71)** |
+| + an arm above serves, attacks, blocks | 58/70 (0.83) | 56/70 (0.80) | 33/42 (0.79) | 30/42 (0.71) |
+| **+ feet past the net at the contact frame out (`attribute`)** | **58/70 (0.83)** | **56/70 (0.80)** | **33/42 (0.79)** | **30/42 (0.71)** |
 | + pose veto on sets, passes, digs (`--pose`, not in the module) | 59/70 (0.84) | 59/70 (0.84) | 35/42 (0.83) | 32/42 (0.76) |
 
 The side filter alone changes one contact: at the contact frame an opponent is rarely the nearest
@@ -137,6 +144,32 @@ box, the net separating the teams in the image. It matters for blocks and touche
   label are wrong on the detection, 3 the other way.
 - No player: floor and net contacts get no track when typed right; the detected misses are floor
   and net contacts the detector does not find, and the tuning error is the unclear touch 2079.
+
+## Doubts
+
+`ranked` gives each contact's candidates, nearest first; `gap_to_next`, the box heights between
+the toucher and the next one. Two players about as near the ball is where wrong picks are (the
+failures below): a gap under `DOUBT` = 0.05 makes the pick a doubt, written to `actions.csv`'s `gap`
+column by `match.py` and asked in the review (`review.doubtful`).
+
+| Clips | Doubts | Wrong picks among them | Wrong picks elsewhere |
+| --- | --- | --- | --- |
+| Tuning, truth | 14 of 70 | 5 of 14 | 7 of 56 |
+| Tuning, detected | 15 of 68 | 6 of 15 | 6 of 53 |
+| Held-out, truth | 6 of 42 | 3 of 6 | 6 of 36 |
+| Held-out, detected | 7 of 37 | 2 of 7 | 5 of 30 |
+
+Half of the doubts are wrong, against 1 in 6 of the other picks. Thresholds of 0.1 and 0.2 catch
+7 and 9 of the 12 tuning errors but flag 24 and 33 touches. The review also asks the touches with no
+player of their team (`unknown`), one player touching twice in a row in a rally, blocks aside
+(`twice`, the less sure of the two; on the first match 9 of the 33 are the ball flying out of the
+frame taken for a touch, answered "nobody"), and 10 spot checks among the others, to count the wrong
+picks the doubts miss. `answers.py` scores the automatic picks on a match's answers, by reason and
+by gap, to set `DOUBT` from them:
+
+```bash
+uv run python benchmarks/attribution/answers.py outputs/first_match
+```
 
 ## Pose
 

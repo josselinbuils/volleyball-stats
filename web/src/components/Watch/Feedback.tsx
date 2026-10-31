@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Flag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match } from '@/lib/match';
 import { usePlayer, useVideoTime } from '@/lib/player';
@@ -14,9 +15,9 @@ const KINDS = ['player', 'action', 'result', 'ball', 'other'] as const;
 const THANKS_MS = 4000;
 
 /** A viewer reporting what is wrong in the moment shown, from a button over the top right corner of the
- * player: what it shows (the clip playing, else the rally the video is on), what is wrong and a
+ * video, else (`inline`) in the court replay's title bar: what it shows (the clip playing, else the rally the video is on), what is wrong and a
  * comment, sent to `match.feedback` to correct the analysis later. */
-export function Feedback() {
+export function Feedback({ inline = false }: { inline?: boolean }) {
   const { t } = useTranslation();
   const f = useFormat();
   const { playlist, video } = usePlayer();
@@ -72,19 +73,29 @@ export function Feedback() {
     setOpen(!open);
   };
   return (
-    <div className="absolute top-2 right-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-end gap-2">
+    <div className={inline ? 'relative shrink-0' : 'absolute top-2 right-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-end gap-2'}>
       <button
         type="button"
         aria-expanded={open}
         title={t('feedback.open')}
         onClick={toggle}
-        className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm outline-none hover:bg-black/75 focus-visible:ring-3 focus-visible:ring-white/60"
+        className={
+          inline
+            ? 'inline-flex h-8 items-center gap-1.5 rounded-md border bg-card px-2.5 text-xs font-medium shadow-xs outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
+            : 'inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm outline-none hover:bg-black/75 focus-visible:ring-3 focus-visible:ring-white/60'
+        }
       >
-        <Flag aria-hidden className="size-4" />
+        <Flag aria-hidden className={inline ? 'size-3.5' : 'size-4'} />
         <span role="status">{state === 'sent' ? t('feedback.thanksShort') : t('feedback.button')}</span>
       </button>
       {open && (
-        <form onSubmit={(e) => void send(e)} className="grid w-80 max-w-full gap-3 rounded-lg border bg-card p-3 text-sm text-card-foreground shadow-lg">
+        <form
+          onSubmit={(e) => void send(e)}
+          className={cn(
+            'grid w-80 gap-3 rounded-lg border bg-card p-3 text-sm font-normal text-card-foreground shadow-lg',
+            inline ? 'absolute top-full right-0 z-20 mt-2 max-w-[calc(100vw-2rem)]' : 'max-w-full',
+          )}
+        >
           <fieldset className="grid gap-1.5">
             <legend className="mb-1 font-medium">{t('feedback.what')}</legend>
             {KINDS.map((k) => (

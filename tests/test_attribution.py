@@ -1,11 +1,11 @@
-from volleyball_stats.attribution import GAP_S, REACH, attribute, box_at, distance, read_players
+from volleyball_stats.attribution import GAP_S, REACH, SIDE_M, attribute, box_at, distance, gap_to_next, ranked, read_players
 from volleyball_stats.players import Row, write_csv
 
 FPS = 30.0
 
 
-def row(frame: int, track: int, box: tuple[float, float, float, float], team: str = "left") -> Row:
-    return Row(frame, track, box, 0.9, ((box[0] + box[2]) / 2, box[3]), (0.0, 0.0), team)
+def row(frame: int, track: int, box: tuple[float, float, float, float], team: str = "left", x: float = 0.0) -> Row:
+    return Row(frame, track, box, 0.9, ((box[0] + box[2]) / 2, box[3]), (x, 0.0), team)
 
 
 class TestDistance:
@@ -67,6 +67,22 @@ class TestAttribute:
 
         assert gap >= 3
         assert attribute([(50, 120, 250, "pass", "left")], rows, FPS) == [1]
+
+
+    def test_leaves_out_a_track_standing_past_the_net_at_the_contact_frame(self):
+        # Track 1 kept the left side of the player it followed first; it now shows a player of the
+        # right side, at the net.
+        rows = [row(50, 1, (100, 200, 140, 300), x=SIDE_M + 0.1), row(50, 2, (150, 200, 190, 300), x=-0.3)]
+
+        assert attribute([(50, 120, 250, "block", "left")], rows, FPS) == [2]
+
+    def test_the_gap_to_the_next_candidate_measures_the_doubt(self):
+        rows = [row(50, 1, (100, 200, 140, 300)), row(50, 2, (150, 200, 190, 300))]
+
+        near, alone = ranked([(50, 145, 250, "set", "left"), (50, 120, 250, "set", "right")], rows + [row(50, 3, (0, 200, 40, 300), "right")], FPS)
+
+        assert [round(d, 2) for d, _, _ in near] == [0.05, 0.05] and round(gap_to_next(near), 2) == 0.0
+        assert gap_to_next(alone) is None
 
 
 class TestReadPlayers:

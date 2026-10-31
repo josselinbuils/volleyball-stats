@@ -99,6 +99,8 @@ interface Data {
   name: string;
   /** The video's file, null when the page holds none. */
   video: string | null;
+  /** Its AV1 copy, lighter, played first where the browser can. */
+  av1?: string | null;
   /** On a page without the video, where the same page with it is, behind a password. */
   videoPage?: string | null;
   /** Where viewers send what they found wrong in a moment, null to not ask. */
@@ -133,6 +135,7 @@ const data = window.MATCH;
 export const match = {
   name: data.name,
   video: data.video,
+  av1: data.av1 ?? null,
   videoPage: data.videoPage ?? null,
   feedback: data.feedback ?? null,
   poster: data.poster,

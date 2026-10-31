@@ -33,7 +33,7 @@ import numpy as np
 
 from volleyball_stats import decode, files
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
-from volleyball_stats.attribution import GAP_S, box_at
+from volleyball_stats.attribution import GAP_S, NO_PLAYER, box_at
 from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
 from volleyball_stats.identity import lookup, named, read_identities, read_names
 from volleyball_stats.points import landing
@@ -138,13 +138,15 @@ def result(contact: dict, after: dict | None) -> str:
     return "point" if where == "in" and after["side"] != contact["side"] else "error"
 
 
-# The player a (track, frame) shows on the page, None without a track.
-Who = Callable[[int | None, int], int | None]
+# The player a (track, frame) shows on the page, None without a track; or the identity (team,
+# number) said instead.
+Who = Callable[..., int | None]
 
 
-def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[int, list[dict]], fps: float, calibration: Calibration, reach: float, who: Who = lambda track, _: track) -> list[dict]:
+def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[int, list[dict]], fps: float, calibration: Calibration, reach: float, who: Who = lambda track, *_: track, said: dict[int, tuple[int, int]] | None = None) -> list[dict]:
     """The page's contacts from the actions CSV rows: time, type, side, team (None without teams),
-    rally index, court position, zone, result and the attributed track's player (`who`); an ace
+    rally index, court position, zone, result and the attributed track's player (`who`), or the
+    identity the review `said` touched it (by frame); an ace
     also has the player who missed it (`receiver`). A contact with a track is placed at that
     player's feet, else by `spot`. `players` holds the player CSV rows by frame."""
     lead, gap = round(LEAD_S * fps), round(GAP_S * fps)
@@ -171,7 +173,7 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
             "x": None if xy is None else round(xy[0], 2),
             "y": None if xy is None else round(xy[1], 2),
             "zone": None if xy is None else zone(*xy),
-            "person": who(track, frame),
+            "person": who(track, frame, (said or {}).get(frame)),
         })
     for k, (contact, after) in enumerate(zip(out, out[1:] + [None])):
         contact["result"] = result(contact, after if after and after["rally"] == contact["rally"] else None)
@@ -210,7 +212,7 @@ def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int
     """The page's players, keyed 0, 1, ... as they are first asked for: one per identity
     (identities.csv's rows) with its team, number and the name and jersey number the user gave it
     (`names`, by (team, identity)), one per track without identity, with its team and no number;
-    and `who`, the key of the player a track shows at a frame."""
+    and `who`, the key of the player a track shows at a frame, or of the identity `said` instead."""
     names = names or {}
     by_track: dict[int, list] = {}
     for r in identities:
@@ -218,10 +220,10 @@ def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int
     keys: dict[tuple, int] = {}
     table: dict[int, dict] = {}
 
-    def who(track: int | None, frame: int) -> int | None:
-        if track is None:
+    def who(track: int | None, frame: int, said: tuple[int, int] | None = None) -> int | None:
+        if track is None and said is None:
             return None
-        found = lookup(by_track.get(track, []), track, frame)
+        found = said or lookup(by_track.get(track, []), track, frame)
         name = ("identity", *found) if found else ("track", track)
         if name not in keys:
             keys[name] = len(keys)
@@ -289,6 +291,15 @@ def poster(video: Path, frame: int, path: Path) -> bool:
     return ok
 
 
+def touched(match: Path, given: dict[tuple[int, int], dict]) -> dict[int, tuple[int, int] | None]:
+    """The touches the review's answers settle, by frame: the player's (team, identity), found by
+    the name `given` them (it outlives the identities' numbers), else by number; None for no touch."""
+    path = match / "identity_answers.json"
+    answers = json.loads(path.read_text()).get("touch", []) if path.exists() else []
+    by_name = {(team, g["name"]): (team, number) for (team, number), g in given.items() if g.get("name")}
+    return {t["frame"]: None if t["identity"] is None else by_name.get((t["team"], t.get("name")), (t["team"], t["identity"])) for t in answers}
+
+
 def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict, dict | None]:
     """data.js's match and players.js's player positions, None without player tracks."""
     cap = cv2.VideoCapture(str(video))
@@ -298,14 +309,18 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rally_rows]
     actions = read_csv(match / "actions.csv")
     gap = round(GAP_S * fps)
-    # The player rows around the touches place them; all the rows feed the samples, read once.
-    near = {f for row in actions for f in range(int(row["frame"]) - gap, int(row["frame"]) + gap + 1)}
     teams = read_teams(match)
     with_teams = bool(teams) and (match / "tracks.csv").exists()
+    identities = read_identities(match / "identities.csv") if with_teams and (match / "identities.csv").exists() else []
+    given = named(identities, read_names(match))
+    # The touches the review says are none (the ball out of sight, taken for a touch) go.
+    said = touched(match, given)
+    actions = [r for r in actions if said.get(int(r["frame"]), ()) is not None]
+    # The player rows around the touches place them; all the rows feed the samples, read once.
+    near = {f for row in actions for f in range(int(row["frame"]) - gap, int(row["frame"]) + gap + 1)}
     track_team = {int(r["track"]): int(r["team"]) for r in read_csv(match / "tracks.csv")} if with_teams else {}
     teams = teams if with_teams else None
-    identities = read_identities(match / "identities.csv") if teams and (match / "identities.csv").exists() else []
-    who, table = people(track_team, identities, named(identities, read_names(match)))
+    who, table = people(track_team, identities, given)
     by_frame: dict[int, list[dict]] = {}
 
     def rows() -> Iterator[dict]:
@@ -321,7 +336,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
 
     step = max(1, round(STEP_S * fps))
     samples = player_samples(rows(), step, frame_count, who) if (match / "players.csv").exists() else []
-    found = contacts(actions, windows, by_frame, fps, calibration, UNDER_PX * height / 720, who)
+    found = contacts(actions, windows, by_frame, fps, calibration, UNDER_PX * height / 720, who, said)
     scores = read_csv(match / "points.csv") if teams and (match / "points.csv").exists() else [{}] * len(windows)
     rallies = []
     for (start, end), row, point in zip(windows, rally_rows, scores):
@@ -352,9 +367,9 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 
-def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool) -> None:
-    """The page, data.js, players.js and, unless `video` is None, the video and its poster, a frame
-    from the middle of the first rally."""
+def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None) -> None:
+    """The page, data.js, players.js and, unless `video` is None, the video, its `av1` copy the page
+    plays first where the browser can, and its poster, a frame from the middle of the first rally."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
@@ -364,6 +379,8 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
             old.unlink()
     first = data["rallies"][0] if data["rallies"] else {"start": 0, "end": 0}
     data = {**data, "video": video and video.name}
+    if video and av1:
+        data["av1"] = av1.name
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
         data["poster"] = "poster.webp"
     (site / "players.js").unlink(missing_ok=True)
@@ -377,11 +394,12 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     index = site / "index.html"
     index.write_text(index.read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
-    if video:
+    # Copied with their dates: an upload skips the unchanged ones.
+    for kept in filter(None, (video, video and av1)):
         if copy:
-            shutil.copy(video, site / video.name)
+            shutil.copy2(kept, site / kept.name)
         else:
-            (site / video.name).symlink_to(video.resolve())
+            (site / kept.name).symlink_to(kept.resolve())
 
 
 def cut(image: np.ndarray, x: float, top: int, bottom: int, wide: int) -> tuple[np.ndarray, tuple[int, int, float]]:
@@ -695,15 +713,16 @@ def build(
     light: Path | None = None,
     link: str | None = None,
     feedback: str | None = None,
+    av1: Path | None = None,
 ) -> dict:
     """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
     pictures of the `pictured` teams' players; `light` a lighter copy of `video` on its timeline for
-    the page to play with the full footage, and `link`, on a page without footage, where the same
+    the page to play with the full footage, `av1` an AV1 copy played first where the browser can, and `link`, on a page without footage, where the same
     page with it is (behind a password); `feedback` where viewers report what is wrong in a moment
-    (none: they are not asked); returns data.js's match. ValueError for `light` with a
+    (none: they are not asked); returns data.js's match. ValueError for `light` or `av1` with a
     footage to blur (blurring works on the tracked video)."""
-    if light and footage != "full":
-        raise ValueError("--light-video goes with --footage full")
+    if (light or av1) and footage != "full":
+        raise ValueError("--light-video and --av1-video go with --footage full")
     calibration = Calibration.load(court)
     calibration.check(decode.size(video))
     data, players = match_data(match, video, calibration)
@@ -714,7 +733,7 @@ def build(
     data["brand"] = brand(theme, site)
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
-    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy)
+    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1)
     return data
 
 
@@ -725,7 +744,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     club without one, or a court calibrated on another video."""
     path = match / "page.json"
     saved = json.loads(path.read_text()) if path.exists() and site is None else {}
-    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, "light": None, "link": None, "feedback": None, **saved}
+    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, "light": None, "av1": None, "link": None, "feedback": None, **saved}
     settings.update({k: v for k, v in given.items() if v is not None})
     if settings["club"] is None and (settings["footage"] == "blur-opponents" or settings["pictures"]):
         raise ValueError("--footage blur-opponents and --pictures need --club 1, 2 or both")
@@ -735,7 +754,8 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
         path.write_text(json.dumps(settings, indent=2) + "\n")
     pictured = ({1, 2} if settings["club"] == "both" else {settings["club"]}) if settings["pictures"] else set()
     light = Path(settings["light"]) if settings["light"] else None
-    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"])
+    av1 = Path(settings["av1"]) if settings["av1"] else None
+    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"], av1=av1)
     return data, settings
 
 
@@ -751,12 +771,13 @@ def main() -> None:
     parser.add_argument("--pictures", action=argparse.BooleanOptionalAction, help="Your team's players' pictures on their cards (needs --club)")
     parser.add_argument("--copy-video", action=argparse.BooleanOptionalAction, help="Copy the video instead of symlinking it, for hosting")
     parser.add_argument("--light-video", type=Path, help="A lighter copy of --video on its timeline (e.g. 1080p) for the page to play with --footage full; the data still come from --video")
+    parser.add_argument("--av1-video", type=Path, help="An AV1 copy of --video on its timeline, 1080p 8-bit (level 4.0), that the page plays first where the browser can; the others play --light-video or --video")
     parser.add_argument("--feedback", help="Where viewers report what is wrong in a moment (e.g. /volleyball/feedback, the hosting's nginx keeps them); none asks nothing")
     parser.add_argument("--video-page", help="On a page without the video, a link to the same page with it, behind a password (e.g. video/)")
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
     args = parser.parse_args()
     try:
-        data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video, "light": args.light_video and str(args.light_video), "link": args.video_page, "feedback": args.feedback}, args.out)
+        data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video, "light": args.light_video and str(args.light_video), "av1": args.av1_video and str(args.av1_video), "link": args.video_page, "feedback": args.feedback}, args.out)
     except ValueError as error:
         parser.error(str(error))
     site = args.out or args.match / "site"

@@ -141,11 +141,13 @@ def variant(**constants):
     return run
 
 
+OFF = float("inf")
 METHODS = {
     "nearest box, either side": nearest,
-    "nearest box of the contact's side": variant(GAP_S=0.0, REACH=0.0),
-    "+ tracks missing up to 0.17 s": variant(REACH=0.0),
-    "+ an arm above serves, attacks, blocks (attribute)": variant(),
+    "nearest box of the contact's side": variant(GAP_S=0.0, REACH=0.0, SIDE_M=OFF),
+    "+ tracks missing up to 0.17 s": variant(REACH=0.0, SIDE_M=OFF),
+    "+ an arm above serves, attacks, blocks": variant(SIDE_M=OFF),
+    "+ feet past the net at the contact frame out (attribute)": variant(),
 }
 
 
@@ -189,6 +191,8 @@ def score(clips: list[str], verbose: bool, pose: bool) -> None:
     cal = calibration()
     gap = round(attribution.GAP_S * FPS)
     results = defaultdict(list)
+    # attribute's doubts: (doubt, right) per labelled player contact.
+    doubts = defaultdict(list)
     for clip in clips:
         rows = attribution.read_players(Path(f"outputs/players/{clip}_players.csv"))
         by_track = attribution.tracks(rows)
@@ -220,11 +224,23 @@ def score(clips: list[str], verbose: bool, pose: bool) -> None:
                 if verbose and name == list(METHODS)[-1]:
                     print(f"{clip} {f:6} {kind or '?':7} {touchers[f]['toucher']:8} truth: track {on_truth[f]} {'ok' if results[name, 'truth'][-1][2] else 'WRONG'}"
                           f", detected: track {on_detected.get(matched.get(f))} {'ok' if results[name, 'detected'][-1][2] else 'WRONG'}")
+            if name == list(METHODS)[-1]:
+                for set_name, typed, on in (("truth", truth, on_truth), ("detected", detected, on_detected)):
+                    gaps = dict(zip([t[0] for t in typed], map(attribution.gap_to_next, attribution.ranked(typed, rows, FPS))))
+                    for f, kind in labels.items():
+                        key = f if set_name == "truth" else matched.get(f)
+                        if kind and touchers[f]["toucher"] != "none" and key is not None and on[key] is not None:
+                            g = gaps[key]
+                            doubts[set_name].append((g is not None and g < attribution.DOUBT, results[name, set_name][-len(labels) + list(labels).index(f)][2]))
             if verbose and name == list(METHODS)[-1]:
                 false = [d for d in on_detected if d not in matched.values()]
                 print(f"{clip}: {len(false)} detected contacts match no label, {sum(on_detected[d] is not None for d in false)} attributed to a track")
     for (name, kind), rows_ in results.items():
         report(f"{name}, {kind}", rows_)
+    for set_name, rows_ in doubts.items():
+        wrong = [d for d, ok in rows_ if not ok]
+        print(f"\ndoubts (next candidate under {attribution.DOUBT} box heights), {set_name}: {sum(d for d, _ in rows_)} of {len(rows_)} attributed touches,"
+              f" {sum(wrong)} of their {len(wrong)} wrong picks")
 
 
 def main() -> None:

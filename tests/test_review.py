@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, set_photo, set_team, settled, state, suggest, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, chain, constraints, doubtful, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -41,6 +41,44 @@ class TestConstraints:
         assert constraints("player:1:3", self.refs, self.three) == {"same": [[self.three, self.piece]], "different": [[self.piece, self.five]]}
 
 
+class TestDoubtful:
+    def test_asks_unknown_touchers_then_one_player_twice_then_close_calls(self):
+        def row(frame, kind, team, who, gap=""):
+            return {"frame": str(frame), "type": kind, "team": str(team), "identity": str(who), "gap": gap}
+
+        actions = [
+            row(10, "serve", 1, 3, "0.5"),
+            row(40, "pass", 2, ""),
+            row(60, "set", 2, 4, "0.3"),
+            # The set's player again: the attack, less sure, is asked.
+            row(80, "attack", 2, 4, "0.01"),
+            # A blocker may play the ball again.
+            row(100, "block", 1, 5, "0.2"),
+            row(110, "dig", 1, 5, "0.04"),
+            row(130, "floor", "", ""),
+            # Not twice: the next rally.
+            row(200, "serve", 1, 5, "0.03"),
+            row(230, "pass", 2, 4, "0.02"),
+        ]
+
+        found = doubtful(actions, [(0, 150), (190, 300)])
+
+        assert [(r["frame"], why) for r, why in found[:2]] == [("40", "unknown"), ("80", "twice")]
+        # The touches not doubted, all spot-checked here.
+        assert sorted(r["frame"] for r, why in found[2:5]) == ["10", "100", "60"] and {why for _, why in found[2:5]} == {"check"}
+        assert [(r["frame"], why) for r, why in found[5:]] == [("230", "close"), ("200", "close"), ("110", "close")]
+
+
+class TestTouchAnswer:
+    def test_a_touch_is_the_players_said_with_their_name_or_no_touch_else_nothing(self):
+        touch = {"frame": 98776, "team": 2}
+
+        assert touch_answer(touch, "player:2:5", {(2, 5): {"name": "Léa", "jersey": 9}}) == {"touch": [{"frame": 98776, "team": 2, "identity": 5, "name": "Léa"}]}
+        assert touch_answer(touch, "player:2:6", {}) == {"touch": [{"frame": 98776, "team": 2, "identity": 6, "name": None}]}
+        assert touch_answer(touch, "nobody", {}) == {"touch": [{"frame": 98776, "team": 2, "identity": None, "name": None}]}
+        assert touch_answer(touch, "skip", {}) == {}
+
+
 class TestSave:
     def test_the_constraint_lists_follow_the_log(self, tmp_path):
         path = tmp_path / "identity_answers.json"
@@ -48,7 +86,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "log": log}
 
 
 class TestRange:

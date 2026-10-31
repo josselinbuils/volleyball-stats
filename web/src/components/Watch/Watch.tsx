@@ -13,6 +13,10 @@ import { RallyCards } from '@/components/Watch/RallyCards';
 import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
+import { askVideo } from '@/components/VideoChoice';
+
+// What web.py's --av1-video takes: 1080p, 8-bit, level 4.0; a browser that cannot play it takes the next source.
+const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
 
 export function Watch() {
   const { t } = useTranslation();
@@ -43,11 +47,9 @@ export function Watch() {
           </CardTitle>
           <CardDescription>{t('replayCaption')}</CardDescription>
           {match.videoPage && (
-            <Button asChild variant="outline" size="sm" className="mt-2 justify-self-start bg-card">
-              <a href={match.videoPage}>
-                <Lock aria-hidden />
-                {t('videoPage')}
-              </a>
+            <Button variant="outline" size="sm" className="mt-2 justify-self-start bg-card" onClick={askVideo}>
+              <Lock aria-hidden />
+              {t('videoPage')}
             </Button>
           )}
         </CardHeader>
@@ -56,15 +58,12 @@ export function Watch() {
           <div className="mx-auto grid w-full max-w-3xl min-w-0 gap-3 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-6">
             <Scoreboard />
             {/* Full screen: the view fills the screen above the controls, its title bar over it. */}
-            <div className="relative lg:col-start-1">
-              <Feedback />
-              <div ref={court} className="overflow-hidden rounded-lg border bg-card [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
-                <div className="p-3 pb-2 [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:p-0">
-                  <Replay captioned={false} />
-                </div>
-                <div className="border-t bg-muted">
-                  <VideoControls light />
-                </div>
+            <div ref={court} className="overflow-hidden lg:col-start-1 rounded-lg border bg-card [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
+              <div className="p-3 pb-2 [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:p-0">
+                <Replay captioned={false} />
+              </div>
+              <div className="border-t bg-muted">
+                <VideoControls light />
               </div>
             </div>
             <div className="grid content-start gap-3 lg:col-start-2 lg:row-start-2">
@@ -100,14 +99,16 @@ export function Watch() {
                 {/* Nothing loads before the first play. */}
                 <video
                   ref={setVideo}
-                  src={match.video}
                   poster={match.poster}
                   playsInline
                   preload="none"
                   aria-label={t('video')}
                   onClick={() => togglePlay(video)}
                   className="block aspect-video w-full cursor-pointer [:fullscreen>&]:aspect-auto [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1"
-                />
+                >
+                  {match.av1 && <source src={match.av1} type={AV1} />}
+                  <source src={match.video} />
+                </video>
                 <VideoControls />
               </div>
             </div>

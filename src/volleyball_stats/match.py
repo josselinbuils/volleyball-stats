@@ -242,9 +242,10 @@ def main() -> None:
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     timings["actions"] = time.perf_counter() - start
 
-    tracks, touchers, found_teams, settled = None, [None] * len(typed), None, None
+    tracks, touchers, gaps, found_teams, settled = None, [None] * len(typed), [None] * len(typed), None, None
     if args.players:
-        touchers = attribution.attribute(typed, rows, fps)
+        candidates = attribution.ranked(typed, rows, fps)
+        touchers, gaps = [c[0][2] if c else None for c in candidates], [attribution.gap_to_next(c) for c in candidates]
         typed, touchers = actions.mark_dead(typed, touchers, [rally_of(t[0], windows, round(actions.LEAD_S * fps)) for t in typed])
         start = time.perf_counter()
         found_teams = teams.assign(args.video, rows, windows, fps, starts)
@@ -275,8 +276,12 @@ def main() -> None:
         timings["identity"] = time.perf_counter() - start
         who = [identity.lookup(known, k, t[0]) if k is not None else None for t, k in zip(typed, touchers)]
         # A track swapping players across the net can hold an identity of the other team.
-        rows_out = [[*t, "" if k is None else k, "" if g is None else g, "" if w is None or w[0] != g else w[1]] for t, k, g, w in zip(typed, touchers, contact_teams, who)]
-        write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track", "team", "identity"], rows_out)
+        # `gap`: box heights from the toucher to the next candidate, the doubt about the pick.
+        rows_out = [
+            [*t, "" if k is None else k, "" if k is None or d is None else round(d, 3), "" if g is None else g, "" if w is None or w[0] != g else w[1]]
+            for t, k, d, g, w in zip(typed, touchers, gaps, contact_teams, who)
+        ]
+        write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track", "gap", "team", "identity"], rows_out)
         # ponytail: a rally with unknown sides counts team 1 on the left, as points.main does.
         found_points = points.points(typed, crossings, windows, [g or 1 for g in found_teams.left], sets, fps, calibration)
         points.write_points(out / "points.csv", windows, found_points)

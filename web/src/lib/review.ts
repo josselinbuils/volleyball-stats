@@ -22,10 +22,16 @@ export interface Choice {
 }
 
 /** A doubt of the identity step: who an outlined piece of track is (`piece`), or whether two
- * identities never seen together are one player (`merge`, `other` the second one's clip). */
+ * identities never seen together are one player (`merge`, `other` the second one's clip); or who
+ * made a doubtful touch (`touch`: its `action` at `time`, the ball outlined, why it is asked and
+ * the player it is given to, `proposed`, when one is). */
 export interface Question {
   id: string;
-  kind: 'piece' | 'merge';
+  kind: 'piece' | 'merge' | 'touch';
+  action?: string;
+  time?: number;
+  reason?: 'unknown' | 'twice' | 'close';
+  proposed?: number | null;
   team: Group;
   identity: number | null;
   seconds: number;

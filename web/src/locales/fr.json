@@ -223,7 +223,16 @@
     "applyBoth": "Appliquer les réponses et les noms",
     "goNames": "Nommer les joueurs",
     "tabQuestions": "Questions · {{count, number}}",
-    "tabNames": "Noms · {{n}} sur {{total}}"
+    "tabNames": "Noms · {{n}} sur {{total}}",
+    "touchQuestion": "Qui a touché le ballon ?",
+    "touchNote": "Le cadre jaune marque l'endroit de la touche ; le moment passe en boucle, sans le son. Seuls les joueurs de cette équipe sont proposés.",
+    "touchProposed": "C'est bien {{name}}",
+    "touchWhy": {
+      "unknown": "aucun joueur reconnu",
+      "twice": "le même joueur deux fois de suite",
+      "close": "deux joueurs aussi près du ballon"
+    },
+    "nobody": "Personne : pas une touche"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
@@ -401,5 +410,15 @@
     },
     "button": "Signaler",
     "thanksShort": "Merci !"
+  },
+  "videoChoice": {
+    "title": "Comment voir le match ?",
+    "text": "Avec la vidéo, pour les joueurs et leurs proches : entrez le mot de passe. Sans, les statistiques et le jeu revu sur le terrain vu de dessus.",
+    "video": "Voir avec la vidéo",
+    "without": "Sans la vidéo",
+    "password": "Mot de passe",
+    "checking": "Vérification…",
+    "wrong": "Mot de passe incorrect.",
+    "changed": "Le mot de passe a changé : entrez le nouveau."
   }
 }

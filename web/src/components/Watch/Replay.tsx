@@ -13,6 +13,7 @@ import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 import { ball3dAt, jumpAt, trail3dAt } from '@/components/Watch/helpers/flight';
 import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
+import { Feedback } from '@/components/Watch/Feedback';
 import { scoreAt } from '@/components/Watch/helpers/score';
 
 const STORED = 'court-view';
@@ -88,6 +89,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
             ))}
           </ToggleGroup>
         )}
+        {!match.video && <Feedback inline />}
       </div>
       <div
         className="cursor-default select-none [:fullscreen_&]:min-h-0 [:fullscreen_&]:flex-1"

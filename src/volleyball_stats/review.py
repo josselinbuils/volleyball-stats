@@ -18,6 +18,7 @@ ROSTER_MATCHES matches, and suggests the names of those who look most like each 
 
 import argparse
 import csv
+import hashlib
 import json
 import queue
 import re
@@ -33,7 +34,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import files, identity, jerseys, web
+from volleyball_stats import attribution, files, identity, jerseys, web
 from volleyball_stats.teams import parse_colour
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
@@ -43,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut")
+KINDS = ("same", "different", "not_player", "cut", "touch")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -54,6 +55,12 @@ STRIP = 24
 # Doubts under MIN_IMPACT (seconds of play, a touch counting as 10, times the doubt: identity.doubts)
 # are not asked: their answers barely move the numbers, and there are always more.
 MIN_IMPACT = 10.0
+# Doubtful touches (`doubtful`) are asked first, each clip from TOUCH_BEFORE_S before the touch to
+# TOUCH_AFTER_S after it, zoomed on where it happens.
+TOUCH_BEFORE_S, TOUCH_AFTER_S = 1.5, 1.0
+UNKNOWN = ("", "0")
+# Touches not doubted asked too, the same ones each time: how many wrong picks the doubts miss.
+SPOT_CHECKS = 10
 ROSTER = Path("outputs/roster.json")
 # What the identities were last computed from (`state`), to tell what an apply would change.
 APPLIED = "identity_applied.json"
@@ -96,12 +103,18 @@ class Questions:
         by_track = np.lexsort((table[:, 0], table[:, 1]))
         tracks, firsts = np.unique(table[by_track, 1], return_index=True)
         self.rows = {int(t): by_track[a:b] for t, a, b in zip(tracks, firsts, [*firsts[1:], len(by_track)])}
+        # A touch's place is outlined in a square a player's median height.
+        self.touch_side = float(np.median(self.box_of[:, 3] - self.box_of[:, 1])) if len(self.box_of) else 200.0
         self.load()
 
     def load(self) -> None:
         self.table = identity.read_identities(self.match / "identities.csv")
         self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
+        actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
+        rallies = web.read_csv(self.match / "rallies.csv") if (self.match / "rallies.csv").exists() else []
+        windows = [(int(r["start_frame"]) - round(web.LEAD_S * self.fps), int(r["end_frame"])) for r in rallies]
+        self.touches = doubtful(actions, windows)
 
     def track_rows(self, track: int, start: int, end: int) -> np.ndarray:
         """Indices of a track's boxes from `start` to `end`, by frame."""
@@ -182,6 +195,15 @@ class Questions:
             "start": round(start / self.fps, 2),
             "end": round(end / self.fps, 2),
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
+        }
+
+    def touch_clip(self, frame: int, x: float, y: float) -> dict:
+        """The clip around a touch at `frame`, its place (the ball then, at `x`, `y`) outlined."""
+        half = self.touch_side / 2
+        return {
+            "start": round((frame - TOUCH_BEFORE_S * self.fps) / self.fps, 2),
+            "end": round((frame + TOUCH_AFTER_S * self.fps) / self.fps, 2),
+            "boxes": [[round(frame / self.fps, 3), round(x - half), round(y - half), round(x + half), round(y + half)]],
         }
 
     def split(self, segment: tuple[int, int, int], log: list[dict], names: list[dict], named: dict) -> dict:
@@ -400,7 +422,19 @@ class Questions:
                 "crops": [], "choices": [{"identity": n, **self.faces(team, n)} for n in (a, b)],
             })
             refs[qid] = {"choices": [self.ref(team, a), self.ref(team, b)]}
-        return sorted(out, key=lambda q: -q["impact"]), refs
+        touches = []
+        for r, reason in self.touches:
+            frame, team = int(r["frame"]), int(r["team"])
+            qid = f"touch:{frame}"
+            if qid in asked:
+                continue
+            touches.append({
+                "id": qid, "kind": "touch", "team": team, "identity": None, "impact": identity.CONTACT_S, "seconds": 0, "contacts": 1,
+                "action": r["type"], "time": round(frame / self.fps, 2), "clip": self.touch_clip(frame, float(r["x"]), float(r["y"])), "crops": [], "choices": [],
+                "reason": reason, "proposed": None if r["identity"] in UNKNOWN else int(r["identity"]),
+            })
+            refs[qid] = {"touch": {"frame": frame, "team": team}}
+        return touches + sorted(out, key=lambda q: -q["impact"]), refs
 
 
 def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[Ref, Ref] | None = None) -> dict[str, list]:
@@ -428,6 +462,39 @@ def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[R
         rest = [r for i, r in enumerate(options) if i != k]
         return {"same": [[piece, options[k]]], **({"different": [[piece, *rest]]} if rest else {})}
     return {}
+
+
+def doubtful(actions: list[dict], windows: list[tuple[int, int]]) -> list[tuple[dict, str]]:
+    """The touches of actions.csv's rows (frame order) to ask who made, with why, most at stake
+    first: no player of the touch's team known for it ("unknown"); one player touching twice in a
+    row in a rally, blocks aside ("twice", the less sure touch of the two); SPOT_CHECKS of the others
+    picked at random, the same each run ("check"); another player about as near the ball
+    (attribution.DOUBT, "close", the nearest first)."""
+    touch = lambda r: r["type"] not in web.NO_PLAYER and bool(r.get("team"))  # noqa: E731
+    gap = lambda r: float(r["gap"]) if r.get("gap") else float("inf")  # noqa: E731
+    rally = lambda r: next((k for k, (a, b) in enumerate(windows) if a <= int(r["frame"]) <= b), None)  # noqa: E731
+    found = {r["frame"]: (r, "unknown") for r in actions if touch(r) and r.get("identity") in UNKNOWN}
+    for a, b in zip(actions, actions[1:]):
+        same = touch(a) and touch(b) and a.get("identity") not in UNKNOWN and (a["team"], a["identity"]) == (b["team"], b["identity"])
+        if same and "block" not in (a["type"], b["type"]) and rally(a) is not None and rally(a) == rally(b):
+            r = min(a, b, key=gap)
+            found.setdefault(r["frame"], (r, "twice"))
+    close = sorted((r for r in actions if touch(r) and gap(r) < attribution.DOUBT and r["frame"] not in found), key=gap)
+    rest = [r for r in actions if touch(r) and r["frame"] not in found and gap(r) >= attribution.DOUBT]
+    checks = sorted(rest, key=lambda r: hashlib.sha256(r["frame"].encode()).hexdigest())[:SPOT_CHECKS]
+    return list(found.values()) + [(r, "check") for r in checks] + [(r, "close") for r in close]
+
+
+def touch_answer(touch: dict, choice: str, given: dict[tuple[int, int], dict]) -> dict:
+    """What an answer to a touch question adds to identity_answers.json: the touch is the player's
+    of "player:TEAM:IDENTITY", with the name `given` them, which outlives the identities' numbers;
+    no touch at all for "nobody" (identity None); nothing for another answer."""
+    if choice == "nobody":
+        return {"touch": [{**touch, "identity": None, "name": None}]}
+    if not choice.startswith("player:"):
+        return {}
+    player = tuple(int(v) for v in choice.split(":")[1:3])
+    return {"touch": [{**touch, "identity": player[1], "name": (given.get(player) or {}).get("name")}]}
 
 
 def piece_key(ref: Ref) -> str:
@@ -1003,13 +1070,17 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     choice = str(body["choice"])
                     said = choice.split(":") if choice.startswith("player:") else None
                     player = said and questions.ref(int(said[1]), int(said[2]))
-                    cut = None
-                    if choice == "cut":
-                        c = next(c for c in questions.candidates["segments"] if f"piece:{c['track']}:{c['start_frame']}" == body["id"])
-                        cut = questions.cut(c["track"], c["start_frame"], c["end_frame"], float(body["at"]))
-                        if cut is None:
-                            return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
-                    log.append({"id": body["id"], "choice": choice, **constraints(choice, refs[body["id"]], player, cut), "applied": False})
+                    if "touch" in refs[body["id"]]:
+                        given = identity.named(questions.table, identity.read_names(match))
+                        log.append({"id": body["id"], "choice": choice, **touch_answer(refs[body["id"]]["touch"], choice, given), "applied": False})
+                    else:
+                        cut = None
+                        if choice == "cut":
+                            c = next(c for c in questions.candidates["segments"] if f"piece:{c['track']}:{c['start_frame']}" == body["id"])
+                            cut = questions.cut(c["track"], c["start_frame"], c["end_frame"], float(body["at"]))
+                            if cut is None:
+                                return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
+                        log.append({"id": body["id"], "choice": choice, **constraints(choice, refs[body["id"]], player, cut), "applied": False})
                 elif self.path == "/odd":
                     refs = [[{"track": int(r["track"]), "frame": int(r["frame"])} for r in body[k]] for k in ("odd", "rest")]
                     to = [t if t == "not_player" else t and questions.ref(int(t["team"]), int(t["identity"])) for t in body.get("to") or [None] * len(refs[0])]

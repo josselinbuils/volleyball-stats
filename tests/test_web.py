@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import brand, contacts, match_data, people, photos, player_samples, publish, result, spot, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import brand, contacts, match_data, people, photos, player_samples, publish, result, spot, touched, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -178,7 +178,14 @@ class TestPeople:
         who, table = people({1: 1}, [(1, 0, 49, 1, 3)], {(1, 3): {"name": "Julie", "jersey": 7}})
 
         assert who(1, 10) == 0
+        assert who(None, 80, (1, 3)) == 0
         assert table == {0: {"team": 1, "number": 3, "jersey": 7, "name": "Julie"}}
+
+    def test_a_touch_goes_to_the_player_the_review_named_by_name_else_by_number(self, tmp_path):
+        touches = [{"frame": 5, "team": 2, "identity": 3, "name": "Julie"}, {"frame": 9, "team": 1, "identity": 4, "name": None}, {"frame": 12, "team": 1, "identity": None, "name": None}]
+        (tmp_path / "identity_answers.json").write_text(json.dumps({"touch": touches}))
+
+        assert touched(tmp_path, {(2, 7): {"name": "Julie", "jersey": None}}) == {5: (2, 7), 9: (1, 4), 12: None}
 
 
 class TestBrand:
@@ -253,6 +260,18 @@ class TestWriteSite:
         assert (site / "match.mp4").read_bytes() == b"not a video"
         assert not (site / "poster.webp").exists()
 
+    def test_offers_an_av1_copy_beside_the_video_both_keeping_their_dates(self, tmp_path):
+        video, av1 = tmp_path / "match.mp4", tmp_path / "match_av1.mp4"
+        video.write_bytes(b"h264")
+        av1.write_bytes(b"av1")
+        site = tmp_path / "site"
+
+        write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, av1=av1)
+
+        assert '"video":"match.mp4","av1":"match_av1.mp4"' in (site / "data.js").read_text()
+        assert (site / "match_av1.mp4").read_bytes() == b"av1"
+        assert (site / "match.mp4").stat().st_mtime == video.stat().st_mtime
+
     def test_leaves_the_video_out_and_removes_a_previous_one(self, tmp_path):
         # The camera names its files in capitals; a symlinked one too.
         video, other = tmp_path / "DJI_0001.MP4", tmp_path / "clip.mov"
@@ -321,7 +340,7 @@ class TestPublish:
 
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "full", "light": "v_1080p.mp4", "link": None}, tmp_path / "hosted")
 
-        assert built == [{"light": Path("v_1080p.mp4"), "link": None, "feedback": None}]
+        assert built == [{"light": Path("v_1080p.mp4"), "link": None, "feedback": None, "av1": None}]
 
     def test_pictures_both_teams_of_the_club(self, tmp_path, monkeypatch):
         built = []

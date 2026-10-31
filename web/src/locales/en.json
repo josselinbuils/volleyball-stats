@@ -223,7 +223,16 @@
     "applyBoth": "Apply the answers and the names",
     "goNames": "Name the players",
     "tabQuestions": "Questions · {{count, number}}",
-    "tabNames": "Names · {{n}} of {{total}}"
+    "tabNames": "Names · {{n}} of {{total}}",
+    "touchQuestion": "Who touched the ball?",
+    "touchNote": "The yellow frame marks where the touch happens; the moment loops, muted. Only this team's players are offered.",
+    "touchProposed": "It is {{name}}",
+    "touchWhy": {
+      "unknown": "no player recognised",
+      "twice": "the same player twice in a row",
+      "close": "two players as near the ball"
+    },
+    "nobody": "Nobody: not a touch"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -401,5 +410,15 @@
     },
     "button": "Report",
     "thanksShort": "Thank you!"
+  },
+  "videoChoice": {
+    "title": "How to see the match?",
+    "text": "With the video, for the players and their families: enter the password. Without, the stats and the play replayed on a top view of the court.",
+    "video": "See with the video",
+    "without": "Without the video",
+    "password": "Password",
+    "checking": "Checking…",
+    "wrong": "Wrong password.",
+    "changed": "The password changed: enter the new one."
   }
 }

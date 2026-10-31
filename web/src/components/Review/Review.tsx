@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, HelpCircle, PenLine, Scissors, Undo2, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, HelpCircle, PenLine, Scissors, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import { Names } from '@/components/Review/Names';
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
 const NOTICE_MS = 4000;
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
+const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', s: 'skip' };
 
 type Tab = 'questions' | 'names';
 // The tab survives the reload that applies the answers.
@@ -172,7 +173,8 @@ export function Review({
       if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || tab !== 'questions' || typing) {
         return;
       }
-      const choice = (question.kind === 'merge' ? MERGE_KEYS : KEYS)[event.key.toLowerCase()];
+      const key = (question.kind === 'merge' ? MERGE_KEYS : question.kind === 'touch' ? TOUCH_KEYS : KEYS)[event.key.toLowerCase()];
+      const choice = key === 'proposed' ? question.proposed != null && `player:${question.team}:${question.proposed}` : key;
       if (choice) {
         event.preventDefault();
         void answer(choice);
@@ -267,26 +269,35 @@ export function Review({
               <CardTitle>
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />
-                  {question.kind === 'piece' ? t('review.who') : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
+                  {question.kind === 'piece'
+                    ? t('review.who')
+                    : question.kind === 'touch'
+                      ? t('review.touchQuestion')
+                      : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
                 </h2>
               </CardTitle>
               <CardDescription>
-                {[groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })].filter(Boolean).join(' · ')}
+                {(question.kind === 'touch'
+                  ? [groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
+                  : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
+                )
+                  .filter(Boolean)
+                  .join(' · ')}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-              {question.kind === 'piece' && (
+              {question.kind !== 'merge' && (
                 <label className="grid max-w-md gap-1 text-sm font-medium lg:col-span-2">
                   {t('review.whoIs')}
                   <PlayerSelect
                     key={question.id}
-                    players={players}
+                    players={question.kind === 'touch' ? players.filter((p) => p.team === question.team) : players}
                     nameOf={nameOf}
                     value=""
                     empty={t('review.pickPlayer')}
                     label={t('review.whoIs')}
                     className="h-9 w-full text-[15px] font-normal"
-                    autoFocus
+                    autoFocus={question.kind !== 'touch' || question.proposed == null}
                     openOnFocus={false}
                     onChange={(who) => who && void answer(`player:${who}`)}
                   />
@@ -310,10 +321,25 @@ export function Review({
                     ))}
                   </div>
                 )}
-                <p className="text-[13px] text-muted-foreground">{t(question.kind === 'piece' ? 'review.pieceNote' : 'review.mergeNote')}</p>
+                <p className="text-[13px] text-muted-foreground">{t(`review.${question.kind}Note`)}</p>
               </div>
               <div className="grid gap-3">
-                {question.kind === 'piece' ? (
+                {question.kind === 'touch' ? (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                    {question.proposed != null && (
+                      <AnswerButton
+                        key={question.id}
+                        autoFocus
+                        icon={<Check aria-hidden />}
+                        label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
+                        hint="1"
+                        onClick={() => void answer(`player:${question.team}:${question.proposed}`)}
+                      />
+                    )}
+                    <AnswerButton icon={<CircleOff aria-hidden />} label={t('review.nobody')} hint="X" onClick={() => void answer('nobody')} />
+                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                  </div>
+                ) : question.kind === 'piece' ? (
                   <div className="grid gap-3">
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
                       <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
@@ -369,9 +395,9 @@ export function Review({
   );
 }
 
-function AnswerButton({ icon, label, hint, onClick }: { icon: React.ReactNode; label: string; hint: string; onClick: () => void }) {
+function AnswerButton({ icon, label, hint, onClick, autoFocus }: { icon: React.ReactNode; label: string; hint: string; onClick: () => void; autoFocus?: boolean }) {
   return (
-    <Button variant="outline" className="justify-between bg-card" onClick={onClick}>
+    <Button variant="outline" className="justify-between bg-card" autoFocus={autoFocus} onClick={onClick}>
       <span className="inline-flex items-center gap-2">
         {icon}
         {label}
