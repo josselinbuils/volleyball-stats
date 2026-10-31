@@ -12,7 +12,7 @@ import { usePlayers } from '@/lib/players';
 import { useSet } from '@/lib/sets';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
 import { insights } from '@/components/Stats/helpers/insights';
-import { lines } from '@/components/Stats/helpers/stats';
+import { lines, mvp } from '@/components/Stats/helpers/stats';
 import { PlayerCards } from '@/components/Stats/PlayerCards';
 import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
 
@@ -47,6 +47,7 @@ export function PlayersTable() {
       total: line.id === 'total',
     }));
   const cards = rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number');
+  const best = withPlayers ? mvp(GROUPS.flatMap((g) => lines(contacts, match.people, g, dropped))) : null;
 
   return (
     <Card>
@@ -110,7 +111,7 @@ export function PlayersTable() {
         </div>
         {view === 'cards' && withPlayers ? (
           cards.length ? (
-            <PlayerCards id={`cards:${set}:${group}`} rows={cards} g={group} />
+            <PlayerCards id={`cards:${set}:${group}`} rows={cards} g={group} mvp={best} />
           ) : (
             <p className="text-sm text-muted-foreground">{t('players.noCards')}</p>
           )

@@ -1,5 +1,5 @@
 import type { Brand, Team } from '@/lib/match';
-import { ring, teamColors, textOn } from '@/helpers/colors';
+import { CARD_SHADE, ring, teamColors, textOn, textOnShade } from '@/helpers/colors';
 
 /** The page's backgrounds a mark sits on, card and court, per colour scheme. */
 const BACKGROUNDS = { light: ['#ffffff', '#ecebe5'], dark: ['#1b1b1a', '#262624'] };
@@ -37,7 +37,7 @@ function block(colours: string[], brand: Brand | null, scheme: 'light' | 'dark')
  * set before the first render so nothing repaints. */
 export function applyTheme(teams: [Team, Team] | null, brand: Brand | null) {
   const colours = teamColors(teams ? [teams[0].colour, teams[1].colour] : SIDES);
-  const fills = colours.flatMap((c, k) => [`--team${k + 1}:${c}`, `--team${k + 1}-text:${textOn(c)}`]);
+  const fills = colours.flatMap((c, k) => [`--team${k + 1}:${c}`, `--team${k + 1}-text:${textOn(c)}`, `--team${k + 1}-card-text:${textOnShade(c, CARD_SHADE)}`]);
   const style = document.createElement('style');
   style.textContent = [
     `:root{${[...fills, block(colours, brand, 'light')].join(';')}}`,

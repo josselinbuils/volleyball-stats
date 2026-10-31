@@ -80,6 +80,13 @@ export interface Conflict {
   pinned: { id: string; crop: string; time: number; claim: string }[];
 }
 
+/** A moment for a player's card picture: its frame, the player's box and the picture of it. */
+export interface PhotoMoment {
+  frame: number;
+  box: number[];
+  crop: string;
+}
+
 /** review.js, served by volleyball_stats.review. */
 interface ReviewData {
   width: number;
@@ -98,6 +105,8 @@ interface ReviewData {
    * with the player they were said to be (`team:identity`), if any. */
   odd: Record<string, string | null>;
   conflicts: Conflict[];
+  /** Each player's (`team:identity`) card picture first, then the other moments to pick for it. */
+  photos?: Record<string, PhotoMoment[]>;
 }
 
 declare global {
@@ -145,9 +154,9 @@ export function onServerBusy(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Sends an answer, a name, pictures marked as someone else, an undo or the apply request to the
- * review server. */
-export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'cut' | 'forget' | 'more' | 'repin', body: object = {}): Promise<Saved> {
+/** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
+ * the apply request to the review server. */
+export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo', body: object = {}): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   // An answer joining two players of different names: saved only once the user confirms.
   if (response.status === 409) {

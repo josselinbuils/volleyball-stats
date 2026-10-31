@@ -5,6 +5,19 @@ function linear(hex: string): [number, number, number] {
   return [1, 3, 5].map((k) => channel(parseInt(hex.slice(k, k + 2), 16) / 255)) as [number, number, number];
 }
 
+/** #rrggbb mixed with black at `share` in OKLCH, as CSS `color-mix` makes it: OKLab scaled by `share`
+ * is linear sRGB scaled by `share`³. */
+export function shade(hex: string, share: number): string {
+  const gamma = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+  return `#${linear(hex)
+    .map((c) =>
+      Math.round(255 * gamma(c * share ** 3))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
+
 /** WCAG relative luminance. */
 export function luminance(hex: string): number {
   const [r, g, b] = linear(hex);
@@ -56,4 +69,16 @@ export function ring(hex: string, backgrounds: string[], dark: boolean): string 
 /** Dark or white, whichever reads better on `hex`. */
 export function textOn(hex: string): string {
   return contrast(hex, '#141413') >= contrast(hex, '#ffffff') ? '#141413' : '#ffffff';
+}
+
+/** A player card's share of its team colour where it is darkest, mixed with black in OKLCH. */
+export const CARD_SHADE = 0.55;
+
+/** `textOn` for a fill fading from `hex` to its mix with black at `share` in OKLCH (which scales its
+ * luminance by `share`³): the text whose worst contrast along the way is the highest. */
+export function textOnShade(hex: string, share: number): string {
+  const top = luminance(hex);
+  const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  const worst = (text: string) => Math.min(ratio(top, luminance(text)), ratio(top * share ** 3, luminance(text)));
+  return worst('#141413') >= worst('#ffffff') ? '#141413' : '#ffffff';
 }

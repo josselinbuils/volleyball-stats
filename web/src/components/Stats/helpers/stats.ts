@@ -152,6 +152,15 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
   return out;
 }
 
+/** The best player of `found`'s (both teams' lines): the best balance of points won minus faults,
+ * then the most points, then the most touches; null when no one's balance is above 0. */
+export function mvp(found: Line[]): number | null {
+  const balance = (l: Line) => l.stats.points.length - l.stats.faults.length;
+  const players = found.filter((l): l is Line & { id: number } => typeof l.id === 'number' && balance(l) > 0);
+  players.sort((a, b) => balance(b) - balance(a) || b.stats.points.length - a.stats.points.length || b.stats.touches.length - a.stats.touches.length);
+  return players[0]?.id ?? null;
+}
+
 /** The table of team `g`: its identified players who touched the ball or missed an ace, most touches
  * first, then the touches of no identified player and the whole team. A player is the identities
  * sharing their `playerKey`. A touch is a player's when they play for the touch's team: a track

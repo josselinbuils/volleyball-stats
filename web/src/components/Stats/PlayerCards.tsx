@@ -1,15 +1,21 @@
+import { useRef, useState } from 'react';
+import { Copy, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/format';
+import { CARD_SHADE } from '@/helpers/colors';
 import { groupName, match, playerLabel, playerNumber, teamColor, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
+import { cardPicture, GOLD, SHIELD } from '@/components/Stats/helpers/cardPicture';
 import type { Stat } from '@/components/Stats/helpers/stats';
 import { InsightChip, type Row } from '@/components/Stats/StatsTable';
 
 const SIX: Stat[] = ['serves', 'receptions', 'sets', 'attacks', 'blocks', 'digs'];
-const GOLD = 'linear-gradient(135deg, #fbe38e, #d4a017 45%, #fff1b8 55%, #b8860b)';
+const GOLD_CSS = `linear-gradient(135deg, ${GOLD.map(([at, c]) => `${c} ${at * 100}%`).join(', ')})`;
 // The stars over a hovered picture: left and top (% of the picture), size (px), delay (s).
 const SPARKLES: [number, number, number, number][] = [
   [10, 12, 16, 0],
@@ -17,20 +23,19 @@ const SPARKLES: [number, number, number, number][] = [
   [74, 44, 18, 0.7],
   [20, 56, 11, 1.05],
 ];
-// A FIFA card's shield: notched top, pointed bottom.
-const SHIELD = 'polygon(0% 6%, 8% 6%, 14% 3%, 30% 3%, 38% 0%, 50% 2%, 62% 0%, 70% 3%, 86% 3%, 92% 6%, 100% 6%, 100% 87%, 50% 100%, 0% 87%)';
+const SHIELD_CSS = `polygon(${SHIELD.map(([x, y]) => `${x}% ${y}%`).join(', ')})`;
 
 type CardRow = Row & { key: number };
 
 /** One collection card per player of team `g`, shaped like a FIFA card, with their picture, number, name and counts, each
- * count playing its moments; their strengths and things to work on under it. */
-export function PlayerCards({ id, rows, g }: { id: string; rows: CardRow[]; g: Group }) {
+ * count playing its moments, the `mvp`'s marked; their strengths and things to work on under it. */
+export function PlayerCards({ id, rows, g, mvp }: { id: string; rows: CardRow[]; g: Group; mvp: number | null }) {
   return (
     // Phones: one card a row, narrower than the screen.
     <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-4 gap-y-6 p-0 max-sm:justify-items-center">
       {rows.map((r) => (
         <li key={r.key} className="grid w-full content-start gap-2 max-sm:max-w-64">
-          <FifaCard id={`${id}:${r.key}`} row={r} g={g} />
+          <FifaCard id={`${id}:${r.key}`} row={r} g={g} mvp={r.key === mvp} />
           {r.insights && r.insights.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {r.insights.map((i) => (
@@ -48,6 +53,7 @@ interface CardProps {
   id: string;
   row: CardRow;
   g: Group;
+  mvp: boolean;
 }
 
 /** A count that plays its touches, in the card's own style; 0 for none. */
@@ -80,64 +86,149 @@ function cardName(t: TFunction, person: number): string {
   return match.people[person]?.name ?? playerLabel(t, person) ?? '';
 }
 
-function FifaCard({ id, row: r, g }: CardProps) {
+function FifaCard({ id, row: r, g, mvp }: CardProps) {
   const { t } = useTranslation();
   const photo = match.people[r.key]?.photo;
+  // Its menu (right click, a long press on phones) saves the card as a picture, or copies it; a phone
+  // shares it instead of saving.
+  const card = useRef<HTMLElement>(null);
+  const picture = (then: (blob: Blob) => void) => {
+    const colour = getComputedStyle(document.documentElement).getPropertyValue(`--team${g}`).trim();
+    if (card.current) {
+      cardPicture(card.current, colour).toBlob((blob) => blob && then(blob));
+    }
+  };
+  // The clipboard takes the picture still being drawn, within the click.
+  const copy = () => void navigator.clipboard.write([new ClipboardItem({ 'image/png': new Promise<Blob>((resolve) => picture(resolve)) })]).catch(() => {});
+  const save = (blob: Blob) => {
+    const name = cardName(t, r.key)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-');
+    const file = new File([blob], `carte-${name}.png`, { type: 'image/png' });
+    if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+      void navigator.share({ files: [file] }).catch(() => {});
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(file);
+    link.download = file.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  };
   return (
-    <article className="aspect-[5/7] p-[5px] drop-shadow-md" style={{ clipPath: SHIELD, background: GOLD }}>
-      <div
-        className="relative flex h-full flex-col overflow-hidden"
-        style={{ clipPath: SHIELD, background: `linear-gradient(160deg, ${teamColor(g)}, color-mix(in oklch, ${teamColor(g)} 55%, black))`, color: `var(--team${g}-text)` }}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-25"
-          style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1.5px)', backgroundSize: '9px 9px', maskImage: 'linear-gradient(135deg, black, transparent 65%)' }}
-        />
-        <div className="relative flex min-h-0 flex-1 gap-2 px-[9%] pt-[13%]">
-          <div className="grid content-start justify-items-center gap-1.5 pt-2">
-            <span className="text-5xl leading-none font-black tabular-nums">{playerNumber(r.key)}</span>
-            <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
-          </div>
-          {photo ? (
-            <div className="group/photo relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
-              <img src={photo} alt="" loading="lazy" className="h-full object-cover object-top" />
-              {/* A few stars twinkling over the picture while it is hovered. */}
-              {SPARKLES.map(([left, top, size, delay]) => (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <article ref={card} className="group/photo aspect-[5/7] p-[5px] drop-shadow-md" style={{ clipPath: SHIELD_CSS, background: GOLD_CSS }}>
+          <div
+            className="relative flex h-full flex-col overflow-hidden"
+            style={{
+              clipPath: SHIELD_CSS,
+              background: `linear-gradient(160deg, ${teamColor(g)}, color-mix(in oklch, ${teamColor(g)} ${CARD_SHADE * 100}%, black))`,
+              color: `var(--team${g}-card-text)`,
+            }}
+          >
+            <div
+              aria-hidden
+              className="absolute inset-0 opacity-25"
+              style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1.5px)', backgroundSize: '9px 9px', maskImage: 'linear-gradient(135deg, black, transparent 65%)' }}
+            />
+            <div className="relative flex min-h-0 flex-1 gap-2 px-[9%] pt-[13%]">
+              <div className="grid content-start justify-items-center gap-1.5 pt-2">
+                <span className="text-5xl leading-none font-black tabular-nums">{playerNumber(r.key)}</span>
+                <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
+                {mvp && <Mvp row={r} />}
+              </div>
+              {photo ? (
+                <div className="relative ml-auto h-full min-w-0" style={{ maskImage: 'linear-gradient(to bottom, black 70%, transparent)' }}>
+                  <img src={photo} alt="" loading="lazy" className="h-full object-cover object-top" />
+                  {/* A few stars twinkling over the picture while it is hovered. */}
+                  {SPARKLES.map(([left, top, size, delay]) => (
+                    <svg
+                      key={`${left}${top}`}
+                      aria-hidden
+                      viewBox="0 0 24 24"
+                      className="sparkle absolute"
+                      style={{ left: `${left}%`, top: `${top}%`, width: size, height: size, animationDelay: `${delay}s` }}
+                    >
+                      <path d="M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z" />
+                    </svg>
+                  ))}
+                </div>
+              ) : (
+                // No picture: a silhouette in the card's colours, fading out above the name like a picture.
                 <svg
-                  key={`${left}${top}`}
+                  data-silhouette
                   aria-hidden
-                  viewBox="0 0 24 24"
-                  className="sparkle absolute"
-                  style={{ left: `${left}%`, top: `${top}%`, width: size, height: size, animationDelay: `${delay}s` }}
+                  viewBox="0 0 60 80"
+                  className="mb-2 ml-auto h-[88%] self-start opacity-35"
+                  fill="currentColor"
+                  style={{ maskImage: 'linear-gradient(to bottom, black 60%, transparent)' }}
                 >
-                  <path d="M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z" />
+                  <circle cx="30" cy="24" r="13" />
+                  <path d="M4 80C4 57 16 45 30 45S56 57 56 80Z" />
                 </svg>
+              )}
+            </div>
+            <h3 data-rule="bottom" className="relative mx-[9%] border-b border-current/40 pb-1 text-center text-xl font-black tracking-wide uppercase [overflow-wrap:anywhere]">
+              {cardName(t, r.key)}
+            </h3>
+            {/* Each number above its label: room for a whole match's counts. */}
+            <dl className="relative mx-[7%] my-2 grid grid-cols-3 gap-y-1.5">
+              {SIX.map((stat, k) => (
+                <div key={stat} data-rule={k % 3 > 0 ? 'left' : undefined} className={cn('flex min-w-0 flex-col-reverse items-center', k % 3 > 0 && 'border-l border-current/30')}>
+                  <dt className="max-w-full truncate px-0.5 text-[9.5px] font-semibold tracking-tight uppercase">{t(`stats.names.${stat}`)}</dt>
+                  <dd className="m-0 text-xl leading-tight font-black tabular-nums">
+                    <Play id={id} stat={stat} row={r} />
+                  </dd>
+                </div>
               ))}
-            </div>
-          ) : (
-            // No picture: a silhouette in the card's colours, fading out above the name like a picture.
-            <svg aria-hidden viewBox="0 0 60 80" className="mb-2 ml-auto h-[88%] self-start opacity-35" fill="currentColor" style={{ maskImage: 'linear-gradient(to bottom, black 60%, transparent)' }}>
-              <circle cx="30" cy="24" r="13" />
-              <path d="M4 80C4 57 16 45 30 45S56 57 56 80Z" />
-            </svg>
-          )}
-        </div>
-        <h3 className="relative mx-[9%] border-b border-current/40 pb-1 text-center text-xl font-black tracking-wide uppercase [overflow-wrap:anywhere]">{cardName(t, r.key)}</h3>
-        {/* Each number above its label: room for a whole match's counts. */}
-        <dl className="relative mx-[7%] my-2 grid grid-cols-3 gap-y-1.5">
-          {SIX.map((stat, k) => (
-            <div key={stat} className={cn('flex min-w-0 flex-col-reverse items-center', k % 3 > 0 && 'border-l border-current/30')}>
-              <dt className="max-w-full truncate px-0.5 text-[9.5px] font-semibold tracking-tight uppercase">{t(`stats.names.${stat}`)}</dt>
-              <dd className="m-0 text-xl leading-tight font-black tabular-nums">
-                <Play id={id} stat={stat} row={r} />
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <Totals id={id} row={r} className="relative pb-[13%] text-xs font-semibold" />
-      </div>
-    </article>
+            </dl>
+            <Totals id={id} row={r} className="relative pb-[13%] text-xs font-semibold" />
+          </div>
+        </article>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={() => picture((blob) => save(blob))}>
+          <Download aria-hidden />
+          {t('players.cards.download')}
+        </ContextMenuItem>
+        {typeof ClipboardItem !== 'undefined' && (
+          <ContextMenuItem onSelect={copy}>
+            <Copy aria-hidden />
+            {t('players.cards.copy')}
+          </ContextMenuItem>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/** The MVP badge, why on hover, focus or tap as the tables' column titles: a tap does not open a
+ * tooltip on its own. */
+function Mvp({ row: r }: { row: CardRow }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          data-mvp
+          className="mt-1 rounded-full px-2 py-0.5 text-xs font-black tracking-wider text-[#3a2a00] shadow-sm outline-none focus-visible:ring-3 focus-visible:ring-current/50"
+          style={{ background: GOLD_CSS }}
+          onClick={(e) => {
+            // Kept open: the trigger's own click handler would close it.
+            e.preventDefault();
+            setOpen(true);
+          }}
+        >
+          {t('players.cards.mvp')}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{t('players.cards.mvpWhy', { points: r.stats.points.length, faults: r.stats.faults.length, balance: r.stats.points.length - r.stats.faults.length })}</TooltipContent>
+    </Tooltip>
   );
 }
 

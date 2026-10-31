@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrast, distance, ring, teamColors, textOn } from '@/helpers/colors';
+import { contrast, distance, ring, teamColors, textOn, textOnShade } from '@/helpers/colors';
 
 describe('team colours', () => {
   const light = ['#ffffff', '#ecebe5'];
@@ -40,6 +40,14 @@ describe('team colours', () => {
     for (const bg of dark) {
       expect(contrast('#a8a69d', bg)).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it('writes on a card fading to dark what reads best at its darkest too', () => {
+    // Pure red takes dark text alone, white once it fades to 55 % of itself.
+    expect(textOn('#ff0000')).toBe('#141413');
+    expect(textOnShade('#ff0000', 0.55)).toBe('#ffffff');
+    expect(textOnShade('#151515', 0.55)).toBe('#ffffff');
+    expect(textOnShade('#f4f4f4', 0.55)).toBe('#141413');
   });
 
   it('writes dark on light fills and white on dark ones, whichever contrasts more', () => {

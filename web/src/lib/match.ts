@@ -99,6 +99,10 @@ interface Data {
   name: string;
   /** The video's file, null when the page holds none. */
   video: string | null;
+  /** On a page without the video, where the same page with it is, behind a password. */
+  videoPage?: string | null;
+  /** Where viewers send what they found wrong in a moment, null to not ask. */
+  feedback?: string | null;
   poster?: string;
   fps: number;
   duration: number;
@@ -129,6 +133,8 @@ const data = window.MATCH;
 export const match = {
   name: data.name,
   video: data.video,
+  videoPage: data.videoPage ?? null,
+  feedback: data.feedback ?? null,
   poster: data.poster,
   fps: data.fps,
   duration: data.duration,

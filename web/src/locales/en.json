@@ -14,6 +14,7 @@
   "watchN_other": "Watch these {{count, number}} moments",
   "video": "Video",
   "videoCaption": "Click a rally to watch it. Beside the video, a top view of the court follows the play.",
+  "videoPage": "Watch the match on video (password)",
   "replayTitle": "Replay the play",
   "replayCaption": "Click a rally to watch it again on a top view of the court: the players and the ball follow the play.",
   "nowPlaying": "Now playing",
@@ -128,6 +129,13 @@
     "intro": "Tracking is unsure about these players: say who is outlined in yellow. Each answer fixes the numbers for the whole match; the questions that matter most come first.",
     "matchPage": "See the match page",
     "undo": "Undo the last answer",
+    "changePhoto": "Change their card's picture",
+    "currentPhoto": "Their card's current picture",
+    "photoN": "Picture {{n}}",
+    "photoNeedsName": "Name them first",
+    "teamName": "Team name",
+    "teamColour": "Team colour",
+    "saveTeam": "Save the team",
     "saving": "Saving…",
     "loading": "Loading…",
     "undoing": "Undoing…",
@@ -352,7 +360,11 @@
       "points_one": "point",
       "points_other": "points",
       "faults_one": "fault",
-      "faults_other": "faults"
+      "faults_other": "faults",
+      "download": "Download the card",
+      "copy": "Copy the card",
+      "mvp": "MVP",
+      "mvpWhy": "MVP: the best balance, points won minus faults, of every player of both teams. {{points}} points won (attacks, aces, blocks) for {{faults}} faults: +{{balance}}."
     }
   },
   "scene3d": {
@@ -370,5 +382,24 @@
     "none": "No matches yet.",
     "setsN_one": "{{count, number}} set",
     "setsN_other": "{{count, number}} sets"
+  },
+  "feedback": {
+    "open": "Something wrong in this moment? Report it",
+    "what": "What is wrong?",
+    "comment": "A detail to add (optional)",
+    "send": "Send",
+    "sending": "Sending…",
+    "cancel": "Cancel",
+    "thanks": "Thank you! Your report will help correct the analysis.",
+    "failed": "It could not be sent: try again in a moment.",
+    "kinds": {
+      "player": "It's not the right player",
+      "action": "It's not the right action (set, attack…)",
+      "result": "The result or the point is wrong",
+      "ball": "The ball is badly followed",
+      "other": "Something else"
+    },
+    "button": "Report",
+    "thanksShort": "Thank you!"
   }
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
 import type { Drop } from '@/components/Stats/helpers/between';
-import { lines, meanRating, rating, unattacked } from '@/components/Stats/helpers/stats';
+import { lines, meanRating, mvp, rating, unattacked, type Line, type Stats } from '@/components/Stats/helpers/stats';
 
 describe('lines', () => {
   const people: Record<string, Person> = {
@@ -112,5 +112,22 @@ describe('unattacked', () => {
     expect(unattacked(touch('pass', 'left', 0, 'error'), [touch('floor', 'left')])).toBe(false);
     expect(unattacked(touch('pass', 'left'), [touch('serve', 'left', 1)])).toBe(false);
     expect(unattacked(touch('set', 'left'), [touch('dig', 'right')])).toBe(false);
+  });
+});
+
+describe('mvp', () => {
+  const line = (id: Line['id'], points: number, faults: number, touches = 0): Line => {
+    const many = (n: number) => Array.from({ length: n }, () => ({}) as Contact);
+    return { id, stats: { points: many(points), faults: many(faults), touches: many(touches) } as Stats };
+  };
+
+  it('picks the best balance of points won minus faults, then the most points, then touches', () => {
+    expect(mvp([line(1, 6, 4), line(2, 3, 0), line('total', 20, 0)])).toBe(2);
+    expect(mvp([line(1, 5, 2), line(2, 4, 1, 30), line(3, 4, 1, 10)])).toBe(1);
+    expect(mvp([line(2, 4, 1, 10), line(3, 4, 1, 30)])).toBe(3);
+  });
+
+  it('names no one without a balance above 0', () => {
+    expect(mvp([line(1, 2, 2), line(2, 0, 1)])).toBeNull();
   });
 });

@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
-import { GROUPS, groupName, teamColor, teamRing, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasTeams, teamColor, teamRing, type Group } from '@/lib/match';
 import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
+import { PhotoPicker } from '@/components/Review/PhotoPicker';
+import { TeamEditor } from '@/components/Review/TeamEditor';
 
 interface Given {
   name: string;
@@ -105,11 +107,19 @@ export function Names({
         const count = mine.filter((p) => saved.get(keyOf(p))?.name.trim()).length;
         return (
           <section key={g} className="grid gap-3">
-            <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-lg font-semibold">
-              <Swatch color={teamColor(g)} ring={teamRing(g)} />
-              {groupName(t, g)}
-              <span className="text-sm font-normal text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
-            </h2>
+            {hasTeams ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+                <h2 className="sr-only">{groupName(t, g)}</h2>
+                <TeamEditor g={g} onError={onError} />
+                <span className="text-sm text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
+              </div>
+            ) : (
+              <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-lg font-semibold">
+                <Swatch color={teamColor(g)} ring={teamRing(g)} />
+                {groupName(t, g)}
+                <span className="text-sm font-normal text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
+              </h2>
+            )}
             <datalist id={`roster-${g}`}>
               {roster[g - 1].map((r) => (
                 <option key={r.name} value={r.name} />
@@ -182,6 +192,7 @@ function NameCard({
     <div data-card tabIndex={-1} className="grid content-start gap-2.5 rounded-lg border bg-card p-3 outline-none focus-within:ring-2 focus-within:ring-ring/60">
       <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
       <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
+      <PhotoPicker player={p} named={!!saved.name.trim()} onError={onError} />
       <p className="m-0 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t('player', { n: p.identity })}</span>
         <span>· {t('review.played', { time: clock(p.seconds) })}</span>

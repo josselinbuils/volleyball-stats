@@ -14,6 +14,7 @@
   "watchN_other": "Revoir ces {{count, number}} moments",
   "video": "Vidéo",
   "videoCaption": "Cliquez sur un échange pour le revoir. À côté de la vidéo, une vue du dessus du terrain suit le jeu.",
+  "videoPage": "Voir le match en vidéo (mot de passe)",
   "replayTitle": "Revoir le jeu",
   "replayCaption": "Cliquez sur un échange pour le revoir sur une vue du dessus du terrain : les joueurs et le ballon suivent le jeu.",
   "nowPlaying": "En cours",
@@ -128,6 +129,13 @@
     "intro": "Le suivi hésite sur ces joueurs : dites qui est entouré en jaune. Chaque réponse corrige les numéros pour tout le match ; les questions qui comptent le plus viennent en premier.",
     "matchPage": "Voir la page du match",
     "undo": "Annuler la dernière réponse",
+    "changePhoto": "Changer la photo de sa carte",
+    "currentPhoto": "Photo actuelle de sa carte",
+    "photoN": "Photo {{n}}",
+    "photoNeedsName": "Donnez-lui d'abord un nom",
+    "teamName": "Nom de l'équipe",
+    "teamColour": "Couleur de l'équipe",
+    "saveTeam": "Enregistrer l'équipe",
     "saving": "Enregistrement…",
     "loading": "Chargement…",
     "undoing": "Annulation…",
@@ -352,7 +360,11 @@
       "points_one": "point",
       "points_other": "points",
       "faults_one": "faute",
-      "faults_other": "fautes"
+      "faults_other": "fautes",
+      "download": "Télécharger la carte",
+      "copy": "Copier la carte",
+      "mvp": "MVP",
+      "mvpWhy": "MVP : le meilleur bilan, points marqués moins fautes, de tous les joueurs des deux équipes. {{points}} points marqués (attaques, aces, contres) pour {{faults}} fautes : +{{balance}}."
     }
   },
   "scene3d": {
@@ -370,5 +382,24 @@
     "none": "Aucun match pour l'instant.",
     "setsN_one": "{{count, number}} set",
     "setsN_other": "{{count, number}} sets"
+  },
+  "feedback": {
+    "open": "Un problème sur ce moment ? Le signaler",
+    "what": "Qu'est-ce qui ne va pas ?",
+    "comment": "Un détail à ajouter (facultatif)",
+    "send": "Envoyer",
+    "sending": "Envoi…",
+    "cancel": "Annuler",
+    "thanks": "Merci ! Votre signalement aidera à corriger l'analyse.",
+    "failed": "L'envoi n'a pas abouti : réessayez dans un moment.",
+    "kinds": {
+      "player": "Ce n'est pas le bon joueur",
+      "action": "Ce n'est pas la bonne action (passe, attaque…)",
+      "result": "Le résultat ou le point est faux",
+      "ball": "Le ballon est mal suivi",
+      "other": "Autre chose"
+    },
+    "button": "Signaler",
+    "thanksShort": "Merci !"
   }
 }
