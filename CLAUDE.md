@@ -51,8 +51,10 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## State and next steps
 
-- Weak spots: `rallies.py` finds all 21 rallies of a labelled 10 minutes of the first match (ends
-  ±1 s on 18; it misses a third on the school match's held-out clip), how a rally
+- Weak spots: rally ends. On two labelled 10 minutes of the first match (`benchmarks/rallies`),
+  pipeline F1 ±1 s 0.86 on the span the 31 Oct `served` fixes were tuned on, 0.58 on the other
+  (0.57 before the fixes; a 30 s rally missed whose server stood out of view); a third of the
+  school match's held-out rallies missed. How a rally
   ends (in, out, fault) is the least reliable measure, attribution is right 71-83% of the time
   (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
   ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
@@ -67,13 +69,15 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   every touch and rally-window question is answered, and each apply rebuilds and uploads the hosted
   pages (`outputs/first_match/publish.json`). Rallies: 130 windows on the page for 128 points; the
   estimated finals 26-23, 26-14, 23-18 against 25-23, 25-12, 25-18 given (the rest: missed rallies).
-  Its outputs predate the 31 Oct `served` fixes (rerunning the rally step moves windows the review's
-  answers point at: do it with the owner, after the 9 ace questions).
+  Its outputs predate the 31 Oct `served` fixes: rerun the pipeline only when the owner says so (it
+  moves windows the review's answers point at; backup in `outputs/first_match/backup-before-rally-fix/`).
   Stats: each team's points plus the other's faults give 74-53 (75-53 played). The viewers'
-  "Signaler" reports (see Hosting) are the main source of corrections: fetch them, turn them into
-  labels for the steps they point at (a "pas une phase de jeu" one becomes a pending rally answer in
-  the review), score and fix those steps; Kili labels (`docs/kili_labelling.md`) only where reports
-  are not enough.
+"Signaler" reports (see Hosting) are the main source of corrections: fetch them, record the clear
+  ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
+  the rest (no comment, unsure) to the review, which asks each rally reported; then score and fix
+  the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.
+  The review also asks every touch its page credits to no named player (a player on court under
+  `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
 - Open, most useful first:
   1. Rally ends and winners: the estimated score is still off (+6 windows over the match); label
      another span (set 3) to check the `served` fixes held out, then how rallies end (in, out, fault).
@@ -96,7 +100,10 @@ there, assigned to the owner), the site in `volleyball-stats/site`, the `/volley
 `reverse-proxy/Caddyfile` (Caddy since 31 Oct; the Node proxy pegged the CPU gzipping `players.js`: PR
 josselinbuils/docker#2, rollback `/root/rollback-proxy.sh`). `/usr/local/bin/vbs-monitor.sh` logs the CPU every
 minute to `/var/log/vbs-monitor/` with a snapshot when busy; `matches.build` writes `.gz` copies nginx sends as
-they are (`gzip_static`). SSH is key-only. Cloudflare and browsers keep the hashed and `?v=` files for good (the
+they are (`gzip_static`). SSH is key-only, but for root with a password from the Docker networks: the
+build manager (`josselinbuils/build-manager`, on a push to master of blog or portfolio) logs in so and
+rebuilds that service with `docker compose`. Every service restarts with the server. The docker repo
+takes commits on master directly. Cloudflare and browsers keep the hashed and `?v=` files for good (the
 unhashed ones load with the build's hash, card pictures with their own), images a day, pages are
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
@@ -123,14 +130,20 @@ to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Cont
 no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
 video. The copies keep their source's date, so an upload skips an unchanged video.
 
-Hosted pages are built with `--feedback /volleyball/feedback`: viewers report what is wrong in a
-moment, the service's nginx logs each report (POST only, 2 KB, 5 a minute per visitor) to
-`volleyball-stats/feedback/feedback.log`. Fetch and list them to correct the analysis:
+Hosted pages are built with `--feedback /volleyball/feedback`: one tap on "Signaler" reports the
+moment, "Préciser" then adds what is wrong and a comment to the same report (its `id`); the
+service's nginx logs each POST (2 KB, 5 a minute per visitor) to
+`volleyball-stats/feedback/feedback.log`. Fetch them keeping a dated copy (the review reads every
+`outputs/feedback*.log`), then empty the log online:
 
 ```bash
 scp -i ~/.ssh/id_ed25519_ovh root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/feedback/feedback.log outputs/feedback.log
+cp -p outputs/feedback.log outputs/feedback-$(date +%Y%m%d-%H%M%S).log
 uv run python -m volleyball_stats.feedback outputs/feedback.log
+ssh -i ~/.ssh/id_ed25519_ovh root@<OVH IP> ': > /home/ubuntu/docker/volleyball-stats/feedback/feedback.log'
 ```
+
+Test the report endpoint without writing to that log (it holds viewers' reports).
 
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.

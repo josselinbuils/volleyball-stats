@@ -206,6 +206,19 @@ uv run --group bench python benchmarks/rallies/bench.py --no-motion \
 | before | 20 | 0.73 [0.56–0.87] | 0.83 [0.67–0.93] | 1.00 | 0.95 |
 | after | 21 | **0.86** [0.70–0.96] | **1.00** | 1.00 | **1.00** |
 
+Held out: `ground_truth/first_match_50_60.csv` labels the 22 rallies of 50:00–60:00 (set 3) the
+same way, after the fixes (`@3000-3600`):
+
+| pipeline | n | F1 ±1 s | F1 ±2 s | found P | found R |
+| --- | --- | --- | --- | --- | --- |
+| before | 24 | 0.57 [0.39–0.73] | 0.70 [0.54–0.85] | 0.88 | 0.95 |
+| after | 23 | 0.58 [0.40–0.75] | 0.76 [0.60–0.88] | 0.91 | 0.95 |
+
+So the fixes barely carry over. Left: a 30 s rally missed (its server stood out of view: the served
+rally found starts mid-rally and `actions.served` drops it), two false windows (the next server
+bouncing the ball, a ball rolled back), ends cut by another court's whistle (−4.1 s) or with the
+ball out of sight (−3.0, −2.3 s), and a rally joined to its dead-ball tail by the 8 s rule (+10 s).
+
 Before, the one miss was a serve into the net (no net crossing, no whistle after it). The ends were
 the errors: served rallies ran to the next whistle, often the next rally's go (+11.4 s, +12.8 s), or
 stopped with the serve's ball run while play went on near the net (−8.2 s, −1.6 s). The fixes of
