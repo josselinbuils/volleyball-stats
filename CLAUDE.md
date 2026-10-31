@@ -129,11 +129,14 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 ```
 
 A match's video goes in its `video/` folder (`--out outputs/hosted/MATCH/video --footage full
---copy-video --club both --pictures`, `--light-video` for a lighter H.264 copy on the same timeline,
-`--av1-video` for an AV1 one the browsers that can play first (`ffmpeg -i VIDEO -vf
-scale=1920:1080:flags=lanczos,fps=25 -c:v libsvtav1 -preset 6 -crf 40 -g 250 -c:a aac -b:a 96k
--movflags +faststart`, VMAF 90.7 at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s); the
-public build links to it with `--video-page video/`, whose dialog asks the password). The
+--copy-video --club both --pictures`, `--light-video` for a lighter H.264 copy on the same timeline
+(`ffmpeg -i VIDEO -vf scale=1920:1080:flags=lanczos,fps=25 -c:v libx264 -preset slow -crf 28
+-maxrate 5M -bufsize 10M -g 50 -c:a aac -b:a 96k -movflags +faststart`), `--av1-video` for an AV1
+one the browsers that can play first (same with `-c:v libsvtav1 -preset 6 -crf 40 -g 50`; VMAF 90.7
+at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s with `-g 250`); the public build links to it
+with `--video-page video/`, whose dialog asks the password). A keyframe every 2 s (`-g 50`) keeps
+the jumps between clips from freezing: 21 frames to decode a jump instead of 131 with `-g 250`, for
++30% size in H.264, +60% in AV1. The
 service's nginx serves every `/volleyball/*/video/` file only with the cookie `video_key`, the
 SHA-256 of `volleyball:` and the password, listed in `volleyball-stats/video_key.conf` as
 `"<sha256>" 1;` (mounted in the container, `nginx -s reload` after a change); otherwise it redirects
