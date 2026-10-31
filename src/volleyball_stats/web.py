@@ -9,7 +9,7 @@ path is relative: the site directory serves as plain static files. The page hold
 default (`--footage none`): its moments replay on the top view of the court. `--footage full` adds
 the video, `blur-opponents` the video with the team other than the `--club` one blurred (blur.py),
 `blur-all` the video with both teams blurred. The cards show a silhouette, the `--club` team's
-players their picture with `--pictures`. MATCH/page.json remembers these choices: a later build
+players (both teams' with `--club both`) their picture with `--pictures`. MATCH/page.json remembers these choices: a later build
 without them keeps them, a flag changes only its own (`--no-pictures` takes the pictures off); the
 blurred copy is kept beside the outputs and made again only when the player tracks change. The video is symlinked unless --copy-video, for hosting; a
 poster frame stands in for it until it plays. Teams (names, colours,
@@ -31,10 +31,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode
+from volleyball_stats import decode, files
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, box_at
-from volleyball_stats.court import Calibration, zone
+from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
 from volleyball_stats.identity import lookup, named, read_identities, read_names
 from volleyball_stats.points import landing
 from volleyball_stats.teams import parse_colour, parse_date, recording_date
@@ -51,6 +51,41 @@ VIDEOS = (".mp4", ".mov", ".m4v")
 # The club logo shows at most 64 px tall, the players' pictures about 240 px: kept at twice that for
 # sharp high-density screens, never enlarged. The pictures are 3 wide for 4 tall, like a photo.
 LOGO_PX, PHOTO_PX, PHOTO_RATIO = 128, 480, 0.75
+# The cards' pictures: in the pieces of a player the review shows and the user left unmarked (sure
+# to be them), PHOTO_SAMPLES moments each, alone, on the court (ON_COURT m around it at most: not
+# walking past the camera) and with room around them for a centred picture (ROOM of their height
+# each side); of those, the PHOTO_PICKS where they stand tallest, the closest to the camera,
+# PHOTO_MORE more when none faces the camera (FACED or less), and in the player's kit: their top's
+# colour within KIT (Lab) of its median over their KIT_SAMPLES tallest moments in play (a rally,
+# IN_PLAY_S around it) inside the court's lines, not a hoodie put on during a break or on the bench. Scored on facing the camera (`looks`,
+# weighing FACING), the whole body seen (its keypoints), sharpness (weighing SHARP) and size (SIZE)
+# against the player's other moments, less CROWD per other person as large as OTHER of them in the
+# picture; the scores kept in MATCH/PHOTO_SCORES, a 4K frame costing a seek.
+PHOTO_SAMPLES, ON_COURT, ROOM, PHOTO_PICKS, PHOTO_MORE, FACED = 24, 1.0, 0.35, 24, 72, 0.3
+IN_PLAY_S, KIT_SAMPLES, KIT = 3.0, 12, 40.0
+# And looking like the pictures of them the user confirmed: their re-identification embeddings'
+# median cosine to those within LIKE of the player's best moment (players' own ranges differ: on the
+# first ASPOM match, 0.72-0.83 for one, 0.46-0.70 for another seen in a hoodie too); kept in
+# MATCH/PHOTO_VECTORS.
+LIKE, PHOTO_VECTORS = 0.08, "photo_vectors.npz"
+# Each player's PHOTO_CHOICES best moments, the one shown first, kept in MATCH/PHOTO_CANDIDATES by
+# team:identity for the review to offer; the one the user picked instead, by name, in
+# MATCH/PHOTO_PICKED.
+PHOTO_CHOICES, PHOTO_CANDIDATES, PHOTO_PICKED = 8, "photo_candidates.json", "photo_choices.json"
+FACING, SHARP, CROWD, OTHER, SIZE, PHOTO_SCORES = 3.0, 2.0, 0.5, 0.3, 2.0, "photo_scores.json"
+# The picture: from HEADROOM above the head (its box's top) down BUST of the body's height (the
+# waist: a closer face lacks detail in 4K), centred on the shoulders' middle, at PHOTO_RATIO;
+# keypoints under KEYPOINT confidence are not used.
+BUST, HEADROOM, KEYPOINT = 0.55, 0.08, 0.5
+# Then upscaled 4 times by Nomos (4xNomosWebPhoto_RealPLKSR, CC-BY-4.0, trained on degraded web
+# photos: cleaner and firmer than the video's compressed pixels, no face made up), downloaded once
+# into UPSCALER, and brought back to PHOTO_PX tall.
+UPSCALER = Path("models/4xNomosWebPhoto_RealPLKSR.safetensors")
+SMEARS, CLEAN = 120, 200
+UPSCALER_URL = "https://huggingface.co/Phips/4xNomosWebPhoto_RealPLKSR/resolve/main/4xNomosWebPhoto_RealPLKSR.safetensors"
+# Last, the gym's yellow cast taken off by WARMTH of a gray world balance, local contrast (CLAHE at
+# CONTRAST), and, without the upscaler, sharpened by SHARPEN (unsharp mask).
+WARMTH, CONTRAST, SHARPEN = 0.35, 1.5, 0.4
 # A sponsor's picture on the 3D view's boards, in pixels tall.
 SPONSOR_PX = 160
 
@@ -349,36 +384,288 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
             (site / video.name).symlink_to(video.resolve())
 
 
-def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}) -> None:
-    """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: the clearest
-    moment of their longest piece of track, a little room above and below them, widened to
-    PHOTO_RATIO."""
+def cut(image: np.ndarray, x: float, top: int, bottom: int, wide: int) -> tuple[np.ndarray, tuple[int, int, float]]:
+    """Rows `top` to `bottom` of `image`, `wide` wide centred on `x` (the frame's edges mirrored past
+    them: the player stays in the middle), no taller than PHOTO_PX (never enlarged); and its left, top
+    and scale."""
+    left = round(x - wide / 2)
+    height, width = image.shape[:2]
+    part = image[max(0, top) : min(height, bottom), max(0, left) : min(width, left + wide)]
+    if part.size:
+        part = cv2.copyMakeBorder(part, max(0, -top), max(0, bottom - height), max(0, -left), max(0, left + wide - width), cv2.BORDER_REFLECT_101)
+    scale = min(1.0, PHOTO_PX / max(1, part.shape[0]))
+    if part.size and scale < 1:
+        part = cv2.resize(part, (max(1, round(part.shape[1] * scale)), PHOTO_PX), interpolation=cv2.INTER_AREA)
+    return part, (left, top, scale)
+
+
+def packed(vectors: dict[str, np.ndarray]) -> bytes:
+    """`vectors` as the bytes of an .npz: their names, then the vectors in float16."""
+    import io
+
+    out = io.BytesIO()
+    np.savez(out, names=np.array(list(vectors)), vectors=np.array(list(vectors.values()), np.float16))
+    return out.getvalue()
+
+
+def framed(image: np.ndarray, box: tuple[int, int, int, int]) -> tuple[np.ndarray, tuple[int, int, float]]:
+    """A player's whole picture from their `box`: a little room above and below them, widened to
+    PHOTO_RATIO; and its left, top and scale (`cut`)."""
+    from volleyball_stats.review import CROP_MARGIN
+
+    x1, y1, x2, y2 = box
+    my = round((y2 - y1) * CROP_MARGIN)
+    return cut(image, (x1 + x2) / 2, y1 - my, y2 + my, max(x2 - x1, round((y2 - y1 + 2 * my) * PHOTO_RATIO)))
+
+
+def upscaler() -> tuple | None:
+    """The cards' pictures' upscaler (UPSCALER) and its device, downloaded the first time; None when
+    it cannot be had (offline): the pictures stay as cut."""
+    import urllib.request
+
+    try:
+        if not UPSCALER.exists():
+            UPSCALER.parent.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(UPSCALER_URL) as response:
+                files.write_bytes(UPSCALER, response.read())
+    except OSError:
+        return None
+    from spandrel import ModelLoader
+
+    from volleyball_stats.ball import default_device
+
+    device = default_device()
+    return ModelLoader().load_from_file(UPSCALER).to(device).eval(), device
+
+
+def upscaled(upscaler: tuple, picture: np.ndarray) -> np.ndarray:
+    """`picture` 4 times larger from `upscaler` (model, device), no taller than PHOTO_PX, touched up
+    without sharpening; a small one blended with its plain enlargement, from none of the upscaler's
+    at SMEARS px tall to all of it at CLEAN (it smears a face of a few pixels)."""
+    import torch
+
+    model, device = upscaler
+    x = torch.from_numpy(cv2.cvtColor(picture, cv2.COLOR_BGR2RGB)).permute(2, 0, 1).float().div(255).unsqueeze(0).to(device)
+    with torch.no_grad():
+        big = cv2.cvtColor(model(x)[0].clamp(0, 1).mul(255).permute(1, 2, 0).byte().cpu().numpy(), cv2.COLOR_RGB2BGR)
+    tall = min(big.shape[0], PHOTO_PX)
+    size = (max(1, round(big.shape[1] * tall / big.shape[0])), tall)
+    share = float(np.clip((picture.shape[0] - SMEARS) / (CLEAN - SMEARS), 0, 1))
+    plain = cv2.resize(picture, size, interpolation=cv2.INTER_CUBIC)
+    return touched_up(cv2.addWeighted(cv2.resize(big, size, interpolation=cv2.INTER_AREA), share, plain, 1 - share, 0), sharpen=0.0)
+
+
+def touched_up(picture: np.ndarray, sharpen: float = SHARPEN) -> np.ndarray:
+    """`picture` with WARMTH of its colour cast off, CONTRAST and `sharpen`."""
+    means = picture.reshape(-1, 3).mean(0)
+    out = np.clip(picture * (1 + WARMTH * (means.mean() / np.maximum(means, 1) - 1)), 0, 255).astype(np.uint8)
+    lab = cv2.cvtColor(out, cv2.COLOR_BGR2LAB)
+    lab[..., 0] = cv2.createCLAHE(clipLimit=CONTRAST, tileGridSize=(4, 4)).apply(lab[..., 0])
+    out = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    return cv2.addWeighted(out, 1 + sharpen, cv2.GaussianBlur(out, (0, 0), 1.0), -sharpen, 0)
+
+
+def bust(box: tuple) -> tuple[int, int]:
+    """The rows of a player's picture from their `box`: HEADROOM above the head down BUST of it."""
+    span = BUST * (box[3] - box[1])
+    return round(box[1] - HEADROOM * span), round(box[1] + span)
+
+
+def face(image: np.ndarray, box: tuple, head: list[float] | None) -> np.ndarray:
+    """A player's picture (`bust`), centred on their shoulders' middle (`head`: the nose's y, the
+    shoulders' middle x and y), else on their box."""
+    top, bottom = bust(box)
+    return cut(image, head[1] if head else (box[0] + box[2]) / 2, top, bottom, round((bottom - top) * PHOTO_RATIO))[0]
+
+
+def looks(pictures: list[tuple[np.ndarray, tuple]]) -> list[tuple[float, float, float, int, list | None, list]]:
+    """(facing, whole, sharp, others, head) of each (picture, player's box in it), of the person the pose
+    model finds best matching the box (0 for none): how much they face the camera (their eyes and
+    nose seen, the nose midway between the eyes: off to a side in profile), its mean confidence in all
+    the keypoints; the variance of the Laplacian (of the `bust`); the other people found as large as OTHER of the box; the
+    nose's y and the shoulders' middle x and y, None unless all three are seen (KEYPOINT); the mean
+    Lab colour of their top (the box's rows from a fifth to under half its height, its middle half)."""
+    from ultralytics import YOLO
+
+    from volleyball_stats.actions import POSE_MODEL
+
+    model, out = YOLO(str(POSE_MODEL)), []
+    for (picture, box), found in zip(pictures, model.predict([p for p, _ in pictures], imgsz=384, verbose=False, stream=True)):
+        gray = cv2.cvtColor(picture, cv2.COLOR_BGR2GRAY)
+        x1, y1, x2, y2 = box
+        h, w = y2 - y1, x2 - x1
+        shirt = picture[max(0, y1 + h // 5) : y1 + 9 * h // 20, max(0, x1 + w // 4) : x2 - w // 4]
+        kit = cv2.cvtColor(shirt, cv2.COLOR_BGR2LAB).reshape(-1, 3).mean(0).tolist() if shirt.size else [0.0, 0.0, 0.0]
+        boxes, confidence = found.boxes.xyxy.cpu().numpy(), found.keypoints.conf
+        if not len(boxes) or confidence is None:
+            out.append((0.0, 0.0, float(cv2.Laplacian(gray, cv2.CV_64F).var()), 0, None, kit))
+            continue
+        inter = np.clip(np.minimum(boxes[:, 2], x2) - np.maximum(boxes[:, 0], x1), 0, None) * np.clip(np.minimum(boxes[:, 3], y2) - np.maximum(boxes[:, 1], y1), 0, None)
+        union = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1]) + (x2 - x1) * (y2 - y1) - inter
+        best = int(np.argmax(inter / np.maximum(union, 1)))
+        seen = confidence.cpu().numpy()[best]
+        areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+        others = int((areas >= OTHER * (x2 - x1) * (y2 - y1)).sum()) - 1
+        # COCO keypoints: 0 the nose, 5 and 6 the shoulders.
+        points = found.keypoints.xy.cpu().numpy()[best]
+        head = [float(points[0, 1]), float(points[5:7, 0].mean()), float(points[5:7, 1].mean())] if min(seen[0], seen[5], seen[6]) >= KEYPOINT and points[5:7, 1].mean() > points[0, 1] else None
+        # Sharpness where the picture will be.
+        top, bottom = bust(box)
+        gray = gray[max(0, top) : bottom]
+        sharp = float(cv2.Laplacian(gray, cv2.CV_64F).var()) if gray.size else 0.0
+        # COCO keypoints 1 and 2: the eyes.
+        spread = abs(points[1, 0] - points[2, 0])
+        middle = 1 - 2 * abs(points[0, 0] - (points[1, 0] + points[2, 0]) / 2) / spread if spread > 1 else 0.0
+        facing = float(min(seen[0], seen[1], seen[2]) * max(0.0, middle))
+        out.append((facing, float(seen.mean()), sharp, max(0, others), head, kit))
+    return out
+
+
+def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}) -> dict[int, tuple]:
+    """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: their
+    best moment (PHOTO_PICKS), framed; returns each pictured player's (frame, box, head)."""
     from volleyball_stats.identity import frames_at
-    from volleyball_stats.review import CROP_MARGIN, Questions
+    from volleyball_stats.review import ALONE, IDENTITY_CROPS, Questions, load_log, piece_key
 
     if not teams or not (match / "identity_candidates.json").exists():
-        return
-    questions = Questions(match, cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS))
-    wanted: dict[int, list] = {}
+        return {}
+    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    questions = Questions(match, fps)
+    width, height = decode.size(video)
+    marked = {piece_key(o) for e in load_log(match / "identity_answers.json") for o in e.get("odd", [])}
+
+    def room(box: tuple) -> bool:
+        x1, y1, x2, y2 = box
+        side = ROOM * (y2 - y1)
+        return (x1 + x2) / 2 - side >= 0 and (x1 + x2) / 2 + side <= width and y1 > 0 and y2 < height - 1
+
+    with open(match / "rallies.csv") as f:
+        rallies = [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
+    margin = IN_PLAY_S * fps
+
+    def in_play(frame: int) -> bool:
+        return any(start - margin <= frame <= end + margin for start, end in rallies)
+
+    moments: dict[int, list[tuple[int, tuple]]] = {}
+    spare: dict[int, list[tuple[int, tuple]]] = {}
+    kits: dict[int, list[tuple[int, tuple]]] = {}
+    confirmed: dict[int, list[tuple[int, tuple]]] = {}
     for key, person in people.items():
-        pieces = questions.pieces(person["team"], person["number"]) if person["number"] and person["team"] in teams else []
-        if pieces and pieces[0][0] in questions.rows:
-            track, start, end, _, _ = pieces[0]
-            frame = questions.clear(track, start, end)
-            wanted.setdefault(frame, []).append((key, questions.box(track, frame)))
+        if person["number"] and person["team"] in teams:
+            team, number = person["team"], person["number"]
+            pieces = questions.pieces(team, number)[:IDENTITY_CROPS]
+            kept = [((track, start, end), p) for (track, start, end, _, _), p in zip(pieces, questions.faces(team, number)["pieces"]) if piece_key(p) not in marked and track in questions.rows]
+            shown = [piece for piece, _ in kept]
+            confirmed[key] = [(p["frame"], questions.box(p["track"], p["frame"])) for _, p in kept]
+            found, playing_in = [], []
+            for track, start, end in shown:
+                rows = questions.track_rows(track, start, end)
+                found += [
+                    (int(questions.frame_of[r]), tuple(int(v) for v in questions.box_of[r]))
+                    for r in rows[:: max(1, len(rows) // PHOTO_SAMPLES)]
+                    if questions.covered(r) < ALONE and abs(questions.court_of[r][0]) <= LENGTH / 2 + ON_COURT and abs(questions.court_of[r][1]) <= WIDTH / 2 + ON_COURT
+                ]
+                # Inside the court's lines: playing, not waiting at its edge.
+                playing_in += [
+                    (int(questions.frame_of[r]), tuple(int(v) for v in questions.box_of[r]))
+                    for r in rows[:: max(1, len(rows) // PHOTO_SAMPLES)]
+                    if in_play(int(questions.frame_of[r])) and abs(questions.court_of[r][0]) <= LENGTH / 2 and abs(questions.court_of[r][1]) <= WIDTH / 2
+                ]
+            fitting = sorted((m for m in found if room(m[1])), key=lambda m: m[1][1] - m[1][3])
+            if fitting or found:
+                moments[key] = fitting[:PHOTO_PICKS] or sorted(found, key=lambda m: m[1][1] - m[1][3])[:1]
+                spare[key] = fitting[PHOTO_PICKS : PHOTO_PICKS + PHOTO_MORE]
+                kits[key] = sorted(playing_in, key=lambda m: m[1][1] - m[1][3])[:KIT_SAMPLES] or moments[key][:KIT_SAMPLES]
+    path = match / PHOTO_SCORES
+    scores = json.loads(path.read_text()) if path.exists() else {}
+    name = lambda frame, box: f"{frame}:{','.join(map(str, box))}"  # noqa: E731
+
+    vectors_path = match / PHOTO_VECTORS
+    vectors: dict[str, np.ndarray] = {}
+    if vectors_path.exists():
+        with np.load(vectors_path) as found:
+            vectors = dict(zip(found["names"].tolist(), found["vectors"].astype(np.float32)))
+    reid: list = []
+
+    def scored(moments: dict[int, list]) -> None:
+        """`scores` holding every one of `moments` (`looks`) and `vectors` their appearance (the
+        re-identification embedding of their box), read from the video where missing."""
+        wanted: dict[int, list[tuple]] = {}
+        for f, b in {m for found in moments.values() for m in found if len(scores.get(name(*m), ())) != 6 or name(*m) not in vectors}:
+            wanted.setdefault(f, []).append(b)
+        pictures: dict[str, tuple] = {}
+        boxes: dict[str, np.ndarray] = {}
+        for frame, image in frames_at(video, wanted):
+            for box in wanted[frame]:
+                part, (left, top, scale) = framed(image, box)
+                pictures[name(frame, box)] = (part, tuple(round((v - o) * scale) for v, o in zip(box, (left, top, left, top))), (left, top, scale))
+                x1, y1, x2, y2 = box
+                boxes[name(frame, box)] = image[max(0, y1) : y2, max(0, x1) : x2]
+        if boxes:
+            if not reid:
+                from volleyball_stats.ball import default_device
+                from volleyball_stats.identity import describe, load_reid
+
+                device = default_device()
+                reid.extend([load_reid(device), device, describe])
+            model, device, describe = reid
+            vectors.update(zip(boxes, describe(list(boxes.values()), model, device)))
+            files.write_bytes(vectors_path, packed(vectors))
+        if pictures:
+            for key, (facing, whole, sharp, others, head, kit) in zip(pictures, looks([(p, b) for p, b, _ in pictures.values()])):
+                left, top, scale = pictures[key][2]
+                # The head back in the frame's pixels.
+                scores[key] = [facing, whole, sharp, others, head and [top + head[0] / scale, left + head[1] / scale, top + head[2] / scale], kit]
+            files.write_text(path, json.dumps(scores))
+
+    scored(moments)
+    scored(kits)
+    scored(confirmed)
+    # Players facing the camera in none of their closest moments: their farther ones too.
+    turned = {key: spare[key] for key, found in moments.items() if spare.get(key) and max(scores[name(*m)][0] for m in found) <= FACED}
+    scored(turned)
+    for key, more in turned.items():
+        moments[key] = moments[key] + more
+    # In their kit: a top like the one they play in, their moments in play among the candidates (all
+    # the closest may be in a hoodie); and looking like the pictures the user confirmed (a piece's
+    # track may switch to someone else).
+    for key, found in moments.items():
+        kit = np.median([scores[name(*m)][5] for m in kits[key]], axis=0)
+        found = list(dict.fromkeys(found + [m for m in kits[key] if room(m[1])]))
+        found = [m for m in found if np.linalg.norm(np.subtract(scores[name(*m)][5], kit)) <= KIT] or found
+        seen = np.array([vectors[name(*m)] for m in confirmed[key]])
+        likeness = {m: float(np.median(seen @ vectors[name(*m)])) for m in found}
+        moments[key] = [m for m in found if likeness[m] >= max(likeness.values()) - LIKE]
+    # The moments the user picked, by the player's name.
+    path = match / PHOTO_PICKED
+    taken = json.loads(path.read_text()) if path.exists() else {}
+    own = {key: (taken[n]["frame"], tuple(taken[n]["box"])) for key in moments if (n := people[key].get("name")) in taken}
+    scored({key: [m] for key, m in own.items()})
+    chosen: dict[int, list] = {}
+    picked: dict[int, tuple] = {}
+    offered: dict[str, list] = {}
+    for key, found in moments.items():
+        top = [max(scores[name(f, b)][2] for f, b in found), max(b[3] - b[1] for _, b in found)]
+
+        def score(moment: tuple[int, tuple]) -> float:
+            facing, whole, sharp, others, _, _ = scores[name(*moment)]
+            return FACING * facing + whole + SHARP * sharp / max(top[0], 1e-9) + SIZE * (moment[1][3] - moment[1][1]) / max(top[1], 1) - CROWD * others
+
+        ranked = sorted(found, key=score, reverse=True)
+        frame, box = own.get(key, ranked[0])
+        offered[f"{people[key]['team']}:{people[key]['number']}"] = [{"frame": f, "box": list(b)} for f, b in dict.fromkeys([(frame, box), *ranked[: PHOTO_CHOICES - 1]])]
+        chosen.setdefault(frame, []).append((key, box))
+        picked[key] = (frame, box, scores[name(frame, box)][4])
+    files.write_text(match / PHOTO_CANDIDATES, json.dumps(offered))
     folder.mkdir(parents=True, exist_ok=True)
-    for frame, image in frames_at(video, wanted):
-        for key, (x1, y1, x2, y2) in wanted[frame]:
-            my = round((y2 - y1) * CROP_MARGIN)
-            top, bottom = max(0, y1 - my), min(image.shape[0], y2 + my)
-            half = max(x2 - x1, round((bottom - top) * PHOTO_RATIO)) // 2
-            left = min(max(0, (x1 + x2) // 2 - half), max(0, image.shape[1] - 2 * half))
-            part = image[top:bottom, left : left + 2 * half]
+    up = upscaler() if chosen else None
+    for frame, image in frames_at(video, chosen):
+        for key, box in chosen[frame]:
+            part = face(image, box, scores[name(frame, box)][4])
             if part.size:
-                if part.shape[0] > PHOTO_PX:
-                    part = cv2.resize(part, (max(1, round(part.shape[1] * PHOTO_PX / part.shape[0])), PHOTO_PX), interpolation=cv2.INTER_AREA)
-                cv2.imwrite(str(folder / f"{key}.webp"), part, [cv2.IMWRITE_WEBP_QUALITY, 80])
+                cv2.imwrite(str(folder / f"{key}.webp"), upscaled(up, part) if up else touched_up(part), [cv2.IMWRITE_WEBP_QUALITY, 80])
                 people[key]["photo"] = f"{folder.name}/{key}.webp"
+    return picked
 
 
 def footage_video(match: Path, video: Path, blurred: set[int]) -> Path:
@@ -396,19 +683,38 @@ def footage_video(match: Path, video: Path, blurred: set[int]) -> Path:
 
 
 def build(
-    match: Path, video: Path, court: Path, site: Path, copy: bool = False, theme: str = "aspom", footage: str = "none", club: int | None = None, pictured: set[int] = frozenset()
+    match: Path,
+    video: Path,
+    court: Path,
+    site: Path,
+    copy: bool = False,
+    theme: str = "aspom",
+    footage: str = "none",
+    club: int | str | None = None,
+    pictured: set[int] = frozenset(),
+    light: Path | None = None,
+    link: str | None = None,
+    feedback: str | None = None,
 ) -> dict:
     """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
-    pictures of the `pictured` teams' players; returns data.js's match."""
+    pictures of the `pictured` teams' players; `light` a lighter copy of `video` on its timeline for
+    the page to play with the full footage, and `link`, on a page without footage, where the same
+    page with it is (behind a password); `feedback` where viewers report what is wrong in a moment
+    (none: they are not asked); returns data.js's match. ValueError for `light` with a
+    footage to blur (blurring works on the tracked video)."""
+    if light and footage != "full":
+        raise ValueError("--light-video goes with --footage full")
     calibration = Calibration.load(court)
     calibration.check(decode.size(video))
     data, players = match_data(match, video, calibration)
-    blurred = {"none": None, "full": set(), "blur-all": {1, 2}}.get(footage, {3 - (club or 1)})
+    blurred = {3 - (club or 1)} if footage == "blur-opponents" else {"none": None, "full": set(), "blur-all": {1, 2}}[footage]
     shutil.rmtree(site / "players", ignore_errors=True)
     photos(match, video, data["people"], site / "players", pictured)
     shutil.rmtree(site / "brand", ignore_errors=True)
     data["brand"] = brand(theme, site)
-    write_site(data, players, None if blurred is None else footage_video(match, video, blurred), site, copy)
+    data["videoPage"] = link if blurred is None else None
+    data["feedback"] = feedback
+    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy)
     return data
 
 
@@ -419,14 +725,17 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     club without one, or a court calibrated on another video."""
     path = match / "page.json"
     saved = json.loads(path.read_text()) if path.exists() and site is None else {}
-    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, **saved}
+    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, "light": None, "link": None, "feedback": None, **saved}
     settings.update({k: v for k, v in given.items() if v is not None})
     if settings["club"] is None and (settings["footage"] == "blur-opponents" or settings["pictures"]):
-        raise ValueError("--footage blur-opponents and --pictures need --club 1 or 2")
+        raise ValueError("--footage blur-opponents and --pictures need --club 1, 2 or both")
+    if settings["club"] == "both" and settings["footage"] == "blur-opponents":
+        raise ValueError("--club both leaves no opponents to blur")
     if site is None:
         path.write_text(json.dumps(settings, indent=2) + "\n")
-    pictured = {settings["club"]} if settings["pictures"] else set()
-    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured)
+    pictured = ({1, 2} if settings["club"] == "both" else {settings["club"]}) if settings["pictures"] else set()
+    light = Path(settings["light"]) if settings["light"] else None
+    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"])
     return data, settings
 
 
@@ -438,13 +747,16 @@ def main() -> None:
     parser.add_argument("--court", type=Path, required=True, help="Court calibration JSON the match was run with")
     parser.add_argument("--out", type=Path, help="Site directory (default: MATCH/site)")
     parser.add_argument("--footage", choices=FOOTAGE, help="What the page shows of the video (default: the previous build's, none with --out: the court's top view replays the moments)")
-    parser.add_argument("--club", type=int, choices=(1, 2), help="Your team, 1 or 2 (team 1 is on the left at the first rally)")
+    parser.add_argument("--club", type=lambda v: v if v == "both" else int(v), choices=(1, 2, "both"), help="Your team, 1 or 2 (team 1 is on the left at the first rally), or both (two teams of your club)")
     parser.add_argument("--pictures", action=argparse.BooleanOptionalAction, help="Your team's players' pictures on their cards (needs --club)")
     parser.add_argument("--copy-video", action=argparse.BooleanOptionalAction, help="Copy the video instead of symlinking it, for hosting")
+    parser.add_argument("--light-video", type=Path, help="A lighter copy of --video on its timeline (e.g. 1080p) for the page to play with --footage full; the data still come from --video")
+    parser.add_argument("--feedback", help="Where viewers report what is wrong in a moment (e.g. /volleyball/feedback, the hosting's nginx keeps them); none asks nothing")
+    parser.add_argument("--video-page", help="On a page without the video, a link to the same page with it, behind a password (e.g. video/)")
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
     args = parser.parse_args()
     try:
-        data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video}, args.out)
+        data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video, "light": args.light_video and str(args.light_video), "link": args.video_page, "feedback": args.feedback}, args.out)
     except ValueError as error:
         parser.error(str(error))
     site = args.out or args.match / "site"

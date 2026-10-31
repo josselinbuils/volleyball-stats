@@ -2,9 +2,10 @@ import json
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, settled, state, suggest, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, set_photo, set_team, settled, state, suggest, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -322,3 +323,27 @@ class TestMeeting:
         links = {"M": [("P", "odd:a")], "P": [("M", "odd:a"), ("Q", "odd:b")], "Q": [("P", "odd:b")]}
 
         assert meeting(path(links, {"M"}, {"Q"})) == ["P"]
+
+
+class TestSetTeam:
+    def test_names_and_colours_a_team_its_jersey_colour_back_without_one(self, tmp_path):
+        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": "A", "colour": None, "jersey": "#151515"}, {"name": "B", "colour": None, "jersey": "#151515"}]}))
+
+        set_team(tmp_path, 2, " Les Rouges ", "rouge")
+        assert json.loads((tmp_path / "teams.json").read_text())["teams"][1] == {"name": "Les Rouges", "colour": "#d22630", "jersey": "#151515"}
+        set_team(tmp_path, 2, "", None)
+        assert json.loads((tmp_path / "teams.json").read_text())["teams"][1] == {"name": None, "colour": None, "jersey": "#151515"}
+        with pytest.raises(ValueError):
+            set_team(tmp_path, 1, "A", "not a colour")
+
+
+class TestSetPhoto:
+    def test_keeps_the_picture_picked_by_the_players_name(self, tmp_path):
+        table = [(1, 0, 30, 2, 5)]
+        write_names(tmp_path, [{"ref": {"track": 1, "frame": 10}, "name": "Maeva", "jersey": None}])
+
+        set_photo(tmp_path, table, 2, 5, 12, [1, 2, 3, 4])
+
+        assert json.loads((tmp_path / "photo_choices.json").read_text()) == {"Maeva": {"frame": 12, "box": [1, 2, 3, 4]}}
+        with pytest.raises(ValueError):
+            set_photo(tmp_path, table, 2, 6, 12, [1, 2, 3, 4])

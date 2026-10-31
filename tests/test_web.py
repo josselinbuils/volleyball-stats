@@ -1,5 +1,6 @@
 import base64
 import json
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -268,7 +269,7 @@ class TestWriteSite:
 
 
 class TestPhotos:
-    def test_saves_a_picture_of_each_numbered_player_from_their_longest_piece(self, tmp_path):
+    def test_saves_a_picture_of_each_numbered_player_from_their_longest_piece(self, tmp_path, monkeypatch):
         video = tmp_path / "clip.mp4"
         writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
         for _ in range(20):
@@ -278,20 +279,23 @@ class TestPhotos:
         (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "\n".join(rows) + "\n")
         (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity,runner_up,confidence\n1,0,19,1,3,,1.0\n")
         (tmp_path / "identity_candidates.json").write_text('{"segments": [], "merges": []}')
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n0,19\n")
         people = {0: {"team": 1, "number": 3}, 1: {"team": 2, "number": None}}
 
+        # The picture as cut, without the upscaler.
+        monkeypatch.setattr(web, "upscaler", lambda: None)
         photos(tmp_path, video, people, tmp_path / "players")
 
         assert people[0]["photo"] == "players/0.webp"
-        # The 10x30 box, 38 px tall with its margins and widened to 3 for 4.
-        assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (38, 28)
+        # The 10x30 box from a little above its top down to its waist (55 %), 3 wide for 4 tall.
+        assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (17, 13)
         assert "photo" not in people[1]
 
 
 class TestPublish:
     def test_keeps_the_previous_choices_each_given_one_replacing_its_own(self, tmp_path, monkeypatch):
         built = []
-        monkeypatch.setattr(web, "build", lambda *args: built.append(args[4:]) or {})
+        monkeypatch.setattr(web, "build", lambda *args, **kwargs: built.append(args[4:]) or {})
 
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "blur-opponents", "club": 1, "pictures": True})
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": None, "pictures": False})
@@ -301,13 +305,33 @@ class TestPublish:
 
     def test_a_page_to_host_shows_only_what_it_is_given_and_saves_nothing(self, tmp_path, monkeypatch):
         built = []
-        monkeypatch.setattr(web, "build", lambda *args: built.append(args[4:]) or {})
+        monkeypatch.setattr(web, "build", lambda *args, **kwargs: built.append(args[4:]) or {})
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "full", "club": 1, "pictures": True})
 
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": 1}, tmp_path / "hosted")
 
         assert built[1] == (False, "aspom", "none", 1, set())
         assert json.loads((tmp_path / "page.json").read_text())["footage"] == "full"
+
+    def test_plays_a_lighter_copy_of_the_full_footage_only(self, tmp_path, monkeypatch):
+        with pytest.raises(ValueError):
+            web.build(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", tmp_path / "site", footage="blur-all", light=tmp_path / "v_1080p.mp4")
+        built = []
+        monkeypatch.setattr(web, "build", lambda *args, **kwargs: built.append(kwargs) or {})
+
+        publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "full", "light": "v_1080p.mp4", "link": None}, tmp_path / "hosted")
+
+        assert built == [{"light": Path("v_1080p.mp4"), "link": None, "feedback": None}]
+
+    def test_pictures_both_teams_of_the_club(self, tmp_path, monkeypatch):
+        built = []
+        monkeypatch.setattr(web, "build", lambda *args, **kwargs: built.append(args[8]) or {})
+
+        publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": "both", "pictures": True}, tmp_path / "hosted")
+
+        assert built == [{1, 2}]
+        with pytest.raises(ValueError):
+            publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": "both", "footage": "blur-opponents"}, tmp_path / "hosted")
 
     def test_refuses_pictures_or_a_blurred_opponent_without_a_club(self, tmp_path):
         with pytest.raises(ValueError):

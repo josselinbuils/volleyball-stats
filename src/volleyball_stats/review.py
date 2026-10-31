@@ -34,10 +34,13 @@ import cv2
 import numpy as np
 
 from volleyball_stats import files, identity, jerseys, web
+from volleyball_stats.teams import parse_colour
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
 BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
+# A player is alone in a frame where no other box covers ALONE of theirs.
+ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
 KINDS = ("same", "different", "not_player", "cut")
@@ -57,6 +60,8 @@ APPLIED = "identity_applied.json"
 # Undo takes back the UNDOS latest of the CHANGES whole, then drops the last answer. Request bodies
 # are at most MAX_BODY bytes.
 UNDOS, MAX_BODY = 100, 1 << 20
+# Where the review's copy of the match page keeps the reports of what is wrong in a moment.
+FEEDBACK = "feedback.log"
 CHANGES = ("/answer", "/odd", "/more", "/repin", "/forget", "/cut")
 
 
@@ -83,7 +88,10 @@ class Questions:
         self.avoid: set[tuple[int, int, int] | None] = set()
         # frame, track, x1, y1, x2, y2 of every player box, sorted by frame (players.csv's order):
         # compact arrays, a 2-hour match holds millions of boxes.
-        table = np.loadtxt(match / "players.csv", delimiter=",", skiprows=1, usecols=(0, 1, 3, 4, 5, 6), ndmin=2).round().astype(np.int32)
+        table = np.loadtxt(match / "players.csv", delimiter=",", skiprows=1, usecols=(0, 1, 3, 4, 5, 6, 10, 11), ndmin=2)
+        # Where each box's feet stand on the court, in meters.
+        self.court_of = table[:, 6:]
+        table = table[:, :6].round().astype(np.int32)
         self.frame_of, self.box_of = table[:, 0], table[:, 2:]
         by_track = np.lexsort((table[:, 0], table[:, 1]))
         tracks, firsts = np.unique(table[by_track, 1], return_index=True)
@@ -108,24 +116,24 @@ class Questions:
     def crop(self, track: int, frame: int) -> str:
         return f"crop?f={frame}&b={','.join(map(str, self.box(track, frame)))}"
 
+    def covered(self, row: int) -> float:
+        """The share of a row's box the most overlapping other box of its frame covers."""
+        frame, (x1, y1, x2, y2) = self.frame_of[row], self.box_of[row]
+        others = self.box_of[np.searchsorted(self.frame_of, frame) : np.searchsorted(self.frame_of, frame, side="right")]
+        w = np.clip(np.minimum(x2, others[:, 2]) - np.maximum(x1, others[:, 0]), 0, None)
+        h = np.clip(np.minimum(y2, others[:, 3]) - np.maximum(y1, others[:, 1]), 0, None)
+        share = w * h / max(1, (x2 - x1) * (y2 - y1))
+        # The box itself covers all of itself.
+        return float(np.sort(share)[-2]) if len(share) > 1 else 0.0
+
     def clear(self, track: int, start: int, end: int) -> int:
         """The frame of a piece where the track's box overlaps the other boxes least, among
         CANDIDATES spread over it: a picture of the player alone."""
-
-        def covered(row: int) -> float:
-            frame, (x1, y1, x2, y2) = self.frame_of[row], self.box_of[row]
-            others = self.box_of[np.searchsorted(self.frame_of, frame) : np.searchsorted(self.frame_of, frame, side="right")]
-            w = np.clip(np.minimum(x2, others[:, 2]) - np.maximum(x1, others[:, 0]), 0, None)
-            h = np.clip(np.minimum(y2, others[:, 3]) - np.maximum(y1, others[:, 1]), 0, None)
-            share = w * h / max(1, (x2 - x1) * (y2 - y1))
-            # The box itself covers all of itself.
-            return float(np.sort(share)[-2]) if len(share) > 1 else 0.0
-
         rows = self.track_rows(track, start, end)
         if not len(rows):
             return mid(start, end)
         picks = rows[:: max(1, len(rows) // CANDIDATES)]
-        return int(self.frame_of[min(picks, key=lambda r: (covered(r), abs(self.frame_of[r] - mid(start, end))))])
+        return int(self.frame_of[min(picks, key=lambda r: (self.covered(r), abs(self.frame_of[r] - mid(start, end))))])
 
     def pieces(self, team: int, number: int) -> list[tuple[int, int, int, int, int]]:
         """An identity's pieces, longest first."""
@@ -677,6 +685,30 @@ def set_name(match: Path, questions: Questions, team: int, number: int, given: s
     write_names(match, entries)
 
 
+def set_photo(match: Path, table: list, team: int, number: int, frame: int, box: list[int]) -> None:
+    """web.PHOTO_PICKED with the card picture of identity `number` of `team` taken at `frame` in
+    `box`, by the player's name (it outlives the identities' numbers); ValueError for an unnamed one."""
+    who = (identity.named(table, identity.read_names(match)).get((team, number)) or {}).get("name")
+    if not who:
+        raise ValueError(f"player {team}:{number} has no name")
+    path = match / web.PHOTO_PICKED
+    taken = json.loads(path.read_text()) if path.exists() else {}
+    taken[who] = {"frame": int(frame), "box": [int(v) for v in box]}
+    files.write_text(path, json.dumps(taken, indent=1, ensure_ascii=False) + "\n")
+
+
+def set_team(match: Path, team: int, name: str | None, colour: str | None) -> None:
+    """teams.json with team `team` (1 or 2) named `name` (None: its default name) and shown in
+    `colour` (#rrggbb or a colour's name; None: its jersey's). ValueError for anything else."""
+    path = match / "teams.json"
+    data = json.loads(path.read_text())
+    read = parse_colour(colour) if colour else None
+    if team not in (1, 2) or (colour and read is None):
+        raise ValueError(f"team {team}, colour {colour!r}")
+    data["teams"][team - 1].update(name=(name or "").strip() or None, colour=read)
+    files.write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
 def write_names(match: Path, entries: list[dict]) -> None:
     files.write_text(match / identity.NAMES, json.dumps({"players": entries}, indent=1, ensure_ascii=False) + "\n")
 
@@ -730,7 +762,7 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
     # Its own page, with the video and every picture: the published one stays as it was built.
     site = match / "review"
-    web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2})
+    web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback")
     cap = cv2.VideoCapture(str(video))
     fps, width, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cap.release()
@@ -780,6 +812,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     progress: dict = {}
     took = {"players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0}
 
+    def pages() -> list:
+        """The steps rebuilding the review's page, then the published one with its own choices."""
+        steps = [("review", lambda: web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback"))]
+        if (match / "page.json").exists():
+            steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
+        return steps
+
     def run_steps(steps: list) -> None:
         progress.update(steps=[name for name, _ in steps], took=took)
         try:
@@ -817,7 +856,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 who = t if t == "not_player" else t and identity.lookup(questions.table, t["track"], t["frame"])
                 odd[piece_key(o)] = who if isinstance(who, str) or who is None else f"{who[0]}:{who[1]}"
         conflicts = questions.conflicts(log, identity.read_names(match))
-        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts}
+        # Each player's card picture first, then the other best moments for one, as picked by web.photos.
+        offered = match / web.PHOTO_CANDIDATES
+        photos = {
+            who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
+            for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
+        }
+        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -923,12 +968,27 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             size = int(self.headers.get("Content-Length", 0))
             if not 0 <= size <= MAX_BODY:
                 return self.send(b'{"error":"body too large"}', "application/json", 413)
-            body = json.loads(self.rfile.read(size) or b"{}")
+            raw = self.rfile.read(size)
+            # A report of what is wrong in a moment, from the review's copy of the match page: kept as
+            # the hosting's nginx keeps the viewers' (volleyball_stats.feedback reads both).
+            if self.path == "/feedback":
+                with lock, open(match / FEEDBACK, "a") as f:
+                    f.write(json.dumps({"received": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "report": raw.decode()}, ensure_ascii=False) + "\n")
+                return self.send(b"", "text/plain", 204)
+            body = json.loads(raw or b"{}")
             undone, undo_applied = None, False
             with lock:
                 log = load_log(answers)
                 before, renamed, names_before = list(log), None, None
                 questions.avoid = {questions.segment_of(o) for entry in log for o in entry.get("odd", [])}
+                if self.path == "/photo":
+                    set_photo(match, questions.table, int(body["team"]), int(body["identity"]), int(body["frame"]), body["box"])
+                    run_steps(pages())
+                    return self.send(json.dumps(waiting(match, log)).encode(), "application/json")
+                if self.path == "/team":
+                    set_team(match, int(body["team"]), body.get("name"), body.get("colour"))
+                    run_steps(pages())
+                    return self.send(json.dumps(waiting(match, log)).encode(), "application/json")
                 if self.path == "/name":
                     jersey = body.get("jersey")
                     set_name(match, questions, int(body["team"]), int(body["identity"]), body.get("name"), None if jersey in (None, "") else int(jersey))
@@ -1017,11 +1077,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     steps = [("players", lambda: identity.rerun(match, video, squad)), ("questions", questions.load)]
                     if self.path == "/apply":
                         steps.append(("roster", lambda: remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())))
-                    steps.append(("review", lambda: web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2})))
-                    # The published page follows, with its own choices.
-                    if (match / "page.json").exists():
-                        steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
-                    run_steps(steps)
+                    run_steps(steps + pages())
                     for entry in log:
                         entry["applied"] = True
                     for change in history:
