@@ -11,7 +11,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
 - Never publish, host or share anything without the owner. The hosted page has no password: it
   never carries real footage or player pictures (nor anything cut from them) without every
-  player's consent; the names given in the review stay on it (the owner's choice). Never
+  player's consent; the names given in the review stay on it (the owner's choice). Footage may go
+  online without that consent only behind a password, unreachable by direct link without it. Never
   republish the YouTube clips in `data/`.
 - Commit with the personal identity (`Josselin BUILS <josselin.buils@gmail.com>`), never a work email.
 - No new Python dependency without asking (no scipy: numpy and what is installed).
@@ -52,7 +53,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 - Weak spots: `rallies.py` misses about a third of the rallies on the held-out clip, how a rally
   ends (in, out, fault) is the least reliable measure, attribution is right 71-83% of the time,
-  identity IDF1 0.81-0.89. Free balls rest on one labelled example.
+  identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame
+  (high serves and sets, the owner noticed): its track breaks there and the contacts and crossings
+  around the gap suffer; to do: carry the flight across such gaps (a parabola from both ends).
 - The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`) finds 139
   rallies for 128 points, unscored: the owner labels it in Kili (`docs/kili_labelling.md`, rallies
   first, then contacts). Next: score rallies, contacts and points on those labels; take each rally's
@@ -73,6 +76,22 @@ copy it over; nothing restarts:
 uv run python -m volleyball_stats.web outputs/full_match --video data/full_match.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out outputs/hosted/full_match
 uv run python -m volleyball_stats.matches outputs/hosted
 rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
+```
+
+A match's video goes in its `video/` folder (`--out outputs/hosted/MATCH/video --footage full
+--copy-video --club both --pictures`, `--light-video` for a lighter copy on the same timeline; the
+public build links to it with `--video-page video/`). The service's nginx asks a password for every
+`/volleyball/*/video/` file (`auth_basic`, `volleyball-stats/htpasswd` mounted in the container,
+`Cache-Control: private, no-store` so Cloudflare keeps nothing): check that a `curl` without it gets
+401 before uploading a video.
+
+Hosted pages are built with `--feedback /volleyball/feedback`: viewers report what is wrong in a
+moment, the service's nginx logs each report (POST only, 2 KB, 5 a minute per visitor) to
+`volleyball-stats/feedback/feedback.log`. Fetch and list them to correct the analysis:
+
+```bash
+scp -i ~/.ssh/id_ed25519_ovh root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/feedback/feedback.log outputs/feedback.log
+uv run python -m volleyball_stats.feedback outputs/feedback.log
 ```
 
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
