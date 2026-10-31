@@ -10,8 +10,10 @@ and uploads the site, as the review does after each change when the match folder
 """
 
 import argparse
+import gzip
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -28,6 +30,9 @@ TEMPLATE = Path(__file__).with_name("matches_site")
 RESERVED = ("assets", "brand")
 # Where a match folder says how to host it, and where hosted pages send the viewers' reports.
 PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
+# Text files from COMPRESS_FROM bytes get a gzip copy the host sends as it is (nginx gzip_static):
+# compressing players.js (5.7 MB) per request cost the first match's host over a second of CPU.
+COMPRESSED, COMPRESS_FROM = (".js", ".css", ".html", ".json", ".svg"), 1024
 
 
 def listed(folder: Path) -> dict:
@@ -57,7 +62,8 @@ def address(match: dict) -> str:
 
 
 def build(site: Path, theme: str = "aspom") -> list[dict]:
-    """SITE/index.html and matches.js listing SITE/*/'s match pages; returns them."""
+    """SITE/index.html and matches.js listing SITE/*/'s match pages, the site's text files
+    compressed (`compress`); returns them."""
     for data in sorted(site.glob("*/data.js")):
         found = address(listed(data.parent))
         # No address from its date and teams (a video named "_.mp4"), or a RESERVED one: it keeps its folder.
@@ -81,7 +87,25 @@ def build(site: Path, theme: str = "aspom") -> list[dict]:
     (site / "matches.js").write_text(f"window.MATCHES = {text};\n")
     index = site / "index.html"
     index.write_text(index.read_text().replace('src="matches.js"', f'src="matches.js?v={v}"'))
+    compress(site)
     return matches
+
+
+def compress(site: Path) -> None:
+    """NAME.gz beside each text file of `site` from COMPRESS_FROM bytes, dated as it, rewritten when
+    the file's date changes; the copies of files gone are removed."""
+    for gz in site.rglob("*.gz"):
+        if not gz.with_suffix("").exists():
+            gz.unlink()
+    for path in site.rglob("*"):
+        if path.suffix not in COMPRESSED or not path.is_file() or path.stat().st_size < COMPRESS_FROM:
+            continue
+        gz, when = path.with_name(path.name + ".gz"), path.stat().st_mtime
+        if gz.exists() and gz.stat().st_mtime == when:
+            continue
+        with open(path, "rb") as source, gzip.GzipFile(gz, "wb", compresslevel=9, mtime=0) as out:
+            shutil.copyfileobj(source, out)
+        os.utime(gz, (when, when))
 
 
 class _Stay(urllib.request.HTTPRedirectHandler):

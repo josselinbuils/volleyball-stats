@@ -1,3 +1,4 @@
+import gzip
 import json
 from pathlib import Path
 
@@ -20,6 +21,23 @@ class TestBuild:
         assert (tmp_path / "matches.js").read_text().startswith('window.MATCHES = {"matches":[{"path":"2026-10-25/"')
         assert 'src="matches.js?v=' in (tmp_path / "index.html").read_text()
         assert not (tmp_path / "matches.html").exists()
+
+    def test_compresses_the_text_files_once_and_drops_the_copies_of_files_gone(self, tmp_path):
+        (tmp_path / "m").mkdir()
+        big, small = tmp_path / "m" / "players.js", tmp_path / "m" / "tiny.js"
+        big.write_text("x" * 5000)
+        small.write_text("x")
+        (tmp_path / "m" / "video.mp4").write_bytes(b"0" * 5000)
+        (tmp_path / "m" / "old.js.gz").write_bytes(b"")
+
+        matches.compress(tmp_path)
+
+        assert sorted(p.name for p in (tmp_path / "m").glob("*.gz")) == ["players.js.gz"]
+        assert gzip.decompress((tmp_path / "m" / "players.js.gz").read_bytes()) == b"x" * 5000
+        assert (tmp_path / "m" / "players.js.gz").stat().st_mtime == big.stat().st_mtime
+        made = (tmp_path / "m" / "players.js.gz").stat().st_mtime_ns
+        matches.compress(tmp_path)
+        assert (tmp_path / "m" / "players.js.gz").stat().st_mtime_ns == made
 
     def test_names_each_folder_after_the_match_s_date_and_teams_a_new_build_replacing_the_old(self, tmp_path):
         teams = [{"name": "ASPOM Bègles"}, {"name": "Talence"}]
