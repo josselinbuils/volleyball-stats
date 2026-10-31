@@ -213,9 +213,15 @@ same way, after the fixes (`@3000-3600`):
 | --- | --- | --- | --- | --- | --- |
 | before | 24 | 0.57 [0.39–0.73] | 0.70 [0.54–0.85] | 0.88 | 0.95 |
 | after | 23 | 0.58 [0.40–0.75] | 0.76 [0.60–0.88] | 0.91 | 0.95 |
+| + `whistled` | 24 | 0.57 | 0.74 | 0.92 | **1.00** |
 
-So the fixes barely carry over. Left: a 30 s rally missed (its server stood out of view: the served
-rally found starts mid-rally and `actions.served` drops it), two false windows (the next server
+So the fixes barely carry over. `rallies.whistled` then takes a ball run starting from behind an
+end line 1.5–16 s after a whistle as a serve, whoever the players' tracks show there. Merged with
+the other serves it opened windows too early (F1 ±1 s 0.48 here); kept only where no window lies
+within 8 s and lasting 5 s, it finds the 30 s rally whose server stood out of view (its end 10 s
+early: the ball goes out of sight), the tuning span is unchanged, `side_holdout` finds 2 more
+rallies (found R 0.81 → 0.90, P 1.00, F1 ±1 s 0.74 → 0.75), and over the whole match it adds 41:33
+and 58:55 (missed rallies) and 1:18 (warm-up). Left: two false windows (the next server
 bouncing the ball, a ball rolled back), ends cut by another court's whistle (−4.1 s) or with the
 ball out of sight (−3.0, −2.3 s), and a rally joined to its dead-ball tail by the 8 s rule (+10 s).
 
@@ -223,7 +229,7 @@ Before, the one miss was a serve into the net (no net crossing, no whistle after
 the errors: served rallies ran to the next whistle, often the next rally's go (+11.4 s, +12.8 s), or
 stopped with the serve's ball run while play went on near the net (−8.2 s, −1.6 s). The fixes of
 step 5 were made on this span, so these numbers are not held out. The school clips' pipeline is
-unchanged (F1 ±1 s 0.93, 0.95, 0.74). Over the whole match (held out), the windows per set go from
+unchanged by them (F1 ±1 s 0.93, 0.95, 0.74). Over the whole match (held out), the windows per set go from
 49, 39, 48 to 50, 39, 45 for 48, 37, 43 points: two missed rallies found (4:53, 28:26), five
 duplicates joined to their rally, the 7 rallies the review confirmed all kept. Three of 21 ends are
 still more than 1 s off: a ball out of sight 1.6 s after a block, a dig sending the ball away, a

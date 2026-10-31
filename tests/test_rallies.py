@@ -1,7 +1,7 @@
 import numpy as np
 
 from volleyball_stats.court import Calibration
-from volleyball_stats.rallies import FFT_SIZE, SAMPLE_RATE, ball_runs, runs, segment, served, whistles, with_serves
+from volleyball_stats.rallies import FFT_SIZE, SAMPLE_RATE, alone, ball_runs, runs, segment, served, whistled, whistles, with_serves
 
 FPS = 30.0
 
@@ -135,6 +135,18 @@ class TestServed:
         held = np.concatenate([np.tile([1165.0, 300.0], (90, 1)), np.full((300, 2), np.nan)])
 
         assert served(self.server, held, [(5.0, 5.3)], FPS, self.calibration) == []
+
+    def test_whistled_takes_a_ball_run_from_behind_an_end_line_after_the_go_whoever_stands_there(self):
+        assert whistled(self.track, [(0.0, 0.4)], FPS, self.calibration) == [(60, 89, 1)]
+        # No go, or one under 1.5 s before the serve (a whistle ending the previous rally).
+        assert whistled(self.track, [], FPS, self.calibration) == []
+        assert whistled(self.track, [(1.8, 2.2)], FPS, self.calibration) == []
+        # A ball run starting at mid court is no serve.
+        mid = np.concatenate([np.tile([900.0, 300.0], (60, 1)), flight(30, 900, -20.0), np.full((300, 2), np.nan)])
+        assert whistled(mid, [(0.0, 0.4)], FPS, self.calibration) == []
+
+    def test_alone_keeps_the_long_served_rallies_far_from_any_other(self):
+        assert alone([(100, 200)], [(250, 600, 1), (500, 900, -1), (1000, 1100, 1)], 100, 200) == [(500, 900)]
 
     def test_with_serves_adds_the_served_rallies_serving_in_none_joined_to_the_one_they_run_into(self):
         assert with_serves([(100, 200)], [(150, 300, 1), (400, 500, -1)]) == [(100, 200), (400, 500)]

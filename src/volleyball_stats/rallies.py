@@ -62,6 +62,9 @@ NET_NEAR = 200
 # A rally's ball goes out of sight for up to 1.6 s (high balls, the net), the dead ball's next move
 # (picked up, thrown back) comes 4 s or more later on the first ASPOM match's labels.
 MOTION_BRIDGE_S = 2.0
+# A serve the referee allowed, whoever stood behind the line: a ball run starting GO_AFTER_S after a
+# whistle (the go), its first ball beyond SERVE_DEPTH of the way from the net to an end line.
+GO_AFTER_S, SERVE_DEPTH = (1.5, 16.0), 0.7
 # Two serves under SAME_SERVE_S apart with no whistle between them are one serve seen twice. A
 # served rally starting up to SERVE_LEAD_S before a rally the ball found is that rally: the server's
 # stand ends up to 1.3 s before the ball flies (school match).
@@ -245,6 +248,43 @@ def served(players: list[tuple[int, float, float]], track: np.ndarray, whistle_t
         end = next((int(w) for w in ends if not fast[w + live[0] : w + live[1]].any()), None)
         out.append((frame, last if end is None else min(end, last), side))
     return out
+
+
+def whistled(track: np.ndarray, whistle_times: list[tuple[float, float]], fps: float, calibration: Calibration) -> list[tuple[int, int, int]]:
+    """(start, end, side) of each rally a ball run starting from behind an end line after the
+    referee's go shows (GO_AFTER_S after a whistle), whatever the players' tracks (a server out of
+    view): to the end of the ball's motion, or to a whistle no flying ball follows, as `served`'s;
+    at the latest as the next such serve leaves."""
+    scale = court_scale(calibration)
+    net_x = float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
+    ends_x = calibration.to_image(np.array([[-9.0, 0.0], [9.0, 0.0]]))[:, 0]
+    onsets = np.array([w[0] * fps for w in whistle_times])
+    fast = speed(track) >= LIVE_SPEED * scale
+    live = [round(s * fps) for s in LIVE_WINDOW_S]
+    starts = []
+    for start, _ in ball_runs(track, fps, scale):
+        x = track[start, 0]
+        side = -1 if x < net_x else 1
+        deep = np.isfinite(x) and (x - net_x) / (ends_x[int(side > 0)] - net_x) >= SERVE_DEPTH
+        if deep and np.any((onsets >= start - GO_AFTER_S[1] * fps) & (onsets <= start - GO_AFTER_S[0] * fps)):
+            starts.append((start, side))
+    out = []
+    for (start, side), (following, _) in zip(starts, [*starts[1:], (len(track), 0)]):
+        last = motion_end(track, start, following, fps, scale)
+        ends = onsets[(onsets >= start + MIN_RALLY_S * fps) & (onsets <= last + WHISTLE_AFTER_S * fps)].astype(int)
+        end = next((int(w) for w in ends if not fast[w + live[0] : w + live[1]].any()), None)
+        out.append((start, last if end is None else min(end, last), side))
+    return out
+
+
+# A whistled serve counts only where nothing else is near and when it lasts ALONE_MIN_S: elsewhere
+# it mostly opens the next window too early (a ball run after the go that is not the serve).
+ALONE_MIN_S = 5.0
+
+
+def alone(rallies: list[Rally], serves: list[tuple[int, int, int]], gap: int, min_frames: int) -> list[Rally]:
+    """The served rallies lasting `min_frames` or more with no rally within `gap` frames of them."""
+    return [(s, e) for s, e, _ in serves if e - s >= min_frames and not any(start < e + gap and end > s - gap for start, end in rallies)]
 
 
 def with_serves(rallies: list[Rally], serves: list[tuple[int, int, int]], lead: int = 0, gap: int = 0) -> list[Rally]:

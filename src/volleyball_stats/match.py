@@ -60,16 +60,22 @@ def rally_windows(
     """The rally windows, ball contacts and net crossings of a ball track (NaN where not visible):
     spare balls masked, pixel constants at the court's scale, the serves the players' positions
     (frame, court x, court y) show added, the windows opening on a contact inside the court
-    dropped. The benchmarks score this."""
+    dropped, then the serves after the referee's go (`rallies.whistled`) where no window is near.
+    The benchmarks score this."""
     track, scale = track.copy(), 1.0
     if calibration is not None:
         track[calibration.in_front(track, SPARE_Y)] = np.nan
         scale = rallies.court_scale(calibration)
     windows = rallies.segment(track, whistle_times, fps, scale)
+    gap = round(rallies.SAME_SERVE_S * fps)
     if positions is not None:
-        windows = rallies.with_serves(windows, rallies.served(positions, track, whistle_times, fps, calibration), round(rallies.SERVE_LEAD_S * fps), round(rallies.SAME_SERVE_S * fps))
+        windows = rallies.with_serves(windows, rallies.served(positions, track, whistle_times, fps, calibration), round(rallies.SERVE_LEAD_S * fps), gap)
     found, crossings = contacts.detect(track, fps, net_x, scale)
-    return actions.served(windows, found, fps, calibration), found, crossings
+    windows = actions.served(windows, found, fps, calibration)
+    if positions is not None:
+        alone = rallies.alone(windows, rallies.whistled(track, whistle_times, fps, calibration), gap, round(rallies.ALONE_MIN_S * fps))
+        windows = sorted(windows + actions.served(alone, found, fps, calibration))
+    return windows, found, crossings
 
 
 def in_rallies(frames: list[int], windows: list[tuple[int, int]], lead: int) -> list[int]:
