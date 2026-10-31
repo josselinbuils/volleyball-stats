@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, ball_near, ball_track, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, ball_near, ball_track, crossed, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -277,6 +277,15 @@ class TestBallTrack:
         frames = found["samples"][::3]
         assert frames == [18, 20, 22, 24, 26, 28, 30, 34, 36, 38, 40]
         assert found["samples"][:3] == [18, 0.18, 0.18] and found["fps"] == 10.0
+
+
+class TestCrossed:
+    def test_a_touch_given_to_the_other_team_changes_sides_without_its_track(self):
+        row = {"frame": "10", "team": "1", "side": "left", "track": "3", "identity": "4"}
+
+        assert crossed(row, (2, 5)) == {"frame": "10", "team": "2", "side": "right", "track": "", "identity": ""}
+        assert crossed(row, (1, 5)) is row and crossed(row, None) is row
+        assert crossed({"frame": "10", "team": "", "side": "left"}, (2, 5))["side"] == "left"
 
 
 class TestWithAdded:

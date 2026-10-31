@@ -22,13 +22,15 @@ const ADD_SAME_S = 0.1;
 const HOLD_MS = 3000;
 
 type Fix = { player?: string; type?: string; result?: string };
+/** The team of a player given as "TEAM:IDENTITY". */
+const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 /** A touch added: its team the picked player's, else the touch before's. */
 type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string };
 /** A touch as listed: one of the rally's, or one added. */
 type Row = { frame: number; time: number; team: Group; type: string; result: string; player: string; removed: boolean; added: boolean };
 
 /** A viewer's report on a rally: the rally's touches beside the video, the one it plays centred,
- * to correct (player, action, result), remove or add at the video's moment (anyone of either team); then its winner, or the
+ * to correct (player of either team, action, result), remove or add at the video's moment; then its winner, or the
  * rally marked as no play. Only what is changed is saved. */
 export function ReportEditor({
   question,
@@ -84,7 +86,7 @@ export function ReportEditor({
       return {
         frame: touch.frame,
         time: touch.time,
-        team: touch.team,
+        team: fix.player && fix.player !== 'none' ? teamOf(fix.player) : touch.team,
         type: fix.type ?? touch.type,
         result: fix.result ?? touch.result ?? 'play',
         player: fix.player === 'none' ? '' : (fix.player ?? touch.player ?? ''),
@@ -229,15 +231,15 @@ export function ReportEditor({
                     {!row.removed && (
                       <div className="flex items-center gap-1.5">
                         <PlayerSelect
-                          // An added touch: anyone of either team, its team the player's.
-                          players={row.added ? players : players.filter((p) => p.team === row.team)}
+                          // Anyone of either team: the touch takes the player's team.
+                          players={players}
                           nameOf={nameOf}
                           value={row.player}
                           empty={t('review.pickPlayer')}
                           label={t('review.reportPlayer')}
                           className="h-8 min-w-0 flex-1 text-sm font-normal"
                           openOnFocus={false}
-                          onChange={(who) => who && (row.added ? editAdded(row.frame, { player: who, team: Number(who.split(':')[0]) as Group }) : change({ player: who }))}
+                          onChange={(who) => who && (row.added ? editAdded(row.frame, { player: who, team: teamOf(who) }) : change({ player: who }))}
                         />
                       </div>
                     )}

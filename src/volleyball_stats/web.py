@@ -194,6 +194,14 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
     return out
 
 
+def crossed(row: dict, said: tuple[int, int] | None) -> dict:
+    """An actions CSV row the review gave a player of the other team (`said`): theirs, on the other
+    side, without its track (one of the other team)."""
+    if said is None or not row.get("team") or int(row["team"]) == said[0]:
+        return row
+    return {**row, "team": str(said[0]), "side": "right" if row["side"] == "left" else "left", "track": "", "identity": ""}
+
+
 # How far from an added touch the ball's place is looked for.
 ADDED_NEAR_S = 1.0
 
@@ -482,10 +490,10 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     identities = read_identities(match / "identities.csv") if with_teams and (match / "identities.csv").exists() else []
     given = named(identities, read_names(match))
     # The touches the review added come in; those it says are none (the ball out of sight, taken
-    # for a touch) go.
+    # for a touch) go, those it gives the other team change sides.
     windows, actions = with_added(windows, rally_rows, actions, answers(match, "added"), match / "ball.csv", round(LEAD_S * fps), round(ADDED_NEAR_S * fps))
     said = touched(match, given)
-    actions = [r for r in actions if said.get(int(r["frame"]), ()) is not None]
+    actions = [crossed(r, said.get(int(r["frame"]))) for r in actions if said.get(int(r["frame"]), ()) is not None]
     scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
     # And the windows it says are no rally (warm-up, a ball thrown back).
     windows, rally_rows, scores, actions = drop_rallies(windows, rally_rows, scores, actions, no_rallies(match), round(LEAD_S * fps))
