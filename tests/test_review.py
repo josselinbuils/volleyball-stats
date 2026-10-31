@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, suggest, with_review
+from volleyball_stats.review import chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, settled, suggest, with_review, write_names
 
 
 class TestConstraints:
@@ -70,9 +70,18 @@ class TestNames:
         set_name(tmp_path, questions, 1, 4, "Léa", None)
         set_name(tmp_path, questions, 1, 3, "Julia", None)
 
-        assert read_names(tmp_path) == [{"ref": {"track": 2, "frame": 5}, "name": "Léa", "jersey": None}, {"ref": {"track": 1, "frame": 5}, "name": "Julia", "jersey": None}]
+        assert read_names(tmp_path) == [{"ref": {"track": 1, "frame": 5}, "name": "Julia", "jersey": None}, {"ref": {"track": 2, "frame": 5}, "name": "Léa", "jersey": None}]
         set_name(tmp_path, questions, 1, 4, "", None)
         assert [e["name"] for e in read_names(tmp_path)] == ["Julia"]
+
+    def test_keeps_another_persons_name_on_the_same_player(self, tmp_path):
+        # Two applies joined Paul's and Jean's pieces: Paul's card, Jean's name kept for the conflict.
+        questions = SimpleNamespace(table=[(1, 0, 10, 1, 5), (2, 0, 10, 1, 5)], ref=None)
+        write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Paul", "jersey": None}, {"ref": {"track": 2, "frame": 5}, "name": "Jean", "jersey": 9}, {"ref": {"track": 1, "frame": 8}, "name": "Paul", "jersey": 4}])
+
+        set_name(tmp_path, questions, 1, 5, "Paul", 7)
+
+        assert [(e["name"], e["jersey"]) for e in read_names(tmp_path)] == [("Paul", 7), ("Jean", 9), ("Paul", None)]
 
 
 class TestRoster:
@@ -150,6 +159,28 @@ class TestMarkOdd:
         entry = mark_odd([], [self.b], [self.a], ["not_player"])[0]
 
         assert entry["not_player"] == [self.b] and "same" not in entry
+
+    def test_keeps_the_earlier_marks_of_pictures_it_is_told_to(self):
+        d = {"track": 4, "frame": 40}
+        log = mark_odd([], [self.b, self.c], [self.a])
+
+        log = mark_odd(log, [d], [self.b], keep=frozenset({"2:20"}))
+
+        assert [e["odd"] for e in log] == [[self.b, self.c], [d]]
+
+
+class TestSettled:
+    a, b, c, paul = {"track": 1, "frame": 10}, {"track": 2, "frame": 20}, {"track": 3, "frame": 30}, {"track": 8, "frame": 80}
+
+    def test_finds_the_pictures_an_apply_moved_as_marked(self):
+        log = mark_odd([], [self.b, self.c], [self.a], [self.paul, None])
+        where = {1: (1, 1), 2: (1, 5), 3: (1, 1), 8: (1, 5)}
+
+        assert settled(log, lambda r: where[r["track"]]) == {"2:20"}
+        where[3] = (1, 7)
+        assert settled(log, lambda r: where[r["track"]]) == {"2:20", "3:30"}
+        where[2] = (1, 7)
+        assert settled(log, lambda r: where[r["track"]]) == {"3:30"}
 
 
 class TestReanchor:

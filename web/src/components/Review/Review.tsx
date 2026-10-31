@@ -9,7 +9,7 @@ import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
-import { allMarked, post, type Conflict, type Named, type Question, type Suggestion } from '@/lib/review';
+import { allMarked, post, type Conflict, type Named, type Question, type Saved, type Suggestion } from '@/lib/review';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
 import { Conflicts } from '@/components/Review/Conflicts';
@@ -31,6 +31,9 @@ export function Review({
   width,
   height,
   answered: before,
+  pending: waiting,
+  changed,
+  namesPending: renamed,
   questions: initial,
   players,
   roster,
@@ -39,6 +42,9 @@ export function Review({
   width: number;
   height: number;
   answered: number;
+  pending: number;
+  changed: boolean;
+  namesPending: boolean;
   questions: Question[];
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
@@ -48,6 +54,16 @@ export function Review({
   const f = useFormat();
   const [questions, setQuestions] = useState(initial);
   const [answered, setAnswered] = useState(before);
+  // What an apply would take in: answers not applied yet, answers and names changed since.
+  const [pending, setPending] = useState({ answers: waiting, changed, names: renamed });
+  const onSaved = (saved: Saved) => {
+    if (saved.answered !== undefined) {
+      setAnswered(saved.answered);
+    }
+    if (saved.pending !== undefined) {
+      setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
+    }
+  };
   const [busy, setBusy] = useState<'apply' | 'undo' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
@@ -83,7 +99,7 @@ export function Review({
         }
         setDone((d) => [...d, question]);
         setQuestions((qs) => qs.filter((q) => q.id !== question.id));
-        setAnswered((n) => n + 1);
+        onSaved(saved);
         setShowOther(false);
         setError(false);
       } catch {
@@ -119,7 +135,7 @@ export function Review({
       if (path === 'undo' && !saved.rebuilt && last?.id === saved.undone) {
         setQuestions((qs) => [last, ...qs]);
         setDone((d) => d.slice(0, -1));
-        setAnswered(saved.answered ?? 0);
+        onSaved(saved);
         setBusy(null);
         return;
       }
@@ -173,9 +189,17 @@ export function Review({
               <Undo2 aria-hidden />
               {busy === 'undo' ? t('review.undoing') : t('review.undo')}
             </Button>
-            <Button disabled={(!answered && !named) || busy !== null} onClick={() => void reload('apply')}>
+            <Button disabled={(!pending.changed && !pending.names) || busy !== null} onClick={() => void reload('apply')}>
               <Check aria-hidden />
-              {busy === 'apply' ? t('review.applying') : named ? t(answered ? 'review.applyBoth' : 'review.applyNames') : answered ? t('review.apply', { count: answered }) : t('review.applyNone')}
+              {busy === 'apply'
+                ? t('review.applying')
+                : pending.names
+                  ? t(pending.changed ? 'review.applyBoth' : 'review.applyNames')
+                  : !pending.changed
+                    ? t('review.applied')
+                    : pending.answers
+                      ? t('review.apply', { count: pending.answers })
+                      : t('review.applyChanges')}
             </Button>
           </div>
         </header>
@@ -217,7 +241,7 @@ export function Review({
           </p>
         )}
         {tab === 'names' ? (
-          <Names players={players} roster={roster} onNamed={setGiven} onMarked={setAnswered} onError={() => setError(true)} />
+          <Names players={players} roster={roster} onNamed={setGiven} onSaved={onSaved} onError={() => setError(true)} />
         ) : question ? (
           <Card>
             <CardHeader>
@@ -262,7 +286,7 @@ export function Review({
                         owner={{ team: question.team, identity: c.identity }}
                         players={players}
                         nameOf={nameOf}
-                        onSaved={setAnswered}
+                        onSaved={onSaved}
                         onError={() => setError(true)}
                       />
                       {question.kind === 'piece' && (
@@ -316,7 +340,7 @@ export function Review({
           <Card>
             <CardContent className="py-10 text-center">
               <p className="text-lg font-semibold">{t('review.done')}</p>
-              <p className="mt-1 text-muted-foreground">{t(answered ? 'review.doneApply' : 'review.doneNothing')}</p>
+              <p className="mt-1 text-muted-foreground">{t(pending.changed || pending.names ? 'review.doneApply' : 'review.doneNothing')}</p>
               {players.length > 0 && (
                 <Button className="mt-4" onClick={() => show('names')}>
                   <PenLine aria-hidden />

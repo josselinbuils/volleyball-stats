@@ -33,7 +33,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import identity, web
+from volleyball_stats import identity, jerseys, web
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
@@ -41,6 +41,9 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
 KINDS = ("same", "different", "not_player", "cut")
+# Named players on court during more than TOGETHER of a card's time are not suggested for it: on
+# the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
+TOGETHER = 0.15
 # Pieces looking most like a player offered to confirm at once, at least MORE_S long.
 MORE, MORE_S = 24, 1.0
 # Pictures spread over a piece in a conflict, to see whether the tracking swapped players.
@@ -310,6 +313,28 @@ class Questions:
             out.append({"track": track, "frame": frame, "crop": self.crop(track, frame)})
         return out
 
+    def together(self, team: int, number: int, names: dict) -> set[str]:
+        """The names of this match's named players on court during more than TOGETHER of identity
+        `number`'s card (its IDENTITY_CROPS longest pieces): not them, nobody being in two places. A
+        share, not any overlap: a named player's pieces may still hold a few of someone else's."""
+        card = self.pieces(team, number)[:IDENTITY_CROPS]
+        length = sum(b - a + 1 for _, a, b, _, _ in card)
+        out = set()
+        for (t, n), given in names.items():
+            if t != team or n == number or not given.get("name"):
+                continue
+            theirs = self.pieces(t, n)
+            over = 0
+            for _, a, b, _, _ in card:
+                covered = np.zeros(b - a + 1, bool)
+                for _, c, d, _, _ in theirs:
+                    if max(a, c) <= min(b, d):
+                        covered[max(a, c) - a : min(b, d) - a + 1] = True
+                over += int(covered.sum())
+            if over > TOGETHER * length:
+                out.add(given["name"])
+        return out
+
     def players(self, roster: list[dict], teams: list[str | None]) -> list[dict]:
         """Every identity, longest on court first, with pictures, seconds of play, touches, the name
         and jersey number given and the roster's players of its team (`teams`' names) who look most
@@ -327,7 +352,7 @@ class Questions:
             out.append({
                 "team": team, "identity": number, "seconds": round(played, 1), "contacts": touches[team, number],
                 **self.faces(team, number), "name": given.get("name"), "jersey": given.get("jersey"),
-                "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1]),
+                "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1], self.together(team, number, names)),
             })
         return out
 
@@ -406,21 +431,22 @@ def odd_entry(entry_id: str, odd: list[Ref], rest: list[Ref], to: list[Ref | str
     }
 
 
-def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | str | None] | None = None) -> list[dict]:
+def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | str | None] | None = None, keep: frozenset[str] = frozenset()) -> list[dict]:
     """`log` with one identity's pictures marked: the `odd` pieces show other people than the
     `rest`, each a different player from each of them, and the player of `to`'s piece when given
     (`to` aligned with `odd`; that player first, so the piece takes their team), or no player
     ("not_player"). Kept with every picture odd too, for their players and the marks; replaces the
     earlier marks of these pictures, also those made among other pictures (before an apply changed
-    them), and removes them when none is odd."""
+    them), and removes them when none is odd; but the earlier marks of `keep`'s pieces."""
     shown = {piece_key(r) for r in odd + rest}
     entry_id = "odd:" + ",".join(sorted(shown))
+    replaced = shown - keep
     out = []
     for entry in log:
         if entry["id"] == entry_id:
             continue
-        if entry.get("choice") == "odd" and any(piece_key(o) in shown for o in entry["odd"]):
-            kept = [(o, t) for o, t in zip(entry["odd"], entry.get("to") or [None] * len(entry["odd"])) if piece_key(o) not in shown]
+        if entry.get("choice") == "odd" and any(piece_key(o) in replaced for o in entry["odd"]):
+            kept = [(o, t) for o, t in zip(entry["odd"], entry.get("to") or [None] * len(entry["odd"])) if piece_key(o) not in replaced]
             if not kept:
                 continue
             # Answers saved before "rest" was kept hold it in their pairs.
@@ -429,6 +455,20 @@ def mark_odd(log: list[dict], odd: list[Ref], rest: list[Ref], to: list[Ref | st
         out.append(entry)
     if odd:
         out.append(odd_entry(entry_id, odd, rest, to or [None] * len(odd)))
+    return out
+
+
+def settled(log: list[dict], where) -> set[str]:
+    """Pieces marked as someone else that an apply moved as marked: to the player they were said to
+    be, or, said to be no one in particular, away from the pictures they were marked among. `where`
+    gives a ref's (team, identity)."""
+    out = set()
+    for e in log:
+        among = {where(r) for r in e.get("rest", [])}
+        for o, t in zip(e.get("odd", []), e.get("to") or [None] * len(e.get("odd", []))):
+            now = where(o)
+            if now is not None and (now == where(t) if isinstance(t, dict) else t is None and among and now not in among):
+                out.add(piece_key(o))
     return out
 
 
@@ -574,14 +614,14 @@ def load_roster(path: Path) -> list[dict]:
     return json.loads(path.read_text())["players"] if path.exists() else []
 
 
-def suggest(vector: np.ndarray | None, roster: list[dict], team: str | None) -> list[dict]:
+def suggest(vector: np.ndarray | None, roster: list[dict], team: str | None, unless: set[str] = frozenset()) -> list[dict]:
     """The names and jersey numbers of the roster's players of `team` (every player for an unnamed
-    team) who look most like `vector`, best first."""
+    team) who look most like `vector`, best first, but those in `unless`."""
     if vector is None:
         return []
     scored = []
     for player in roster:
-        if team and player.get("team") and player["team"] != team:
+        if team and player.get("team") and player["team"] != team or player["name"] in unless:
             continue
         mean = np.mean(list(player["vectors"].values()), axis=0)
         scored.append((float(mean @ vector) / max(float(np.linalg.norm(mean)), 1e-9), player))
@@ -613,15 +653,21 @@ def remember(path: Path, match: str, names: dict[tuple[int, int], dict], vectors
 
 
 def set_name(match: Path, questions: Questions, team: int, number: int, given: str | None, jersey: int | None) -> None:
-    """player_names.json with identity `number` of `team` named `given` and its `jersey` number,
-    in place of the entries naming it; both None unnames it. A new entry refers to the identity's
-    longest piece not marked as someone else."""
+    """player_names.json with identity `number` of `team` named `given` and its `jersey` number:
+    the entries giving it its name renamed in place, the first holding the number; both None removes
+    them. Entries of another name on it (two people joined) stay. A new entry refers to the
+    identity's longest piece not marked as someone else."""
     entries = identity.read_names(match)
-    mine = [e for e in entries if identity.lookup(questions.table, e["ref"]["track"], e["ref"]["frame"]) == (team, number)]
-    entries = [e for e in entries if e not in mine]
+    shown = identity.named(questions.table, entries).get((team, number))
+    mine = [e for e in entries if shown and identity.lookup(questions.table, e["ref"]["track"], e["ref"]["frame"]) == (team, number) and (e.get("name") or None) == shown["name"]]
     given = (given or "").strip() or None
-    if given or jersey is not None:
-        entries.append({"ref": mine[0]["ref"] if mine else questions.ref(team, number), "name": given, "jersey": jersey})
+    if not given and jersey is None:
+        entries = [e for e in entries if not any(e is m for m in mine)]
+    elif mine:
+        for k, e in enumerate(mine):
+            e.update(name=given, jersey=jersey if k == 0 else None)
+    else:
+        entries.append({"ref": questions.ref(team, number), "name": given, "jersey": jersey})
     write_names(match, entries)
 
 
@@ -653,6 +699,30 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     if not (match / "identity_candidates.json").exists():
         identity.rerun(match, video, squad)
     questions = Questions(match, fps)
+    where = lambda r: identity.lookup(questions.table, r["track"], r["frame"])  # noqa: E731
+
+    # What the identities were last computed from (`state`), to tell what an apply would change.
+    computed = match / "identity_applied.json"
+
+    def state(log: list[dict]) -> dict:
+        read = match / jerseys.FILE
+        found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS}, "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
+        return json.loads(json.dumps(found))
+
+    done = match / "identities.csv"
+    if not computed.exists() and done.exists() and all(not f.exists() or f.stat().st_mtime < done.stat().st_mtime for f in (answers, match / identity.NAMES)):
+        computed.write_text(json.dumps(state(load_log(answers))))
+
+    def waiting(log: list[dict]) -> dict:
+        """What an apply would take in: the answers saying something not applied yet (those saved
+        before the flag were), whether the answers or the jersey numbers, and the names, differ from
+        what the identities were computed from."""
+        now, then = state(log), json.loads(computed.read_text()) if computed.exists() else {}
+        return {
+            "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
+            "changed": (now["answers"], now["jerseys"]) != (then.get("answers"), then.get("jerseys")),
+            "namesPending": now["names"] != then.get("names"),
+        }
     lock = threading.Lock()
     # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.35 s.
     readers: queue.Queue = queue.Queue()
@@ -714,14 +784,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         players = questions.players(known, teams)
         # The roster's players of each team, for typing names: all of them for an unnamed team.
         names = [[{"name": p["name"], "jersey": p.get("jersey")} for p in known if not team or not p.get("team") or p["team"] == team] for team in teams]
-        # Each marked piece, with the player it was said to be, numbered as now.
-        odd = {}
+        # Each marked piece, with the player it was said to be, numbered as now; not those now there.
+        odd, done = {}, settled(log, where)
         for entry in log:
             for o, t in zip(entry.get("odd", []), entry.get("to") or [None] * len(entry.get("odd", []))):
+                if piece_key(o) in done:
+                    continue
                 who = t if t == "not_player" else t and identity.lookup(questions.table, t["track"], t["frame"])
                 odd[piece_key(o)] = who if isinstance(who, str) or who is None else f"{who[0]}:{who[1]}"
         conflicts = questions.conflicts(log, identity.read_names(match))
-        data = {"width": width, "height": height, "answered": len(log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts}
+        data = {"width": width, "height": height, "answered": len(log), **waiting(log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -802,7 +874,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if self.path == "/name":
                     jersey = body.get("jersey")
                     set_name(match, questions, int(body["team"]), int(body["identity"]), body.get("name"), None if jersey in (None, "") else int(jersey))
-                    return self.send(b"{}", "application/json")
+                    return self.send(json.dumps(waiting(log)).encode(), "application/json")
                 if self.path == "/answer":
                     _, refs = questions.build({entry["id"] for entry in log})
                     if body["id"] not in refs:
@@ -820,7 +892,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 elif self.path == "/odd":
                     refs = [[{"track": int(r["track"]), "frame": int(r["frame"])} for r in body[k]] for k in ("odd", "rest")]
                     to = [t if t == "not_player" else t and questions.ref(int(t["team"]), int(t["identity"])) for t in body.get("to") or [None] * len(refs[0])]
-                    log = mark_odd(log, *refs, to)
+                    # Pictures left unmarked that an earlier mark moved here stay marked as moved.
+                    log = mark_odd(log, *refs, to, frozenset(settled(log, where) & {piece_key(r) for r in refs[1]}))
                     marking = log[-1]["id"] if refs[0] else None
                     # The player's pins on the pictures marked move to their first picture left; then
                     # the earlier answers giving them those pieces let go: the latest judgment wins.
@@ -829,7 +902,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         log, renamed = reanchor(log, identity.read_names(match), moved, questions.segment_of)
                     if marking and body.get("owner"):
                         owner = (int(body["owner"]["team"]), int(body["owner"]["identity"]))
-                        belongs = lambda r: identity.lookup(questions.table, r["track"], r["frame"]) == owner  # noqa: E731
+                        belongs = lambda r: where(r) == owner  # noqa: E731
                         log = supersede(log, refs[0], marking, belongs, questions.segment_of)
                 elif self.path == "/more":
                     # Pieces looking like a player: those kept are them, the others someone else.
@@ -863,9 +936,6 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     log.append({"id": f"cut:{track}:{cut[0]['frame']}", "choice": "cut", **constraints("cut", {"choices": []}, cut=cut), "applied": False})
                 elif self.path == "/undo" and log:
                     undone = log.pop()
-                elif self.path == "/apply":
-                    for entry in log:
-                        entry["applied"] = True
                 # An answer joining two players of different names waits for the user's go.
                 if self.path in ("/answer", "/odd", "/more", "/repin") and not body.get("force"):
                     names = identity.read_names(match)
@@ -887,7 +957,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     if (match / "page.json").exists():
                         steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
                     run_steps(steps)
-            self.send(json.dumps({"answered": len(log), "rebuilt": rebuilt, "undone": undone and undone["id"]}).encode(), "application/json")
+                    for entry in log:
+                        entry["applied"] = True
+                    save(answers, log)
+                    computed.write_text(json.dumps(state(log)))
+            self.send(json.dumps({"answered": len(log), **waiting(log), "rebuilt": rebuilt, "undone": undone and undone["id"]}).encode(), "application/json")
 
         def log_message(self, *args) -> None:
             pass

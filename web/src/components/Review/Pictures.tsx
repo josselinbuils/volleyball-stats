@@ -3,12 +3,12 @@ import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import type { Group } from '@/lib/match';
-import { marked, pieceKey, post, type Named, type Piece } from '@/lib/review';
+import { marked, pieceKey, post, type Named, type Piece, type Saved } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 
 /** The pictures of `owner`, an identity; clicking one marks it as someone else than the others, and
  * a list under it says who, among `players` (`nameOf` their names). Saved at once and applied with
- * the answers; `onSaved` gets the number of answers saved. */
+ * the answers; `onSaved` gets what the server tells after saving. */
 export function Pictures({
   crops,
   pieces,
@@ -23,7 +23,7 @@ export function Pictures({
   owner: { team: Group; identity: number };
   players: Named[];
   nameOf: (team: Group, identity: number) => string | null;
-  onSaved: (answered: number) => void;
+  onSaved: (saved: Saved) => void;
   onError: () => void;
 }) {
   const { t } = useTranslation();
@@ -36,16 +36,14 @@ export function Pictures({
       return who === 'not_player' ? who : who ? { team: Number(who.split(':')[0]), identity: Number(who.split(':')[1]) } : null;
     });
     try {
-      const { answered, cancelled } = await post('odd', { odd: out, rest: pieces.filter((p) => !next.has(pieceKey(p))), to, owner: { team: owner.team, identity: owner.identity } });
-      if (cancelled) {
+      const saved = await post('odd', { odd: out, rest: pieces.filter((p) => !next.has(pieceKey(p))), to, owner: { team: owner.team, identity: owner.identity } });
+      if (saved.cancelled) {
         return;
       }
       pieces.forEach((p) => marked.delete(pieceKey(p)));
       next.forEach((who, k) => marked.set(k, who));
       setOdd(next);
-      if (answered !== undefined) {
-        onSaved(answered);
-      }
+      onSaved(saved);
     } catch {
       onError();
     }

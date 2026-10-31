@@ -85,6 +85,11 @@ interface ReviewData {
   width: number;
   height: number;
   answered: number;
+  /** Answers not applied yet; whether the answers (or the jersey numbers read), and the names, differ
+   * from what the players were last computed from. */
+  pending: number;
+  changed: boolean;
+  namesPending: boolean;
   questions: Question[];
   players: Named[];
   /** The roster's players of each team, for typing a name. */
@@ -103,10 +108,13 @@ declare global {
 
 export const review = window.REVIEW ?? null;
 
-/** What the review server tells after a request: the answers saved, whether the identities and the
- * pages were rebuilt, and the answer an undo removed. */
+/** What the review server tells after a request: the answers saved, those and the names not applied
+ * yet, whether the identities and the pages were rebuilt, and the answer an undo removed. */
 export interface Saved {
   answered?: number;
+  pending?: number;
+  changed?: boolean;
+  namesPending?: boolean;
   rebuilt?: boolean;
   undone?: string | null;
   /** The user declined an answer joining two players of different names: nothing saved. */

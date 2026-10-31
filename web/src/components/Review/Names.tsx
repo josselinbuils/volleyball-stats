@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { GROUPS, groupName, teamColor, teamRing, type Group } from '@/lib/match';
-import { post, type Named, type Suggestion } from '@/lib/review';
+import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 
@@ -33,19 +33,19 @@ function focusCard(from: Element | null, step: number) {
 const fold = (name: string) => name.trim().toLocaleLowerCase();
 
 /** The players of both teams to name, longest on court first; each name is saved as it is typed,
- * `onNamed` given the names and numbers saved by `team:identity`, `onMarked` how many answers are
- * saved when a picture is marked as someone else. */
+ * `onNamed` given the names and numbers saved by `team:identity`, `onSaved` what the server tells
+ * after each name or picture saved. */
 export function Names({
   players,
   roster,
   onNamed,
-  onMarked,
+  onSaved,
   onError,
 }: {
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
   onNamed: (saved: Map<string, Given>) => void;
-  onMarked: (answered: number) => void;
+  onSaved: (saved: Saved) => void;
   onError: () => void;
 }) {
   const { t } = useTranslation();
@@ -84,10 +84,11 @@ export function Names({
       return;
     }
     try {
-      await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null });
+      const result = await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null });
       const next = new Map(saved).set(key, value);
       setSaved(next);
       onNamed(next);
+      onSaved(result);
     } catch {
       onError();
     }
@@ -127,7 +128,7 @@ export function Names({
                   onSave={(value) => void save(p, value)}
                   players={players}
                   nameOf={(team, n) => given.get(`${team}:${n}`)?.name.trim() || null}
-                  onMarked={onMarked}
+                  onSaved={onSaved}
                   onError={onError}
                 />
               ))}
@@ -149,7 +150,7 @@ function NameCard({
   onSave,
   players,
   nameOf,
-  onMarked,
+  onSaved,
   onError,
 }: {
   player: Named;
@@ -161,7 +162,7 @@ function NameCard({
   onSave: (value: Given) => void;
   players: Named[];
   nameOf: (team: Group, identity: number) => string | null;
-  onMarked: (answered: number) => void;
+  onSaved: (saved: Saved) => void;
   onError: () => void;
 }) {
   const { t } = useTranslation();
@@ -179,8 +180,8 @@ function NameCard({
 
   return (
     <div data-card tabIndex={-1} className="grid content-start gap-2.5 rounded-lg border bg-card p-3 outline-none focus-within:ring-2 focus-within:ring-ring/60">
-      <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onMarked} onError={onError} />
-      <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onMarked} onError={onError} />
+      <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
+      <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
       <p className="m-0 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t('player', { n: p.identity })}</span>
         <span>· {t('review.played', { time: clock(p.seconds) })}</span>

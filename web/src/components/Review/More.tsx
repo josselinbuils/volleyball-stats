@@ -3,12 +3,12 @@ import { Images, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { lookAlikes, pieceKey, post, type Found, type Named } from '@/lib/review';
+import { lookAlikes, pieceKey, post, type Found, type Named, type Saved } from '@/lib/review';
 
 /** A button opening the pieces that look most like `player` (`label` naming them), a batch at a
  * time: those left unmarked are confirmed as them, the marked ones as someone else, then the next
- * batch comes. `onSaved` gets the number of answers saved. */
-export function More({ player, label, onSaved, onError }: { player: Named; label: string; onSaved: (answered: number) => void; onError: () => void }) {
+ * batch comes. `onSaved` gets what the server tells after saving. */
+export function More({ player, label, onSaved, onError }: { player: Named; label: string; onSaved: (saved: Saved) => void; onError: () => void }) {
   const { t } = useTranslation();
   const dialog = useRef<HTMLDialogElement>(null);
   const [pieces, setPieces] = useState<Found[] | null>(null);
@@ -29,18 +29,16 @@ export function More({ player, label, onSaved, onError }: { player: Named; label
     }
     const ref = ({ track, frame }: Found) => ({ track, frame });
     try {
-      const { answered, cancelled } = await post('more', {
+      const saved = await post('more', {
         team: player.team,
         identity: player.identity,
         yes: pieces.filter((p) => !odd.has(pieceKey(p))).map(ref),
         no: pieces.filter((p) => odd.has(pieceKey(p))).map(ref),
       });
-      if (cancelled) {
+      if (saved.cancelled) {
         return;
       }
-      if (answered !== undefined) {
-        onSaved(answered);
-      }
+      onSaved(saved);
       void load();
     } catch {
       onError();
