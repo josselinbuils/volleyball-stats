@@ -120,7 +120,7 @@ class Questions:
         actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
         rallies = web.read_csv(self.match / "rallies.csv") if (self.match / "rallies.csv").exists() else []
         windows = [(int(r["start_frame"]) - round(web.LEAD_S * self.fps), int(r["end_frame"])) for r in rallies]
-        self.touches = doubtful(actions, windows)
+        self.touches = doubtful(actions, windows, unnamed(self.match / "review", self.fps))
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set")) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -542,9 +542,28 @@ def rally_answer(rally: dict, choice: str) -> dict:
     return {"rally": [{**rally, "play": choice == "rally"}]} if choice in ("rally", "not_play") else {}
 
 
-def doubtful(actions: list[dict], windows: list[tuple[int, int]]) -> list[tuple[dict, str]]:
+def unnamed(site: Path, fps: float) -> dict[int, str]:
+    """The touches the page at `site` credits to no named player of their team, by frame: "brief"
+    when its player was on the court only seconds in the set (web.brief), else "unknown". Asking them
+    all leaves the page no unidentified player."""
+    path = site / "data.js"
+    if not path.exists():
+        return {}
+    text = path.read_text()
+    data = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
+    people = data.get("people") or {}
+    out = {}
+    for c in data["contacts"]:
+        p = people.get(str(c["person"])) if c.get("person") is not None else None
+        if c["type"] not in web.NO_PLAYER and c.get("team") and not (p and p["number"] is not None and p["team"] == c["team"]):
+            out[round(c["t"] * fps)] = "brief" if c.get("brief") else "unknown"
+    return out
+
+
+def doubtful(actions: list[dict], windows: list[tuple[int, int]], unnamed: dict[int, str] | None = None) -> list[tuple[dict, str]]:
     """The touches of actions.csv's rows (frame order) to ask who made, with why, most at stake
-    first: no player of the touch's team known for it ("unknown"); one player touching twice in a
+    first: no player of the touch's team known for it ("unknown"), or none named on the page
+    (`unnamed`, by frame, with its reason); one player touching twice in a
     row in a rally, blocks aside ("twice", the less sure touch of the two); SPOT_CHECKS of the others
     picked at random, the same each run ("check"); another player about as near the ball
     (attribution.DOUBT, "close", the nearest first)."""
@@ -552,6 +571,9 @@ def doubtful(actions: list[dict], windows: list[tuple[int, int]]) -> list[tuple[
     gap = lambda r: float(r["gap"]) if r.get("gap") else float("inf")  # noqa: E731
     rally = lambda r: next((k for k, (a, b) in enumerate(windows) if a <= int(r["frame"]) <= b), None)  # noqa: E731
     found = {r["frame"]: (r, "unknown") for r in actions if touch(r) and r.get("identity") in UNKNOWN}
+    for r in actions:
+        if touch(r) and int(r["frame"]) in (unnamed or {}):
+            found.setdefault(r["frame"], (r, unnamed[int(r["frame"])]))
     for a, b in zip(actions, actions[1:]):
         same = touch(a) and touch(b) and a.get("identity") not in UNKNOWN and (a["team"], a["identity"]) == (b["team"], b["identity"])
         if same and "block" not in (a["type"], b["type"]) and rally(a) is not None and rally(a) == rally(b):
@@ -1242,10 +1264,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 # recomputes, as applying does.
                 rebuilt = self.path == "/apply" or undo_applied
                 if rebuilt:
-                    steps = [("players", lambda: identity.rerun(match, video, squad)), ("questions", questions.load)]
+                    # The review's own page first: the questions ask what it leaves unidentified.
+                    own, *published = pages()
+                    steps = [("players", lambda: identity.rerun(match, video, squad)), own, ("questions", questions.load)]
                     if self.path == "/apply":
                         steps.append(("roster", lambda: remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())))
-                    run_steps(steps + pages())
+                    run_steps(steps + published)
                     for entry in log:
                         entry["applied"] = True
                     for change in history:

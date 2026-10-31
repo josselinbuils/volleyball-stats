@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -86,6 +86,29 @@ class TestTouchAnswer:
         assert touch_answer(touch, "not_play", {}) == {"touch": [{"frame": 98776, "team": 2, "identity": None, "name": None, "play": False}]}
         assert touch_answer(touch, "skip", {}) == {}
 
+
+
+class TestUnnamed:
+    def test_asks_each_touch_the_page_credits_to_no_named_player_of_its_team(self, tmp_path):
+        data = {
+            "people": {"0": {"team": 1, "number": 3}, "1": {"team": 2, "number": None}, "2": {"team": 2, "number": 5}},
+            "contacts": [
+                {"t": 1.0, "type": "pass", "team": 1, "person": 0},
+                {"t": 2.0, "type": "pass", "team": 1, "person": None, "brief": True},
+                {"t": 3.0, "type": "set", "team": 2, "person": 1},
+                {"t": 4.0, "type": "dig", "team": 1, "person": 2},
+                {"t": 5.0, "type": "floor", "team": 1, "person": None},
+            ],
+        }
+        (tmp_path / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+
+        assert unnamed(tmp_path, 50.0) == {100: "brief", 150: "unknown", 200: "unknown"}
+        assert unnamed(tmp_path / "none", 50.0) == {}
+
+    def test_doubtful_asks_them_with_their_reason(self):
+        actions = [{"frame": "100", "type": "pass", "team": "1", "identity": "3", "gap": ""}]
+
+        assert [(r["frame"], why) for r, why in doubtful(actions, [(0, 200)], {100: "brief"})][:1] == [("100", "brief")]
 
 
 class TestAces:

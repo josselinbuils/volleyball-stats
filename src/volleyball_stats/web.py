@@ -255,6 +255,27 @@ def playing_time(samples: list[list[float]], step: int, windows: list[tuple[int,
     return {p: {s: round(v, 1) for s, v in by_set.items()} for p, by_set in out.items()}
 
 
+# A player on the court under BRIEF_S of rally time in a set is a tracking slip there (first ASPOM
+# match: 0.1-13 s, against 85 s for the shortest substitution).
+BRIEF_S = 30.0
+
+
+def brief(found: list[dict], typed: list[dict], table: dict[int, dict], times: dict[int, dict[str, float]], said: dict, missed: dict) -> None:
+    """The touches and missed aces of `found` (the page's contacts, from actions CSV rows `typed`)
+    that a numbered player of `table` on the court under BRIEF_S of their set (`times`) took are
+    nobody's known, marked `brief` for the review to ask, unless the review `said` the touch's player
+    (by frame) or the ace's receiver (`missed`). Nothing without players' times."""
+    if not times:
+        return
+    slip = lambda p, number: p is not None and table[p]["number"] is not None and times.get(p, {}).get(str(number), 0.0) < BRIEF_S  # noqa: E731
+    for contact, row in zip(found, typed):
+        frame = int(row["frame"])
+        if frame not in said and slip(contact["person"], contact["set"]):
+            contact.update(person=None, brief=True)
+        if frame not in missed and slip(contact.get("receiver"), contact["set"]):
+            del contact["receiver"]
+
+
 def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int, int]], names: dict[tuple[int, int], dict] | None = None) -> tuple[Who, dict[int, dict]]:
     """The page's players, keyed 0, 1, ... as they are first asked for: one per identity
     (identities.csv's rows) with its team, number and the name and jersey number the user gave it
@@ -428,7 +449,10 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
     settle(found, [r["winner"] for r in rallies])
-    receivers(found, actions, by_frame, who, touched(match, given, "receiver"))
+    missed = touched(match, given, "receiver")
+    receivers(found, actions, by_frame, who, missed)
+    times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)
+    brief(found, actions, table, times, said, missed)
     data = {
         "name": video.stem,
         "video": video.name,
@@ -442,9 +466,9 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "zones": zone_cells(),
         "scores": teams and teams.get("scores"),
     }
-    for p, seconds in playing_time(samples, step, windows, [r["set"] for r in rallies], fps).items():
+    for p, seconds in times.items():
         if p in table:
-            table[p]["seconds"] = seconds
+            table[p]["seconds"] = {n: v for n, v in seconds.items() if v >= BRIEF_S}
     data["people"] = table
     return data, {"step": step, "samples": samples} if any(samples) else None
 

@@ -244,6 +244,7 @@
       "unknown": "aucun joueur reconnu",
       "twice": "le même joueur deux fois de suite",
       "close": "deux joueurs aussi près du ballon",
+      "brief": "présent quelques secondes dans le set",
       "ace": "ace"
     },
     "nobody": "Personne ne le touche dans le cadre",

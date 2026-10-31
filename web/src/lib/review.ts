@@ -36,7 +36,7 @@ export interface Question {
   set?: number | null;
   action?: string;
   time?: number;
-  reason?: 'unknown' | 'twice' | 'close' | 'ace';
+  reason?: 'unknown' | 'brief' | 'twice' | 'close' | 'ace';
   proposed?: number | null;
   team: Group;
   identity: number | null;

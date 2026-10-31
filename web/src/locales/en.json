@@ -244,6 +244,7 @@
       "unknown": "no player recognised",
       "twice": "the same player twice in a row",
       "close": "two players as near the ball",
+      "brief": "on the court only a few seconds of the set",
       "ace": "ace"
     },
     "nobody": "Nobody touches it in the frame",

@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import ball_track, brand, contacts, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import ball_track, brand, brief, contacts, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -151,6 +151,25 @@ class TestContacts:
 
         receivers(out, typed, players, said, {10: None})
         assert out[0]["receiver"] is None
+
+    def test_a_player_on_the_court_only_seconds_in_a_set_touches_nothing_known_there(self):
+        table = {0: {"team": 1, "number": 3}, 1: {"team": 2, "number": 4}, 2: {"team": 1, "number": None}}
+        times = {0: {"1": 7.0, "2": 300.0}, 1: {"1": 280.0}}
+        found = [
+            {"person": 0, "set": 1},  # 7 s in set 1: a slip
+            {"person": 0, "set": 2},
+            {"person": 0, "set": 1},  # the review said who touched it
+            {"person": 2, "set": 1},  # a track without identity: already nobody's
+            {"person": 1, "set": 1, "receiver": 0},  # an ace missed by the slip
+        ]
+        typed = [{"frame": str(f)} for f in (10, 20, 30, 40, 50)]
+
+        brief(found, typed, table, times, {30: (1, 3)}, {})
+
+        assert [(c["person"], c.get("brief")) for c in found] == [(None, True), (0, None), (0, None), (2, None), (1, None)]
+        assert "receiver" not in found[4]
+        brief(found, typed, table, {}, {}, {})  # without players' times, nothing changes
+        assert found[1]["person"] == 0
 
     def test_a_receiver_of_the_serve_s_own_team_makes_it_their_missed_reception(self):
         # The window started late: its first touch, the left team's, was taken for a serve.
