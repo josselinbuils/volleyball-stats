@@ -18,6 +18,7 @@
   "replayTitle": "Replay the play",
   "replayCaption": "Click a rally to watch it again on a top view of the court: the players and the ball follow the play.",
   "nowPlaying": "Now playing",
+  "currentAction": "Action",
   "iOfN": "{{i}} of {{n}}",
   "prev": "Previous",
   "next": "Next",
@@ -85,6 +86,43 @@
     "dig": "Dig",
     "floor": "Ball on the floor",
     "net": "Into the net"
+  },
+  "actions": {
+    "serve": {
+      "play": "Serve",
+      "point": "Ace",
+      "error": "Serve fault"
+    },
+    "pass": {
+      "play": "Reception",
+      "point": "Winning reception",
+      "error": "Missed reception"
+    },
+    "set": {
+      "play": "Set",
+      "point": "Winning set",
+      "error": "Set fault"
+    },
+    "attack": {
+      "play": "Defended attack",
+      "point": "Winning attack",
+      "error": "Attack fault"
+    },
+    "relance": {
+      "play": "Free ball",
+      "point": "Winning free ball",
+      "error": "Free ball fault"
+    },
+    "block": {
+      "play": "Defended block",
+      "point": "Winning block",
+      "error": "Block fault"
+    },
+    "dig": {
+      "play": "Dig",
+      "point": "Winning dig",
+      "error": "Dig fault"
+    }
   },
   "short": {
     "serve": "S",
@@ -313,7 +351,11 @@
       "attacks": "Attacks",
       "kills": "Winning attacks",
       "attackFaults": "Attack faults",
+      "defended": "Defended attacks",
       "blocks": "Blocks",
+      "blockPoints": "Winning blocks",
+      "blockFaults": "Block faults",
+      "blockDefended": "Defended blocks",
       "digs": "Digs",
       "sets": "Sets",
       "points": "Points",
@@ -336,7 +378,10 @@
       "unattacked": "No attack",
       "rating": "Rating /3",
       "between": "Between two",
-      "time": "Playing time"
+      "time": "Playing time",
+      "defended": "Defended",
+      "blockPoints": "Winning",
+      "blockDefended": "Defended"
     },
     "about": {
       "touches": "Every time the player touches the ball, whatever the action.",
@@ -351,9 +396,13 @@
       "attacks": "The third touches, hit above the head to send the ball to the other team.",
       "kills": "The attacks that land in the other court.",
       "attackFaults": "The attacks out, into the net or landing on the player's own side.",
+      "defended": "The attacks the other team touches and keeps in play, with a dig or a block.",
       "relances": "The third touches sent back without attacking, with a forearm or an overhead pass.",
       "relanceFaults": "The free balls out, into the net or landing on the player's own side.",
       "blocks": "The balls touched at the net right after the other team's attack.",
+      "blockPoints": "The blocks that land in the other court.",
+      "blockFaults": "The blocks that go out or land on the player's own side.",
+      "blockDefended": "The blocks after which the rally goes on.",
       "digs": "The first touches on the other team's attack or free ball.",
       "digFaults": "The digs lost: the ball lands, goes out or into the net.",
       "unattackedDigs": "The digs after which the team sends the ball back or loses it without attacking.",

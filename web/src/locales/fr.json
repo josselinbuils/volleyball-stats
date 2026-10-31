@@ -18,6 +18,7 @@
   "replayTitle": "Revoir le jeu",
   "replayCaption": "Cliquez sur un échange pour le revoir sur une vue du dessus du terrain : les joueurs et le ballon suivent le jeu.",
   "nowPlaying": "En cours",
+  "currentAction": "Action",
   "iOfN": "{{i}} sur {{n}}",
   "prev": "Précédent",
   "next": "Suivant",
@@ -85,6 +86,43 @@
     "dig": "Défense",
     "floor": "Ballon au sol",
     "net": "Filet"
+  },
+  "actions": {
+    "serve": {
+      "play": "Service",
+      "point": "Ace",
+      "error": "Service fauté"
+    },
+    "pass": {
+      "play": "Réception",
+      "point": "Réception gagnante",
+      "error": "Réception ratée"
+    },
+    "set": {
+      "play": "Passe",
+      "point": "Passe gagnante",
+      "error": "Passe fautée"
+    },
+    "attack": {
+      "play": "Attaque défendue",
+      "point": "Attaque gagnante",
+      "error": "Attaque fautée"
+    },
+    "relance": {
+      "play": "Relance",
+      "point": "Relance gagnante",
+      "error": "Relance fautée"
+    },
+    "block": {
+      "play": "Contre défendu",
+      "point": "Contre gagnant",
+      "error": "Contre fauté"
+    },
+    "dig": {
+      "play": "Défense",
+      "point": "Défense gagnante",
+      "error": "Défense fautée"
+    }
   },
   "short": {
     "serve": "S",
@@ -313,7 +351,11 @@
       "attacks": "Attaques",
       "kills": "Attaques gagnantes",
       "attackFaults": "Attaques fautées",
+      "defended": "Attaques défendues",
       "blocks": "Contres",
+      "blockPoints": "Contres gagnants",
+      "blockFaults": "Contres fautés",
+      "blockDefended": "Contres défendus",
       "digs": "Défenses",
       "sets": "Passes",
       "points": "Points",
@@ -336,7 +378,10 @@
       "unattacked": "Sans attaque",
       "rating": "Note /3",
       "between": "Entre deux",
-      "time": "Temps de jeu"
+      "time": "Temps de jeu",
+      "defended": "Défendues",
+      "blockPoints": "Gagnants",
+      "blockDefended": "Défendus"
     },
     "about": {
       "touches": "Toutes les fois où le joueur touche le ballon, quelle que soit l'action.",
@@ -351,9 +396,13 @@
       "attacks": "Les troisièmes touches, frappées au-dessus de la tête pour envoyer le ballon chez l'adversaire.",
       "kills": "Les attaques qui tombent dans le terrain adverse.",
       "attackFaults": "Les attaques dehors, dans le filet ou tombées de son côté.",
+      "defended": "Les attaques que l'adversaire touche et remet en jeu, en défense ou au contre.",
       "relances": "Les troisièmes touches renvoyées sans attaquer, en manchette ou en passe.",
       "relanceFaults": "Les relances dehors, dans le filet ou tombées de son côté.",
       "blocks": "Les ballons touchés au filet juste après une attaque adverse.",
+      "blockPoints": "Les contres qui tombent dans le terrain adverse.",
+      "blockFaults": "Les contres qui partent dehors ou tombent de son côté.",
+      "blockDefended": "Les contres après lesquels l'échange continue.",
       "digs": "Les premières touches sur une attaque ou une relance adverse.",
       "digFaults": "Les défenses perdues : le ballon tombe, part dehors ou dans le filet.",
       "unattackedDigs": "Les défenses après lesquelles l'équipe renvoie le ballon ou le perd sans attaquer.",

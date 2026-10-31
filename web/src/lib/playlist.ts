@@ -19,6 +19,8 @@ export interface Clip {
   player?: number;
   name?: string;
   length?: number;
+  /** A touch's clip: the touch's index in `contacts`. */
+  contact?: number;
 }
 
 export function contactClips(contacts: Contact[], duration: number): Clip[] {
@@ -35,6 +37,7 @@ export function contactClips(contacts: Contact[], duration: number): Clip[] {
     team: showTeam ? c.g : undefined,
     player: showPlayer ? (c.player ?? undefined) : undefined,
     name: showPlayer ? (c.name ?? undefined) : undefined,
+    contact: c.i,
   }));
 }
 
@@ -64,13 +67,7 @@ export function clipLabel(clip: Clip, t: TFunction, f: Format, name: (g: Group) 
   if (clip.length !== undefined) {
     return [t('rally', { n: clip.rally + 1 }), clock(clip.time), f.secs(clip.length)].join(' · ');
   }
-  return [
-    clip.type && t(`types.${clip.type}`),
-    clip.team && name(clip.team),
-    clip.name ?? (clip.player && t('player', { n: clip.player })),
-    t('rallyLower', { n: clip.rally + 1 }),
-    clock(clip.time),
-  ]
+  return [clip.type && t(`types.${clip.type}`), clip.team && name(clip.team), clip.name ?? (clip.player && t('player', { n: clip.player })), t('rallyLower', { n: clip.rally + 1 }), clock(clip.time)]
     .filter(Boolean)
     .join(' · ');
 }

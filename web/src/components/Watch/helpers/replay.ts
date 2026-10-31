@@ -1,4 +1,5 @@
 import type { Contact } from '@/lib/match';
+import { isTouch } from '@/helpers/contacts';
 import { PAD } from '@/lib/playlist';
 
 /** The ball between the placed touches of a rally, straight from one to the next; at the first
@@ -48,4 +49,9 @@ export function landingsAt(contacts: Contact[], time: number, after = 0.9): { x:
  * before, else the first. */
 export function sidesAt<R extends { start: number }>(rallies: R[], time: number): R | undefined {
   return rallies.filter((r) => r.start - PAD <= time).pop() ?? rallies[0];
+}
+
+/** The last touch of a rally's `contacts` at or before `time`. */
+export function lastTouch(contacts: Contact[], time: number): Contact | undefined {
+  return contacts.filter((c) => isTouch(c) && c.t <= time).pop();
 }

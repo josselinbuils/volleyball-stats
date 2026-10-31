@@ -19,9 +19,13 @@ export const STATS = [
   'attacks',
   'kills',
   'attackFaults',
+  'defended',
   'relances',
   'relanceFaults',
   'blocks',
+  'blockPoints',
+  'blockFaults',
+  'blockDefended',
   'digs',
   'digFaults',
   'unattackedDigs',
@@ -105,13 +109,16 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       continue;
     }
     out.touches.push(c);
-    const add = (stat: Stat, point: Stat | null, fault: Stat | null) => {
+    const add = (stat: Stat, point: Stat | null, fault: Stat | null, play: Stat | null = null) => {
       out[stat].push(c);
       if (point && c.result === 'point') {
         out[point].push(c);
       }
       if (fault && c.result === 'error') {
         out[fault].push(c);
+      }
+      if (play && c.result === 'play') {
+        out[play].push(c);
       }
     };
     if (c.type === 'serve') {
@@ -130,11 +137,11 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
         }
       }
     } else if (c.type === 'attack') {
-      add('attacks', 'kills', 'attackFaults');
+      add('attacks', 'kills', 'attackFaults', 'defended');
     } else if (c.type === 'relance') {
       add('relances', null, 'relanceFaults');
     } else if (c.type === 'block') {
-      add('blocks', null, null);
+      add('blocks', 'blockPoints', 'blockFaults', 'blockDefended');
     } else if (c.type === 'dig') {
       add('digs', null, 'digFaults');
       if (unattacked(c, contacts.slice(k + 1, k + 8))) {

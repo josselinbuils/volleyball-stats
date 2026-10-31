@@ -4,14 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { isTouch } from '@/helpers/contacts';
-import { groupName, match, teamColor, teamRing } from '@/lib/match';
+import { contacts, groupName, match, playerLabel, rallies as allRallies, teamColor, teamRing } from '@/lib/match';
 import { seek as seekTo, usePlayer, useVideoTime } from '@/lib/player';
-import { clipLabel, PAD, rallyClips, rallyNear } from '@/lib/playlist';
+import { clipLabel, PAD, rallyAt, rallyClips, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
+import { lastTouch } from '@/components/Watch/helpers/replay';
 
 /** What is playing, with the playlist's controls; else the rally the video is on, the one
- * highlighted below, with controls to move to another one and play from it. Its height is the same
- * in every state: nothing below it moves when playback starts, changes or stops. */
+ * highlighted below, with controls to move to another one and play from it. Under it the action on
+ * screen and how it ended: a touch's clip's own touch, else the rally's last touch so far. Its height
+ * is the same in every state: nothing below it moves when playback starts, changes or stops. */
 export function PlaylistBar() {
   const { t } = useTranslation();
   const f = useFormat();
@@ -28,36 +30,47 @@ export function PlaylistBar() {
   const playFrom = () => play((tr) => (set === null ? tr('rallies') : tr('set', { n: set })), rallyClips(rallies, match.duration), k);
 
   const clip = playlist?.clips[playlist.at];
+  const shown = useVideoTime((time) => clip?.contact ?? lastTouch(rallyAt(allRallies, time)?.contacts ?? [], time)?.i ?? -1);
+  const action = contacts[shown];
   const details = playlist && clip ? `${playlist.title(t)} · ${clipLabel(clip, t, f, (g) => groupName(t, g))}` : '';
 
   return (
     // Laid out by its own width: it also stands in a narrow column beside the court.
     <div className="@container mt-3">
       <div className="grid gap-x-3 gap-y-2.5 rounded-lg bg-muted px-3 py-2.5 @md:grid-cols-[minmax(0,1fr)_auto] @md:items-center">
-        <div aria-live="polite" className="h-15 min-w-0 text-sm leading-5 text-muted-foreground">
-          {playlist && clip ? (
-            <>
-              <span className="block truncate text-xs leading-5 font-semibold tracking-wide text-link uppercase">
-                {`${t('nowPlaying')} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}`}
-              </span>
-              <span className="line-clamp-2" title={details}>
-                {clip.team && <Swatch color={teamColor(clip.team)} ring={teamRing(clip.team)} className="mr-1.5 align-[-1px]" />}
-                <b className="font-semibold text-foreground">{playlist.title(t)}</b>
-                {` · ${clipLabel(clip, t, f, (g) => groupName(t, g))}`}
-              </span>
-            </>
-          ) : rally ? (
-            <>
-              <span className="block truncate text-xs leading-5 font-semibold tracking-wide text-link uppercase">
-                {`${t('selectedRally')} · ${t('iOfN', { i: f.num(k + 1), n: f.num(rallies.length) })}`}
-              </span>
-              <span className="line-clamp-2">
-                <b className="font-semibold text-foreground">{t('rally', { n: rally.i + 1 })}</b>
-                {` · ${clock(rally.start)} · ${f.secs(rally.end - rally.start)} · ${t('touchesN', { count: rally.contacts.filter(isTouch).length })}`}
-              </span>
-            </>
-          ) : (
-            <span className="line-clamp-3">{t('noRally')}</span>
+        <div className="h-20 min-w-0 text-sm leading-5 text-muted-foreground">
+          <div aria-live="polite" className="h-15">
+            {playlist && clip ? (
+              <>
+                <span className="block truncate text-xs leading-5 font-semibold tracking-wide text-link uppercase">
+                  {`${t('nowPlaying')} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}`}
+                </span>
+                <span className="line-clamp-2" title={details}>
+                  {clip.team && <Swatch color={teamColor(clip.team)} ring={teamRing(clip.team)} className="mr-1.5 align-[-1px]" />}
+                  <b className="font-semibold text-foreground">{playlist.title(t)}</b>
+                  {` · ${clipLabel(clip, t, f, (g) => groupName(t, g))}`}
+                </span>
+              </>
+            ) : rally ? (
+              <>
+                <span className="block truncate text-xs leading-5 font-semibold tracking-wide text-link uppercase">
+                  {`${t('selectedRally')} · ${t('iOfN', { i: f.num(k + 1), n: f.num(rallies.length) })}`}
+                </span>
+                <span className="line-clamp-2">
+                  <b className="font-semibold text-foreground">{t('rally', { n: rally.i + 1 })}</b>
+                  {` · ${clock(rally.start)} · ${f.secs(rally.end - rally.start)} · ${t('touchesN', { count: rally.contacts.filter(isTouch).length })}`}
+                </span>
+              </>
+            ) : (
+              <span className="line-clamp-3">{t('noRally')}</span>
+            )}
+          </div>
+          {action && (
+            <span className="block truncate">
+              <Swatch color={teamColor(action.g)} ring={teamRing(action.g)} className="mr-1.5 align-[-1px]" />
+              <b className="font-semibold text-foreground">{t(`actions.${action.type}.${action.result}`)}</b>
+              {` · ${[groupName(t, action.g), playerLabel(t, action.person)].filter(Boolean).join(', ')} · ${clock(action.t)}`}
+            </span>
           )}
         </div>
         <div className="flex flex-wrap gap-2 @md:justify-end">
