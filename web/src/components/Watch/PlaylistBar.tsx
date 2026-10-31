@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
+import { isTouch } from '@/helpers/contacts';
 import { groupName, match, teamColor, teamRing } from '@/lib/match';
 import { usePlayer, useVideoTime } from '@/lib/player';
 import { clipLabel, PAD, rallyClips, rallyNear } from '@/lib/playlist';
@@ -52,7 +53,7 @@ export function PlaylistBar() {
               </span>
               <span className="line-clamp-2">
                 <b className="font-semibold text-foreground">{t('rally', { n: rally.i + 1 })}</b>
-                {` · ${clock(rally.start)} · ${f.secs(rally.end - rally.start)} · ${t('touchesN', { count: rally.contacts.length })}`}
+                {` · ${clock(rally.start)} · ${f.secs(rally.end - rally.start)} · ${t('touchesN', { count: rally.contacts.filter(isTouch).length })}`}
               </span>
             </>
           ) : (

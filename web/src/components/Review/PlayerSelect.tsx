@@ -19,6 +19,7 @@ export function PlayerSelect({
   exclude,
   notPlayer = false,
   autoFocus = false,
+  openOnFocus = true,
   onDone,
   value,
   empty,
@@ -31,6 +32,8 @@ export function PlayerSelect({
   exclude?: { team: Group; identity: number };
   notPlayer?: boolean;
   autoFocus?: boolean;
+  /** Whether the list opens with the focus, or only once typing starts (the field focused first). */
+  openOnFocus?: boolean;
   /** Called once a player is picked or the typing given up, to move the focus back. */
   onDone?: () => void;
   value: string;
@@ -102,7 +105,7 @@ export function PlayerSelect({
         onFocus={(e) => {
           // Typing replaces the player shown.
           e.target.select();
-          setOpen(true);
+          setOpen(openOnFocus);
         }}
         onChange={(e) => {
           setText(e.target.value);

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { sets } from '@/lib/match';
+import { usePlayer } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 
 /** One filter for the whole page, shown when the match has several sets; it stays at the top of the
@@ -8,6 +9,7 @@ import { useSet } from '@/lib/sets';
 export function SetFilter() {
   const { t } = useTranslation();
   const { set, pick } = useSet();
+  const { playlist, stop } = usePlayer();
   if (sets.length < 2) {
     return null;
   }
@@ -23,6 +25,10 @@ export function SetFilter() {
         value={set === null ? 'all' : String(set)}
         onValueChange={(v) => {
           if (v) {
+            // A playlist can hold clips outside the set picked, where the video cannot go.
+            if (playlist) {
+              stop();
+            }
             pick(v === 'all' ? null : Number(v));
           }
         }}

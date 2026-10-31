@@ -1,4 +1,5 @@
 import type { Contact, Group, Person } from '@/lib/match';
+import { isTouch } from '@/helpers/contacts';
 import { playerKey } from '@/helpers/players';
 import type { Drop } from '@/components/Stats/helpers/between';
 
@@ -38,9 +39,6 @@ export interface Line {
   id: number | 'rest' | 'total';
   stats: Stats;
 }
-
-// Floor and net contacts are the ball's, not a player's.
-const TOUCHES = new Set(['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig']);
 
 // The setter's target on the left half, 1 m off the net between zones 2 and 3; the right half's is
 // its mirror.
@@ -103,7 +101,7 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       out.faults.push(c);
       out.rated.push(c);
     }
-    if (!TOUCHES.has(c.type) || !mine(c)) {
+    if (!isTouch(c) || !mine(c)) {
       continue;
     }
     out.touches.push(c);

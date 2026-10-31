@@ -5,6 +5,7 @@ import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { clock, useFormat } from '@/lib/format';
 import { hasTeams, match } from '@/lib/match';
+import { isTouch } from '@/helpers/contacts';
 import { useSet } from '@/lib/sets';
 import { matchTitle, tabTitle } from '@/components/Header/helpers/title';
 import { SetFilter } from '@/components/Header/SetFilter';
@@ -23,6 +24,7 @@ export function Header() {
   // A set lasts from its first serve to its last ball.
   const span = set === null ? match.duration : rallies.length ? rallies[rallies.length - 1].end - rallies[0].start : 0;
   const inPlay = rallies.reduce((sum, r) => sum + r.end - r.start, 0);
+  const touches = contacts.filter(isTouch).length;
   const stats = [
     { label: t(set === null ? 'duration' : 'setDuration'), value: clock(span) },
     { label: t('ralliesStat'), value: f.num(rallies.length) },
@@ -33,8 +35,8 @@ export function Header() {
     },
     {
       label: t('contactsStat'),
-      value: f.num(contacts.length),
-      more: rallies.length ? t('perRally', { n: f.dec(contacts.length / rallies.length) }) : undefined,
+      value: f.num(touches),
+      more: rallies.length ? t('perRally', { n: f.dec(touches / rallies.length) }) : undefined,
     },
   ];
 

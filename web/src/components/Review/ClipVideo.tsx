@@ -8,13 +8,24 @@ import { boxAt, viewAt } from '@/components/Review/helpers/box';
 
 /** Half a second of context around a clip, played in a loop. */
 const AROUND = 0.5;
+/** Playback speeds offered, to catch a short moment; the one picked carries over to the next clip. */
+const SPEEDS = [1, 0.5, 0.25];
+let picked = 1;
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for. */
 export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; width: number; height: number; timeRef?: RefObject<number>; seek?: { time: number; n: number } }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(clip.start);
   const [zoom, setZoom] = useState(true);
+  const [speed, setSpeed] = useState(picked);
+  // Loading the video resets its rate to the default one: both are set.
+  useEffect(() => {
+    if (video.current) {
+      video.current.defaultPlaybackRate = speed;
+      video.current.playbackRate = speed;
+    }
+  }, [speed]);
 
   useEffect(() => {
     const v = video.current;
@@ -48,6 +59,9 @@ export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; 
   }, [seek]);
 
   const box = boxAt(clip, time);
+  // Where the loop stands, and the outlined part of it.
+  const from = Math.max(0, clip.start - AROUND);
+  const share = (at: number) => `${(100 * (Math.min(clip.end + AROUND, Math.max(from, at)) - from)) / (clip.end + AROUND - from)}%`;
   const view = zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height };
   // The native controls would zoom with the video: a click plays or pauses it instead.
   const toggle = () => {
@@ -79,10 +93,33 @@ export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; 
           </svg>
         </div>
       </div>
-      <Button variant="outline" size="sm" className="justify-self-start bg-card" onClick={() => setZoom((z) => !z)}>
-        {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
-        {t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
-      </Button>
+      <div className="relative h-1.5 rounded-full bg-muted" aria-hidden>
+        <div className="absolute inset-y-0 rounded-full bg-[#ffd400]" style={{ left: share(clip.start), right: `calc(100% - ${share(clip.end)})` }} />
+        <div className="absolute -inset-y-1 w-0.5 rounded-full bg-foreground" style={{ left: share(time) }} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" className="bg-card" onClick={() => setZoom((z) => !z)}>
+          {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
+          {t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
+        </Button>
+        <div role="group" aria-label={t('review.speed')} className="flex gap-1">
+          {SPEEDS.map((s) => (
+            <Button
+              key={s}
+              variant={s === speed ? 'default' : 'outline'}
+              size="sm"
+              className={s === speed ? undefined : 'bg-card'}
+              aria-pressed={s === speed}
+              onClick={() => {
+                picked = s;
+                setSpeed(s);
+              }}
+            >
+              {`${new Intl.NumberFormat(i18n.language).format(s)}×`}
+            </Button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

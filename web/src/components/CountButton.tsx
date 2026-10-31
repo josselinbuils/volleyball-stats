@@ -17,8 +17,9 @@ export function CountButton({ id, title, picked, value, tip, className }: { id: 
 
   if (!picked.length) {
     return (
-      <span className={cn('inline-block min-w-12 text-center leading-8 text-muted-foreground max-sm:min-w-10', className)} aria-label="0">
-        –
+      <span className={cn('inline-block min-w-12 text-center leading-8 text-muted-foreground max-sm:min-w-10', className)}>
+        <span aria-hidden>–</span>
+        <span className="sr-only">0</span>
       </span>
     );
   }

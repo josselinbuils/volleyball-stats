@@ -1,10 +1,12 @@
 import type { ActionType, Contact, Placed, Result } from '@/lib/match';
+import { isTouch } from '@/helpers/contacts';
 
 export const ARROWED: ActionType[] = ['serve', 'attack'];
 
 /** A serve or an attack, from the player who played it to the next touch of its rally, `landing`
- * when that is the ball hitting the floor. `shape` is the ball's flight, a curved arrow widening
- * from the player to its head, whose tip stops at the mark it ends on; `curve` its centre line. */
+ * when that is the ball hitting the floor or the net. `shape` is the ball's flight, a curved arrow
+ * widening from the player to its head, whose tip stops at the mark it ends on; `curve` its centre
+ * line. */
 export interface Arrow {
   from: Placed;
   to: Placed;
@@ -35,7 +37,7 @@ export function arrows(shown: Contact[], all: Contact[]): Arrow[] {
     if (!ARROWED.includes(c.type) || c.x === null || c.y === null || n?.rally !== c.rally || n.x === null || n.y === null) {
       continue;
     }
-    const landing = n.type === 'floor';
+    const landing = !isTouch(n);
     const dx = n.x - c.x;
     const dy = n.y - c.y;
     const len = Math.hypot(dx, dy) || 1;

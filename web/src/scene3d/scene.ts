@@ -375,6 +375,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   // Advertising boards along the front of the stands, 3 m each: the sponsors in turn, a blank one
   // between two of them.
   const PANEL = 3;
+  // Set by dispose: a logo loading later draws nothing.
+  let gone = false;
   const boards = sponsors.map((sponsor) => {
     const texture = painted(600, 160, () => {});
     const paint = (picture?: HTMLImageElement) => {
@@ -405,6 +407,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     if (sponsor.logo) {
       const picture = new Image();
       picture.onload = () => {
+        if (gone) {
+          return;
+        }
         paint(picture);
         request();
       };
@@ -433,6 +438,25 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   const pads = solid(0x222222);
   const eye = solid(0x1c1410);
   const hairs = HAIRS.map((color) => solid(color));
+  // The figures' shapes, shared by all of them.
+  const shapes = {
+    shoe: new THREE.BoxGeometry(0.12, 0.08, 0.23),
+    sock: new THREE.CylinderGeometry(0.06, 0.055, 0.22, 10),
+    thigh: new THREE.CylinderGeometry(0.066, 0.06, 0.22, 10),
+    kneePad: new THREE.CylinderGeometry(0.075, 0.075, 0.1, 10),
+    sleeve: new THREE.CapsuleGeometry(0.075, 0.1, 4, 10),
+    arm: new THREE.CapsuleGeometry(0.055, 0.22, 4, 10),
+    eye: new THREE.SphereGeometry(0.03, 10, 8),
+    shorts: new THREE.CylinderGeometry(0.21, 0.22, 0.2, 18),
+    chest: new THREE.CylinderGeometry(0.24, 0.2, 0.42, 18),
+    shoulders: new THREE.SphereGeometry(0.24, 18, 10),
+    neck: new THREE.CylinderGeometry(0.06, 0.06, 0.1, 10),
+    head: new THREE.SphereGeometry(0.25, 24, 18),
+    hair: new THREE.SphereGeometry(0.265, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    number: new THREE.PlaneGeometry(0.22, 0.22),
+  };
+  // The shirt numbers and badges, one per team and label, shared by the figures showing them.
+  const looks = new Map<string, { numbers: THREE.MeshBasicMaterial; badge: THREE.Sprite }>();
   /** A figure in `shirt` and `shorts`; `seated` leaves out the legs, hidden by the seat. */
   const figure = (hair: number, shirt: THREE.Material, shorts: THREE.Material, seated = false) => {
     const group = new THREE.Group();
@@ -444,22 +468,22 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     };
     for (const side of [-1, 1]) {
       if (!seated) {
-        part(new THREE.BoxGeometry(0.12, 0.08, 0.23), white, side * 0.1, 0.04, 0.03);
-        part(new THREE.CylinderGeometry(0.06, 0.055, 0.22, 10), white, side * 0.1, 0.19);
-        part(new THREE.CylinderGeometry(0.066, 0.06, 0.22, 10), skin, side * 0.1, 0.39);
-        part(new THREE.CylinderGeometry(0.075, 0.075, 0.1, 10), pads, side * 0.1, 0.4);
+        part(shapes.shoe, white, side * 0.1, 0.04, 0.03);
+        part(shapes.sock, white, side * 0.1, 0.19);
+        part(shapes.thigh, skin, side * 0.1, 0.39);
+        part(shapes.kneePad, pads, side * 0.1, 0.4);
       }
-      part(new THREE.CapsuleGeometry(0.075, 0.1, 4, 10), shirt, side * 0.26, 1.0).rotation.z = side * 0.3;
-      part(new THREE.CapsuleGeometry(0.055, 0.22, 4, 10), skin, side * 0.3, 0.78).rotation.z = side * 0.12;
-      part(new THREE.SphereGeometry(0.03, 10, 8), eye, side * 0.085, 1.39, 0.235);
+      part(shapes.sleeve, shirt, side * 0.26, 1.0).rotation.z = side * 0.3;
+      part(shapes.arm, skin, side * 0.3, 0.78).rotation.z = side * 0.12;
+      part(shapes.eye, eye, side * 0.085, 1.39, 0.235);
     }
-    part(new THREE.CylinderGeometry(0.21, 0.22, 0.2, 18), shorts, 0, 0.58).scale.z = 0.75;
-    part(new THREE.CylinderGeometry(0.24, 0.2, 0.42, 18), shirt, 0, 0.88).scale.z = 0.7;
-    part(new THREE.SphereGeometry(0.24, 18, 10), shirt, 0, 1.08).scale.set(1, 0.42, 0.7);
-    part(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 10), skin, 0, 1.15);
-    part(new THREE.SphereGeometry(0.25, 24, 18), skin, 0, 1.38);
+    part(shapes.shorts, shorts, 0, 0.58).scale.z = 0.75;
+    part(shapes.chest, shirt, 0, 0.88).scale.z = 0.7;
+    part(shapes.shoulders, shirt, 0, 1.08).scale.set(1, 0.42, 0.7);
+    part(shapes.neck, skin, 0, 1.15);
+    part(shapes.head, skin, 0, 1.38);
     // A cap of hair over the top, tilted back to leave the forehead bare.
-    part(new THREE.SphereGeometry(0.265, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), hairs[Math.abs(hair) % hairs.length], 0, 1.4).rotation.x = -0.35;
+    part(shapes.hair, hairs[Math.abs(hair) % hairs.length], 0, 1.4).rotation.x = -0.35;
     return group;
   };
   // The first referee on a stand behind the far post, facing the court.
@@ -502,15 +526,20 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       scene.remove(known.group, known.shadow);
     }
     const group = figure(key, teamMaterials[team - 1], shortsMaterials[team - 1]);
-    const numbers = shirtNumber(label, colors.teamText[team - 1]);
-    const plane = new THREE.PlaneGeometry(0.22, 0.22);
+    const id = `${team}:${label}`;
+    let look = looks.get(id);
+    if (!look) {
+      look = { numbers: shirtNumber(label, colors.teamText[team - 1]), badge: badge(label, colors.team[team - 1], colors.teamText[team - 1]) };
+      looks.set(id, look);
+    }
     for (const side of [1, -1]) {
-      const mesh = new THREE.Mesh(plane, numbers);
+      const mesh = new THREE.Mesh(shapes.number, look.numbers);
       mesh.position.set(0, 0.9, side * 0.158);
       mesh.rotation.y = side === 1 ? 0 : Math.PI;
       group.add(mesh);
     }
-    const number = badge(label, colors.team[team - 1], colors.teamText[team - 1]);
+    // A clone shares its material, so its texture.
+    const number = look.badge.clone();
     number.position.y = 2.0;
     group.add(number);
     group.userData.key = key;
@@ -700,10 +729,13 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       return hit ? (hit.userData.key as number) : null;
     },
     dispose() {
+      gone = true;
       observer.disconnect();
       cancelAnimationFrame(frame);
       controls.dispose();
       renderer.dispose();
+      // dispose() keeps the WebGL context, and browsers hold only a few.
+      renderer.forceContextLoss();
       renderer.domElement.remove();
     },
   };

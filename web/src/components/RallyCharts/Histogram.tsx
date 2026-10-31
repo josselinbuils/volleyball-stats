@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormat } from '@/lib/format';
+import { isTouch } from '@/helpers/contacts';
 import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { rallyClips } from '@/lib/playlist';
@@ -14,7 +15,7 @@ export function Histogram() {
   const f = useFormat();
   const { play } = usePlayer();
   const { rallies } = useSet();
-  const binned = BINS.map((_, k) => rallies.filter((r) => Math.min(r.contacts.length, BINS.length - 1) === k));
+  const binned = BINS.map((_, k) => rallies.filter((r) => Math.min(r.contacts.filter(isTouch).length, BINS.length - 1) === k));
   const most = Math.max(1, ...binned.map((rs) => rs.length));
 
   return (
@@ -33,7 +34,10 @@ export function Histogram() {
             >
               {rs.length > 0 && <span className="mb-1 font-semibold text-foreground">{f.num(rs.length)}</span>}
               {/* The tallest bar leaves room for its count. */}
-              <span className="block w-full max-w-7 rounded-t-[4px] bg-chart/75 transition-colors group-hover:group-enabled:bg-chart" style={{ height: `calc(${rs.length / most} * (100% - 1.5rem))` }} />
+              <span
+                className="block w-full max-w-7 rounded-t-[4px] bg-chart/75 transition-colors group-hover:group-enabled:bg-chart"
+                style={{ height: `calc(${rs.length / most} * (100% - 1.5rem))` }}
+              />
             </button>
           );
           return rs.length ? (

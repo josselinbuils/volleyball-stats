@@ -52,11 +52,18 @@ export function VideoControls({ light = false }: { light?: boolean }) {
         video.currentTime = span.end;
       }
     };
+    // Played from its end, the stretch starts over.
+    const restart = () => {
+      if (video.currentTime >= span.end - 0.05) {
+        video.currentTime = span.start;
+      }
+    };
     const events = ['play', 'pause', 'volumechange', 'ratechange'] as const;
     events.forEach((e) => video.addEventListener(e, sync));
     document.addEventListener('fullscreenchange', sync);
     video.addEventListener('timeupdate', keep);
     video.addEventListener('seeking', keep);
+    video.addEventListener('play', restart);
     sync();
     keep();
     return () => {
@@ -64,9 +71,12 @@ export function VideoControls({ light = false }: { light?: boolean }) {
       document.removeEventListener('fullscreenchange', sync);
       video.removeEventListener('timeupdate', keep);
       video.removeEventListener('seeking', keep);
+      video.removeEventListener('play', restart);
     };
   }, [video, span]);
 
+  // iPhones put only a video full screen, not the court's replay.
+  const fullscreen = !!video?.parentElement?.requestFullscreen || (video !== null && 'webkitEnterFullscreen' in video);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
@@ -168,9 +178,11 @@ export function VideoControls({ light = false }: { light?: boolean }) {
           {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
         </button>
       )}
-      <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} title={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
-        {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
-      </button>
+      {fullscreen && (
+        <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} title={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
+          {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+        </button>
+      )}
     </div>
   );
 }

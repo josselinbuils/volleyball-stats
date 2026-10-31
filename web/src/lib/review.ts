@@ -121,10 +121,34 @@ export interface Saved {
   cancelled?: boolean;
 }
 
+// The requests to the review server under way, by kind, for the page's indicator.
+const running = { saving: 0, loading: 0 };
+const listeners = new Set<() => void>();
+
+async function tracked<T>(kind: keyof typeof running, request: Promise<T>): Promise<T> {
+  running[kind] += 1;
+  listeners.forEach((listener) => listener());
+  try {
+    return await request;
+  } finally {
+    running[kind] -= 1;
+    listeners.forEach((listener) => listener());
+  }
+}
+
+/** What the review server is doing for the user: saving, loading, or nothing (null). */
+export const serverBusy = () => (running.saving ? 'saving' : running.loading ? 'loading' : null);
+
+/** Calls `listener` whenever `serverBusy` may have changed; returns the unsubscribe. */
+export function onServerBusy(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 /** Sends an answer, a name, pictures marked as someone else, an undo or the apply request to the
  * review server. */
 export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'cut' | 'forget' | 'more' | 'repin', body: object = {}): Promise<Saved> {
-  const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   // An answer joining two players of different names: saved only once the user confirms.
   if (response.status === 409) {
     const { merges } = (await response.json()) as { merges: string[][] };
@@ -147,7 +171,7 @@ export interface Found extends Piece {
 
 /** The pieces looking most like identity `identity` of `team`, not confirmed nor rejected yet. */
 export async function lookAlikes(team: Group, identity: number): Promise<Found[]> {
-  const response = await fetch(`more?team=${team}&identity=${identity}`);
+  const response = await tracked('loading', fetch(`more?team=${team}&identity=${identity}`));
   if (!response.ok) {
     throw new Error(`more: ${response.status}`);
   }

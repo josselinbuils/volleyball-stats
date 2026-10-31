@@ -7,7 +7,7 @@ import { SvgButton } from '@/components/CourtChart/SvgButton';
 const DIM = 0.12;
 
 /** Serves and attacks as the ball's flights, coloured by outcome, from the player who played them
- * to the next player or the ball on the floor. Points and faults lie over the balls still in play;
+ * to the next player or where the ball lands, on the floor or the net. Points and faults lie over the balls still in play;
  * pointing at one flight dims the others and runs dots along it. */
 export function Arrows({ arrows, describe, onPlay }: { arrows: Arrow[]; describe: (c: Contact) => string; onPlay: (c: Contact) => void }) {
   const { t } = useTranslation();

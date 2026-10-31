@@ -7,9 +7,10 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { BrandBar } from '@/components/BrandBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
-import { useFormat } from '@/lib/format';
+import { clock, useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
 import { allMarked, post, type Conflict, type Named, type Question, type Saved, type Suggestion } from '@/lib/review';
+import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
 import { Conflicts } from '@/components/Review/Conflicts';
@@ -18,7 +19,8 @@ import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
-const KEYS: Record<string, string> = { '1': '0', '2': '1', '3': 'other', x: 'not_player', c: 'cut', s: 'skip' };
+const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
+const NOTICE_MS = 4000;
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
 
 type Tab = 'questions' | 'names';
@@ -67,6 +69,15 @@ export function Review({
   const [busy, setBusy] = useState<'apply' | 'undo' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
+  // What the last action did, shown for NOTICE_MS.
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!notice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   const [tab, setTab] = useState<Tab>(location.hash === QUESTIONS_HASH ? 'questions' : 'names');
   const [given, setGiven] = useState(() => new Map(players.map((p) => [`${p.team}:${p.identity}`, { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
   const named = [...given.values()].filter((g) => g.name.trim() || g.jersey).length;
@@ -78,7 +89,6 @@ export function Review({
   // namesake of a player offered before; whether two players are one makes no sense with such a
   // player, or once both carry the same name: that question goes.
   const at = (q: Question, k: number) => ({ team: q.team, identity: q.choices[k].identity });
-  const hidden = (q: Question, k: number) => allMarked(q.choices[k]) || q.choices.slice(0, k).some((_, j) => sameName(at(q, j), at(q, k), nameOf));
   const open = questions.filter((q) => !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
   const question = open[0];
   const show = (next: Tab) => {
@@ -91,11 +101,19 @@ export function Review({
       if (!question) {
         return;
       }
+      // A cut falls where the clip stands when asked, playing or paused, inside the outlined piece.
+      const at = clipTime.current;
+      if (choice === 'cut' && !(at > question.clip.start && at < question.clip.end)) {
+        setNotice(t('review.cutWhere'));
+        return;
+      }
       try {
-        // A cut falls where the clip stands: paused when the outlined person changed.
-        const saved = await post('answer', { id: question.id, choice, ...(choice === 'cut' ? { at: clipTime.current } : {}) });
+        const saved = await post('answer', { id: question.id, choice, ...(choice === 'cut' ? { at } : {}) });
         if (saved.cancelled) {
           return;
+        }
+        if (choice === 'cut') {
+          setNotice(t('review.cutDone', { at: clock(at) }));
         }
         setDone((d) => [...d, question]);
         setQuestions((qs) => qs.filter((q) => q.id !== question.id));
@@ -106,7 +124,7 @@ export function Review({
         setError(true);
       }
     },
-    [question],
+    [question, t],
   );
 
   const [progress, setProgress] = useState<{ fraction: number; step: string } | null>(null);
@@ -155,7 +173,7 @@ export function Review({
         return;
       }
       const choice = (question.kind === 'merge' ? MERGE_KEYS : KEYS)[event.key.toLowerCase()];
-      if (choice && (choice.length > 1 || (Number(choice) < question.choices.length && !hidden(question, Number(choice))))) {
+      if (choice) {
         event.preventDefault();
         void answer(choice);
       }
@@ -171,6 +189,7 @@ export function Review({
   return (
     <>
       <BrandBar brand={match.brand} />
+      <Status notice={notice} />
       <main className="mx-auto grid w-full max-w-6xl gap-4 px-4 pt-6 pb-16 max-sm:pt-5">
         <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-1">
           <div className="min-w-0">
@@ -256,6 +275,23 @@ export function Review({
               </CardDescription>
             </CardHeader>
             <CardContent className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              {question.kind === 'piece' && (
+                <label className="grid max-w-md gap-1 text-sm font-medium lg:col-span-2">
+                  {t('review.whoIs')}
+                  <PlayerSelect
+                    key={question.id}
+                    players={players}
+                    nameOf={nameOf}
+                    value=""
+                    empty={t('review.pickPlayer')}
+                    label={t('review.whoIs')}
+                    className="h-9 w-full text-[15px] font-normal"
+                    autoFocus
+                    openOnFocus={false}
+                    onChange={(who) => who && void answer(`player:${who}`)}
+                  />
+                </label>
+              )}
               <div className="grid min-w-0 gap-3">
                 <ClipVideo key={`${question.id}${showOther}`} clip={showOther && question.other ? question.other : question.clip} width={width} height={height} timeRef={clipTime} />
                 {question.kind === 'merge' && (
@@ -277,61 +313,39 @@ export function Review({
                 <p className="text-[13px] text-muted-foreground">{t(question.kind === 'piece' ? 'review.pieceNote' : 'review.mergeNote')}</p>
               </div>
               <div className="grid gap-3">
-                {question.choices.map((c, k) =>
-                  question.kind === 'piece' && hidden(question, k) ? null : (
-                    <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
-                      <Pictures
-                        crops={c.crops}
-                        pieces={c.pieces}
-                        owner={{ team: question.team, identity: c.identity }}
-                        players={players}
-                        nameOf={nameOf}
-                        onSaved={onSaved}
-                        onError={() => setError(true)}
-                      />
-                      {question.kind === 'piece' && (
-                        <Button variant="outline" className="justify-between bg-card" onClick={() => void answer(String(k))}>
-                          {nameOf(question.team, c.identity) ? t('review.isNamed', { name: nameOf(question.team, c.identity), n: c.identity }) : t('review.isN', { n: c.identity })}
-                          <kbd className="rounded border px-1.5 text-xs text-muted-foreground">{k + 1}</kbd>
-                        </Button>
-                      )}
-                      {question.kind === 'merge' && (
-                        <p className="m-0 text-sm font-medium">
-                          {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
-                        </p>
-                      )}
-                    </div>
-                  ),
-                )}
                 {question.kind === 'piece' ? (
                   <div className="grid gap-3">
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<Users aria-hidden />} label={t('review.other')} hint="3" onClick={() => void answer('other')} />
                       <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
                       <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" onClick={() => void answer('cut')} />
                       <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
                     </div>
                     <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
-                    <label className="grid gap-1 text-sm font-medium">
-                      {t('review.whoIs')}
-                      <PlayerSelect
-                        key={question.id}
-                        players={players}
-                        nameOf={nameOf}
-                        value=""
-                        empty={t('review.pickPlayer')}
-                        label={t('review.whoIs')}
-                        className="h-9 w-full text-[15px] font-normal"
-                        onChange={(who) => who && void answer(`player:${who}`)}
-                      />
-                    </label>
                   </div>
                 ) : (
-                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                    <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" onClick={() => void answer('same')} />
-                    <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" onClick={() => void answer('different')} />
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
-                  </div>
+                  <>
+                    {question.choices.map((c) => (
+                      <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
+                        <Pictures
+                          crops={c.crops}
+                          pieces={c.pieces}
+                          owner={{ team: question.team, identity: c.identity }}
+                          players={players}
+                          nameOf={nameOf}
+                          onSaved={onSaved}
+                          onError={() => setError(true)}
+                        />
+                        <p className="m-0 text-sm font-medium">
+                          {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
+                        </p>
+                      </div>
+                    ))}
+                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                      <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" onClick={() => void answer('same')} />
+                      <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" onClick={() => void answer('different')} />
+                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                    </div>
+                  </>
                 )}
               </div>
             </CardContent>

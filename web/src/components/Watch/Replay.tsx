@@ -6,6 +6,7 @@ import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerNumber, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
+import { isTouch } from '@/helpers/contacts';
 import { playersAt } from '@/helpers/players';
 import { usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
@@ -31,7 +32,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const trail = rally ? trailAt(rally.contacts, time) : [];
   const touches = rally ? touchesAt(rally.contacts, time) : [];
   const landings = rally ? landingsAt(rally.contacts, time) : [];
-  const last = rally?.contacts.filter((c) => c.t <= time).pop();
+  const last = rally?.contacts.filter((c) => isTouch(c) && c.t <= time).pop();
   const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
   const score = scoreAt(rallies, time, match.scores);
   // The player under the pointer, named above their mark.

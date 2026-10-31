@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { clock, useFormat } from '@/lib/format';
+import { isTouch } from '@/helpers/contacts';
 import { match, sets } from '@/lib/match';
 import { usePlayer, useVideoTime } from '@/lib/player';
 import { rallyAt, rallyClips } from '@/lib/playlist';
@@ -46,7 +47,7 @@ export function Timeline() {
           </div>
         ))}
         {rallies.map((r, k) => {
-          const label = `${t('rally', { n: r.i + 1 })} · ${clock(r.start)} · ${f.secs(r.end - r.start)} · ${t('touchesN', { count: r.contacts.length })}`;
+          const label = `${t('rally', { n: r.i + 1 })} · ${clock(r.start)} · ${f.secs(r.end - r.start)} · ${t('touchesN', { count: r.contacts.filter(isTouch).length })}`;
           return (
             <Fragment key={r.i}>
               <div

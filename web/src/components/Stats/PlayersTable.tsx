@@ -46,6 +46,7 @@ export function PlayersTable() {
       insights: typeof line.id === 'number' ? insights(line.stats, team) : undefined,
       total: line.id === 'total',
     }));
+  const cards = rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number');
 
   return (
     <Card>
@@ -108,7 +109,11 @@ export function PlayersTable() {
           )}
         </div>
         {view === 'cards' && withPlayers ? (
-          <PlayerCards id={`cards:${set}:${group}`} rows={rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number')} g={group} />
+          cards.length ? (
+            <PlayerCards id={`cards:${set}:${group}`} rows={cards} g={group} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('players.noCards')}</p>
+          )
         ) : (
           <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} columns={columns} insights={withPlayers} />
         )}
