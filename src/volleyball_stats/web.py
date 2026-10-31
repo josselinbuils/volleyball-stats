@@ -194,6 +194,12 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
     return out
 
 
+def ended(windows: list[tuple[int, int]], ends: list[dict]) -> list[tuple[int, int]]:
+    """`windows` ending where the review said (`ends`: their start and end frames)."""
+    by_start = {e["start"]: e["end"] for e in ends}
+    return [(start, by_start.get(start, end)) for start, end in windows]
+
+
 def crossed(row: dict, said: tuple[int, int] | None) -> dict:
     """An actions CSV row the review gave a player of the other team (`said`): theirs, on the other
     side, without its track (one of the other team)."""
@@ -491,9 +497,11 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     given = named(identities, read_names(match))
     # The touches the review added come in; those it says are none (the ball out of sight, taken
     # for a touch) go, those it gives the other team change sides.
-    windows, actions = with_added(windows, rally_rows, actions, answers(match, "added"), match / "ball.csv", round(LEAD_S * fps), round(ADDED_NEAR_S * fps))
+    # The rallies end where the review says; touches past an end go.
+    lead = round(LEAD_S * fps)
+    windows, actions = with_added(ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", lead, round(ADDED_NEAR_S * fps))
     said = touched(match, given)
-    actions = [crossed(r, said.get(int(r["frame"]))) for r in actions if said.get(int(r["frame"]), ()) is not None]
+    actions = [crossed(r, said.get(int(r["frame"]))) for r in actions if said.get(int(r["frame"]), ()) is not None and any(a - lead <= int(r["frame"]) <= b for a, b in windows)]
     scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
     # And the windows it says are no rally (warm-up, a ball thrown back).
     windows, rally_rows, scores, actions = drop_rallies(windows, rally_rows, scores, actions, no_rallies(match), round(LEAD_S * fps))
@@ -561,7 +569,7 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     """ball.js's content: the ball's place where it is seen in the rallies (their lead included),
     every BALL_STEP_S, as flat [frame, x, y, ...] samples, x and y fractions of the picture."""
     lead, step = round(LEAD_S * fps), max(1, round(BALL_STEP_S * fps))
-    windows = [(int(r["start_frame"]) - lead, int(r["end_frame"])) for r in read_csv(match / "rallies.csv")]
+    windows = [(start - lead, end) for start, end in ended([(int(r["start_frame"]), int(r["end_frame"])) for r in read_csv(match / "rallies.csv")], answers(match, "end"))]
     samples: list[float] = []
     with open(match / "ball.csv") as f:
         for row in csv.DictReader(f):

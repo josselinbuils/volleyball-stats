@@ -345,7 +345,7 @@ export function Review({
                   height={height}
                   timeRef={clipTime}
                   {...(question.kind === 'report'
-                    ? { seek, marks: question.reports?.map((r) => r.time), showTime: true, onTime: (at: number) => setNow((n: number) => (Math.abs(n - at) >= 0.1 ? at : n)) }
+                    ? { seek, free: true, marks: question.reports?.map((r) => r.time), showTime: true, onTime: (at: number) => setNow((n: number) => (Math.abs(n - at) >= 0.1 ? at : n)) }
                     : {})}
                 />
                 {question.kind === 'merge' && (
@@ -374,7 +374,7 @@ export function Review({
                   nameOf={nameOf}
                   now={now}
                   timeOf={() => clipTime.current}
-                  onPlay={(at: number) => setSeek((s) => ({ time: Math.max(question.clip.start - 1, at - REPORT_LEAD_S), n: (s?.n ?? 0) + 1, play: true }))}
+                  onPlay={(at: number) => setSeek((s) => ({ time: Math.max(0, at - REPORT_LEAD_S), n: (s?.n ?? 0) + 1, play: true }))}
                   onPause={(at: number) => setSeek((s) => ({ time: at, n: (s?.n ?? 0) + 1 }))}
                   onSave={(changes) => void answer('report', { changes })}
                   onSkip={() => void answer('skip')}

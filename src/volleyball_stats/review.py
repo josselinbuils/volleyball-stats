@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -121,7 +121,7 @@ class Questions:
         rallies = web.read_csv(self.match / "rallies.csv") if (self.match / "rallies.csv").exists() else []
         lead = round(web.LEAD_S * self.fps)
         windows, actions = web.with_added(
-            [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies], rallies, actions, web.answers(self.match, "added"), self.match / "ball.csv", lead, round(web.ADDED_NEAR_S * self.fps)
+            web.ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rallies], web.answers(self.match, "end")), rallies, actions, web.answers(self.match, "added"), self.match / "ball.csv", lead, round(web.ADDED_NEAR_S * self.fps)
         )
         self.touches = doubtful(actions, [(a - lead, b) for a, b in windows], unnamed(self.match / "review", self.fps))
         self.page = page_data(self.match / "review")
@@ -214,6 +214,12 @@ class Questions:
             "end": round(end / self.fps, 2),
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
+
+    def page_index(self) -> tuple[dict[int, int], list[tuple[int, int]]]:
+        """The review page's touches' teams by frame and its rally windows (start, end frames)."""
+        page = self.page or {"contacts": [], "rallies": []}
+        teams = {round(c["t"] * self.fps): c["team"] for c in page["contacts"] if c["type"] not in web.NO_PLAYER and c.get("team")}
+        return teams, [(round(r["start"] * self.fps), round(r["end"] * self.fps)) for r in page["rallies"]]
 
     def touch_clip(self, frame: int, x: float | None, y: float | None) -> dict:
         """The clip around a touch at `frame`, its place (the ball then, at `x`, `y`) outlined, if known."""
@@ -620,18 +626,20 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
     return question, {"start": round(rally["start"] * fps) if k is not None else None, "touches": {str(t["frame"]): t["team"] for t in touches}}
 
 
-def report_answer(report: dict, changes: dict, given: dict[tuple[int, int], dict]) -> dict:
-    """What the corrections made on a viewer's report add to identity_answers.json: for touches of
-    its rally (`report`, by frame), their player ("TEAM:IDENTITY") or none ("none", no touch) as
-    `touch` answers, their type or result as `action` ones; the touches added to it (frame, team,
-    type, result, player) as `added` ones with those; the rally as no play (`rally`) or its winner
-    (`winner`)."""
+def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int, int]], given: dict[tuple[int, int], dict], lead: int) -> dict:
+    """What the corrections made from a viewer's report add to identity_answers.json, anywhere in the
+    match (the page's touches' `teams` by frame, its rally `windows`): a touch's player
+    ("TEAM:IDENTITY") or none ("none", no touch) as `touch` answers, its type or result as `action`
+    ones; a touch added (frame, team, type, result, player) as an `added` one with those, in the
+    window it falls in (from `lead` frames before it), else the one before it; a rally's (`rallies`,
+    by its window's start frame) no play (`rally`), winner (`winner`) or end frame (`end`)."""
     out: dict[str, list] = defaultdict(list)
-    for c in changes.get("added", []) if report.get("start") is not None else []:
+    for c in changes.get("added", []):
         frame, team = int(c["frame"]), int(c["team"])
-        if team not in (1, 2) or c.get("type") not in TOUCH_TYPES or str(frame) in report["touches"]:
+        k = window_of(frame, windows, lead)
+        if k is None or team not in (1, 2) or c.get("type") not in TOUCH_TYPES or frame in teams:
             continue
-        out["added"].append({"start": report["start"], "frame": frame, "team": team, "type": c["type"]})
+        out["added"].append({"start": windows[k][0], "frame": frame, "team": team, "type": c["type"]})
         if c.get("result") in RESULTS:
             out["action"].append({"frame": frame, "result": c["result"]})
         if c.get("player"):
@@ -639,7 +647,7 @@ def report_answer(report: dict, changes: dict, given: dict[tuple[int, int], dict
             out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
     for c in changes.get("touches", []):
         frame = int(c["frame"])
-        team = report["touches"].get(str(frame))
+        team = teams.get(frame)
         if team is None:
             continue
         if c.get("player") == "none":
@@ -650,12 +658,28 @@ def report_answer(report: dict, changes: dict, given: dict[tuple[int, int], dict
         fix = {k: c[k] for k, allowed in (("type", TOUCH_TYPES), ("result", RESULTS)) if c.get(k) in allowed}
         if fix:
             out["action"].append({"frame": frame, **fix})
-    if report.get("start") is not None:
-        if changes.get("play") is False:
-            out["rally"].append({"start": report["start"], "play": False})
-        if changes.get("winner") in (1, 2):
-            out["winner"].append({"start": report["start"], "winner": changes["winner"]})
+    starts = {start for start, _ in windows}
+    for r in changes.get("rallies", []):
+        start = int(r["start"])
+        if start not in starts:
+            continue
+        if r.get("play") is False:
+            out["rally"].append({"start": start, "play": False})
+        if r.get("winner") in (1, 2):
+            out["winner"].append({"start": start, "winner": r["winner"]})
+        if r.get("end") is not None and int(r["end"]) > start:
+            out["end"].append({"start": start, "end": int(r["end"])})
     return dict(out)
+
+
+def window_of(frame: int, windows: list[tuple[int, int]], lead: int) -> int | None:
+    """The index of the window `frame` falls in (from `lead` frames before it), else of the last one
+    starting before it; None before the first."""
+    inside = next((k for k, (start, end) in enumerate(windows) if start - lead <= frame <= end), None)
+    if inside is not None:
+        return inside
+    before = [k for k, (start, _) in enumerate(windows) if start <= frame]
+    return before[-1] if before else None
 
 
 def unnamed(site: Path, fps: float) -> dict[int, str]:
@@ -1300,7 +1324,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     player = said and questions.ref(int(said[1]), int(said[2]))
                     if "report" in refs[body["id"]]:
                         given = identity.named(questions.table, identity.read_names(match))
-                        fixes = report_answer(refs[body["id"]]["report"], body.get("changes") or {}, given) if choice == "report" else {}
+                        fixes = report_answer(body.get("changes") or {}, *questions.page_index(), given, round(web.LEAD_S * questions.fps)) if choice == "report" else {}
                         log.append({"id": body["id"], "choice": choice, **fixes, "applied": False})
                     elif "rally" in refs[body["id"]]:
                         log.append({"id": body["id"], "choice": choice, **rally_answer(refs[body["id"]]["rally"], choice), "applied": False})

@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, ball_near, ball_track, crossed, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -277,6 +277,11 @@ class TestBallTrack:
         frames = found["samples"][::3]
         assert frames == [18, 20, 22, 24, 26, 28, 30, 34, 36, 38, 40]
         assert found["samples"][:3] == [18, 0.18, 0.18] and found["fps"] == 10.0
+
+
+class TestEnded:
+    def test_a_window_ends_where_the_review_said(self):
+        assert ended([(100, 200), (300, 400)], [{"start": 300, "end": 450}, {"start": 999, "end": 1}]) == [(100, 200), (300, 450)]
 
 
 class TestCrossed:

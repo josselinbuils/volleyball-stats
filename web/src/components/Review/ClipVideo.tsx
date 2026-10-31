@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { clock } from '@/lib/format';
-import { match } from '@/lib/match';
+import { match, rallies } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { boxAt, viewAt } from '@/components/Review/helpers/box';
 
@@ -12,9 +12,14 @@ const AROUND = 0.5;
 /** Playback speeds offered, to catch a short moment; the one picked carries over to the next clip. */
 const SPEEDS = [1, 0.5, 0.25];
 let picked = 1;
+/** In free play, the bar spans this long before and after where it was anchored, re-anchored once the video leaves it. */
+const FREE_SPAN = [20, 70];
+/** In free play, the step of the buttons going back and forth. */
+const FREE_STEP_S = 10;
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
- * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands. */
+ * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
+ * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. */
 export function ClipVideo({
   clip,
   width,
@@ -23,6 +28,7 @@ export function ClipVideo({
   seek,
   marks = [],
   showTime = false,
+  free = false,
   onTime,
 }: {
   clip: Clip;
@@ -32,6 +38,7 @@ export function ClipVideo({
   seek?: { time: number; n: number; play?: boolean };
   marks?: number[];
   showTime?: boolean;
+  free?: boolean;
   onTime?: (time: number) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -40,6 +47,9 @@ export function ClipVideo({
   const [time, setTime] = useState(clip.start);
   const [zoom, setZoom] = useState(true);
   const [speed, setSpeed] = useState(picked);
+  const [anchor, setAnchor] = useState(clip.start);
+  const anchored = useRef(clip.start);
+  const dragging = useRef(false);
   // Loading the video resets its rate to the default one: both are set.
   useEffect(() => {
     if (video.current) {
@@ -58,8 +68,13 @@ export function ClipVideo({
     void v.play().catch(() => {});
     let frame = 0;
     const tick = () => {
-      if (v.currentTime > clip.end + around) {
+      if (!free && v.currentTime > clip.end + around) {
         v.currentTime = Math.max(0, clip.start - around);
+      }
+      const a = anchored.current;
+      if (free && !dragging.current && (v.currentTime < a - FREE_SPAN[0] || v.currentTime > a + FREE_SPAN[1] - 2)) {
+        anchored.current = v.currentTime;
+        setAnchor(v.currentTime);
       }
       const rate = clip.slow && v.currentTime >= clip.start && v.currentTime <= clip.end ? Math.min(clip.slow, picked) : picked;
       if (v.playbackRate !== rate) {
@@ -87,14 +102,15 @@ export function ClipVideo({
   }, [seek]);
 
   const box = boxAt(clip, time);
-  // Where the loop stands, and the outlined part of it.
-  const from = Math.max(0, clip.start - around);
-  const to = clip.end + around;
+  // Where the bar stands, and the outlined parts of it: the clip, or in free play the rallies there.
+  const from = free ? Math.max(0, anchor - FREE_SPAN[0]) : Math.max(0, clip.start - around);
+  const to = free ? Math.min(match.duration, anchor + FREE_SPAN[1]) : clip.end + around;
+  const bands = free ? rallies.filter((r) => r.end > from && r.start < to).map((r) => [r.start, r.end]) : [[clip.start, clip.end]];
   const share = (at: number) => `${(100 * (Math.min(to, Math.max(from, at)) - from)) / (to - from)}%`;
   const moveTo = (at: number) => {
     const v = video.current;
     if (v) {
-      v.currentTime = Math.min(to, Math.max(from, at));
+      v.currentTime = free ? Math.min(match.duration, Math.max(0, at)) : Math.min(to, Math.max(from, at));
       setTime(v.currentTime);
     }
   };
@@ -148,8 +164,10 @@ export function ClipVideo({
         className="group flex h-5 cursor-pointer touch-none items-center rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);
+          dragging.current = true;
           moveToPointer(event);
         }}
+        onLostPointerCapture={() => (dragging.current = false)}
         onPointerMove={(event) => event.currentTarget.hasPointerCapture(event.pointerId) && moveToPointer(event)}
         onKeyDown={(event) => {
           const next = keys[event.key];
@@ -160,7 +178,9 @@ export function ClipVideo({
         }}
       >
         <div className="relative h-1.5 w-full rounded-full bg-muted">
-          <div className="absolute inset-y-0 rounded-full bg-[#ffd400]" style={{ left: share(clip.start), right: `calc(100% - ${share(clip.end)})` }} />
+          {bands.map(([a, b]) => (
+            <div key={a} className="absolute inset-y-0 rounded-full bg-[#ffd400]" style={{ left: share(a), right: `calc(100% - ${share(b)})` }} />
+          ))}
           {marks.map((m) => (
             <div key={m} className="absolute -inset-y-1.5 w-1 -translate-x-1/2 rounded-full bg-primary" style={{ left: share(m) }} />
           ))}
@@ -169,6 +189,22 @@ export function ClipVideo({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {showTime && <span className="min-w-12 text-sm font-medium tabular-nums">{clock(time)}</span>}
+        {free && (
+          <div className="flex gap-1">
+            {[-FREE_STEP_S, FREE_STEP_S].map((step) => (
+              <Button
+                key={step}
+                variant="outline"
+                size="sm"
+                className="bg-card tabular-nums"
+                aria-label={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}
+                onClick={() => moveTo(time + step)}
+              >
+                {step < 0 ? `−${FREE_STEP_S} s` : `+${FREE_STEP_S} s`}
+              </Button>
+            ))}
+          </div>
+        )}
         {/* No outline, nothing to zoom on. */}
         {clip.boxes.length > 0 && (
           <Button variant="outline" size="sm" className="bg-card" onClick={() => setZoom((z) => !z)}>

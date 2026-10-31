@@ -66,10 +66,10 @@ export interface ReportTouch {
  * touch), action or result; the rally's winner, or no play. */
 export interface ReportChanges {
   touches: { frame: number; player?: string; type?: string; result?: string }[];
-  /** Touches the rally missed, at their frame. */
+  /** Touches the rallies missed, at their frame. */
   added?: { frame: number; team: Group; type: string; result: string; player?: string }[];
-  winner?: Group;
-  play?: false;
+  /** Rallies by their start frame: their winner, no play, or their end frame. */
+  rallies?: { start: number; winner?: Group; play?: false; end?: number }[];
 }
 
 /** A player to name: an identity with pictures of their clearest moments, their time on court, their

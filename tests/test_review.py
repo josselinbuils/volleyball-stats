@@ -118,25 +118,37 @@ class TestReports:
         assert ref == {"start": 2000, "touches": {"2050": 2, "2100": 1}}
         assert report_question({"time": 100.0, "clip": {"time": 12.0}}, self.page, 50.0)[1]["start"] == 500
 
-    def test_corrections_become_touch_action_rally_and_winner_answers(self):
-        ref = {"start": 2000, "touches": {"2050": 2, "2100": 1}}
-        changes = {"touches": [{"frame": 2050, "player": "none"}, {"frame": 2100, "player": "1:4", "result": "play", "type": "bogus"}], "winner": 1, "play": False}
+    # Two rallies: 2000-2200 and 3000-3200; touches at 2050 (team 2), 2100 and 3050 (team 1).
+    teams, windows = {2050: 2, 2100: 1, 3050: 1}, [(2000, 2200), (3000, 3200)]
 
-        out = report_answer(ref, changes, {(1, 4): {"name": "Léa"}})
+    def test_corrections_anywhere_become_touch_action_rally_winner_and_end_answers(self):
+        changes = {
+            "touches": [{"frame": 2050, "player": "none"}, {"frame": 3050, "player": "1:4", "result": "play", "type": "bogus"}, {"frame": 9999, "player": "1:4"}],
+            "rallies": [{"start": 2000, "winner": 1, "play": False}, {"start": 3000, "end": 3400}, {"start": 1234, "winner": 2}],
+        }
 
-        assert out["touch"] == [{"frame": 2050, "team": 2, "identity": None, "name": None}, {"frame": 2100, "team": 1, "identity": 4, "name": "Léa"}]
-        assert out["action"] == [{"frame": 2100, "result": "play"}]
-        assert (out["rally"], out["winner"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}])
-        assert report_answer({"start": None, "touches": {}}, {"winner": 2, "touches": [{"frame": 1, "type": "set"}]}, {}) == {}
+        out = report_answer(changes, self.teams, self.windows, {(1, 4): {"name": "Léa"}}, 20)
 
-    def test_a_touch_added_becomes_an_added_answer_with_its_result_and_player(self):
-        ref = {"start": 2000, "touches": {"2050": 2}}
-        changes = {"added": [{"frame": 2075, "team": 1, "type": "pass", "result": "error", "player": "1:4"}, {"frame": 2050, "team": 1, "type": "pass"}, {"frame": 2080, "team": 1, "type": "bogus"}]}
+        assert out["touch"] == [{"frame": 2050, "team": 2, "identity": None, "name": None}, {"frame": 3050, "team": 1, "identity": 4, "name": "Léa"}]
+        assert out["action"] == [{"frame": 3050, "result": "play"}]
+        assert (out["rally"], out["winner"], out["end"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}], [{"start": 3000, "end": 3400}])
 
-        out = report_answer(ref, changes, {(1, 4): {"name": "Léa"}})
+    def test_a_touch_added_goes_to_the_rally_it_falls_in_else_the_one_before(self):
+        changes = {
+            "added": [
+                {"frame": 2075, "team": 1, "type": "pass", "result": "error", "player": "1:4"},
+                {"frame": 2500, "team": 2, "type": "dig"},
+                {"frame": 2985, "team": 2, "type": "serve"},
+                {"frame": 2050, "team": 1, "type": "pass"},
+                {"frame": 2080, "team": 1, "type": "bogus"},
+                {"frame": 1000, "team": 1, "type": "pass"},
+            ]
+        }
+
+        out = report_answer(changes, self.teams, self.windows, {(1, 4): {"name": "Léa"}}, 20)
 
         assert out == {
-            "added": [{"start": 2000, "frame": 2075, "team": 1, "type": "pass"}],
+            "added": [{"start": 2000, "frame": 2075, "team": 1, "type": "pass"}, {"start": 2000, "frame": 2500, "team": 2, "type": "dig"}, {"start": 3000, "frame": 2985, "team": 2, "type": "serve"}],
             "action": [{"frame": 2075, "result": "error"}],
             "touch": [{"frame": 2075, "team": 1, "identity": 4, "name": "Léa"}],
         }
@@ -192,7 +204,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "log": log}
 
 
 class TestRange:
