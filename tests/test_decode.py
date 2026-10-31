@@ -1,3 +1,5 @@
+import subprocess
+
 import cv2
 import numpy as np
 
@@ -36,8 +38,12 @@ class TestFrames:
         assert len(found) == len(expected) == 12
         assert all(np.array_equal(a, b) for a, b in zip(found, expected))
 
-    def test_scales_down_and_stops_ffmpeg_when_the_reader_stops(self, tmp_path):
-        decoded = frames(self.video(tmp_path), width=32)
+    def test_scales_down_and_stops_ffmpeg_when_the_reader_stops(self, tmp_path, monkeypatch):
+        # More frames than the pipe holds: ffmpeg waits for the reader until it is stopped.
+        started, popen = [], subprocess.Popen
+        monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: started.append(popen(*args, **kwargs)) or started[-1])
+        decoded = frames(self.video(tmp_path, 300), width=32)
 
         assert next(decoded).shape == (24, 32, 3)
         decoded.close()
+        assert started[-1].poll() is not None

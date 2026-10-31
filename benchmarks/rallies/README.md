@@ -16,7 +16,7 @@ uv run --group bench python -m volleyball_stats.rallies data/side_club.mp4 outpu
 
 The ball tracks come from `ball.py` (default stride). The motion energy of each video is cached
 under `outputs/bench/rallies/`. Append `:outputs/players/CLIP_players.csv:outputs/court/side_holdout.json`
-to a triple to score `served` and `combined + served` too.
+to a triple to score `served` and `pipeline` (match.py's windows, `match.rally_windows`) too.
 
 ## Videos
 

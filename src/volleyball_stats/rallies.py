@@ -214,7 +214,7 @@ def served(players: list[tuple[int, float, float]], track: np.ndarray, whistle_t
             out.append((frame, int(ends[0]), side))
         else:
             flight_end = next((end for start, end in flights if start <= frame + lead and end > frame), frame + lead)
-            out.append((frame, min(flight_end, stand), side))
+            out.append((frame, min(flight_end, stand) if stand > frame else flight_end, side))
     return out
 
 

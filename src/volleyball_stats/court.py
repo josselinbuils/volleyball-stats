@@ -373,10 +373,10 @@ def refine(image: np.ndarray, guesses: Points, lens: Lens | None = None, colour=
 
 def calibrate(image: np.ndarray, clicks: Points, lens: Lens | None = None, colour=None) -> Calibration:
     """Refine rough clicks on `image` and fit the court: on the snapped landmarks alone when there are
-    4, else by least squares on them and the other clicks (RANSAC picks bad subsets of ±20 px
-    clicks). The calibration keeps both."""
+    5 (4 fit exactly, whatever their error), else by least squares on them and the other clicks
+    (RANSAC picks bad subsets of ±20 px clicks). The calibration keeps both."""
     points, colour, on_lines = refine(image, clicks, lens, colour)
-    calibration = fit(points, lens) if len(points) >= 4 else fit({**clicks, **points}, lens, ransac=False)
+    calibration = fit(points, lens) if len(points) >= 5 else fit({**clicks, **points}, lens, ransac=False)
     calibration.clicks = {n: [float(v) for v in p] for n, p in clicks.items()}
     calibration.points = {n: list(p) for n, p in points.items()}
     calibration.colour = colour.tolist()
@@ -421,7 +421,7 @@ def match(image: np.ndarray, court: Calibration) -> tuple[Calibration | None, fl
         if moved is not None:
             seeds = {n: tuple(moved @ [*p, 1.0]) for n, p in stored.items()}
     calibration = calibrate(image, seeds, court.lens, court.colour)
-    accepted = found >= MATCH_FOUND and len(calibration.points) >= max(1, MATCH_LANDMARKS * len(court.points))
+    accepted = found >= MATCH_FOUND and len(calibration.points) >= MATCH_LANDMARKS * len(court.points)
     return calibration, found, accepted
 
 

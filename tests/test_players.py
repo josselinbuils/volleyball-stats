@@ -1,7 +1,7 @@
 import numpy as np
 
 from volleyball_stats.court import Calibration
-from volleyball_stats.players import END_MARGIN, MIN_FRAMES, SIDE_MARGIN, TRACK_END_MARGIN, TRACK_SIDE_MARGIN, Row, feet, finish, on_court, stitch, track_frames
+from volleyball_stats.players import END_MARGIN, MIN_S, SIDE_MARGIN, TRACK_END_MARGIN, TRACK_SIDE_MARGIN, Row, feet, finish, on_court, stitch, track_frames
 
 FPS = 30.0
 
@@ -61,7 +61,7 @@ class TestStitch:
 
 class TestFinish:
     def test_drops_short_tracks_and_names_teams_by_side_of_the_net(self):
-        rows = walk(1, range(0, 40), -2.0, 0.1) + walk(2, range(0, 40), 3.0) + walk(3, range(0, MIN_FRAMES - 1), 6.0, y=3.0)
+        rows = walk(1, range(0, 40), -2.0, 0.1) + walk(2, range(0, 40), 3.0) + walk(3, range(0, round(MIN_S * FPS) - 1), 6.0, y=3.0)
 
         finished = finish(rows, FPS)
 

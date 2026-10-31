@@ -19,6 +19,8 @@ from pathlib import Path
 from volleyball_stats.web import BRANDING, brand
 
 TEMPLATE = Path(__file__).with_name("matches_site")
+# The list's own folders, which no match folder may take.
+RESERVED = ("assets", "brand")
 
 
 def listed(folder: Path) -> dict:
@@ -50,7 +52,9 @@ def address(match: dict) -> str:
 def build(site: Path, theme: str = "aspom") -> list[dict]:
     """SITE/index.html and matches.js listing SITE/*/'s match pages; returns them."""
     for data in sorted(site.glob("*/data.js")):
-        named = site / address(listed(data.parent))
+        found = address(listed(data.parent))
+        # No address from its date and teams (a video named "_.mp4"), or a RESERVED one: it keeps its folder.
+        named = site / found if found and found not in RESERVED else data.parent
         if named != data.parent:
             # ponytail: a new build replaces the folder of the same date and teams, two matches the
             # same day between the same teams would need a number after it.

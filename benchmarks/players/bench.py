@@ -204,7 +204,7 @@ def track(pairs: list[tuple[Path, Path]], trackers: list[str], model_name: str, 
             truth = load_truth(truth_path)
             start, end = min(truth) - 30, max(truth) + 1
             fps_video = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-            tracker = players.make_tracker(kind, conf, **extra)
+            tracker = players.make_tracker(kind, conf, fps_video, **extra)
             t0 = time.perf_counter()
             online = [r for rows in players.track_frames(run(video, start, end), cal, model, device, tracker, imgsz) for r in rows]
             fps = (end - start) / (time.perf_counter() - t0)

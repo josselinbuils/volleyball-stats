@@ -114,6 +114,13 @@ class TestServed:
     def test_ends_with_the_ball_run_without_a_whistle(self):
         assert served(self.server, self.track, [(1.0, 1.4)], FPS, self.calibration) == [(59, 89, 1)]
 
+    def test_the_next_server_s_stand_caps_a_rally_only_when_it_starts_after_the_serve(self):
+        # The next server, at the left end, already stands there from 1 s and serves at 400.
+        servers = self.server + [(f, -10.5, 0.0) for f in range(30, 401)]
+        track = np.concatenate([self.track[:90], np.full((250, 2), np.nan), np.tile([115.0, 300.0], (61, 1)), flight(30, 115, 20.0), np.full((300, 2), np.nan)])
+
+        assert served(servers, track, [(1.0, 1.4)], FPS, self.calibration)[0] == (59, 89, 1)
+
     def test_a_stand_without_a_ball_crossing_is_no_serve(self):
         held = np.concatenate([np.tile([1165.0, 300.0], (90, 1)), np.full((300, 2), np.nan)])
 

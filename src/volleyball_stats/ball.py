@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from volleyball_stats import files
 from volleyball_stats.vendor.wasb_hrnet import HRNet
 
 WEIGHTS_GDRIVE_ID = "1M9y4wPJqLc0K-z-Bo5DP8Ft5XwJuLqIS"
@@ -186,7 +187,7 @@ def main() -> None:
     device = default_device()
     model = load_model(device)
     writer = None
-    with open(args.out / f"{args.video.stem}_ball.csv", "w", newline="") as f:
+    with files.replacing(args.out / f"{args.video.stem}_ball.csv", newline="") as f:
         rows = csv.writer(f)
         rows.writerow(["frame", "visible", "x", "y"])
         tracked = track_frames(read_frames(args.video), model, device, args.stride, args.threshold)

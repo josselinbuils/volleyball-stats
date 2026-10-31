@@ -9,7 +9,7 @@ and `side_long`, then run once on the held-out `side_holdout` and `side_setend`.
 ```bash
 uv run --group bench python benchmarks/points/bench.py side_club side_long [--verbose]
 uv run --group bench python benchmarks/points/bench.py side_holdout side_setend
-uv run python -m volleyball_stats.points outputs/VIDEO --court COURT_JSON
+uv run python -m volleyball_stats.points outputs/VIDEO --fps FPS --court COURT_JSON
 ```
 
 The bench reads each clip's ball track, the jersey colour on each side of the
@@ -84,8 +84,9 @@ Constants, each the middle of a plateau on the tuning clips: net margin 0.75-1.5
 
 Winners right out of every labelled rally. `labelled`: labelled windows, contacts and types (the
 rallies the contacts benchmark labelled); `detected`: `contacts.py` and `actions.py` in the labelled
-windows; `pipeline`: in the windows of `rallies.py`, a labelled rally without a window counting as
-wrong. In brackets, rallies with an answer.
+windows; `pipeline`: `match.py`'s windows, contacts and crossings (`match.rally_windows`, with the
+players of `outputs/players/CLIP_players.csv`, else `outputs/CLIP/players.csv`), a labelled rally
+without a window counting as wrong. In brackets, rallies with an answer.
 
 | Contacts and windows | Rule | Tuning (17 rallies) | Held out (31 rallies) |
 | --- | --- | --- | --- |

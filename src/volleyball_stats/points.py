@@ -13,7 +13,7 @@ The team serving the next rally won the previous one (the sideout rule). It only
 next rally found is the next one played: a missed rally in between breaks it. `combine` weighs the
 two; see benchmarks/points/README.md for the numbers.
 
-    uv run python -m volleyball_stats.points outputs/VIDEO --court COURT_JSON
+    uv run python -m volleyball_stats.points outputs/VIDEO --fps FPS --court COURT_JSON
 
 reads match.py's actions.csv, net.csv, rallies.csv and teams.json, and writes points.csv: each
 rally's server, winner, reason and the score after it (team 1, team 2) in its set.
@@ -26,17 +26,13 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats.actions import LEAD_S, Typed
+from volleyball_stats.actions import LEAD_S, NET_M, Typed
 from volleyball_stats.court import LENGTH, WIDTH, Calibration
 from volleyball_stats.teams import parse_score
 
 # Meters outside a line within which a landing still counts as in: the calibration's error on the
 # floor. ponytail: one margin for the whole court; the far end, 20 px per metre, is the least sure.
 IN_M = 0.3
-# Court x (meters from the net) under which a contact is at the net: the camera stands in the net
-# plane, so a ball at the net projects there whatever its height, and a landing there fell at the
-# foot of the net.
-NET_M = 1.0
 # Seconds from a rally's end to the next serve under which no rally fits in between: twice the
 # shortest gap between consecutive rallies of the tuning clips (12-51 s).
 NEXT_S = 25.0
@@ -45,6 +41,14 @@ NOT_TOUCHES = ("floor", "net")
 
 def other(side: str) -> str:
     return "right" if side == "left" else "left"
+
+
+def landing(x: float, y: float) -> str:
+    """Where a ball landing at court (x, y) meters fell: "net" (at its foot), "in" (the line is in)
+    or "out"."""
+    if abs(x) <= NET_M:
+        return "net"
+    return "in" if abs(x) <= LENGTH / 2 + IN_M and abs(y) <= WIDTH / 2 + IN_M else "out"
 
 
 def side_lost(typed: list[Typed], crossings: list[int], calibration: Calibration | None) -> tuple[str | None, str]:
@@ -65,15 +69,13 @@ def side_lost(typed: list[Typed], crossings: list[int], calibration: Calibration
     at_net = [c[0] in court and abs(court[c[0]][0]) <= NET_M for c in touches]
     sender = next((c for c, net in zip(reversed(touches), reversed(at_net)) if not net), touches[0])
     last = touches[-1]
-    landing = next((c for c in typed if c[3] == "floor" and c[0] > last[0]), None)
-    if landing and calibration is not None:
-        x, y = court[landing[0]]
-        if abs(x) <= NET_M:
+    floor = next((c for c in typed if c[3] == "floor" and c[0] > last[0]), None)
+    if floor and calibration is not None:
+        where = landing(*court[floor[0]])
+        if where == "net":
             return sender[4], "serve_net" if sender[3] == "serve" else "net"
         prefix = "serve_" if last[3] == "serve" else ""
-        if abs(x) <= LENGTH / 2 + IN_M and abs(y) <= WIDTH / 2 + IN_M:
-            return landing[4], prefix + "in"
-        return last[4], prefix + "out"
+        return (floor[4], prefix + "in") if where == "in" else (last[4], prefix + "out")
     prefix = "serve_" if sender[3] == "serve" else ""
     if at_net[-1]:
         return sender[4], prefix + "net"
@@ -201,7 +203,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Find who won each rally and the running score.")
     parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO)")
     parser.add_argument("--court", type=Path, help="Court calibration JSON the match was run with")
-    parser.add_argument("--fps", type=float, default=29.97, help="The video's frame rate")
+    parser.add_argument("--fps", type=float, required=True, help="The video's frame rate")
     args = parser.parse_args()
 
     with open(args.match / "rallies.csv") as f:

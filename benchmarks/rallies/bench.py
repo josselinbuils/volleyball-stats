@@ -3,7 +3,8 @@
     uv run --group bench python benchmarks/rallies/bench.py VIDEO:BALL_TRACK_CSV:GROUND_TRUTH_CSV ... [--show]
 
 Candidates: `ball` (ball track alone), `whistle` (whistle pairs alone), `motion` (global motion
-energy alone) and `combined` (rallies.segment: ball runs closed by a whistle).
+energy alone), `combined` (rallies.segment: ball runs closed by a whistle) and, with the players and
+the court, `served` and `pipeline` (match.rally_windows, match.py's windows).
 """
 
 import argparse
@@ -15,7 +16,8 @@ import cv2
 import numpy as np
 
 from volleyball_stats.court import Calibration
-from volleyball_stats.rallies import ball_runs, load_track, read_audio, runs, segment, served, whistles, with_serves
+from volleyball_stats.match import rally_windows
+from volleyball_stats.rallies import ball_runs, load_track, read_audio, runs, segment, served, whistles
 
 OUT = Path("outputs/bench/rallies")
 TOLERANCES_S = (1.0, 2.0)
@@ -131,9 +133,9 @@ def main() -> None:
         if more:
             with open(more[0]) as f:
                 players = [(int(r["frame"]), float(r["court_x"]), float(r["court_y"])) for r in csv.DictReader(f)]
-            serves = served(players, track, whistle_times, fps, Calibration.load(more[1]))
-            candidates["served"] = [(s, e) for s, e, _ in serves]
-            candidates["combined + served"] = with_serves(candidates["combined"], serves)
+            cal = Calibration.load(more[1])
+            candidates["served"] = [(s, e) for s, e, _ in served(players, track, whistle_times, fps, cal)]
+            candidates["pipeline"] = rally_windows(track, whistle_times, fps, float(cal.to_image(np.array([[0.0, 0.0]]))[0, 0]), cal, players)[0]
         for factor in MOTION_FACTORS:
             candidates[f"motion x{factor:g}"] = motion_rallies(energy, fps, factor)
         clips.append((video.stem, fps, load_ground_truth(truth_path), candidates))

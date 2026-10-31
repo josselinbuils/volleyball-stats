@@ -23,7 +23,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, contacts, court, decode, identity, players, points, rallies, teams
+from volleyball_stats import actions, attribution, ball, contacts, court, decode, files, identity, players, points, rallies, teams
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -31,20 +31,21 @@ TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "
 SPARE_Y = 5.5
 
 
-def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool) -> Iterator[tuple[ball.Position, list[players.Row]]]:
+def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float) -> Iterator[tuple[ball.Position, list[players.Row]]]:
     """Per frame, the ball's position (None when not found or not tracked) and the players' rows
-    (none when not tracked), from one decoding pass of the video; `with_ball` or `with_players`."""
+    (none when not tracked), from one decoding pass of the video at `fps`; `with_ball` or
+    `with_players`."""
     device, native = ball.default_device(), decode.size(video)
     branches = iter(tee(decode.frames(video), with_ball + with_players))
     balls = (p for _, p in ball.track_frames(next(branches), ball.load_model(device), device, size=native)) if with_ball else repeat(None)
-    found = players.track_frames(next(branches), calibration, players.load_model(), device, size=native) if with_players else repeat([])
+    found = players.track_frames(next(branches), calibration, players.load_model(), device, size=native, fps=fps) if with_players else repeat([])
     return zip(balls, found)
 
 
 def track(video: Path, calibration: court.Calibration | None, fps: float, ball_path: Path | None, players_path: Path | None) -> None:
     """The ball track into `ball_path` and the players' into `players_path`, either None to skip it."""
     positions, rows = [], []
-    for index, (position, frame_rows) in enumerate(tracked(video, calibration, ball_path is not None, players_path is not None)):
+    for index, (position, frame_rows) in enumerate(tracked(video, calibration, ball_path is not None, players_path is not None, fps)):
         positions.append([index, int(position is not None), *(position or ("", ""))])
         rows += frame_rows
     if ball_path:
@@ -53,13 +54,31 @@ def track(video: Path, calibration: court.Calibration | None, fps: float, ball_p
         players.write_csv(players.finish(rows, fps), players_path)
 
 
+def rally_windows(
+    track: np.ndarray, whistle_times: list[tuple[float, float]], fps: float, net_x: float, calibration: court.Calibration | None = None, positions: list[tuple[int, float, float]] | None = None
+) -> tuple[list[rallies.Rally], list[contacts.Contact], list[int]]:
+    """The rally windows, ball contacts and net crossings of a ball track (NaN where not visible):
+    spare balls masked, pixel constants at the court's scale, the serves the players' positions
+    (frame, court x, court y) show added, the windows opening on a contact inside the court
+    dropped. The benchmarks score this."""
+    track, scale = track.copy(), 1.0
+    if calibration is not None:
+        track[calibration.in_front(track, SPARE_Y)] = np.nan
+        scale = rallies.court_scale(calibration)
+    windows = rallies.segment(track, whistle_times, fps, scale)
+    if positions is not None:
+        windows = rallies.with_serves(windows, rallies.served(positions, track, whistle_times, fps, calibration))
+    found, crossings = contacts.detect(track, fps, net_x, scale)
+    return actions.served(windows, found, fps, calibration), found, crossings
+
+
 def in_rallies(frames: list[int], windows: list[tuple[int, int]], lead: int) -> list[int]:
     """Frames inside a rally window started `lead` frames early, like actions.classify's."""
     return [f for f in frames if any(start - lead <= f <= end for start, end in windows)]
 
 
 def write_csv(path: Path, header: list[str], rows: list) -> None:
-    with open(path, "w", newline="") as f:
+    with files.replacing(path, newline="") as f:
         csv.writer(f).writerows([header, *rows])
 
 
@@ -155,7 +174,11 @@ def main() -> None:
         "--title",
         help="The match's title. Default: the one in teams.json, else asked on a terminal, else \"Match NAME_1 vs NAME_2\" in the page's language (\"\" for it)",
     )
-    parser.add_argument("--sets", help="Set starts in the video, M:SS or H:MM:SS, comma separated, the first 0:00. Default: the ones in teams.json, else asked on a terminal, else detected from the changes of ends")
+    parser.add_argument(
+        "--sets",
+        help="Set starts in the video, M:SS or H:MM:SS, comma separated, the first set 1's (rallies before it, the warm-up, are left out). "
+        "Default: the ones in teams.json, else asked on a terminal, else detected from the changes of ends",
+    )
     parser.add_argument("--scores", help="Final score of each set, team 1 first, comma separated (25-21,23-25), empty for an unknown one. Default: the ones in teams.json, else asked on a terminal")
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2, when known: the identities to find")
     parser.add_argument("--force", action="store_true", help="Track the ball and players again even if tracks exist")
@@ -163,9 +186,16 @@ def main() -> None:
     day = teams.parse_date(args.date) if args.date else None
     if args.date and day is None:
         parser.error(f"Not a date: {args.date!r} (use YYYY-MM-DD)")
+    if not args.players and (args.teams or args.date or args.title is not None or args.sets or args.scores or args.squad):
+        parser.error("--teams, --date, --title, --sets, --scores and --squad need --players")
 
     out = args.out / args.video.stem
     out.mkdir(parents=True, exist_ok=True)
+    sets = args.sets and args.sets.split(",")
+    try:
+        starts = teams.known_starts(out / "teams.json", sets)
+    except ValueError:
+        parser.error(f"Not set starts: {args.sets or out / 'teams.json'} (use m:ss or h:mm:ss, e.g. 0:00,24:10)")
     cap = cv2.VideoCapture(str(args.video))
     fps, frame_count = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
@@ -196,45 +226,42 @@ def main() -> None:
         if (out / "identity_answers.json").exists():
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
-    ball_track, scale = rallies.load_track(track_path), 1.0
-    if calibration is not None:
-        ball_track[calibration.in_front(ball_track, SPARE_Y)] = np.nan
-        scale = rallies.court_scale(calibration)
+    rows = attribution.read_players(players_path) if args.players else None
     start = time.perf_counter()
     whistle_times = rallies.whistles(rallies.read_audio(args.video))
-    windows = rallies.segment(ball_track, whistle_times, fps, scale)
-    if args.players:
-        rows = attribution.read_players(players_path)
-        windows = rallies.with_serves(windows, rallies.served([(r.frame, *r.court) for r in rows], ball_track, whistle_times, fps, calibration))
-    timings["rallies"] = time.perf_counter() - start
+    positions = None if rows is None else [(r.frame, *r.court) for r in rows]
+    windows, found, crossings = rally_windows(rallies.load_track(track_path), whistle_times, fps, net_x, calibration, positions)
+    if starts:
+        # The rallies before set 1 are the warm-up's.
+        windows = [w for w in windows if w[0] >= starts[0] * fps]
+    timings["rallies and contacts"] = time.perf_counter() - start
 
     start = time.perf_counter()
-    found, crossings = contacts.detect(ball_track, fps, net_x, scale)
-    windows = actions.served(windows, found, fps, calibration)
     typed = actions.mark_relances(args.video, actions.classify(found, crossings, windows, fps, net_x, calibration), fps)
     crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
-    timings["contacts and actions"] = time.perf_counter() - start
+    timings["actions"] = time.perf_counter() - start
 
     tracks, touchers, found_teams, settled = None, [None] * len(typed), None, None
     if args.players:
         touchers = attribution.attribute(typed, rows, fps)
         typed, touchers = actions.mark_dead(typed, touchers, [rally_of(t[0], windows, round(actions.LEAD_S * fps)) for t in typed])
         start = time.perf_counter()
-        found_teams = teams.assign(args.video, rows, windows, fps, teams.known_starts(out / "teams.json", args.sets and args.sets.split(",")))
+        found_teams = teams.assign(args.video, rows, windows, fps, starts)
         timings["teams"] = time.perf_counter() - start
         try:
             settled = teams.settle(
                 out / "teams.json", found_teams, windows, fps, args.teams, sys.stdin.isatty(), teams.recording_date(args.video), day, args.title,
-                args.sets and args.sets.split(","), args.scores and args.scores.split(","),
+                sets, args.scores and args.scores.split(","),
             )
         except ValueError as error:
             parser.error(str(error))
         write_csv(out / "tracks.csv", ["track", "team"], sorted(found_teams.tracks.items()))
-    elif args.teams or args.date or args.title is not None or args.sets or args.scores or args.squad:
-        parser.error("--teams, --date, --title, --sets, --scores and --squad need --players")
 
     if found_teams is None:
+        # An earlier run's teams no longer fit these rallies; teams.json keeps what was typed for the next --players run.
+        for stale in ("points.csv", "tracks.csv"):
+            (out / stale).unlink(missing_ok=True)
         write_csv(out / "rallies.csv", ["start_frame", "end_frame"], windows)
         write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track"], [[*t, "" if k is None else k] for t, k in zip(typed, touchers)])
         text = report(args.video, fps, frame_count, windows, typed, crossings, timings)

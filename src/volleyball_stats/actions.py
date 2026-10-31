@@ -51,6 +51,10 @@ MARGIN = 2.0
 # a ball in the air only projects farther, even past the far sideline, and the labelled serves
 # project from 12.3 m (11.1 m on full_match, whose balls tossed back to the server project under 6 m).
 SERVE_X = 8.0
+# Court x (meters from the net) under which a contact is at the net: the camera stands in the net
+# plane, so a ball at the net projects there whatever its height, and a landing there fell at the
+# foot of the net.
+NET_M = 1.0
 # Touches in a row by one player from which the ball is dead, held or bounced (before a serve, say):
 # nobody plays it twice running. ponytail: from 2 examples; runs of 2 are mostly attribution errors
 # (71-83% right), set it on labelled matches.
@@ -99,19 +103,25 @@ def in_court(calibration: Calibration | None, x: float, y: float) -> bool:
 
 
 def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
-    """(frame, x, y, type, side) of a rally's contacts, in frame order."""
+    """(frame, x, y, type, side) of a rally's contacts, in frame order. A touch over NET_M from the
+    net on the other side of the previous touch (blocks aside) follows a crossing, seen or not."""
     out: list[Typed] = []
-    touches, crossed, blocked, attack, dead, thrown = 0, 0, False, None, False, 0
+    touches, crossed, blocked, attack, dead, thrown, unseen, previous = 0, 0, False, None, False, 0, 0, None
     contacts = sorted(contacts)
     for frame, x, y in contacts:
-        now = sum(c <= frame for c in crossings)
+        now = sum(c <= frame for c in crossings) + unseen
         if not out and not now and in_court(calibration, x, y):
             # Counted as after a crossing that was no serve's.
             thrown = 1
         now += thrown
+        side = "left" if x < net_u(calibration, net_x, y) else "right"
+        away = calibration is not None and abs(calibration.to_court(np.array([[x, y]]))[0, 0]) > NET_M
+        if previous and previous[1] == now and previous[0] != side and away:
+            # A crossing the ball track missed.
+            unseen += 1
+            now += 1
         if now > crossed:
             touches, crossed = 0, now
-        side = "left" if x < net_u(calibration, net_x, y) else "right"
         if dead or on_floor(calibration, x, y, frame == contacts[-1][0]):
             kind, dead = "floor", True
         elif not out and not crossed:
@@ -129,6 +139,7 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
             kind = {1: "pass" if crossed == 1 and not blocked and not thrown else "dig", 2: "set"}.get(touches, "attack")
         # A second blocker's touch is a block too.
         attack = (frame, side) if kind == "attack" else attack if kind == "block" else None
+        previous = previous if kind in ("block", "floor") else (side, now)
         out.append((frame, x, y, kind, side))
     return out
 

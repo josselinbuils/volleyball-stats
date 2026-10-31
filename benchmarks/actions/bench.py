@@ -1,12 +1,13 @@
 """Score action classification against the typed contacts of benchmarks/contacts.
 
-    uv run --group bench python benchmarks/actions/bench.py VIDEO:TRACK:GROUND_TRUTH ... [--verbose]
+    uv run --group bench python benchmarks/actions/bench.py VIDEO:TRACK:GROUND_TRUTH[:PLAYERS] ... [--verbose]
 
 Pooled over the clips given, three scores of `actions`:
 - `truth`: the labelled contacts, rally windows and net crossings (the rules alone);
 - `detected`: the contacts and crossings of contacts.detect in the labelled windows, matched to the
   labelled contacts within ±2 frames;
-- `pipeline`: the same in the windows of rallies.py (the video gives the whistles).
+- `pipeline`: match.py's windows, contacts and crossings (match.rally_windows; the video gives the
+  whistles, the players' CSV, when given, the serves).
 All clips run at 29.97 fps with the net at x=612, on the court of
 benchmarks/court/ground_truth/side_club.json (same camera, shifted under 0.1 px).
 """
@@ -17,7 +18,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from volleyball_stats import actions, contacts, court, rallies
+from volleyball_stats import actions, attribution, contacts, court, match, rallies
 
 FPS = 29.97
 NET_X = 612
@@ -84,16 +85,17 @@ def report(name: str, rows: list[tuple[str, str]]) -> None:
             print(f"  {t or '(unclear)':12}" + "".join(f"{counts[t, p] or '.':>7}" for p in columns) + recall)
 
 
-def score(clips: list[tuple[Path, Path, Path]], verbose: bool) -> None:
+def score(clips: list[tuple[Path, ...]], verbose: bool) -> None:
     cal = calibration()
     rows: dict[str, list] = {"truth": [], "detected": [], "pipeline": []}
     sides = []
-    for video, track_path, truth_path in clips:
+    for video, track_path, truth_path, *players_path in clips:
         track = contacts.read_track(track_path)
         filled = contacts.interpolate(track)
         found, crossings = contacts.detect(track, FPS, NET_X)
-        windows = actions.served(rallies.segment(rallies.load_track(track_path), rallies.whistles(rallies.read_audio(video)), FPS), found, FPS, cal)
-        pipeline = {f: kind for f, _, _, kind, _ in actions.classify(found, crossings, windows, FPS, NET_X, cal)}
+        positions = [(r.frame, *r.court) for r in attribution.read_players(players_path[0])] if players_path else None
+        windows, pipe_found, pipe_crossings = match.rally_windows(rallies.load_track(track_path), rallies.whistles(rallies.read_audio(video)), FPS, NET_X, cal, positions)
+        pipeline = {f: kind for f, _, _, kind, _ in actions.classify(pipe_found, pipe_crossings, windows, FPS, NET_X, cal)}
         for rally in load_ground_truth(truth_path):
             labels, start, end = rally["contacts"], rally["start"], rally["end"]
             given = [(f, round(filled[f, 0]), round(filled[f, 1])) for f in labels]
@@ -110,7 +112,7 @@ def score(clips: list[tuple[Path, Path, Path]], verbose: bool) -> None:
                 new, shown[name], false[name] = compare(labels, typed)
                 rows[name] += new
             if verbose:
-                print(f"{truth_path.stem} {start}-{end} net {rally['net']}, rallies.py {[w for w in windows if w[0] <= end and w[1] >= start]}")
+                print(f"{truth_path.stem} {start}-{end} net {rally['net']}, pipeline {[w for w in windows if w[0] <= end and w[1] >= start]}")
                 print(f"  {'frame':>6} {'x':>5} {'y':>4} {'side':5} {'label':7} {'truth':7} {'detected':8} pipeline")
                 for f, x, y, kind, side in truth:
                     print(f"  {f:6} {x:5} {y:4} {side:5} {labels[f] or '?':7} {kind:7} {shown['detected'].get(f, '-'):8} {shown['pipeline'].get(f, '-')}")
@@ -120,12 +122,12 @@ def score(clips: list[tuple[Path, Path, Path]], verbose: bool) -> None:
     report("truth (labelled contacts, windows and crossings)", rows["truth"])
     print(f"  sides agreeing with the first contact's and the labelled crossings: {sum(sides)}/{len(sides)}")
     report(f"detected (contacts.detect in the labelled windows, ±{TOLERANCE} frames)", rows["detected"])
-    report(f"pipeline (contacts.detect in the rallies.py windows, ±{TOLERANCE} frames)", rows["pipeline"])
+    report(f"pipeline (match.rally_windows, ±{TOLERANCE} frames)", rows["pipeline"])
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("clips", nargs="+", help="VIDEO:TRACK_CSV:GROUND_TRUTH_CSV")
+    parser.add_argument("clips", nargs="+", help="VIDEO:TRACK_CSV:GROUND_TRUTH_CSV[:PLAYERS_CSV]")
     parser.add_argument("--verbose", action="store_true", help="List every rally's contacts")
     args = parser.parse_args()
     score([tuple(map(Path, c.split(":"))) for c in args.clips], args.verbose)

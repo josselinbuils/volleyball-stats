@@ -28,3 +28,15 @@ class TestBuild:
 
         assert [(m["path"], m["rallies"]) for m in matches] == [("2026-10-25-aspom-begles-vs-talence/", 2), ("unnamed/", 1)]
         assert sorted(p.parent.name for p in tmp_path.glob("*/data.js")) == ["2026-10-25-aspom-begles-vs-talence", "unnamed"]
+
+    def test_a_match_making_no_address_or_a_reserved_one_keeps_its_folder(self, tmp_path):
+        # Videos named "_.mp4" and "brand.mp4", without teams.
+        for folder, name in (("one", "_"), ("two", "brand")):
+            (tmp_path / folder).mkdir()
+            data = {"name": name, "date": None, "teams": None, "rallies": [{"set": 1}]}
+            (tmp_path / folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+
+        matches = build(tmp_path, "none")
+
+        assert sorted(m["path"] for m in matches) == ["one/", "two/"]
+        assert (tmp_path / "one" / "data.js").exists() and (tmp_path / "two" / "data.js").exists()

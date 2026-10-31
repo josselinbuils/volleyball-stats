@@ -33,7 +33,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import identity, jerseys, web
+from volleyball_stats import files, identity, jerseys, web
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
@@ -52,6 +52,12 @@ STRIP = 24
 # are not asked: their answers barely move the numbers, and there are always more.
 MIN_IMPACT = 10.0
 ROSTER = Path("outputs/roster.json")
+# What the identities were last computed from (`state`), to tell what an apply would change.
+APPLIED = "identity_applied.json"
+# Undo takes back the UNDOS latest of the CHANGES whole, then drops the last answer. Request bodies
+# are at most MAX_BODY bytes.
+UNDOS, MAX_BODY = 100, 1 << 20
+CHANGES = ("/answer", "/odd", "/more", "/repin", "/forget", "/cut")
 
 
 def with_review(html: str) -> str:
@@ -587,7 +593,7 @@ def reanchor(log: list[dict], names: list[dict], moved: dict, segment_of) -> tup
 def save(path: Path, log: list[dict]) -> None:
     """identity_answers.json from the answers' `log`, the source of its constraint lists."""
     data = {kind: [x for entry in log for x in entry.get(kind, [])] for kind in KINDS}
-    path.write_text(json.dumps({**data, "log": log}, indent=1) + "\n")
+    files.write_text(path, json.dumps({**data, "log": log}, indent=1) + "\n")
 
 
 def piece_vectors(cache: Path) -> dict[tuple[int, int, int], np.ndarray]:
@@ -649,7 +655,7 @@ def remember(path: Path, match: str, names: dict[tuple[int, int], dict], vectors
         while len(player["vectors"]) > ROSTER_MATCHES:
             player["vectors"].pop(next(iter(player["vectors"])))
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"players": [p for p in roster if p["vectors"]]}, ensure_ascii=False) + "\n")
+    files.write_text(path, json.dumps({"players": [p for p in roster if p["vectors"]]}, ensure_ascii=False) + "\n")
 
 
 def set_name(match: Path, questions: Questions, team: int, number: int, given: str | None, jersey: int | None) -> None:
@@ -672,11 +678,44 @@ def set_name(match: Path, questions: Questions, team: int, number: int, given: s
 
 
 def write_names(match: Path, entries: list[dict]) -> None:
-    (match / identity.NAMES).write_text(json.dumps({"players": entries}, indent=1, ensure_ascii=False) + "\n")
+    files.write_text(match / identity.NAMES, json.dumps({"players": entries}, indent=1, ensure_ascii=False) + "\n")
 
 
 def load_log(path: Path) -> list[dict]:
     return json.loads(path.read_text()).get("log", []) if path.exists() else []
+
+
+def state(match: Path, log: list[dict]) -> dict:
+    """What the identities are computed from: the answers' constraints, the names and the date of
+    the jersey numbers, as JSON gives them back."""
+    read = match / jerseys.FILE
+    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS}, "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
+    return json.loads(json.dumps(found))
+
+
+def waiting(match: Path, log: list[dict]) -> dict:
+    """What an apply would take in: the answers saying something not applied yet (those saved
+    before the flag were), whether the answers or the jersey numbers, and the names, differ from
+    what the identities were computed from (APPLIED)."""
+    computed = match / APPLIED
+    now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
+    return {
+        "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
+        "changed": (now["answers"], now["jerseys"]) != (then.get("answers"), then.get("jerseys")),
+        "namesPending": now["names"] != then.get("names"),
+    }
+
+
+def undo(log: list[dict], history: list[dict]) -> tuple[list[dict], list[dict] | None, str | None, bool]:
+    """The answers as they were before the last change of `history` ({"log", "names": None unless
+    it moved names, "applied": whether an apply followed it}, popped), else (`history` empty: the
+    server restarted) without the last answer. With the names to write back (None to keep them),
+    the id of the answer taken away, and whether the identities followed what is undone."""
+    if history:
+        last = history.pop()
+        kept = {e["id"] for e in last["log"]}
+        return last["log"], last["names"], next((e["id"] for e in reversed(log) if e["id"] not in kept), None), last["applied"]
+    return log[:-1], None, log[-1]["id"], log[-1].get("applied", True)
 
 
 def range_of(header: str | None, size: int) -> tuple[int, int] | None:
@@ -700,29 +739,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         identity.rerun(match, video, squad)
     questions = Questions(match, fps)
     where = lambda r: identity.lookup(questions.table, r["track"], r["frame"])  # noqa: E731
-
-    # What the identities were last computed from (`state`), to tell what an apply would change.
-    computed = match / "identity_applied.json"
-
-    def state(log: list[dict]) -> dict:
-        read = match / jerseys.FILE
-        found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS}, "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
-        return json.loads(json.dumps(found))
-
+    computed = match / APPLIED
     done = match / "identities.csv"
     if not computed.exists() and done.exists() and all(not f.exists() or f.stat().st_mtime < done.stat().st_mtime for f in (answers, match / identity.NAMES)):
-        computed.write_text(json.dumps(state(load_log(answers))))
-
-    def waiting(log: list[dict]) -> dict:
-        """What an apply would take in: the answers saying something not applied yet (those saved
-        before the flag were), whether the answers or the jersey numbers, and the names, differ from
-        what the identities were computed from."""
-        now, then = state(log), json.loads(computed.read_text()) if computed.exists() else {}
-        return {
-            "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
-            "changed": (now["answers"], now["jerseys"]) != (then.get("answers"), then.get("jerseys")),
-            "namesPending": now["names"] != then.get("names"),
-        }
+        files.write_text(computed, json.dumps(state(match, load_log(answers))))
+    # The answers and names before each change since the server started, for undo (see `undo`).
+    history: list[dict] = []
     lock = threading.Lock()
     # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.35 s.
     readers: queue.Queue = queue.Queue()
@@ -744,11 +766,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             return b""
         x1, y1, x2, y2 = box
         mx, my = round((x2 - x1) * CROP_MARGIN), round((y2 - y1) * CROP_MARGIN)
-        part = image[max(0, y1 - my) : y2 + my, max(0, x1 - mx) : x2 + mx]
+        part = image[max(0, y1 - my) : max(0, y2 + my), max(0, x1 - mx) : max(0, x2 + mx)]
+        if not part.size:
+            return b""
         part = cv2.resize(part, (max(1, round(part.shape[1] * CROP_PX / part.shape[0])), CROP_PX), interpolation=cv2.INTER_CUBIC)
         body = cv2.imencode(".jpg", part, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
         kept.mkdir(exist_ok=True)
-        path.write_bytes(body)
+        files.write_bytes(path, body)
         return body
 
     # Where an apply stands, for the page's progress bar: the steps, the one running since when, and
@@ -793,7 +817,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 who = t if t == "not_player" else t and identity.lookup(questions.table, t["track"], t["frame"])
                 odd[piece_key(o)] = who if isinstance(who, str) or who is None else f"{who[0]}:{who[1]}"
         conflicts = questions.conflicts(log, identity.read_names(match))
-        data = {"width": width, "height": height, "answered": len(log), **waiting(log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts}
+        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -817,11 +841,26 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             )
 
         def do_GET(self) -> None:
+            self.answer(self.get)
+
+        def do_POST(self) -> None:
+            self.answer(self.post)
+
+        def answer(self, handle) -> None:
+            """`handle`'s response; 400 for a request it cannot read (a field missing or of the wrong type)."""
+            try:
+                handle()
+            except (LookupError, TypeError, ValueError, AttributeError, StopIteration) as error:
+                self.send(json.dumps({"error": repr(error)}).encode(), "application/json", 400)
+
+        def get(self) -> None:
             if not self.ours():
                 return self.send(b"", "text/plain", 403)
             url = urlparse(self.path)
             if url.path == "/review.js":
-                return self.send(review_js(), "text/javascript")
+                with lock:
+                    body = review_js()
+                return self.send(body, "text/javascript")
             if url.path == "/progress":
                 state = dict(progress)
                 if state:
@@ -877,20 +916,26 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 except (BrokenPipeError, ConnectionResetError):
                     pass
 
-        def do_POST(self) -> None:
+        def post(self) -> None:
             # A JSON body: a page elsewhere can only send a form or plain text without asking.
             if not self.ours() or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
-            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-            undone = None
+            size = int(self.headers.get("Content-Length", 0))
+            if not 0 <= size <= MAX_BODY:
+                return self.send(b'{"error":"body too large"}', "application/json", 413)
+            body = json.loads(self.rfile.read(size) or b"{}")
+            undone, undo_applied = None, False
             with lock:
                 log = load_log(answers)
-                before, renamed = list(log), None
+                before, renamed, names_before = list(log), None, None
                 questions.avoid = {questions.segment_of(o) for entry in log for o in entry.get("odd", [])}
                 if self.path == "/name":
                     jersey = body.get("jersey")
                     set_name(match, questions, int(body["team"]), int(body["identity"]), body.get("name"), None if jersey in (None, "") else int(jersey))
-                    return self.send(json.dumps(waiting(log)).encode(), "application/json")
+                    # Undo leaves the names as typed since.
+                    for change in history:
+                        change["names"] = None
+                    return self.send(json.dumps(waiting(match, log)).encode(), "application/json")
                 if self.path == "/answer":
                     _, refs = questions.build({entry["id"] for entry in log})
                     if body["id"] not in refs:
@@ -915,7 +960,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # the earlier answers giving them those pieces let go: the latest judgment wins.
                     if refs[0] and refs[1]:
                         moved = {questions.segment_of(o): refs[1][0] for o in refs[0]}
-                        log, renamed = reanchor(log, identity.read_names(match), moved, questions.segment_of)
+                        names_before = identity.read_names(match)
+                        log, renamed = reanchor(log, names_before, moved, questions.segment_of)
                     if marking and body.get("owner"):
                         owner = (int(body["owner"]["team"]), int(body["owner"]["identity"]))
                         belongs = lambda r: where(r) == owner  # noqa: E731
@@ -950,20 +996,23 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
                     log = [e for e in log if e["id"] != body["id"]]
                     log.append({"id": f"cut:{track}:{cut[0]['frame']}", "choice": "cut", **constraints("cut", {"choices": []}, cut=cut), "applied": False})
-                elif self.path == "/undo" and log:
-                    undone = log.pop()
+                elif self.path == "/undo" and (history or log):
+                    log, renamed, undone, undo_applied = undo(log, history)
                 # An answer joining two players of different names waits for the user's go.
                 if self.path in ("/answer", "/odd", "/more", "/repin") and not body.get("force"):
                     names = identity.read_names(match)
                     new = name_merges(log, renamed or names, questions.segment_of) - name_merges(before, names, questions.segment_of)
                     if new:
                         return self.send(json.dumps({"merges": sorted(sorted(m) for m in new)}).encode(), "application/json", 409)
+                if self.path in CHANGES and (log != before or renamed is not None):
+                    history.append({"log": before, "names": names_before if renamed is not None else None, "applied": False})
+                    del history[:-UNDOS]
                 if renamed is not None:
                     write_names(match, renamed)
                 save(answers, log)
-                # An answer not applied yet is only in the log; undoing an applied one (answers saved
-                # before this flag count as applied) recomputes, as applying does.
-                rebuilt = self.path == "/apply" or (undone is not None and undone.get("applied", True))
+                # A change not applied yet is only in the log; undoing one an apply followed (`undo`)
+                # recomputes, as applying does.
+                rebuilt = self.path == "/apply" or undo_applied
                 if rebuilt:
                     steps = [("players", lambda: identity.rerun(match, video, squad)), ("questions", questions.load)]
                     if self.path == "/apply":
@@ -975,9 +1024,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     run_steps(steps)
                     for entry in log:
                         entry["applied"] = True
+                    for change in history:
+                        change["applied"] = True
                     save(answers, log)
-                    computed.write_text(json.dumps(state(log)))
-            self.send(json.dumps({"answered": len(log), **waiting(log), "rebuilt": rebuilt, "undone": undone and undone["id"]}).encode(), "application/json")
+                    files.write_text(computed, json.dumps(state(match, log)))
+            self.send(json.dumps({"answered": len(log), **waiting(match, log), "rebuilt": rebuilt, "undone": undone}).encode(), "application/json")
 
         def log_message(self, *args) -> None:
             pass

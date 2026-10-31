@@ -9,10 +9,10 @@ on the typed contacts of [benchmarks/contacts](../contacts/README.md): tuned on 
 
 ```bash
 uv run --group bench python benchmarks/actions/bench.py \
-  data/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv \
-  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv [--verbose]
+  data/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv:outputs/players/side_club_players.csv \
+  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv:outputs/players/side_long_players.csv [--verbose]
 uv run --group bench python benchmarks/actions/bench.py \
-  data/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv
+  data/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv:outputs/players/side_holdout_players.csv
 uv run python -m volleyball_stats.actions CONTACTS_CSV NET_CSV RALLIES_CSV --fps 29.97 --court COURT_JSON
 ```
 
@@ -25,7 +25,8 @@ Three scores, pooled over the clips given:
   the rules alone.
 - **detected**: the contacts and crossings of `contacts.detect` (29.97 fps, net at x=612) in the
   labelled windows, matched one to one to the labelled contacts within ±2 frames.
-- **pipeline**: the same in the windows of `rallies.py` (whistles from the video), the real chain.
+- **pipeline**: `match.py`'s windows, contacts and crossings (`match.rally_windows`: spare balls by
+  the camera masked, the court's scale, the serves of the players' CSV when given), the real chain.
 
 Unclear contacts (empty type) are not scored. `-` in the tables is a labelled contact with no
 detection, or a detection with no labelled contact. The court is fitted by least squares on the

@@ -7,7 +7,8 @@ import pytest
 
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
-from volleyball_stats.web import brand, contacts, people, photos, player_samples, publish, result, spot, track_feet, write_site, zone, zone_cells
+from volleyball_stats.teams import COLOURS
+from volleyball_stats.web import brand, contacts, match_data, people, photos, player_samples, publish, result, spot, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -75,14 +76,19 @@ class TestResult:
     def landing(self, side: str, x: float, y: float = 0.0) -> dict:
         return {"type": "floor", "side": side, "x": x, "y": y}
 
-    def test_is_a_point_when_the_ball_lands_in_the_other_court(self):
+    def test_is_a_point_when_the_ball_lands_in_the_other_court_the_line_included_as_in_the_score(self):
         assert result(self.attack, self.landing("left", -5.0, 2.0)) == "point"
+        assert result(self.attack, self.landing("left", -9.2)) == "point"
 
-    def test_is_an_error_when_the_ball_lands_out_on_its_own_side_or_in_the_net(self):
+    def test_is_an_error_when_the_ball_lands_out_on_its_own_side_at_the_foot_of_the_net_or_in_it(self):
         assert result(self.attack, self.landing("left", -9.5)) == "error"
-        assert result(self.attack, self.landing("left", -5.0, 4.8)) == "error"
+        assert result(self.attack, self.landing("left", -5.0, 4.9)) == "error"
         assert result(self.attack, self.landing("right", 4.0)) == "error"
+        assert result(self.attack, self.landing("left", -0.8)) == "error"
         assert result(self.attack, {"type": "net", "side": "right", "x": 0.5, "y": 0.0}) == "error"
+
+    def test_a_block_dropping_at_the_foot_of_the_net_is_its_point_as_in_the_score(self):
+        assert result({"type": "block", "side": "left"}, self.landing("right", 0.5)) == "point"
 
     def test_is_in_play_when_the_ball_is_played_again_or_the_rally_ends(self):
         assert result(self.attack, {"type": "dig", "side": "left", "x": -6.0, "y": 0.0}) == "play"
@@ -182,7 +188,7 @@ class TestBrand:
         cv2.imwrite(str(theme / "logo.png"), np.zeros((500, 400, 4), np.uint8))
         (theme / "sponsors").mkdir()
         cv2.imwrite(str(theme / "sponsors" / "sponsor.png"), np.zeros((320, 200, 4), np.uint8))
-        (theme / "sponsors" / "sponsors.json").write_text('[{"name": "Shop", "logo": "sponsor.png"}]')
+        (theme / "sponsors" / "sponsors.json").write_text('[{"name": "Shop", "logo": "sponsor.png"}, {"name": "Bakery"}]')
         (theme / "brand.json").write_text('{"name": "Club", "logo": "logo.png", "light": {}, "dark": {}}')
 
         data = brand("club", tmp_path / "site")
@@ -191,9 +197,35 @@ class TestBrand:
         assert cv2.imread(str(tmp_path / "site" / "brand" / "logo.png"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
         inlined = base64.b64decode(data["sponsors"][0]["logo"].removeprefix("data:image/png;base64,"))
         assert cv2.imdecode(np.frombuffer(inlined, np.uint8), cv2.IMREAD_UNCHANGED).shape == (160, 100, 4)
+        assert data["sponsors"][1] == {"name": "Bakery"}
         assert brand("none", tmp_path / "site") is None
         with pytest.raises(SystemExit, match="club, none"):
             brand("other", tmp_path / "site")
+
+
+class TestMatchData:
+    def test_reads_a_hand_edited_date_and_colour_and_refuses_what_it_cannot(self, tmp_path):
+        video = tmp_path / "clip.mp4"
+        writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
+        writer.write(np.zeros((48, 64, 3), np.uint8))
+        writer.release()
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n")
+        (tmp_path / "actions.csv").write_text("frame,x,y,type,side,track\n")
+        (tmp_path / "tracks.csv").write_text("track,team\n")
+        teams = {"date": "25/10/2026", "teams": [{"name": "A", "colour": " Rouge", "jersey": "#ffffff"}, {"name": "B", "colour": None, "jersey": "#000080"}]}
+        (tmp_path / "teams.json").write_text(json.dumps(teams))
+
+        data, _ = match_data(tmp_path, video, IDENTITY)
+
+        assert data["date"] == "2026-10-25" and [t["colour"] for t in data["teams"]] == [COLOURS["red"], "#000080"]
+        teams["date"] = "25 octobre"
+        (tmp_path / "teams.json").write_text(json.dumps(teams))
+        with pytest.raises(ValueError, match="25 octobre"):
+            match_data(tmp_path, video, IDENTITY)
+        teams["date"], teams["teams"][0]["colour"] = "2026-10-25", "sparkly"
+        (tmp_path / "teams.json").write_text(json.dumps(teams))
+        with pytest.raises(ValueError, match="sparkly"):
+            match_data(tmp_path, video, IDENTITY)
 
 
 class TestWriteSite:

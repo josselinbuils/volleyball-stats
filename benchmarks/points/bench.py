@@ -9,8 +9,9 @@ labelled contacts of benchmarks/contacts. Pooled over the clips given, winners r
 labelled rallies:
 - labelled: the labelled windows, contacts and types (the rules alone; rallies with labelled contacts);
 - detected: contacts.detect and actions.classify in the labelled windows;
-- pipeline: the same in the windows of rallies.py, matched to the labelled rallies by overlap; a
-  labelled rally without a window counts as missed;
+- pipeline: match.py's windows, contacts and crossings (match.rally_windows, with the players of
+  outputs/players/CLIP_players.csv, else outputs/CLIP/players.csv, when tracked), matched to the
+  labelled rallies by overlap; a labelled rally without a window counts as missed;
 each by the end-of-rally rule, the next-serve rule (the next window's server) and the two combined
 (points.combine). Then the running score of each set against the labelled one: the pipeline's,
 and the labelled windows with a third of them dropped at random (200 draws).
@@ -24,7 +25,7 @@ import importlib.util
 import random
 from pathlib import Path
 
-from volleyball_stats import actions, contacts, points, rallies, teams
+from volleyball_stats import actions, attribution, contacts, match, points, rallies, teams
 
 FPS = 29.97
 NET_X = 612
@@ -42,6 +43,12 @@ def read(path: Path) -> list[dict]:
 def track_path(clip: str) -> Path:
     path = Path(f"outputs/ball/{clip}_ball.csv")
     return path if path.exists() else Path(f"outputs/{clip}/ball.csv")
+
+
+def positions(clip: str) -> list[tuple[int, float, float]] | None:
+    """The tracked players' (frame, court x, court y), None without player tracks."""
+    path = next((p for p in (Path(f"outputs/players/{clip}_players.csv"), Path(f"outputs/{clip}/players.csv")) if p.exists()), None)
+    return None if path is None else [(r.frame, *r.court) for r in attribution.read_players(path)]
 
 
 def overlap(a: tuple[int, int], b: tuple[int, int]) -> int:
@@ -126,11 +133,12 @@ def clip_scores(clip: str, cal, verbose: bool) -> tuple[dict[str, list], list[st
         simulated["end"] += final_drifts(found_kept, ends, true_final)
 
     # The pipeline.
-    pipe_windows = actions.served(rallies.segment(rallies.load_track(track_path(clip)), rallies.whistles(rallies.read_audio(Path(f"data/{clip}.mp4"))), FPS), found, FPS, cal)
+    whistle_times = rallies.whistles(rallies.read_audio(Path(f"data/{clip}.mp4")))
+    pipe_windows, pipe_found, pipe_crossings = match.rally_windows(rallies.load_track(track_path(clip)), whistle_times, FPS, NET_X, cal, positions(clip))
     pipe_left = lefts(pipe_windows, sides, team_of)
     pipe_sets = teams.set_numbers(pipe_windows, teams.set_starts(pipe_windows, pipe_left, FPS), FPS)
-    pipe_typed = actions.classify(found, crossings, pipe_windows, FPS, NET_X, cal)
-    pipe = points.points(pipe_typed, crossings, pipe_windows, pipe_left, pipe_sets, FPS, cal)
+    pipe_typed = actions.classify(pipe_found, pipe_crossings, pipe_windows, FPS, NET_X, cal)
+    pipe = points.points(pipe_typed, pipe_crossings, pipe_windows, pipe_left, pipe_sets, FPS, cal)
     pipe_rallies = points.by_rally(pipe_typed, pipe_windows, lead)
     for k, window in enumerate(windows):
         j = max(range(len(pipe_windows)), key=lambda i: overlap(pipe_windows[i], window), default=None)

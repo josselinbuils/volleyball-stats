@@ -69,11 +69,11 @@ def main() -> None:
     row(f"decode, ffmpeg on the {decoder}, {'x'.join(map(str, decode.scaled(width, height)))}", timed(decode.frames(args.video)))
     old_ball = timed(ball.track_frames(ball.read_frames(args.video), ball.load_model(device), device))
     row("ball, OpenCV frames", old_ball)
-    old_players = timed(players.track_frames(ball.read_frames(args.video), calibration, players.load_model(), device))
+    old_players = timed(players.track_frames(ball.read_frames(args.video), calibration, players.load_model(), device, fps=fps))
     row("players, OpenCV frames", old_players)
     old = 1 / (1 / old_ball + 1 / old_players)
     row("**before**: ball, then players", old)
-    new = timed(match.tracked(args.video, calibration, True, True))
+    new = timed(match.tracked(args.video, calibration, True, True, fps))
     row("**now**: both in one ffmpeg pass", new, f" ({old / new:.0%} of before)")
 
 

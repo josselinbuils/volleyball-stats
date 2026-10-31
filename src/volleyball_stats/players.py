@@ -20,7 +20,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode
+from volleyball_stats import decode, files
 from volleyball_stats.ball import default_device, read_frames
 from volleyball_stats.court import LENGTH, WIDTH, Calibration
 
@@ -36,16 +36,20 @@ END_MARGIN, SIDE_MARGIN = 3.0, 2.0
 # Kept tracks, median feet beyond the lines: a coach or line judge standing by the court, a ball
 # retriever behind it stay out, a player who only runs out for a ball stays in.
 TRACK_END_MARGIN, TRACK_SIDE_MARGIN = 1.0, 0.5
-# Offline: tracks seen in fewer frames are noise; a track ending and another starting within
+# Seconds a lost track waits to be found again: the trackers' 30 frames at the 30 fps they were
+# tuned at.
+BUFFER_S = 1.0
+# Offline: tracks seen under MIN_S seconds are noise; a track ending and another starting within
 # MAX_GAP_S, no farther apart than a player runs (MAX_SPEED m/s, plus REACH for the feet point
 # jumping between boxes), are one player.
-MIN_FRAMES = 15
+MIN_S = 0.5
 MAX_GAP_S = 2.0
 MAX_SPEED, REACH = 4.0, 0.5
 
 
-# ponytail: the offline pass holds every row of the match in memory (~12 per frame, 0.2 KB each:
-# ~1 GB for 2 hours at 50 fps); stitch per rally if that is too much.
+# ponytail: the offline pass holds every row of the match in memory (~12 per frame, ~0.8 KB each
+# with its copies: ~3.5 GB for 2 hours at 50 fps, benchmarks/scale.py); stitch per rally if that is
+# too much.
 @dataclass(slots=True)
 class Row:
     frame: int
@@ -91,9 +95,10 @@ def lapjv(cost: np.ndarray, extend_cost: bool = True, cost_limit: float = np.inf
     return float(cost[rows[ok], cols[ok]].sum()), x, y
 
 
-def make_tracker(kind: str = TRACKER, conf: float = CONF, **overrides):
+def make_tracker(kind: str = TRACKER, conf: float = CONF, fps: float = 30.0, **overrides):
     """An ultralytics tracker ("bytetrack" or "botsort") with its defaults, CONF as the high
-    threshold and no camera motion compensation (fixed camera)."""
+    threshold, a lost track kept BUFFER_S at `fps` and no camera motion compensation (fixed
+    camera)."""
     import sys
     from types import SimpleNamespace
 
@@ -106,19 +111,19 @@ def make_tracker(kind: str = TRACKER, conf: float = CONF, **overrides):
     from ultralytics.utils import YAML, IterableSimpleNamespace
     from ultralytics.utils.checks import check_yaml
 
-    config = {**YAML.load(check_yaml(f"{kind}.yaml")), "track_high_thresh": conf, "new_track_thresh": conf, "gmc_method": "none", **overrides}
+    config = {**YAML.load(check_yaml(f"{kind}.yaml")), "track_high_thresh": conf, "new_track_thresh": conf, "gmc_method": "none", "track_buffer": round(BUFFER_S * fps), **overrides}
     return TRACKER_MAP[kind](args=IterableSimpleNamespace(**config))
 
 
 def track_frames(
-    frames: Iterable[np.ndarray], calibration: Calibration, model, device: str, tracker=None, imgsz: int = IMGSZ, size: tuple[int, int] | None = None
+    frames: Iterable[np.ndarray], calibration: Calibration, model, device: str, tracker=None, imgsz: int = IMGSZ, size: tuple[int, int] | None = None, fps: float = 30.0
 ) -> Iterator[list[Row]]:
     """Yield, frame by frame, the rows of the on-court detections the tracker (default
-    `make_tracker()`) assigned to a track, boxes in the pixels of a frame of `size` (width, height),
-    by default the frames' own."""
+    `make_tracker` for frames at `fps`) assigned to a track, boxes in the pixels of a frame of
+    `size` (width, height), by default the frames' own."""
     from ultralytics.engine.results import Boxes
 
-    online = tracker or make_tracker()
+    online = tracker or make_tracker(fps=fps)
     for index, frame in enumerate(frames):
         boxes = detect(frame, model, device, imgsz, LOW)
         shape = frame.shape[:2]
@@ -179,7 +184,7 @@ def finish(rows: list[Row], fps: float) -> list[Row]:
     out = []
     for track_rows in by_track.values():
         median = np.median([r.court for r in track_rows], axis=0)
-        if len(track_rows) >= MIN_FRAMES and on_court(median[None], TRACK_END_MARGIN, TRACK_SIDE_MARGIN)[0]:
+        if len(track_rows) >= round(MIN_S * fps) and on_court(median[None], TRACK_END_MARGIN, TRACK_SIDE_MARGIN)[0]:
             team = "left" if median[0] < 0 else "right"
             out += [Row(r.frame, r.track, r.box, r.conf, r.feet, r.court, team) for r in track_rows]
     return sorted(out, key=lambda r: (r.frame, r.track))
@@ -188,12 +193,12 @@ def finish(rows: list[Row], fps: float) -> list[Row]:
 def track(video: Path, calibration: Calibration) -> list[Row]:
     """The players' tracks of a video, offline pass done, sorted by frame then track."""
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-    frames = track_frames(decode.frames(video), calibration, load_model(), default_device(), size=decode.size(video))
+    frames = track_frames(decode.frames(video), calibration, load_model(), default_device(), size=decode.size(video), fps=fps)
     return finish([row for rows in frames for row in rows], fps)
 
 
 def write_csv(rows: list[Row], path: Path) -> None:
-    with open(path, "w", newline="") as f:
+    with files.replacing(path, newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["frame", "track", "team", "x1", "y1", "x2", "y2", "conf", "feet_x", "feet_y", "court_x", "court_y"])
         for r in rows:

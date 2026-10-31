@@ -92,9 +92,11 @@ def peaks(signal: np.ndarray, threshold: float, gap: int) -> list[int]:
 
 
 def interpolate(track: np.ndarray) -> np.ndarray:
-    """Track with gaps filled linearly from the nearest visible frames."""
+    """Track with gaps filled linearly from the nearest visible frames; left as is without any."""
     frames = np.arange(len(track))
     ok = ~np.isnan(track[:, 0])
+    if not ok.any():
+        return track.copy()
     return np.stack([np.interp(frames, frames[ok], track[ok, axis]) for axis in (0, 1)], axis=1)
 
 

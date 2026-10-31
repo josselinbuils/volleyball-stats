@@ -15,7 +15,7 @@ Results on the M4 Pro, 20 x side_holdout (3.8 million player rows, 43,000 identi
 | step | time | peak memory |
 | --- | --- | --- |
 | whistles | 12 s | 2.3 GB (15.5 GB with the whole spectrum at once) |
-| finish | 19 s | 4.1 GB |
+| finish | 18 s | 4.1 GB, a floor: without the noise tracks it drops (9-28% more rows on benchmarks/players' sequences) |
 | teams | 19 s | 3.1 GB |
 | attribution | 11 s | 3.1 GB |
 | identity | 48 s | 6.3 GB (over 20 GB, unfinished, with dense cannot-links) |
@@ -106,7 +106,16 @@ def step(name: str) -> None:
         return print(f"{len(found)} questions")
     rows = attribution.read_players(OUT / "players.csv")
     if name == "finish":
-        return print(f"{len(rows)} rows -> {len(players.finish(rows, fps))}")
+        # The tracker's output is pieces: each track cut where its player went unseen longer than
+        # the tracker waits, for finish to stitch back. The noise tracks it drops are not there.
+        gap, last, piece = round(players.BUFFER_S * fps), {}, {}
+        for r in rows:
+            track = r.track
+            if r.frame - last.get(track, r.frame) > gap:
+                piece[track] = piece.get(track, 0) + 1
+            last[track] = r.frame
+            r.track = track * 1000 + piece.get(track, 0)
+        return print(f"{len(rows)} rows in {len(last) + sum(piece.values())} pieces -> {len(players.finish(rows, fps))}")
     if name == "teams":
         found = teams.assign(VIDEO, rows, windows, fps)
         return print(f"{len(found.tracks)} tracks")

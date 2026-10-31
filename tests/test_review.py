@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, settled, suggest, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, chain, constraints, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, settled, state, suggest, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -106,6 +106,65 @@ class TestRoster:
         remember(path, "m1", {(1, 1): {"name": "Léa", "jersey": 3}}, {(1, 1): self.a}, ["ASPOM", None])
 
         assert [(p["name"], p["jersey"], list(p["vectors"])) for p in load_roster(path)] == [("Julie", 7, ["m2"]), ("Léa", 3, ["m1"])]
+
+    def test_does_not_suggest_the_players_it_is_told_to_leave_out(self):
+        roster = [{"name": "Julie", "team": "ASPOM", "vectors": {"m1": [1.0, 0.0]}}, {"name": "Léa", "team": "ASPOM", "vectors": {"m1": [0.0, 1.0]}}]
+
+        assert [s["name"] for s in suggest(self.a, roster, "ASPOM", {"Julie"})] == ["Léa"]
+
+
+class TestTogether:
+    def test_names_the_named_players_of_the_team_on_court_during_more_than_a_share_of_the_card(self):
+        questions = Questions.__new__(Questions)
+        # Identity 1 on court 0-99; Paul 0-49, Jean 90-99, an unnamed player and Léa of the other team all along.
+        questions.table = [(1, 0, 99, 1, 1), (2, 0, 49, 1, 2), (3, 90, 99, 1, 3), (4, 0, 99, 1, 4), (5, 0, 99, 2, 1)]
+        names = {(1, 1): {"name": "Moi"}, (1, 2): {"name": "Paul"}, (1, 3): {"name": "Jean"}, (1, 4): {"name": None}, (2, 1): {"name": "Léa"}}
+
+        assert questions.together(1, 1, names) == {"Paul"}
+
+
+class TestWaiting:
+    entry = {"id": "piece:1:0", "choice": "0", "same": [[{"track": 1, "frame": 5}, {"track": 2, "frame": 5}]], "applied": False}
+
+    def test_counts_the_answers_saying_something_not_applied_yet(self, tmp_path):
+        # Applied, saved before the flag (applied), not applied, and "I don't know".
+        log = [{**self.entry, "applied": True}, {k: v for k, v in self.entry.items() if k != "applied"}, self.entry, {"id": "piece:3:0", "choice": "skip", "applied": False}]
+
+        assert waiting(tmp_path, log)["pending"] == 1
+
+    def test_tells_whether_the_answers_jersey_numbers_or_names_differ_from_what_the_identities_were_computed_from(self, tmp_path):
+        log = [{**self.entry, "applied": True}]
+        (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
+
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False}
+        assert waiting(tmp_path, [])["changed"]
+        write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Julie", "jersey": None}])
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True}
+        (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
+        assert waiting(tmp_path, log)["changed"]
+
+
+class TestUndo:
+    a, b = {"id": "piece:1:0", "same": [["x", "y"]], "applied": True}, {"id": "odd:1:0", "applied": False}
+
+    def test_puts_back_the_answers_and_names_as_they_were_before_the_last_change(self):
+        # A marking let go of a piece of an earlier answer and moved a name.
+        names = [{"ref": {"track": 1, "frame": 5}, "name": "Julie"}]
+        history = [{"log": [self.a], "names": names, "applied": False}]
+
+        assert undo([{**self.a, "same": []}, self.b], history) == ([self.a], names, "odd:1:0", False)
+        assert history == []
+
+    def test_computes_the_identities_again_when_an_apply_followed_the_change(self):
+        assert undo([self.a, self.b], [{"log": [self.a], "names": None, "applied": True}]) == ([self.a], None, "odd:1:0", True)
+
+    def test_brings_back_a_forgotten_answer(self):
+        assert undo([], [{"log": [self.a], "names": None, "applied": False}]) == ([self.a], None, None, False)
+
+    def test_drops_the_last_answer_without_the_change_kept(self):
+        # After a restart; answers saved before the flag count as applied.
+        assert undo([self.a, self.b], []) == ([self.a], None, "odd:1:0", False)
+        assert undo([{"id": "piece:2:0"}], []) == ([], None, "piece:2:0", True)
 
 
 

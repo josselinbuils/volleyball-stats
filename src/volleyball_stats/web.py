@@ -34,9 +34,10 @@ import numpy as np
 from volleyball_stats import decode
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, box_at
-from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
+from volleyball_stats.court import Calibration, zone
 from volleyball_stats.identity import lookup, named, read_identities, read_names
-from volleyball_stats.teams import recording_date
+from volleyball_stats.points import landing
+from volleyball_stats.teams import parse_colour, parse_date, recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
 BRANDING = Path("branding")
@@ -89,13 +90,17 @@ def zone_cells() -> list[dict]:
 
 
 def result(contact: dict, after: dict | None) -> str:
-    """Outcome of a contact from the next one of its rally: "point" when that is the ball landing in
-    the court on the other side of the net, "error" when it lands on the contact's side, out, or
-    in the net, "play" otherwise, and for the floor and net contacts themselves."""
+    """Outcome of a contact from the next one of its rally, the landing judged as the score's
+    (`points.landing`): "point" when that is the ball landing in the court on the other side of the
+    net, or at the foot of the net after a block (the attacker sent it there); "error" when it lands
+    on the contact's side, out, at the foot of the net or in the net; "play" otherwise, and for the
+    floor and net contacts themselves."""
     if contact["type"] in ("floor", "net") or after is None or after["type"] not in ("floor", "net"):
         return "play"
-    inside = after["x"] is not None and abs(after["x"]) <= LENGTH / 2 and abs(after["y"]) <= WIDTH / 2
-    return "point" if after["type"] == "floor" and after["side"] != contact["side"] and inside else "error"
+    where = landing(after["x"], after["y"]) if after["type"] == "floor" and after["x"] is not None else None
+    if where == "net" and contact["type"] == "block":
+        return "point"
+    return "point" if where == "in" and after["side"] != contact["side"] else "error"
 
 
 # The player a (track, frame) shows on the page, None without a track.
@@ -192,6 +197,15 @@ def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int
     return who, table
 
 
+def hand_edited(parse: Callable[[str], str | None], text: str, kind: str) -> str:
+    """A date or colour of teams.json, which the owner may edit by hand, as `parse` writes it;
+    ValueError when `parse` cannot read it: the page would break on it."""
+    found = parse(str(text))
+    if found is None:
+        raise ValueError(f"teams.json: {text!r} is not {kind}")
+    return found
+
+
 def read_teams(match: Path) -> dict | None:
     """teams.json of a match run with --players, None without it."""
     path = match / "teams.json"
@@ -219,7 +233,8 @@ def brand(name: str, site: Path) -> dict | None:
         data["logo"] = f"brand/{target.name}"
     sponsors = path.parent / "sponsors"
     data["sponsors"] = json.loads((sponsors / "sponsors.json").read_text()) if (sponsors / "sponsors.json").exists() else []
-    for sponsor in data["sponsors"]:
+    # A sponsor without a logo shows as text.
+    for sponsor in (s for s in data["sponsors"] if s.get("logo")):
         picture = cv2.imread(str(sponsors / sponsor["logo"]), cv2.IMREAD_UNCHANGED)
         picture = cv2.resize(picture, (round(picture.shape[1] * SPONSOR_PX / picture.shape[0]), SPONSOR_PX), interpolation=cv2.INTER_AREA)
         sponsor["logo"] = "data:image/png;base64," + base64.b64encode(cv2.imencode(".png", picture)[1]).decode()
@@ -290,8 +305,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "video": video.name,
         "fps": round(fps, 3),
         "duration": round(frame_count / fps, 2),
-        "teams": teams and [{"name": t["name"], "colour": t["colour"] or t["jersey"]} for t in teams["teams"]],
-        "date": teams and (teams.get("date") or recording_date(video)),
+        "teams": teams and [{"name": t["name"], "colour": hand_edited(parse_colour, t["colour"], "a colour (#rrggbb or a name such as white, rouge, navy)") if t["colour"] else t["jersey"]} for t in teams["teams"]],
+        "date": teams and (hand_edited(parse_date, teams["date"], "a date (dd/mm/yyyy or yyyy-mm-dd)") if teams.get("date") else recording_date(video)),
         "title": teams and teams.get("title"),
         "rallies": rallies,
         "contacts": found,

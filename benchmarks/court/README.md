@@ -124,7 +124,7 @@ leave-one-out above.
   fisheye uncorrected the court error stays at 0.3 m whatever the points.
 - RANSAC (10 px) on rough clicks picks degenerate subsets: up to 1,605 m off on `side_club` and
   229 m on `side_vnl`. Rough clicks are fitted by least squares, snapped landmarks alone (RANSAC)
-  once at least 4 snap.
+  once at least 5 snap: 4 fit exactly, their error unseen.
 
 How it snaps: the clicks' least-squares homography projects the two court lines through each
 landmark, shifted onto its click, out to the neighbouring landmarks but at most 150 px. Each line is
@@ -171,7 +171,8 @@ court's line samples on a line of the frame (±2 px) at the best roll and shift.
   (`MATCH_FOUND` 0.6). The fit residual is not used: without a lens model the club's is 9-14 px
   for the right court, so it says little.
 - A court where few landmarks snap is matched on few points: `side_club` rests on 3, so 3 chance
-  snaps on another court would pass. Calibrating with the lens JSON and in light without glare
+  snaps on another court would pass, and one where none snap (`aspom_begles`, its lines next to
+  other floor markings) on the line-sample share alone. Calibrating with the lens JSON and in light without glare
   should snap more.
 - 0.7 s per stored court at 720p, plus 2 s for the median frame of a 10-minute video.
 

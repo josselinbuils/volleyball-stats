@@ -1,7 +1,7 @@
 import numpy as np
 
 from volleyball_stats.court import Calibration
-from volleyball_stats.points import by_rally, combine, next_servers, running_score, server_side, set_drift, side_lost
+from volleyball_stats.points import by_rally, combine, landing, next_servers, points, running_score, server_side, set_drift, side_lost
 
 # Court meters to pixels: 40 px per meter along the length, the net at x = 612.
 CAL = Calibration(np.array([[40.0, 0.0, 612.0], [0.0, 20.0, 400.0], [0.0, 0.0, 1.0]]))
@@ -33,6 +33,19 @@ class TestSideLost:
 
     def test_knows_nothing_without_a_touch(self):
         assert side_lost([at(0, -3, 0, "floor")], [], CAL) == (None, "unknown")
+
+
+def test_judges_a_landing_at_the_foot_of_the_net_in_the_line_included_or_out():
+    assert [landing(0.8, 0.0), landing(-9.2, 4.7), landing(9.5, 0.0), landing(5.0, -4.9)] == ["net", "in", "out", "out"]
+
+
+def test_credits_each_rally_to_the_team_on_the_side_that_did_not_lose_it():
+    # 30 fps, each serve just before its window, the teams changing ends in between.
+    typed = [at(95, 10, 0, "serve"), at(130, -5, 0, "floor"), at(1995, -10, 0, "serve"), at(2030, 5, 0, "floor")]
+
+    found = points(typed, [], [(100, 200), (2000, 2100)], [1, 2], [1, 1], 30.0, CAL)
+
+    assert [(p["server"], p["end"], p["winner"], p["reason"], p["score"]) for p in found] == [(2, 2, 2, "serve_in", (0, 1)), (2, 2, 2, "serve_in", (0, 2))]
 
 
 def test_the_server_is_the_side_of_the_contact_typed_serve():

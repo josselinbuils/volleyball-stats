@@ -231,7 +231,7 @@ set break, as the rules say, and only then.
 | `colour` | Team colours | The detected `jersey` colour |
 | Date | `"yyyy-mm-dd"` | The video's recording date |
 | Title | The match's title | "Match NAME_1 vs NAME_2", translated on the page |
-| Set starts | `"m:ss"`, the first `"0:00"` | The detected set starts |
+| Set starts | `"m:ss"`, the first set 1's: the rallies before it (the warm-up) are left out | The detected set starts, the first `"0:00"` |
 | Final scores | `"25-21"`, team 1 first | Unknown |
 
 The first run writes it, from the first source available:

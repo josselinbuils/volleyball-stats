@@ -15,7 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import identity
+from volleyball_stats import files, identity
 from volleyball_stats.attribution import read_players
 
 FILE = "jerseys.csv"
@@ -73,7 +73,7 @@ def read(match: Path, video: Path) -> list[tuple[int, int, int]]:
 
 
 def write(path: Path, found: list[tuple[int, int, int]]) -> None:
-    with open(path, "w", newline="") as f:
+    with files.replacing(path, newline="") as f:
         csv.writer(f).writerows([["frame", "track", "number"], *sorted(found)])
 
 

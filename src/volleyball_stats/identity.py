@@ -37,6 +37,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from volleyball_stats import files
 from volleyball_stats.court import zone
 from volleyball_stats.players import Row
 from volleyball_stats.teams import SEEK, side_group
@@ -275,8 +276,9 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
         for k in missing:
             stored[keys[k]] = (sums[k] / counts[k] if counts[k] else np.zeros(DIM), float(counts[k]))
         if cache:
-            np.savez_compressed(cache, keys=np.array(keys, float), vectors=np.array([stored[k][0] for k in keys], np.float16).reshape(len(keys), DIM),
-                                counts=np.array([stored[k][1] for k in keys]))
+            with files.replacing(cache, "wb") as f:
+                np.savez_compressed(f, keys=np.array(keys, float), vectors=np.array([stored[k][0] for k in keys], np.float16).reshape(len(keys), DIM),
+                                    counts=np.array([stored[k][1] for k in keys]))
     v = np.array([stored[k][0] for k in keys], float).reshape(len(keys), DIM)
     return v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-9), np.array([max(1.0, stored[k][1]) for k in keys])
 
@@ -782,7 +784,7 @@ def identify(
 def write_identities(path: Path, segments: list[Segment]) -> None:
     """identities.csv: one row per segment, `start_frame`..`end_frame` of `track`, identity 0 for
     none."""
-    with open(path, "w", newline="") as f:
+    with files.replacing(path, newline="") as f:
         csv.writer(f).writerows([
             ["track", "start_frame", "end_frame", "team", "identity", "runner_up", "confidence"],
             *([s.track, s.start, s.end, s.team, s.identity, s.runner_up or "", s.confidence] for s in sorted(segments, key=lambda s: (s.track, s.start))),
@@ -848,7 +850,7 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
 
     segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names)
     write_identities(path, segments)
-    (match / "identity_candidates.json").write_text(json.dumps(found, indent=1) + "\n")
+    files.write_text(match / "identity_candidates.json", json.dumps(found, indent=1) + "\n")
     return read_identities(path)
 
 
@@ -877,7 +879,7 @@ def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None) -> lis
     for r in typed:
         found = lookup(table, int(r["track"]), int(r["frame"])) if r.get("track") else None
         r["identity"] = "" if found is None or str(found[0]) != r.get("team") else found[1]
-    with open(actions, "w", newline="") as f:
+    with files.replacing(actions, newline="") as f:
         writer = csv.DictWriter(f, fieldnames=[*[k for k in typed[0] if k != "identity"], "identity"] if typed else ["identity"])
         writer.writeheader()
         writer.writerows(typed)

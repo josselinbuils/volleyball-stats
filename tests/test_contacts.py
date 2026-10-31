@@ -95,3 +95,6 @@ class TestDetect:
 
         assert [abs(frame - 30) <= 1 for frame, _, _ in contacts] == [True]
         assert len(crossings) == 1 and track[crossings[0] - 1, 0] <= 612 <= track[crossings[0] + 1, 0]
+
+    def test_finds_nothing_without_a_visible_ball(self):
+        assert detect(np.full((100, 2), np.nan), FPS, 612) == ([], [])

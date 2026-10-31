@@ -81,6 +81,12 @@ class TestFloor:
         assert kinds(classify_rally([self.at(0, 2, -14), self.at(40, 9, 0)], [], FPS, NET_X, self.CALIBRATION))[0] == "dig"
         assert kinds(classify_rally([(0, 640, 100), self.at(40, -6, -6)], [20], FPS, NET_X, self.CALIBRATION))[0] == "serve"
 
+    def test_a_touch_past_the_net_on_the_other_side_follows_a_crossing_the_track_missed(self):
+        contacts = [self.at(0, 12, 0), self.at(40, -6, -6), self.at(80, -3, -6), self.at(120, -2, -6), self.at(160, 5, -6)]
+
+        assert kinds(classify_rally(contacts, [130], FPS, NET_X, self.CALIBRATION)) == ["serve", "pass", "set", "attack", "dig"]
+        assert kinds(classify_rally([self.at(0, 12, 0), self.at(40, -0.5, -6)], [], FPS, NET_X, self.CALIBRATION)) == ["serve", "net"]
+
     def test_a_window_opening_on_a_contact_inside_the_court_is_no_rally(self):
         windows = [(105, 300), (405, 600), (705, 900)]
         contacts = [self.at(100, 3, -2), self.at(400, 12, 0), self.at(740, 0, 0)]
