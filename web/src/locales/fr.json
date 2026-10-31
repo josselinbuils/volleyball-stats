@@ -242,6 +242,8 @@
     "reportQuestion": "Un spectateur signale un problème",
     "reportWhy": "signalement",
     "reportNote": "Regardez l'échange et corrigez ce qui est faux, puis validez : rien ne change tant que vous n'avez pas validé.",
+    "reportPlay": "Revoir à partir de cette touche",
+    "reportedTouch": "Touche signalée",
     "reportTime": "Moment",
     "reportType": "Action",
     "reportPlayer": "Joueur",

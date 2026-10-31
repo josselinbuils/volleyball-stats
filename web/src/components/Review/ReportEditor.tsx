@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Check, CircleCheck, HelpCircle } from 'lucide-react';
+import { Check, CircleCheck, Flag, HelpCircle, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { GROUPS, groupName, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Named, Question, ReportChanges } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
@@ -17,7 +18,25 @@ const SELECT = 'h-9 rounded-md border bg-background px-2 text-sm';
 /** A viewer's report on a rally: what they said, then the rally's touches (player, action, result,
  * or no touch at all) and its winner to correct, or the rally marked as no play; only what is
  * changed is saved. */
-export function ReportEditor({ question, players, nameOf, onSave, onSkip }: { question: Question; players: Named[]; nameOf: NameOf; onSave: (changes: ReportChanges) => void; onSkip: () => void }) {
+export function ReportEditor({
+  question,
+  players,
+  nameOf,
+  now,
+  onPlay,
+  onSave,
+  onSkip,
+}: {
+  question: Question;
+  players: Named[];
+  nameOf: NameOf;
+  /** Where the video stands: its touch's row is highlighted. */
+  now: number;
+  /** Plays the video from a touch. */
+  onPlay: (time: number) => void;
+  onSave: (changes: ReportChanges) => void;
+  onSkip: () => void;
+}) {
   const { t } = useTranslation();
   const touches = question.touches ?? [];
   const [fixes, setFixes] = useState<Record<number, { player?: string; type?: string; result?: string }>>({});
@@ -30,6 +49,10 @@ export function ReportEditor({ question, players, nameOf, onSave, onSkip }: { qu
     ...(notPlay ? { play: false } : {}),
   };
   const changed = changes.touches.length > 0 || changes.winner !== undefined || notPlay;
+  // The touch the video is on: the last one started, until 3 s after it.
+  const playing = touches.filter((touch) => touch.time - 0.2 <= now && now - touch.time < 3).at(-1)?.frame;
+  // The touches a viewer reported from (the moment replayed then).
+  const reported = new Set(touches.filter((touch) => question.reports?.some((r) => Math.abs(r.time - touch.time) <= 0.6)).map((touch) => touch.frame));
 
   return (
     <div className="grid gap-4 lg:col-span-2">
@@ -50,12 +73,20 @@ export function ReportEditor({ question, players, nameOf, onSave, onSkip }: { qu
                 const fix = fixes[touch.frame] ?? {};
                 const removed = fix.player === 'none';
                 return (
-                  <tr key={touch.frame} className="border-t">
+                  <tr key={touch.frame} className={cn('border-t', touch.frame === playing && 'bg-primary/10')}>
                     <td className="py-1.5 pr-2 tabular-nums">
-                      <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        title={t('review.reportPlay')}
+                        aria-label={`${t('review.reportPlay')} ${clock(touch.time)}`}
+                        onClick={() => onPlay(touch.time)}
+                        className="flex items-center gap-2 rounded-md px-1.5 py-1 outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        <Play aria-hidden className="size-3.5 fill-current" />
                         <Swatch color={teamColor(touch.team)} ring={teamRing(touch.team)} />
                         {clock(touch.time)}
-                      </span>
+                        {reported.has(touch.frame) && <Flag aria-label={t('review.reportedTouch')} className="size-3.5 text-primary" />}
+                      </button>
                     </td>
                     <td className="py-1.5 pr-2">
                       <select className={SELECT} aria-label={t('review.reportType')} disabled={removed} value={fix.type ?? touch.type} onChange={(e) => edit(touch.frame, { type: e.target.value })}>

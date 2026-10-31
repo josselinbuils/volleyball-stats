@@ -27,6 +27,8 @@ const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: '
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
 const REPORT_KEYS: Record<string, string> = { s: 'skip' };
+/** A report's video starts this long before the reported moment, and a touch's replay before the touch. */
+const REPORT_LEAD_S = 2;
 
 type Tab = 'questions' | 'names';
 // The tab survives the reload that applies the answers.
@@ -98,6 +100,13 @@ export function Review({
   const at = (q: Question, k: number) => ({ team: q.team, identity: q.choices[k].identity });
   const open = questions.filter((q) => !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
   const question = open[0];
+  // A report's video: where it plays (to its touches' rows) and the moment asked to be played from.
+  const [now, setNow] = useState(0);
+  const [seek, setSeek] = useState<{ time: number; n: number; play?: boolean }>();
+  const reportFrom = question?.kind === 'report' ? Math.max(question.clip.start, (question.reports?.[0]?.time ?? question.clip.start) - REPORT_LEAD_S) : null;
+  useEffect(() => {
+    setSeek(reportFrom === null ? undefined : { time: reportFrom, n: 0, play: true });
+  }, [question?.id]);
   const show = (next: Tab) => {
     setTab(next);
     history.replaceState(null, '', next === 'questions' ? QUESTIONS_HASH : location.pathname);
@@ -324,7 +333,16 @@ export function Review({
                 </label>
               )}
               <div className="grid min-w-0 gap-3">
-                <ClipVideo key={`${question.id}${showOther}`} clip={showOther && question.other ? question.other : question.clip} width={width} height={height} timeRef={clipTime} />
+                <ClipVideo
+                  key={`${question.id}${showOther}`}
+                  clip={showOther && question.other ? question.other : question.clip}
+                  width={width}
+                  height={height}
+                  timeRef={clipTime}
+                  {...(question.kind === 'report'
+                    ? { seek, marks: question.reports?.map((r) => r.time), showTime: true, onTime: (at: number) => setNow((n: number) => (Math.abs(n - at) >= 0.25 ? at : n)) }
+                    : {})}
+                />
                 {question.kind === 'merge' && (
                   <div className="flex flex-wrap gap-2">
                     {question.choices.map((c, k) => (
@@ -402,7 +420,16 @@ export function Review({
                 )}
               </div>
               {question.kind === 'report' && (
-                <ReportEditor key={question.id} question={question} players={players} nameOf={nameOf} onSave={(changes) => void answer('report', { changes })} onSkip={() => void answer('skip')} />
+                <ReportEditor
+                  key={question.id}
+                  question={question}
+                  players={players}
+                  nameOf={nameOf}
+                  now={now}
+                  onPlay={(at: number) => setSeek((s) => ({ time: Math.max(question.clip.start - 1, at - REPORT_LEAD_S), n: (s?.n ?? 0) + 1, play: true }))}
+                  onSave={(changes) => void answer('report', { changes })}
+                  onSkip={() => void answer('skip')}
+                />
               )}
             </CardContent>
           </Card>

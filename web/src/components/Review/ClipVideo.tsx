@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { boxAt, viewAt } from '@/components/Review/helpers/box';
@@ -12,8 +13,27 @@ const AROUND = 0.5;
 const SPEEDS = [1, 0.5, 0.25];
 let picked = 1;
 
-/** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for. */
-export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; width: number; height: number; timeRef?: RefObject<number>; seek?: { time: number; n: number } }) {
+/** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
+ * with `showTime` the match time under it, `marks` (times) drawn on its progress bar, `onTime` told where it stands. */
+export function ClipVideo({
+  clip,
+  width,
+  height,
+  timeRef,
+  seek,
+  marks = [],
+  showTime = false,
+  onTime,
+}: {
+  clip: Clip;
+  width: number;
+  height: number;
+  timeRef?: RefObject<number>;
+  seek?: { time: number; n: number; play?: boolean };
+  marks?: number[];
+  showTime?: boolean;
+  onTime?: (time: number) => void;
+}) {
   const { t, i18n } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(clip.start);
@@ -48,18 +68,20 @@ export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; 
       if (timeRef) {
         timeRef.current = v.currentTime;
       }
+      onTime?.(v.currentTime);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [clip]);
 
-  // A moment asked for (`n` counts the asks, so the same moment can be asked again): shown paused.
+  // A moment asked for (`n` counts the asks, so the same moment can be asked again): shown paused,
+  // or played from there (`play`).
   useEffect(() => {
     const v = video.current;
     if (v && seek) {
-      v.pause();
       v.currentTime = seek.time;
+      void (seek.play ? v.play().catch(() => {}) : v.pause());
     }
   }, [seek]);
 
@@ -100,9 +122,13 @@ export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; 
       </div>
       <div className="relative h-1.5 rounded-full bg-muted" aria-hidden>
         <div className="absolute inset-y-0 rounded-full bg-[#ffd400]" style={{ left: share(clip.start), right: `calc(100% - ${share(clip.end)})` }} />
+        {marks.map((m) => (
+          <div key={m} className="absolute -inset-y-1.5 w-1 -translate-x-1/2 rounded-full bg-primary" style={{ left: share(m) }} />
+        ))}
         <div className="absolute -inset-y-1 w-0.5 rounded-full bg-foreground" style={{ left: share(time) }} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {showTime && <span className="min-w-12 text-sm font-medium tabular-nums">{clock(time)}</span>}
         {/* No outline, nothing to zoom on. */}
         {clip.boxes.length > 0 && (
           <Button variant="outline" size="sm" className="bg-card" onClick={() => setZoom((z) => !z)}>

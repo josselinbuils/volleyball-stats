@@ -242,6 +242,8 @@
     "reportQuestion": "A viewer reports a problem",
     "reportWhy": "report",
     "reportNote": "Watch the rally and correct what is wrong, then save: nothing changes until you save.",
+    "reportPlay": "Replay from this touch",
+    "reportedTouch": "Reported touch",
     "reportTime": "Moment",
     "reportType": "Action",
     "reportPlayer": "Player",
