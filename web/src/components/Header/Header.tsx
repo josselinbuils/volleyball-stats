@@ -80,64 +80,69 @@ export function Header() {
         </div>
       </header>
       <SetFilter />
-      <dl className={cn('grid grid-cols-2 gap-3 px-1', hasTeams && score ? 'lg:grid-cols-6' : 'lg:grid-cols-4')}>
+      {/* The score beside the other figures two by two, which together take its height. */}
+      <div className={cn('grid gap-3 px-1', hasTeams && score && 'lg:grid-cols-2')}>
         {hasTeams && score && (
-          <Card className="col-span-2 gap-0.5 px-4 py-3.5 shadow-xs">
-            <dt className="text-sm text-muted-foreground">{t(set === null ? 'matchScore' : 'setScore')}</dt>
-            <dd className="flex min-w-0 items-center gap-2.5 font-semibold">
-              {GROUPS.map((g, k) => (
-                <span key={g} className={cn('flex min-w-0 items-center gap-2', k === 0 ? 'order-1' : 'order-3 flex-row-reverse')}>
-                  <Swatch color={teamColor(g)} ring={teamRing(g)} />
-                  <span className="truncate">{groupName(t, g)}</span>
+          <dl className="grid">
+            <Card className="gap-0.5 px-4 py-3.5 shadow-xs">
+              <dt className="text-sm text-muted-foreground">{t(set === null ? 'matchScore' : 'setScore')}</dt>
+              <dd className="flex min-w-0 items-center gap-2.5 font-semibold">
+                {GROUPS.map((g, k) => (
+                  <span key={g} className={cn('flex min-w-0 items-center gap-2', k === 0 ? 'order-1' : 'order-3 flex-row-reverse')}>
+                    <Swatch color={teamColor(g)} ring={teamRing(g)} />
+                    <span className="truncate">{groupName(t, g)}</span>
+                  </span>
+                ))}
+                <span className="order-2 shrink-0 text-2xl tabular-nums sm:text-3xl">
+                  {f.num(score[0])} – {f.num(score[1])}
                 </span>
-              ))}
-              <span className="order-2 shrink-0 text-2xl tabular-nums sm:text-3xl">
-                {f.num(score[0])} – {f.num(score[1])}
-              </span>
-            </dd>
-            {scoreMore && (
-              <dd className="text-sm text-muted-foreground" title={shown.some((s) => !s.final) ? t('scoreHint') : undefined}>
-                {scoreMore}
               </dd>
-            )}
-            <dd className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 text-sm" title={t('pointsSplitHint')}>
-              <span />
-              <span className="text-center text-xs text-muted-foreground">{t('pointsDirectHead')}</span>
-              <span className="text-center text-xs text-muted-foreground">{t('pointsFaultsHead')}</span>
-              {GROUPS.map((g) => {
-                const split = pointSplit(rallies, g);
-                return (
-                  <Fragment key={g}>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Swatch color={teamColor(g)} ring={teamRing(g)} />
-                      <span className="truncate">{groupName(t, g)}</span>
-                    </span>
-                    <CountButton
-                      id={`split:${set}:${g}:direct`}
-                      title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g) })}
-                      picked={split.direct}
-                      className="h-7 justify-self-center text-sm"
-                    />
-                    <CountButton
-                      id={`split:${set}:${g}:faults`}
-                      title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g) })}
-                      picked={split.faults}
-                      className="h-7 justify-self-center text-sm"
-                    />
-                  </Fragment>
-                );
-              })}
-            </dd>
-          </Card>
+              {scoreMore && (
+                <dd className="text-sm text-muted-foreground" title={shown.some((s) => !s.final) ? t('scoreHint') : undefined}>
+                  {scoreMore}
+                </dd>
+              )}
+              <dd className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 text-sm" title={t('pointsSplitHint')}>
+                <span />
+                <span className="text-center text-xs text-muted-foreground">{t('pointsDirectHead')}</span>
+                <span className="text-center text-xs text-muted-foreground">{t('pointsFaultsHead')}</span>
+                {GROUPS.map((g) => {
+                  const split = pointSplit(rallies, g);
+                  return (
+                    <Fragment key={g}>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Swatch color={teamColor(g)} ring={teamRing(g)} />
+                        <span className="truncate">{groupName(t, g)}</span>
+                      </span>
+                      <CountButton
+                        id={`split:${set}:${g}:direct`}
+                        title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g) })}
+                        picked={split.direct}
+                        className="h-7 justify-self-center text-sm"
+                      />
+                      <CountButton
+                        id={`split:${set}:${g}:faults`}
+                        title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g) })}
+                        picked={split.faults}
+                        className="h-7 justify-self-center text-sm"
+                      />
+                    </Fragment>
+                  );
+                })}
+              </dd>
+            </Card>
+          </dl>
         )}
-        {stats.map(({ label, value, more }) => (
-          <Card key={label} className="gap-0.5 px-4 py-3.5 shadow-xs">
-            <dt className="text-sm text-muted-foreground">{label}</dt>
-            <dd className="text-2xl font-semibold tabular-nums sm:text-3xl">{value}</dd>
-            {more && <dd className="text-sm text-muted-foreground">{more}</dd>}
-          </Card>
-        ))}
-      </dl>
+        <dl className={cn('grid grid-cols-2 gap-3', !(hasTeams && score) && 'lg:grid-cols-4')}>
+          {stats.map(({ label, value, more }) => (
+            <Card key={label} className="gap-0.5 px-4 py-3.5 shadow-xs">
+              <dt className="text-sm text-muted-foreground">{label}</dt>
+              <dd className="text-2xl font-semibold tabular-nums sm:text-3xl">{value}</dd>
+              {more && <dd className="text-sm text-muted-foreground">{more}</dd>}
+            </Card>
+          ))}
+        </dl>
+      </div>
     </>
   );
 }
