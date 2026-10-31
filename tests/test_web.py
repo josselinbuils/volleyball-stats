@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import ball_track, brand, brief, contacts, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import acted, ball_track, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -151,6 +151,20 @@ class TestContacts:
 
         receivers(out, typed, players, said, {10: None})
         assert out[0]["receiver"] is None
+
+    def test_the_review_s_winners_count_their_set_s_score_again(self):
+        rallies = [{"set": 1, "winner": 1, "score": [1, 0]}, {"set": 1, "winner": 1, "score": [2, 0]}, {"set": 2, "winner": 2, "score": [0, 1]}]
+
+        rewon(rallies, [(100, 200), (300, 400), (500, 600)], {100: 2, 500: 2})
+
+        assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
+
+    def test_the_review_s_types_and_results_replace_the_touches(self):
+        found = [{"type": "serve", "result": "point"}, {"type": "pass", "result": "play"}]
+
+        acted(found, [{"frame": "10"}, {"frame": "20"}], {10: {"type": "pass", "result": "error"}})
+
+        assert found == [{"type": "pass", "result": "error"}, {"type": "pass", "result": "play"}]
 
     def test_a_player_on_the_court_only_seconds_in_a_set_touches_nothing_known_there(self):
         table = {0: {"team": 1, "number": 3}, 1: {"team": 2, "number": 4}, 2: {"team": 1, "number": None}}

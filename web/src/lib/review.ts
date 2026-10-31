@@ -29,10 +29,10 @@ export interface Choice {
  * identities never seen together are one player (`merge`, `other` the second one's clip); or who
  * made a doubtful touch (`touch`: its `action` at `time`, the ball outlined, why it is asked and
  * the player it is given to, `proposed`, when one is); or whether a rally window of `set` with no
- * touch left is a rally (`rally`). */
+ * touch left is a rally (`rally`); or what a viewer reported about a rally (`report`). */
 export interface Question {
   id: string;
-  kind: 'piece' | 'merge' | 'touch' | 'rally';
+  kind: 'piece' | 'merge' | 'touch' | 'rally' | 'report';
   set?: number | null;
   action?: string;
   time?: number;
@@ -46,6 +46,28 @@ export interface Question {
   other?: Clip;
   crops: string[];
   choices: Choice[];
+  /** Viewers' reports on a rally (`report`): what each reported, the rally's touches and its winner. */
+  reports?: { kind: string | null; shown: string | null; comment: string; time: number }[];
+  touches?: ReportTouch[];
+  winner?: Group | null;
+}
+
+/** A touch of a reported rally: its player as "TEAM:IDENTITY" when known. */
+export interface ReportTouch {
+  frame: number;
+  time: number;
+  type: string;
+  team: Group;
+  player: string | null;
+  result: string | null;
+}
+
+/** The corrections made on a report: by touch (by frame) its player ("TEAM:IDENTITY", "none" for no
+ * touch), action or result; the rally's winner, or no play. */
+export interface ReportChanges {
+  touches: { frame: number; player?: string; type?: string; result?: string }[];
+  winner?: Group;
+  play?: false;
 }
 
 /** A player to name: an identity with pictures of their clearest moments, their time on court, their

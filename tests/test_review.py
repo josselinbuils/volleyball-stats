@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, report_answer, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -88,6 +88,48 @@ class TestTouchAnswer:
 
 
 
+class TestReports:
+    page = {
+        "rallies": [{"start": 10.0, "end": 20.0, "set": 1, "winner": 1}, {"start": 40.0, "end": 50.0, "set": 1, "winner": 2}],
+        "people": {"0": {"team": 1, "number": 3}, "1": {"team": 2, "number": None}},
+        "contacts": [
+            {"t": 41.0, "type": "serve", "team": 2, "person": 1, "rally": 1, "result": "play"},
+            {"t": 42.0, "type": "pass", "team": 1, "person": 0, "rally": 1, "result": "error"},
+            {"t": 42.5, "type": "floor", "team": 1, "person": None, "rally": 1, "result": "play"},
+        ],
+    }
+
+    def test_reads_this_match_s_reports_once_from_the_fetched_logs(self, tmp_path):
+        line = lambda r: json.dumps({"received": "t", "report": json.dumps(r)})  # noqa: E731
+        mine, other = {"match": "m", "time": 41.0, "kind": "player", "comment": ""}, {"match": "x", "time": 5.0, "kind": "other"}
+        (tmp_path / "feedback.log").write_text(line(mine) + "\n" + line(other) + "\n")
+        (tmp_path / "feedback-copy.log").write_text(line(mine) + "\n")
+        (tmp_path / "m").mkdir()
+
+        found = reports(tmp_path / "m")
+
+        assert [(r["time"], len(r["key"])) for r in found] == [(41.0, 12)]
+
+    def test_a_report_asks_about_its_rally_s_touches_by_the_touch_replayed_or_its_time(self):
+        question, ref = report_question({"time": 52.0, "clip": None, "kind": "result", "shown": "x", "comment": "Pas de faute"}, self.page, 50.0)
+
+        assert (question["clip"]["start"], question["winner"], question["reports"][0]["comment"]) == (40.0, 2, "Pas de faute")
+        assert [(t["frame"], t["type"], t["player"]) for t in question["touches"]] == [(2050, "serve", None), (2100, "pass", "1:3")]
+        assert ref == {"start": 2000, "touches": {"2050": 2, "2100": 1}}
+        assert report_question({"time": 100.0, "clip": {"time": 12.0}}, self.page, 50.0)[1]["start"] == 500
+
+    def test_corrections_become_touch_action_rally_and_winner_answers(self):
+        ref = {"start": 2000, "touches": {"2050": 2, "2100": 1}}
+        changes = {"touches": [{"frame": 2050, "player": "none"}, {"frame": 2100, "player": "1:4", "result": "play", "type": "bogus"}], "winner": 1, "play": False}
+
+        out = report_answer(ref, changes, {(1, 4): {"name": "Léa"}})
+
+        assert out["touch"] == [{"frame": 2050, "team": 2, "identity": None, "name": None}, {"frame": 2100, "team": 1, "identity": 4, "name": "Léa"}]
+        assert out["action"] == [{"frame": 2100, "result": "play"}]
+        assert (out["rally"], out["winner"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}])
+        assert report_answer({"start": None, "touches": {}}, {"winner": 2, "touches": [{"frame": 1, "type": "set"}]}, {}) == {}
+
+
 class TestUnnamed:
     def test_asks_each_touch_the_page_credits_to_no_named_player_of_its_team(self, tmp_path):
         data = {
@@ -138,7 +180,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "log": log}
 
 
 class TestRange:

@@ -34,7 +34,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, files, identity, jerseys, matches, web
+from volleyball_stats import attribution, feedback, files, identity, jerseys, matches, web
 from volleyball_stats.teams import parse_colour
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -121,6 +121,8 @@ class Questions:
         rallies = web.read_csv(self.match / "rallies.csv") if (self.match / "rallies.csv").exists() else []
         windows = [(int(r["start_frame"]) - round(web.LEAD_S * self.fps), int(r["end_frame"])) for r in rallies]
         self.touches = doubtful(actions, windows, unnamed(self.match / "review", self.fps))
+        self.page = page_data(self.match / "review")
+        self.reports = reports(self.match)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set")) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -449,6 +451,22 @@ class Questions:
                 "reason": reason, "proposed": None if r["identity"] in UNKNOWN else int(r["identity"]),
             })
             refs[qid] = {"touch": {"frame": frame, "team": team}}
+        # One question per rally reported, with every report about it; answered reports are not
+        # asked again (a question's id joins their keys).
+        told, groups = [], {}
+        reported = {k for qid in asked if qid.startswith("report:") for k in qid.removeprefix("report:").split("+")}
+        for r in self.reports:
+            if r["key"] in reported or not self.page:
+                continue
+            question, ref = report_question(r, self.page, self.fps)
+            group = groups.setdefault(r["key"] if ref["start"] is None else ref["start"], [question, [], ref])
+            if group[1]:
+                group[0]["reports"] += question["reports"]
+            group[1].append(r["key"])
+        for question, keys, ref in groups.values():
+            qid = "report:" + "+".join(keys)
+            told.append({"id": qid, **question})
+            refs[qid] = {"report": ref}
         missed = []
         for serve, landing in self.aces:
             # The team where the ball lands: a window starting late takes a touch for its serve.
@@ -475,7 +493,7 @@ class Questions:
                 "clip": {"start": round(start / self.fps, 2), "end": round(end / self.fps, 2), "around": RALLY_AROUND_S, "boxes": []},
             })
             refs[qid] = {"rally": {"start": start + round(web.LEAD_S * self.fps)}}
-        return found + missed + touches + sorted(out, key=lambda q: -q["impact"]), refs
+        return told + found + missed + touches + sorted(out, key=lambda q: -q["impact"]), refs
 
 
 def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[Ref, Ref] | None = None) -> dict[str, list]:
@@ -542,15 +560,95 @@ def rally_answer(rally: dict, choice: str) -> dict:
     return {"rally": [{**rally, "play": choice == "rally"}]} if choice in ("rally", "not_play") else {}
 
 
+def page_data(site: Path) -> dict | None:
+    """The data.js of the page at `site`, None without one."""
+    path = site / "data.js"
+    if not path.exists():
+        return None
+    text = path.read_text()
+    return json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
+
+
+# Touches a report's corrections can give, and their results.
+TOUCH_TYPES, RESULTS = ("serve", "pass", "set", "attack", "relance", "block", "dig"), ("play", "point", "error")
+# A report outside every rally window is about the one starting up to REPORT_BEFORE_S after it or
+# ending up to REPORT_AFTER_S before it (a viewer reports while it plays or just after).
+REPORT_BEFORE_S, REPORT_AFTER_S = 3.0, 8.0
+
+
+def reports(match: Path) -> list[dict]:
+    """The viewers' reports about `match` (its folder's name) in the logs fetched beside it
+    (feedback*.log), each once with its `key`, by time."""
+    found: dict[str, dict] = {}
+    for log in sorted(match.parent.glob("feedback*.log")):
+        for r in feedback.read(log):
+            if r.get("match") == match.name:
+                key = hashlib.sha256(json.dumps([r.get("received"), r.get("time"), r.get("kind"), r.get("comment")]).encode()).hexdigest()[:12]
+                found.setdefault(key, {**r, "key": key})
+    return sorted(found.values(), key=lambda r: r.get("time") or 0)
+
+
+def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
+    """A viewer's `report` as a question on the rally of `page` (its data.js) it is about, by the time
+    of the touch replayed then (`clip`) or of the report: what was reported (`reports`, more joined
+    later by the rally's), the rally's clip, its
+    touches (frame, time, type, team, player as "TEAM:IDENTITY", result) and winner; and its ref, the
+    rally window's start frame and each touch's team, by frame."""
+    at = float((report.get("clip") or {}).get("time") or report.get("time") or 0)
+    rallies = page["rallies"]
+    k = next((k for k, r in enumerate(rallies) if r["start"] - REPORT_BEFORE_S <= at <= r["end"] + REPORT_AFTER_S), None)
+    people = page.get("people") or {}
+    player = lambda p: (lambda q: f"{q['team']}:{q['number']}" if q and q.get("number") is not None else None)(people.get(str(p)) if p is not None else None)  # noqa: E731
+    touches = [
+        {"frame": round(c["t"] * fps), "time": c["t"], "type": c["type"], "team": c["team"], "player": player(c.get("person")), "result": c.get("result")}
+        for c in page["contacts"]
+        if k is not None and c["rally"] == k and c["type"] not in web.NO_PLAYER
+    ]
+    rally = rallies[k] if k is not None else {"start": at - 4, "end": at + 4, "set": None, "winner": None}
+    question = {
+        "kind": "report", "team": 1, "identity": None, "impact": 0, "seconds": round(rally["end"] - rally["start"], 1), "contacts": len(touches),
+        "set": rally.get("set"), "time": round(rally["start"], 2), "crops": [], "choices": [],
+        "clip": {"start": round(rally["start"], 2), "end": round(rally["end"], 2), "around": RALLY_AROUND_S, "boxes": []},
+        "reports": [{"kind": report.get("kind"), "shown": report.get("shown"), "comment": report.get("comment") or "", "time": round(at, 2)}],
+        "touches": touches, "winner": rally.get("winner"),
+    }
+    return question, {"start": round(rally["start"] * fps) if k is not None else None, "touches": {str(t["frame"]): t["team"] for t in touches}}
+
+
+def report_answer(report: dict, changes: dict, given: dict[tuple[int, int], dict]) -> dict:
+    """What the corrections made on a viewer's report add to identity_answers.json: for touches of
+    its rally (`report`, by frame), their player ("TEAM:IDENTITY") or none ("none", no touch) as
+    `touch` answers, their type or result as `action` ones; the rally as no play (`rally`) or its
+    winner (`winner`)."""
+    out: dict[str, list] = defaultdict(list)
+    for c in changes.get("touches", []):
+        frame = int(c["frame"])
+        team = report["touches"].get(str(frame))
+        if team is None:
+            continue
+        if c.get("player") == "none":
+            out["touch"] += touch_answer({"frame": frame, "team": team}, "nobody", given)["touch"]
+        elif c.get("player"):
+            t, i = (int(v) for v in str(c["player"]).split(":"))
+            out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
+        fix = {k: c[k] for k, allowed in (("type", TOUCH_TYPES), ("result", RESULTS)) if c.get(k) in allowed}
+        if fix:
+            out["action"].append({"frame": frame, **fix})
+    if report.get("start") is not None:
+        if changes.get("play") is False:
+            out["rally"].append({"start": report["start"], "play": False})
+        if changes.get("winner") in (1, 2):
+            out["winner"].append({"start": report["start"], "winner": changes["winner"]})
+    return dict(out)
+
+
 def unnamed(site: Path, fps: float) -> dict[int, str]:
     """The touches the page at `site` credits to no named player of their team, by frame: "brief"
     when its player was on the court only seconds in the set (web.brief), else "unknown". Asking them
     all leaves the page no unidentified player."""
-    path = site / "data.js"
-    if not path.exists():
+    data = page_data(site)
+    if data is None:
         return {}
-    text = path.read_text()
-    data = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
     people = data.get("people") or {}
     out = {}
     for c in data["contacts"]:
@@ -1184,7 +1282,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     choice = str(body["choice"])
                     said = choice.split(":") if choice.startswith("player:") else None
                     player = said and questions.ref(int(said[1]), int(said[2]))
-                    if "rally" in refs[body["id"]]:
+                    if "report" in refs[body["id"]]:
+                        given = identity.named(questions.table, identity.read_names(match))
+                        fixes = report_answer(refs[body["id"]]["report"], body.get("changes") or {}, given) if choice == "report" else {}
+                        log.append({"id": body["id"], "choice": choice, **fixes, "applied": False})
+                    elif "rally" in refs[body["id"]]:
                         log.append({"id": body["id"], "choice": choice, **rally_answer(refs[body["id"]]["rally"], choice), "applied": False})
                     elif "receiver" in refs[body["id"]]:
                         given = identity.named(questions.table, identity.read_names(match))

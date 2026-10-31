@@ -18,6 +18,7 @@ import { Conflicts } from '@/components/Review/Conflicts';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
+import { ReportComments, ReportEditor } from '@/components/Review/ReportEditor';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
@@ -25,6 +26,7 @@ const NOTICE_MS = 4000;
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
+const REPORT_KEYS: Record<string, string> = { s: 'skip' };
 
 type Tab = 'questions' | 'names';
 // The tab survives the reload that applies the answers.
@@ -102,7 +104,7 @@ export function Review({
   };
 
   const answer = useCallback(
-    async (choice: string) => {
+    async (choice: string, extra: object = {}) => {
       if (!question) {
         return;
       }
@@ -113,7 +115,7 @@ export function Review({
         return;
       }
       try {
-        const saved = await post('answer', { id: question.id, choice, ...(choice === 'cut' ? { at } : {}) });
+        const saved = await post('answer', { id: question.id, choice, ...extra, ...(choice === 'cut' ? { at } : {}) });
         if (saved.cancelled) {
           return;
         }
@@ -177,7 +179,7 @@ export function Review({
       if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || tab !== 'questions' || typing) {
         return;
       }
-      const key = { piece: KEYS, merge: MERGE_KEYS, touch: TOUCH_KEYS, rally: RALLY_KEYS }[question.kind][event.key.toLowerCase()];
+      const key = { piece: KEYS, merge: MERGE_KEYS, touch: TOUCH_KEYS, rally: RALLY_KEYS, report: REPORT_KEYS }[question.kind][event.key.toLowerCase()];
       const choice = key === 'proposed' ? question.proposed != null && `player:${question.team}:${question.proposed}` : key;
       if (choice) {
         event.preventDefault();
@@ -277,14 +279,16 @@ export function Review({
             <CardHeader>
               <CardTitle>
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  {question.kind !== 'rally' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
+                  {question.kind !== 'rally' && question.kind !== 'report' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
                   {question.kind === 'piece'
                     ? t('review.who')
                     : question.kind === 'touch'
                       ? t(question.reason === 'ace' ? 'review.aceQuestion' : 'review.touchQuestion')
                       : question.kind === 'rally'
                         ? t('review.rallyQuestion')
-                        : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
+                        : question.kind === 'report'
+                          ? t('review.reportQuestion')
+                          : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
                 </h2>
               </CardTitle>
               <CardDescription>
@@ -292,7 +296,9 @@ export function Review({
                   ? [question.reason !== 'ace' && groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
                   : question.kind === 'rally'
                     ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
-                    : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
+                    : question.kind === 'report'
+                      ? [question.set && t('set', { n: question.set }), clock(question.reports?.[0]?.time ?? question.time ?? 0), t('review.reportWhy')]
+                      : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
                 )
                   .filter(Boolean)
                   .join(' · ')}
@@ -338,7 +344,9 @@ export function Review({
                 <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>
               </div>
               <div className="grid gap-3">
-                {question.kind === 'rally' ? (
+                {question.kind === 'report' ? (
+                  <ReportComments question={question} />
+                ) : question.kind === 'rally' ? (
                   <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
                     <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" onClick={() => void answer('rally')} />
                     <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
@@ -393,6 +401,9 @@ export function Review({
                   </>
                 )}
               </div>
+              {question.kind === 'report' && (
+                <ReportEditor key={question.id} question={question} players={players} nameOf={nameOf} onSave={(changes) => void answer('report', { changes })} onSkip={() => void answer('skip')} />
+              )}
             </CardContent>
           </Card>
         ) : (

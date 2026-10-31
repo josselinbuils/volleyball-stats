@@ -369,6 +369,36 @@ def touched(match: Path, given: dict[tuple[int, int], dict], kind: str = "touch"
     return {t["frame"]: None if t["identity"] is None else by_name.get((t["team"], t.get("name")), (t["team"], t["identity"])) for t in answers}
 
 
+def answers(match: Path, kind: str) -> list[dict]:
+    """The review's answers of `kind` in identity_answers.json."""
+    path = match / "identity_answers.json"
+    return json.loads(path.read_text()).get(kind, []) if path.exists() else []
+
+
+def rewon(rallies: list[dict], windows: list[tuple[int, int]], winners: dict[int, int]) -> None:
+    """`rallies`' winners the review gave (`winners`, by window start frame); a set where one changed
+    gets its running score counted again from its winners."""
+    changed = set()
+    for rally, (start, _) in zip(rallies, windows):
+        if start in winners and rally["winner"] != winners[start]:
+            rally["winner"] = winners[start]
+            changed.add(rally["set"])
+    score: dict[int, list[int]] = {}
+    for rally in rallies:
+        if rally["set"] in changed:
+            running = score.setdefault(rally["set"], [0, 0])
+            if rally["winner"]:
+                running[rally["winner"] - 1] += 1
+            rally["score"] = list(running)
+
+
+def acted(found: list[dict], typed: list[dict], fixes: dict[int, dict]) -> None:
+    """The touches of `found` (from actions CSV rows `typed`) given the type and result the review
+    gave (`fixes`, by frame)."""
+    for contact, row in zip(found, typed):
+        contact.update(fixes.get(int(row["frame"]), {}))
+
+
 def no_rallies(match: Path) -> set[int]:
     """Start frames of the rally windows the review's answers say are no rally (no play)."""
     path = match / "identity_answers.json"
@@ -448,7 +478,9 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
+    rewon(rallies, windows, {a["start"]: a["winner"] for a in answers(match, "winner")})
     settle(found, [r["winner"] for r in rallies])
+    acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)
