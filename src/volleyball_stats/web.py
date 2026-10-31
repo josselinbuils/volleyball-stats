@@ -198,13 +198,16 @@ def receivers(found: list[dict], typed: list[dict], players: dict[int, list[dict
     """Each ace of `found` (the page's contacts, from actions CSV rows `typed`) gets the player who
     missed it (`receiver`): the identity the review `said` (by the serve's frame), None when it said
     no one; else the nearest to where it lands in its rally on the other side; unknown (no key)
-    without such a landing or a player there."""
+    without such a landing or a player there. A player said of the serve's own team means no serve:
+    a window starting late took their touch for one; it becomes their missed reception."""
     said = said or {}
     for k, (contact, after) in enumerate(zip(found, found[1:] + [None])):
         if contact["type"] != "serve" or contact["result"] != "point":
             continue
         frame = int(typed[k]["frame"])
-        if frame in said:
+        if frame in said and said[frame] is not None and said[frame][0] == contact["team"]:
+            contact.update(type="pass", result="error", person=who(None, frame, said[frame]))
+        elif frame in said:
             contact["receiver"] = None if said[frame] is None else who(None, frame, said[frame])
         elif after and after["rally"] == contact["rally"] and after["side"] != contact["side"]:
             at = int(typed[k + 1]["frame"])

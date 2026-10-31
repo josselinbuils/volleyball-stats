@@ -61,8 +61,8 @@ MIN_IMPACT = 10.0
 TOUCH_AROUND_S, TOUCH_SHOWN_S, TOUCH_SLOW = 1.5, 0.25, 0.25
 UNKNOWN = ("", "0")
 # An ace's receiver is asked on its flight, slowed from the serve to its landing (ACE_FLIGHT_S after
-# the serve when unseen), zoomed out to ACE_ZOOM players' height around the landing.
-ACE_FLIGHT_S, ACE_ZOOM = 1.5, 4
+# the serve when unseen), the whole picture shown: the landing found can be the ball leaving it.
+ACE_FLIGHT_S = 1.5
 # Touches not doubted asked too, the same ones each time: how many wrong picks the doubts miss.
 SPOT_CHECKS = 20
 # A rally window asked about is played whole with RALLY_AROUND_S on both sides, unzoomed.
@@ -451,16 +451,17 @@ class Questions:
             refs[qid] = {"touch": {"frame": frame, "team": team}}
         missed = []
         for serve, landing in self.aces:
-            frame, team = int(serve["frame"]), 3 - int(serve["team"])
+            # The team where the ball lands: a window starting late takes a touch for its serve.
+            frame = int(serve["frame"])
+            team = int(landing["team"]) if landing and landing.get("team") else 3 - int(serve["team"])
             qid = f"receiver:{frame}"
             if qid in asked:
                 continue
-            at, side = (int(landing["frame"]) if landing else frame + round(ACE_FLIGHT_S * self.fps)), ACE_ZOOM * self.touch_side / 2
-            box = [[round(at / self.fps, 3), *(round(float(landing[k]) + d * side) for d, k in ((-1, "x"), (-1, "y"), (1, "x"), (1, "y")))]] if landing else []
+            at = int(landing["frame"]) if landing else frame + round(ACE_FLIGHT_S * self.fps)
             missed.append({
                 "id": qid, "kind": "touch", "team": team, "identity": None, "impact": identity.CONTACT_S, "seconds": 0, "contacts": 1,
                 "action": "serve", "time": round(frame / self.fps, 2), "reason": "ace", "proposed": None, "crops": [], "choices": [],
-                "clip": {"start": round(frame / self.fps, 2), "end": round(at / self.fps, 2), "around": TOUCH_AROUND_S, "slow": TOUCH_SLOW, "boxes": box},
+                "clip": {"start": round(frame / self.fps, 2), "end": round(at / self.fps, 2), "around": TOUCH_AROUND_S, "slow": TOUCH_SLOW, "boxes": []},
             })
             refs[qid] = {"receiver": {"frame": frame, "team": team}}
         found = []

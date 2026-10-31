@@ -152,6 +152,18 @@ class TestContacts:
         receivers(out, typed, players, said, {10: None})
         assert out[0]["receiver"] is None
 
+    def test_a_receiver_of_the_serve_s_own_team_makes_it_their_missed_reception(self):
+        # The window started late: its first touch, the left team's, was taken for a serve.
+        typed = [{"frame": "10", "x": "-5", "y": "0", "type": "serve", "side": "left", "track": "1", "team": "2"}]
+        out = contacts(typed, [(5, 40)], {}, 10.0, IDENTITY, 15)
+        out[0]["result"] = "point"
+        said = lambda track, frame, given=None: given[1] if given else track  # noqa: E731
+
+        receivers(out, typed, {}, said, {10: (2, 7)})
+
+        assert (out[0]["type"], out[0]["result"], out[0]["person"]) == ("pass", "error", 7)
+        assert "receiver" not in out[0]
+
     def test_places_an_attributed_contact_at_its_players_feet_else_under_the_ball(self):
         typed = [
             {"frame": "10", "x": "0", "y": "0", "type": "attack", "side": "left", "track": "7"},
