@@ -11,7 +11,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
 - Never publish, host or share anything without the owner. The hosted page has no password: it
   never carries real footage or player pictures (nor anything cut from them) without every
-  player's consent. Never republish the YouTube clips in `data/`.
+  player's consent; the names given in the review stay on it (the owner's choice). Never
+  republish the YouTube clips in `data/`.
 - Commit with the personal identity (`Josselin BUILS <josselin.buils@gmail.com>`), never a work email.
 - No new Python dependency without asking (no scipy: numpy and what is installed).
 - The review server binds 127.0.0.1 only. `outputs/` (gitignored) holds names of real people
