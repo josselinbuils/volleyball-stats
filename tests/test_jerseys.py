@@ -1,4 +1,4 @@
-from volleyball_stats.jerseys import agreed, number
+from volleyball_stats.jerseys import agreed, load, number
 
 
 class TestNumber:
@@ -18,3 +18,11 @@ class TestAgreed:
         assert agreed([9, 9, 9]) == 9
         assert agreed([9]) is None
         assert agreed([9, 9, 6]) is None
+
+
+class TestLoad:
+    def test_drops_the_rarely_read_numbers(self, tmp_path):
+        rows = ["frame,track,number"] + [f"{f},1,22" for f in range(60)] + ["100,2,2"]
+        (tmp_path / "jerseys.csv").write_text("\n".join(rows) + "\n")
+
+        assert set(load(tmp_path).values()) == {22}

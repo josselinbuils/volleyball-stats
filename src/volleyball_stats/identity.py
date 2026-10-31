@@ -54,10 +54,16 @@ CROWD, CROWD_GAP = 0.3, 5
 CROPS, CLEAR = 12, 0.1
 # Crops embedded per `describe` call, a multiple of its batch, as the frames are read.
 CHUNK = 16 * 64
-# Segments of CORE_S seconds or more build the identities, the shorter ones join them after.
-CORE_S = 5.0
-# A segment leans to its track's neighbouring pieces' identity by CONTINUITY.
-CONTINUITY = 0.3
+# Segments of CORE_S seconds or more build the identities, the shorter ones join them after: the
+# nearest identity free at that time, if nearer than FAR, else none (the free ones are those off
+# court then, a sink for crowd pieces). Without FAR, on the first ASPOM match: 70.4% of the held-out
+# answers kept against 71.1%; IDF1 0.895 / 0.806 against 0.895 / 0.818 on the school clips.
+CORE_S, FAR = 5.0, 0.7
+# A segment leans to its track's neighbouring pieces' identity by CONTINUITY, and to the named
+# player whose card held it before (the one the user saw) by STAY. On the first ASPOM match, naming
+# a second card of a player then joins the two (without STAY, another named player split instead)
+# and 0.5% of the named time changes name across an apply against 5%.
+CONTINUITY, STAY = 0.3, 0.2
 # Principal components of a team's segment embeddings kept, whitened.
 WHITEN = 32
 # Share of each whitened direction's weight set by how well it tells apart the players the answers
@@ -340,17 +346,18 @@ def sharpen(v: np.ndarray, weights: np.ndarray, must: Iterable[tuple[int, int]],
     return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
 
 
-def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: list[set[int]], before: np.ndarray, order: np.ndarray, count: int | None = None, protos: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: list[set[int]], before: np.ndarray, order: np.ndarray, count: int | None = None, protos: np.ndarray | None = None, aim: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Identity of the segments of `order` (-1 for the others) and the identities' prototypes:
     segments taken by start, those starting within BATCH frames of each other together, each batch
     given the free identities (no segment assigned to it that a segment of the batch cannot be with)
     by an optimal one-to-one assignment on the distance to their prototype, CONTINUITY off for the
-    identity of the piece of the same track just `before` (-1: none); a new identity costs NEW,
-    none beyond `count`. `protos` fixes the prototypes, else each is the weighted mean of its
+    identity of the piece of the same track just `before` (-1: none), STAY off for the identity of
+    the segment it `aim`s at (-1: none); a new identity costs NEW, none beyond `count`. `protos` fixes the prototypes, else each is the weighted mean of its
     segments so far."""
     from ultralytics.utils.ops import linear_sum_assignment
 
     label = np.full(len(v), -1)
+    aim = np.full(len(v), -1) if aim is None else aim
     fixed = protos is not None
     sums = list(protos) if fixed else []
     blocked = [np.zeros(len(v), bool) for _ in sums]
@@ -364,7 +371,7 @@ def follow(v: np.ndarray, weights: np.ndarray, starts: np.ndarray, cannot: list[
         for i, k in enumerate(batch):
             for c in range(len(sums)):
                 if not blocked[c][k]:
-                    cost[i, c] = 1 - known[c] @ v[k] - (CONTINUITY if before[k] >= 0 and label[before[k]] == c else 0.0)
+                    cost[i, c] = 1 - known[c] @ v[k] - (CONTINUITY if before[k] >= 0 and label[before[k]] == c else 0.0) - (STAY if aim[k] >= 0 and label[aim[k]] == c else 0.0)
             if count is None or len(sums) + i < count:
                 cost[i, len(sums) + i] = NEW
         rows, cols = linear_sum_assignment(cost)
@@ -394,11 +401,13 @@ def segment_teams(segments: list[Segment], windows: list[tuple[int, int]], left:
         s.team = (int(np.median([x for x, _ in s.feet]) >= 0) if found is None else found) + 1
 
 
-def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarray, cannot: list[set[int]], must: Iterable[tuple[int, int]], before: np.ndarray, fps: float, count: int | None = None) -> np.ndarray:
+def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarray, cannot: list[set[int]], must: Iterable[tuple[int, int]], before: np.ndarray, fps: float, count: int | None = None, aim: np.ndarray | None = None) -> np.ndarray:
     """Identity (0, 1, ...) of each segment of a team: the `must` pairs joined into units first;
     units of CORE_S seconds or more followed twice (`follow`), building the prototypes then with
     them fixed; then the other units, heaviest first, each to the nearest prototype it can join
-    (CONTINUITY off per neighbouring piece of its track with it), else its own identity."""
+    (CONTINUITY off per neighbouring piece of its track with it) if nearer than FAR, else none, or
+    its own identity when it can join none. A segment `aim`ing at another (a named player's pin,
+    -1 for none) leans to its identity by STAY; the units aimed at come first."""
     unit = np.arange(len(v))
     for a, b in must:
         unit[unit == unit[b]] = unit[a]
@@ -419,9 +428,15 @@ def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarr
         if b >= 0 and unit[b] != unit[k]:
             ubefore[unit[k]] = unit[b]
             after[unit[b]].append(unit[k])
-    core = np.nonzero((umass >= CORE_S * fps) | (np.bincount(unit, minlength=n) > 1))[0]
-    label, protos = follow(uv, uw, ustart, ucannot, ubefore, core, count)
-    label, protos = follow(uv, uw, ustart, ucannot, ubefore, core, count, protos)
+    uaim = np.full(n, -1)
+    for k in np.nonzero(aim >= 0)[0] if aim is not None else []:
+        uaim[unit[k]] = unit[aim[k]]
+    seeds = np.zeros(n, bool)
+    seeds[uaim[uaim >= 0]] = True
+    ustart[seeds] = -np.inf
+    core = np.nonzero((umass >= CORE_S * fps) | (np.bincount(unit, minlength=n) > 1) | seeds)[0]
+    label, protos = follow(uv, uw, ustart, ucannot, ubefore, core, count, aim=uaim)
+    label, protos = follow(uv, uw, ustart, ucannot, ubefore, core, count, protos, uaim)
     blocked = [np.zeros(n, bool) for _ in range(len(protos))]
     for u in np.nonzero(label >= 0)[0]:
         blocked[label[u]][list(ucannot[u])] = True
@@ -430,9 +445,13 @@ def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarr
         for nb in [ubefore[k], *after[k]]:
             if nb >= 0 and label[nb] >= 0:
                 cost[label[nb]] -= CONTINUITY
+        if uaim[k] >= 0 and label[uaim[k]] >= 0:
+            cost[label[uaim[k]]] -= STAY
         free = [c for c in np.argsort(cost) if not blocked[c][k]]
-        if free:
+        if free and cost[free[0]] < FAR:
             label[k] = free[0]
+        elif free:
+            continue
         elif count is None or len(protos) < count:
             label[k] = len(protos)
             protos = np.vstack([protos, uv[k]]) if len(protos) else uv[k][None]
@@ -489,14 +508,37 @@ def jersey_links(segments: list[Segment], jerseys: dict[Key, int]) -> tuple[list
     return worn_by_one, different
 
 
-def name_links(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> tuple[list[list[int]], list[list[list[int]]]]:
-    """`jersey_links` for the names the user gave, (ref, name): one name one player, whatever the
-    case, two names of a team two."""
+def name_pins(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> dict[tuple[int, str], list[int]]:
+    """The segments the names the user gave, (ref, name), are pinned on, by team and name (any case)."""
     read: dict[tuple[int, str], list[int]] = {}
     for ref, name in names:
         for k in resolve(ref, segments, before):
             read.setdefault((segments[k].team, name.strip().casefold()), []).append(k)
-    return links(read)
+    return read
+
+
+def name_links(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> tuple[list[list[int]], list[list[list[int]]]]:
+    """`jersey_links` for the names the user gave: one name one player, two names of a team two."""
+    return links(name_pins(segments, names, before))
+
+
+def aims(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> np.ndarray:
+    """Per segment, a pin of the name it had in the previous run (`before`), the card the user saw
+    it in (-1 for none, or for a card holding two names' pins); the pins aim at their own name's."""
+    pins = name_pins(segments, names, before)
+    named: dict[tuple[int, int], set[tuple[int, str]]] = {}
+    for key, ks in pins.items():
+        for k in ks:
+            if before[k] is not None:
+                named.setdefault(before[k], set()).add(key)
+    out = np.full(len(segments), -1)
+    for k, b in enumerate(before):
+        keys = named.get(b, set()) if b is not None else set()
+        if len(keys) == 1:
+            out[k] = pins[next(iter(keys))][0]
+    for ks in pins.values():
+        out[ks] = ks[0]
+    return out
 
 
 def links(read: dict[tuple[int, int | str], list[int]]) -> tuple[list[list[int]], list[list[list[int]]]]:
@@ -690,6 +732,7 @@ def identify(
     for group_ in same:
         for k in group_:
             segments[k].team = segments[group_[0]].team
+    aim = aims(segments, names or [], before)
     v, weights = embed(video, rows, segments, cover, cache)
     cannot = cannot_links(segments, fps)
     for group_ in same:
@@ -721,7 +764,8 @@ def identify(
         count = squad[team - 1] if squad and team in (1, 2) else None
         wv[idx] = sharpen(whiten(v[idx], weights[idx], WHITEN), weights[idx], must)
         local_cannot = [{local[j] for j in cannot[k] if j in local} for k in idx]
-        found = group(wv[idx], weights[idx], mass, np.array([segments[k].start for k in idx]), local_cannot, must, earlier, fps, count)
+        local_aim = np.array([local.get(aim[k], -1) for k in idx])
+        found = group(wv[idx], weights[idx], mass, np.array([segments[k].start for k in idx]), local_cannot, must, earlier, fps, count, local_aim)
         labels[idx] = np.where(found >= 0, found + labels.max() + 1, -1)
     for s, label in zip(segments, labels):
         s.identity = int(label) + 1
@@ -770,7 +814,8 @@ def read_names(match: Path) -> list[dict]:
 
 def named(table: list[tuple[int, int, int, int, int]], names: list[dict]) -> dict[tuple[int, int], dict]:
     """The name and jersey number of each (team, identity) of identities.csv's `table` that the user
-    named, the first entry winning."""
+    named, the first entry winning; its jersey number, else the first given with that name (two
+    cards of one player joined)."""
     by_track: dict[int, list] = {}
     for r in table:
         by_track.setdefault(r[0], []).append(r)
@@ -779,6 +824,8 @@ def named(table: list[tuple[int, int, int, int, int]], names: list[dict]) -> dic
         found = lookup(by_track.get(e["ref"]["track"], []), e["ref"]["track"], e["ref"]["frame"])
         if found and found not in out:
             out[found] = {"name": e.get("name") or None, "jersey": e.get("jersey")}
+        elif found and out[found]["jersey"] is None and out[found]["name"] == (e.get("name") or None):
+            out[found]["jersey"] = e.get("jersey")
     return out
 
 

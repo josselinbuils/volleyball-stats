@@ -4,6 +4,7 @@ from volleyball_stats.identity import (
     CORE_S,
     LONGEST_S,
     Segment,
+    aims,
     cannot_links,
     covers,
     group,
@@ -85,6 +86,26 @@ class TestGroup:
         found = group(v, np.ones(2), np.full(2, float(length)), np.array([0, 2 * length]), [set(), set()], [(0, 1)], np.full(2, -1), FPS)
 
         assert found[0] == found[1] == 0
+
+    def test_a_piece_leans_to_the_named_player_its_card_was(self):
+        # A (named) and B seen together; a later piece a little closer to B, A's before.
+        a, b = np.eye(8)[0], np.eye(8)[1]
+        c = (0.45 * a + 0.55 * b) / np.linalg.norm(0.45 * a + 0.55 * b)
+        length = int(max(CORE_S, LONGEST_S) * FPS) + 20
+        args = (np.array([a, b, c]), np.ones(3), np.full(3, float(length)), np.array([0, 0, 3 * length]), [{1}, {0}, set()], [], np.full(3, -1), FPS)
+
+        assert group(*args).tolist() == [0, 1, 1]
+        assert group(*args, aim=np.array([0, -1, 0])).tolist() == [0, 1, 0]
+
+    def test_a_short_piece_like_no_free_player_gets_none(self):
+        # A and B long and seen together; a short piece like B while B is seen elsewhere.
+        a, b = np.eye(8)[0], np.eye(8)[1]
+        length = int(max(CORE_S, LONGEST_S) * FPS) + 20
+        v = np.array([a, b, b])
+
+        found = group(v, np.ones(3), np.array([length, length, 10.0]), np.array([0, 0, 5]), [{1}, {0, 2}, {1}], [], np.full(3, -1), FPS)
+
+        assert found.tolist() == [0, 1, -1]
 
     def test_identities_too_short_get_none(self):
         v = np.eye(8)[:1]
@@ -169,6 +190,13 @@ class TestAnswers:
 
         assert name_links(self.segments, names, [None] * 3) == ([[0, 1]], [[[0, 1], [2]]])
 
+    def test_each_piece_aims_at_the_name_its_card_had_before(self):
+        # Julie's pin on piece 0, Léa's on piece 1; piece 2 on Julie's card, then on a card holding both.
+        names = [({"track": 1, "frame": 5}, "Julie"), ({"track": 1, "frame": 25}, "Léa")]
+
+        assert aims(self.segments, names, [(1, 3), (1, 4), (1, 3)]).tolist() == [0, 1, 0]
+        assert aims(self.segments, names, [(1, 3), (1, 3), (1, 3)]).tolist() == [0, 1, -1]
+
 
 class TestNamed:
     def test_names_the_identity_holding_each_entrys_piece_the_first_entry_winning(self):
@@ -180,6 +208,16 @@ class TestNamed:
         ]
 
         assert named(table, names) == {(1, 5): {"name": "Julie", "jersey": 7}, (2, 1): {"name": None, "jersey": 4}}
+
+    def test_keeps_the_jersey_number_given_on_either_card_of_a_player_joined(self):
+        table = [(1, 0, 30, 1, 5)]
+        names = [
+            {"ref": {"track": 1, "frame": 5}, "name": "Maeva", "jersey": None},
+            {"ref": {"track": 1, "frame": 15}, "name": "Léa", "jersey": 8},
+            {"ref": {"track": 1, "frame": 25}, "name": "Maeva", "jersey": 10},
+        ]
+
+        assert named(table, names) == {(1, 5): {"name": "Maeva", "jersey": 10}}
 
 
 class TestLookup:

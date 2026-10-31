@@ -9,6 +9,7 @@ join two players for good. Written to jerseys.csv, which identity.run reads.
 import argparse
 import csv
 import time
+from collections import Counter
 from pathlib import Path
 
 import cv2
@@ -24,6 +25,9 @@ READS, MIN_S = 4, 2.0
 # upscaled SCALE times for the reader. Readings under CONFIDENCE, or not 1-2 digits, are dropped.
 TORSO, SCALE, CONFIDENCE = (0.12, 0.62), 2, 0.9
 READINGS_AGREE = 2
+# Numbers making up less than RARE of a match's readings are misread parts of others (2 for 22, 27):
+# on the first ASPOM match, 2, 27 and 6 (0.1-0.6%) against 6.6% for the least read real one.
+RARE = 0.02
 
 
 def torso(image: np.ndarray, box: tuple[float, float, float, float]) -> np.ndarray:
@@ -74,12 +78,14 @@ def write(path: Path, found: list[tuple[int, int, int]]) -> None:
 
 
 def load(match: Path) -> dict[tuple[int, int], int] | None:
-    """jerseys.csv's numbers by (frame, track), None without the file."""
+    """jerseys.csv's numbers by (frame, track), but the RARE ones; None without the file."""
     path = match / FILE
     if not path.exists():
         return None
     with open(path) as f:
-        return {(int(r["frame"]), int(r["track"])): int(r["number"]) for r in csv.DictReader(f)}
+        read = {(int(r["frame"]), int(r["track"])): int(r["number"]) for r in csv.DictReader(f)}
+    counts = Counter(read.values())
+    return {k: n for k, n in read.items() if counts[n] >= RARE * len(read)}
 
 
 def main() -> None:
