@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import brand, contacts, drop_rallies, match_data, people, photos, player_samples, publish, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import ball_track, brand, contacts, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -186,6 +186,32 @@ class TestPeople:
         (tmp_path / "identity_answers.json").write_text(json.dumps({"touch": touches}))
 
         assert touched(tmp_path, {(2, 7): {"name": "Julie", "jersey": None}}) == {5: (2, 7), 9: (1, 4), 12: None}
+
+
+class TestPlayingTime:
+    def test_counts_each_players_time_on_the_court_in_the_rallies_by_set(self):
+        # 10 fps, a sample every 5 frames: frames 0, 5, 10, 15, 20.
+        samples = [[1, 0.0, 0.0], [1, 11.5, 0.0, 2, 0.0, 6.0], [1, 0.0, 0.0, 2, 3.0, 4.0], [1, 13.0, 0.0], [2, 0.0, 0.0]]
+
+        # Rallies over frames 3-12 (set 1) and 18-20 (set 2): player 1 serving 2.5 m behind the end
+        # line counts, 4 m behind does not; player 2 on the bench 1.5 m out does not.
+        found = playing_time(samples, 5, [(3, 12), (18, 20)], [1, 2], 10.0)
+
+        assert found == {1: {"1": 1.0}, 2: {"1": 0.5, "2": 0.5}}
+
+
+class TestBallTrack:
+    def test_keeps_the_balls_place_seen_in_the_rallies_every_step(self, tmp_path):
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n20,40\n")
+        rows = [f"{f},{int(f != 32)},{f * 10},{f * 5}" for f in range(0, 60, 2)]
+        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n")
+
+        # 10 fps: every frame, the rally from 3 frames before its start; frame 32 unseen.
+        found = ball_track(tmp_path, (1000, 500), 10.0)
+
+        frames = found["samples"][::3]
+        assert frames == [18, 20, 22, 24, 26, 28, 30, 34, 36, 38, 40]
+        assert found["samples"][:3] == [18, 0.18, 0.18] and found["fps"] == 10.0
 
 
 class TestDropRallies:

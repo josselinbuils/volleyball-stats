@@ -158,7 +158,8 @@
       "questions": "Préparation des questions…",
       "roster": "Mise à jour du répertoire des joueurs…",
       "review": "Reconstruction de cette page…",
-      "page": "Reconstruction de la page du match…"
+      "page": "Reconstruction de la page du match…",
+      "hosting": "Mise à jour de la page en ligne…"
     },
     "error": "La réponse n'a pas été enregistrée : le serveur de vérification est-il toujours lancé ?",
     "who": "Qui est entouré en jaune ?",
@@ -237,7 +238,9 @@
     "rallyQuestion": "Est-ce un échange ?",
     "rallyWhy": "aucune touche reconnue",
     "isRally": "Oui, un échange",
-    "rallyNote": "Le moment passe en entier, sans zoom. Un échange va du service à la fin du point ; l'échauffement, une balle renvoyée au serveur ou un temps mort n'en sont pas."
+    "rallyNote": "Le moment passe en entier, sans zoom. Un échange va du service à la fin du point ; l'échauffement, une balle renvoyée au serveur ou un temps mort n'en sont pas.",
+    "hosted": "Page en ligne mise à jour à {{at}}",
+    "hostedFailed": "La page en ligne n'a pas pu être mise à jour à {{at}} : vos réponses sont bien appliquées ici, réessayez plus tard."
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
@@ -294,7 +297,8 @@
       "points": "Points",
       "unattacked": "Sans attaque",
       "rating": "Note /3",
-      "between": "Entre deux"
+      "between": "Entre deux",
+      "time": "Temps de jeu"
     },
     "about": {
       "touches": "Toutes les fois où le joueur touche le ballon, quelle que soit l'action.",
@@ -319,7 +323,8 @@
       "faults": "Les ballons envoyés dehors, dans le filet ou tombés de son côté, aces subis compris.",
       "between": "Les ballons tombés sans être touchés à moins de 2,5 m de deux coéquipiers à peu près aussi proches l'un que l'autre. Ils se gagnent en s'annonçant : « J'ai ! »",
       "strengths": "Ce qu'un joueur réussit nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments.",
-      "toWorkOn": "Ce qu'un joueur rate nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments."
+      "toWorkOn": "Ce qu'un joueur rate nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments.",
+      "time": "Temps passé sur le terrain pendant les échanges (minutes:secondes), d'après le suivi des joueurs : approximatif quand un joueur est mal suivi."
     },
     "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte ; cliquez dessus pour trier les lignes.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
@@ -411,6 +416,7 @@
       "action": "Ce n'est pas la bonne action (passe, attaque…)",
       "result": "Le résultat ou le point est faux",
       "ball": "Le ballon est mal suivi",
+      "notPlay": "Ce n'est pas une phase de jeu (échauffement, temps mort…)",
       "other": "Autre chose"
     },
     "button": "Signaler",
@@ -425,5 +431,6 @@
     "checking": "Vérification…",
     "wrong": "Mot de passe incorrect.",
     "changed": "Le mot de passe a changé : entrez le nouveau."
-  }
+  },
+  "followBall": "Zoomer sur le ballon"
 }

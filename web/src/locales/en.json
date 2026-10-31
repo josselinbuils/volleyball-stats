@@ -158,7 +158,8 @@
       "questions": "Preparing the questions…",
       "roster": "Updating the players' roster…",
       "review": "Rebuilding this page…",
-      "page": "Rebuilding the match page…"
+      "page": "Rebuilding the match page…",
+      "hosting": "Updating the online page…"
     },
     "error": "The answer was not saved: is the review server still running?",
     "who": "Who is outlined in yellow?",
@@ -237,7 +238,9 @@
     "rallyQuestion": "Is this a rally?",
     "rallyWhy": "no touch recognised",
     "isRally": "Yes, a rally",
-    "rallyNote": "The moment plays whole, unzoomed. A rally runs from the serve to the end of the point; the warm-up, a ball sent back to the server or a timeout are none."
+    "rallyNote": "The moment plays whole, unzoomed. A rally runs from the serve to the end of the point; the warm-up, a ball sent back to the server or a timeout are none.",
+    "hosted": "Online page updated at {{at}}",
+    "hostedFailed": "The online page could not be updated at {{at}}: your answers are applied here, try again later."
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -294,7 +297,8 @@
       "points": "Points",
       "unattacked": "No attack",
       "rating": "Rating /3",
-      "between": "Between two"
+      "between": "Between two",
+      "time": "Playing time"
     },
     "about": {
       "touches": "Every time the player touches the ball, whatever the action.",
@@ -319,7 +323,8 @@
       "faults": "Balls sent out, into the net or landing on the player's own side, aces conceded included.",
       "between": "Balls that landed untouched within 2.5 m of two teammates about as close as each other. Calling the ball wins them: “Mine!”",
       "strengths": "What a player does clearly better than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",
-      "toWorkOn": "What a player does clearly worse than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments."
+      "toWorkOn": "What a player does clearly worse than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",
+      "time": "Time on the court during the rallies (minutes:seconds), from the players' tracking: rough where a player is poorly tracked."
     },
     "noteTitles": "Hover or tap a column's title to see what it counts; click it to sort the rows.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",
@@ -411,6 +416,7 @@
       "action": "It's not the right action (set, attack…)",
       "result": "The result or the point is wrong",
       "ball": "The ball is badly followed",
+      "notPlay": "Not during play (warm-up, timeout…)",
       "other": "Something else"
     },
     "button": "Report",
@@ -425,5 +431,6 @@
     "checking": "Checking…",
     "wrong": "Wrong password.",
     "changed": "The password changed: enter the new one."
-  }
+  },
+  "followBall": "Zoom on the ball"
 }

@@ -9,6 +9,7 @@ import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
+import { cn } from '@/lib/utils';
 import { allMarked, post, type Conflict, type Named, type Question, type Saved, type Suggestion } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
@@ -42,6 +43,7 @@ export function Review({
   players,
   roster,
   conflicts,
+  hosted,
 }: {
   width: number;
   height: number;
@@ -53,6 +55,7 @@ export function Review({
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
   conflicts: Conflict[];
+  hosted?: { at: string; error: string | null } | null;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -205,6 +208,11 @@ export function Review({
                 {t('review.matchPage')}
               </a>
             </p>
+            {hosted && (
+              <p className={cn('mt-0.5 text-sm', hosted.error ? 'text-destructive' : 'text-muted-foreground')} title={hosted.error ?? undefined}>
+                {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : t('review.hosted', { at: hosted.at })}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="bg-card" disabled={!answered || busy !== null} onClick={() => void reload('undo')}>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
+import { Focus, Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
@@ -12,7 +12,7 @@ import { span as allowed } from '@/components/Watch/helpers/span';
 const SKIP = 10;
 
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
-export function VideoControls({ light = false }: { light?: boolean }) {
+export function VideoControls({ light = false, follow, onFollow }: { light?: boolean; follow?: boolean; onFollow?: () => void }) {
   const { t } = useTranslation();
   const { video, loop, setLoop } = usePlayer();
   const { set, rallies } = useSet();
@@ -117,8 +117,8 @@ export function VideoControls({ light = false }: { light?: boolean }) {
   );
 
   return (
-    // On a phone the timeline takes its own row above the buttons.
-    <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'text-white')}>
+    // On a phone the timeline takes its own row above the buttons. Over the video zoomed on the ball, which runs past its box.
+    <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'relative z-10 bg-black text-white')}>
       <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} title={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
         {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
       </button>
@@ -166,6 +166,18 @@ export function VideoControls({ light = false }: { light?: boolean }) {
       >
         <Repeat1 aria-hidden />
       </button>
+      {onFollow && (
+        <button
+          type="button"
+          className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
+          aria-pressed={follow}
+          aria-label={t('followBall')}
+          title={t('followBall')}
+          onClick={onFollow}
+        >
+          <Focus aria-hidden />
+        </button>
+      )}
       {/* The court's replay has no sound. */}
       {match.video && (
         <button

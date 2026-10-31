@@ -9,7 +9,7 @@ import { usePlayer, useVideoTime } from '@/lib/player';
 import { clipLabel, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 
-const KINDS = ['player', 'action', 'result', 'ball', 'other'] as const;
+const KINDS = ['player', 'action', 'result', 'ball', 'notPlay', 'other'] as const;
 
 // How long the thanks stay on the button.
 const THANKS_MS = 4000;

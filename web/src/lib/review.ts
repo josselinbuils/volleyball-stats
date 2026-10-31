@@ -119,6 +119,8 @@ interface ReviewData {
   conflicts: Conflict[];
   /** Each player's (`team:identity`) card picture first, then the other moments to pick for it. */
   photos?: Record<string, PhotoMoment[]>;
+  /** The hosted pages' last update after a change (when the match is hosted): its time, and why it failed. */
+  hosted?: { at: string; error: string | null } | null;
 }
 
 declare global {

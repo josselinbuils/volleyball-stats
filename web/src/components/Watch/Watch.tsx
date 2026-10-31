@@ -4,6 +4,7 @@ import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
+import { loadBall, useBall } from '@/lib/ball';
 import { useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { Clock } from '@/lib/clock';
@@ -15,7 +16,10 @@ import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 import { askVideo } from '@/components/VideoChoice';
+import { ballAt, zoomOn } from '@/components/Watch/helpers/zoom';
 
+// Share of the way to the zoom's target covered each frame: the view follows the ball within a fifth of a second.
+const EASE = 0.1;
 // What web.py's --av1-video takes: 1080p, 8-bit, level 4.0; a browser that cannot play it takes the next source.
 const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
 
@@ -24,6 +28,40 @@ export function Watch() {
   const f = useFormat();
   const { video, setVideo, playlist } = usePlayer();
   const court = useRef<HTMLDivElement>(null);
+  // Zoomed on the ball, the view eases toward it each frame, back to the whole picture when off or
+  // with no ball near.
+  const [follow, setFollow] = useState(false);
+  const ball = useBall();
+  const view = useRef({ scale: 1, x: 0, y: 0 });
+  useEffect(() => {
+    if (follow) {
+      loadBall();
+    }
+  }, [follow]);
+  useEffect(() => {
+    if (!(video instanceof HTMLVideoElement)) {
+      return;
+    }
+    const now = view.current;
+    let frame = 0;
+    const tick = () => {
+      const at = follow && typeof ball === 'object' ? ballAt(ball, video.currentTime) : null;
+      const target = at && video.videoWidth ? zoomOn(at, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight) : { scale: 1, x: 0, y: 0 };
+      for (const k of ['scale', 'x', 'y'] as const) {
+        now[k] += (target[k] - now[k]) * EASE;
+      }
+      if (!follow && Math.abs(now.scale - 1) < 0.002) {
+        Object.assign(now, { scale: 1, x: 0, y: 0 });
+        video.style.transform = '';
+        return;
+      }
+      video.style.transformOrigin = '0 0';
+      video.style.transform = `translate(${now.x}px, ${now.y}px) scale(${now.scale})`;
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [video, follow, ball]);
   // A playlist's next clip loads once the video has reached the one it plays: both at once would
   // slow its start.
   const [reached, setReached] = useState<typeof playlist>(null);
@@ -141,7 +179,7 @@ export function Watch() {
                   {match.av1 && <source src={match.av1} type={AV1} />}
                   <source src={match.video} />
                 </video>
-                <VideoControls />
+                <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} />
               </div>
             </div>
             <PlaylistBar />

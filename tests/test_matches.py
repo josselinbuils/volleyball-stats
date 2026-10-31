@@ -1,5 +1,9 @@
 import json
+from pathlib import Path
 
+import pytest
+
+from volleyball_stats import matches
 from volleyball_stats.matches import build
 
 
@@ -40,3 +44,22 @@ class TestBuild:
 
         assert sorted(m["path"] for m in matches) == ["one/", "two/"]
         assert (tmp_path / "one" / "data.js").exists() and (tmp_path / "two" / "data.js").exists()
+
+
+class TestHost:
+    def test_rebuilds_both_pages_and_uploads_only_a_copy_the_password_guards(self, tmp_path, monkeypatch):
+        built, ran = [], []
+        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[5])) or ({}, {}))
+        monkeypatch.setattr(matches, "build", lambda site, theme: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
+        monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
+        config = {"site": str(tmp_path), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "~/.ssh/key"}
+        args = (Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", config)
+
+        monkeypatch.setattr(matches, "protected", lambda url: False)
+        with pytest.raises(RuntimeError):
+            matches.host(*args)
+
+        assert built == [("full", tmp_path / "first" / "video"), ("none", tmp_path / "first")] and ran == []
+        monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
+        matches.host(*args)
+        assert ran[0][:3] == ["rsync", "-rt", "--delete"] and ran[0][-2:] == [f"{tmp_path}/", "host:/site/"]

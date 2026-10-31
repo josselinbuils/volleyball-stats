@@ -57,6 +57,8 @@ export interface Person {
   name?: string | null;
   /** A picture of them from the video, beside data.js. */
   photo?: string;
+  /** Seconds on the court during the rallies, by set number. */
+  seconds?: Record<string, number>;
 }
 
 export interface ZoneCell {

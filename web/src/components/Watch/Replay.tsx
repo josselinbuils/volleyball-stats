@@ -126,9 +126,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
             onHover={setHover}
           />
         )}
-        {/* The court's top margin is mostly empty: it tucks under the box. */}
         {/* Full screen: the court as large as the space allows, its end labels over its bottom. */}
-        <div className={cn('relative -mt-4 [:fullscreen_&]:mt-0 [:fullscreen_&]:h-full', view === '3d' && 'hidden')}>
+        <div className={cn('relative [:fullscreen_&]:h-full', view === '3d' && 'hidden')}>
           <Court
             role="img"
             aria-label={t('replayLabel')}

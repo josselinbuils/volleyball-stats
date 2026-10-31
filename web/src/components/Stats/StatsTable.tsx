@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CountButton } from '@/components/CountButton';
-import { useFormat } from '@/lib/format';
+import { clock, useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
@@ -52,6 +52,8 @@ export interface Row {
   tips?: Partial<Record<Stat, string>>;
   insights?: Insight[];
   total?: boolean;
+  /** A player's time on the court, in seconds. */
+  seconds?: number;
 }
 
 /** Counts of touches per action and how they ended in `columns`, `first` heading the rows' column,
@@ -61,9 +63,12 @@ export interface Row {
 export function StatsTable({ id, first, rows, columns = COLUMNS, insights = false }: { id: string; first: string; rows: Row[]; columns?: typeof COLUMNS; insights?: boolean }) {
   const { t } = useTranslation();
   const f = useFormat();
-  const [sort, setSort] = useState<{ stat: Stat; desc: boolean } | null>(null);
-  const sortBy = (stat: Stat) => setSort((s) => (s?.stat !== stat ? { stat, desc: true } : s.desc ? { stat, desc: false } : null));
-  const value = (r: Row, stat: Stat) => (stat === 'rated' ? (meanRating(r.stats) ?? -1) : r.stats[stat].length);
+  const [sort, setSort] = useState<{ stat: Stat | 'time'; desc: boolean } | null>(null);
+  const sortBy = (stat: Stat | 'time') => setSort((s) => (s?.stat !== stat ? { stat, desc: true } : s.desc ? { stat, desc: false } : null));
+  const value = (r: Row, stat: Stat | 'time') => (stat === 'time' ? (r.seconds ?? -1) : stat === 'rated' ? (meanRating(r.stats) ?? -1) : r.stats[stat].length);
+  const order = (stat: Stat | 'time') => (sort?.stat === stat ? (sort.desc ? 'descending' : 'ascending') : undefined);
+  // The players' time on the court, beside their names.
+  const timed = rows.some((r) => r.seconds !== undefined);
   const body = rows.filter((r) => !r.total);
   const sorted = sort ? [...body].sort((a, b) => (value(b, sort.stat) - value(a, sort.stat)) * (sort.desc ? 1 : -1)) : body;
   // A line parts each group from its neighbours.
@@ -73,6 +78,7 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
   const row = (r: Row) => (
     <TableRow key={r.key} className={r.total ? 'hover:bg-transparent' : undefined}>
       <TableCell className={cn(FIRST, 'max-w-48 py-1.5 whitespace-normal', r.total && 'font-semibold')}>{r.name}</TableCell>
+      {timed && <TableCell className="border-r px-2 py-1.5 text-center text-muted-foreground">{r.seconds !== undefined && clock(r.seconds)}</TableCell>}
       {columns.map(({ stat }, k) => (
         <TableCell key={stat} className={cn('px-1 py-1.5 text-center', parts(k) && 'border-l')}>
           <CountButton
@@ -108,6 +114,11 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
           <TableHead rowSpan={2} className={cn(FIRST, 'text-muted-foreground')}>
             {first}
           </TableHead>
+          {timed && (
+            <TableHead rowSpan={2} aria-sort={order('time')} className={cn(HEAD, 'min-w-16 border-r')}>
+              <ColumnTitle title={t('stats.columns.time')} about={t('stats.about.time')} order={order('time')} onSort={() => sortBy('time')} />
+            </TableHead>
+          )}
           {columns.map(
             ({ of }, k) =>
               (k === 0 || parts(k)) && (
@@ -123,14 +134,11 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
           )}
         </TableRow>
         <TableRow className="hover:bg-transparent">
-          {columns.map(({ stat, label }, k) => {
-            const order = sort?.stat === stat ? (sort.desc ? 'descending' : 'ascending') : undefined;
-            return (
-              <TableHead key={stat} aria-sort={order} className={cn(HEAD, 'h-8 min-w-14', parts(k) && 'border-l')}>
-                <ColumnTitle title={t(`stats.columns.${label}`)} about={t(`stats.about.${stat}`)} order={order} onSort={() => sortBy(stat)} />
-              </TableHead>
-            );
-          })}
+          {columns.map(({ stat, label }, k) => (
+            <TableHead key={stat} aria-sort={order(stat)} className={cn(HEAD, 'h-8 min-w-14', parts(k) && 'border-l')}>
+              <ColumnTitle title={t(`stats.columns.${label}`)} about={t(`stats.about.${stat}`)} order={order(stat)} onSort={() => sortBy(stat)} />
+            </TableHead>
+          ))}
           {insights &&
             (['strengths', 'toWorkOn'] as const).map((key) => (
               <TableHead key={key} className={cn(HEAD, 'h-8', key === 'strengths' && 'border-l')}>

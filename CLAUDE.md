@@ -56,29 +56,49 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
   ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
   identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame
-  (high serves and sets, the owner noticed): its track breaks there and the contacts and crossings
-  around the gap suffer; to do: carry the flight across such gaps (a parabola from both ends).
-- The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`) finds 139
-  rallies for 128 points, unscored. The viewers' "Signaler" reports (see Hosting) are the main source
-  of corrections: fetch them, turn them into labels for the steps they point at, score and fix those
-  steps; Kili labels (`docs/kili_labelling.md`) only where reports are not enough. Next: the extra
-  rally windows (136 found for 128 played; windows with no real touch are the suspects, the review's
-  "Pas une phase de jeu" answers their labels); measure `speed.py` on the RTX 5080; tune jersey
-  numbers on that footage. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
+  (high serves and sets, the owner noticed): on the first match 47 of the ~950 track gaps in rallies
+  go through the top; the false touches they made are dropped (`attribution.FAR`) and no net crossing
+  is lost (5, all under `contacts.MAX_GAP`), so carrying the flight across them waits for a match
+  where it shows.
+- The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`): its review
+  runs with `uv run python -m volleyball_stats.review outputs/first_match --video data/first_match.mp4
+  --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review` for the questions);
+  every touch and rally-window question is answered, and each apply rebuilds and uploads the hosted
+  pages (`outputs/first_match/publish.json`). Rallies: 130 windows on the page for 128 points; the
+  estimated finals 26-23, 26-14, 23-18 against 25-23, 25-12, 25-18 given (the rest: missed rallies).
+  Stats: each team's points plus the other's faults give 74-53 (75-53 played). The viewers'
+  "Signaler" reports (see Hosting) are the main source of corrections: fetch them, turn them into
+  labels for the steps they point at (a "pas une phase de jeu" one becomes a pending rally answer in
+  the review), score and fix those steps; Kili labels (`docs/kili_labelling.md`) only where reports
+  are not enough.
+- Open, most useful first:
+  1. Missed rallies (`rallies.py`'s recall, its README's proposed fixes): the largest error left in
+     the score.
+  2. The review's rally answers (`identity_answers.json` "rally": 6 no play, 7 rallies) as labels to
+     drop false windows automatically.
+  3. Names: Théo and Maeva both have jersey 10 (a typo for one); a player without a jersey shows their
+     tracking number (Sylvain: 10), which can clash with real jerseys: show initials instead?
+  4. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
+     the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
+     players a team rotate in).
+  5. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+  6. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
 
 ## Hosting
 
 https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE-TEAM-vs-TEAM/`
-(`full_match`, its teams unnamed, at `/volleyball/2026-10-25/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
+(the first match at `/volleyball/2026-10-29-aspom-01-vs-aspom-02/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
 `volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo; that service is
 only in the server's copy), the site in `volleyball-stats/site`, the `/volleyball` route in
 `reverse-proxy/config.json`. Cloudflare caches the `.js` files for 4 hours: the unhashed ones load
 with the build's hash (`?v=`), so a new build shows at once. `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
-copy it over; nothing restarts:
+copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`,
+`club`, `upload` as `root@<OVH IP>:…/site/`, `key`), the review does all of it after each apply
+(`matches.host`, refusing to upload a video copy that opens without the password) and says when:
 
 ```bash
-uv run python -m volleyball_stats.web outputs/full_match --video data/full_match.mp4 --court outputs/court/side_holdout.json --footage none --club 1 --no-pictures --out outputs/hosted/full_match
+uv run python -m volleyball_stats.web outputs/first_match --video data/first_match.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH
 uv run python -m volleyball_stats.matches outputs/hosted
 rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
 ```

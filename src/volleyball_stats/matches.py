@@ -5,7 +5,8 @@
 Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the match's date and teams
 (SITE/2026-10-25-aspom-begles-vs-talence/) to make its address. SITE/index.html lists them newest
 first from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
-from web/ with `npm run build`), its matches in matches.js.
+from web/ with `npm run build`), its matches in matches.js. `host` rebuilds a match's two hosted pages
+and uploads the site, as the review does after each change when the match folder holds publish.json.
 """
 
 import argparse
@@ -13,14 +14,20 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import unicodedata
+import urllib.error
+import urllib.request
 from pathlib import Path
 
+from volleyball_stats import web
 from volleyball_stats.web import BRANDING, brand
 
 TEMPLATE = Path(__file__).with_name("matches_site")
 # The list's own folders, which no match folder may take.
 RESERVED = ("assets", "brand")
+# Where a match folder says how to host it, and where hosted pages send the viewers' reports.
+PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
 
 
 def listed(folder: Path) -> dict:
@@ -75,6 +82,38 @@ def build(site: Path, theme: str = "aspom") -> list[dict]:
     index = site / "index.html"
     index.write_text(index.read_text().replace('src="matches.js"', f'src="matches.js?v={v}"'))
     return matches
+
+
+class _Stay(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args) -> None:
+        return None
+
+
+def protected(url: str) -> bool:
+    """Whether `url` refuses a visitor without the password: a redirect (to the page that asks
+    it) or a refusal, rather than the page."""
+    try:
+        urllib.request.build_opener(_Stay).open(urllib.request.Request(url, method="HEAD"), timeout=20)
+    except urllib.error.HTTPError as error:
+        return error.code in (301, 302, 303, 307, 401, 403)
+    return False
+
+
+def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> None:
+    """The match's hosted pages rebuilt in `config`'s site folder (publish.json): the public one
+    with no footage nor pictures, its copy with both in video/ (the `light` and `av1` copies),
+    behind the host's password; the list; then the site uploaded by rsync to `upload` with the ssh
+    `key`, once the copy at `url` turns a visitor without the password away. RuntimeError if not."""
+    site = Path(config["site"]).expanduser()
+    folder = next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] == match.name), site / match.name)
+    path = lambda key: config.get(key) and str(Path(config[key]).expanduser())  # noqa: E731
+    copy = {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "feedback": FEEDBACK}
+    web.publish(match, video, court, theme, copy, folder / "video")
+    web.publish(match, video, court, theme, {"footage": "none", "club": config.get("club", 1), "pictures": False, "link": "video/", "feedback": FEEDBACK}, folder)
+    named = {m["name"]: m["path"] for m in build(site, theme)}[match.name]
+    if not protected(f"{config['url'].rstrip('/')}/{named}video/"):
+        raise RuntimeError(f"{config['url']}{named}video/ opens without the password: not uploaded")
+    subprocess.run(["rsync", "-rt", "--delete", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
 
 
 def main() -> None:

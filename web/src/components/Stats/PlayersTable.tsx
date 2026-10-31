@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
+import { playerKey } from '@/helpers/players';
 import { usePlayers } from '@/lib/players';
 import { useSet } from '@/lib/sets';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
@@ -28,6 +29,14 @@ export function PlayersTable() {
   // Without the players' positions, no ball is known to drop between two of them.
   const dropped = typeof players === 'object' ? drops(contacts, players, match.fps, match.people) : [];
   const columns = players === 'none' ? COLUMNS.filter((c) => c.stat !== 'between') : COLUMNS;
+  // A player's time on the court: their identities', in the set shown or all of them.
+  const seconds = (person: number) => {
+    const key = playerKey(person, match.people);
+    return Object.entries(match.people)
+      .filter(([k]) => playerKey(Number(k), match.people) === key)
+      .flatMap(([, p]) => Object.entries(p.seconds ?? {}))
+      .reduce((sum, [n, v]) => (set === null || Number(n) === set ? sum + v : sum), 0);
+  };
   const found = lines(contacts, match.people, group, dropped);
   const team = found[found.length - 1].stats;
   const rows = found
@@ -44,6 +53,7 @@ export function PlayersTable() {
       stats: line.stats,
       tips: { between: pairs(t, dropped, line.stats.between) },
       insights: typeof line.id === 'number' ? insights(line.stats, team) : undefined,
+      seconds: typeof line.id === 'number' ? seconds(line.id) : undefined,
       total: line.id === 'total',
     }));
   const cards = rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number');

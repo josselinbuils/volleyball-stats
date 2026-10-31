@@ -43,6 +43,11 @@ TEMPLATE = Path(__file__).with_name("site")
 BRANDING = Path("branding")
 # Player positions are kept every STEP_S seconds over the whole video, to the centimetre.
 STEP_S = 0.1
+# A player is on the court with their feet within SERVE_M behind an end line (serving) and SIDE_M
+# outside a sideline; the bench stands farther.
+SERVE_M, SIDE_M = 3.0, 1.0
+# The ball's place in the picture during the rallies, every BALL_STEP_S, for the video's zoom on it.
+BALL_STEP_S = 0.08
 POSTER_WIDTH = 800
 # What the page shows of the video: nothing, all of it, or the video with some players blurred.
 FOOTAGE = ("none", "full", "blur-opponents", "blur-all")
@@ -216,6 +221,20 @@ def player_samples(rows: Iterable[dict], step: int, frame_count: int, who: Who =
         if frame % step == 0 and frame // step < len(samples):
             samples[frame // step] += [who(int(row["track"]), frame), round(float(row["court_x"]), 2), round(float(row["court_y"]), 2)]
     return samples
+
+
+def playing_time(samples: list[list[float]], step: int, windows: list[tuple[int, int]], sets: list[int], fps: float) -> dict[int, dict[str, float]]:
+    """Seconds each player stood on the court during the rallies (`windows`, of `sets`), by set, from
+    the samples every `step` frames (`player_samples`)."""
+    out: dict[int, dict[str, float]] = {}
+    for (start, end), number in zip(windows, sets):
+        for k in range(-(-start // step), min(end // step + 1, len(samples))):
+            sample = samples[k]
+            for p, x, y in zip(sample[::3], sample[1::3], sample[2::3]):
+                if p is not None and abs(x) <= LENGTH / 2 + SERVE_M and abs(y) <= WIDTH / 2 + SIDE_M:
+                    by_set = out.setdefault(int(p), {})
+                    by_set[str(number)] = by_set.get(str(number), 0.0) + step / fps
+    return {p: {s: round(v, 1) for s, v in by_set.items()} for p, by_set in out.items()}
 
 
 def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int, int]], names: dict[tuple[int, int], dict] | None = None) -> tuple[Who, dict[int, dict]]:
@@ -403,13 +422,31 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "zones": zone_cells(),
         "scores": teams and teams.get("scores"),
     }
+    for p, seconds in playing_time(samples, step, windows, [r["set"] for r in rallies], fps).items():
+        if p in table:
+            table[p]["seconds"] = seconds
     data["people"] = table
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 
-def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None) -> None:
+def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
+    """ball.js's content: the ball's place where it is seen in the rallies (their lead included),
+    every BALL_STEP_S, as flat [frame, x, y, ...] samples, x and y fractions of the picture."""
+    lead, step = round(LEAD_S * fps), max(1, round(BALL_STEP_S * fps))
+    windows = [(int(r["start_frame"]) - lead, int(r["end_frame"])) for r in read_csv(match / "rallies.csv")]
+    samples: list[float] = []
+    with open(match / "ball.csv") as f:
+        for row in csv.DictReader(f):
+            frame = int(row["frame"])
+            if row["visible"] == "1" and frame % step == 0 and any(a <= frame <= b for a, b in windows):
+                samples += [frame, round(float(row["x"]) / size[0], 3), round(float(row["y"]) / size[1], 3)]
+    return {"fps": fps, "samples": samples}
+
+
+def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None) -> None:
     """The page, data.js, players.js and, unless `video` is None, the video, its `av1` copy the page
-    plays first where the browser can, and its poster, a frame from the middle of the first rally."""
+    plays first where the browser can, its poster, a frame from the middle of the first rally, and
+    the `ball`'s places in ball.js, which the page loads to zoom on it."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
@@ -427,9 +464,13 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     players_js = players and f"window.MATCH_PLAYERS = {json.dumps(players, separators=(',', ':'))};\n"
     if players_js:
         (site / "players.js").write_text(players_js)
+    (site / "ball.js").unlink(missing_ok=True)
+    ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
+    if ball_js:
+        (site / "ball.js").write_text(ball_js)
     # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
     # serves each build its own.
-    built = json.dumps(data, sort_keys=True) + (players_js or "") + (site / "scene3d.js").read_text()
+    built = json.dumps(data, sort_keys=True) + (players_js or "") + (ball_js or "") + (site / "scene3d.js").read_text()
     data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     index = site / "index.html"
@@ -773,7 +814,8 @@ def build(
     data["brand"] = brand(theme, site)
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
-    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1)
+    ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
+    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball)
     return data
 
 
