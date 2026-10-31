@@ -1,10 +1,12 @@
 """Score rally segmentation signals against hand-labelled rallies.
 
-    uv run --group bench python benchmarks/rallies/bench.py VIDEO:BALL_TRACK_CSV:GROUND_TRUTH_CSV ... [--show]
+    uv run --group bench python benchmarks/rallies/bench.py VIDEO:BALL_TRACK_CSV:GROUND_TRUTH_CSV[@START-END] ... [--show] [--no-motion]
 
 Candidates: `ball` (ball track alone), `whistle` (whistle pairs alone), `motion` (global motion
 energy alone), `combined` (rallies.segment: ball runs closed by a whistle) and, with the players and
-the court, `served` and `pipeline` (match.rally_windows, match.py's windows).
+the court, `served` and `pipeline` (match.rally_windows, match.py's windows). `@START-END` (seconds)
+scores only the rallies starting in that span of a longer video, labelled there alone. "found" counts a
+true rally found when a prediction overlaps it, whatever its boundaries: what the score needs.
 """
 
 import argparse
@@ -90,6 +92,17 @@ def prf(tp: int, fp: int, fn: int) -> tuple[float, float, float]:
     return precision, recall, 2 * precision * recall / (precision + recall) if precision + recall else 0.0
 
 
+def found(predicted: list[Rally], truth: list[Rally]) -> tuple[float, float]:
+    """Precision and recall of the rallies themselves: each true rally with the first unused prediction
+    overlapping it."""
+    used = set()
+    for a, b in truth:
+        hit = next((i for i, (s, e) in enumerate(predicted) if i not in used and s <= b and a <= e), None)
+        if hit is not None:
+            used.add(hit)
+    return prf(len(used), len(predicted) - len(used), len(truth) - len(used))[:2]
+
+
 def score(predicted: list[Rally], truth: list[Rally], tolerance: int, fps: float) -> dict:
     pairs = match(predicted, truth, tolerance)
     tp = sum(p is not None for _, p in pairs)
@@ -116,15 +129,18 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("triples", nargs="+", help="VIDEO:BALL_TRACK_CSV:GROUND_TRUTH_CSV[:PLAYERS_CSV:COURT_JSON], the players and the court for `served`")
     parser.add_argument("--show", action="store_true", help="Print the predicted rallies of each candidate")
+    parser.add_argument("--no-motion", action="store_true", help="Skip the motion energy, which decodes the whole video")
     args = parser.parse_args()
 
     clips = []
     for triple in args.triples:
+        triple, _, span = triple.partition("@")
         video, track_path, truth_path, *more = map(Path, triple.split(":"))
         fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+        lo, hi = (round(float(v) * fps) for v in span.split("-")) if span else (0, 1 << 40)
+        inside = lambda rallies: [(s, e) for s, e in rallies if lo <= s < hi]  # noqa: E731
         track = load_track(track_path)
         whistle_times = whistles(read_audio(video))
-        energy = motion_energy(video)
         candidates = {
             "ball": ball_runs(track, fps),
             "whistle": whistle_rallies(whistle_times, fps),
@@ -136,14 +152,17 @@ def main() -> None:
             cal = Calibration.load(more[1])
             candidates["served"] = [(s, e) for s, e, _ in served(players, track, whistle_times, fps, cal)]
             candidates["pipeline"] = rally_windows(track, whistle_times, fps, float(cal.to_image(np.array([[0.0, 0.0]]))[0, 0]), cal, players)[0]
-        for factor in MOTION_FACTORS:
-            candidates[f"motion x{factor:g}"] = motion_rallies(energy, fps, factor)
-        clips.append((video.stem, fps, load_ground_truth(truth_path), candidates))
+        if not args.no_motion:
+            energy = motion_energy(video)
+            for factor in MOTION_FACTORS:
+                candidates[f"motion x{factor:g}"] = motion_rallies(energy, fps, factor)
+        name = video.stem + (f" {span} s" if span else "")
+        clips.append((name, fps, inside(load_ground_truth(truth_path)), {k: inside(v) for k, v in candidates.items()}))
 
     for stem, fps, truth, candidates in clips:
         print(f"{stem}: {len(truth)} rallies, {sum(e - s for s, e in truth) / fps:.0f} s in play\n")
-        print(f"{'candidate':17} {'n':>3} " + " ".join(f"{'±' + f'{t:g}' + ' s':^31}" for t in TOLERANCES_S))
-        print(f"{'':21} " + " ".join(f"{'P':>6} {'R':>6} {'F1':>6} {'MAE s':>5} {'[95%]':>10}" for _ in TOLERANCES_S))
+        print(f"{'candidate':17} {'n':>3} " + " ".join(f"{'±' + f'{t:g}' + ' s':^31}" for t in TOLERANCES_S) + f" {'found':^13}")
+        print(f"{'':21} " + " ".join(f"{'P':>6} {'R':>6} {'F1':>6} {'MAE s':>5} {'[95%]':>10}" for _ in TOLERANCES_S) + f" {'P':>6} {'R':>6}")
         for name, predicted in candidates.items():
             cells = []
             for tol_s in TOLERANCES_S:
@@ -151,7 +170,7 @@ def main() -> None:
                 s = score(predicted, truth, tol, fps)
                 lo, hi = bootstrap_f1(predicted, truth, tol)
                 cells.append(f"{s['P']:6.2f} {s['R']:6.2f} {s['F1']:6.2f} {s['MAE']:5.2f} [{lo:.2f}-{hi:.2f}]")
-            print(f"{name:17} {len(predicted):3d} " + " ".join(f"{c:^31}" for c in cells))
+            print(f"{name:17} {len(predicted):3d} " + " ".join(f"{c:^31}" for c in cells) + " {:6.2f} {:6.2f}".format(*found(predicted, truth)))
             if args.show:
                 print("   " + " ".join(f"{s / fps:.1f}-{e / fps:.1f}" for s, e in predicted))
         if args.show:

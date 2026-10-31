@@ -107,9 +107,19 @@ class TestServed:
     server = [(f, 10.5, 0.0) for f in range(60)]
     track = np.concatenate([np.tile([1165.0, 300.0], (60, 1)), flight(30, 1165, -20.0), np.full((300, 2), np.nan)])
 
-    def test_runs_from_the_serve_to_the_whistle_after_the_go(self):
-        # The go at 1 s sounds during the stand; the dead ball's whistle at 5 s closes the rally.
-        assert served(self.server, self.track, [(1.0, 1.4), (5.0, 5.3)], FPS, self.calibration) == [(59, 150, 1)]
+    def test_ends_when_the_ball_stops_or_at_a_whistle_before_never_at_the_go_or_a_late_whistle(self):
+        # The go at 1 s sounds during the stand; the ball stops at frame 89, so the whistle at 5 s
+        # (2 s later: the next rally's go) does not stretch the rally, and one at 2.5 s ends it.
+        assert served(self.server, self.track, [(1.0, 1.4), (5.0, 5.3)], FPS, self.calibration) == [(59, 89, 1)]
+        assert served(self.server, self.track, [(1.0, 1.4), (2.5, 2.8)], FPS, self.calibration) == [(59, 75, 1)]
+
+    def test_a_serve_into_the_net_is_a_serve(self):
+        # The ball stops 100 px before the net (under NET_NEAR, at this court's scale); 345 px is too far.
+        netted = np.concatenate([np.tile([1165.0, 300.0], (60, 1)), flight(22, 1165, -20.0), np.full((300, 2), np.nan)])
+        short = np.concatenate([np.tile([1165.0, 300.0], (60, 1)), flight(10, 1165, -20.0), np.full((300, 2), np.nan)])
+
+        assert [(s, side) for s, _, side in served(self.server, netted, [], FPS, self.calibration)] == [(59, 1)]
+        assert served(self.server, short, [], FPS, self.calibration) == []
 
     def test_ends_with_the_ball_run_without_a_whistle(self):
         assert served(self.server, self.track, [(1.0, 1.4)], FPS, self.calibration) == [(59, 89, 1)]
@@ -126,5 +136,13 @@ class TestServed:
 
         assert served(self.server, held, [(5.0, 5.3)], FPS, self.calibration) == []
 
-    def test_with_serves_adds_the_served_rallies_overlapping_none(self):
+    def test_with_serves_adds_the_served_rallies_serving_in_none_joined_to_the_one_they_run_into(self):
         assert with_serves([(100, 200)], [(150, 300, 1), (400, 500, -1)]) == [(100, 200), (400, 500)]
+        # Served 20 frames before a rally's start (under `lead`): the same rally.
+        assert with_serves([(100, 200)], [(80, 190, 1)], 30) == [(100, 200)]
+        # A rally found running from inside a served one, or starting under `gap` after it, is the same.
+        assert with_serves([(300, 400)], [(100, 350, 1)], 30) == [(100, 400)]
+        assert with_serves([(300, 400)], [(100, 250, 1)], 30, 60) == [(100, 400)]
+        assert with_serves([(300, 400)], [(100, 200, 1)], 30, 60) == [(100, 200), (300, 400)]
+        # Two served ones under `gap` apart too.
+        assert with_serves([], [(100, 200, 1), (230, 280, -1)], 30, 60) == [(100, 280)]

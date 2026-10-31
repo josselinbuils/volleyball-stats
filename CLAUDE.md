@@ -51,7 +51,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## State and next steps
 
-- Weak spots: `rallies.py` misses about a third of the rallies on the held-out clip, how a rally
+- Weak spots: `rallies.py` finds all 21 rallies of a labelled 10 minutes of the first match (ends
+  ±1 s on 18; it misses a third on the school match's held-out clip), how a rally
   ends (in, out, fault) is the least reliable measure, attribution is right 71-83% of the time
   (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
   ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
@@ -66,14 +67,16 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   every touch and rally-window question is answered, and each apply rebuilds and uploads the hosted
   pages (`outputs/first_match/publish.json`). Rallies: 130 windows on the page for 128 points; the
   estimated finals 26-23, 26-14, 23-18 against 25-23, 25-12, 25-18 given (the rest: missed rallies).
+  Its outputs predate the 31 Oct `served` fixes (rerunning the rally step moves windows the review's
+  answers point at: do it with the owner, after the 9 ace questions).
   Stats: each team's points plus the other's faults give 74-53 (75-53 played). The viewers'
   "Signaler" reports (see Hosting) are the main source of corrections: fetch them, turn them into
   labels for the steps they point at (a "pas une phase de jeu" one becomes a pending rally answer in
   the review), score and fix those steps; Kili labels (`docs/kili_labelling.md`) only where reports
   are not enough.
 - Open, most useful first:
-  1. Missed rallies (`rallies.py`'s recall, its README's proposed fixes): the largest error left in
-     the score.
+  1. Rally ends and winners: the estimated score is still off (+6 windows over the match); label
+     another span (set 3) to check the `served` fixes held out, then how rallies end (in, out, fault).
   2. The review's rally answers (`identity_answers.json` "rally": 6 no play, 7 rallies) as labels to
      drop false windows automatically.
   3. Names: Théo and Maeva both have jersey 10 (a typo for one); a player without a jersey shows their
@@ -88,9 +91,12 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE-TEAM-vs-TEAM/`
 (the first match at `/volleyball/2026-10-29-aspom-01-vs-aspom-02/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
-`volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo; that service is
-only in the server's copy), the site in `volleyball-stats/site`, the `/volleyball` route in
-`reverse-proxy/config.json`. Cloudflare caches the `.js` files for 4 hours: the unhashed ones load
+`volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo: changes go through a PR
+there, assigned to the owner), the site in `volleyball-stats/site`, the `/volleyball` route in
+`reverse-proxy/Caddyfile` (Caddy since 31 Oct; the Node proxy pegged the CPU gzipping `players.js`: PR
+josselinbuils/docker#2, rollback `/root/rollback-proxy.sh`). `/usr/local/bin/vbs-monitor.sh` logs the CPU every
+minute to `/var/log/vbs-monitor/` with a snapshot when busy; `matches.build` writes `.gz` copies nginx sends as
+they are (`gzip_static`). SSH is key-only. Cloudflare caches the `.js` files for 4 hours: the unhashed ones load
 with the build's hash (`?v=`), so a new build shows at once. `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`,

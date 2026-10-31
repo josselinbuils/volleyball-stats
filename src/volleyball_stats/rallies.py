@@ -52,11 +52,20 @@ LIVE_SPEED = 15
 LIVE_WINDOW_S = (1.0, 3.0)
 # A server stands behind an end line (court x past SERVER_X meters, inside the sidelines'
 # extension) for SERVER_S or more, gaps up to SERVER_GAP_S bridged. The serve leaves as the stand
-# ends: the ball is on the server's side of the net then and on the other side within SERVE_FLIGHT_S.
+# ends: the ball is on the server's side of the net then and, within SERVE_FLIGHT_S, on the other
+# side or, starting a ball run, within NET_NEAR pixels of the net (a serve into the net).
 SERVER_X, SERVER_MAX_X, HALF_WIDTH = 9.3, 14.0, 4.5
 SERVER_S, SERVER_GAP_S, SERVE_FLIGHT_S = 1.5, 0.5, 3.0
-# Two serves under SAME_SERVE_S apart with no whistle between them are one serve seen twice.
-SAME_SERVE_S = 8.0
+# ponytail: one serve into the net labelled (first ASPOM match, last seen 143 px from it); more
+# labels would set it.
+NET_NEAR = 200
+# A rally's ball goes out of sight for up to 1.6 s (high balls, the net), the dead ball's next move
+# (picked up, thrown back) comes 4 s or more later on the first ASPOM match's labels.
+MOTION_BRIDGE_S = 2.0
+# Two serves under SAME_SERVE_S apart with no whistle between them are one serve seen twice. A
+# served rally starting up to SERVE_LEAD_S before a rally the ball found is that rally: the server's
+# stand ends up to 1.3 s before the ball flies (school match).
+SAME_SERVE_S, SERVE_LEAD_S = 8.0, 2.0
 
 Rally = tuple[int, int]
 
@@ -188,17 +197,38 @@ def court_scale(calibration: Calibration) -> float:
     return float(np.hypot(*(ends[1] - ends[0]))) / COURT_PX
 
 
+def motion_end(track: np.ndarray, start: int, stop: int, fps: float, scale: float = 1.0) -> int:
+    """The last frame of ball motion from `start` (frames at MIN_SPEED to MAX_SPEED, gaps up to
+    MOTION_BRIDGE_S bridged), before `stop`: unlike a ball run, play near the net that travels little
+    counts."""
+    px = speed(track[max(0, start - LAG) : stop]) / scale
+    moving = np.flatnonzero((px >= MIN_SPEED) & (px <= MAX_SPEED)) + max(0, start - LAG)
+    moving = moving[moving >= start]
+    last = start
+    for f in moving:
+        if f - last > MOTION_BRIDGE_S * fps:
+            break
+        last = int(f)
+    return last
+
+
 def served(players: list[tuple[int, float, float]], track: np.ndarray, whistle_times: list[tuple[float, float]], fps: float, calibration: Calibration) -> list[tuple[int, int, int]]:
-    """(start, end, side) of each rally, from its serve (side -1 from the left end) to the first
-    whistle at least MIN_RALLY_S later and before the next serve, other than the referee's go for a
-    serve (a whistle during the stand that ends in a serve). Without one, the rally ends with the
-    ball run of its serve, at the latest as the next server takes position."""
+    """(start, end, side) of each rally, from its serve (side -1 from the left end) to the end of the
+    ball's motion (`motion_end`, at the latest as the next server takes position), or to the first
+    whistle before it or up to WHISTLE_AFTER_S after it that no flying ball follows, as `segment`'s;
+    the referee's go for a serve (a whistle during the stand that ends in a serve) closes none: a
+    referee who whistles only the go would end each rally at the next one's."""
     net_x = float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
+    scale = court_scale(calibration)
     lead, flight, gap = round(fps), round(SERVE_FLIGHT_S * fps), round(SERVER_GAP_S * fps)
-    found = [
-        (start, end, side) for start, end, side in stands(players, len(track), fps)
-        if np.any(side * (track[max(0, end - lead) : end + 1, 0] - net_x) > 0) and np.any(side * (track[end : end + flight + 1, 0] - net_x) < 0)
-    ]
+    flights = ball_runs(track, fps, scale)
+
+    def serve(end: int, side: int) -> bool:
+        toward = side * (track[end : end + flight + 1, 0] - net_x)
+        netted = np.any((toward > 0) & (toward < NET_NEAR * scale)) and any(start <= end + lead and stop > end for start, stop in flights)
+        return bool(np.any(side * (track[max(0, end - lead) : end + 1, 0] - net_x) > 0) and (np.any(toward < 0) or netted))
+
+    found = [(start, end, side) for start, end, side in stands(players, len(track), fps) if serve(end, side)]
     onsets = [round(w[0] * fps) for w in whistle_times]
     closing = np.array([o for o in onsets if not any(start - gap <= o <= end + gap for start, end, _ in found)], dtype=int)
     kept: list[tuple[int, int, int]] = []
@@ -206,21 +236,30 @@ def served(players: list[tuple[int, float, float]], track: np.ndarray, whistle_t
         if kept and frame - kept[-1][1] < SAME_SERVE_S * fps and not np.any((closing > kept[-1][1]) & (closing < frame)):
             continue
         kept.append((stand, frame, side))
-    flights = ball_runs(track, fps, court_scale(calibration))
+    fast = speed(track) >= LIVE_SPEED * scale
+    live = [round(s * fps) for s in LIVE_WINDOW_S]
     out = []
     for (_, frame, side), (stand, following, _) in zip(kept, [*kept[1:], (len(track), len(track), 0)]):
-        ends = closing[(closing >= frame + MIN_RALLY_S * fps) & (closing < following)]
-        if len(ends):
-            out.append((frame, int(ends[0]), side))
-        else:
-            flight_end = next((end for start, end in flights if start <= frame + lead and end > frame), frame + lead)
-            out.append((frame, min(flight_end, stand) if stand > frame else flight_end, side))
+        last = motion_end(track, frame, stand if stand > frame else following, fps, scale)
+        ends = closing[(closing >= frame + MIN_RALLY_S * fps) & (closing <= last + WHISTLE_AFTER_S * fps) & (closing < following)]
+        end = next((int(w) for w in ends if not fast[w + live[0] : w + live[1]].any()), None)
+        out.append((frame, last if end is None else min(end, last), side))
     return out
 
 
-def with_serves(rallies: list[Rally], serves: list[tuple[int, int, int]]) -> list[Rally]:
-    """`rallies` and the served ones that overlap none of them."""
-    return sorted(rallies + [(s, e) for s, e, _ in serves if not any(s <= end and start <= e for start, end in rallies)])
+def with_serves(rallies: list[Rally], serves: list[tuple[int, int, int]], lead: int = 0, gap: int = 0) -> list[Rally]:
+    """`rallies` with the served ones: a served rally starting in one of them or up to `lead` frames
+    before it is that rally; a rally starting before a served one ends, or under `gap` frames after,
+    is the same rally (no new serve fits in that time, the ball was out of sight): one window from
+    the serve to the later end."""
+    out = list(rallies)
+    # Latest first: a served rally then joins the served ones after it too.
+    for s, e, _ in sorted(serves, reverse=True):
+        if any(start - lead <= s <= end for start, end in out):
+            continue
+        joined = [r for r in out if s < r[0] <= e + gap]
+        out = [r for r in out if r not in joined] + [(s, max([e] + [end for _, end in joined]))]
+    return sorted(out)
 
 
 def main() -> None:

@@ -155,11 +155,15 @@ match. Limits of this check: same match, referee, gym and camera, and one annota
    court's whistle and the next one is tried). The rally ends at that whistle or at the run's last
    motion, whichever comes first.
 5. With the players tracked (`served`): a serve is the end of a stand of 1.5 s or more by a player
-   behind an end line, with the ball on the server's side then and across the net within 3 s. The
-   rally runs to the first whistle at least 0.5 s later and before the next serve, other than a
-   whistle during a stand that ends in a serve (the go); without one, to the end of the serve's
-   ball run, at the latest when the next server's stand starts. The pipeline adds these rallies
-   where step 4 found none.
+   behind an end line, with the ball on the server's side then and, within 3 s, across the net or,
+   starting a ball run, within 200 px (scaled) of it: a serve into the net. The rally runs to the end
+   of the ball's motion (`motion_end`: moving frames, gaps up to 2 s bridged, play near the net that
+   travels little included), at the latest as the next server's stand starts, or to the first
+   whistle before that end or up to 2 s after it that no flying ball follows, as in step 4; the go
+   (a whistle during the stand that ends in a serve) closes none. The pipeline adds these rallies
+   where step 4 found none: one starting in a step 4 rally or up to 2 s before it is that rally; one
+   that a step 4 rally (or another served one) follows less than 8 s after its end is the same rally,
+   the ball out of sight between: one window from the serve.
 
 Prior art checked: no volleyball rally-segmentation paper with code. See et al. 2025 end a
 badminton rally when the shuttle stops moving, which fails here because the dead ball keeps
@@ -187,8 +191,27 @@ need TensorFlow or a new dependency, so the FFT band detector stays.
 
 ## First ASPOM match
 
-4K at 50 fps from 6 m off the sideline, 67 minutes, 128 points (25-23, 25-12, 25-18), no labels
-yet. The referee whistles at 2.9–3.3 kHz, under the old 3.3 kHz band, and often whistles only the
-go, not the dead ball. Rallies found: 1 before; 77 with the referee's pitch, the scaled constants
-and the spare balls by the camera dropped; 139 with `served` added. Adding `served` on the school
-clips, F1 ±1 s: side_club 0.93 → 0.93, side_long 1.00 → 0.95, side_holdout 0.72 → 0.70.
+4K at 50 fps from 6 m off the sideline, 67 minutes, 128 points (25-23, 25-12, 25-18). The referee
+whistles at 2.9–3.3 kHz, under the old 3.3 kHz band, and mostly only the go, not the dead ball: most
+rallies come from `served`. `ground_truth/first_match_26_36.csv` labels the 21 rallies of 26:00–36:00
+(set 2), from 2 fps court strips of the 4K source and the ball track printed every 0.1 s, as above.
+
+```bash
+uv run --group bench python benchmarks/rallies/bench.py --no-motion \
+  "data/first_match.mp4:outputs/first_match/ball.csv:benchmarks/rallies/ground_truth/first_match_26_36.csv:outputs/first_match/players.csv:outputs/courts/aspom_begles.json@1560-2160"
+```
+
+| pipeline | n | F1 ±1 s | F1 ±2 s | found P | found R |
+| --- | --- | --- | --- | --- | --- |
+| before | 20 | 0.73 [0.56–0.87] | 0.83 [0.67–0.93] | 1.00 | 0.95 |
+| after | 21 | **0.86** [0.70–0.96] | **1.00** | 1.00 | **1.00** |
+
+Before, the one miss was a serve into the net (no net crossing, no whistle after it). The ends were
+the errors: served rallies ran to the next whistle, often the next rally's go (+11.4 s, +12.8 s), or
+stopped with the serve's ball run while play went on near the net (−8.2 s, −1.6 s). The fixes of
+step 5 were made on this span, so these numbers are not held out. The school clips' pipeline is
+unchanged (F1 ±1 s 0.93, 0.95, 0.74). Over the whole match (held out), the windows per set go from
+49, 39, 48 to 50, 39, 45 for 48, 37, 43 points: two missed rallies found (4:53, 28:26), five
+duplicates joined to their rally, the 7 rallies the review confirmed all kept. Three of 21 ends are
+still more than 1 s off: a ball out of sight 1.6 s after a block, a dig sending the ball away, a
+rally the ball's motion overruns into the dead ball.

@@ -67,7 +67,7 @@ def rally_windows(
         scale = rallies.court_scale(calibration)
     windows = rallies.segment(track, whistle_times, fps, scale)
     if positions is not None:
-        windows = rallies.with_serves(windows, rallies.served(positions, track, whistle_times, fps, calibration))
+        windows = rallies.with_serves(windows, rallies.served(positions, track, whistle_times, fps, calibration), round(rallies.SERVE_LEAD_S * fps), round(rallies.SAME_SERVE_S * fps))
     found, crossings = contacts.detect(track, fps, net_x, scale)
     return actions.served(windows, found, fps, calibration), found, crossings
 
