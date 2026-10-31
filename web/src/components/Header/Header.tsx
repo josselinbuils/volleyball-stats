@@ -102,7 +102,7 @@ export function Header() {
                   {scoreMore}
                 </dd>
               )}
-              <dd className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 text-sm" title={t('pointsSplitHint')}>
+              <dd className="mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center pt-2 gap-x-3 gap-y-1 text-sm" title={t('pointsSplitHint')}>
                 <span />
                 <span className="text-center text-xs text-muted-foreground">{t('pointsDirectHead')}</span>
                 <span className="text-center text-xs text-muted-foreground">{t('pointsFaultsHead')}</span>
