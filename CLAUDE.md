@@ -79,19 +79,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   The review also asks every touch its page credits to no named player (a player on court under
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
 - Open, most useful first:
-  1. In progress, uncommitted in the working tree: free play in the review's report questions (owner's
-     ask: the question points at a moment, nothing holds you to its rally). Done: `review.report_answer`
-     takes changes anywhere in the match (`touches`, `added` placed by `window_of`, `rallies`: `{start,
-     winner, play, end}` by window start frame) with `Questions.page_index`; `end` answers applied by
-     `web.ended` (page build, `ball_track`, the review's touch questions), touches past an end dropped;
-     Python tests pass. `ClipVideo` has a `free` mode (no loop, bar re-anchored around the video, all
-     rallies as bands, ±10 s buttons), not yet type-checked. Left: rewrite `ReportEditor` (the touches
-     of the rallies around the video, grouped by rally with clickable headers; the winner, no play,
-     "Voir 5 s de plus" and "Finir l'échange ici" for the rally the video is in, or the one just
-     ended), `ReportChanges` in `lib/review.ts`, `Review.tsx` (`free`, no clamp on a touch's replay),
-     locales (`review.back`, `review.forward`, the end's labels); build, restart the review server
-     (it serves its built copy), check desktop and phone, commit. Until then, do not restart the review
-     server on this code: the committed page sends `winner`/`play` at the top level, which it ignores.
+  1. Done 31 Oct: report questions in free play (the video plays on through the match from the
+     reported moment, the list shows the rallies around it, any touch, winner, no play or end
+     corrected; `end` answers applied by `web.ended`). Not yet tried by the owner.
   2. Ask the owner: their last 7 report answers (10:23, 11:04, 31:44, 54:56, 56:07, 57:25, 66:40) were
      undone from a browser on 31 Oct; restore them from
      `outputs/first_match/identity_answers.before-undo.json` unless that was meant. The 2:39 report was
