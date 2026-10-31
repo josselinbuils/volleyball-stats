@@ -10,18 +10,32 @@ import json
 from pathlib import Path
 
 
+def merge(report: dict, later: dict) -> dict:
+    """`report` completed by `later`, the same report (`id`) sent again with details: what it says
+    replaces the flag's empty kind and comment."""
+    return {**report, **{k: v for k, v in later.items() if k != "received" and v not in (None, "") and not (k == "kind" and v == "flag")}}
+
+
 def read(path: Path) -> list[dict]:
-    """The reports of the log at `path`, each with its "received" time; lines that are no report
-    (sent by hand, cut) skipped."""
-    out = []
+    """The reports of the log at `path`, each with its "received" time, a report's details sent after
+    its one-tap flag (same `id`) merged into it; lines that are no report (sent by hand, cut) skipped."""
+    out: list[dict] = []
+    by_id: dict[str, int] = {}
     for line in path.read_text().splitlines():
         try:
             entry = json.loads(line)
             report = json.loads(entry["report"])
         except (ValueError, KeyError, TypeError):
             continue
-        if isinstance(report, dict):
-            out.append({**report, "received": entry.get("received")})
+        if not isinstance(report, dict):
+            continue
+        report = {**report, "received": entry.get("received")}
+        if report.get("id") in by_id:
+            out[by_id[report["id"]]] = merge(out[by_id[report["id"]]], report)
+        else:
+            if report.get("id"):
+                by_id[report["id"]] = len(out)
+            out.append(report)
     return out
 
 

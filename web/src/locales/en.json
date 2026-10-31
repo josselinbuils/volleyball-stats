@@ -429,7 +429,7 @@
     "setsN_other": "{{count, number}} sets"
   },
   "feedback": {
-    "open": "Something wrong in this moment? Report it",
+    "open": "Report a problem in this moment: one click is enough, details are optional",
     "what": "What is wrong?",
     "comment": "A detail to add (optional)",
     "send": "Send",
@@ -443,10 +443,13 @@
       "result": "The result or the point is wrong",
       "ball": "The ball is badly followed",
       "notPlay": "Not during play (warm-up, timeout…)",
-      "other": "Something else"
+      "other": "Something else",
+      "flag": "Reported without details"
     },
+    "details": "Add details",
+    "retry": "Try again",
     "button": "Report",
-    "thanksShort": "Thank you!"
+    "thanksShort": "Reported, thanks!"
   },
   "videoChoice": {
     "title": "How to see the match?",

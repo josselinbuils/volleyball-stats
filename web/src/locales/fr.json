@@ -429,7 +429,7 @@
     "setsN_other": "{{count, number}} sets"
   },
   "feedback": {
-    "open": "Un problème sur ce moment ? Le signaler",
+    "open": "Signaler un problème sur ce moment : un clic suffit, les détails sont facultatifs",
     "what": "Qu'est-ce qui ne va pas ?",
     "comment": "Un détail à ajouter (facultatif)",
     "send": "Envoyer",
@@ -443,10 +443,13 @@
       "result": "Le résultat ou le point est faux",
       "ball": "Le ballon est mal suivi",
       "notPlay": "Ce n'est pas une phase de jeu (échauffement, temps mort…)",
-      "other": "Autre chose"
+      "other": "Autre chose",
+      "flag": "Signalé sans détail"
     },
+    "details": "Préciser",
+    "retry": "Réessayer",
     "button": "Signaler",
-    "thanksShort": "Merci !"
+    "thanksShort": "Signalé, merci !"
   },
   "videoChoice": {
     "title": "Comment voir le match ?",

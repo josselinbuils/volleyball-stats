@@ -583,8 +583,10 @@ def reports(match: Path) -> list[dict]:
     for log in sorted(match.parent.glob("feedback*.log")):
         for r in feedback.read(log):
             if r.get("match") == match.name:
-                key = hashlib.sha256(json.dumps([r.get("received"), r.get("time"), r.get("kind"), r.get("comment")]).encode()).hexdigest()[:12]
-                found.setdefault(key, {**r, "key": key})
+                # A report sent with its `id` (a one-tap flag, then maybe its details) is one, whichever log holds what.
+                said = r["id"] if r.get("id") else [r.get("received"), r.get("time"), r.get("kind"), r.get("comment")]
+                key = hashlib.sha256(json.dumps(said).encode()).hexdigest()[:12]
+                found[key] = feedback.merge(found[key], r) if key in found else {**r, "key": key}
     return sorted(found.values(), key=lambda r: r.get("time") or 0)
 
 
