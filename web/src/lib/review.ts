@@ -66,6 +66,8 @@ export interface ReportTouch {
  * touch), action or result; the rally's winner, or no play. */
 export interface ReportChanges {
   touches: { frame: number; player?: string; type?: string; result?: string }[];
+  /** Touches the rally missed, at their frame. */
+  added?: { frame: number; team: Group; type: string; result: string; player?: string }[];
   winner?: Group;
   play?: false;
 }

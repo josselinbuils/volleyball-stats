@@ -129,6 +129,18 @@ class TestReports:
         assert (out["rally"], out["winner"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}])
         assert report_answer({"start": None, "touches": {}}, {"winner": 2, "touches": [{"frame": 1, "type": "set"}]}, {}) == {}
 
+    def test_a_touch_added_becomes_an_added_answer_with_its_result_and_player(self):
+        ref = {"start": 2000, "touches": {"2050": 2}}
+        changes = {"added": [{"frame": 2075, "team": 1, "type": "pass", "result": "error", "player": "1:4"}, {"frame": 2050, "team": 1, "type": "pass"}, {"frame": 2080, "team": 1, "type": "bogus"}]}
+
+        out = report_answer(ref, changes, {(1, 4): {"name": "Léa"}})
+
+        assert out == {
+            "added": [{"start": 2000, "frame": 2075, "team": 1, "type": "pass"}],
+            "action": [{"frame": 2075, "result": "error"}],
+            "touch": [{"frame": 2075, "team": 1, "identity": 4, "name": "Léa"}],
+        }
+
 
 class TestUnnamed:
     def test_asks_each_touch_the_page_credits_to_no_named_player_of_its_team(self, tmp_path):
@@ -180,7 +192,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "log": log}
 
 
 class TestRange:

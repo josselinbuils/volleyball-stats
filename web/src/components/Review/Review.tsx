@@ -313,7 +313,7 @@ export function Review({
                   .join(' · ')}
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <CardContent className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
               {(question.kind === 'piece' || question.kind === 'touch') && (
                 <label className="grid max-w-md gap-1 text-sm font-medium lg:col-span-2">
                   {t('review.whoIs')}
@@ -332,6 +332,11 @@ export function Review({
                   />
                 </label>
               )}
+              {question.kind === 'report' && (
+                <div className="lg:col-span-2">
+                  <ReportComments question={question} />
+                </div>
+              )}
               <div className="grid min-w-0 gap-3">
                 <ClipVideo
                   key={`${question.id}${showOther}`}
@@ -340,7 +345,7 @@ export function Review({
                   height={height}
                   timeRef={clipTime}
                   {...(question.kind === 'report'
-                    ? { seek, marks: question.reports?.map((r) => r.time), showTime: true, onTime: (at: number) => setNow((n: number) => (Math.abs(n - at) >= 0.25 ? at : n)) }
+                    ? { seek, marks: question.reports?.map((r) => r.time), showTime: true, onTime: (at: number) => setNow((n: number) => (Math.abs(n - at) >= 0.1 ? at : n)) }
                     : {})}
                 />
                 {question.kind === 'merge' && (
@@ -361,75 +366,76 @@ export function Review({
                 )}
                 <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>
               </div>
-              <div className="grid gap-3">
-                {question.kind === 'report' ? (
-                  <ReportComments question={question} />
-                ) : question.kind === 'rally' ? (
-                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                    <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" onClick={() => void answer('rally')} />
-                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
-                  </div>
-                ) : question.kind === 'touch' ? (
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                    {question.proposed != null && (
-                      <AnswerButton
-                        icon={<Check aria-hidden />}
-                        label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
-                        hint="1"
-                        onClick={() => void answer(`player:${question.team}:${question.proposed}`)}
-                      />
-                    )}
-                    <AnswerButton icon={<CircleOff aria-hidden />} label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')} hint="X" onClick={() => void answer('nobody')} />
-                    {question.reason !== 'ace' && <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />}
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
-                  </div>
-                ) : question.kind === 'piece' ? (
-                  <div className="grid gap-3">
-                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
-                      <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" onClick={() => void answer('cut')} />
-                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
-                    </div>
-                    <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
-                  </div>
-                ) : (
-                  <>
-                    {question.choices.map((c) => (
-                      <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
-                        <Pictures
-                          crops={c.crops}
-                          pieces={c.pieces}
-                          owner={{ team: question.team, identity: c.identity }}
-                          players={players}
-                          nameOf={nameOf}
-                          onSaved={onSaved}
-                          onError={() => setError(true)}
-                        />
-                        <p className="m-0 text-sm font-medium">
-                          {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
-                        </p>
-                      </div>
-                    ))}
-                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" onClick={() => void answer('same')} />
-                      <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" onClick={() => void answer('different')} />
-                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
-                    </div>
-                  </>
-                )}
-              </div>
-              {question.kind === 'report' && (
+              {question.kind === 'report' ? (
                 <ReportEditor
                   key={question.id}
                   question={question}
                   players={players}
                   nameOf={nameOf}
                   now={now}
+                  timeOf={() => clipTime.current}
                   onPlay={(at: number) => setSeek((s) => ({ time: Math.max(question.clip.start - 1, at - REPORT_LEAD_S), n: (s?.n ?? 0) + 1, play: true }))}
+                  onPause={(at: number) => setSeek((s) => ({ time: at, n: (s?.n ?? 0) + 1 }))}
                   onSave={(changes) => void answer('report', { changes })}
                   onSkip={() => void answer('skip')}
                 />
+              ) : (
+                <div className="grid gap-3">
+                  {question.kind === 'rally' ? (
+                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                      <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" onClick={() => void answer('rally')} />
+                      <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
+                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                    </div>
+                  ) : question.kind === 'touch' ? (
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                      {question.proposed != null && (
+                        <AnswerButton
+                          icon={<Check aria-hidden />}
+                          label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
+                          hint="1"
+                          onClick={() => void answer(`player:${question.team}:${question.proposed}`)}
+                        />
+                      )}
+                      <AnswerButton icon={<CircleOff aria-hidden />} label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')} hint="X" onClick={() => void answer('nobody')} />
+                      {question.reason !== 'ace' && <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />}
+                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                    </div>
+                  ) : question.kind === 'piece' ? (
+                    <div className="grid gap-3">
+                      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                        <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
+                        <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" onClick={() => void answer('cut')} />
+                        <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                      </div>
+                      <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
+                    </div>
+                  ) : (
+                    <>
+                      {question.choices.map((c) => (
+                        <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
+                          <Pictures
+                            crops={c.crops}
+                            pieces={c.pieces}
+                            owner={{ team: question.team, identity: c.identity }}
+                            players={players}
+                            nameOf={nameOf}
+                            onSaved={onSaved}
+                            onError={() => setError(true)}
+                          />
+                          <p className="m-0 text-sm font-medium">
+                            {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
+                          </p>
+                        </div>
+                      ))}
+                      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                        <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" onClick={() => void answer('same')} />
+                        <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" onClick={() => void answer('different')} />
+                        <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

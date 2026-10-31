@@ -177,7 +177,7 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
         xy = None
         if not dead:
             xy = track_feet(track, frame, players, gap) if track is not None else None
-            xy = xy or spot(kind, (float(row["x"]), float(row["y"])), boxes, feet, calibration, reach)
+            xy = xy or (spot(kind, (float(row["x"]), float(row["y"])), boxes, feet, calibration, reach) if row["x"] != "" else None)
         out.append({
             "t": round(frame / fps, 2),
             "type": kind,
@@ -192,6 +192,48 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
     for contact, after in zip(out, out[1:] + [None]):
         contact["result"] = result(contact, after if after and after["rally"] == contact["rally"] else None)
     return out
+
+
+# How far from an added touch the ball's place is looked for.
+ADDED_NEAR_S = 1.0
+
+
+def with_added(windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, lead: int, near: int) -> tuple[list[tuple[int, int]], list[dict]]:
+    """The rally windows and actions CSV rows `typed` with the touches the review added (`added`
+    answers: the window's start, frame, team, type): a row each, at the ball's place seen nearest it
+    under `near` frames (none when unseen), on its team's side of the rally (rallies.csv's `rows`);
+    a window ending before a touch added to it lasts to it. One before its window (less `lead`), in
+    a window gone or at a frame already found is left out."""
+    starts = {start: k for k, (start, _) in enumerate(windows)}
+    known = {int(r["frame"]) for r in typed}
+    added = [a for a in added if a["start"] in starts and a["frame"] >= a["start"] - lead and a["frame"] not in known]
+    if not added:
+        return windows, typed
+    windows = list(windows)
+    places = ball_near(ball, [a["frame"] for a in added], near)
+    new = []
+    for a in added:
+        k = starts[a["start"]]
+        windows[k] = (windows[k][0], max(windows[k][1], a["frame"]))
+        left = rows[k].get("left") or 1
+        x, y = places.get(a["frame"], ("", ""))
+        new.append({"frame": str(a["frame"]), "x": x, "y": y, "type": a["type"], "side": "left" if int(left) == a["team"] else "right", "track": "", "gap": "", "team": str(a["team"]), "identity": ""})
+    return windows, sorted(typed + new, key=lambda r: int(r["frame"]))
+
+
+def ball_near(path: Path, frames: list[int], near: int) -> dict[int, tuple[str, str]]:
+    """The ball's place (x, y as in ball.csv) seen nearest each of `frames`, under `near` frames from it."""
+    wanted = {f + d: f for f in frames for d in range(-near, near + 1)}
+    best: dict[int, tuple[int, str, str]] = {}
+    if path.exists():
+        with open(path) as f:
+            for row in csv.DictReader(f):
+                frame = int(row["frame"])
+                if row["visible"] == "1" and frame in wanted:
+                    want = wanted[frame]
+                    if want not in best or abs(frame - want) < best[want][0]:
+                        best[want] = (abs(frame - want), row["x"], row["y"])
+    return {f: (x, y) for f, (_, x, y) in best.items()}
 
 
 def receivers(found: list[dict], typed: list[dict], players: dict[int, list[dict]], who: Who = lambda track, *_: track, said: dict[int, tuple[int, int] | None] | None = None) -> None:
@@ -439,7 +481,9 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     with_teams = bool(teams) and (match / "tracks.csv").exists()
     identities = read_identities(match / "identities.csv") if with_teams and (match / "identities.csv").exists() else []
     given = named(identities, read_names(match))
-    # The touches the review says are none (the ball out of sight, taken for a touch) go.
+    # The touches the review added come in; those it says are none (the ball out of sight, taken
+    # for a touch) go.
+    windows, actions = with_added(windows, rally_rows, actions, answers(match, "added"), match / "ball.csv", round(LEAD_S * fps), round(ADDED_NEAR_S * fps))
     said = touched(match, given)
     actions = [r for r in actions if said.get(int(r["frame"]), ()) is not None]
     scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)

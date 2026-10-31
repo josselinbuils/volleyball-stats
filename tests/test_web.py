@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, ball_track, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import acted, ball_near, ball_track, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -277,6 +277,42 @@ class TestBallTrack:
         frames = found["samples"][::3]
         assert frames == [18, 20, 22, 24, 26, 28, 30, 34, 36, 38, 40]
         assert found["samples"][:3] == [18, 0.18, 0.18] and found["fps"] == 10.0
+
+
+class TestWithAdded:
+    def test_a_touch_added_is_a_row_at_the_ball_on_its_team_s_side_its_window_lasting_to_it(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n148,1,10,20\n150,0,,\n153,1,30,40\n260,1,50,60\n")
+        windows, rows = [(100, 200), (300, 400)], [{"left": "2"}, {"left": ""}]
+        typed = [{"frame": "120", "type": "serve"}, {"frame": "330", "type": "serve"}]
+        added = [
+            {"start": 100, "frame": 150, "team": 1, "type": "pass"},
+            {"start": 100, "frame": 260, "team": 2, "type": "attack"},
+            {"start": 300, "frame": 380, "team": 1, "type": "set"},
+            {"start": 300, "frame": 250, "team": 1, "type": "set"},
+            {"start": 500, "frame": 520, "team": 1, "type": "set"},
+            {"start": 100, "frame": 120, "team": 1, "type": "set"},
+        ]
+
+        w, rows_out = with_added(windows, rows, typed, added, ball, 20, 5)
+
+        # Past its window's end the touch stretches it; before its start, in a window gone, or
+        # where a touch was already found, it is left out.
+        assert w == [(100, 260), (300, 400)]
+        assert [(r["frame"], r["type"], r.get("side"), r.get("x"), r.get("y")) for r in rows_out] == [
+            ("120", "serve", None, None, None),
+            ("150", "pass", "right", "10", "20"),
+            ("260", "attack", "left", "50", "60"),
+            ("330", "serve", None, None, None),
+            ("380", "set", "left", "", ""),
+        ]
+
+    def test_ball_near_takes_the_nearest_place_seen(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n97,1,1,1\n99,0,,\n102,1,2,2\n")
+
+        assert ball_near(ball, [100, 200], 3) == {100: ("2", "2")}
+        assert ball_near(tmp_path / "none.csv", [100], 3) == {}
 
 
 class TestDropRallies:

@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -119,8 +119,11 @@ class Questions:
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
         actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
         rallies = web.read_csv(self.match / "rallies.csv") if (self.match / "rallies.csv").exists() else []
-        windows = [(int(r["start_frame"]) - round(web.LEAD_S * self.fps), int(r["end_frame"])) for r in rallies]
-        self.touches = doubtful(actions, windows, unnamed(self.match / "review", self.fps))
+        lead = round(web.LEAD_S * self.fps)
+        windows, actions = web.with_added(
+            [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies], rallies, actions, web.answers(self.match, "added"), self.match / "ball.csv", lead, round(web.ADDED_NEAR_S * self.fps)
+        )
+        self.touches = doubtful(actions, [(a - lead, b) for a, b in windows], unnamed(self.match / "review", self.fps))
         self.page = page_data(self.match / "review")
         self.reports = reports(self.match)
         answers = self.match / "identity_answers.json"
@@ -212,15 +215,15 @@ class Questions:
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
 
-    def touch_clip(self, frame: int, x: float, y: float) -> dict:
-        """The clip around a touch at `frame`, its place (the ball then, at `x`, `y`) outlined."""
+    def touch_clip(self, frame: int, x: float | None, y: float | None) -> dict:
+        """The clip around a touch at `frame`, its place (the ball then, at `x`, `y`) outlined, if known."""
         half, at = self.touch_side / 2, frame / self.fps
         return {
             "start": round(at - TOUCH_SHOWN_S, 2),
             "end": round(at + TOUCH_SHOWN_S, 2),
             "around": TOUCH_AROUND_S - TOUCH_SHOWN_S,
             "slow": TOUCH_SLOW,
-            "boxes": [[round(at, 3), round(x - half), round(y - half), round(x + half), round(y + half)]],
+            "boxes": [] if x is None or y is None else [[round(at, 3), round(x - half), round(y - half), round(x + half), round(y + half)]],
         }
 
     def split(self, segment: tuple[int, int, int], log: list[dict], names: list[dict], named: dict) -> dict:
@@ -447,7 +450,7 @@ class Questions:
                 continue
             touches.append({
                 "id": qid, "kind": "touch", "team": team, "identity": None, "impact": identity.CONTACT_S, "seconds": 0, "contacts": 1,
-                "action": r["type"], "time": round(frame / self.fps, 2), "clip": self.touch_clip(frame, float(r["x"]), float(r["y"])), "crops": [], "choices": [],
+                "action": r["type"], "time": round(frame / self.fps, 2), "clip": self.touch_clip(frame, *((float(r["x"]), float(r["y"])) if r["x"] != "" else (None, None))), "crops": [], "choices": [],
                 "reason": reason, "proposed": None if r["identity"] in UNKNOWN else int(r["identity"]),
             })
             refs[qid] = {"touch": {"frame": frame, "team": team}}
@@ -620,9 +623,20 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
 def report_answer(report: dict, changes: dict, given: dict[tuple[int, int], dict]) -> dict:
     """What the corrections made on a viewer's report add to identity_answers.json: for touches of
     its rally (`report`, by frame), their player ("TEAM:IDENTITY") or none ("none", no touch) as
-    `touch` answers, their type or result as `action` ones; the rally as no play (`rally`) or its
-    winner (`winner`)."""
+    `touch` answers, their type or result as `action` ones; the touches added to it (frame, team,
+    type, result, player) as `added` ones with those; the rally as no play (`rally`) or its winner
+    (`winner`)."""
     out: dict[str, list] = defaultdict(list)
+    for c in changes.get("added", []) if report.get("start") is not None else []:
+        frame, team = int(c["frame"]), int(c["team"])
+        if team not in (1, 2) or c.get("type") not in TOUCH_TYPES or str(frame) in report["touches"]:
+            continue
+        out["added"].append({"start": report["start"], "frame": frame, "team": team, "type": c["type"]})
+        if c.get("result") in RESULTS:
+            out["action"].append({"frame": frame, "result": c["result"]})
+        if c.get("player"):
+            t, i = (int(v) for v in str(c["player"]).split(":"))
+            out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
     for c in changes.get("touches", []):
         frame = int(c["frame"])
         team = report["touches"].get(str(frame))
