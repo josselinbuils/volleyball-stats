@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
@@ -55,10 +56,16 @@ export interface Row {
 
 /** Counts of touches per action and how they ended in `columns`, `first` heading the rows' column,
  * then the rows' strengths and things to work on when `insights`; each count and each of those
- * plays its touches. The receptions' rating shows their mean grade. */
+ * plays its touches. The receptions' rating shows their mean grade. A column's title sorts the rows
+ * by it, most first, then fewest first, then back to their order. */
 export function StatsTable({ id, first, rows, columns = COLUMNS, insights = false }: { id: string; first: string; rows: Row[]; columns?: typeof COLUMNS; insights?: boolean }) {
   const { t } = useTranslation();
   const f = useFormat();
+  const [sort, setSort] = useState<{ stat: Stat; desc: boolean } | null>(null);
+  const sortBy = (stat: Stat) => setSort((s) => (s?.stat !== stat ? { stat, desc: true } : s.desc ? { stat, desc: false } : null));
+  const value = (r: Row, stat: Stat) => (stat === 'rated' ? (meanRating(r.stats) ?? -1) : r.stats[stat].length);
+  const body = rows.filter((r) => !r.total);
+  const sorted = sort ? [...body].sort((a, b) => (value(b, sort.stat) - value(a, sort.stat)) * (sort.desc ? 1 : -1)) : body;
   // A line parts each group from its neighbours.
   const parts = (k: number) => k > 0 && columns[k - 1].of !== columns[k].of;
   const tip = (r: Row, stat: Stat) =>
@@ -116,11 +123,14 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
           )}
         </TableRow>
         <TableRow className="hover:bg-transparent">
-          {columns.map(({ stat, label }, k) => (
-            <TableHead key={stat} className={cn(HEAD, 'h-8 min-w-14', parts(k) && 'border-l')}>
-              <ColumnTitle title={t(`stats.columns.${label}`)} about={t(`stats.about.${stat}`)} />
-            </TableHead>
-          ))}
+          {columns.map(({ stat, label }, k) => {
+            const order = sort?.stat === stat ? (sort.desc ? 'descending' : 'ascending') : undefined;
+            return (
+              <TableHead key={stat} aria-sort={order} className={cn(HEAD, 'h-8 min-w-14', parts(k) && 'border-l')}>
+                <ColumnTitle title={t(`stats.columns.${label}`)} about={t(`stats.about.${stat}`)} order={order} onSort={() => sortBy(stat)} />
+              </TableHead>
+            );
+          })}
           {insights &&
             (['strengths', 'toWorkOn'] as const).map((key) => (
               <TableHead key={key} className={cn(HEAD, 'h-8', key === 'strengths' && 'border-l')}>
@@ -129,29 +139,32 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
             ))}
         </TableRow>
       </TableHeader>
-      <TableBody>{rows.filter((r) => !r.total).map(row)}</TableBody>
+      <TableBody>{sorted.map(row)}</TableBody>
       {totals.length > 0 && <TableFooter className="bg-transparent">{totals.map(row)}</TableFooter>}
     </Table>
   );
 }
 
-/** A column's title, `about` explaining it on hover, focus or tap: a tap does not open a tooltip on
- * its own. */
-function ColumnTitle({ title, about }: { title: string; about: string }) {
+/** A column's title, `about` explaining it on hover, focus or tap (a tap does not open a tooltip on
+ * its own); a click also sorts by it (`onSort`), its `order` shown by an arrow. */
+function ColumnTitle({ title, about, order, onSort }: { title: string; about: string; order?: 'ascending' | 'descending'; onSort?: () => void }) {
   const [open, setOpen] = useState(false);
+  const Arrow = order === 'ascending' ? ArrowUp : ArrowDown;
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className={cn('inline-flex items-center gap-0.5 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50', order && 'font-semibold text-foreground')}
           onClick={(e) => {
             // Kept open: the trigger's own click handler would close it.
             e.preventDefault();
             setOpen(true);
+            onSort?.();
           }}
         >
           {title}
+          {order && <Arrow aria-hidden className="size-3 shrink-0" />}
         </button>
       </TooltipTrigger>
       <TooltipContent>{about}</TooltipContent>

@@ -5,7 +5,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { isTouch } from '@/helpers/contacts';
 import { groupName, match, teamColor, teamRing } from '@/lib/match';
-import { usePlayer, useVideoTime } from '@/lib/player';
+import { seek as seekTo, usePlayer, useVideoTime } from '@/lib/player';
 import { clipLabel, PAD, rallyClips, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 
@@ -22,7 +22,7 @@ export function PlaylistBar() {
   const rally = rallies[k];
   const seek = (to: number) => {
     if (video) {
-      video.currentTime = Math.max(0, rallies[to].start - PAD);
+      seekTo(video, Math.max(0, rallies[to].start - PAD));
     }
   };
   const playFrom = () => play((tr) => (set === null ? tr('rallies') : tr('set', { n: set })), rallyClips(rallies, match.duration), k);

@@ -103,10 +103,13 @@ export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; 
         <div className="absolute -inset-y-1 w-0.5 rounded-full bg-foreground" style={{ left: share(time) }} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" className="bg-card" onClick={() => setZoom((z) => !z)}>
-          {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
-          {t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
-        </Button>
+        {/* No outline, nothing to zoom on. */}
+        {clip.boxes.length > 0 && (
+          <Button variant="outline" size="sm" className="bg-card" onClick={() => setZoom((z) => !z)}>
+            {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
+            {t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
+          </Button>
+        )}
         <div role="group" aria-label={t('review.speed')} className="flex gap-1">
           {SPEEDS.map((s) => (
             <Button

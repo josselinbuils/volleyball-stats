@@ -47,6 +47,15 @@ export function useVideoTime<T>(select: (time: number) => T): T {
   return useSyncExternalStore(subscribe, () => select(now));
 }
 
+/** Moves `media` to `time`. A video loads nothing before it is first played or moved; from then it
+ * buffers ahead of where it stands, even paused, so playing starts at once. */
+export function seek(media: Media, time: number): void {
+  if (media instanceof HTMLVideoElement) {
+    media.preload = 'auto';
+  }
+  media.currentTime = time;
+}
+
 /** Plays the video if paused, else pauses it. */
 export function togglePlay(video: Media | null): void {
   if (video?.paused) {

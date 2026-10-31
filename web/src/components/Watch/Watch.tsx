@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
+import { useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { Clock } from '@/lib/clock';
 import { togglePlay, usePlayer } from '@/lib/player';
@@ -20,8 +21,28 @@ const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
 
 export function Watch() {
   const { t } = useTranslation();
-  const { video, setVideo } = usePlayer();
+  const f = useFormat();
+  const { video, setVideo, playlist } = usePlayer();
   const court = useRef<HTMLDivElement>(null);
+  // A playlist's next clip loads once the video has reached the one it plays: both at once would
+  // slow its start.
+  const [reached, setReached] = useState<typeof playlist>(null);
+  useEffect(() => {
+    if (!(video instanceof HTMLVideoElement) || !playlist) {
+      return;
+    }
+    const on = () => setReached(playlist);
+    video.addEventListener('seeked', on);
+    return () => video.removeEventListener('seeked', on);
+  }, [video, playlist]);
+  // The report button sits over the video, its form free to run past it, but full screen shows only
+  // the video's box: the button moves into it then.
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const sync = () => setFull(document.fullscreenElement !== null);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
   // Without a video, a clock plays the moments on the court's top view.
   useEffect(() => {
     if (match.video || !court.current) {
@@ -93,10 +114,21 @@ export function Watch() {
           <div className="min-w-0">
             <Scoreboard />
             <div className="relative">
-              <Feedback />
+              {!full && <Feedback />}
               {/* Full screen takes the video with its controls. */}
-              <div className="overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
-                {/* Nothing loads before the first play. */}
+              <div className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
+                {full && <Feedback />}
+                {playlist && reached === playlist && playlist.at + 1 < playlist.clips.length && <Preload time={playlist.clips[playlist.at + 1].start} />}
+                {/* What plays, over the video: the bar below is out of sight from the stats and in full screen. */}
+                {playlist && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-8.5rem)] truncate rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm"
+                  >
+                    {`${playlist.title(t)} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}`}
+                  </span>
+                )}
+                {/* Nothing loads before the video is first played or moved (`seek`). */}
                 <video
                   ref={setVideo}
                   poster={match.poster}
@@ -119,5 +151,22 @@ export function Watch() {
         <RallyCards />
       </CardContent>
     </Card>
+  );
+}
+
+/** A hidden copy of the video waiting at `time`, the next clip's start: the browser keeps what it
+ * fetches for the video, which then jumps there without waiting. */
+function Preload({ time }: { time: number }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.currentTime = time;
+    }
+  }, [time]);
+  return (
+    <video ref={ref} muted playsInline preload="auto" aria-hidden className="hidden">
+      {match.av1 && <source src={match.av1} type={AV1} />}
+      <source src={match.video ?? undefined} />
+    </video>
   );
 }

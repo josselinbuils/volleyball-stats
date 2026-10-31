@@ -32,6 +32,10 @@ GAP_S = 0.17
 SIDE_M = 0.5
 # A next candidate under DOUBT box heights farther from the ball than the toucher makes a doubt.
 DOUBT = 0.05
+# A touch whose nearest candidate stands over FAR box heights from the ball is none: the ball
+# changing course with no player at it, mostly out of the frame and back (first ASPOM match: 16 of
+# the 22 touches the review said were none, none of the 116 it confirmed).
+FAR = 0.5
 
 Box = tuple[float, float, float, float]
 
@@ -103,6 +107,11 @@ def ranked(typed: list[Typed], rows: list[Row], fps: float) -> list[list[tuple[f
                 found.append((distance((x, y), box, reach), distance((x, y), box), track))
         out.append(sorted(found))
     return out
+
+
+def unreached(typed: list[Typed], rows: list[Row], fps: float) -> set[int]:
+    """Frames of the contacts typed as touches with candidates, none within FAR of the ball."""
+    return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and c[0][0] > FAR}
 
 
 def gap_to_next(candidates: list[tuple[float, float, int]]) -> float | None:

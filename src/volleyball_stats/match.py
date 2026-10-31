@@ -237,7 +237,13 @@ def main() -> None:
     timings["rallies and contacts"] = time.perf_counter() - start
 
     start = time.perf_counter()
-    typed = actions.mark_relances(args.video, actions.classify(found, crossings, windows, fps, net_x, calibration), fps)
+    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    if rows is not None:
+        # Touches with no player at the ball are none; the rest typed again without them.
+        far = attribution.unreached(typed, rows, fps)
+        found = [c for c in found if c[0] not in far]
+        typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    typed = actions.mark_relances(args.video, typed, fps)
     crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     timings["actions"] = time.perf_counter() - start

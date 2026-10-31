@@ -28,10 +28,12 @@ export interface Choice {
 /** A doubt of the identity step: who an outlined piece of track is (`piece`), or whether two
  * identities never seen together are one player (`merge`, `other` the second one's clip); or who
  * made a doubtful touch (`touch`: its `action` at `time`, the ball outlined, why it is asked and
- * the player it is given to, `proposed`, when one is). */
+ * the player it is given to, `proposed`, when one is); or whether a rally window of `set` with no
+ * touch left is a rally (`rally`). */
 export interface Question {
   id: string;
-  kind: 'piece' | 'merge' | 'touch';
+  kind: 'piece' | 'merge' | 'touch' | 'rally';
+  set?: number | null;
   action?: string;
   time?: number;
   reason?: 'unknown' | 'twice' | 'close';

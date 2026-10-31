@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -61,7 +61,9 @@ MIN_IMPACT = 10.0
 TOUCH_AROUND_S, TOUCH_SHOWN_S, TOUCH_SLOW = 1.5, 0.25, 0.25
 UNKNOWN = ("", "0")
 # Touches not doubted asked too, the same ones each time: how many wrong picks the doubts miss.
-SPOT_CHECKS = 10
+SPOT_CHECKS = 20
+# A rally window asked about is played whole with RALLY_AROUND_S on both sides, unzoomed.
+RALLY_AROUND_S = 1.0
 ROSTER = Path("outputs/roster.json")
 # What the identities were last computed from (`state`), to tell what an apply would change.
 APPLIED = "identity_applied.json"
@@ -116,6 +118,9 @@ class Questions:
         rallies = web.read_csv(self.match / "rallies.csv") if (self.match / "rallies.csv").exists() else []
         windows = [(int(r["start_frame"]) - round(web.LEAD_S * self.fps), int(r["end_frame"])) for r in rallies]
         self.touches = doubtful(actions, windows)
+        answers = self.match / "identity_answers.json"
+        nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
+        self.empty = [(w, r.get("set")) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
 
     def track_rows(self, track: int, start: int, end: int) -> np.ndarray:
         """Indices of a track's boxes from `start` to `end`, by frame."""
@@ -437,7 +442,18 @@ class Questions:
                 "reason": reason, "proposed": None if r["identity"] in UNKNOWN else int(r["identity"]),
             })
             refs[qid] = {"touch": {"frame": frame, "team": team}}
-        return touches + sorted(out, key=lambda q: -q["impact"]), refs
+        found = []
+        for (start, end), number in self.empty:
+            qid = f"rally:{start}"
+            if qid in asked:
+                continue
+            found.append({
+                "id": qid, "kind": "rally", "team": 1, "identity": None, "impact": 0, "seconds": round((end - start) / self.fps, 1), "contacts": 0,
+                "set": int(number) if number else None, "time": round(start / self.fps, 2), "crops": [], "choices": [],
+                "clip": {"start": round(start / self.fps, 2), "end": round(end / self.fps, 2), "around": RALLY_AROUND_S, "boxes": []},
+            })
+            refs[qid] = {"rally": {"start": start + round(web.LEAD_S * self.fps)}}
+        return found + touches + sorted(out, key=lambda q: -q["impact"]), refs
 
 
 def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[Ref, Ref] | None = None) -> dict[str, list]:
@@ -465,6 +481,17 @@ def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[R
         rest = [r for i, r in enumerate(options) if i != k]
         return {"same": [[piece, options[k]]], **({"different": [[piece, *rest]]} if rest else {})}
     return {}
+
+
+def touches_in(actions: list[dict], window: tuple[int, int]) -> list[dict]:
+    """actions.csv's touches inside `window` (its lead included)."""
+    return [r for r in actions if r["type"] not in web.NO_PLAYER and window[0] <= int(r["frame"]) <= window[1]]
+
+
+def rally_answer(rally: dict, choice: str) -> dict:
+    """What an answer to a rally question adds to identity_answers.json: the window (by its start
+    frame) is a rally ("rally") or no play ("not_play"); nothing for another answer."""
+    return {"rally": [{**rally, "play": choice == "rally"}]} if choice in ("rally", "not_play") else {}
 
 
 def doubtful(actions: list[dict], windows: list[tuple[int, int]]) -> list[tuple[dict, str]]:
@@ -1074,7 +1101,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     choice = str(body["choice"])
                     said = choice.split(":") if choice.startswith("player:") else None
                     player = said and questions.ref(int(said[1]), int(said[2]))
-                    if "touch" in refs[body["id"]]:
+                    if "rally" in refs[body["id"]]:
+                        log.append({"id": body["id"], "choice": choice, **rally_answer(refs[body["id"]]["rally"], choice), "applied": False})
+                    elif "touch" in refs[body["id"]]:
                         given = identity.named(questions.table, identity.read_names(match))
                         log.append({"id": body["id"], "choice": choice, **touch_answer(refs[body["id"]]["touch"], choice, given), "applied": False})
                     else:

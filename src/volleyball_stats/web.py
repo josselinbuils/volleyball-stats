@@ -138,6 +138,16 @@ def result(contact: dict, after: dict | None) -> str:
     return "point" if where == "in" and after["side"] != contact["side"] else "error"
 
 
+def settle(found: list[dict], winners: list[int | None]) -> None:
+    """Each rally's last touch, in `found` (the page's contacts), a point when its team won the rally
+    (`winners`, by rally), else a fault: the points step also weighs the next serve, where a landing
+    alone leaves half the rallies of the first ASPOM match to nobody."""
+    last = {c["rally"]: c for c in found if c["type"] not in ("floor", "net")}
+    for rally, c in last.items():
+        if winners[rally] is not None and c["team"] is not None:
+            c["result"] = "point" if winners[rally] == c["team"] else "error"
+
+
 # The player a (track, frame) shows on the page, None without a track; or the identity (team,
 # number) said instead.
 Who = Callable[..., int | None]
@@ -300,6 +310,33 @@ def touched(match: Path, given: dict[tuple[int, int], dict]) -> dict[int, tuple[
     return {t["frame"]: None if t["identity"] is None else by_name.get((t["team"], t.get("name")), (t["team"], t["identity"])) for t in answers}
 
 
+def no_rallies(match: Path) -> set[int]:
+    """Start frames of the rally windows the review's answers say are no rally (no play)."""
+    path = match / "identity_answers.json"
+    return {r["start"] for r in (json.loads(path.read_text()).get("rally", []) if path.exists() else []) if not r["play"]}
+
+
+def drop_rallies(windows: list[tuple[int, int]], rows: list[dict], scores: list[dict], actions: list[dict], gone: set[int], lead: int) -> tuple[list, list, list, list]:
+    """The rally windows, rallies.csv's and points.csv's rows and actions.csv's but the windows
+    starting at a frame of `gone` and their contacts (from `lead` frames before them), each later
+    score of their set less the points they gave."""
+    kept: tuple[list, list, list] = ([], [], [])
+    current, lost = None, [0, 0]
+    for window, row, point in zip(windows, rows, scores):
+        if row.get("set") != current:
+            current, lost = row.get("set"), [0, 0]
+        if window[0] in gone:
+            if point.get("winner"):
+                lost[int(point["winner"]) - 1] += 1
+            continue
+        if point.get("score_1"):
+            point = {**point, "score_1": str(int(point["score_1"]) - lost[0]), "score_2": str(int(point["score_2"]) - lost[1])}
+        for part, value in zip(kept, (window, row, point)):
+            part.append(value)
+    out = [(a, b) for a, b in windows if a in gone]
+    return *kept, [r for r in actions if not any(a - lead <= int(r["frame"]) <= b for a, b in out)]
+
+
 def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict, dict | None]:
     """data.js's match and players.js's player positions, None without player tracks."""
     cap = cv2.VideoCapture(str(video))
@@ -316,6 +353,9 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     # The touches the review says are none (the ball out of sight, taken for a touch) go.
     said = touched(match, given)
     actions = [r for r in actions if said.get(int(r["frame"]), ()) is not None]
+    scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
+    # And the windows it says are no rally (warm-up, a ball thrown back).
+    windows, rally_rows, scores, actions = drop_rallies(windows, rally_rows, scores, actions, no_rallies(match), round(LEAD_S * fps))
     # The player rows around the touches place them; all the rows feed the samples, read once.
     near = {f for row in actions for f in range(int(row["frame"]) - gap, int(row["frame"]) + gap + 1)}
     track_team = {int(r["track"]): int(r["team"]) for r in read_csv(match / "tracks.csv")} if with_teams else {}
@@ -337,7 +377,6 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     step = max(1, round(STEP_S * fps))
     samples = player_samples(rows(), step, frame_count, who) if (match / "players.csv").exists() else []
     found = contacts(actions, windows, by_frame, fps, calibration, UNDER_PX * height / 720, who, said)
-    scores = read_csv(match / "points.csv") if teams and (match / "points.csv").exists() else [{}] * len(windows)
     rallies = []
     for (start, end), row, point in zip(windows, rally_rows, scores):
         rallies.append({
@@ -350,6 +389,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
+    settle(found, [r["winner"] for r in rallies])
     data = {
         "name": video.stem,
         "video": video.name,

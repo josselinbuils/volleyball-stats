@@ -233,7 +233,11 @@
       "close": "deux joueurs aussi près du ballon"
     },
     "nobody": "Personne ne le touche dans le cadre",
-    "notPlay": "Pas une phase de jeu"
+    "notPlay": "Pas une phase de jeu",
+    "rallyQuestion": "Est-ce un échange ?",
+    "rallyWhy": "aucune touche reconnue",
+    "isRally": "Oui, un échange",
+    "rallyNote": "Le moment passe en entier, sans zoom. Un échange va du service à la fin du point ; l'échauffement, une balle renvoyée au serveur ou un temps mort n'en sont pas."
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
@@ -317,7 +321,7 @@
       "strengths": "Ce qu'un joueur réussit nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments.",
       "toWorkOn": "Ce qu'un joueur rate nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments."
     },
-    "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte.",
+    "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte ; cliquez dessus pour trier les lignes.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
     "ratingDetail": "Parfaites : {{perfect}} · Bonnes : {{good}} · Difficiles : {{poor}} · Fautes : {{missed}}",
     "insights": {

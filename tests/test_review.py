@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, chain, constraints, doubtful, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -69,6 +69,13 @@ class TestDoubtful:
         assert [(r["frame"], why) for r, why in found[5:]] == [("230", "close"), ("200", "close"), ("110", "close")]
 
 
+class TestRallyAnswer:
+    def test_a_window_is_a_rally_or_no_play_else_nothing(self):
+        assert rally_answer({"start": 900}, "rally") == {"rally": [{"start": 900, "play": True}]}
+        assert rally_answer({"start": 900}, "not_play") == {"rally": [{"start": 900, "play": False}]}
+        assert rally_answer({"start": 900}, "skip") == {}
+
+
 class TestTouchAnswer:
     def test_a_touch_is_the_players_said_with_their_name_or_no_touch_else_nothing(self):
         touch = {"frame": 98776, "team": 2}
@@ -87,7 +94,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "log": log}
 
 
 class TestRange:

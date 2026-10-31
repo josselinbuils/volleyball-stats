@@ -3,7 +3,7 @@ import { Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, V
 import { useTranslation } from 'react-i18next';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
-import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
+import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
 import { span as allowed } from '@/components/Watch/helpers/span';
@@ -99,7 +99,7 @@ export function VideoControls({ light = false }: { light?: boolean }) {
     'inline-flex size-9 max-sm:size-8 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-3 [&_svg]:size-5',
     light ? 'hover:bg-foreground/10 focus-visible:ring-ring/50' : 'hover:bg-white/15 focus-visible:ring-white/70',
   );
-  const skip = (by: number) => video && (video.currentTime = Math.min(span.end, Math.max(span.start, video.currentTime + by)));
+  const skip = (by: number) => video && seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + by)));
   // A circular arrow with the seconds inside it, as video players draw it.
   const skipButton = (by: number) => (
     <button
@@ -133,7 +133,7 @@ export function VideoControls({ light = false }: { light?: boolean }) {
         value={time}
         onChange={(e) => {
           if (video) {
-            video.currentTime = Number(e.target.value);
+            seek(video, Number(e.target.value));
           }
         }}
         aria-label={t('seekVideo')}

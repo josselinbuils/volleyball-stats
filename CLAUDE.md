@@ -61,9 +61,10 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 - The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`) finds 139
   rallies for 128 points, unscored. The viewers' "Signaler" reports (see Hosting) are the main source
   of corrections: fetch them, turn them into labels for the steps they point at, score and fix those
-  steps; Kili labels (`docs/kili_labelling.md`) only where reports are not enough. Next: take each
-  rally's winner from the next serve; measure `speed.py` on the RTX 5080; tune jersey numbers on that
-  footage.
+  steps; Kili labels (`docs/kili_labelling.md`) only where reports are not enough. Next: the extra
+  rally windows (136 found for 128 played; windows with no real touch are the suspects, the review's
+  "Pas une phase de jeu" answers their labels); measure `speed.py` on the RTX 5080; tune jersey
+  numbers on that footage. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
 
 ## Hosting
 

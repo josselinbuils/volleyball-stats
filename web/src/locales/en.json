@@ -233,7 +233,11 @@
       "close": "two players as near the ball"
     },
     "nobody": "Nobody touches it in the frame",
-    "notPlay": "Not during play"
+    "notPlay": "Not during play",
+    "rallyQuestion": "Is this a rally?",
+    "rallyWhy": "no touch recognised",
+    "isRally": "Yes, a rally",
+    "rallyNote": "The moment plays whole, unzoomed. A rally runs from the serve to the end of the point; the warm-up, a ball sent back to the server or a timeout are none."
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -317,7 +321,7 @@
       "strengths": "What a player does clearly better than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",
       "toWorkOn": "What a player does clearly worse than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments."
     },
-    "noteTitles": "Hover or tap a column's title to see what it counts.",
+    "noteTitles": "Hover or tap a column's title to see what it counts; click it to sort the rows.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",
     "ratingDetail": "Perfect: {{perfect}} · Good: {{good}} · Poor: {{poor}} · Faults: {{missed}}",
     "insights": {

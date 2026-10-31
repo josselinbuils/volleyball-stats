@@ -145,6 +145,22 @@ box, the net separating the teams in the image. It matters for blocks and touche
 - No player: floor and net contacts get no track when typed right; the detected misses are floor
   and net contacts the detector does not find, and the tuning error is the unclear touch 2079.
 
+## No player at the ball
+
+`unreached`: a contact typed as a touch whose nearest candidate stands over `FAR` = 0.5 box heights
+from the ball (with the reach for overhead touches) is none: the ball changes course with no player
+at it, mostly leaving the frame at the top and coming back, its track broken. `match.py` drops these
+contacts and types the rest again, before the relances.
+
+| Data | Touches with no player within | Real touches dropped | False contacts dropped |
+| --- | --- | --- | --- |
+| The three clips, detected contacts typed as touches in the labelled rallies | 0.3 | 1 | 4 of 7 |
+| same | **0.5** | **0** | **4 of 7** |
+| same | 1.0 | 0 | 3 of 7 |
+| First ASPOM match, the review's answers | 0.5 | 0 of 116 confirmed | 16 of 22 said none |
+
+On the first match it drops 66 touches: the 16 the review said were none and 50 never asked.
+
 ## Doubts
 
 `ranked` gives each contact's candidates, nearest first; `gap_to_next`, the box heights between

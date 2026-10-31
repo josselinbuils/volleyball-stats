@@ -23,6 +23,7 @@ const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
 const NOTICE_MS = 4000;
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
+const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
 
 type Tab = 'questions' | 'names';
 // The tab survives the reload that applies the answers.
@@ -173,7 +174,7 @@ export function Review({
       if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || tab !== 'questions' || typing) {
         return;
       }
-      const key = (question.kind === 'merge' ? MERGE_KEYS : question.kind === 'touch' ? TOUCH_KEYS : KEYS)[event.key.toLowerCase()];
+      const key = { piece: KEYS, merge: MERGE_KEYS, touch: TOUCH_KEYS, rally: RALLY_KEYS }[question.kind][event.key.toLowerCase()];
       const choice = key === 'proposed' ? question.proposed != null && `player:${question.team}:${question.proposed}` : key;
       if (choice) {
         event.preventDefault();
@@ -268,25 +269,29 @@ export function Review({
             <CardHeader>
               <CardTitle>
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />
+                  {question.kind !== 'rally' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
                   {question.kind === 'piece'
                     ? t('review.who')
                     : question.kind === 'touch'
                       ? t('review.touchQuestion')
-                      : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
+                      : question.kind === 'rally'
+                        ? t('review.rallyQuestion')
+                        : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
                 </h2>
               </CardTitle>
               <CardDescription>
                 {(question.kind === 'touch'
                   ? [groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
-                  : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
+                  : question.kind === 'rally'
+                    ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
+                    : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
                 )
                   .filter(Boolean)
                   .join(' · ')}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-              {question.kind !== 'merge' && (
+              {(question.kind === 'piece' || question.kind === 'touch') && (
                 <label className="grid max-w-md gap-1 text-sm font-medium lg:col-span-2">
                   {t('review.whoIs')}
                   <PlayerSelect
@@ -324,7 +329,13 @@ export function Review({
                 <p className="text-[13px] text-muted-foreground">{t(`review.${question.kind}Note`)}</p>
               </div>
               <div className="grid gap-3">
-                {question.kind === 'touch' ? (
+                {question.kind === 'rally' ? (
+                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                    <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" onClick={() => void answer('rally')} />
+                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
+                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                  </div>
+                ) : question.kind === 'touch' ? (
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
                     {question.proposed != null && (
                       <AnswerButton

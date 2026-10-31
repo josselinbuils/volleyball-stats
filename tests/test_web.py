@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import brand, contacts, match_data, people, photos, player_samples, publish, result, spot, touched, track_feet, write_site, zone, zone_cells
+from volleyball_stats.web import brand, contacts, drop_rallies, match_data, people, photos, player_samples, publish, result, settle, spot, touched, track_feet, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -186,6 +186,37 @@ class TestPeople:
         (tmp_path / "identity_answers.json").write_text(json.dumps({"touch": touches}))
 
         assert touched(tmp_path, {(2, 7): {"name": "Julie", "jersey": None}}) == {5: (2, 7), 9: (1, 4), 12: None}
+
+
+class TestDropRallies:
+    def test_a_window_said_to_be_no_rally_goes_with_its_contacts_and_points(self):
+        windows = [(100, 200), (300, 400), (500, 600), (700, 800)]
+        rows = [{"set": "1"}, {"set": "1"}, {"set": "1"}, {"set": "2"}]
+        scores = [
+            {"winner": "1", "score_1": "1", "score_2": "0"},
+            {"winner": "2", "score_1": "1", "score_2": "1"},
+            {"winner": "1", "score_1": "2", "score_2": "1"},
+            {"winner": "2", "score_1": "0", "score_2": "1"},
+        ]
+        actions = [{"frame": "150"}, {"frame": "290"}, {"frame": "350"}, {"frame": "550"}]
+
+        w, r, s, a = drop_rallies(windows, rows, scores, actions, {300}, 20)
+
+        assert w == [(100, 200), (500, 600), (700, 800)] and len(r) == 3
+        assert [(p["score_1"], p["score_2"]) for p in s] == [("1", "0"), ("2", "0"), ("0", "1")]
+        assert [x["frame"] for x in a] == ["150", "550"]
+
+
+class TestSettle:
+    def test_a_rallys_last_touch_wins_or_loses_it_as_its_winner_says(self):
+        def c(rally, kind, team, result="play"):
+            return {"rally": rally, "type": kind, "team": team, "result": result}
+
+        found = [c(0, "serve", 1), c(0, "attack", 2), c(0, "floor", None), c(1, "serve", 2), c(1, "dig", 1, "error"), c(2, "serve", 1)]
+
+        settle(found, [2, 2, None])
+
+        assert [x["result"] for x in found] == ["play", "point", "play", "play", "error", "play"]
 
 
 class TestBrand:

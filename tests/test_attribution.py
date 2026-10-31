@@ -1,4 +1,4 @@
-from volleyball_stats.attribution import GAP_S, REACH, SIDE_M, attribute, box_at, distance, gap_to_next, ranked, read_players
+from volleyball_stats.attribution import FAR, GAP_S, REACH, SIDE_M, attribute, box_at, distance, gap_to_next, ranked, read_players, unreached
 from volleyball_stats.players import Row, write_csv
 
 FPS = 30.0
@@ -83,6 +83,15 @@ class TestAttribute:
 
         assert [round(d, 2) for d, _, _ in near] == [0.05, 0.05] and round(gap_to_next(near), 2) == 0.0
         assert gap_to_next(alone) is None
+
+
+class TestUnreached:
+    def test_a_touch_with_no_player_at_the_ball_is_none(self):
+        rows = [row(50, 1, (100, 200, 140, 300)), row(60, 1, (100, 200, 140, 300))]
+        # The ball 0.2 box heights to the side of the player, then high above the box and its reach.
+        typed = [(50, 160, 250, "set", "left"), (60, 120, 200 - (REACH + FAR + 0.1) * 100, "attack", "left"), (60, 120, 50, "floor", "left")]
+
+        assert unreached(typed, rows, FPS) == {60}
 
 
 class TestReadPlayers:
