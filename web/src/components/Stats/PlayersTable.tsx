@@ -49,10 +49,7 @@ export function PlayersTable() {
       key: line.id,
       name:
         typeof line.id === 'number' ? (
-          <span className="flex flex-wrap items-center gap-x-2">
-            <Who person={line.id} g={group} />
-            {best && playerKey(line.id, match.people) === best.key && <Mvp stats={best.stats} seconds={best.seconds} />}
-          </span>
+          <Who person={line.id} g={group} />
         ) : (
           <span className={cn('flex min-h-8 items-center', line.id === 'rest' && 'text-muted-foreground')}>{line.id === 'total' && !hasTeams ? groupName(t, group) : t(`players.${line.id}`)}</span>
         ),
@@ -60,6 +57,7 @@ export function PlayersTable() {
       stats: line.stats,
       tips: { between: pairs(t, dropped, line.stats.between) },
       insights: typeof line.id === 'number' ? insights(line.stats, team) : undefined,
+      badge: typeof line.id === 'number' && best && playerKey(line.id, match.people) === best.key ? <Mvp stats={best.stats} seconds={best.seconds} /> : undefined,
       seconds: typeof line.id === 'number' ? seconds(line.id) : undefined,
       total: line.id === 'total',
     }));
