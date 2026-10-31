@@ -6,7 +6,7 @@ import { match } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { boxAt, viewAt } from '@/components/Review/helpers/box';
 
-/** Half a second of context around a clip, played in a loop. */
+/** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
 const AROUND = 0.5;
 /** Playback speeds offered, to catch a short moment; the one picked carries over to the next clip. */
 const SPEEDS = [1, 0.5, 0.25];
@@ -27,17 +27,22 @@ export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; 
     }
   }, [speed]);
 
+  const around = clip.around ?? AROUND;
   useEffect(() => {
     const v = video.current;
     if (!v) {
       return;
     }
-    v.currentTime = Math.max(0, clip.start - AROUND);
+    v.currentTime = Math.max(0, clip.start - around);
     void v.play().catch(() => {});
     let frame = 0;
     const tick = () => {
-      if (v.currentTime > clip.end + AROUND) {
-        v.currentTime = Math.max(0, clip.start - AROUND);
+      if (v.currentTime > clip.end + around) {
+        v.currentTime = Math.max(0, clip.start - around);
+      }
+      const rate = clip.slow && v.currentTime >= clip.start && v.currentTime <= clip.end ? Math.min(clip.slow, picked) : picked;
+      if (v.playbackRate !== rate) {
+        v.playbackRate = rate;
       }
       setTime(v.currentTime);
       if (timeRef) {
@@ -60,8 +65,8 @@ export function ClipVideo({ clip, width, height, timeRef, seek }: { clip: Clip; 
 
   const box = boxAt(clip, time);
   // Where the loop stands, and the outlined part of it.
-  const from = Math.max(0, clip.start - AROUND);
-  const share = (at: number) => `${(100 * (Math.min(clip.end + AROUND, Math.max(from, at)) - from)) / (clip.end + AROUND - from)}%`;
+  const from = Math.max(0, clip.start - around);
+  const share = (at: number) => `${(100 * (Math.min(clip.end + around, Math.max(from, at)) - from)) / (clip.end + around - from)}%`;
   const view = zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height };
   // The native controls would zoom with the video: a click plays or pauses it instead.
   const toggle = () => {

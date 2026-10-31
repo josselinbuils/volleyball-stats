@@ -76,6 +76,7 @@ class TestTouchAnswer:
         assert touch_answer(touch, "player:2:5", {(2, 5): {"name": "Léa", "jersey": 9}}) == {"touch": [{"frame": 98776, "team": 2, "identity": 5, "name": "Léa"}]}
         assert touch_answer(touch, "player:2:6", {}) == {"touch": [{"frame": 98776, "team": 2, "identity": 6, "name": None}]}
         assert touch_answer(touch, "nobody", {}) == {"touch": [{"frame": 98776, "team": 2, "identity": None, "name": None}]}
+        assert touch_answer(touch, "not_play", {}) == {"touch": [{"frame": 98776, "team": 2, "identity": None, "name": None, "play": False}]}
         assert touch_answer(touch, "skip", {}) == {}
 
 

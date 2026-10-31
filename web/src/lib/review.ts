@@ -5,6 +5,10 @@ import type { Group } from '@/lib/match';
 export interface Clip {
   start: number;
   end: number;
+  /** Seconds played before and after it, AROUND without. */
+  around?: number;
+  /** The playback rate inside it, at most, the context around played at the speed picked. */
+  slow?: number;
   boxes: [number, number, number, number, number][];
 }
 

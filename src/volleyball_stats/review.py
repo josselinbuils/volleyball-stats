@@ -55,9 +55,10 @@ STRIP = 24
 # Doubts under MIN_IMPACT (seconds of play, a touch counting as 10, times the doubt: identity.doubts)
 # are not asked: their answers barely move the numbers, and there are always more.
 MIN_IMPACT = 10.0
-# Doubtful touches (`doubtful`) are asked first, each clip from TOUCH_BEFORE_S before the touch to
-# TOUCH_AFTER_S after it, zoomed on where it happens.
-TOUCH_BEFORE_S, TOUCH_AFTER_S = 1.5, 1.0
+# Doubtful touches (`doubtful`) are asked first, each clip TOUCH_AROUND_S on both sides of the touch,
+# zoomed on where it happens, outlined and slowed to TOUCH_SLOW only TOUCH_SHOWN_S on both sides of
+# it (a contact found up to a few frames off): only that moment is asked about.
+TOUCH_AROUND_S, TOUCH_SHOWN_S, TOUCH_SLOW = 1.5, 0.25, 0.25
 UNKNOWN = ("", "0")
 # Touches not doubted asked too, the same ones each time: how many wrong picks the doubts miss.
 SPOT_CHECKS = 10
@@ -199,11 +200,13 @@ class Questions:
 
     def touch_clip(self, frame: int, x: float, y: float) -> dict:
         """The clip around a touch at `frame`, its place (the ball then, at `x`, `y`) outlined."""
-        half = self.touch_side / 2
+        half, at = self.touch_side / 2, frame / self.fps
         return {
-            "start": round((frame - TOUCH_BEFORE_S * self.fps) / self.fps, 2),
-            "end": round((frame + TOUCH_AFTER_S * self.fps) / self.fps, 2),
-            "boxes": [[round(frame / self.fps, 3), round(x - half), round(y - half), round(x + half), round(y + half)]],
+            "start": round(at - TOUCH_SHOWN_S, 2),
+            "end": round(at + TOUCH_SHOWN_S, 2),
+            "around": TOUCH_AROUND_S - TOUCH_SHOWN_S,
+            "slow": TOUCH_SLOW,
+            "boxes": [[round(at, 3), round(x - half), round(y - half), round(x + half), round(y + half)]],
         }
 
     def split(self, segment: tuple[int, int, int], log: list[dict], names: list[dict], named: dict) -> dict:
@@ -488,9 +491,10 @@ def doubtful(actions: list[dict], windows: list[tuple[int, int]]) -> list[tuple[
 def touch_answer(touch: dict, choice: str, given: dict[tuple[int, int], dict]) -> dict:
     """What an answer to a touch question adds to identity_answers.json: the touch is the player's
     of "player:TEAM:IDENTITY", with the name `given` them, which outlives the identities' numbers;
-    no touch at all for "nobody" (identity None); nothing for another answer."""
-    if choice == "nobody":
-        return {"touch": [{**touch, "identity": None, "name": None}]}
+    no touch at all for "nobody" (identity None), nor for "not_play", outside the play (also
+    `play` false: where the rallies step went wrong); nothing for another answer."""
+    if choice in ("nobody", "not_play"):
+        return {"touch": [{**touch, "identity": None, "name": None, **({"play": False} if choice == "not_play" else {})}]}
     if not choice.startswith("player:"):
         return {}
     player = tuple(int(v) for v in choice.split(":")[1:3])

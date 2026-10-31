@@ -224,15 +224,16 @@
     "goNames": "Name the players",
     "tabQuestions": "Questions · {{count, number}}",
     "tabNames": "Names · {{n}} of {{total}}",
-    "touchQuestion": "Who touched the ball?",
-    "touchNote": "The yellow frame marks where the touch happens; the moment loops, muted. Only this team's players are offered.",
+    "touchQuestion": "Who touches the ball in the yellow frame?",
+    "touchNote": "Only the slow-motion part counts, while the yellow frame shows. If nobody touches the ball during it, answer \"Nobody\".",
     "touchProposed": "It is {{name}}",
     "touchWhy": {
       "unknown": "no player recognised",
       "twice": "the same player twice in a row",
       "close": "two players as near the ball"
     },
-    "nobody": "Nobody: not a touch"
+    "nobody": "Nobody touches it in the frame",
+    "notPlay": "Not during play"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",

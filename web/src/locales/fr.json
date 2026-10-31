@@ -224,15 +224,16 @@
     "goNames": "Nommer les joueurs",
     "tabQuestions": "Questions · {{count, number}}",
     "tabNames": "Noms · {{n}} sur {{total}}",
-    "touchQuestion": "Qui a touché le ballon ?",
-    "touchNote": "Le cadre jaune marque l'endroit de la touche ; le moment passe en boucle, sans le son. Seuls les joueurs de cette équipe sont proposés.",
+    "touchQuestion": "Qui touche le ballon dans le cadre jaune ?",
+    "touchNote": "Seul le passage au ralenti compte, quand le cadre jaune est affiché. Si personne ne touche le ballon pendant ce ralenti, répondez « Personne ».",
     "touchProposed": "C'est bien {{name}}",
     "touchWhy": {
       "unknown": "aucun joueur reconnu",
       "twice": "le même joueur deux fois de suite",
       "close": "deux joueurs aussi près du ballon"
     },
-    "nobody": "Personne : pas une touche"
+    "nobody": "Personne ne le touche dans le cadre",
+    "notPlay": "Pas une phase de jeu"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",

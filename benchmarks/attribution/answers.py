@@ -31,7 +31,7 @@ def main() -> None:
     answers = json.loads(path.read_text()).get("touch", []) if path.exists() else []
     given = identity.named(identity.read_identities(args.match / "identities.csv"), identity.read_names(args.match))
     by_name = {(team, g["name"]): number for (team, number), g in given.items() if g.get("name")}
-    by_reason, by_gap, nobody = defaultdict(list), defaultdict(list), 0
+    by_reason, by_gap, nobody, outside = defaultdict(list), defaultdict(list), 0, 0
     for a in answers:
         r = row.get(str(a["frame"]))
         if r is None:
@@ -39,11 +39,12 @@ def main() -> None:
         # No touch at all ("nobody", identity None): a contact the detector made up, wrong whoever got it.
         said = None if a["identity"] is None else by_name.get((a["team"], a.get("name")), a["identity"])
         right = said is not None and r["identity"] not in UNKNOWN and int(r["identity"]) == said
-        nobody += said is None
+        nobody += said is None and a.get("play", True)
+        outside += not a.get("play", True)
         by_reason[why.get(r["frame"], "asked before")].append(right)
         if r.get("gap"):
             by_gap[next((g for g in GAPS if float(r["gap"]) < g), None)].append(right)
-    print(f"{sum(map(len, by_reason.values()))} touches answered, {nobody} of them no touch at all")
+    print(f"{sum(map(len, by_reason.values()))} touches answered, {nobody} of them no touch at all, {outside} outside the play")
     for reason, hits in sorted(by_reason.items()):
         print(f"  {reason:12} automatic pick right {sum(hits)}/{len(hits)}")
     for g in (*GAPS, None):

@@ -171,6 +171,10 @@ by gap, to set `DOUBT` from them:
 uv run python benchmarks/attribution/answers.py outputs/first_match
 ```
 
+On the first ASPOM match (4K, 649 touches), the 138 touches asked were all answered: the automatic
+pick was right for 10 of the 10 spot checks, 59 of the 86 close calls and 6 of the 33 players twice
+in a row; 22 of the touches asked were no touch at all (mostly the ball flying out of the frame).
+
 ## Pose
 
 `bench.py --pose` runs YOLO11m-pose at frames t-1, t and t+1 of each set, pass, dig and unclear

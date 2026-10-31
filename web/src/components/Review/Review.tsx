@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, HelpCircle, PenLine, Scissors, Undo2, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, HelpCircle, PenLine, Scissors, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,7 @@ import { Names } from '@/components/Review/Names';
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
 const NOTICE_MS = 4000;
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
-const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', s: 'skip' };
+const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 
 type Tab = 'questions' | 'names';
 // The tab survives the reload that applies the answers.
@@ -297,7 +297,7 @@ export function Review({
                     empty={t('review.pickPlayer')}
                     label={t('review.whoIs')}
                     className="h-9 w-full text-[15px] font-normal"
-                    autoFocus={question.kind !== 'touch' || question.proposed == null}
+                    autoFocus
                     openOnFocus={false}
                     onChange={(who) => who && void answer(`player:${who}`)}
                   />
@@ -328,8 +328,6 @@ export function Review({
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
                     {question.proposed != null && (
                       <AnswerButton
-                        key={question.id}
-                        autoFocus
                         icon={<Check aria-hidden />}
                         label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
                         hint="1"
@@ -337,6 +335,7 @@ export function Review({
                       />
                     )}
                     <AnswerButton icon={<CircleOff aria-hidden />} label={t('review.nobody')} hint="X" onClick={() => void answer('nobody')} />
+                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
                     <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
                   </div>
                 ) : question.kind === 'piece' ? (
@@ -395,9 +394,9 @@ export function Review({
   );
 }
 
-function AnswerButton({ icon, label, hint, onClick, autoFocus }: { icon: React.ReactNode; label: string; hint: string; onClick: () => void; autoFocus?: boolean }) {
+function AnswerButton({ icon, label, hint, onClick }: { icon: React.ReactNode; label: string; hint: string; onClick: () => void }) {
   return (
-    <Button variant="outline" className="justify-between bg-card" autoFocus={autoFocus} onClick={onClick}>
+    <Button variant="outline" className="justify-between bg-card" onClick={onClick}>
       <span className="inline-flex items-center gap-2">
         {icon}
         {label}
