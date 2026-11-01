@@ -1,4 +1,5 @@
-from volleyball_stats.attribution import CROSS_M, FAR, GAP_S, REACH, SIDE_M, attribute, box_at, distance, gap_to_next, ranked, read_players, unreached
+import numpy as np
+from volleyball_stats.attribution import CROSS_M, FAR, GAP_S, REACH, SIDE_M, WRIST_CONF, attribute, box_at, distance, gap_to_next, ranked, read_players, unreached, wrist_distance, wrist_order
 from volleyball_stats.players import Row, write_csv
 
 FPS = 30.0
@@ -113,3 +114,30 @@ class TestReadPlayers:
         write_csv(rows, tmp_path / "players.csv")
 
         assert read_players(tmp_path / "players.csv") == rows
+
+
+class TestWristDistance:
+    def test_the_nearest_confident_wrist_of_the_matching_pose_in_box_heights(self):
+        box = (100.0, 200.0, 140.0, 300.0)
+        keypoints = np.zeros((17, 3))
+        # Left wrist 20 px from the ball, right wrist 10 px but unsure.
+        keypoints[9], keypoints[10] = (120, 270, WRIST_CONF), (120, 260, WRIST_CONF - 0.1)
+        other = np.zeros((17, 3))
+        other[9] = (120, 250, 1.0)
+
+        assert wrist_distance((120, 250), box, [[(box, keypoints), ((300, 200, 340, 300), other)]]) == 0.2
+        assert wrist_distance((120, 250), box, [[((300, 200, 340, 300), other)]]) is None
+
+
+class TestWristOrder:
+    def test_wrists_reorder_the_close_candidates_and_a_veto_sends_one_last(self):
+        found = [(0.05, 0.05, 1), (0.1, 0.1, 2), (0.15, 0.15, 3), (0.9, 0.9, 4)]
+
+        assert [c[2] for c in wrist_order(found, {1: 0.3, 2: 0.1, 3: None, 4: 0.0})] == [2, 1, 3, 4]
+        assert [c[2] for c in wrist_order(found, {1: 0.6, 2: None, 3: 0.2, 4: None})] == [3, 2, 4, 1]
+
+    def test_keeps_the_box_holding_the_ball_when_its_wrists_are_not_seen(self):
+        found = [(0.0, 0.0, 1), (0.1, 0.1, 2)]
+
+        assert [c[2] for c in wrist_order(found, {1: None, 2: 0.05})] == [1, 2]
+        assert [c[2] for c in wrist_order(found, {1: 0.6, 2: 0.7})] == [1, 2]

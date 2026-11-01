@@ -250,15 +250,28 @@ def main() -> None:
         found = [c for c in found if c[0] not in far]
         typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
     typed = actions.mark_relances(args.video, typed, fps)
-    crossings = in_rallies(crossings, windows, round(actions.LEAD_S * fps))
-    write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     timings["actions"] = time.perf_counter() - start
 
     tracks, touchers, gaps, found_teams, settled = None, [None] * len(typed), [None] * len(typed), None, None
+    lead = round(actions.LEAD_S * fps)
     if args.players:
         candidates = attribution.ranked(typed, rows, fps)
-        touchers, gaps = [c[0][2] if c else None for c in candidates], [attribution.gap_to_next(c) for c in candidates]
-        typed, touchers = actions.mark_dead(typed, touchers, [rally_of(t[0], windows, round(actions.LEAD_S * fps)) for t in typed])
+        gaps = [attribution.gap_to_next(c) for c in candidates]
+        # A dead ball is one track nearest the ball touch after touch, whatever the wrists say.
+        dead, _ = actions.mark_dead(typed, [c[0][2] if c else None for c in candidates], [rally_of(t[0], windows, lead) for t in typed])
+        start = time.perf_counter()
+        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps)
+        timings["wrists"] = time.perf_counter() - start
+        touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
+        typed = dead
+    idle = actions.no_play(typed, [rally_of(t[0], windows, lead) for t in typed])
+    if idle:
+        keep = [k for k, t in enumerate(typed) if rally_of(t[0], windows, lead) not in idle]
+        typed, touchers, gaps = [typed[k] for k in keep], [touchers[k] for k in keep], [gaps[k] for k in keep]
+        windows = [w for k, w in enumerate(windows) if k not in idle]
+    crossings = in_rallies(crossings, windows, lead)
+    write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
+    if args.players:
         start = time.perf_counter()
         found_teams = teams.assign(args.video, rows, windows, fps, starts)
         timings["teams"] = time.perf_counter() - start

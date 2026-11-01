@@ -8,8 +8,9 @@ contact (blur, a teammate in front) stays a candidate, its box interpolated over
 feet stand clearly on the other side of the net then: a track that swapped players across the net.
 For the same reason a track of the other side whose feet stand well inside the contact's side is a
 candidate. A ball inside two boxes goes to the bigger one, the player nearer the camera. Floor and
-net contacts have no player. Two candidates about as near the ball make the pick a doubt, asked in
-the review. See benchmarks/attribution/README.md for the numbers behind the constants.
+net contacts have no player. For touches below the head, `by_wrists` then reorders the candidates
+near the ball by the players' wrists (pose). Two candidates about as near the ball make the pick a
+doubt, asked in the review. See benchmarks/attribution/README.md for the numbers behind the constants.
 
     uv run python -m volleyball_stats.attribution ACTIONS_CSV PLAYERS_CSV --fps FPS [--out DIR]
 """
@@ -20,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats.actions import Typed
+from volleyball_stats.actions import POSE_MODEL, Typed
 from volleyball_stats.players import Row
 
 NO_PLAYER = {"floor", "net"}
@@ -42,8 +43,17 @@ DOUBT = 0.05
 # changing course with no player at it, mostly out of the frame and back (first ASPOM match: 16 of
 # the 22 touches the review said were none, none of the 116 it confirmed).
 FAR = 0.5
+# Touches below the head (`by_wrists`): a candidate whose wrists (pose keypoints over WRIST_CONF, of
+# the pose box overlapping the track's by WRIST_IOU or more, frames t-1..t+1) all stand over
+# WRIST_VETO box heights from the ball goes last; among the others within WRIST_MARGIN box heights
+# of the nearest, the one whose wrists come nearest to the ball wins (`wrist_order`).
+BELOW_HEAD = {"pass", "set", "dig", "relance"}
+WRIST_VETO, WRIST_MARGIN, WRIST_CONF, WRIST_IOU = 0.4, 0.2, 0.7, 0.5
+# The pose model sees a square of POSE_CROP frame heights around the ball.
+POSE_CROP = 0.74
 
 Box = tuple[float, float, float, float]
+Candidate = tuple[float, float, int]
 
 
 def read_players(path: Path) -> list[Row]:
@@ -93,7 +103,7 @@ def court_x(xs: dict[int, float], frame: int, gap: int) -> float | None:
     return None
 
 
-def ranked(typed: list[Typed], rows: list[Row], fps: float) -> list[list[tuple[float, float, int]]]:
+def ranked(typed: list[Typed], rows: list[Row], fps: float) -> list[list[Candidate]]:
     """Each contact's candidates, nearest first: (distance with the reach, plain distance, track);
     none for the floor and the net. Equal distances go to the bigger box: a ball inside two boxes
     is mostly the front player's (first ASPOM match: 93 of the 135 touches answered right, against
@@ -121,12 +131,74 @@ def ranked(typed: list[Typed], rows: list[Row], fps: float) -> list[list[tuple[f
     return out
 
 
+def iou(a: Box, b: Box) -> float:
+    x1, y1, x2, y2 = max(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    return inter / ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter)
+
+
+def wrist_distance(ball: tuple[float, float], box: Box, poses: list[list[tuple[Box, np.ndarray]]]) -> float | None:
+    """Box heights from the ball to the nearest confident wrist of the pose detection matching `box`
+    in each of `poses`' frames (box, 17 keypoints x, y, confidence); None when none is seen."""
+    found = []
+    for frame in poses:
+        overlaps = [iou(box, b) for b, _ in frame]
+        if overlaps and max(overlaps) >= WRIST_IOU:
+            points = frame[int(np.argmax(overlaps))][1][[9, 10]]
+            found += [float(np.hypot(px - ball[0], py - ball[1])) for px, py, conf in points if conf >= WRIST_CONF]
+    return min(found) / (box[3] - box[1]) if found else None
+
+
+def by_wrists(video: Path, typed: list[Typed], candidates: list[list[Candidate]], rows: list[Row], fps: float) -> list[list[Candidate]]:
+    """`candidates` reordered by the wrists for touches below the head (see WRIST_VETO); YOLO pose
+    on a crop around the ball. First ASPOM match: 97 -> 104 of the 135 touches answered."""
+    import cv2
+    from ultralytics import YOLO
+
+    by_track, gap = tracks(rows), round(GAP_S * fps)
+    model, cap, out = None, cv2.VideoCapture(str(video)), []
+    for (frame, x, y, kind, _), found in zip(typed, candidates):
+        if kind not in BELOW_HEAD or len(found) < 2:
+            out.append(found)
+            continue
+        model = model or YOLO(str(POSE_MODEL))
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame - 1)
+        poses = []
+        for _ in range(3):
+            ok, image = cap.read()
+            if not ok:
+                break
+            height, width = image.shape[:2]
+            side = min(round(POSE_CROP * height), width, height)
+            x0, y0 = min(max(0, x - side // 2), width - side), min(max(0, y - side // 2), height - side)
+            result = model.predict(image[y0:y0 + side, x0:x0 + side], imgsz=1280, conf=0.1, verbose=False)[0]
+            keypoints = result.keypoints.data.cpu().numpy() + np.array([x0, y0, 0])
+            poses.append([(tuple((b + np.array([x0, y0, x0, y0])).tolist()), k) for b, k in zip(result.boxes.xyxy.cpu().numpy(), keypoints)])
+        out.append(wrist_order(found, {c[2]: wrist_distance((x, y), box_at(by_track[c[2]][1], frame, gap), poses) for c in found}))
+    cap.release()
+    return out
+
+
+def wrist_order(found: list[Candidate], wrists: dict[int, float | None]) -> list[Candidate]:
+    """`found` (nearest first) with the candidates whose wrists all stand over WRIST_VETO from the
+    ball last, and the others within WRIST_MARGIN of the nearest of them by their wrists' distance,
+    those with none seen after; unless the ball lies inside that nearest box and its wrists are not
+    seen (hands above the head, out of the box)."""
+    kept = [c for c in found if wrists[c[2]] is None or wrists[c[2]] <= WRIST_VETO]
+    if not kept:
+        return found
+    close = [c for c in kept if c[0] - kept[0][0] <= WRIST_MARGIN]
+    if close[0][0] > 0 or wrists[close[0][2]] is not None:
+        close.sort(key=lambda c: (wrists[c[2]] is None, wrists[c[2]] or 0.0, c[0]))
+    return close + [c for c in kept if c not in close] + [c for c in found if c not in kept]
+
+
 def unreached(typed: list[Typed], rows: list[Row], fps: float) -> set[int]:
     """Frames of the contacts typed as touches with candidates, none within FAR of the ball."""
     return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and c[0][0] > FAR}
 
 
-def gap_to_next(candidates: list[tuple[float, float, int]]) -> float | None:
+def gap_to_next(candidates: list[Candidate]) -> float | None:
     """Box heights between the toucher's distance to the ball and the next candidate's; None alone."""
     return candidates[1][0] - candidates[0][0] if len(candidates) > 1 else None
 

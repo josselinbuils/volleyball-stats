@@ -4,9 +4,9 @@ identity), by why it was asked and by the gap to the next candidate. The spot ch
 wrong picks the doubts miss; the gaps, where to set attribution.DOUBT. With --rerank, also
 attribution.ranked as it stands run again on actions.csv's contacts and players.csv (the touch's
 identity being its track's in identities.csv), to score a change to the step without rerunning the
-pipeline.
+pipeline; with --video, attribution.by_wrists after it too (pose on the video).
 
-    uv run python benchmarks/attribution/answers.py outputs/first_match [--rerank]
+    uv run python benchmarks/attribution/answers.py outputs/first_match [--rerank [--video data/first_match.mp4]]
 """
 
 import argparse
@@ -28,6 +28,7 @@ def main() -> None:
     parser.add_argument("match", type=Path)
     parser.add_argument("--fps", type=float, default=50.0)
     parser.add_argument("--rerank", action="store_true", help="Also score attribution.ranked run again on players.csv")
+    parser.add_argument("--video", type=Path, help="With --rerank, also score attribution.by_wrists on this video")
     args = parser.parse_args()
     actions = web.read_csv(args.match / "actions.csv")
     windows = [(int(r["start_frame"]) - round(LEAD_S * args.fps), int(r["end_frame"])) for r in web.read_csv(args.match / "rallies.csv")]
@@ -61,7 +62,7 @@ def main() -> None:
         # The last answer to a touch wins; "nobody" leaves it out.
         last = {a["frame"]: a for a in answers if str(a["frame"]) in row}
         truth = {f: (a["team"], by_name.get((a["team"], a.get("name")), a["identity"])) for f, a in last.items() if a["identity"] is not None}
-        rerank(args.match, [row[str(f)] for f in sorted(truth)], truth, table, args.fps)
+        rerank(args.match, [row[str(f)] for f in sorted(truth)], truth, table, args.fps, args.video)
 
 
 def near_rows(path: Path, frames: set[int], margin: int) -> list[Row]:
@@ -75,21 +76,24 @@ def near_rows(path: Path, frames: set[int], margin: int) -> list[Row]:
         ]
 
 
-def rerank(match: Path, asked: list[dict], truth: dict[int, tuple[int, int]], table: list, fps: float) -> None:
-    """attribution.ranked on the answered touches: the answered player first, among the candidates, by type."""
+def rerank(match: Path, asked: list[dict], truth: dict[int, tuple[int, int]], table: list, fps: float, video: Path | None) -> None:
+    """attribution.ranked (then by_wrists with a video) on the answered touches: the answered player
+    first, among the candidates, by type."""
     typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in asked]
     rows = near_rows(match / "players.csv", {t[0] for t in typed}, round(attribution.GAP_S * fps) + 1)
     by_track = defaultdict(list)
     for r in table:
         by_track[r[0]].append(r)
-    first, among, by_type = 0, 0, defaultdict(list)
-    for t, candidates in zip(typed, attribution.ranked(typed, rows, fps)):
-        ids = [identity.lookup(by_track[k], k, t[0]) for *_, k in candidates]
-        first += bool(ids) and ids[0] == truth[t[0]]
-        among += truth[t[0]] in ids
-        by_type[t[3]].append(bool(ids) and ids[0] == truth[t[0]])
-    print(f"attribution.ranked again: answered player first {first}/{len(typed)}, among the candidates {among}")
-    print("  " + ", ".join(f"{k} {sum(v)}/{len(v)}" for k, v in sorted(by_type.items())))
+    candidates = attribution.ranked(typed, rows, fps)
+    for name, found in (("ranked", candidates), *((("by_wrists", attribution.by_wrists(video, typed, candidates, rows, fps)),) if video else ())):
+        first, among, by_type = 0, 0, defaultdict(list)
+        for t, c in zip(typed, found):
+            ids = [identity.lookup(by_track[k], k, t[0]) for *_, k in c]
+            first += bool(ids) and ids[0] == truth[t[0]]
+            among += truth[t[0]] in ids
+            by_type[t[3]].append(bool(ids) and ids[0] == truth[t[0]])
+        print(f"attribution.{name} again: answered player first {first}/{len(typed)}, among the candidates {among}")
+        print("  " + ", ".join(f"{k} {sum(v)}/{len(v)}" for k, v in sorted(by_type.items())))
 
 
 if __name__ == "__main__":

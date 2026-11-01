@@ -15,7 +15,8 @@ Reads the actions CSV of `actions.py` or `match.py` and the tracks of `players.p
 `<clip>_attribution.csv`: `frame,x,y,type,side,track` (`track` empty for no player). From Python,
 `attribution.attribute(typed, rows, fps)` returns the track (or None) per typed contact, and
 `attribution.read_players(path)` reads a players CSV back into `players.Row`s. No model, no video:
-1,500 contacts take 0.1 s.
+1,500 contacts take 0.1 s. `match.py` then reorders the candidates of the touches below the head
+by the players' wrists (`attribution.by_wrists`, YOLO pose on the video, see [Pose](#pose)).
 
 ## Run
 
@@ -116,8 +117,10 @@ Comparison, typed contacts (all 4 steps are `bench.py`'s methods):
 | Nearest box of the contact's side | 50/70 (0.71) | 49/70 (0.70) | 32/42 (0.76) | 28/42 (0.67) |
 | + tracks missing up to 0.17 s | 56/70 (0.80) | 55/70 (0.79) | 32/42 (0.76) | 29/42 (0.69) |
 | + an arm above serves, attacks, blocks | 58/70 (0.83) | 56/70 (0.80) | 33/42 (0.79) | 30/42 (0.71) |
-| **+ feet past the net at the contact frame out (`attribute`)** | **58/70 (0.83)** | **56/70 (0.80)** | **33/42 (0.79)** | **30/42 (0.71)** |
-| + pose veto on sets, passes, digs (`--pose`, not in the module) | 59/70 (0.84) | 59/70 (0.84) | 35/42 (0.83) | 32/42 (0.76) |
+| + feet past the net at the contact frame out | 58/70 (0.83) | 56/70 (0.80) | 33/42 (0.79) | 30/42 (0.71) |
+| + equal distances to the bigger box, other side's tracks well inside (`attribute`, see the first match's answers) | 58/70 (0.83) | 57/70 (0.81) | 33/42 (0.79) | 30/42 (0.71) |
+| + pose veto on sets, passes, digs (`--pose`, the veto alone) | 59/70 (0.84) | 59/70 (0.84) | 35/42 (0.83) | 32/42 (0.76) |
+| **+ pose veto, then the nearest wrists within 0.2 (`--pose`, `by_wrists`, in `match.py`)** | **61/70 (0.87)** | **60/70 (0.86)** | **36/42 (0.86)** | **32/42 (0.76)** |
 
 The side filter alone changes one contact: at the contact frame an opponent is rarely the nearest
 box, the net separating the teams in the image. It matters for blocks and touches at the net.
@@ -232,13 +235,31 @@ typed contacts it wins 3 and loses none (1 tuning, 2 held-out), and end to end i
 and 3136, a setter side by side with a teammate, the ball above both heads and the teammate's
 wrists low.
 
-It is not in the module: the 3 parameters are the best of 36 combinations on the tuning clips
-(55-59 of 70 across them), it needs the video and three pose inferences per contact, and it cannot
-help where it is most needed. The pose model misses the small and hidden touchers (no pose for a
-setter 46 px tall), and in a crowd a pose detection overlaps two track boxes and lends one player's
-wrists to the other. Scoring candidates by wrist distance instead (fallback: box distance) loses
-1-3 contacts: a box contains the ball at distance 0, which no wrist beats. Wrists give no help on
-attacks, where the hitting arm is blurred (actions benchmark).
+The veto alone was left out of the module: its 3 parameters are the best of 36 combinations on the
+tuning clips (55-59 of 70 across them), and the pose model misses the small and hidden touchers (no
+pose for a setter 46 px tall); in a crowd a pose detection overlaps two track boxes and lends one
+player's wrists to the other. Scoring every candidate by wrist distance instead (fallback: box
+distance) loses 1-3 contacts: a box contains the ball at distance 0, which no wrist beats. Wrists
+give no help on attacks, where the hitting arm is blurred (actions benchmark).
+
+### `by_wrists`
+
+The first match's answers (4K, 135 touches, poses cached around the ball on a 0.74-frame-high crop)
+showed the pose pays off at 4K: every rule tried scored 98-105 against 97 for `ranked` alone, the
+veto above as it stood 101, the nearest wrists among the candidates within 0.2 box heights 104 but
+-1 on the tuning clips. The two together, the veto first, then among the remaining candidates within
+`WRIST_MARGIN` = 0.2 of the nearest the one whose wrists come nearest (none seen: after the
+others), unless the ball lies inside the nearest box and its wrists are not seen (hands above the
+head, out of the box: `side_holdout`'s set 9098 went to the player behind, and the same track then
+held three touches in a row, which `mark_dead` took for a dead ball). 104 on the answers (passes 12
+→ 15 of 20, relances 2 → 4 of 5, digs 22 → 24); without that exception 105 on the answers, 62/70,
+60/70 on the tuning clips and 35/42, 31/42 held out. Margins of 0.1 and 0.2 score the same on the
+answers, 0.05 one fewer, 0 the veto alone; a box distance standing in for unseen wrists 98-104.
+
+`match.py` runs it after `ranked` on every pass, set, dig and relance with 2 candidates or more (409
+of the first match's 718 contacts, 3 crops each); the `gap` written to `actions.csv`, which the
+review asks, stays the distance gap, and `mark_dead` looks for one track touching three times in a
+row on the picks before the pose.
 
 ## Tried and dropped
 
@@ -290,5 +311,4 @@ attacks, where the hitting arm is blurred (actions benchmark).
   zoomed crop around the ball when no candidate is near it, and let the tracker coast longer.
 - Depth for crowds: the ball's apparent size or its 3D path (parabola + calibration) puts it at one
   player's depth.
-- The pose veto, once the pipeline runs pose on contact frames anyway or on 4K footage.
 - A learned scorer over box, pose and ball features once a few hundred contacts are labelled.

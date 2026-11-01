@@ -57,7 +57,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   pipeline F1 ±1 s 0.86 on the span the 31 Oct `served` fixes were tuned on, 0.58 on the other
   (0.57 before the fixes; a 30 s rally missed whose server stood out of view); a third of the
   school match's held-out rallies missed. How a rally
-  ends (in, out, fault) is the least reliable measure, attribution is right 71-83% of the time
+  ends (in, out, fault) is the least reliable measure, attribution is right 76-87% of the time
+  on the labelled clips (pose on the wrists since 1 Nov; 104 of the 135 hard touches answered on the first match)
   (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
   ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
   identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame
@@ -84,6 +85,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.
   The review also asks every touch its page credits to no named player (a player on court under
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
+- `docs/next_steps.md`: what the 1 Nov answers changed in the pipeline (not yet in the first match's
+  outputs: a rerun) and what is left, with the numbers.
 - Open, most useful first:
   1. In use by the owner since 1 Nov: the review's Match tab (`#match`) holds the reports, no longer
      questions. The video plays the match freely, over a zoomable bar of every rally, touch and report.
