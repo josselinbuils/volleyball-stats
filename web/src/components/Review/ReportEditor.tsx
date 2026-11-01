@@ -24,8 +24,9 @@ const AROUND_RALLIES = 2;
 
 type Fix = { player?: string; type?: string; result?: string };
 /** `join`: the rally and the next one are one, ending at the next one's end. `redo`: to replay,
- * nobody gets the point; false takes back what the page shows. */
-type RallyFix = { winner?: Group; play?: false; end?: number; join?: true; redo?: boolean };
+ * nobody gets the point; false takes back what the page shows. `wrong`: the referee gave the
+ * point to the wrong team, `winner` being the one that got it; false likewise. */
+type RallyFix = { winner?: Group; play?: false; end?: number; join?: true; redo?: boolean; wrong?: boolean };
 /** The team of a player given as "TEAM:IDENTITY". */
 const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 const frameOf = (time: number) => Math.round(time * match.fps);
@@ -116,6 +117,7 @@ export function ReportEditor({
   const keyOf = (k: number) => shown[k].key;
   const fixOf = (k: number): RallyFix | undefined => (shown[k] ? rallyFixes[shown[k].key] : undefined);
   const toReplay = (k: number) => fixOf(k)?.redo ?? shown[k]?.redo ?? false;
+  const calledWrong = (k: number) => fixOf(k)?.wrong ?? shown[k]?.wrongCall ?? false;
 
   // A change back to the touch's own value is no change.
   const edit = (row: Row, change: Fix) =>
@@ -138,13 +140,17 @@ export function ReportEditor({
       const key = keyOf(k);
       const next: RallyFix = { ...all[key], ...change };
       // Joined, the rally's winner is the next one's.
-      if (next.winner === (next.join ? shown[k + 1]?.winner : shown[k].winner)) {
+      // Marked as the referee's error, the winner is said: no last touch gives it.
+      if (!(next.wrong ?? shown[k].wrongCall) && next.winner === (next.join ? shown[k + 1]?.winner : shown[k].winner)) {
         delete next.winner;
       }
       if (next.redo === !!shown[k].redo) {
         delete next.redo;
       }
-      for (const key of ['winner', 'play', 'end', 'join', 'redo'] as const) {
+      if (next.wrong === !!shown[k].wrongCall) {
+        delete next.wrong;
+      }
+      for (const key of ['winner', 'play', 'end', 'join', 'redo', 'wrong'] as const) {
         if (next[key] === undefined) {
           delete next[key];
         }
@@ -275,7 +281,8 @@ export function ReportEditor({
       ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(shown[k].start), to: endOf(k + 1) })
       : t(fixOf(k - 1)?.join ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(shown[k].start), to: endOf(k) })) +
     (splits.includes(shown[k].key) ? ` · ${t('review.reportRallyNew')}` : '') +
-    (toReplay(k) ? ` · ${t('review.reportRedo')}` : '');
+    (toReplay(k) ? ` · ${t('review.reportRedo')}` : '') +
+    (calledWrong(k) ? ` · ${t('review.reportWrongCall')}` : '');
   // Joined only to the next rally of its set.
   const canJoin = shown[here + 1]?.set === rally?.set;
 
@@ -286,6 +293,9 @@ export function ReportEditor({
   const winnerOf = (k: number): Group | null => {
     if (toReplay(k)) {
       return null;
+    }
+    if (calledWrong(k)) {
+      return fixOf(k)?.winner ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
     }
     // As on the page: the last touch says it, a point for its team or a fault for the other's; one
     // in play, or none, leaves the winner given.
@@ -307,12 +317,25 @@ export function ReportEditor({
     if (last) {
       setLastResult(k, last.team === w ? 'point' : 'error');
     }
-    editRally(k, { winner: w, redo: false });
+    editRally(k, { winner: w, redo: false, wrong: false });
   };
   // To replay: nobody gets the point, its last touch stays in play.
   const pickReplay = (k: number) => {
     setLastResult(k, 'play');
-    editRally(k, { winner: undefined, redo: true });
+    editRally(k, { winner: undefined, redo: true, wrong: false });
+  };
+  // The referee's error: the winner stays the team that got the point, the last touch says what
+  // really happened (the other team won it); taken back, it says the winner won it.
+  const markWrongCall = (k: number, on: boolean) => {
+    const w = winnerOf(k);
+    const last = lastOf(k);
+    if (w === null) {
+      return;
+    }
+    if (last) {
+      setLastResult(k, (last.team === w) === on ? 'error' : 'point');
+    }
+    editRally(k, { winner: w, wrong: on });
   };
   const winner = rally ? winnerOf(here) : null;
   const found = new Map<number, ReturnType<typeof problems>>();
@@ -590,6 +613,10 @@ export function ReportEditor({
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={fix.play === false} onChange={(e) => editRally(here, { play: e.target.checked ? false : undefined })} />
               {t('review.notPlay')}
+            </label>
+            <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')} title={t('review.reportWrongCallHelp')}>
+              <input type="checkbox" checked={calledWrong(here)} disabled={winner === null} onChange={(e) => markWrongCall(here, e.target.checked)} />
+              {t('review.reportWrongCall')}
             </label>
             <label className={cn('flex items-center gap-2', !canJoin && 'text-muted-foreground')}>
               <input type="checkbox" checked={fix.join === true} disabled={!canJoin} onChange={(e) => editRally(here, { join: e.target.checked ? true : undefined })} />

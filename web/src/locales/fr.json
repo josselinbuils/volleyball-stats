@@ -301,6 +301,8 @@
     "reportComment": "Commentaire",
     "reportCommentHelp": "Une note pour vous : elle reste dans cette page de revue et n'est jamais mise en ligne.",
     "reportRedo": "À rejouer",
+    "reportWrongCall": "Erreur d'arbitrage",
+    "reportWrongCallHelp": "L'arbitre a donné le point à la mauvaise équipe. Choisissez comme gagnant l'équipe qui a eu le point, puis cochez : le score suit l'arbitre, la dernière touche garde ce qui s'est vraiment passé.",
     "reportRedoHelp": "Le point est à rejouer : personne ne le marque et le score ne bouge pas.",
     "reportAdd": "Ajouter une touche à {{time}}",
     "reportScoreAfter": "Score",

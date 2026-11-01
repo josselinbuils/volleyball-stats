@@ -219,6 +219,11 @@ ADDED_NEAR_S = 1.0
 ADDED_SAME_S, ADDED_FLOOR_S = 0.4, 0.2
 
 
+def said_on(match: Path, kind: str, field: str) -> set[int]:
+    """The rallies, by key, whose last answer of `kind` says `field`."""
+    return {start for start, said in {a["start"]: a[field] for a in answers(match, kind)}.items() if said}
+
+
 def said_teams(match: Path) -> dict[int, int]:
     """The team the review's last `touch` answer on each touch gave it, by frame."""
     return {a["frame"]: a["team"] for a in answers(match, "touch")}
@@ -498,11 +503,13 @@ def rewon(rallies: list[dict], winners: dict[int, int]) -> None:
     counted(rallies)
 
 
-def followed(rallies: list[dict], found: list[dict], redo: frozenset[int] | set[int] = frozenset()) -> None:
+def followed(rallies: list[dict], found: list[dict], redo: frozenset[int] | set[int] = frozenset(), wrong: frozenset[int] | set[int] = frozenset()) -> None:
     """`rallies`' winners from their last touch in `found` (the page's contacts, the review's
     results included): a point for its team, a fault for the other's; one whose last touch is in
     play, or without a touch, keeps its own. The score follows the actions (the owner's rule, 1 Nov).
-    A rally to replay (`redo`, by `key`) gives nobody a point: no winner, its touches in play."""
+    A rally to replay (`redo`, by `key`) gives nobody a point: no winner, its touches in play. One the
+    referee got wrong (`wrong`, by `key`) keeps the winner given, the team that got the point: its last
+    touch says what really happened."""
     replayed = {k for k, rally in enumerate(rallies) if rally.get("key") in redo}
     for c in found:
         # A playing fault is a fault, whatever the rally's winner said.
@@ -512,7 +519,10 @@ def followed(rallies: list[dict], found: list[dict], redo: frozenset[int] | set[
             c["result"] = "play"
     for k in replayed:
         rallies[k].update(winner=None, redo=True)
-    last = {c["rally"]: c for c in found if c["type"] not in NO_PLAYER and c.get("team") and c["rally"] not in replayed}
+    called = {k for k, rally in enumerate(rallies) if rally.get("key") in wrong and k not in replayed and rally["winner"]}
+    for k in called:
+        rallies[k]["wrongCall"] = True
+    last = {c["rally"]: c for c in found if c["type"] not in NO_PLAYER and c.get("team") and c["rally"] not in replayed | called}
     for k, c in last.items():
         if c["result"] in ("point", "error"):
             rallies[k]["winner"] = c["team"] if c["result"] == "point" else 3 - c["team"]
@@ -719,11 +729,12 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     # A rally checked in the review keeps the winner it showed then; one the review gives wins.
     pins = {a["start"]: a["winner"] for a in answers(match, "pinned") if a["start"] not in cut}
     rewon(rallies, {**pins, **{a["start"]: a["winner"] for a in answers(match, "winner")}})
-    settle(found, [r["winner"] for r in rallies])
+    wrong = said_on(match, "referee", "wrong")
+    # The referee got it wrong: the last touch is what really happened, the other team won it.
+    settle(found, [3 - r["winner"] if r["winner"] and r["key"] in wrong else r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
     credited(found, actions, {a["frame"] for a in answers(match, "action") if "result" in a})
-    # The last answer on a rally stands: choosing a winner takes "to replay" back.
-    followed(rallies, found, {start for start, redo in {a["start"]: a["redo"] for a in answers(match, "redo")}.items() if redo})
+    followed(rallies, found, said_on(match, "redo", "redo"), wrong)
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)

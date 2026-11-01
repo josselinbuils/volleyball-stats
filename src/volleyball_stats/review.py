@@ -45,7 +45,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -707,7 +707,8 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
     answers, its type or result as `action` ones; a touch added (frame, team, type, result, player)
     as an `added` one with those, in its rally (`window_of`); a rally's (`rallies`, by its key) no
     play (`rally`), winner (`winner`), end frame (`end`), joining the next one (`join`) or being
-    replayed, or no longer (`redo`); a rally
+    replayed, or no longer (`redo`), the referee giving the point to the wrong team, or no longer
+    (`referee`: the true winner is the other team than the rally's); a rally
     starting at a frame (`splits`, `split`), its key that frame: one the pipeline missed, or the
     second of two it took for one."""
     keys = keys or [start for start, _ in windows]
@@ -762,6 +763,8 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
             out["join"].append({"start": start})
         if r.get("redo") in (True, False):
             out["redo"].append({"start": start, "redo": r["redo"]})
+        if r.get("wrong") in (True, False):
+            out["referee"].append({"start": start, "wrong": r["wrong"]})
     return dict(out)
 
 

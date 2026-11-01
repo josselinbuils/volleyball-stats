@@ -52,6 +52,8 @@ export interface Rally {
   winner: Group | null;
   /** To replay: nobody gets the point. */
   redo?: boolean;
+  /** The referee gave the point to the wrong team: `winner` got it, the other team really won it. */
+  wrongCall?: boolean;
   score: [number, number] | null;
   contacts: Contact[];
 }

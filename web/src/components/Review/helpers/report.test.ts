@@ -81,12 +81,12 @@ describe('withSplits', () => {
     ]);
   });
 
-  it('leaves "to replay" on the part of a rally keeping its key', () => {
-    const out = withSplits([{ start: 10, end: 20, set: 1, winner: null, redo: true, key: 100 }], [150], 10);
+  it('leaves "to replay" and the referee\'s error on the part of a rally keeping its key', () => {
+    const out = withSplits([{ start: 10, end: 20, set: 1, winner: null, redo: true, wrongCall: true, key: 100 }], [150], 10);
 
-    expect(out.map((r) => [r.key, r.redo])).toEqual([
-      [100, true],
-      [150, undefined],
+    expect(out.map((r) => [r.key, r.redo, r.wrongCall])).toEqual([
+      [100, true, true],
+      [150, undefined, undefined],
     ]);
   });
 

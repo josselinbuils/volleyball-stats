@@ -201,7 +201,7 @@ export function MatchTimeline({
                         : 'fill-muted-foreground/25'
                   }
                 >
-                  <title>{`${t('review.reportRally', { n: r.i + 1, from: clock(r.start), to: clock(r.end) })}${r.winner ? ` · ${t('review.wonBy', { team: groupName(t, r.winner) })}` : r.redo ? ` · ${t('review.reportRedo')}` : ''}`}</title>
+                  <title>{`${t('review.reportRally', { n: r.i + 1, from: clock(r.start), to: clock(r.end) })}${r.winner ? ` · ${t('review.wonBy', { team: groupName(t, r.winner) })}` : r.redo ? ` · ${t('review.reportRedo')}` : ''}${r.wrongCall ? ` · ${t('review.reportWrongCall')}` : ''}`}</title>
                 </rect>
                 {r.winner && <rect x={r.start * scale} y={36} width={Math.max(1, (r.end - r.start) * scale)} height={4} fill={teamColor(r.winner)} stroke={teamEdge(r.winner)} strokeWidth={0.75} />}
                 {/* Its number, where the band has room for it. */}

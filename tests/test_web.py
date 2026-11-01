@@ -475,6 +475,15 @@ class TestFollowed:
         assert [r["winner"] for r in rallies] == [1, 2, 2, None]
         assert [r.get("score") for r in rallies] == [[1, 0], [1, 1], [1, 2], [0, 0]]
 
+    def test_a_rally_the_referee_got_wrong_keeps_the_point_given_whatever_its_last_touch_says(self):
+        rallies = [{"key": 100, "set": 1, "winner": 2}, {"key": 200, "set": 1, "winner": None}]
+        found = [{"rally": 0, "type": "attack", "team": 1, "result": "point"}]
+
+        followed(rallies, found, wrong={100, 200})
+
+        assert [(r["winner"], r.get("wrongCall"), r["score"]) for r in rallies] == [(2, True, [0, 1]), (None, None, [0, 1])]
+        assert found[0]["result"] == "point"
+
     def test_a_rally_to_replay_gives_nobody_a_point_and_its_touches_stay_in_play(self):
         rallies = [{"key": 100, "set": 1, "winner": 1}, {"key": 200, "set": 1, "winner": 2}, {"key": 300, "set": 1, "winner": 1}]
         found = [

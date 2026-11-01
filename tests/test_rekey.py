@@ -9,6 +9,12 @@ class TestOverlaps:
         assert overlaps([(100, 200)], [(205, 300)], 10) == {0: 0}
 
 
+class TestMovedReferee:
+    def test_the_referee_s_error_follows_its_rally(self):
+        out = moved([{"id": "edit:1", "referee": [{"start": 100, "wrong": True}]}], [(100, 200)], [(90, 200)], 10)
+        assert out[0]["referee"] == [{"start": 90, "wrong": True}]
+
+
 class TestMovedComments:
     def test_comments_follow_their_rally_and_two_on_one_window_are_joined(self):
         comments = {100: "a", 300: "b", 500: "c", 150: "started by the review"}

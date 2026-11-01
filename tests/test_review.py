@@ -210,6 +210,14 @@ class TestReports:
         assert (out["rally"], out["winner"], out["end"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}], [{"start": 3000, "end": 3400}])
         assert out["join"] == [{"start": 2000}]
 
+    def test_the_referee_s_error_or_no_longer_becomes_a_referee_answer_beside_the_winner(self):
+        changes = {"rallies": [{"start": 2000, "winner": 2, "wrong": True}, {"start": 3000, "wrong": False}]}
+
+        out = report_answer(changes, self.teams, self.windows, {}, 20)
+
+        assert out["referee"] == [{"start": 2000, "wrong": True}, {"start": 3000, "wrong": False}]
+        assert out["winner"] == [{"start": 2000, "winner": 2}]
+
     def test_a_rally_to_replay_or_no_longer_becomes_a_redo_answer(self):
         changes = {"rallies": [{"start": 2000, "redo": True}, {"start": 3000, "redo": False}, {"start": 1234, "redo": True}]}
 
@@ -377,7 +385,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "referee": [], "log": log}
 
 
 class TestRange:

@@ -301,6 +301,8 @@
     "reportComment": "Comment",
     "reportCommentHelp": "A note for you: it stays in this review page and never goes online.",
     "reportRedo": "To replay",
+    "reportWrongCall": "Referee's error",
+    "reportWrongCallHelp": "The referee gave the point to the wrong team. Pick as winner the team that got the point, then tick this: the score follows the referee, the last touch keeps what really happened.",
     "reportRedoHelp": "The point is to be replayed: nobody scores it and the score stays.",
     "reportAdd": "Add a touch at {{time}}",
     "reportScoreAfter": "Score",

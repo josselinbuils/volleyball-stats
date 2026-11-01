@@ -109,14 +109,24 @@ export function withAdded<R extends Pick<Rally, 'start' | 'end'>>(rallies: R[], 
 
 /** A rally as the editor lists it: the page's (`origin` its index), or one started by the review
  * (`added`), named by its start frame. */
-export type Piece = Pick<Rally, 'start' | 'end' | 'set' | 'winner' | 'redo'> & { key: number; origin: number | null; added: boolean };
+export type Piece = Pick<Rally, 'start' | 'end' | 'set' | 'winner' | 'redo' | 'wrongCall'> & { key: number; origin: number | null; added: boolean };
 
 /** `rallies` with a rally starting at each of `splits` (frames), as the server splits them: one
  * inside a rally ends it just before, the new one its second part with its winner (the first part,
- * keeping the rally's key, stays to replay if it was); one between two
+ * keeping the rally's key, stays to replay or the referee's error if it was); one between two
  * is a rally the pipeline missed, in the set of the one before (else after). */
-export function withSplits(rallies: Pick<Rally, 'start' | 'end' | 'set' | 'winner' | 'redo' | 'key'>[], splits: number[], fps: number): Piece[] {
-  const out: Piece[] = rallies.map((r, k) => ({ start: r.start, end: r.end, set: r.set, winner: r.winner, redo: r.redo, key: r.key ?? Math.round(r.start * fps), origin: k, added: false }));
+export function withSplits(rallies: Pick<Rally, 'start' | 'end' | 'set' | 'winner' | 'redo' | 'wrongCall' | 'key'>[], splits: number[], fps: number): Piece[] {
+  const out: Piece[] = rallies.map((r, k) => ({
+    start: r.start,
+    end: r.end,
+    set: r.set,
+    winner: r.winner,
+    redo: r.redo,
+    wrongCall: r.wrongCall,
+    key: r.key ?? Math.round(r.start * fps),
+    origin: k,
+    added: false,
+  }));
   for (const key of [...new Set(splits)].sort((a, b) => a - b)) {
     const time = key / fps;
     const k = out.findIndex((r) => r.start <= time && time <= r.end);
@@ -124,7 +134,7 @@ export function withSplits(rallies: Pick<Rally, 'start' | 'end' | 'set' | 'winne
       const at = out.filter((r) => r.start < time).length;
       out.splice(at, 0, { start: time, end: time, set: (out[at - 1] ?? out[at])?.set ?? 1, winner: null, key, origin: null, added: true });
     } else if (out[k].start < time) {
-      out.splice(k, 1, { ...out[k], end: time - 1 / fps, winner: null }, { ...out[k], start: time, key, added: true, redo: undefined });
+      out.splice(k, 1, { ...out[k], end: time - 1 / fps, winner: null }, { ...out[k], start: time, key, added: true, redo: undefined, wrongCall: undefined });
     }
   }
   return out;

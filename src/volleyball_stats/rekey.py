@@ -63,7 +63,7 @@ def moved(log: list[dict], before: list[Window], after: list[Window], lead: int)
         e = dict(e)
         if "added" in e:
             e["added"] = [{**a, "start": key(a["start"])} for a in e["added"]]
-        for kind in ("rally", "winner", "pinned", "end", "redo"):
+        for kind in ("rally", "winner", "pinned", "end", "redo", "referee"):
             if kind in e:
                 e[kind] = [{**a, "start": key(a["start"], whole)} for a in e[kind]]
         if "locked" in e:
