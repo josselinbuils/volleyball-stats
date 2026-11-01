@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Play } from 'lucide-react';
+import { Check, Maximize, Minimize, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { clock } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { rallies, type Group } from '@/lib/match';
 import type { Named, Question, ReportChanges } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
@@ -61,44 +62,67 @@ export function MatchTab({
   // Checked, and no report open on it since.
   const open = new Set(reports.map((q) => q.rally));
   const green = new Set(checked.filter((k) => !open.has(k)));
+  // The video, its bar and the editor fill the screen, the video as large as its height allows.
+  const block = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const changed = () => setFull(document.fullscreenElement === block.current);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  const toggleFull = () => void (full ? document.exitFullscreen() : block.current?.requestFullscreen());
 
   return (
     <Card>
-      <CardContent className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 pt-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className="grid min-w-0 gap-4">
-          <ClipVideo
-            clip={clip}
-            width={width}
-            height={height}
-            timeRef={clipTime}
-            seek={seek}
-            free
-            autoPlay={false}
-            caption={caption}
-            marks={flags.map((r) => r.time)}
-            showTime
-            onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 ? at : n))}
+      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6 pt-6">
+        <div
+          ref={block}
+          className={cn(
+            'grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]',
+            full && 'h-screen overflow-hidden bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]',
+          )}
+        >
+          <div className={cn('grid min-w-0 gap-4', full && 'mx-auto w-full max-w-[calc((100vh-11rem)*16/9)]')}>
+            <ClipVideo
+              clip={clip}
+              width={width}
+              height={height}
+              timeRef={clipTime}
+              seek={seek}
+              free
+              autoPlay={false}
+              caption={caption}
+              marks={flags.map((r) => r.time)}
+              showTime
+              onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 ? at : n))}
+            />
+            <MatchTimeline now={now} saved={saved} reports={flags} green={green} onSeek={(time) => go(time)} />
+            {document.fullscreenEnabled && (
+              <Button variant="outline" size="sm" className="justify-self-start bg-card" onClick={toggleFull}>
+                {full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+                {t(full ? 'review.exitFullScreen' : 'review.fullScreen')}
+              </Button>
+            )}
+          </div>
+          <ReportEditor
+            key={round}
+            reports={seen}
+            players={players}
+            nameOf={nameOf}
+            now={now}
+            timeOf={() => clipTime.current}
+            onPlay={(at) => go(at - REPORT_LEAD_S, true)}
+            onPause={(at) => go(at, false)}
+            onSave={(changes, rally) => void onSave(changes, rally).then(() => setRound((r) => r + 1))}
+            green={green}
+            checked={new Set(checked)}
+            onUncheck={(rally) => void onUncheck(rally)}
+            onCaption={setCaption}
+            onChanges={(changes) => (latest.current = changes)}
+            saved={saved}
           />
-          <MatchTimeline now={now} saved={saved} reports={flags} green={green} onSeek={(time) => go(time)} />
         </div>
-        <ReportEditor
-          key={round}
-          reports={seen}
-          players={players}
-          nameOf={nameOf}
-          now={now}
-          timeOf={() => clipTime.current}
-          onPlay={(at) => go(at - REPORT_LEAD_S, true)}
-          onPause={(at) => go(at, false)}
-          onSave={(changes, rally) => void onSave(changes, rally).then(() => setRound((r) => r + 1))}
-          green={green}
-          checked={new Set(checked)}
-          onUncheck={(rally) => void onUncheck(rally)}
-          onCaption={setCaption}
-          onChanges={(changes) => (latest.current = changes)}
-          saved={saved}
-        />
-        <section className="grid gap-2 lg:col-span-2" aria-labelledby="reports-title">
+        <section className="grid gap-2" aria-labelledby="reports-title">
           <h3 id="reports-title" className="text-base font-semibold">
             {t('review.reportsTitle', { count: reports.length })}
           </h3>

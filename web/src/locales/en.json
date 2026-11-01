@@ -380,7 +380,9 @@
       "read": "{{when}} · version {{commit}} · {{right}}/{{total}} ({{share}})",
       "table": "Every measure",
       "measureColumn": "Measure"
-    }
+    },
+    "fullScreen": "Full screen",
+    "exitFullScreen": "Exit full screen"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
