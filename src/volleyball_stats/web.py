@@ -484,6 +484,22 @@ def rewon(rallies: list[dict], winners: dict[int, int]) -> None:
     for rally in rallies:
         if rally["key"] in winners:
             rally["winner"] = winners[rally["key"]]
+    counted(rallies)
+
+
+def followed(rallies: list[dict], found: list[dict]) -> None:
+    """`rallies`' winners from their last touch in `found` (the page's contacts, the review's
+    results included): a point for its team, a fault for the other's; one whose last touch is in
+    play, or without a touch, keeps its own. The score follows the actions (the owner's rule, 1 Nov)."""
+    last = {c["rally"]: c for c in found if c["type"] not in NO_PLAYER and c.get("team")}
+    for k, c in last.items():
+        if c["result"] in ("point", "error"):
+            rallies[k]["winner"] = c["team"] if c["result"] == "point" else 3 - c["team"]
+    counted(rallies)
+
+
+def counted(rallies: list[dict]) -> None:
+    """Each set's running score after each of `rallies`, from their winners; none without any."""
     # Without teams, no winner and no score.
     if not any(rally["winner"] for rally in rallies):
         return
@@ -676,6 +692,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     settle(found, [r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
     credited(found, actions, {a["frame"] for a in answers(match, "action") if "result" in a})
+    followed(rallies, found)
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)

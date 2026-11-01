@@ -268,11 +268,24 @@ export function ReportEditor({
   // A rally's winner: the one set, else the one its last touch's result says, else the page's.
   const lastOf = (k: number) => rows.filter((row) => !row.removed && row.rally === (fixOf(k)?.join ? k + 1 : k)).at(-1);
   const winnerOf = (k: number): Group | null => {
-    // The last touch says it once added or its result corrected; else the page's winner stands.
+    // As on the page: the last touch says it, a point for its team or a fault for the other's; one
+    // in play, or none, leaves the winner given.
     const last = lastOf(k);
-    const changed = last && (last.added || fixes[last.frame]?.result !== undefined);
-    const said = !changed ? undefined : last.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
-    return fixOf(k)?.winner ?? said ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
+    const said = last?.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
+    return said ?? fixOf(k)?.winner ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
+  };
+  // A winner picked makes the rally's last touch a point for them or a fault of the other team.
+  const pickWinner = (k: number, w: Group) => {
+    const last = lastOf(k);
+    if (last) {
+      const result = last.team === w ? 'point' : 'error';
+      if (last.added) {
+        editAdded(last.frame, { result });
+      } else {
+        edit(last, { result });
+      }
+    }
+    editRally(k, { winner: w });
   };
   const winner = rally ? winnerOf(here) : null;
   const found = new Map<number, ReturnType<typeof problems>>();
@@ -430,11 +443,6 @@ export function ReportEditor({
                               value={row.result}
                               onChange={(e) => {
                                 change({ result: e.target.value });
-                                // A rally's last touch won or lost it: its winner follows.
-                                const last = rows.filter((r) => !r.removed && r.rally === row.rally).at(-1);
-                                if (last?.frame === row.frame && e.target.value !== 'play') {
-                                  editRally(row.rally, { winner: (e.target.value === 'point' ? row.team : 3 - row.team) as Group });
-                                }
                               }}
                             >
                               {RESULTS.map((result) => (
@@ -488,7 +496,7 @@ export function ReportEditor({
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
             <span className="flex flex-wrap items-center gap-2">
               {t('review.reportWinner')}
-              <ToggleGroup type="single" variant="outline" spacing={0} value={winner === null ? '' : String(winner)} onValueChange={(v) => v && editRally(here, { winner: Number(v) as Group })}>
+              <ToggleGroup type="single" variant="outline" spacing={0} value={winner === null ? '' : String(winner)} onValueChange={(v) => v && pickWinner(here, Number(v) as Group)}>
                 {GROUPS.map((g) => (
                   <ToggleGroupItem key={g} value={String(g)} className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                     <Swatch color={teamColor(g)} ring={teamRing(g)} />

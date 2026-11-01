@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, credited, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, credited, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -426,6 +426,23 @@ class TestMergeRallies:
         assert w == [(100, 400), (500, 600), (700, 800)]
         assert [x["set"] for x in r] == ["1", "1", "2"]
         assert [(p["winner"], p["score_1"], p["score_2"]) for p in s] == [("2", "0", "1"), ("1", "1", "1"), ("2", "0", "1")]
+
+
+class TestFollowed:
+    def test_a_rallys_last_touch_gives_its_winner_and_the_score_follows(self):
+        rallies = [{"set": 1, "winner": 2}, {"set": 1, "winner": 2}, {"set": 1, "winner": 1}, {"set": 2, "winner": None}]
+        found = [
+            {"rally": 0, "type": "attack", "team": 1, "result": "play"},
+            {"rally": 0, "type": "block", "team": 2, "result": "error"},  # the blockers' fault, whatever was said
+            {"rally": 0, "type": "floor", "team": None, "result": "play"},
+            {"rally": 1, "type": "dig", "team": 1, "result": "play"},  # in play: its own winner stands
+            {"rally": 2, "type": "attack", "team": 2, "result": "point"},
+        ]
+
+        followed(rallies, found)
+
+        assert [r["winner"] for r in rallies] == [1, 2, 2, None]
+        assert [r.get("score") for r in rallies] == [[1, 0], [1, 1], [1, 2], [0, 0]]
 
 
 class TestSplitRallies:
