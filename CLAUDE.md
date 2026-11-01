@@ -203,5 +203,11 @@ ssh -i ~/.ssh/id_ed25519_ovh root@<OVH IP> ': > /home/ubuntu/docker/volleyball-s
 
 Test the report endpoint without writing to that log (it holds viewers' reports).
 
+Backup: while the review runs, every 10 minutes if something changed (and `uv run python -m volleyball_stats.backup
+outputs/MATCH`), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
+and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
+files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
+is not in it (42 GB, 18 GB free there) and has no other copy yet.
+
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.

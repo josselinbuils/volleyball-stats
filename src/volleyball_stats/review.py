@@ -22,6 +22,7 @@ import hashlib
 import json
 import queue
 import re
+import subprocess
 import threading
 import time
 import webbrowser
@@ -34,7 +35,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, feedback, files, identity, jerseys, matches, web
+from volleyball_stats import attribution, backup, feedback, files, identity, jerseys, matches, web
 from volleyball_stats.teams import parse_colour
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
@@ -75,6 +76,7 @@ APPLIED = "identity_applied.json"
 UNDOS, MAX_BODY = 100, 1 << 20
 # Where the review's copy of the match page keeps the reports of what is wrong in a moment.
 FEEDBACK = "feedback.log"
+BACKUP_EVERY_S = 600
 CHANGES = ("/answer", "/odd", "/more", "/repin", "/forget", "/cut")
 
 
@@ -1362,6 +1364,24 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     hosted: dict = {"at": None, "error": None, "behind": True}
     # The last fetch of the viewers' reports from the hosting: when, and how many for this match.
     fetched_log: dict = {}
+    backed: dict = {}
+
+    def backing() -> None:
+        """A copy on the hosting server whenever something changed, the last one's time or failure
+        for the page."""
+        last = None
+        while True:
+            try:
+                now = backup.signature(backup.sources(match))
+                if now != last:
+                    backup.backup(match)
+                    last = now
+                    backed.update(at=time.strftime("%H:%M"), error=None)
+            except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
+                backed.update(at=time.strftime("%H:%M"), error=str(error) or type(error).__name__)
+                print(f"backup failed: {backed['error']}", flush=True)
+            time.sleep(BACKUP_EVERY_S)
+
 
     def hosting() -> None:
         try:
@@ -1440,6 +1460,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
             "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
             "fetched": fetched_log or None,
+            "backup": backed or None,
         }
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
@@ -1733,10 +1754,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         def log_message(self, *args) -> None:
             pass
 
-    # The footage shows minors: this machine only.
+    # The footage shows real people: this machine only.
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/review"
     threading.Thread(target=warm, daemon=True).start()
+    if (match / matches.PUBLISH).exists():
+        threading.Thread(target=backing, daemon=True).start()
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
         webbrowser.open(url)

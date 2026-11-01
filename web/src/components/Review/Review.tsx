@@ -51,6 +51,7 @@ export function Review({
   hosted,
   learning = [],
   fetched,
+  backup,
 }: {
   width: number;
   height: number;
@@ -68,6 +69,7 @@ export function Review({
   hosted?: Hosted | null;
   learning?: LearnRun[];
   fetched?: { at: string; count: number; error: string | null } | null;
+  backup?: { at: string; error: string | null } | null;
 }) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
@@ -291,6 +293,11 @@ export function Review({
             {hosted && (
               <p className={cn('mt-0.5 text-sm', hosted.error ? 'text-destructive' : 'text-muted-foreground')} title={hosted.error ?? undefined}>
                 {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : hosted.behind ? t('review.hostedBehind') : t('review.hosted', { at: hosted.at })}
+              </p>
+            )}
+            {backup && (
+              <p className={cn('mt-0.5 text-sm', backup.error ? 'text-destructive' : 'text-muted-foreground')} title={backup.error ?? undefined}>
+                {t(backup.error ? 'review.backupFailed' : 'review.backedUp', { at: backup.at })}
               </p>
             )}
             {fetched && (

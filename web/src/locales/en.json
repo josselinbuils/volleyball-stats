@@ -330,6 +330,8 @@
     "isRally": "Yes, a rally",
     "rallyNote": "The moment plays whole, unzoomed. A rally runs from the serve to the end of the point; the warm-up, a ball sent back to the server or a timeout are none.",
     "hosted": "Online page updated at {{at}}",
+    "backedUp": "Data backed up on the server at {{at}}",
+    "backupFailed": "The backup on the server failed at {{at}}: the next try is in 10 minutes.",
     "hostedFailed": "The online page could not be updated at {{at}}: your answers are applied here, try again later.",
     "back": "Back {{s}} s",
     "forward": "Forward {{s}} s",

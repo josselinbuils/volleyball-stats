@@ -159,6 +159,8 @@ interface ReviewData {
   learning?: LearnRun[];
   /** The last fetch of the viewers' reports from the hosting: when, how many for this match, why it failed. */
   fetched?: { at: string; count: number; error: string | null } | null;
+  /** The last copy of the data on the hosting server: when, why it failed. */
+  backup?: { at: string; error: string | null } | null;
 }
 
 export type LearnRun = { time: string; commit: string; scores: Record<string, [number, number]> };
