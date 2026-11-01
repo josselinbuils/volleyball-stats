@@ -29,7 +29,6 @@ export function PlayersTable() {
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
   // Without the players' positions, no ball is known to drop between two of them.
   const dropped = typeof players === 'object' ? drops(contacts, players, match.fps, match.people) : [];
-  const columns = players === 'none' ? COLUMNS.filter((c) => c.stat !== 'between') : COLUMNS;
   const seconds = (person: number) => playingTime(person, set);
   // The whole match's MVP, whatever the set shown: a player, as their identities may differ by set.
   const best = useMemo(() => {
@@ -130,7 +129,7 @@ export function PlayersTable() {
             <p className="text-sm text-muted-foreground">{t('players.noCards')}</p>
           )
         ) : (
-          <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} columns={columns} insights={withPlayers} />
+          <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} columns={COLUMNS} insights={withPlayers} />
         )}
         <p className="text-[13px] text-muted-foreground">{`${t('stats.noteTitles')} ${t('stats.noteVideo')}`}</p>
       </CardContent>

@@ -43,7 +43,6 @@ export const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'overDigs', of: 'digs', label: 'over' },
   { stat: 'points', of: 'overall', label: 'points' },
   { stat: 'faults', of: 'overall', label: 'faults' },
-  { stat: 'between', of: 'overall', label: 'between' },
 ];
 const HEAD = 'px-1 text-center leading-tight whitespace-normal text-muted-foreground';
 // The first column stays in view while the table scrolls sideways.
