@@ -361,30 +361,13 @@ export function ReportEditor({
                       <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
                     </span>
                   )}
-                  <span className="ml-auto flex shrink-0 items-center gap-1 text-xs tabular-nums" title={scores[k] ? t('review.reportScore') : undefined}>
-                    {scores[k] && (
-                      <>
-                        <Swatch color={teamColor(1)} ring={teamRing(1)} />
-                        {scores[k]!.join('–')}
-                        <Swatch color={teamColor(2)} ring={teamRing(2)} />
-                      </>
-                    )}
-                  </span>
                   {savedStarts.has(keyOf(k)) && (
-                    <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="shrink-0">
+                    <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
                       <PenLine aria-hidden className="size-3.5" />
                     </span>
                   )}
                 </button>
               </li>,
-              ...(off.has(k)
-                ? [
-                    <li key={`s${k}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">
-                      <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
-                      {t('review.reportScoreOff', { given: off.get(k), found: scores[k]!.join('-') })}
-                    </li>,
-                  ]
-                : []),
               ...(found.get(k)?.rally.length
                 ? [
                     <li key={`p${k}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">
@@ -486,6 +469,31 @@ export function ReportEditor({
                     </li>
                   );
                 }),
+              // The score once the rally is over, between it and the next one.
+              ...(scores[k]
+                ? [
+                    <li
+                      key={`s${k}`}
+                      className={cn(
+                        'flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-md border border-dashed px-2 py-1 text-sm',
+                        off.has(k) && 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200',
+                      )}
+                    >
+                      <span className="text-muted-foreground">{t(shown[k + 1]?.set === shown[k].set ? 'review.reportScoreAfter' : 'review.reportScoreSet', { n: shown[k].set })}</span>
+                      <span className="flex items-center gap-1.5 font-medium tabular-nums">
+                        <Swatch color={teamColor(1)} ring={teamRing(1)} />
+                        {groupName(t, 1)} {scores[k]![0]} – {scores[k]![1]} {groupName(t, 2)}
+                        <Swatch color={teamColor(2)} ring={teamRing(2)} />
+                      </span>
+                      {off.has(k) && (
+                        <span className="flex items-center gap-1">
+                          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+                          {t('review.reportScoreGiven', { given: off.get(k) })}
+                        </span>
+                      )}
+                    </li>,
+                  ]
+                : []),
             ])}
           </ol>
         </div>
