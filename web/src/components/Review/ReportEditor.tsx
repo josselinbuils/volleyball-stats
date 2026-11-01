@@ -375,7 +375,8 @@ export function ReportEditor({
 
   return (
     <>
-      <div className="relative lg:self-stretch">
+      {/* Beside the video and the rally's section under it; in full screen, the window's height. */}
+      <div className="relative lg:row-span-2 lg:self-stretch lg:[:fullscreen_&]:min-h-[calc(100vh-2rem)]">
         <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
@@ -600,7 +601,7 @@ export function ReportEditor({
         </div>
       </div>
       {rally && (
-        <div className="grid gap-3 lg:col-span-2">
+        <div className="grid gap-3">
           <p className="text-sm font-medium">{rallyLabel(here)}</p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
             <span className="flex flex-wrap items-center gap-2">
