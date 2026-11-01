@@ -84,6 +84,7 @@
     "relance": "Free ball",
     "block": "Block",
     "dig": "Dig",
+    "fault": "Playing fault",
     "floor": "Ball on the floor",
     "net": "Into the net"
   },
@@ -122,6 +123,11 @@
       "play": "Dig",
       "point": "Winning dig",
       "error": "Dig fault"
+    },
+    "fault": {
+      "play": "Playing fault",
+      "point": "Playing fault",
+      "error": "Playing fault"
     }
   },
   "short": {
@@ -132,6 +138,7 @@
     "relance": "FB",
     "block": "B",
     "dig": "D",
+    "fault": "PF",
     "floor": "F",
     "net": "N"
   },
@@ -519,7 +526,7 @@
       "digFaults": "The digs lost: the ball lands, goes out or into the net.",
       "unattackedDigs": "The digs after which the team sends the ball back or loses it without attacking.",
       "points": "Balls played that land in the other court.",
-      "faults": "Balls sent out, into the net or landing on the player's own side, aces conceded included.",
+      "faults": "Balls sent out, into the net or landing on the player's own side, aces conceded included, and playing faults (net, centre line, rotation…).",
       "between": "Balls that landed untouched within 2.5 m of two teammates about as close as each other. Calling the ball wins them: “Mine!”",
       "strengths": "What a player does clearly better than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",
       "toWorkOn": "What a player does clearly worse than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",

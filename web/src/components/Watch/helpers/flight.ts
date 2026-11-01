@@ -27,7 +27,8 @@ const height = (c: Contact) => HEIGHTS[c.type] ?? 1.5;
  * net when it crosses it, unless it ends or starts in the net; at the first touch before it, at the
  * last one after. */
 export function ball3dAt(contacts: Contact[], time: number): Point3 | null {
-  const pts = contacts.filter((c): c is Placed => c.x !== null && c.y !== null);
+  // A playing fault is no touch of the ball.
+  const pts = contacts.filter((c): c is Placed => c.x !== null && c.y !== null && c.type !== 'fault');
   if (!pts.length) {
     return null;
   }

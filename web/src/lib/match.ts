@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 
-export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'floor', 'net'] as const;
+/** `fault`: a playing fault, made without the ball (net, centre line, rotation); only the review adds it. */
+export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault', 'floor', 'net'] as const;
 /** The two teams, or without player tracks the two sides of the net: 1 left, 2 right. */
 export const GROUPS = [1, 2] as const;
 

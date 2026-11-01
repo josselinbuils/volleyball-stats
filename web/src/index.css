@@ -75,6 +75,7 @@
   --relance: #e87ba4;
   --block: #008300;
   --dig: #6250d6;
+  --fault: #c0392b;
   --floor: #9a9890;
   --net: #52514e;
 }
@@ -113,6 +114,7 @@
   --relance: #db5a8a;
   --block: #2f9e2f;
   --dig: #9085e9;
+  --fault: #e5604f;
   --floor: #8e8c85;
   --net: #c3c2b7;
 }

@@ -178,6 +178,16 @@ class TestReports:
         page["rallies"][-1]["score"] = [5, 3]
         assert not [r for r in unusual(page) if r["kind"] == "auto.scoreOff"]
 
+    def test_a_playing_fault_is_no_touch_of_the_ball_and_ends_the_rally(self):
+        def c(t, kind, team, result="play"):
+            return {"t": t, "type": kind, "team": team, "side": "left" if team == 1 else "right", "rally": 0, "result": result}
+
+        # The receivers' rotation fault at the serve: no reception missing; then a touch after it.
+        page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 5.0, "set": 1, "winner": 1}], "contacts": [c(0.1, "serve", 1), c(0.2, "fault", 2, "error")]}
+        assert unusual(page) == []
+        page["contacts"].append(c(1.0, "pass", 2))
+        assert [r["kind"] for r in unusual(page)] == ["auto.afterFault"]
+
     # Two rallies: 2000-2200 and 3000-3200; touches at 2050 (team 2), 2100 and 3050 (team 1).
     teams, windows = {2050: 2, 2100: 1, 3050: 1}, [(2000, 2200), (3000, 3200)]
 

@@ -84,6 +84,7 @@
     "relance": "Relance",
     "block": "Contre",
     "dig": "Défense",
+    "fault": "Faute de jeu",
     "floor": "Ballon au sol",
     "net": "Filet"
   },
@@ -122,6 +123,11 @@
       "play": "Défense",
       "point": "Défense gagnante",
       "error": "Défense fautée"
+    },
+    "fault": {
+      "play": "Faute de jeu",
+      "point": "Faute de jeu",
+      "error": "Faute de jeu"
     }
   },
   "short": {
@@ -132,6 +138,7 @@
     "relance": "Rl",
     "block": "C",
     "dig": "D",
+    "fault": "FJ",
     "floor": "Sol",
     "net": "Fi"
   },
@@ -519,7 +526,7 @@
       "digFaults": "Les défenses perdues : le ballon tombe, part dehors ou dans le filet.",
       "unattackedDigs": "Les défenses après lesquelles l'équipe renvoie le ballon ou le perd sans attaquer.",
       "points": "Les ballons joués qui tombent chez l'adversaire.",
-      "faults": "Les ballons envoyés dehors, dans le filet ou tombés de son côté, aces subis compris.",
+      "faults": "Les ballons envoyés dehors, dans le filet ou tombés de son côté, aces subis compris, et les fautes de jeu (filet, ligne centrale, rotation…).",
       "between": "Les ballons tombés sans être touchés à moins de 2,5 m de deux coéquipiers à peu près aussi proches l'un que l'autre. Ils se gagnent en s'annonçant : « J'ai ! »",
       "strengths": "Ce qu'un joueur réussit nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments.",
       "toWorkOn": "Ce qu'un joueur rate nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments.",

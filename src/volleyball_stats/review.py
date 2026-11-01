@@ -588,7 +588,8 @@ def page_data(site: Path) -> dict | None:
 
 
 # Touches a report's corrections can give, and their results.
-TOUCH_TYPES, RESULTS = ("serve", "pass", "set", "attack", "relance", "block", "dig"), ("play", "point", "error")
+# "fault": a fault made without the ball (net, centre line, rotation), only the review adds it.
+TOUCH_TYPES, RESULTS = ("serve", "pass", "set", "attack", "relance", "block", "dig", "fault"), ("play", "point", "error")
 # A report outside every rally window is about the one starting up to REPORT_BEFORE_S after it or
 # ending up to REPORT_AFTER_S before it (a viewer reports while it plays or just after).
 REPORT_BEFORE_S, REPORT_AFTER_S = 3.0, 8.0
@@ -615,34 +616,37 @@ def unusual(page: dict) -> list[dict]:
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
     touch after a fault or a point (either ends the rally), served by the team that lost the set's point
     before, no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
-    its id with the score: asked again once it moves). The same rally and reason keep the same id:
-    one handled is not asked again."""
+    its id with the score: asked again once it moves). A playing fault ("fault") is no touch of the
+    ball in the order of touches; one ends the rally as a fault does. The same rally and reason keep
+    the same id: one handled is not asked again."""
     out = []
     rallies = page["rallies"]
     for k, r in enumerate(rallies):
         touches = [c for c in page["contacts"] if c["rally"] == k and c["type"] not in web.NO_PLAYER]
-        serves = [c for c in touches if c["type"] == "serve"]
+        # The touches of the ball, playing faults aside.
+        played = [c for c in touches if c["type"] != "fault"]
+        serves = [c for c in played if c["type"] == "serve"]
         why = []
         if not touches:
             why.append("empty")
-        elif touches[0]["type"] != "serve":
+        elif played and played[0]["type"] != "serve":
             why.append("noServe")
         if len(serves) > 1:
             why.append("twoServes")
-        pairs = list(zip(touches, touches[1:]))
-        if any(b["type"] == "pass" and a["type"] != "serve" for a, b in pairs) or (touches and touches[0]["type"] == "pass"):
+        pairs = list(zip(played, played[1:]))
+        if any(b["type"] == "pass" and a["type"] != "serve" for a, b in pairs) or (played and played[0]["type"] == "pass"):
             why.append("passWithoutServe")
         if any(a["type"] == "serve" and b["type"] != "pass" for a, b in pairs):
             why.append("serveNotReceived")
         if any(a.get("person") is not None and a.get("person") == b.get("person") and a["type"] != "block" for a, b in pairs):
             why.append("samePlayer")
         # An attack blocked for a point is the attacker's fault, the block after it.
-        if any(a.get("result") == "error" and b["type"] != "block" for a, b in pairs):
+        if any(a.get("result") == "error" and b["type"] != "block" for a, b in zip(touches, touches[1:])):
             why.append("afterFault")
-        if any(a.get("result") == "point" for a, _ in pairs):
+        if any(a.get("result") == "point" for a in touches[:-1]):
             why.append("afterPoint")
         run, side = 0, None
-        for c in touches:
+        for c in played:
             who = c.get("team") or c["side"]
             run, side = (0 if c["type"] == "block" else run + 1 if who == side else 1), who
             if run > 3:

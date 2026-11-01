@@ -495,6 +495,10 @@ def followed(rallies: list[dict], found: list[dict]) -> None:
     """`rallies`' winners from their last touch in `found` (the page's contacts, the review's
     results included): a point for its team, a fault for the other's; one whose last touch is in
     play, or without a touch, keeps its own. The score follows the actions (the owner's rule, 1 Nov)."""
+    for c in found:
+        # A playing fault is a fault, whatever the rally's winner said.
+        if c["type"] == "fault":
+            c["result"] = "error"
     last = {c["rally"]: c for c in found if c["type"] not in NO_PLAYER and c.get("team")}
     for k, c in last.items():
         if c["result"] in ("point", "error"):

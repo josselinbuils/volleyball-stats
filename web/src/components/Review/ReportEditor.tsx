@@ -13,7 +13,7 @@ import type { NameOf } from '@/components/Review/helpers/players';
 import { NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
-const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig'] as const;
+const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
 const RESULTS = ['play', 'point', 'error'] as const;
 const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
 /** A touch added under this long from one already listed is that one: the list shows it instead. */
@@ -433,7 +433,12 @@ export function ReportEditor({
                           <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground line-through">{t(`types.${row.type}`)}</span>
                         ) : (
                           <>
-                            <select className={SELECT} aria-label={t('review.reportType')} value={row.type} onChange={(e) => change({ type: e.target.value })}>
+                            <select
+                              className={SELECT}
+                              aria-label={t('review.reportType')}
+                              value={row.type}
+                              onChange={(e) => change({ type: e.target.value, ...(e.target.value === 'fault' ? { result: 'error' } : {}) })}
+                            >
                               {TYPES.map((type) => (
                                 <option key={type} value={type}>
                                   {t(`types.${type}`)}
@@ -444,6 +449,8 @@ export function ReportEditor({
                               className={SELECT}
                               aria-label={t('review.reportResult')}
                               value={row.result}
+                              // A playing fault is always one.
+                              disabled={row.type === 'fault'}
                               onChange={(e) => {
                                 change({ result: e.target.value });
                               }}

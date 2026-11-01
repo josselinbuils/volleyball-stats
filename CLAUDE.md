@@ -73,14 +73,14 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   `/review#match`); each apply rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner
   wants (`outputs/first_match/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
   Before stopping the review (a restart is needed for a server or page change), check that
-  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. On 1 Nov: 129 rallies
-  on the page for 128 points (25-23, 25-12, 25-18 given), 46 questions open (touches found by the
-  applies since).
-  Rerun on 1 Nov with the owner's go (the 31 Oct and 1 Nov fixes; 40 min on the M4: relances 11.5,
-  wrists 12, teams 15.5; backup in `outputs/first_match/backup-before-rerun-1nov/`), the answers moved
-  onto the new windows by `volleyball_stats.rekey`. A rerun moves the windows the answers point at:
-  rekey after each one. Not in its outputs yet: the 1 Nov server's bounce fix (rally 43678, 14:33,
-  comes back with the next rerun).
+  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. On 1 Nov 14:30: 130 rallies
+  on the review's page, sets ending 25-23, 25-13, 24-20 (25-23, 25-12, 25-18 given), 53 rallies checked,
+  no question left but 34 reports in the Match tab, 1 answer waiting for an apply.
+  Last rerun: the owner's "Apprendre de mes réponses", 1 Nov 13:14-13:54 (40 min on the M4: actions with
+  relances 10.6, wrists 13.2, teams 14.6; `outputs/first_match/before-rerun/`); it moves the answers onto
+  the new windows itself (`learn.rerun`, `rekey`), and the rallies checked came through it unchanged.
+  The review's progress names each step and the pipeline's stage, with the time left from each one's
+  last duration (`outputs/MATCH/review_timings.json`).
   `uv run python -m volleyball_stats.learn outputs/first_match --video data/first_match.mp4 --court
   outputs/courts/aspom_begles.json` scores every step on the answers and the checked rallies, against
   its last run (`learn.json`).
@@ -110,14 +110,20 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
      reception, four touches in a row, the wrong server, no touch, no winner, a set ending off the
      score given (`scoreOff`, asked again once the score moves; the list shows the running score). Rallies are named by
-     their `rallies.csv` start (`key` on the page), which an added serve moves.
-  2. Reports to handle in the Match tab: 76 on 1 Nov (22 from the viewers fetched on 31 Oct 23:10,
-     `outputs/feedback-20261031-231035.log`, the online log emptied after; the rest automatic), 3
-     rallies checked. `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers
-     that disagreed at 14:00 (merged, Anthony kept).
-  3. The first match: 1 answer waiting for the owner's apply, which also brings the 1 Nov stats rules
-     and the rerun to the hosted pages. Backups of the answers from the
-     1 Nov repairs (`outputs/first_match/identity_answers.before-*.json`) can go once the owner is happy.
+     their `rallies.csv` start (`key` on the page), which an added serve moves. A line between rallies
+     shows the score after each one; a rally header turns orange with a warning; the match bar colours
+     each rally (orange warning, green checked, grey to check) and its arrows go to the next one to
+     check. "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in
+     the review: always a fault, no touch of the ball in the checks, counted in its player's faults.
+  2. Reports to handle in the Match tab: 34 on 1 Nov 14:30 (the viewers' fetched on 31 Oct 23:10,
+     `outputs/feedback-20261031-231035.log`, the online log emptied after; the rest automatic, 3 of
+     them the sets ending off the given score). `outputs/feedback-conflicts.log` is no viewer's: Claude's
+     note on two answers that disagreed at 14:00 (merged, Anthony kept). To look at: rally 1 (0:09)
+     ends on Loick's block marked a fault while ASPOM 02 serves rally 2.
+  3. The first match: 1 answer waiting for the owner's apply; "Mettre en ligne" then brings the 1 Nov
+     changes (stats rules, ratings out of 5, the rerun) to the hosted pages. Backups of the answers
+     (`outputs/first_match/identity_answers.before-*.json`, before the pins and the locks among them)
+     can go once the owner is happy.
   4. Videos: the hosted 1080p copies have a keyframe every 2 s and a 720p copy plays in small players
      (all three live since 1 Nov; their sources in `~/Downloads`, named in `publish.json`).
   5. Rally ends and winners: `rallies.whistled` as a fallback is in (held out found R 1.00, F1 ±1 s 0.57).

@@ -23,8 +23,15 @@ describe('problems', () => {
     expect(marks(found)).toEqual({
       0: ['noServe', 'passWithoutServe'],
       1: ['serveNotReceived', 'server'],
-      2: ['twoServes', 'afterFault', 'serveNotReceived'],
+      2: ['twoServes', 'serveNotReceived', 'afterFault'],
       4: ['samePlayer', 'fourTouches'],
     });
+  });
+
+  it('takes a playing fault for no touch of the ball, ending the rally', () => {
+    const c = (type: string, team: number, result = 'play', player = '') => ({ type, team, result, player });
+    // A rotation fault of the receivers at the serve; then a touch after it.
+    const found = problems([c('serve', 1), c('fault', 2, 'error'), c('pass', 2)], 1, 1, true);
+    expect(found.touch).toEqual(new Map([[2, ['afterFault']]]));
   });
 });

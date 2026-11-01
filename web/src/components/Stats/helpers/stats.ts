@@ -155,6 +155,11 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       out.faults.push(c);
       out.rated.push(c);
     }
+    // A playing fault is a fault of its player, no touch of the ball.
+    if (c.type === 'fault' && mine(c)) {
+      out.faults.push(c);
+      continue;
+    }
     if (!isTouch(c) || !mine(c)) {
       continue;
     }
