@@ -56,6 +56,11 @@ Floor position found with the feet hidden, median: set 0.70 m, pass 0.94, dig 0.
 (a serve's frame can be late, next_steps 12). No drag or spin; a flight over 2.2 s (a missed touch) is left out. Without a lens the
 focal length may not come out (`side_holdout`): typical heights stay.
 
+Players' animation (`Watch/helpers/pose.ts`): by code on the jointed figures. The ball from the feet of who touches it, median,
+on the first match: set 0.63 m, dig 0.86, pass 0.89, relance 1.24, attack 1.46, block 2.44, serve 2.57; within 1.5 m: set 85%, pass 73%,
+dig 75%, attack 52%, block 33%, serve 14%: hence the lunge, and a stock gesture past 2.5 m. Real movements from the video: not done
+(pose on every player and frame, unreliable in 3D from one camera, and the owner's call on consent).
+
 The gym, measured through the camera: the handball court 39.4 m by 20 against the real 40, the near goal line on the camera's post.
 Later: a hall per gym (every match shows this one); the near goal; a sharper replay choice from the viewers' reports. The voice is the
 browser's: not heard in the checks, which run without sound.

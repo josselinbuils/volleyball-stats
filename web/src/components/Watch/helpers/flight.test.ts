@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '@/lib/match';
-import { ball3dAt, jumpAt, trail3dAt } from '@/components/Watch/helpers/flight';
+import { ball3dAt, trail3dAt } from '@/components/Watch/helpers/flight';
 
 describe('ball3dAt', () => {
   const touch = (t: number, type: string, x: number | null, person: number | null = null) => ({ t, type, x, y: x === null ? null : 0, person }) as Contact;
@@ -32,17 +32,5 @@ describe('ball3dAt', () => {
   it('follows the ball back in time for its trail', () => {
     const trail = trail3dAt([touch(0, 'set', 0), touch(1, 'attack', 4)], 0.5, null, 0.2, 3);
     expect(trail.map((p) => p.x)).toEqual([1.2, 1.6, 2]);
-  });
-});
-
-describe('jumpAt', () => {
-  const touch = (t: number, type: string, person: number) => ({ t, type, person }) as Contact;
-
-  it('jumps a player around their attacks and blocks only', () => {
-    const rally = [touch(1, 'attack', 3), touch(2, 'dig', 4)];
-    expect(jumpAt(rally, 3, 1)).toBeCloseTo(0.55);
-    expect(jumpAt(rally, 3, 1.2)).toBeCloseTo(0.55 * 0.75);
-    expect(jumpAt(rally, 3, 1.5)).toBe(0);
-    expect(jumpAt(rally, 4, 2)).toBe(0);
   });
 });

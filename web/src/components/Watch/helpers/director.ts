@@ -2,7 +2,7 @@ import type { Contact, Rally } from '@/lib/match';
 import type { Clip } from '@/lib/playlist';
 import { isTouch } from '@/helpers/contacts';
 import { scoringTouch } from '@/helpers/plays';
-import { ball3dAt, jumpAt, type Places, type Point3 } from '@/components/Watch/helpers/flight';
+import { ball3dAt, type Places, type Point3 } from '@/components/Watch/helpers/flight';
 
 /** What the TV director's camera does at a moment: court metres, the lens's vertical angle in degrees. */
 export interface Camera3 {
@@ -159,9 +159,9 @@ export function idleCamera(time: number): Camera3 {
   return { eye: { x: 6 * Math.sin(time / 9), y: 14, h: 7 }, target: { x: 0, y: -1, h: 1 }, fov: 42 };
 }
 
-/** The camera of a replay: out of the eyes of the player `at` (their feet then), looking at the ball; without them from
+/** The camera of a replay: out of the eyes of the player `at` (their feet then, and how high they jump), looking at the ball; without them from
  * the net's side. The ball is looked at no higher than a player sees it ahead of them. */
-export function replayCamera(moment: ReplayMoment, at: { person: number; x: number; y: number } | undefined, places: Places): Camera3 {
+export function replayCamera(moment: ReplayMoment, at: { person: number; x: number; y: number; jump?: number } | undefined, places: Places): Camera3 {
   const { rally, time, contact } = moment;
   const ball = ball3dAt(rally.contacts, time, places) ?? { x: 0, y: 0, h: 1 };
   if (!at) {
@@ -170,5 +170,5 @@ export function replayCamera(moment: ReplayMoment, at: { person: number; x: numb
   const away = Math.hypot(ball.x - at.x, ball.y - at.y);
   // At the player's hands the ball is overhead: they look past it, over the net.
   const target = away < 1 ? { x: -Math.sign(at.x) * 3, y: at.y * 0.5, h: LOOK_UNDER_M } : { x: ball.x, y: ball.y, h: Math.min(ball.h, LOOK_UNDER_M) };
-  return { eye: { x: at.x, y: at.y, h: EYE_M + jumpAt(rally.contacts, at.person, time) }, target, fov: 62 };
+  return { eye: { x: at.x, y: at.y, h: EYE_M + (at.jump ?? 0) }, target, fov: 62 };
 }

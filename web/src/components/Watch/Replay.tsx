@@ -6,12 +6,14 @@ import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerMark, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
+import { isTouch } from '@/helpers/contacts';
 import { playerKey, playersAt } from '@/helpers/players';
 import { useBall3d } from '@/lib/ball3d';
 import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
-import { ball3dAt, jumpAt, trail3dAt } from '@/components/Watch/helpers/flight';
+import { ball3dAt, trail3dAt } from '@/components/Watch/helpers/flight';
+import { ballBeforeServe, bodyOf, posesAt, SPEED_S } from '@/components/Watch/helpers/pose';
 import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
 import { BroadcastControls, BroadcastOverlay } from '@/components/Watch/Broadcast';
 import { Feedback } from '@/components/Watch/Feedback';
@@ -78,7 +80,19 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const dots = typeof players === 'object' ? playersAt(players, match.fps, moment) : [];
   const score = scoreAt(rallies, time, match.scores);
   const followed = replay ? (dots.find((d) => playerKey(d.person, match.people) === playerKey(replay.contact.person, match.people)) ?? undefined) : undefined;
-  const camera = !tv ? null : replay ? replayCamera(replay, followed, places) : rally ? rallyCamera(rally, moment, places) : idleCamera(time);
+  const poses =
+    view === '2d' || typeof players !== 'object'
+      ? null
+      : posesAt(rally, moment, dots, playersAt(players, match.fps, moment - SPEED_S), playersAt(players, match.fps, moment + SPEED_S), places, match.people);
+  const camera = !tv
+    ? null
+    : replay
+      ? replayCamera(replay, followed && { ...followed, jump: poses?.get(followed.person)?.jump ?? 0 }, places)
+      : rally
+        ? rallyCamera(rally, moment, places)
+        : idleCamera(time);
+  const firstTouch = rally?.contacts.find(isTouch);
+  const server = firstTouch && bodyOf(firstTouch, places?.get(firstTouch.i) ?? null, dots, match.people);
   // The player under the pointer, named above their mark.
   const [hover, setHover] = useState<number | null>(null);
   const hovered = dots.find((d) => d.person === hover);
@@ -124,16 +138,20 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
             badge={!tv}
             overlay={tv ? <BroadcastOverlay time={time} rally={playing?.i ?? null} replay={replay} score={score} voice={voice} /> : null}
             state={{
-              players: dots.map(({ person, x, y }) => ({
-                key: person,
-                x,
-                y,
-                jump: rally ? jumpAt(rally.contacts, person, moment) : 0,
-                team: match.people[person]?.team ?? 1,
-                label: playerMark(person) ?? '',
-                tip: person === hover ? (tip ?? undefined) : undefined,
-              })),
-              ball: rally ? ball3dAt(rally.contacts, moment, places) : null,
+              players: dots.map(({ person, x, y }) => {
+                const pose = poses?.get(person);
+                return {
+                  key: person,
+                  x: x + (pose?.shift.x ?? 0),
+                  y: y + (pose?.shift.y ?? 0),
+                  jump: pose?.jump ?? 0,
+                  pose,
+                  team: match.people[person]?.team ?? 1,
+                  label: playerMark(person) ?? '',
+                  tip: person === hover ? (tip ?? undefined) : undefined,
+                };
+              }),
+              ball: rally ? ballBeforeServe(rally, moment, server, places, ball3dAt(rally.contacts, moment, places)) : null,
               trail: rally ? trail3dAt(rally.contacts, moment, places) : [],
               rings: touches.flatMap(({ touch, f }) => {
                 const at = dots.find((d) => d.person === touch.person) ?? (touch.x !== null && touch.y !== null ? { x: touch.x, y: touch.y } : null);

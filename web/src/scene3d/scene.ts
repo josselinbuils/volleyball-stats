@@ -11,10 +11,19 @@ export interface Point3 {
   h: number;
 }
 
+/** How a figure stands: how low (0 to 1), how far it leans forward, its legs' swing, in radians, and its arms, right first:
+ * up from hanging down, towards the other arm, and their length against their rest. */
+export interface FigurePose {
+  crouch: number;
+  lean: number;
+  stride: number;
+  arms: { pitch: number; roll: number; stretch: number }[];
+}
+
 /** What the scene shows at a moment. Colours are CSS colours. */
 export interface SceneState {
   /** `tip` names the player under the pointer, shown above them. */
-  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string; tip?: string }[];
+  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string; tip?: string; pose?: FigurePose }[];
   ball: Point3 | null;
   trail: Point3[];
   rings: { x: number; y: number; f: number }[];
@@ -39,6 +48,10 @@ export interface Scene {
 // net shows in perspective, and the point it looks at; the pointer turns it around that point.
 const EYE = new THREE.Vector3(-3.5, 7.5, 15.5);
 const TARGET = new THREE.Vector3(0.5, 0.6, 0);
+// A figure's hips and shoulders, and how far a full crouch lowers its pelvis.
+const HIP = 0.5;
+const SHOULDER = 1.08;
+const CROUCH_M = 0.25;
 const FOV = 40;
 const NEAR = 0.5;
 const FAR = 90;
@@ -304,34 +317,64 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   };
   // The shirt numbers and badges, one per team and label, shared by the figures showing them.
   const looks = new Map<string, { numbers: THREE.MeshBasicMaterial; badge: THREE.Sprite }>();
-  /** A figure in `shirt` and `shorts`; `seated` leaves out the legs, hidden by the seat. */
-  const figure = (hair: number, shirt: THREE.Material, shorts: THREE.Material, seated = false) => {
+  /** A figure in `shirt` and `shorts`, jointed at the hips and shoulders (`userData.limbs`, its right side first). */
+  const figure = (hair: number, shirt: THREE.Material, shorts: THREE.Material) => {
     const group = new THREE.Group();
-    const part = (geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
+    const part = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, z);
-      group.add(mesh);
+      parent.add(mesh);
       return mesh;
     };
+    const torso = new THREE.Group();
+    torso.position.y = HIP;
+    group.add(torso);
+    const legs: THREE.Group[] = [];
+    const arms: THREE.Group[] = [];
     for (const side of [-1, 1]) {
-      if (!seated) {
-        part(shapes.shoe, white, side * 0.1, 0.04, 0.03);
-        part(shapes.sock, white, side * 0.1, 0.19);
-        part(shapes.thigh, skin, side * 0.1, 0.39);
-        part(shapes.kneePad, pads, side * 0.1, 0.4);
-      }
-      part(shapes.sleeve, shirt, side * 0.26, 1.0).rotation.z = side * 0.3;
-      part(shapes.arm, skin, side * 0.3, 0.78).rotation.z = side * 0.12;
-      part(shapes.eye, eye, side * 0.085, 1.39, 0.235);
+      const leg = new THREE.Group();
+      leg.position.set(side * 0.1, HIP, 0);
+      group.add(leg);
+      legs.push(leg);
+      part(leg, shapes.shoe, white, 0, 0.04 - HIP, 0.03);
+      part(leg, shapes.sock, white, 0, 0.19 - HIP);
+      part(leg, shapes.thigh, skin, 0, 0.39 - HIP);
+      part(leg, shapes.kneePad, pads, 0, 0.4 - HIP);
+      const arm = new THREE.Group();
+      arm.position.set(side * 0.25, SHOULDER - HIP, 0);
+      torso.add(arm);
+      arms.push(arm);
+      part(arm, shapes.sleeve, shirt, side * 0.01, 1.0 - SHOULDER).rotation.z = side * 0.3;
+      part(arm, shapes.arm, skin, side * 0.05, 0.78 - SHOULDER).rotation.z = side * 0.12;
+      part(torso, shapes.eye, eye, side * 0.085, 1.39 - HIP, 0.235);
     }
-    part(shapes.shorts, shorts, 0, 0.58).scale.z = 0.75;
-    part(shapes.chest, shirt, 0, 0.88).scale.z = 0.7;
-    part(shapes.shoulders, shirt, 0, 1.08).scale.set(1, 0.42, 0.7);
-    part(shapes.neck, skin, 0, 1.15);
-    part(shapes.head, skin, 0, 1.38);
+    part(torso, shapes.shorts, shorts, 0, 0.58 - HIP).scale.z = 0.75;
+    part(torso, shapes.chest, shirt, 0, 0.88 - HIP).scale.z = 0.7;
+    part(torso, shapes.shoulders, shirt, 0, SHOULDER - HIP).scale.set(1, 0.42, 0.7);
+    part(torso, shapes.neck, skin, 0, 1.15 - HIP);
+    part(torso, shapes.head, skin, 0, 1.38 - HIP);
     // A cap of hair over the top, tilted back to leave the forehead bare.
-    part(shapes.hair, hairs[Math.abs(hair) % hairs.length], 0, 1.4).rotation.x = -0.35;
+    part(torso, shapes.hair, hairs[Math.abs(hair) % hairs.length], 0, 1.4 - HIP).rotation.x = -0.35;
+    group.userData.limbs = { torso, legs, arms };
     return group;
+  };
+  /** Stands a figure in `pose`: the pelvis down and the legs squashed by the crouch, the feet staying on the floor. */
+  const posed = (group: THREE.Group, pose: FigurePose) => {
+    const { torso, legs, arms } = group.userData.limbs as { torso: THREE.Group; legs: THREE.Group[]; arms: THREE.Group[] };
+    const pelvis = HIP - CROUCH_M * pose.crouch;
+    torso.position.y = pelvis;
+    torso.rotation.x = pose.lean;
+    legs.forEach((leg, k) => {
+      leg.position.y = pelvis;
+      leg.scale.y = pelvis / HIP;
+      leg.rotation.x = (k ? 1 : -1) * pose.stride;
+    });
+    arms.forEach((arm, k) => {
+      const { pitch, roll, stretch } = pose.arms[k];
+      arm.rotation.x = -pitch;
+      arm.rotation.z = (k ? -1 : 1) * roll;
+      arm.scale.y = stretch;
+    });
   };
   // The first referee on a stand behind the far post, facing the court.
   const black = solid(0x202020);
@@ -359,9 +402,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     }
     for (const side of [1, -1]) {
       const mesh = new THREE.Mesh(shapes.number, look.numbers);
-      mesh.position.set(0, 0.9, side * 0.158);
+      mesh.position.set(0, 0.9 - HIP, side * 0.158);
       mesh.rotation.y = side === 1 ? 0 : Math.PI;
-      group.add(mesh);
+      (group.userData.limbs as { torso: THREE.Group }).torso.add(mesh);
     }
     // A clone shares its material, so its texture.
     const number = look.badge.clone();
@@ -474,6 +517,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       for (const p of state.players) {
         const body = player(p.key, p.team, p.label, colors);
         body.group.position.copy(at(p.x, p.y, p.jump));
+        if (p.pose) {
+          posed(body.group, p.pose);
+        }
         // Facing the ball, else the net.
         const [tx, ty] = state.ball ? [state.ball.x, state.ball.y] : [0, p.y];
         if (Math.hypot(tx - p.x, ty - p.y) > 0.3) {

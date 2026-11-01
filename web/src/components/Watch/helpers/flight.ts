@@ -12,9 +12,6 @@ const G = 9.81;
 const HEIGHTS: Record<string, number> = { serve: 2.7, pass: 0.9, dig: 0.7, set: 2.4, attack: 2.9, relance: 1.6, block: 2.6, net: 2.2, floor: 0.11 };
 // A flight longer than this hides a touch the pipeline missed: its arc stays this flight's.
 const LONGEST_S = 2.2;
-// Players jump to attack and block: up to JUMP_M, over JUMP_S before and after the touch.
-const JUMP_M = 0.55;
-const JUMP_S = 0.4;
 // A ball crossing the net clears it: its centre above the scene's net top (2.35 m) by the drawn ball's radius.
 const OVER_NET = 2.6;
 
@@ -72,16 +69,4 @@ export function trail3dAt(contacts: Contact[], time: number, places: Places = nu
     }
   }
   return out;
-}
-
-/** How high `person` jumps at `time`: up to JUMP_M around each of their attacks and blocks. */
-export function jumpAt(contacts: Contact[], person: number, time: number): number {
-  let jump = 0;
-  for (const c of contacts) {
-    const dt = Math.abs(time - c.t);
-    if (c.person === person && (c.type === 'attack' || c.type === 'block') && dt < JUMP_S) {
-      jump = Math.max(jump, JUMP_M * (1 - (dt / JUMP_S) ** 2));
-    }
-  }
-  return jump;
 }
