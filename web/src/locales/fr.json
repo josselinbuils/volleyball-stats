@@ -810,25 +810,21 @@
     },
     "setters": {
       "title": "Qui passe à qui",
-      "caption": "Les attaques qui suivent chaque passeur, avec les gagnantes sur le total.",
+      "caption": "Vers qui vont les ballons de chaque passeur : le nombre d'attaques qui suivent, en vert les gagnantes.",
       "sets_one": "{{count}} passe, {{attacked}} attaquée",
       "sets_other": "{{count}} passes, {{attacked}} attaquées",
-      "row": "{{kills}} sur {{count}}",
       "playing": "{{setter}} vers {{attacker}}",
-      "detail": "{{kills}} gagnantes, {{play}} en jeu, {{faults}} fautes",
-      "won": "Gagnante",
-      "play": "En jeu",
-      "fault": "Faute",
       "others_one": "Autre ({{count}})",
       "others_other": "Autres ({{count}})",
-      "playingOthers": "{{setter}} vers les autres attaquants"
+      "playingOthers": "{{setter}} vers les autres attaquants",
+      "attacks_one": "{{count}} attaque",
+      "attacks_other": "{{count}} attaques",
+      "kills_one": "{{count}} gagnante",
+      "kills_other": "{{count}} gagnantes"
     },
     "lineups": {
       "title": "Le score de chaque six",
-      "caption": "Les six joueurs sur le terrain, estimés d'après leurs positions. Sous chaque six, les points marqués au service de chacun. Cliquez sur un serveur pour revoir ses services.",
-      "served": "Au service",
-      "servedRow": "{{won}} sur {{of}}",
-      "serverTitle": "Au service : {{name}}",
+      "caption": "Les six joueurs sur le terrain, estimés d'après leurs positions, et le score pendant qu'ils jouaient.",
       "sets_one": "Set {{list}}",
       "sets_other": "Sets {{list}}",
       "score": "Score {{team}} : {{won}} à {{lost}}"

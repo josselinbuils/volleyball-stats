@@ -90,16 +90,12 @@ describe('coach', () => {
 
   describe('lineupScores', () => {
     const lineup = (first: number, last: number, six: number[]) => ({ team: 1 as const, first, last, people: six });
-    const serve = (k: number, person: number) => touch(k, 'serve', person);
 
-    it('scores a six, the same six twice as one, and points on each serve', () => {
-      const rallies = [rally(0, 1, [serve(0, 1)]), rally(1, 2, [serve(1, 1)]), rally(2, 1, [serve(2, 3)]), rally(3, 1, [serve(3, 2)])];
-      const [six] = lineupScores([lineup(0, 1, [1, 2]), lineup(2, 3, [4, 1])], rallies, 1, people);
-      expect(six).toMatchObject({ won: 3, lost: 1, sets: [1] });
-      expect(six.servers.map((s) => [s.person, s.won, s.rallies.length])).toEqual([
-        [1, 1, 2],
-        [2, 1, 1],
-      ]);
+    it('scores a six, the same six twice as one', () => {
+      const rallies = [rally(0, 1, []), rally(1, 2, []), rally(2, 1, []), rally(3, 1, [])];
+      const found = lineupScores([lineup(0, 1, [1, 2]), lineup(2, 3, [4, 1])], rallies, 1, people);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toMatchObject({ won: 3, lost: 1, sets: [1] });
     });
 
     it('leaves out a rally to replay, and a six under 3 rallies', () => {

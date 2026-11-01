@@ -17,8 +17,8 @@ import { ServeZones } from '@/components/Coach/ServeZones';
 import { Setters } from '@/components/Coach/Setters';
 import { lineupScores, serveZones, setters, things, type Thing } from '@/components/Coach/helpers/coach';
 
-/** What a coach reads for one team, team-wide on faults: what cost it points, who sets whom, the score of each six
- * and where serves hurt. */
+/** What a coach reads for one team, for the team: no player is named for a fault or a weak number. What cost it points,
+ * who sets whom, the score of each six and where serves hurt. */
 export function Coach() {
   const { t } = useTranslation();
   const { contacts, rallies } = useSet();
@@ -96,7 +96,14 @@ function ThingRow({ id, thing, rank, g }: { id: string; thing: Thing; rank: numb
         type="button"
         aria-pressed={playlist?.key === id}
         title={t('watchN', { count: thing.n })}
-        onClick={() => play(title, contactClips(thing.contacts, match.duration), 0, id)}
+        onClick={() =>
+          play(
+            title,
+            contactClips(thing.contacts, match.duration).map(({ player: _, name: __, ...clip }) => clip),
+            0,
+            id,
+          )
+        }
         className={cn(
           'flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
           playlist?.key === id && 'bg-primary/8 hover:bg-primary/12',

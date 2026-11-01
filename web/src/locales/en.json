@@ -810,25 +810,21 @@
     },
     "setters": {
       "title": "Who sets whom",
-      "caption": "The attacks after each setter's sets, winners out of the total.",
+      "caption": "Where each setter's balls go: the attacks after their sets, the winners in green.",
       "sets_one": "{{count}} set, {{attacked}} attacked",
       "sets_other": "{{count}} sets, {{attacked}} attacked",
-      "row": "{{kills}} of {{count}}",
       "playing": "{{setter}} to {{attacker}}",
-      "detail": "{{kills}} winners, {{play}} in play, {{faults}} faults",
-      "won": "Winner",
-      "play": "In play",
-      "fault": "Fault",
       "others_one": "Other ({{count}})",
       "others_other": "Others ({{count}})",
-      "playingOthers": "{{setter}} to the other attackers"
+      "playingOthers": "{{setter}} to the other attackers",
+      "attacks_one": "{{count}} attack",
+      "attacks_other": "{{count}} attacks",
+      "kills_one": "{{count}} winner",
+      "kills_other": "{{count}} winners"
     },
     "lineups": {
       "title": "The score of each six",
-      "caption": "The six players on the court, estimated from their positions. Under each six, the points scored on each player's serves. Click a server to replay their serves.",
-      "served": "On serve",
-      "servedRow": "{{won}} of {{of}}",
-      "serverTitle": "On serve: {{name}}",
+      "caption": "The six players on the court, estimated from their positions, and the score while they played.",
       "sets_one": "Set {{list}}",
       "sets_other": "Sets {{list}}",
       "score": "{{team}}'s score: {{won}} to {{lost}}"

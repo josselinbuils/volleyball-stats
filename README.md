@@ -382,14 +382,13 @@ the longest rally.
 
 ### Le coin du coach
 
-Team by team, following the set filter, each row replaying its moments. Faults are read for the team, never named:
+Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number.
 
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
-- who sets whom: each setter from 5 sets, the attacks right after, winning ones out of the total;
-- the score of each six on the court, with the points scored on each player's serves. The six comes from the players'
-  positions, smoothed over 2 rallies each side in the set (`web.lineups`), and is only as good as the identities: run
-  `benchmarks/lineups/bench.py`;
+- who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
+- the score of each six on the court. The six comes from the players' positions, smoothed over 2 rallies each side in
+  the set (`web.lineups`), and is only as good as the identities: run `benchmarks/lineups/bench.py`;
 - where serves hurt, by the zone they reach: an ace, or a reception lost or graded 1.
 
 ### Statistics

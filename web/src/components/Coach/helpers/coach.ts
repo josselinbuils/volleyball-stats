@@ -111,20 +111,12 @@ export function setters(contacts: Contact[], g: Group, people: Record<string, Pe
     .sort((a, b) => b.sets - a.sets);
 }
 
-/** A player's rallies on serve in a lineup, `won` the points the team scored. */
-export interface Server {
-  person: number;
-  won: number;
-  rallies: Rally[];
-}
-
 /** A six of `g` and the score while it played. */
 export interface LineupScore {
   people: number[];
   sets: number[];
   won: number;
   lost: number;
-  servers: Server[];
 }
 
 /** Each six of `g` from LINEUP_FROM of `rallies` in play, first played first; the same six twice is one. */
@@ -142,7 +134,7 @@ export function lineupScores(lineups: Lineup[], rallies: Rally[], g: Group, peop
       if (r.i < lineup.first || r.i > lineup.last || r.redo) {
         continue;
       }
-      const out = found.get(key) ?? { people: lineup.people, sets: [], won: 0, lost: 0, servers: [], played: 0 };
+      const out = found.get(key) ?? { people: lineup.people, sets: [], won: 0, lost: 0, played: 0 };
       found.set(key, out);
       out.played += 1;
       if (!out.sets.includes(r.set)) {
@@ -150,21 +142,9 @@ export function lineupScores(lineups: Lineup[], rallies: Rally[], g: Group, peop
       }
       out.won += r.winner === g ? 1 : 0;
       out.lost += r.winner && r.winner !== g ? 1 : 0;
-      const serve = r.contacts.find((c) => c.type === 'serve');
-      const server = serve?.g === g ? playerKey(serve.person, people) : null;
-      if (serve && server !== null) {
-        const row = out.servers.find((s) => playerKey(s.person, people) === server);
-        const scored = r.winner === g ? 1 : 0;
-        if (row) {
-          row.won += scored;
-          row.rallies.push(r);
-        } else {
-          out.servers.push({ person: serve.person as number, won: scored, rallies: [r] });
-        }
-      }
     }
   }
-  return [...found.values()].filter((x) => x.played >= LINEUP_FROM).map(({ played: _, ...x }) => ({ ...x, servers: x.servers.sort((a, b) => b.rallies.length - a.rallies.length) }));
+  return [...found.values()].filter((x) => x.played >= LINEUP_FROM).map(({ played: _, ...x }) => x);
 }
 
 /** The serves reaching a zone, those causing trouble among them. */
