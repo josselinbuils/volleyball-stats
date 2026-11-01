@@ -1,0 +1,38 @@
+import json
+
+from volleyball_stats.learn import from_answers, near, report
+
+
+class TestNear:
+    def test_within(self):
+        assert near(100, [80, 104, 130], 5) == 104
+        assert near(100, [80, 130], 5) is None
+
+
+class TestReport:
+    def test_change_shown(self):
+        text = report({"a": (3, 5), "b": (1, 2)}, {"a": [2, 5], "b": [1, 2]})
+        assert "3/5  (was 2/5)" in text
+        assert "was" not in text.splitlines()[1]
+
+
+class TestFromAnswers:
+    def test_scores(self, tmp_path):
+        (tmp_path / "identity_answers.json").write_text(json.dumps({
+            "touch": [{"frame": 100, "team": 1, "identity": 3, "name": None}, {"frame": 300, "team": 2, "identity": None, "name": None}],
+            "added": [{"start": 90, "frame": 205, "team": 1, "type": "set"}, {"start": 90, "frame": 400, "team": 1, "type": "set"}],
+            "action": [{"frame": 100, "type": "pass"}],
+            "rally": [{"start": 90, "play": True}, {"start": 500, "play": False}],
+        }))
+        (tmp_path / "actions.csv").write_text("frame,type,team,identity\n100,pass,1,3\n200,set,1,4\n")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n90,450\n")
+        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity\n")
+
+        out = from_answers(tmp_path, 50.0)
+
+        assert out["attribution: answered touches"] == (1, 1)
+        assert out["contacts: added touches found"] == (1, 2)
+        assert out["contacts: false ones gone"] == (1, 1)
+        assert out["actions: types set"] == (1, 1)
+        assert out["rallies: kept"] == (1, 1)
+        assert out["rallies: dropped"] == (1, 1)
