@@ -23,6 +23,8 @@ export function MatchTab({
   nameOf,
   saved,
   checked,
+  comments,
+  onComment,
   reports,
   onSave,
   onUncheck,
@@ -36,6 +38,9 @@ export function MatchTab({
   saved: Partial<ReportChanges>;
   /** The rallies checked, by their key. */
   checked: number[];
+  /** The owner's notes on the rallies, by their key. */
+  comments: Record<number, string>;
+  onComment: (rally: number, text: string) => Promise<boolean>;
   /** The report questions left: each a rally's reports. */
   reports: Question[];
   onSave: (changes: ReportChanges, rally: number) => Promise<void>;
@@ -106,7 +111,7 @@ export function MatchTab({
                 )
               }
             />
-            <MatchTimeline now={now} saved={saved} reports={flags} green={green} warned={warned} onSeek={(time) => go(time)} />
+            <MatchTimeline now={now} saved={saved} reports={flags} green={green} warned={warned} comments={comments} onSeek={(time) => go(time)} />
           </div>
           <ReportEditor
             key={round}
@@ -134,6 +139,8 @@ export function MatchTab({
             onCaption={setCaption}
             onChanges={(changes) => (latest.current = changes)}
             saved={saved}
+            comments={comments}
+            onComment={onComment}
           />
           <section className="grid gap-2 lg:col-span-2" aria-labelledby="reports-title">
             <h3 id="reports-title" className="text-base font-semibold">

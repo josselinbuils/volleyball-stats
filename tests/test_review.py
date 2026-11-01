@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -346,6 +346,28 @@ class TestAces:
         assert receiver_answer(ace, "not_play", {}) == {}
         assert receiver_answer(ace, "not_play", {}, 480) == {"rally": [{"start": 480, "play": False}]}
         assert receiver_answer(ace, "skip", {}) == {}
+
+
+class TestComments:
+    page = {"fps": 10, "rallies": [{"key": 100, "start": 10.0, "end": 20.0}, {"key": 400, "start": 40.0, "end": 60.0}]}
+
+    def test_read_back_as_written(self, tmp_path):
+        assert read_comments(tmp_path) == {}
+        write_comments(tmp_path, {400: "à revoir", 100: "b"})
+        assert read_comments(tmp_path) == {100: "b", 400: "à revoir"}
+
+    def test_a_comment_on_a_rally_gone_goes_to_the_one_holding_its_start(self):
+        comments = {100: "kept", 400: "first", 500: "joined to it", 900: "said no play"}
+        assert commented(comments, self.page, []) == {100: "kept", 400: "first\njoined to it", 900: "said no play"}
+
+    def test_a_comment_on_a_split_not_applied_yet_stays_its_own(self):
+        assert commented({150: "second part"}, self.page, [{"split": [{"frame": 150}]}]) == {150: "second part"}
+
+    def test_the_answers_leave_them_out(self, tmp_path):
+        path = tmp_path / "identity_answers.json"
+        write_comments(tmp_path, {100: "à revoir"})
+        save(path, [])
+        assert "à revoir" not in path.read_text()
 
 
 class TestSave:

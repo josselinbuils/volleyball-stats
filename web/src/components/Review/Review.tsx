@@ -43,6 +43,7 @@ export function Review({
   namesPending: renamed,
   corrections: savedCorrections,
   checked: savedChecked,
+  comments: savedComments,
   questions: initial,
   players,
   roster,
@@ -58,6 +59,7 @@ export function Review({
   changed: boolean;
   namesPending: boolean;
   corrections: Partial<ReportChanges>;
+  comments: Record<number, string>;
   checked: number[];
   questions: Question[];
   players: Named[];
@@ -75,6 +77,7 @@ export function Review({
   const [pending, setPending] = useState({ answers: waiting, changed, names: renamed });
   const [corrections, setCorrections] = useState(savedCorrections);
   const [checked, setChecked] = useState(savedChecked);
+  const [comments, setComments] = useState(savedComments);
   const onSaved = (saved: Saved) => {
     if (saved.corrections !== undefined) {
       setCorrections(saved.corrections);
@@ -143,6 +146,23 @@ export function Review({
       setError(true);
     }
   };
+  // Shown at once: the editor starting again from `comments` must not lose one being saved.
+  const saveComment = async (rally: number, text: string) => {
+    setComments((all) => {
+      const out = { ...all };
+      delete out[rally];
+      return text ? { ...out, [rally]: text } : out;
+    });
+    try {
+      await post('comment', { rally, text });
+      setError(false);
+      return true;
+    } catch {
+      setError(true);
+      return false;
+    }
+  };
+
   const saveEdits = async (changes: ReportChanges, rally: number) => {
     try {
       onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, checked: [rally] }));
@@ -382,6 +402,8 @@ export function Review({
             nameOf={nameOf}
             saved={corrections}
             checked={checked}
+            comments={comments}
+            onComment={saveComment}
             reports={reports}
             onSave={saveEdits}
             onUncheck={uncheck}

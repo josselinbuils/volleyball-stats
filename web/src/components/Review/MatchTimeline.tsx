@@ -28,6 +28,7 @@ export function MatchTimeline({
   reports,
   green,
   warned,
+  comments,
   onSeek,
 }: {
   now: number;
@@ -37,6 +38,8 @@ export function MatchTimeline({
   green: Set<number>;
   /** The rallies with a warning, by their key: orange. */
   warned: Set<number>;
+  /** The owner's notes on the rallies, by their key: a mark above each. */
+  comments: Record<number, string>;
   onSeek: (time: number) => void;
 }) {
   const { t } = useTranslation();
@@ -236,6 +239,15 @@ export function MatchTimeline({
             {marks.map((time, k) => (
               <circle key={k} cx={time * scale} cy={7} r={2.5} className="fill-muted-foreground" />
             ))}
+            {rallies.flatMap((r) =>
+              r.key !== undefined && comments[r.key]
+                ? [
+                    <path key={`c${r.i}`} d={`M ${((r.start + r.end) / 2) * scale} 3 l 4 4 l -4 4 l -4 -4 z`} className="fill-sky-500">
+                      <title>{comments[r.key]}</title>
+                    </path>,
+                  ]
+                : [],
+            )}
             {reports.map((r, k) => (
               <g key={k} className={r.auto ? 'text-muted-foreground' : 'text-primary'}>
                 <line x1={r.time * scale} x2={r.time * scale} y1={2} y2={40} stroke="currentColor" strokeWidth={1.5} />

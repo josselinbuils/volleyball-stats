@@ -105,6 +105,19 @@ def with_reports(log: list[dict], keys: dict[str, str]) -> list[dict]:
     return [{**e, "id": renamed(e["id"])} for e in log]
 
 
+def moved_comments(comments: dict[int, str], before: list[Window], after: list[Window], lead: int) -> dict[int, str]:
+    """The review's `comments` (by rally key) moved from `before`'s windows to `after`'s: two landing
+    on one window are joined; one on no window of `before` (a rally the review started) stays."""
+    to = overlaps(before, after, lead)
+    index = {s: k for k, (s, _) in enumerate(before)}
+    out: dict[int, str] = {}
+    for key, text in sorted(comments.items()):
+        k = index.get(key)
+        new = after[to[k]][0] if k in to else key
+        out[new] = f"{out[new]}\n{text}" if new in out else text
+    return out
+
+
 def read_page(path: Path) -> dict:
     """A page's data.js MATCH."""
     text = path.read_text().strip()
@@ -124,6 +137,7 @@ def main() -> None:
     fps = read_page(args.page_before)["fps"]
     log = moved(review.load_log(path), read_windows(args.before), read_windows(args.match / "rallies.csv"), round(web.LEAD_S * fps))
     review.save(path, log)
+    review.write_comments(args.match, moved_comments(review.read_comments(args.match), read_windows(args.before), read_windows(args.match / "rallies.csv"), round(web.LEAD_S * fps)))
     page, _ = web.match_data(args.match, args.video, Calibration.load(args.court))
     keys = renamed_reports(read_page(args.page_before), page)
     review.save(path, with_reports(log, keys))

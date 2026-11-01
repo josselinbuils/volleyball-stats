@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import type { Named, ReportChanges } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
+import { RallyComment } from '@/components/Review/RallyComment';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
@@ -64,6 +65,8 @@ export function ReportEditor({
   onChanges,
   onWarnings,
   saved,
+  comments,
+  onComment,
 }: {
   /** The moments viewers reported: their touches are flagged. */
   reports: { time: number }[];
@@ -91,6 +94,9 @@ export function ReportEditor({
   /** The touch the video is on in its rally, as it stands with the corrections: to show over the video. */
   onCaption?: (caption: { team: Group; text: string } | null) => void;
   saved: Partial<ReportChanges>;
+  /** The owner's notes on the rallies, by their key. */
+  comments: Record<number, string>;
+  onComment: (rally: number, text: string) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
   const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
@@ -398,6 +404,11 @@ export function ReportEditor({
                       <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
                     </span>
                   )}
+                  {comments[keyOf(k)] && (
+                    <span role="img" title={comments[keyOf(k)]} aria-label={comments[keyOf(k)]} className="shrink-0">
+                      <MessageSquareText aria-hidden className="size-3.5 text-sky-600 dark:text-sky-400" />
+                    </span>
+                  )}
                   {savedStarts.has(keyOf(k)) && (
                     <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
                       <PenLine aria-hidden className="size-3.5" />
@@ -612,6 +623,8 @@ export function ReportEditor({
               </Button>
             )}
           </div>
+          {/* Typing stops the video: it would carry on to another rally's note. */}
+          <RallyComment key={rally.key} text={comments[rally.key] ?? ''} onFocus={() => onPause(timeOf())} onSave={(text) => onComment(rally.key, text)} />
         </div>
       )}
       <div className="flex flex-wrap gap-2 lg:col-span-2">

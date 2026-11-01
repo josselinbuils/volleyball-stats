@@ -141,6 +141,8 @@ interface ReviewData {
   corrections: Partial<ReportChanges>;
   /** The rallies checked, by their key. */
   checked: number[];
+  /** The owner's notes on the rallies, by their key: in the review only. */
+  comments: Record<number, string>;
   questions: Question[];
   players: Named[];
   /** The roster's players of each team, for typing a name. */
@@ -213,7 +215,7 @@ export function onServerBusy(listener: () => void): () => void {
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
 export async function post(
-  path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
+  path: 'answer' | 'comment' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
   body: object = {},
 ): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));

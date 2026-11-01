@@ -1148,6 +1148,33 @@ def corrections(log: list[dict], shown: set[str] | frozenset[str]) -> dict:
     return next((e["changes"] for e in reversed(waiting_reports(log, shown))), {})
 
 
+# The owner's notes on the rallies, by key: outside the answers (no undo or apply touches them), and
+# only review.js reads them, so no page holds them.
+COMMENTS = "rally_comments.json"
+
+
+def read_comments(match: Path) -> dict[int, str]:
+    path = match / COMMENTS
+    return {int(k): v for k, v in json.loads(path.read_text()).items()} if path.exists() else {}
+
+
+def write_comments(match: Path, comments: dict[int, str]) -> None:
+    files.write_text(match / COMMENTS, json.dumps({str(k): v for k, v in sorted(comments.items())}, ensure_ascii=False, indent=1) + "\n")
+
+
+def commented(comments: dict[int, str], page: dict | None, log: list[dict]) -> dict[int, str]:
+    """`comments` by the rallies `page` shows or a split not applied yet starts: one on a rally no
+    longer there (joined to the one before, its split undone) goes to the rally holding its start;
+    one in no rally (said no play) stays under its key, hidden."""
+    rallies = (page or {}).get("rallies", [])
+    known = {r.get("key") for r in rallies} | {a["frame"] for e in log for a in e.get("split", [])}
+    out = {k: v for k, v in comments.items() if k in known}
+    for key in sorted(set(comments) - known):
+        holder = next((r["key"] for r in rallies if r["start"] * page["fps"] <= key <= r["end"] * page["fps"]), key)
+        out[holder] = f"{out[holder]}\n{comments[key]}" if holder in out else comments[key]
+    return out
+
+
 def pinned(page: dict | None, keys: list[int]) -> list[dict]:
     """An answer pinning the winners `page` shows for the rallies checked (`keys`): they stay
     whatever the rallies around them become (`web.served_next`); a winner the review gives still
@@ -1410,7 +1437,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
+        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
             "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
             "fetched": fetched_log or None,
         }
@@ -1545,6 +1572,15 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     for change in history:
                         change["names"] = None
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
+                if self.path == "/comment":
+                    comments = commented(read_comments(match), questions.page, log)
+                    key, text = int(body["rally"]), str(body["text"]).strip()
+                    if text:
+                        comments[key] = text
+                    else:
+                        comments.pop(key, None)
+                    write_comments(match, comments)
+                    return self.send(b"{}", "application/json")
                 if self.path == "/answer":
                     _, refs = questions.build({entry["id"] for entry in log})
                     # Corrections saved from the match tab, about no question.

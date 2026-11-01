@@ -1,4 +1,4 @@
-from volleyball_stats.rekey import moved, overlaps, renamed_reports, with_reports
+from volleyball_stats.rekey import moved, moved_comments, overlaps, renamed_reports, with_reports
 
 
 class TestOverlaps:
@@ -7,6 +7,13 @@ class TestOverlaps:
 
     def test_lead_counts(self):
         assert overlaps([(100, 200)], [(205, 300)], 10) == {0: 0}
+
+
+class TestMovedComments:
+    def test_comments_follow_their_rally_and_two_on_one_window_are_joined(self):
+        comments = {100: "a", 300: "b", 500: "c", 150: "started by the review"}
+        out = moved_comments(comments, [(100, 200), (300, 400), (500, 600)], [(90, 200), (290, 610)], 10)
+        assert out == {90: "a", 150: "started by the review", 290: "b\nc"}
 
 
 class TestMoved:
