@@ -36,16 +36,24 @@ def overlaps(before: list[Window], after: list[Window], lead: int) -> dict[int, 
 
 def moved(log: list[dict], before: list[Window], after: list[Window], lead: int) -> list[dict]:
     """The answers' `log` with their rally starts moved from `before`'s windows to `after`'s; a join
-    between two old windows now in one goes."""
+    between two old windows now in one goes. What the answers say of a whole rally (no play, its
+    winner, its end) moves only onto a window that is mostly that rally: a false window joined to
+    the rally before it is no reason to drop that rally."""
     to = overlaps(before, after, lead)
     starts = {s: after[to[k]][0] for k, (s, _) in enumerate(before) if k in to}
+
+    def mostly(k: int) -> bool:
+        (a, b), (c, d) = before[k], after[to[k]]
+        return 2 * (min(b, d) - max(a, c) + lead) >= d - c + lead
+
+    whole = {s: after[to[k]][0] for k, (s, _) in enumerate(before) if k in to and mostly(k)}
     index = {s: k for k, (s, _) in enumerate(before)}
 
-    def key(start: int) -> int:
+    def key(start: int, moves: dict[int, int] = starts) -> int:
         # The review saved its rally questions' answers `lead` frames after the window's start until 1 Nov.
         if start not in index and start - lead in index:
             start -= lead
-        return starts.get(start, start)
+        return moves.get(start, start)
 
     def joined(start: int) -> bool:
         k = index.get(start)
@@ -53,9 +61,11 @@ def moved(log: list[dict], before: list[Window], after: list[Window], lead: int)
 
     def entry(e: dict) -> dict:
         e = dict(e)
-        for kind in ("rally", "added", "winner", "end"):
+        if "added" in e:
+            e["added"] = [{**a, "start": key(a["start"])} for a in e["added"]]
+        for kind in ("rally", "winner", "end"):
             if kind in e:
-                e[kind] = [{**a, "start": key(a["start"])} for a in e[kind]]
+                e[kind] = [{**a, "start": key(a["start"], whole)} for a in e[kind]]
         if "join" in e:
             e["join"] = [{**a, "start": key(a["start"])} for a in e["join"] if not joined(a["start"])]
         for kind in ("checked", "unchecked"):

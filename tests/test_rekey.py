@@ -20,6 +20,13 @@ class TestMoved:
     def test_answer_a_lead_late_moved(self):
         assert moved([{"id": "rally:100", "rally": [{"start": 110, "play": False}]}], [(100, 200)], [(90, 200)], 10)[0]["rally"][0]["start"] == 90
 
+    def test_no_play_stays_off_a_rally_it_was_joined_to(self):
+        # A false window 300-330 now the tail of the rally 100-330.
+        log = [{"id": "rally:300", "rally": [{"start": 300, "play": False}], "added": [{"start": 300, "frame": 310, "team": 1, "type": "dig"}]}]
+        out = moved(log, [(100, 290), (300, 330)], [(100, 330)], 10)
+        assert out[0]["rally"][0]["start"] == 300
+        assert out[0]["added"][0]["start"] == 100
+
     def test_unmatched_kept(self):
         assert moved([{"id": "x", "rally": [{"start": 100, "play": True}]}], [(100, 200)], [(500, 600)], 10)[0]["rally"][0]["start"] == 100
 
