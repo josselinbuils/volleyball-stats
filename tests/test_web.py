@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, lineups, credited, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, credited, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -794,37 +794,3 @@ class TestWithLandings:
         samples = [[1, 1.0, 1.0], [], [], [], [], [], [2, 2.0, 2.0]]
         found = web.with_landings([self.contact("attack", result="point"), self.contact("floor", t=0.6)], {"step": 1, "samples": samples}, 10.0)
         assert found[1]["around"] == [2, 2.0, 2.0]
-
-
-def test_lineups_follow_a_substitution_not_a_slip():
-    table = {p: {"team": 1, "number": p, "name": None, "jersey": None} for p in range(7)}
-    table[7] = {"team": 2, "number": None, "name": None, "jersey": None}
-
-    def rally(players):
-        return [[v for p in players for v in (p, 0.0, 0.0)]]
-
-    six, subbed = [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 6]
-    # Player 5 is lost for one rally, then player 6 comes on.
-    on = [six, six, six[:5], six, six, subbed, subbed, subbed, subbed, subbed]
-    samples = [row for players in on for row in rally(players)]
-    windows = [(k, k) for k in range(len(on))]
-    found = lineups(samples, 1, windows, [1] * len(on), [], table)
-    assert found == [{"team": 1, "first": 0, "last": 4, "people": six}, {"team": 1, "first": 5, "last": 9, "people": subbed}]
-
-
-def test_lineups_stay_within_a_set_and_need_six():
-    table = {p: {"team": 1, "number": p, "name": None, "jersey": None} for p in range(6)}
-    samples = [[v for p in range(6) for v in (p, 0.0, 0.0)], [v for p in range(6) for v in (p, 0.0, 0.0)], [0, 0.0, 0.0]]
-    found = lineups(samples, 1, [(0, 0), (1, 1), (2, 2)], [1, 2, 3], [], table)
-    assert [(x["first"], x["last"]) for x in found] == [(0, 0), (1, 1)]
-
-
-def test_lineups_count_a_named_player_once_and_a_toucher_as_there():
-    table = {p: {"team": 1, "number": p, "name": "Sam" if p in (0, 6) else None, "jersey": None} for p in range(7)}
-    table[7] = {"team": 1, "number": 7, "name": None, "jersey": None}
-    full = [v for p in (0, 6, 1, 2, 3, 4, 5) for v in (p, 0.0, 0.0)]
-    samples = [full, full[:-3]]
-    assert len(lineups(samples, 1, [(0, 1)], [1], [], table)[0]["people"]) == 6
-    # Unseen on the court but touching the ball, player 7 takes the place of one seen half the time.
-    found = lineups(samples, 1, [(0, 1)], [1], [{"person": 7, "type": "dig", "rally": 0}], table)
-    assert 7 in found[0]["people"]

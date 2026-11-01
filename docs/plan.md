@@ -48,11 +48,9 @@ Tried and dropped: see `benchmarks/rallies/README.md`.
 
 "Le coin du coach" (`web/src/components/Coach/`): waits for the owner's "Mettre en ligne".
 
-Lineups (`web.lineups`, `benchmarks/lineups/bench.py`, no labels): first match 4 and 3 sixes for 129 rallies, their set
-scores adding up to the given 25-23, 25-12, 25-18, the one mid-set substitution sharp in the positions (rally 115,
-Olivier 1.0 -> 0.0 of the rally on court, Jessy 0.0 -> 1.0). Its names are reviewed: on clips whose names are not,
-`side_holdout` has 4 and 7 sixes for 15 rallies. The page hides a six under 3 rallies. Touches on a player of the six
-(851 of 851) count a toucher as on court, so they only catch a broken build. Check the sixes on the second match.
+Tried and removed (owner's call, not useful enough; code in `3377048`): the score of each six and a serve map by zone.
+From them: lineups from the positions, smoothed over 2 rallies each side, gave the first match 4 and 3 sixes whose
+scores add up to the given sets; on clips with unreviewed names 4 and 7 sixes for 15 rallies.
 
 ## Page: lighter (1 Nov)
 

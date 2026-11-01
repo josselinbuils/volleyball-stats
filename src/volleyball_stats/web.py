@@ -372,10 +372,6 @@ def player_samples(rows: Iterable[dict], step: int, frame_count: int, who: Who =
     return samples
 
 
-def on_court(x: float, y: float) -> bool:
-    return abs(x) <= LENGTH / 2 + SERVE_M and abs(y) <= WIDTH / 2 + SIDE_M
-
-
 def playing_time(samples: list[list[float]], step: int, windows: list[tuple[int, int]], sets: list[int], fps: float) -> dict[int, dict[str, float]]:
     """Seconds each player stood on the court during the rallies (`windows`, of `sets`), by set, from
     the samples every `step` frames (`player_samples`)."""
@@ -384,75 +380,10 @@ def playing_time(samples: list[list[float]], step: int, windows: list[tuple[int,
         for k in range(-(-start // step), min(end // step + 1, len(samples))):
             sample = samples[k]
             for p, x, y in zip(sample[::3], sample[1::3], sample[2::3]):
-                if p is not None and on_court(x, y):
+                if p is not None and abs(x) <= LENGTH / 2 + SERVE_M and abs(y) <= WIDTH / 2 + SIDE_M:
                     by_set = out.setdefault(int(p), {})
                     by_set[str(number)] = by_set.get(str(number), 0.0) + step / fps
     return {p: {s: round(v, 1) for s, v in by_set.items()} for p, by_set in out.items()}
-
-
-# A rally's lineup weighs each player's share of it on the court over this many rallies each side in its set:
-# a tracker's slip fades, a substitution stays (first match: 14 and 28 stretches a team with none, 4 and 3 with 2).
-LINEUP_AROUND = 2
-LINEUP_SIZE = 6
-
-
-def lineups(samples: list[list[float]], step: int, windows: list[tuple[int, int]], sets: list[int], found: list[dict], table: dict[int, dict]) -> list[dict]:
-    """Each team's stretches of rallies with the same six on the court: `first` and `last` the rallies, `people`
-    a key in `table` for each player. A rally with under six identified players is in none. A player touching
-    the ball in a rally counts as there in full."""
-
-    def player(person: int | None) -> tuple | None:
-        p = table.get(person)
-        if not p or p["number"] is None:
-            return None
-        return (p["team"], "name", p["name"]) if p.get("name") else (p["team"], "jersey", p["jersey"]) if p.get("jersey") is not None else (p["team"], "number", p["number"])
-
-    keys: dict[tuple, int] = {}
-    shares: list[dict[tuple, float]] = []
-    for start, end in windows:
-        seen: dict[tuple, int] = {}
-        ks = range(-(-start // step), min(end // step + 1, len(samples)))
-        for k in ks:
-            sample = samples[k]
-            here = {}
-            for p, x, y in zip(sample[::3], sample[1::3], sample[2::3]):
-                name = player(int(p)) if p is not None and on_court(x, y) else None
-                if name:
-                    here[name] = int(p)
-            for name, p in here.items():
-                seen[name] = seen.get(name, 0) + 1
-                keys.setdefault(name, p)
-        shares.append({name: n / max(1, len(ks)) for name, n in seen.items()})
-    touched: list[set[tuple]] = [set() for _ in windows]
-    for c in found:
-        name = player(c["person"]) if c["type"] not in ("floor", "net", "fault") else None
-        if name:
-            touched[c["rally"]].add(name)
-            keys.setdefault(name, c["person"])
-    out = []
-    for team in (1, 2):
-        going: dict | None = None
-        for i, number in enumerate(sets):
-            near = [j for j in range(max(0, i - LINEUP_AROUND), min(len(sets), i + LINEUP_AROUND + 1)) if sets[j] == number]
-            weight: dict[tuple, float] = {}
-            for j in near:
-                for name, share in shares[j].items():
-                    if name[0] == team:
-                        weight[name] = weight.get(name, 0.0) + share / len(near)
-            for name in touched[i]:
-                if name[0] == team:
-                    weight[name] = weight.get(name, 0.0) + 1.0
-            six = sorted(sorted(weight, key=lambda name: (-weight[name], str(name)))[:LINEUP_SIZE], key=str)
-            if len(six) < LINEUP_SIZE:
-                going = None
-                continue
-            people = [keys[name] for name in six]
-            if going and going["people"] == people and sets[going["last"]] == number and going["last"] == i - 1:
-                going["last"] = i
-            else:
-                going = {"team": team, "first": i, "last": i, "people": people}
-                out.append(going)
-    return out
 
 
 # A player on the court under BRIEF_S of rally time in a set is a tracking slip there (first ASPOM
@@ -843,7 +774,6 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)
     brief(found, actions, table, times, said, missed)
-    on_the_court = lineups(samples, step, windows, [r["set"] for r in rallies], found, table)
     data = {
         "name": video.stem,
         "video": video.name,
@@ -856,7 +786,6 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "contacts": found,
         "zones": zone_cells(),
         "scores": teams and teams.get("scores"),
-        "lineups": on_the_court,
     }
     for p, seconds in times.items():
         if p in table:

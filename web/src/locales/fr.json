@@ -821,21 +821,6 @@
       "attacks_other": "{{count}} attaques",
       "kills_one": "{{count}} gagnante",
       "kills_other": "{{count}} gagnantes"
-    },
-    "lineups": {
-      "title": "Le score de chaque six",
-      "caption": "Les six joueurs sur le terrain, estimés d'après leurs positions, et le score pendant qu'ils jouaient.",
-      "sets_one": "Set {{list}}",
-      "sets_other": "Sets {{list}}",
-      "score": "Score {{team}} : {{won}} à {{lost}}"
-    },
-    "zones": {
-      "title": "Où les services font mal",
-      "caption": "Par zone où le service arrive, ceux qui gênent : un ace, ou une réception perdue ou loin du passeur. Le filet est à droite.",
-      "own": "Les services de {{team}}",
-      "against": "La réception de {{team}}",
-      "cell": "Zone {{zone}} : {{trouble}} sur {{of}}",
-      "cellTitle": "{{title}}, zone {{zone}}"
     }
   }
 }

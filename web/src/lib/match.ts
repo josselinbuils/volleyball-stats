@@ -109,15 +109,6 @@ export interface Brand {
   dark: Record<string, string>;
 }
 
-/** A team's stretch of rallies with the same six on the court, `first` and `last` the rallies, `people` keys in
- * `match.people`. */
-export interface Lineup {
-  team: Group;
-  first: number;
-  last: number;
-  people: number[];
-}
-
 /** The match as data.js writes it. */
 interface Data {
   name: string;
@@ -139,7 +130,6 @@ interface Data {
   contacts: Omit<Contact, 'i' | 'g' | 'player' | 'name'>[];
   zones: ZoneCell[];
   people: Record<string, Person>;
-  lineups?: Lineup[];
   /** The players' positions: a sample every `step` frames, `every` samples in each of `files` files; none without tracks. */
   positions?: { step: number; every: number; files: number } | null;
   /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
@@ -173,7 +163,6 @@ export const match = {
   duration: data.duration,
   zones: data.zones,
   people: data.people,
-  lineups: data.lineups ?? [],
   positions: data.positions ?? null,
   scores: data.scores ?? [],
   brand: data.brand ?? null,

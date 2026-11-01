@@ -11,14 +11,12 @@ import { remembered } from '@/lib/me';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
-import { Lineups } from '@/components/Coach/Lineups';
 import { Section } from '@/components/Coach/Section';
-import { ServeZones } from '@/components/Coach/ServeZones';
 import { Setters } from '@/components/Coach/Setters';
-import { lineupScores, serveZones, setters, things, type Thing } from '@/components/Coach/helpers/coach';
+import { setters, things, type Thing } from '@/components/Coach/helpers/coach';
 
-/** What a coach reads for one team, for the team: no player is named for a fault or a weak number. What cost it points,
- * who sets whom, the score of each six and where serves hurt. */
+/** What a coach reads for one team, for the team: no player is named for a fault or a weak number. What cost it points
+ * and who sets whom. */
 export function Coach() {
   const { t } = useTranslation();
   const { contacts, rallies } = useSet();
@@ -28,16 +26,13 @@ export function Coach() {
       GROUPS.map((g) => ({
         things: things(rallies, g),
         setters: setters(contacts, g, match.people),
-        lineups: lineupScores(match.lineups, rallies, g, match.people),
-        zones: serveZones(contacts, g),
-        against: serveZones(contacts, (3 - g) as Group),
       })),
     [contacts, rallies],
   );
-  if (!hasTeams || read.every((r) => !r.things.found.length && !r.setters.length && !r.lineups.length && !r.zones.size)) {
+  if (!hasTeams || read.every((r) => !r.things.found.length && !r.setters.length)) {
     return null;
   }
-  const { things: lost, setters: setting, lineups, zones, against } = read[picked - 1];
+  const { things: lost, setters: setting } = read[picked - 1];
   return (
     <Card>
       <CardHeader>
@@ -79,8 +74,6 @@ export function Coach() {
           </Section>
         )}
         {setting.length > 0 && <Setters setters={setting} g={picked} rallies={rallies.length} />}
-        {lineups.length > 0 && <Lineups lineups={lineups} g={picked} />}
-        {(zones.size > 0 || against.size > 0) && <ServeZones own={zones} against={against} g={picked} rallies={rallies.length} />}
       </CardContent>
     </Card>
   );

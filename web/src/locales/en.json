@@ -821,21 +821,6 @@
       "attacks_other": "{{count}} attacks",
       "kills_one": "{{count}} winner",
       "kills_other": "{{count}} winners"
-    },
-    "lineups": {
-      "title": "The score of each six",
-      "caption": "The six players on the court, estimated from their positions, and the score while they played.",
-      "sets_one": "Set {{list}}",
-      "sets_other": "Sets {{list}}",
-      "score": "{{team}}'s score: {{won}} to {{lost}}"
-    },
-    "zones": {
-      "title": "Where serves hurt",
-      "caption": "By the zone a serve reaches, those causing trouble: an ace, or a reception lost or far from the setter. The net is on the right.",
-      "own": "{{team}}'s serves",
-      "against": "{{team}}'s reception",
-      "cell": "Zone {{zone}}: {{trouble}} of {{of}}",
-      "cellTitle": "{{title}}, zone {{zone}}"
     }
   }
 }
