@@ -374,7 +374,7 @@ export function ReportEditor({
     <>
       {/* Beside the video and the rally's section under it; in full screen, the window's height: the
        * buttons under the list cover none of it. */}
-      <div className="relative lg:row-span-2 lg:self-stretch lg:[:fullscreen_&]:sticky lg:[:fullscreen_&]:top-0 lg:[:fullscreen_&]:h-[calc(100vh-2rem)] lg:[:fullscreen_&]:self-start">
+      <div className="relative lg:row-span-2 lg:self-stretch lg:[:fullscreen_&]:sticky lg:[:fullscreen_&]:top-0 lg:[:fullscreen_&]:h-[calc(100vh-(--spacing(6)))] lg:[:fullscreen_&]:self-start">
         <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
@@ -583,8 +583,7 @@ export function ReportEditor({
                 : []),
             ])}
           </ol>
-          {/* Pinned to the window's bottom while its place is below it. */}
-          <div className="sticky bottom-0 z-20 flex shrink-0 flex-wrap gap-2 bg-card pt-1 [:fullscreen_&]:bg-background">
+          <div className="flex shrink-0 flex-wrap gap-2 pt-2">
             <Button className="h-auto min-h-9 flex-1 whitespace-normal" disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
               <Check aria-hidden />
               {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}

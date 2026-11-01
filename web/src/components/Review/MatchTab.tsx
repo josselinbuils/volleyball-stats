@@ -80,8 +80,7 @@ export function MatchTab({
   const toggleFull = () => void (full ? document.exitFullscreen() : block.current?.requestFullscreen());
 
   return (
-    // Not hidden: it would hold the validate buttons from sticking to the window.
-    <Card className="overflow-visible">
+    <Card>
       <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6 pt-6">
         <div
           ref={block}
