@@ -265,7 +265,6 @@ export function addHall(scene: THREE.Scene, sponsors: Sponsor[], board: THREE.Te
   };
   onFar(4, 1.7, 7, 2.6, new THREE.MeshBasicMaterial({ map: mural(), transparent: true }));
   onFar(0, 5.3, 6, 2.8, new THREE.MeshBasicMaterial({ map: board }));
-  onFar(-0.6, 2.5, 2.2, 0.8, new THREE.MeshBasicMaterial({ color: 0x1d1d1d }));
   // Bunting along the wall under the stand, blue and yellow.
   const pennant = new THREE.Shape();
   pennant.moveTo(-0.22, 0);
