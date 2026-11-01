@@ -116,7 +116,7 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
       {insights &&
         [true, false].map((strength) => (
           <TableCell key={String(strength)} className={cn('min-w-44 px-2 py-1.5', strength && 'border-l')}>
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="flex items-center gap-1">
               {strength && r.badge}
               {r.insights
                 ?.filter((i) => i.strength === strength)
