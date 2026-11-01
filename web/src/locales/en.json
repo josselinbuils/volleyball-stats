@@ -343,7 +343,44 @@
     "rerunConfirm": "Run the whole match analysis again? It takes from a few minutes to 40 minutes; the review waits meanwhile. Your answers are kept.",
     "host": "Put online",
     "hosting": "Putting online…",
-    "hostedBehind": "The online page lacks your latest changes: put it online whenever you like."
+    "hostedBehind": "The online page lacks your latest changes: put it online whenever you like.",
+    "tabProgress": "Progress",
+    "progressIntro": "What your answers taught the analysis: at each \"Run the analysis again\", every step is measured on your answers, the checked rallies and the labels.",
+    "progress": {
+      "none": "No measure yet: \"Run the analysis again\" makes one.",
+      "runs_one": "{{count}} analysis measured, the last on {{last}} (version {{commit}}).",
+      "runs_other": "{{count}} analyses measured, the last on {{last}} (version {{commit}}).",
+      "checked_one": "{{count}} checked rally serves as a full label.",
+      "checked_other": "{{count}} checked rallies serve as full labels.",
+      "group": {
+        "who": "Who touched the ball",
+        "touches": "Touches and types",
+        "rallies": "Rallies, serves and points",
+        "checked": "Checked rallies"
+      },
+      "measure": {
+        "touched": "Right player on the answered touches",
+        "added": "Added touches found",
+        "false": "False touches dropped",
+        "types": "Corrected types found",
+        "kept": "Confirmed rallies kept",
+        "dropped": "False rallies dropped",
+        "serves": "Labelled serves found",
+        "servers": "Right server (labels)",
+        "winners": "Right winner (labels)",
+        "checkedFound": "Touches found",
+        "checkedKept": "The analysis's touches right",
+        "checkedTypes": "Right types",
+        "checkedPlayers": "Right players",
+        "checkedWinners": "Right winners"
+      },
+      "delta_one": "{{sign}}{{count}} pt",
+      "delta_other": "{{sign}}{{count}} pts",
+      "curve": "{{label}} at each analysis",
+      "read": "{{when}} · version {{commit}} · {{right}}/{{total}} ({{share}})",
+      "table": "Every measure",
+      "measureColumn": "Measure"
+    }
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -394,7 +431,9 @@
       "relances": "Free balls",
       "relanceFaults": "Free ball faults",
       "rated": "Reception rating",
-      "between": "Balls between two"
+      "between": "Balls between two",
+      "overReceptions": "Receptions to the opponents",
+      "overDigs": "Digs to the opponents"
     },
     "columns": {
       "total": "Total",
@@ -408,7 +447,8 @@
       "time": "Playing time",
       "defended": "Defended",
       "blockPoints": "Winning",
-      "blockDefended": "Defended"
+      "blockDefended": "Defended",
+      "over": "To the opponents"
     },
     "about": {
       "touches": "Every time the player touches the ball, whatever the action.",
@@ -438,7 +478,9 @@
       "between": "Balls that landed untouched within 2.5 m of two teammates about as close as each other. Calling the ball wins them: “Mine!”",
       "strengths": "What a player does clearly better than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",
       "toWorkOn": "What a player does clearly worse than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",
-      "time": "Time on the court during the rallies (minutes:seconds), from the players' tracking: rough where a player is poorly tracked."
+      "time": "Time on the court during the rallies (minutes:seconds), from the players' tracking: rough where a player is poorly tracked.",
+      "overReceptions": "The receptions that go straight to the other team: their touch comes next, with no set or attack of the team.",
+      "overDigs": "The digs that go straight to the other team: their touch comes next, with no set or attack of the team."
     },
     "noteTitles": "Hover or tap a column's title to see what it counts; click it to sort the rows.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",
@@ -473,7 +515,11 @@
       "digUnattacked_other": "Digs · {{count}} with no attack of {{of}}",
       "relanceFaults_one": "Free balls · {{count}} fault of {{of}}",
       "relanceFaults_other": "Free balls · {{count}} faults of {{of}}",
-      "detail": "{{n}} of {{of}} ({{p}}), against {{restN}} of {{restOf}} ({{restP}}) for the rest of the team"
+      "detail": "{{n}} of {{of}} ({{p}}), against {{restN}} of {{restOf}} ({{restP}}) for the rest of the team",
+      "receptionOver_one": "Receptions · {{count}} to the opponents of {{of}}",
+      "receptionOver_other": "Receptions · {{count}} to the opponents of {{of}}",
+      "digOver_one": "Digs · {{count}} to the opponents of {{of}}",
+      "digOver_other": "Digs · {{count}} to the opponents of {{of}}"
     }
   },
   "players": {

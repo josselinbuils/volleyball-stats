@@ -151,7 +151,11 @@ interface ReviewData {
   photos?: Record<string, PhotoMoment[]>;
   /** The hosted pages (when the match is hosted): their last update's time (none yet since the server started), why it failed, whether a change came since. */
   hosted?: Hosted | null;
+  /** The analysis runs' scores on the answers (learn.json): each measure's right and total. */
+  learning?: LearnRun[];
 }
+
+export type LearnRun = { time: string; commit: string; scores: Record<string, [number, number]> };
 
 export type Hosted = { at: string | null; error: string | null; behind: boolean };
 

@@ -1282,7 +1282,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None}
+        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
+            "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
+        }
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):

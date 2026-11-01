@@ -10,7 +10,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
 import { cn } from '@/lib/utils';
-import { allMarked, post, type Conflict, type Hosted, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
+import { allMarked, post, type Conflict, type Hosted, type LearnRun, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
@@ -19,6 +19,7 @@ import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 import { MatchTab } from '@/components/Review/MatchTab';
+import { Progress } from '@/components/Review/Progress';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
@@ -27,9 +28,9 @@ const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: '
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
 const REPORT_KEYS: Record<string, string> = { s: 'skip' };
-type Tab = 'questions' | 'names' | 'match';
+type Tab = 'questions' | 'names' | 'match' | 'progress';
 // The tab survives the reload that applies the answers.
-const HASHES: Record<Tab, string> = { names: '', questions: '#questions', match: '#match' };
+const HASHES: Record<Tab, string> = { names: '', questions: '#questions', match: '#match', progress: '#progress' };
 
 /** The review: the players' names, then the identity step's doubts one at a time, answered on the
  * video and shown with the names given. */
@@ -47,6 +48,7 @@ export function Review({
   roster,
   conflicts,
   hosted,
+  learning = [],
 }: {
   width: number;
   height: number;
@@ -61,6 +63,7 @@ export function Review({
   roster: [Suggestion[], Suggestion[]];
   conflicts: Conflict[];
   hosted?: Hosted | null;
+  learning?: LearnRun[];
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -243,7 +246,7 @@ export function Review({
     <>
       <BrandBar brand={match.brand} />
       <Status notice={notice} />
-      <main className="mx-auto grid w-full max-w-6xl gap-4 px-4 pt-6 pb-16 max-sm:pt-5">
+      <main className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] gap-4 px-4 pt-6 pb-16 max-sm:pt-5">
         <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-1">
           <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
@@ -310,7 +313,7 @@ export function Review({
               }
             }}
             aria-label={t('review.tabs')}
-            className="w-full items-stretch bg-card sm:w-auto sm:justify-self-start"
+            className="grid w-full grid-cols-2 items-stretch bg-card sm:flex sm:w-auto sm:justify-self-start"
           >
             <ToggleGroupItem value="names" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
               {t('review.tabNames', { n: named, total: players.length })}
@@ -321,16 +324,21 @@ export function Review({
             <ToggleGroupItem value="match" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
               {t('review.tabMatch', { count: reports.length })}
             </ToggleGroupItem>
+            <ToggleGroupItem value="progress" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
+              {t('review.tabProgress')}
+            </ToggleGroupItem>
           </ToggleGroup>
         )}
-        <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro' }[tab])}</p>
+        <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={players} nameOf={nameOf} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}
           </p>
         )}
-        {tab === 'names' ? (
+        {tab === 'progress' ? (
+          <Progress runs={learning} />
+        ) : tab === 'names' ? (
           <Names players={players} roster={roster} onNamed={setGiven} onSaved={onSaved} onError={() => setError(true)} />
         ) : tab === 'match' ? (
           <MatchTab
