@@ -478,14 +478,20 @@ export function ReportEditor({
                     <li
                       key={`s${k}`}
                       className={cn(
-                        'flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-md border border-dashed px-2 py-1 text-sm',
-                        off.has(k) && 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200',
+                        'my-1 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 rounded-md border-2 border-foreground/25 bg-secondary px-3 py-1.5 text-sm shadow-sm',
+                        off.has(k) && 'border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200',
                       )}
                     >
-                      <span className="text-muted-foreground">{t(shown[k + 1]?.set === shown[k].set ? 'review.reportScoreAfter' : 'review.reportScoreSet', { n: shown[k].set })}</span>
+                      <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        {t(shown[k + 1]?.set === shown[k].set ? 'review.reportScoreAfter' : 'review.reportScoreSet', { n: shown[k].set })}
+                      </span>
                       <span className="flex items-center gap-1.5 font-medium tabular-nums">
                         <Swatch color={teamColor(1)} ring={teamRing(1)} />
-                        {groupName(t, 1)} {scores[k]![0]} – {scores[k]![1]} {groupName(t, 2)}
+                        {groupName(t, 1)}
+                        <span className="text-lg font-bold">
+                          {scores[k]![0]} – {scores[k]![1]}
+                        </span>
+                        {groupName(t, 2)}
                         <Swatch color={teamColor(2)} ring={teamRing(2)} />
                       </span>
                       {off.has(k) && (
