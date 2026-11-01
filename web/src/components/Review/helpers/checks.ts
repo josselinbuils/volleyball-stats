@@ -1,5 +1,5 @@
 /** What looks wrong in a rally, as the review's automatic reports find it (review.unusual). */
-export type Problem = 'empty' | 'noServe' | 'twoServes' | 'passWithoutServe' | 'serveNotReceived' | 'fourTouches' | 'samePlayer' | 'afterFault' | 'server' | 'noWinner';
+export type Problem = 'empty' | 'noServe' | 'twoServes' | 'passWithoutServe' | 'serveNotReceived' | 'fourTouches' | 'samePlayer' | 'afterFault' | 'afterPoint' | 'server' | 'noWinner';
 
 /** A touch as the editor lists it: its player "TEAM:IDENTITY", '' when unknown. */
 export interface Checked {
@@ -38,6 +38,9 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     // An attack blocked for a point is the attacker's fault, the block after it.
     if (before?.result === 'error' && c.type !== 'block') {
       mark(k, 'afterFault');
+    }
+    if (before?.result === 'point') {
+      mark(k, 'afterPoint');
     }
   });
   let run = 0;

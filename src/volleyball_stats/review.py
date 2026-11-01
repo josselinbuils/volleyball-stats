@@ -607,7 +607,7 @@ def unusual(page: dict) -> list[dict]:
     their start, `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
-    touch after a fault (a fault ends the rally), served by the team that lost the set's point
+    touch after a fault or a point (either ends the rally), served by the team that lost the set's point
     before, no winner (with teams). The same rally and reason keep the same id: one handled is not
     asked again."""
     out = []
@@ -632,6 +632,8 @@ def unusual(page: dict) -> list[dict]:
         # An attack blocked for a point is the attacker's fault, the block after it.
         if any(a.get("result") == "error" and b["type"] != "block" for a, b in pairs):
             why.append("afterFault")
+        if any(a.get("result") == "point" for a, _ in pairs):
+            why.append("afterPoint")
         run, side = 0, None
         for c in touches:
             who = c.get("team") or c["side"]

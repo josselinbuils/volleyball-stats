@@ -610,7 +610,8 @@
         "passWithoutServe": "A reception not right after a serve",
         "serveNotReceived": "A serve followed by something other than a reception",
         "afterFault": "An action follows a fault in the same rally",
-        "samePlayer": "The same player touches the ball twice in a row"
+        "samePlayer": "The same player touches the ball twice in a row",
+        "afterPoint": "An action follows a point in the same rally"
       }
     },
     "details": "Add details",

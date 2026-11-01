@@ -11,6 +11,10 @@ describe('problems', () => {
     expect(marks(found)).toEqual({});
   });
 
+  it('marks a touch after a point', () => {
+    expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
+  });
+
   it('marks each problem on the touch that shows it', () => {
     const found = problems([c('pass', 2), c('serve', 1, '', 'error'), c('serve', 1), c('set', 1, '1:4'), c('attack', 1, '1:4')], null, 2, true);
     expect(found.rally).toEqual(['noWinner']);
