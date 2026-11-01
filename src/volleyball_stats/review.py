@@ -617,7 +617,7 @@ def unusual(page: dict) -> list[dict]:
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
     touch after a fault or a point (either ends the rally), served by the team that lost the set's point
-    before, no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
+    before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves). A playing fault ("fault") is no touch of the
     ball in the order of touches; one ends the rally as a fault does. The same rally and reason keep
     the same id: one handled is not asked again."""
@@ -655,7 +655,7 @@ def unusual(page: dict) -> list[dict]:
                 why.append("fourTouches")
                 break
         before = rallies[k - 1] if k else None
-        if serves and serves[0].get("team") and before and before["set"] == r["set"] and before.get("winner") and serves[0]["team"] != before["winner"]:
+        if serves and serves[0].get("team") and before and before["set"] == r["set"] and before.get("winner") and not before.get("wrongCall") and serves[0]["team"] != before["winner"]:
             why.append("server")
         if page.get("teams") and r.get("winner") is None and not r.get("redo"):
             why.append("noWinner")

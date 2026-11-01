@@ -344,7 +344,8 @@ export function ReportEditor({
       continue;
     }
     const mine = mineOf(k);
-    const previous = k > 0 && shown[k - 1].set === shown[k].set && fixOf(k - 1)?.play !== false ? winnerOf(k - 1) : null;
+    // After the referee's error the serve may follow what really happened or the point given: no check.
+    const previous = k > 0 && shown[k - 1].set === shown[k].set && fixOf(k - 1)?.play !== false && !calledWrong(k - 1) ? winnerOf(k - 1) : null;
     found.set(k, problems(mine, winnerOf(k), previous, hasTeams && !toReplay(k)));
   }
   const problemsOf = (row: Row): Problem[] => {

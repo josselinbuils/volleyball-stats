@@ -188,6 +188,15 @@ class TestReports:
         page["contacts"].append(c(1.0, "pass", 2))
         assert [r["kind"] for r in unusual(page)] == ["auto.afterFault"]
 
+    def test_the_server_is_not_checked_after_a_point_the_referee_got_wrong(self):
+        def serve(rally, team):
+            return {"t": float(rally), "type": "serve", "team": team, "side": "left" if team == 1 else "right", "rally": rally, "result": "error"}
+
+        page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 1.0, "set": 1, "winner": 2, "wrongCall": True}, {"start": 2.0, "end": 3.0, "set": 1, "winner": 2}], "contacts": [serve(0, 2), serve(1, 1)]}
+        assert "auto.server" not in [r["kind"] for r in unusual(page)]
+        del page["rallies"][0]["wrongCall"]
+        assert "auto.server" in [r["kind"] for r in unusual(page)]
+
     def test_a_rally_to_replay_is_not_reported_for_having_no_winner(self):
         page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 5.0, "set": 1, "winner": None, "redo": True}], "contacts": [{"t": 0.1, "type": "serve", "team": 1, "side": "left", "rally": 0, "result": "play"}, {"t": 1.0, "type": "pass", "team": 2, "side": "right", "rally": 0, "result": "play"}]}
         assert unusual(page) == []
