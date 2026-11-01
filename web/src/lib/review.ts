@@ -70,8 +70,8 @@ export interface ReportChanges {
   touches: { frame: number; player?: string; type?: string; result?: string }[];
   /** Touches the rallies missed, at their frame. */
   added?: { frame: number; team: Group; type: string; result: string; player?: string }[];
-  /** Rallies by their start frame: their winner, no play, to replay, or the referee wrong. */
-  rallies?: { start: number; winner?: Group; play?: false; join?: true; redo?: boolean; wrong?: boolean }[];
+  /** Rallies by their start frame: their winner, no play, their end frame, to replay, or the referee wrong. */
+  rallies?: { start: number; winner?: Group; play?: false; end?: number; join?: true; redo?: boolean; wrong?: boolean }[];
   /** Rallies started at these frames: one missed, or the second of two taken for one. */
   splits?: number[];
 }

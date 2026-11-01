@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleCheck, CircleOff, Flag, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -26,7 +26,7 @@ type Fix = { player?: string; type?: string; result?: string };
 /** `join`: the rally and the next one are one, ending at the next one's end. `redo`: to replay,
  * nobody gets the point; false takes back what the page shows. `wrong`: the referee gave the
  * point to the wrong team, `winner` being the one that got it; false likewise. */
-type RallyFix = { winner?: Group; play?: false; join?: true; redo?: boolean; wrong?: boolean };
+type RallyFix = { winner?: Group; play?: false; end?: number; join?: true; redo?: boolean; wrong?: boolean };
 /** The team of a player given as "TEAM:IDENTITY". */
 const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 const frameOf = (time: number) => Math.round(time * match.fps);
@@ -46,7 +46,7 @@ const touches = contacts
 /** The match's touches beside its video: those of the rallies around where the video stands, the
  * one it plays centred, to correct (player of either team, action, result), remove or add at the
  * video's moment, or start a rally there (one missed, or the second of two taken for one); under it
- * the winner or to replay, no play and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
+ * the winner or to replay, no play, end and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
  * such; saving sends them all, with the new ones. */
 export function ReportEditor({
   reports,
@@ -103,7 +103,9 @@ export function ReportEditor({
   // The rallies started by the review, by their start frame.
   const [splits, setSplits] = useState<number[]>(() => saved.splits ?? []);
   // By the rally's key: a rally started before one keeps its index from moving its fixes.
-  const [rallyFixes, setRallyFixes] = useState<Record<number, RallyFix>>(() => Object.fromEntries((saved.rallies ?? []).map(({ start, ...fix }) => [start, fix])));
+  const [rallyFixes, setRallyFixes] = useState<Record<number, RallyFix>>(() =>
+    Object.fromEntries((saved.rallies ?? []).map(({ start, end, ...fix }) => [start, { ...fix, ...(end !== undefined ? { end: end / match.fps } : {}) }])),
+  );
   // The touches and rallies the saved corrections change.
   const savedFrames = new Set([...(saved.touches ?? []), ...(saved.added ?? [])].map((x) => x.frame));
   const savedStarts = new Set([...(saved.rallies ?? []).map((r) => r.start), ...(saved.splits ?? [])]);
@@ -148,7 +150,7 @@ export function ReportEditor({
       if (next.wrong === !!shown[k].wrongCall) {
         delete next.wrong;
       }
-      for (const key of ['winner', 'play', 'join', 'redo', 'wrong'] as const) {
+      for (const key of ['winner', 'play', 'end', 'join', 'redo', 'wrong'] as const) {
         if (next[key] === undefined) {
           delete next[key];
         }
@@ -195,7 +197,7 @@ export function ReportEditor({
   const changes: ReportChanges = {
     touches: Object.entries(fixes).map(([frame, c]) => ({ frame: Number(frame), ...c })),
     ...(added.length ? { added: added.map(({ frame, team, type, result, player }) => ({ frame, team, type, result, ...(player ? { player } : {}) })) } : {}),
-    ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([key, f]) => ({ start: Number(key), ...f })) } : {}),
+    ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([key, f]) => ({ start: Number(key), ...f, ...(f.end !== undefined ? { end: frameOf(f.end) } : {}) })) } : {}),
     ...(splits.length ? { splits } : {}),
   };
   const json = JSON.stringify(changes);
@@ -272,7 +274,8 @@ export function ReportEditor({
 
   const rally = shown[here];
   const fix = fixOf(here) ?? {};
-  const endOf = (k: number) => clock(shown[k].end);
+  const end = fix.end ?? rally?.end;
+  const endOf = (k: number) => clock(fixOf(k)?.end ?? shown[k].end);
   const rallyLabel = (k: number) =>
     (fixOf(k)?.join
       ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(shown[k].start), to: endOf(k + 1) })
@@ -634,6 +637,19 @@ export function ReportEditor({
               <input type="checkbox" checked={fix.join === true} disabled={!canJoin} onChange={(e) => editRally(here, { join: e.target.checked ? true : undefined })} />
               {t('review.reportJoin', { n: here + 2 })}
             </label>
+            <span className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" className="bg-card" disabled={now <= rally.start} onClick={() => editRally(here, { end: Math.round(timeOf() * 100) / 100 })}>
+                <CircleStop aria-hidden />
+                {t('review.reportEndHere', { time: clock(now) })}
+              </Button>
+              {fix.end !== undefined && (
+                <Button variant="ghost" size="sm" onClick={() => editRally(here, { end: undefined })}>
+                  <Undo2 aria-hidden />
+                  {t('review.reportEndReset', { time: clock(rally.end) })}
+                </Button>
+              )}
+              {end !== undefined && fix.end !== undefined && <span className="text-muted-foreground">{t('review.reportEndMoved', { time: clock(end) })}</span>}
+            </span>
             {splits.includes(rally.key) && (
               <Button variant="ghost" size="sm" onClick={() => unsplit(here)}>
                 <Undo2 aria-hidden />

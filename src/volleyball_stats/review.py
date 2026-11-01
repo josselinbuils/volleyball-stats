@@ -757,7 +757,8 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
             out["rally"].append({"start": start, "play": False})
         if r.get("winner") in (1, 2):
             out["winner"].append({"start": start, "winner": r["winner"]})
-        if r.get("end") is not None and int(r["end"]) > start:
+        # After where the rally starts, which an added serve puts before its key.
+        if r.get("end") is not None and int(r["end"]) > windows[keys.index(start)][0]:
             out["end"].append({"start": start, "end": int(r["end"])})
         if r.get("join") is True:
             out["join"].append({"start": start})

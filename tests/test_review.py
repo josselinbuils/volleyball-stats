@@ -227,6 +227,13 @@ class TestReports:
         assert out["referee"] == [{"start": 2000, "wrong": True}, {"start": 3000, "wrong": False}]
         assert out["winner"] == [{"start": 2000, "winner": 2}]
 
+    def test_a_rally_s_end_counts_from_where_it_starts_not_from_its_key(self):
+        changes = {"rallies": [{"start": 3100, "end": 3050}]}
+
+        # Named 3100, started by a serve added at 3000.
+        assert report_answer(changes, self.teams, self.windows, {}, 20, [2000, 3100])["end"] == [{"start": 3100, "end": 3050}]
+        assert "end" not in report_answer({"rallies": [{"start": 3100, "end": 2900}]}, self.teams, self.windows, {}, 20, [2000, 3100])
+
     def test_a_rally_to_replay_or_no_longer_becomes_a_redo_answer(self):
         changes = {"rallies": [{"start": 2000, "redo": True}, {"start": 3000, "redo": False}, {"start": 1234, "redo": True}]}
 
