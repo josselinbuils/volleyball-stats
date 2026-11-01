@@ -128,7 +128,7 @@ class Questions:
         self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []), key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
-        self.empty = [(w, r.get("set")) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
+        self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
         points = web.read_csv(self.match / "points.csv") if (self.match / "points.csv").exists() else [{}] * len(rallies)
         gone = web.no_rallies(self.match)
         played = [(w, p.get("winner")) for w, r, p in zip(windows, rallies, points) if int(r["start_frame"]) not in gone]
@@ -494,7 +494,7 @@ class Questions:
             })
             refs[qid] = {"receiver": {"frame": frame, "team": team}}
         found = []
-        for (start, end), number in self.empty:
+        for (start, end), number, key in self.empty:
             qid = f"rally:{start}"
             if qid in asked:
                 continue
@@ -503,7 +503,7 @@ class Questions:
                 "set": int(number) if number else None, "time": round(start / self.fps, 2), "crops": [], "choices": [],
                 "clip": {"start": round(start / self.fps, 2), "end": round(end / self.fps, 2), "around": RALLY_AROUND_S, "boxes": []},
             })
-            refs[qid] = {"rally": {"start": start + round(web.LEAD_S * self.fps)}}
+            refs[qid] = {"rally": {"start": key}}
         return told + found + missed + touches + sorted(out, key=lambda q: -q["impact"]), refs
 
 
