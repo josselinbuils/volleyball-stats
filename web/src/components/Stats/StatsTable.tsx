@@ -210,7 +210,11 @@ export function InsightChip({ id, insight: i, who }: { id: string; insight: Insi
   const f = useFormat();
   const { playlist, play } = usePlayer();
   const label = (tr: TFunction) => tr(`stats.insights.${i.key}`, { count: i.n, of: i.of });
-  const detail = t('stats.insights.detail', { n: i.n, of: i.of, p: f.pct(i.n / i.of), restN: i.restN, restOf: i.restOf, restP: f.pct(i.restN / i.restOf) });
+  const detail = i.perMinute
+    ? t('stats.insights.perMinute', { mine: f.dec(i.perMinute[0]), rest: f.dec(i.perMinute[1]) })
+    : i.told
+      ? t(`stats.insights.about.${i.key}`, { count: i.n })
+      : t('stats.insights.detail', { n: i.n, of: i.of, p: f.pct(i.n / i.of), restN: i.restN, restOf: i.restOf, restP: f.pct(i.restN / i.restOf) });
   const on = playlist?.key === id;
   return (
     <Tooltip>

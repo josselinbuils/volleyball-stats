@@ -12,6 +12,7 @@ import { useSet } from '@/lib/sets';
 import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
 import { insights } from '@/components/Stats/helpers/insights';
+import { strengths } from '@/components/Stats/helpers/strengths';
 import { lines } from '@/components/Stats/helpers/stats';
 import { Mvp } from '@/components/Stats/Mvp';
 import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
@@ -20,13 +21,14 @@ import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
  * team's; without identified players, the team's alone (each side of the net's without teams). */
 export function PlayersTable() {
   const { t } = useTranslation();
-  const { set, contacts } = useSet();
+  const { set, contacts, rallies } = useSet();
   const [group, setGroup] = useState<Group>(1);
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
   const dropped = useMemo(() => drops(contacts, match.people), [contacts]);
   const seconds = (person: number) => playingTime(person, set);
   const best = useMemo(() => (withPlayers ? bestPlayer() : null), [withPlayers]);
   const found = lines(contacts, match.people, group, dropped);
+  const earned = strengths(found, seconds, contacts, rallies, match.people);
   const team = found[found.length - 1].stats;
   const rows = found
     .filter((line) => withPlayers || line.id === 'total')
@@ -41,7 +43,7 @@ export function PlayersTable() {
       title: (tr: TFunction) => (line.id === 'rest' ? tr('players.rest') : line.id === 'total' ? groupName(tr, group) : (playerLabel(tr, line.id) ?? '')),
       stats: line.stats,
       tips: { between: pairs(t, dropped, line.stats.between) },
-      insights: typeof line.id === 'number' ? insights(line.stats, team) : undefined,
+      insights: typeof line.id === 'number' ? [...(earned.get(line.id) ?? []), ...insights(line.stats, team).filter((i) => !i.strength)] : undefined,
       badge: typeof line.id === 'number' && best && playerKey(line.id, match.people) === best.key ? <Mvp stats={best.stats} seconds={best.seconds} /> : undefined,
       seconds: typeof line.id === 'number' ? seconds(line.id) : undefined,
       total: line.id === 'total',

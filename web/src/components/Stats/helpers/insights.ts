@@ -35,6 +35,11 @@ export interface Insight {
   restN: number;
   restOf: number;
   picked: Contact[];
+  /** Told in words, without a comparison: `perMinute` its rate and the rest of the team's. */
+  told?: boolean;
+  perMinute?: [number, number];
+  /** `n` of `of` counts what the player does little of. */
+  lowerIsBetter?: boolean;
 }
 
 /** A player's strengths and things to work on, largest gap first: each rate of theirs MIN_TRIES
