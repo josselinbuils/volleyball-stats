@@ -126,10 +126,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   winner is the other team. Nothing trains on how rallies end yet: such training reads these answers. The rally's "Commentaire": the owner's note, in the review only
   (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field.
 - Open, most useful first:
-  1. Touches, on this Mac until it needs more power: the missed ones above, measured on the 129 checked
-     rallies. Being tested: WASB's input size and frame step (the 4K frames go down to 512x288 today);
-     closing whistles that cut a rally still in play. Then fine-tune the ball model on the RTX 5080 if
-     it still helps; the 43 false touches.
+  1. In progress (1 Nov), `docs/plan.md`: touches on this Mac, then the owner launches "Apprendre de mes
+     réponses" once told to (not before: it rewrites `actions.csv`); "Mon match" and "L'histoire du match"
+     on the page; the other page ideas.
   2. A second match, to hold out whole: everything is tuned on the first. Retrain the ranker and
      re-sweep `identity.SHARPEN` after its review.
   3. Rally ends and winners (checked winners 114 of 128): `rallies.whistled` as a fallback is in (held
