@@ -17,10 +17,12 @@ doubt, asked in the review. See benchmarks/attribution/README.md for the numbers
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 import numpy as np
 
+from volleyball_stats import files
 from volleyball_stats.actions import POSE_MODEL, Typed
 from volleyball_stats.players import Row
 
@@ -149,34 +151,54 @@ def wrist_distance(ball: tuple[float, float], box: Box, poses: list[list[tuple[B
     return min(found) / (box[3] - box[1]) if found else None
 
 
-def by_wrists(video: Path, typed: list[Typed], candidates: list[list[Candidate]], rows: list[Row], fps: float) -> list[list[Candidate]]:
+def by_wrists(video: Path, typed: list[Typed], candidates: list[list[Candidate]], rows: list[Row], fps: float, cache: Path | None = None) -> list[list[Candidate]]:
     """`candidates` reordered by the wrists for touches below the head (see WRIST_VETO); YOLO pose
-    on a crop around the ball. First ASPOM match: 97 -> 104 of the 135 touches answered."""
+    on a crop around the ball, kept in `cache` (JSON, by frame and ball place) for the next runs.
+    First ASPOM match: 97 -> 104 of the 135 touches answered."""
     import cv2
-    from ultralytics import YOLO
 
     by_track, gap = tracks(rows), round(GAP_S * fps)
-    model, cap, out = None, cv2.VideoCapture(str(video)), []
+    kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
+    model, cap, out = None, None, []
     for (frame, x, y, kind, _), found in zip(typed, candidates):
         if kind not in BELOW_HEAD or len(found) < 2:
             out.append(found)
             continue
-        model = model or YOLO(str(POSE_MODEL))
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame - 1)
-        poses = []
-        for _ in range(3):
-            ok, image = cap.read()
-            if not ok:
-                break
-            height, width = image.shape[:2]
-            side = min(round(POSE_CROP * height), width, height)
-            x0, y0 = min(max(0, x - side // 2), width - side), min(max(0, y - side // 2), height - side)
-            result = model.predict(image[y0:y0 + side, x0:x0 + side], imgsz=1280, conf=0.1, verbose=False)[0]
-            keypoints = result.keypoints.data.cpu().numpy() + np.array([x0, y0, 0])
-            poses.append([(tuple((b + np.array([x0, y0, x0, y0])).tolist()), k) for b, k in zip(result.boxes.xyxy.cpu().numpy(), keypoints)])
+        key = f"{frame}:{x}:{y}"
+        if key not in kept:
+            if model is None:
+                from ultralytics import YOLO
+
+                model, cap = YOLO(str(POSE_MODEL)), cv2.VideoCapture(str(video))
+            kept[key] = poses_at(model, cap, frame, x, y)
+        poses = [[(tuple(b), np.array(k)) for b, k in f] for f in kept[key]]
         out.append(wrist_order(found, {c[2]: wrist_distance((x, y), box_at(by_track[c[2]][1], frame, gap), poses) for c in found}))
-    cap.release()
+    if cap is not None:
+        cap.release()
+        if cache:
+            files.write_text(cache, json.dumps(kept, separators=(",", ":")))
     return out
+
+
+def poses_at(model, cap, frame: int, x: int, y: int) -> list[list[tuple[list[float], list[list[float]]]]]:
+    """YOLO pose on a crop around the ball (`x`, `y`) in frames `frame` - 1 to + 1: each frame's
+    boxes and 17 keypoints (x, y, confidence), in the frame's pixels."""
+    import cv2
+
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame - 1)
+    poses = []
+    for _ in range(3):
+        ok, image = cap.read()
+        if not ok:
+            break
+        height, width = image.shape[:2]
+        side = min(round(POSE_CROP * height), width, height)
+        x0, y0 = min(max(0, x - side // 2), width - side), min(max(0, y - side // 2), height - side)
+        result = model.predict(image[y0:y0 + side, x0:x0 + side], imgsz=1280, conf=0.1, verbose=False)[0]
+        keypoints = result.keypoints.data.cpu().numpy() + np.array([x0, y0, 0])
+        boxes = result.boxes.xyxy.cpu().numpy() + np.array([x0, y0, x0, y0])
+        poses.append([(np.round(b, 1).tolist(), np.round(k, 2).tolist()) for b, k in zip(boxes, keypoints)])
+    return poses
 
 
 def wrist_order(found: list[Candidate], wrists: dict[int, float | None]) -> list[Candidate]:

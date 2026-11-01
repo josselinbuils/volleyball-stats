@@ -1,5 +1,7 @@
+import json
+
 import numpy as np
-from volleyball_stats.attribution import CROSS_M, FAR, GAP_S, REACH, SIDE_M, WRIST_CONF, attribute, box_at, distance, gap_to_next, ranked, read_players, unreached, wrist_distance, wrist_order
+from volleyball_stats.attribution import CROSS_M, FAR, GAP_S, REACH, SIDE_M, WRIST_CONF, attribute, box_at, by_wrists, distance, gap_to_next, ranked, read_players, unreached, wrist_distance, wrist_order
 from volleyball_stats.players import Row, write_csv
 
 FPS = 30.0
@@ -141,3 +143,16 @@ class TestWristOrder:
 
         assert [c[2] for c in wrist_order(found, {1: None, 2: 0.05})] == [1, 2]
         assert [c[2] for c in wrist_order(found, {1: 0.6, 2: 0.7})] == [1, 2]
+
+
+class TestByWrists:
+    def test_poses_kept_in_the_cache_reorder_without_the_video(self, tmp_path):
+        rows = [Row(10, 1, (100.0, 200.0, 140.0, 300.0), 0.9, (120.0, 300.0), (-2.0, 0.0), "left"), Row(10, 2, (130.0, 200.0, 170.0, 300.0), 0.9, (150.0, 300.0), (-1.0, 0.0), "left")]
+        far, near = np.zeros((17, 3)), np.zeros((17, 3))
+        far[9], near[9] = (60, 250, 1.0), (151, 250, 1.0)
+        cache = tmp_path / "wrists.json"
+        cache.write_text(json.dumps({"10:135:250": [[[list(rows[0].box), far.tolist()], [list(rows[1].box), near.tolist()]]]}))
+
+        out = by_wrists(tmp_path / "none.mp4", [(10, 135, 250, "pass", "left")], [[(0.0, 0.0, 1), (0.0, 0.0, 2)]], rows, 50.0, cache)
+
+        assert [c[2] for c in out[0]] == [2, 1]

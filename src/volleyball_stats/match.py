@@ -303,7 +303,7 @@ def main() -> None:
         # A dead ball is one track nearest the ball touch after touch, whatever the wrists say.
         dead, _ = actions.mark_dead(typed, [c[0][2] if c else None for c in candidates], [rally_of(t[0], windows, lead) for t in typed])
         start = time.perf_counter()
-        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps)
+        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json")
         timings["wrists"] = time.perf_counter() - start
         touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
         typed = dead

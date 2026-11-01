@@ -85,7 +85,7 @@ def rerank(match: Path, asked: list[dict], truth: dict[int, tuple[int, int]], ta
     for r in table:
         by_track[r[0]].append(r)
     candidates = attribution.ranked(typed, rows, fps)
-    for name, found in (("ranked", candidates), *((("by_wrists", attribution.by_wrists(video, typed, candidates, rows, fps)),) if video else ())):
+    for name, found in (("ranked", candidates), *((("by_wrists", attribution.by_wrists(video, typed, candidates, rows, fps, match / "wrists.json")),) if video else ())):
         first, among, by_type = 0, 0, defaultdict(list)
         for t, c in zip(typed, found):
             ids = [identity.lookup(by_track[k], k, t[0]) for *_, k in c]
