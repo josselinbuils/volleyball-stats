@@ -456,20 +456,22 @@ def answers(match: Path, kind: str) -> list[dict]:
 
 
 def rewon(rallies: list[dict], winners: dict[int, int]) -> None:
-    """`rallies`' winners the review gave (`winners`, by their `key`); a set where one changed gets
-    its running score counted again from its winners."""
-    changed = set()
+    """`rallies`' winners the review gave (`winners`, by their `key`), then each set's running score
+    counted from its rallies' winners: the score the page shows adds up with the winners it shows
+    (first ASPOM match, 1 Nov: 9 points off the given scores, against 11 for points.csv's, which
+    adds the rallies it thinks were missed)."""
     for rally in rallies:
-        if rally["key"] in winners and rally["winner"] != winners[rally["key"]]:
+        if rally["key"] in winners:
             rally["winner"] = winners[rally["key"]]
-            changed.add(rally["set"])
+    # Without teams, no winner and no score.
+    if not any(rally["winner"] for rally in rallies):
+        return
     score: dict[int, list[int]] = {}
     for rally in rallies:
-        if rally["set"] in changed:
-            running = score.setdefault(rally["set"], [0, 0])
-            if rally["winner"]:
-                running[rally["winner"] - 1] += 1
-            rally["score"] = list(running)
+        running = score.setdefault(rally["set"], [0, 0])
+        if rally["winner"]:
+            running[rally["winner"] - 1] += 1
+        rally["score"] = list(running)
 
 
 def acted(found: list[dict], typed: list[dict], fixes: dict[int, dict]) -> None:
