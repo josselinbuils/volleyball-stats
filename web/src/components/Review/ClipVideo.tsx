@@ -22,10 +22,23 @@ const HOLD_MS = 250;
 const HOLD_RATE = 0.25;
 /** How much a pinch's wheel step (Ctrl + wheel, as browsers send a trackpad pinch) zooms. */
 const PINCH_SPEED = 0.01;
+/** Where the caption stands (its top centre, fractions of the video), as the user dragged it, kept
+ * in this browser; centred above the court until then. */
+const CAPTION_KEY = 'review.captionAt';
+const CAPTION_AT = { x: 0.5, y: 0.08 };
+
+function savedCaption(): { x: number; y: number } {
+  try {
+    const at = JSON.parse(localStorage.getItem(CAPTION_KEY) ?? 'null');
+    return typeof at?.x === 'number' && typeof at?.y === 'number' ? at : CAPTION_AT;
+  } catch {
+    return CAPTION_AT;
+  }
+}
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: centred over the top of the video, above the court, in its team's colour. */
+ * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. */
 export function ClipVideo({
   clip,
   width,
@@ -68,6 +81,26 @@ export function ClipVideo({
   // The part of the frame a pinch zoomed on, null for the automatic view.
   const [pinched, setPinched] = useState<View | null>(null);
   const frame = useRef<HTMLDivElement>(null);
+  const [captionAt, setCaptionAt] = useState(savedCaption);
+  const captionDrag = useRef<{ x: number; y: number; from: { x: number; y: number } } | null>(null);
+  const dragCaption = (event: PointerEvent) => {
+    const drag = captionDrag.current;
+    const r = frame.current?.getBoundingClientRect();
+    if (drag && r?.width) {
+      const clamp = (v: number) => Math.min(0.95, Math.max(0.02, v));
+      setCaptionAt({ x: clamp(drag.from.x + (event.clientX - drag.x) / r.width), y: clamp(drag.from.y + (event.clientY - drag.y) / r.height) });
+    }
+  };
+  const dropCaption = () => {
+    if (captionDrag.current) {
+      captionDrag.current = null;
+      try {
+        localStorage.setItem(CAPTION_KEY, JSON.stringify(captionAt));
+      } catch {
+        // Kept for this page only.
+      }
+    }
+  };
   // Loading the video resets its rate to the default one: both are set.
   useEffect(() => {
     if (video.current) {
@@ -257,7 +290,26 @@ export function ClipVideo({
           </svg>
         </div>
         {caption && (
-          <span className="pointer-events-none absolute top-[8%] left-1/2 z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
+          <span
+            title={t('review.captionMove')}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt };
+            }}
+            onPointerMove={dragCaption}
+            onPointerUp={dropCaption}
+            onPointerCancel={dropCaption}
+            onDoubleClick={() => {
+              setCaptionAt(CAPTION_AT);
+              try {
+                localStorage.removeItem(CAPTION_KEY);
+              } catch {
+                // Kept for this page only.
+              }
+            }}
+            style={{ left: `${captionAt.x * 100}%`, top: `${captionAt.y * 100}%` }}
+            className="absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
+          >
             <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
             <span className="truncate">{caption.text}</span>
           </span>

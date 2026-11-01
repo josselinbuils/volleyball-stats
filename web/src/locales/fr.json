@@ -384,7 +384,8 @@
     "fullScreen": "Plein écran",
     "exitFullScreen": "Quitter le plein écran",
     "wholeView": "Vue entière",
-    "pinchNote": "Pincez le pavé tactile sur la vidéo pour zoomer, glissez à deux doigts pour vous déplacer ; maintenez un clic pour la ralentir."
+    "pinchNote": "Pincez le pavé tactile sur la vidéo pour zoomer, glissez à deux doigts pour vous déplacer ; maintenez un clic pour la ralentir.",
+    "captionMove": "Glissez pour déplacer ; double-clic pour le remettre au centre"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
