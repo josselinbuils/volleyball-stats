@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Check, CircleCheck, CircleOff, CircleStop, Flag, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -67,7 +66,6 @@ export function ReportEditor({
   saved,
   comments,
   onComment,
-  actionsIn,
 }: {
   /** The moments viewers reported: their touches are flagged. */
   reports: { time: number }[];
@@ -98,8 +96,6 @@ export function ReportEditor({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
-  /** Where the buttons validating the rally go: under the video, always in view. */
-  actionsIn: HTMLElement | null;
 }) {
   const { t } = useTranslation();
   const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
@@ -379,22 +375,6 @@ export function ReportEditor({
 
   return (
     <>
-      {actionsIn &&
-        createPortal(
-          <div className="flex flex-wrap gap-2">
-            <Button className="h-auto min-h-9 flex-1 whitespace-normal" disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
-              <Check aria-hidden />
-              {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}
-            </Button>
-            {rally && checked.has(keyOf(here)) && (
-              <Button variant="outline" className="h-auto min-h-9 flex-1 whitespace-normal bg-card" onClick={() => onUncheck(keyOf(here))}>
-                <CircleOff aria-hidden />
-                {t('review.uncheckRally', { n: here + 1 })}
-              </Button>
-            )}
-          </div>,
-          actionsIn,
-        )}
       <div className="relative lg:self-stretch">
         <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -604,6 +584,19 @@ export function ReportEditor({
                 : []),
             ])}
           </ol>
+          {/* Pinned to the window's bottom while its place is below it. */}
+          <div className="sticky bottom-0 z-20 flex shrink-0 flex-wrap gap-2 bg-card pt-1 [:fullscreen_&]:bg-background">
+            <Button className="h-auto min-h-9 flex-1 whitespace-normal" disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
+              <Check aria-hidden />
+              {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}
+            </Button>
+            {rally && checked.has(keyOf(here)) && (
+              <Button variant="outline" className="h-auto min-h-9 flex-1 whitespace-normal bg-card" onClick={() => onUncheck(keyOf(here))}>
+                <CircleOff aria-hidden />
+                {t('review.uncheckRally', { n: here + 1 })}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       {rally && (
