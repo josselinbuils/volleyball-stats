@@ -62,7 +62,7 @@ export function MatchTab({
   // Checked, and no report open on it since.
   const open = new Set(reports.map((q) => q.rally));
   const green = new Set(checked.filter((k) => !open.has(k)));
-  // The video, its bar and the editor fill the screen, the video as large as its height allows.
+  // The video, its bar, the editor and the reports fill the screen, the video as large as its height allows.
   const block = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   useEffect(() => {
@@ -121,46 +121,46 @@ export function MatchTab({
             onChanges={(changes) => (latest.current = changes)}
             saved={saved}
           />
+          <section className="grid gap-2 lg:col-span-2" aria-labelledby="reports-title">
+            <h3 id="reports-title" className="text-base font-semibold">
+              {t('review.reportsTitle', { count: reports.length })}
+            </h3>
+            {reports.length === 0 && <p className="text-sm text-muted-foreground">{t('review.noReports')}</p>}
+            <ol className="grid gap-2">
+              {reports.map((q) => {
+                const at = q.reports?.[0]?.time ?? q.clip.start;
+                return (
+                  <li key={q.id} className="grid gap-2 rounded-md border-l-4 border-primary bg-muted/50 px-3 py-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start">
+                    <Button variant="outline" size="sm" className="justify-self-start bg-card tabular-nums" title={t('review.reportGo')} onClick={() => go(at - REPORT_LEAD_S, true)}>
+                      <Play aria-hidden className="fill-current" />
+                      {clock(at)}
+                    </Button>
+                    <div className="grid gap-1">
+                      {q.reports?.map((r, k) => (
+                        <p key={k} className="m-0">
+                          {r.kind?.startsWith('auto.') && <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{t('review.autoReport')}</span>}
+                          <span className="font-medium">{t(`feedback.kinds.${r.kind}`, { defaultValue: r.kind ?? '' })}</span>
+                          {r.shown && <span className="text-muted-foreground">{` · ${r.shown}`}</span>}
+                          {r.comment && <span>{` · « ${r.comment} »`}</span>}
+                        </p>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="justify-self-start bg-card"
+                      title={t('review.reportHandledNote')}
+                      onClick={() => void onHandled(q, latest.current).then(() => setRound((r) => r + 1))}
+                    >
+                      <Check aria-hidden />
+                      {t('review.reportHandled')}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
         </div>
-        <section className="grid gap-2" aria-labelledby="reports-title">
-          <h3 id="reports-title" className="text-base font-semibold">
-            {t('review.reportsTitle', { count: reports.length })}
-          </h3>
-          {reports.length === 0 && <p className="text-sm text-muted-foreground">{t('review.noReports')}</p>}
-          <ol className="grid gap-2">
-            {reports.map((q) => {
-              const at = q.reports?.[0]?.time ?? q.clip.start;
-              return (
-                <li key={q.id} className="grid gap-2 rounded-md border-l-4 border-primary bg-muted/50 px-3 py-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start">
-                  <Button variant="outline" size="sm" className="justify-self-start bg-card tabular-nums" title={t('review.reportGo')} onClick={() => go(at - REPORT_LEAD_S, true)}>
-                    <Play aria-hidden className="fill-current" />
-                    {clock(at)}
-                  </Button>
-                  <div className="grid gap-1">
-                    {q.reports?.map((r, k) => (
-                      <p key={k} className="m-0">
-                        {r.kind?.startsWith('auto.') && <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{t('review.autoReport')}</span>}
-                        <span className="font-medium">{t(`feedback.kinds.${r.kind}`, { defaultValue: r.kind ?? '' })}</span>
-                        {r.shown && <span className="text-muted-foreground">{` · ${r.shown}`}</span>}
-                        {r.comment && <span>{` · « ${r.comment} »`}</span>}
-                      </p>
-                    ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="justify-self-start bg-card"
-                    title={t('review.reportHandledNote')}
-                    onClick={() => void onHandled(q, latest.current).then(() => setRound((r) => r + 1))}
-                  >
-                    <Check aria-hidden />
-                    {t('review.reportHandled')}
-                  </Button>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
       </CardContent>
     </Card>
   );
