@@ -219,8 +219,13 @@ ADDED_NEAR_S = 1.0
 ADDED_SAME_S, ADDED_FLOOR_S = 0.4, 0.2
 
 
+def said_teams(match: Path) -> dict[int, int]:
+    """The team the review's last `touch` answer on each touch gave it, by frame."""
+    return {a["frame"]: a["team"] for a in answers(match, "touch")}
+
+
 def with_added(
-    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0, lead: int = 0
+    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0, lead: int = 0, said: dict[int, int] | None = None
 ) -> tuple[list[tuple[int, int]], list[dict]]:
     """The rally windows and actions CSV rows `typed` with the touches the review added (`added`
     answers: the window's start, frame, team, type): a row each, at the ball's place seen nearest it
@@ -229,7 +234,8 @@ def with_added(
     missed) starts at it. One in a window gone or at a frame already found is left out; a row found
     within `same` frames of one, of its team, or within `floor` frames, a floor or net, is that touch
     found again (a rerun) and goes, the added touch taking its window (started `lead` frames early):
-    a rerun moves the windows the answers named."""
+    a rerun moves the windows the answers named. A row's team is the one the review `said` (by frame), else
+    its own. A playing fault is no touch of the ball: none goes for it."""
     starts = {start: k for k, (start, _) in enumerate(windows)}
     known = {int(r["frame"]) for r in typed}
     # A touch added twice: the last answer's.
@@ -239,7 +245,8 @@ def with_added(
         return windows, typed
 
     def same_touch(r: dict, a: dict) -> bool:
-        return abs(int(r["frame"]) - a["frame"]) <= (floor if r["type"] in NO_PLAYER else same if r.get("team") == str(a["team"]) else -1)
+        team = str((said or {}).get(int(r["frame"]), r.get("team")))
+        return a["type"] != "fault" and abs(int(r["frame"]) - a["frame"]) <= (floor if r["type"] in NO_PLAYER else same if team == str(a["team"]) else -1)
 
     # Each added touch's window: that of the row it replaces, else the one its answer named.
     window = {}
@@ -659,7 +666,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     added = answers(match, "added")
     kept = [{"start": start, **t} for start, touches in locks.items() if touches for t in touches]
     windows, actions = with_added(
-        ended(windows, answers(match, "end")), rally_rows, actions, kept + added, match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead
+        ended(windows, answers(match, "end")), rally_rows, actions, kept + added, match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead, said_teams(match)
     )
     allowed = {t["frame"] for t in kept} | {a["frame"] for a in added}
     shut = [(a - lead, b) for (a, b), row in zip(windows, rally_rows) if locks.get(int(row["start_frame"]))]

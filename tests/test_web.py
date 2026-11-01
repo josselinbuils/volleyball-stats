@@ -342,6 +342,29 @@ class TestWithAdded:
             ("380", "set", "left", "", ""),
         ]
 
+    def test_a_touch_goes_for_one_added_near_it_by_the_team_the_review_gave_it(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n")
+        typed = [{"frame": "120", "type": "attack", "team": "2"}]
+        block = [{"start": 100, "frame": 126, "team": 2, "type": "block"}]
+
+        _, rows = with_added([(100, 200)], [{"left": "2"}], typed, block, ball, 5, 20, 10)
+        assert [r["type"] for r in rows] == ["block"]
+
+        # The attack is the other team's: the block does not take its place.
+        _, rows = with_added([(100, 200)], [{"left": "2"}], typed, block, ball, 5, 20, 10, said={120: 1})
+        assert [r["type"] for r in rows] == ["attack", "block"]
+
+    def test_a_playing_fault_added_replaces_no_touch_found_near_it(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n")
+        typed = [{"frame": "120", "type": "dig", "team": "1"}, {"frame": "125", "type": "floor"}]
+        added = [{"start": 100, "frame": 110, "team": 1, "type": "fault"}]
+
+        _, rows = with_added([(100, 200)], [{"left": "2"}], typed, added, ball, 5, 20, 10)
+
+        assert [(r["frame"], r["type"]) for r in rows] == [("110", "fault"), ("120", "dig"), ("125", "floor")]
+
     def test_a_touch_added_twice_is_the_last_answers(self, tmp_path):
         added = [{"start": 100, "frame": 150, "team": 1, "type": "pass"}, {"start": 100, "frame": 150, "team": 2, "type": "dig"}]
 
