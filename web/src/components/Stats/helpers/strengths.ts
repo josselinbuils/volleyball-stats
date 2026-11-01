@@ -1,12 +1,11 @@
 import type { Contact, Person, Rally } from '@/lib/match';
-import { isTouch } from '@/helpers/contacts';
 import { playerKey } from '@/helpers/players';
 import { scoresBefore, setAttacks } from '@/helpers/plays';
 import { insights, type Insight } from '@/components/Stats/helpers/insights';
 import type { Line, Stats } from '@/components/Stats/helpers/stats';
 
 // At most this many strengths a player shows, the rarest in their team first.
-const SHOWN = 4;
+const SHOWN = 3;
 // A rate counts from this many attempts on both sides and this far above the rest of the team.
 const TRIES = 5;
 const GAP = 0.1;
@@ -16,22 +15,17 @@ const PRESENCE: { key: string; of: (s: Stats) => Contact[]; least: number; above
   { key: 'allBalls', of: (s) => s.touches, least: 20, above: 1.15 },
   { key: 'alwaysDefending', of: (s) => s.digs, least: 6, above: 1.3 },
   { key: 'teamLink', of: (s) => s.sets, least: 5, above: 1.5 },
-  { key: 'atTheNet', of: (s) => s.blocks, least: 4, above: 1.5 },
-  { key: 'onReception', of: (s) => s.receptions, least: 5, above: 1.3 },
-  { key: 'attackOption', of: (s) => s.attacks, least: 6, above: 1.3 },
 ];
 const ASSISTS_FROM = 3;
 const BLOCK_POINTS_FROM = 2;
 const LATE_FROM = 2;
 const SCORER_FROM = 5;
-const LONG_FROM = 5;
-// A rally this long is a long one; a point from this score, this close, is one when it counts.
-const LONG_RALLY = 8;
+// A point from this score, this close, is one when it counts.
 const LATE_SCORE = 20;
 const CLOSE = 2;
 // Playing all around: this many kinds of touch, this many times each.
 const KINDS: ((s: Stats) => Contact[])[] = [(s) => s.receptions, (s) => s.sets, (s) => s.attacks, (s) => s.digs, (s) => s.blocks, (s) => s.relances];
-const VERSATILE_KINDS = 4;
+const VERSATILE_KINDS = 5;
 const VERSATILE_EACH = 3;
 const STEADY_TOUCHES = 20;
 const STEADY_RATIO = 0.6;
@@ -58,16 +52,13 @@ function clean(key: string, s: Stats, team: Stats, of: (x: Stats) => Contact[], 
 export function strengths(found: Line[], seconds: (person: number) => number, contacts: Contact[], rallies: Rally[], people: Record<string, Person>): Map<number, Insight[]> {
   const team = found[found.length - 1].stats;
   const players = found.filter((l): l is Line & { id: number } => typeof l.id === 'number');
-  const byIndex = new Map(rallies.map((r) => [r.i, r]));
   const before = scoresBefore(rallies);
   const kills = setAttacks(contacts).filter(({ attack }) => attack.result === 'point');
   const teamSeconds = players.reduce((sum, l) => sum + seconds(l.id), 0);
-  const won = (c: Contact) => byIndex.get(c.rally)?.winner === c.g;
   const late = (c: Contact) => {
     const was = before.get(c.rally);
     return was !== undefined && Math.max(...was) >= LATE_SCORE && Math.abs(was[0] - was[1]) <= CLOSE;
   };
-  const isLong = (c: Contact) => (byIndex.get(c.rally)?.contacts.filter(isTouch).length ?? 0) >= LONG_RALLY;
   const most = (value: (s: Stats) => number) => Math.max(...players.map((l) => value(l.stats)));
 
   const all = new Map(
@@ -104,39 +95,16 @@ export function strengths(found: Line[], seconds: (person: number) => number, co
           (x) => x.attackFaults,
         ),
       );
-      earned.push(
-        clean(
-          'safeReceptions',
-          s,
-          team,
-          (x) => x.receptions,
-          (x) => x.missed,
-        ),
-      );
-      earned.push(
-        clean(
-          'safeRelances',
-          s,
-          team,
-          (x) => x.relances,
-          (x) => x.relanceFaults,
-        ),
-      );
       const restTouches = team.touches.length - s.touches.length;
       const restFaults = team.faults.length - s.faults.length;
       if (s.touches.length >= STEADY_TOUCHES && restTouches > 0 && s.faults.length / s.touches.length <= (STEADY_RATIO * restFaults) / restTouches) {
         const good = s.touches.filter((c) => !s.faults.includes(c));
         earned.push({ key: 'steady', strength: true, n: s.faults.length, of: s.touches.length, restN: restFaults, restOf: restTouches, picked: good, lowerIsBetter: true });
       }
-      // What their serves do.
-      const servesWon = s.serves.filter(won);
-      earned.push(rated('serveWins', servesWon.length, s.serves.length, team.serves.filter(won).length - servesWon.length, team.serves.length - s.serves.length, servesWon));
+      // How hard their serves are to take.
       const tough = (x: Stats) => x.serveRated.length - x.serveFair.length - x.serveEasy.length - x.serveFaults.length;
       const toughOnes = s.serveRated.filter((c) => !s.serveFair.includes(c) && !s.serveEasy.includes(c) && !s.serveFaults.includes(c));
       earned.push(rated('toughServes', tough(s), s.serveRated.length, tough(team) - tough(s), team.serveRated.length - s.serveRated.length, toughOnes, TOUGH_GAP));
-      // Digs the team went on to win from.
-      const digsWon = s.digs.filter(won);
-      earned.push(rated('digsWon', digsWon.length, s.digs.length, team.digs.filter(won).length - digsWon.length, team.digs.length - s.digs.length, digsWon));
       // What they give the others.
       const given = kills.filter(({ set, attack }) => playerKey(set.person, people) === key && playerKey(attack.person, people) !== key).map(({ attack }) => attack);
       if (given.length >= ASSISTS_FROM) {
@@ -152,11 +120,6 @@ export function strengths(found: Line[], seconds: (person: number) => number, co
       const clutch = s.points.filter(late);
       if (clutch.length >= LATE_FROM) {
         earned.push(counted('clutch', clutch));
-      }
-      // Long rallies, and playing all around.
-      const long = s.touches.filter(isLong);
-      if (long.length >= LONG_FROM && long.length === most((x) => x.touches.filter(isLong).length)) {
-        earned.push(counted('longRallies', long));
       }
       const kinds = KINDS.filter((of) => of(s).length >= VERSATILE_EACH).length;
       if (kinds >= VERSATILE_KINDS) {

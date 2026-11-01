@@ -103,18 +103,18 @@ describe('strengths', () => {
     expect(keys(of(contacts), 3)).not.toContain('topScorer');
   });
 
-  it('calls a player all-round from 4 kinds of touch, 3 times each', () => {
-    const kinds: Contact['type'][] = ['pass', 'set', 'attack', 'dig'];
+  it('calls a player all-round from 5 kinds of touch, 3 times each', () => {
+    const kinds: Contact['type'][] = ['pass', 'set', 'attack', 'dig', 'relance'];
     const contacts = kinds.flatMap((type, n) => times(3, (k) => touch(k + 10 * n, type, 1)));
     expect(
       of(contacts)
         .get(1)
         ?.find((i) => i.key === 'versatile'),
-    ).toMatchObject({ n: 4 });
+    ).toMatchObject({ n: 5 });
     expect(keys(of(contacts.slice(1)))).not.toContain('versatile');
   });
 
-  it('shows the rarest in the team first, 4 at most', () => {
+  it('shows the rarest in the team first, 3 at most', () => {
     const contacts = [
       ...times(6, (k) => touch(k, 'attack', 1, 'point')),
       ...times(2, (k) => touch(k, 'block', 1, 'point'), 50),
@@ -124,7 +124,7 @@ describe('strengths', () => {
     ];
     const found = keys(of(contacts));
     expect(found.indexOf('topScorer')).toBeLessThan(found.indexOf('blockPoints'));
-    expect(found.length).toBeLessThanOrEqual(4);
+    expect(found.length).toBeLessThanOrEqual(3);
   });
 
   it('gives no one a strength for nothing', () => {

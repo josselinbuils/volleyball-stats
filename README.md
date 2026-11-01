@@ -425,11 +425,11 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 - "Bilan": points, faults, and "Entre deux": the balls that landed in untouched within 2.5 m of two
   teammates about as close as each other, the pair on hover.
 
-Its "Analyse" group lists each player's things to work on and, the rarest in their team first, four strengths at most:
+Its "Analyse" group lists each player's things to work on and, the rarest in their team first, three strengths at most:
 the rates at least 20 points above the rest of their team's; how present they are for their time on the court (on every ball,
-in defence, on reception, in attack, setting, at the net); how reliable (serve, attack, reception, free balls, few faults); what
-their serves and digs bring; assists, winning blocks, points when the score is high and close, long rallies, the most points in
-the team, and playing all around. Each is earned from a minimum, from 5 attempts on each side for a rate; no one gets one for nothing.
+in defence, setting); how reliable (serve, attack, few faults); tough serves; assists, winning blocks, points when the score is
+high and close, the most points in the team, and playing all around. Each is earned from a minimum, from 5 attempts on each side
+for a rate, so a player can have none.
 
 "Mon match" shows the picked player's FIFA-style card, with their picture from the
 video (`site/players/`: the clearest moment of their longest stretch on court, 3 wide for 4 tall).
