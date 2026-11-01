@@ -181,7 +181,6 @@
   "review": {
     "title": "Check the players",
     "intro": "Tracking is unsure about these players: say who is outlined in yellow. Each answer fixes the numbers for the whole match; the questions that matter most come first.",
-    "matchIntro": "The whole match, to correct its actions: the bar under the video shows each rally (the colour of the team winning it along its bottom), each touch and, in red, each viewer's report. Click it to go to a moment. On the right, the touches around the video: correct, add (video stopped at the right moment) or remove, then save; nothing changes on the page before “Apply”. Correct the touches around the video, then “Validate rally”: the rally the video is in turns green and its reports are handled. A new report on the rally turns it back to normal.",
     "matchPage": "See the match page",
     "undo": "Undo the last answer",
     "changePhoto": "Change their card's picture",

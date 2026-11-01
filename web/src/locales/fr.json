@@ -181,7 +181,6 @@
   "review": {
     "title": "Vérifier les joueurs",
     "intro": "Le suivi hésite sur ces joueurs : dites qui est entouré en jaune. Chaque réponse corrige les numéros pour tout le match ; les questions qui comptent le plus viennent en premier.",
-    "matchIntro": "Tout le match pour corriger les actions : la barre sous la vidéo montre chaque échange (la couleur de l'équipe qui le gagne en bas), chaque touche et, en rouge, chaque signalement des spectateurs. Cliquez dessus pour aller à un moment. À droite, les touches autour de la vidéo : corrigez, ajoutez (vidéo arrêtée au bon moment) ou retirez, puis enregistrez ; rien ne change sur la page avant « Appliquer ». Corrigez les touches autour de la vidéo, puis « Valider l'échange » : l'échange où se trouve la vidéo passe en vert et ses signalements sont traités. Un nouveau signalement sur l'échange le fait repasser en normal.",
     "matchPage": "Voir la page du match",
     "undo": "Annuler la dernière réponse",
     "changePhoto": "Changer la photo de sa carte",

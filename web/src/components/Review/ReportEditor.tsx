@@ -377,6 +377,19 @@ export function ReportEditor({
     <>
       <div className="relative lg:self-stretch">
         <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
+          {/* Above the list that scrolls: always in view, in full screen too. */}
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button className="h-auto min-h-9 flex-1 whitespace-normal" disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
+              <Check aria-hidden />
+              {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}
+            </Button>
+            {rally && checked.has(keyOf(here)) && (
+              <Button variant="outline" className="h-auto min-h-9 flex-1 whitespace-normal bg-card" onClick={() => onUncheck(keyOf(here))}>
+                <CircleOff aria-hidden />
+                {t('review.uncheckRally', { n: here + 1 })}
+              </Button>
+            )}
+          </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
               <Plus aria-hidden />
@@ -647,18 +660,6 @@ export function ReportEditor({
           <RallyComment key={rally.key} text={comments[rally.key] ?? ''} onFocus={() => onPause(timeOf())} onSave={(text) => onComment(rally.key, text)} />
         </div>
       )}
-      <div className="flex flex-wrap gap-2 lg:col-span-2">
-        <Button disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
-          <Check aria-hidden />
-          {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}
-        </Button>
-        {rally && checked.has(keyOf(here)) && (
-          <Button variant="outline" className="bg-card" onClick={() => onUncheck(keyOf(here))}>
-            <CircleOff aria-hidden />
-            {t('review.uncheckRally', { n: here + 1 })}
-          </Button>
-        )}
-      </div>
     </>
   );
 }
