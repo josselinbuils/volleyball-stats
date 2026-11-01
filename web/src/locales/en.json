@@ -388,7 +388,8 @@
     "exitFullScreen": "Exit full screen",
     "wholeView": "Whole view",
     "pinchNote": "Pinch the trackpad over the video to zoom, slide two fingers to move around; hold a click to slow it down.",
-    "captionMove": "Drag to move; double-click to centre it again"
+    "captionMove": "Drag to move; double-click to centre it again",
+    "updateRally": "Update rally {{n}}"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",

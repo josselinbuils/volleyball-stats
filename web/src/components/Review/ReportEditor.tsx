@@ -471,7 +471,7 @@ export function ReportEditor({
       <div className="flex flex-wrap gap-2 lg:col-span-2">
         <Button disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
           <Check aria-hidden />
-          {t('review.validateRally', { n: here + 1 })}
+          {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}
         </Button>
         {rally && checked.has(keyOf(here)) && (
           <Button variant="outline" className="bg-card" onClick={() => onUncheck(keyOf(here))}>

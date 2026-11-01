@@ -388,7 +388,8 @@
     "exitFullScreen": "Quitter le plein écran",
     "wholeView": "Vue entière",
     "pinchNote": "Pincez le pavé tactile sur la vidéo pour zoomer, glissez à deux doigts pour vous déplacer ; maintenez un clic pour la ralentir.",
-    "captionMove": "Glissez pour déplacer ; double-clic pour le remettre au centre"
+    "captionMove": "Glissez pour déplacer ; double-clic pour le remettre au centre",
+    "updateRally": "Mettre à jour l'échange {{n}}"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
