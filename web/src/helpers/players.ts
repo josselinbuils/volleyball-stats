@@ -26,6 +26,46 @@ export function playersAt(players: Players, fps: number, time: number): { person
   return [...seen.values()];
 }
 
+const capital = (letters: string[]) => letters.map((l, k) => (k ? l : l.toLocaleUpperCase())).join('');
+
+/** Each name's initials, one letter a word; names that would share them take more letters of their first word. */
+export function initials(names: string[]): Map<string, string> {
+  const words = (name: string) =>
+    name
+      .trim()
+      .split(/[\s-]+/)
+      .filter(Boolean)
+      .map((w) => [...w]);
+  const mark = (name: string, n: number) => {
+    const [first, ...rest] = words(name);
+    return capital(first.slice(0, n)) + rest.map((w) => w[0].toLocaleUpperCase()).join('');
+  };
+  const different = [...new Set(names)].filter((name) => words(name).length);
+  return new Map(
+    different.map((name) => {
+      let n = 1;
+      while (n < words(name)[0].length && different.some((o) => o !== name && mark(o, n) === mark(name, n))) {
+        n += 1;
+      }
+      return [name, mark(name, n)];
+    }),
+  );
+}
+
+/** What each player shows on a dot or a shirt, by key in `people`: their jersey number, else their initials, which
+ * no jersey can clash with and which part them from their team's other players without a jersey, else their number
+ * for the match; null for a track that is no identified player. */
+export function playerMarks(people: Record<string, Person>): Record<string, string | null> {
+  const without = (team: number) => Object.values(people).flatMap((p) => (p.team === team && p.jersey == null && p.name ? [p.name] : []));
+  const byTeam = new Map([1, 2].map((team) => [team, initials(without(team))]));
+  return Object.fromEntries(
+    Object.entries(people).map(([key, p]) => {
+      const known = p.jersey ?? (p.name ? byTeam.get(p.team)?.get(p.name) : null) ?? p.number;
+      return [key, known == null ? null : String(known)];
+    }),
+  );
+}
+
 /** A player: their team and name, else jersey number, else number for the match, which is each
  * identity's own. The identities the user gave one name or jersey number share it. Null for a track
  * that is no identified player. */

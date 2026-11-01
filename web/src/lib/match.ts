@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { playerMarks } from '@/helpers/players';
 
 /** `fault`: a playing fault, made without the ball (net, centre line, rotation); only the review adds it. */
 export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault', 'floor', 'net'] as const;
@@ -28,7 +29,7 @@ export interface Contact {
   result: Result;
   /** Key of the attributed player in `match.people`. */
   person: number | null;
-  /** The number that player shows. */
+  /** That player's jersey number, else their number for the match. */
   player: number | null;
   /** That player's name, when the user gave one. */
   name: string | null;
@@ -220,7 +221,14 @@ export function groupName(t: TFunction, g: Group): string {
   return teams[g - 1].name ?? t('team', { n: g });
 }
 
-/** The number a player shows: their jersey number when known, else their number for the match. */
+const marks = playerMarks(data.people);
+
+/** What a player shows on a dot, a badge or a shirt (`playerMarks`). */
+export function playerMark(person: number | null): string | null {
+  return person === null ? null : (marks[person] ?? null);
+}
+
+/** A player's jersey number when known, else their number for the match. */
 export function playerNumber(person: number | null): number | null {
   if (person === null) {
     return null;

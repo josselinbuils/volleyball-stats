@@ -140,13 +140,11 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      automatically (asked, not started).
   5. A copy of the source video (see Backup): it has none, and the answers rest on its frames.
   6. Node.js and library updates on the owner's services (offered by the owner, not done).
-  7. Names: a player without a jersey shows their tracking number (Sylvain: 10), which can clash with
-     real jerseys: show initials instead? (Théo and Maeva sharing 10 is right.)
-  8. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
+  7. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
-  9. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  10. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
+  8. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+  9. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
 
 ## Hosting
 

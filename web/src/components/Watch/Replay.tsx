@@ -4,7 +4,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
-import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerNumber, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerMark, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { playersAt } from '@/helpers/players';
 import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
@@ -122,7 +122,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
                 y,
                 jump: rally ? jumpAt(rally.contacts, person, time) : 0,
                 team: match.people[person]?.team ?? 1,
-                label: String(playerNumber(person) ?? ''),
+                label: playerMark(person) ?? '',
                 tip: person === hover ? (tip ?? undefined) : undefined,
               })),
               ball: rally ? ball3dAt(rally.contacts, time) : null,
@@ -147,13 +147,13 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
           >
             {dots.map(({ person, x, y }) => {
               const team = match.people[person]?.team ?? 1;
-              const n = playerNumber(person);
+              const mark = playerMark(person);
               return (
                 <g key={person} onPointerEnter={() => setHover(person)} onPointerLeave={() => setHover((h) => (h === person ? null : h))}>
                   <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} stroke={teamEdge(team)} />
-                  {n !== null && (
+                  {mark !== null && (
                     <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>
-                      {n}
+                      {mark}
                     </text>
                   )}
                 </g>

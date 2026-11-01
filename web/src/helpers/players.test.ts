@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { playerKey, playersAt } from '@/helpers/players';
+import { initials, playerKey, playerMarks, playersAt } from '@/helpers/players';
 
 describe('playersAt', () => {
   const players = { step: 3, samples: [[], [4, 1, 2], [4, 3, 4, 9, 5, 6]] };
@@ -52,5 +52,46 @@ describe('playerKey', () => {
 
   it('has none for a track without identity', () => {
     expect([playerKey(7, people), playerKey(null, people), playerKey(99, people)]).toEqual([null, null, null]);
+  });
+});
+
+describe('initials', () => {
+  it('takes a letter a word', () => {
+    expect(initials(['Sylvain', 'jean-luc', 'Anne Marie Dupont'])).toEqual(
+      new Map([
+        ['Sylvain', 'S'],
+        ['jean-luc', 'JL'],
+        ['Anne Marie Dupont', 'AMD'],
+      ]),
+    );
+  });
+
+  it('parts names sharing them with more letters, only as many as they need', () => {
+    expect(initials(['Manon', 'Milenka', 'Marie', 'Pierre'])).toEqual(
+      new Map([
+        ['Manon', 'Man'],
+        ['Milenka', 'Mi'],
+        ['Marie', 'Mar'],
+        ['Pierre', 'P'],
+      ]),
+    );
+  });
+
+  it('gives a name repeated one mark, keeps its accents and skips an empty one', () => {
+    expect(initials(['Élodie', 'Élodie', ' '])).toEqual(new Map([['Élodie', 'É']]));
+  });
+});
+
+describe('playerMarks', () => {
+  const player = (team: 1 | 2, number: number | null, name: string | null, jersey: number | null = null) => ({ team, number, name, jersey });
+
+  it('shows the jersey, else initials, else the number for the match', () => {
+    const marks = playerMarks({ 0: player(1, 1, 'Théo', 10), 1: player(1, 2, 'Sylvain'), 2: player(1, 3, null), 3: player(1, null, null), 4: player(1, 4, null, 7) });
+    expect(marks).toEqual({ 0: '10', 1: 'S', 2: '3', 3: null, 4: '7' });
+  });
+
+  it('parts initials within a team only, and not from a player with a jersey', () => {
+    const marks = playerMarks({ 0: player(1, 1, 'Laure'), 1: player(1, 2, 'Loick'), 2: player(2, 3, 'Lea'), 3: player(1, 4, 'Lucie', 5) });
+    expect(marks).toEqual({ 0: 'La', 1: 'Lo', 2: 'L', 3: '5' });
   });
 });

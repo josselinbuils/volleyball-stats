@@ -7,7 +7,7 @@ import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/format';
 import { CARD_SHADE } from '@/helpers/colors';
-import { groupName, match, playerLabel, playerNumber, teamColor, type Contact, type Group } from '@/lib/match';
+import { groupName, match, playerLabel, playerMark, teamColor, type Contact, type Group } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { cardPicture, SHIELD } from '@/components/Stats/helpers/cardPicture';
@@ -117,7 +117,7 @@ export function PlayerCard({ id, row: r, g, mvp }: CardProps) {
               />
               <div className="relative flex min-h-0 flex-1 gap-2 px-[9%] pt-[13%]">
                 <div className="grid content-start justify-items-center gap-1.5 pt-2">
-                  <span className="text-5xl leading-none font-black tabular-nums">{playerNumber(r.key)}</span>
+                  <span className="text-5xl leading-none font-black tabular-nums">{playerMark(r.key)}</span>
                   <span className="max-w-16 text-center text-[10px] leading-tight font-bold uppercase">{groupName(t, g)}</span>
                   {mvp && <Mvp stats={mvp.stats} seconds={mvp.seconds} className="mt-1" />}
                 </div>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
-import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasTeams, match, playerLabel, playerMark, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { playerKey } from '@/helpers/players';
 import { useSet } from '@/lib/sets';
 import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
@@ -92,7 +92,7 @@ export function PlayersTable() {
   );
 }
 
-/** A player's number in their team's colour, and their name. */
+/** A player's mark in their team's colour, and their name. */
 function Who({ person, g }: { person: number; g: Group }) {
   const { t } = useTranslation();
   return (
@@ -102,7 +102,7 @@ function Who({ person, g }: { person: number; g: Group }) {
         className="inline-grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold"
         style={{ background: teamColor(g), color: `var(--team${g}-text)`, boxShadow: `inset 0 0 0 1.5px ${teamRing(g)}` }}
       >
-        {playerNumber(person)}
+        {playerMark(person)}
       </span>
       <span className="break-words">{playerLabel(t, person)}</span>
     </span>

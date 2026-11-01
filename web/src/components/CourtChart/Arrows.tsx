@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { color, teamColor, teamEdge, type Contact, type Placed } from '@/lib/match';
+import { color, playerMark, teamColor, teamEdge, type Contact, type Placed } from '@/lib/match';
 import type { Arrow } from '@/components/CourtChart/helpers/arrows';
 import { SvgButton } from '@/components/CourtChart/SvgButton';
 
@@ -48,15 +48,16 @@ export function Arrows({ arrows, describe, onPlay }: { arrows: Arrow[]; describe
   );
 }
 
-/** A player's dot in their team's colour, with their number when known and their name on hover. */
+/** A player's dot in their team's colour, with their mark when known and their name on hover. */
 function Dot({ c }: { c: Placed }) {
+  const mark = playerMark(c.person);
   return (
     <g>
       {c.name && <title>{c.name}</title>}
       <circle cx={c.x} cy={c.y} className="dot-mark" fill={teamColor(c.g)} stroke={teamEdge(c.g)} />
-      {c.player !== null && (
+      {mark !== null && (
         <text x={c.x} y={c.y} className="dot-text" fill={`var(--team${c.g}-text)`}>
-          {c.player}
+          {mark}
         </text>
       )}
     </g>

@@ -63,7 +63,7 @@ function badge(text: string, background: string, color: string): THREE.Sprite {
   g.font = 'bold 64px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(text, 64, 68);
+  g.fillText(text, 64, 68, 104);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false }));
   sprite.scale.set(0.55, 0.55, 1);
   sprite.renderOrder = 2;
@@ -186,7 +186,7 @@ function shirtNumber(text: string, color: string): THREE.MeshBasicMaterial {
   g.font = 'bold 92px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(text, 64, 70);
+  g.fillText(text, 64, 70, 120);
   return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true });
 }
 

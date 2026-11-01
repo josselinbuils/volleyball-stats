@@ -162,7 +162,7 @@
   "clubSite": "{{name}} website (new tab)",
   "loadingPlayers": "Loading players…",
   "numbersNote": "Each number is the same player for the whole match, until the players are named.",
-  "numbersNoteNamed": "Each number is the same player for the whole match; hover over it to see their name.",
+  "numbersNoteNamed": "Each number or set of initials is the same player for the whole match; hover over it to see their name.",
   "player": "player {{n}}",
   "onTheLeft": "{{team}} on the left",
   "sidesSet": "Seen from the camera, each team on the half it played on.",

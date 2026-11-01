@@ -162,7 +162,7 @@
   "clubSite": "Site du club {{name}} (nouvel onglet)",
   "loadingPlayers": "Chargement des positions…",
   "numbersNote": "Chaque numéro désigne le même joueur ou la même joueuse pendant tout le match, en attendant que l'équipe soit nommée.",
-  "numbersNoteNamed": "Chaque numéro désigne le même joueur ou la même joueuse pendant tout le match ; survolez-le pour voir son nom.",
+  "numbersNoteNamed": "Chaque numéro ou initiale désigne le même joueur ou la même joueuse pendant tout le match ; survolez-le pour voir son nom.",
   "player": "Joueur {{n}}",
   "onTheLeft": "{{team}} à gauche",
   "sidesSet": "Vu depuis la caméra, chaque équipe sur la moitié où elle a joué.",

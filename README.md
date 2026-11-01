@@ -359,7 +359,8 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
 - The video player skips 10 s back or forward.
 - Beside it, the court seen from above follows the play: the players, the ball with a trail as long
   as it is fast, and a ring around the player touching it.
-- Each player keeps one number for the whole match: their jersey number and name once named.
+- Each player keeps one mark for the whole match: their number, then once named their jersey number, or without one
+  their initials (two letters when two teammates without a jersey share one).
 - **3D view:** a switch turns the court into a 3D scene to turn around with the pointer (three.js, in
   its own `scene3d.js` loaded only then):
   - the players as figures jumping to attack and block;
