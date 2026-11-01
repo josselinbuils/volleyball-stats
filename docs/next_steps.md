@@ -71,6 +71,30 @@ Left:
    checked rallies.
 3. Asked of the owner: validate whole rallies (the unbiased labels) more than single questions.
 
+## Later on 1 Nov (page and review)
+
+- Page: a touch the rally goes on after is no fault (let serves: serve faults 24 -> 15 on the first
+  match); the running score counts the rally winners; a rally goes to the team serving the next
+  one within `web.NEXT_SERVE_S` 40 s (set scores 9 -> 5 points off the given 25-23, 25-12, 25-18).
+- `rekey` moves a no play, winner or end answer only onto a window that is mostly its rally: 3 real
+  rallies had been dropped (put back by hand, `identity_answers.before-noplay-fix.json`).
+- Relances: `ABOVE, LIFT = 0.03, 0.6` (6 of the owner's 8 relances, 2 of 24 checked attacks; school
+  labels unchanged). In the first match's outputs at the next "Apprendre de mes réponses".
+- Review: live warnings in the editor (`helpers/checks.ts`, the automatic reports' rules, the
+  winner taken from a last touch's fault or point), "Charger les signalements"
+  (`feedback.fetch`), the next rally played once one is checked, full screen, pinch zoom, a held
+  click slowing the video, a draggable caption.
+
+Checked and left as they are (1 Nov): the rally rules on the 4K spans and the school clips
+(`WHISTLE_AFTER_S` 1 or 3, `MOTION_BRIDGE_S` 1 or 3, `LIVE_SPEED` 10 or 20: none gains; 26:00-36:00
+F1 ±1 s 0.90, 50:00-60:00 0.57, side_club 0.93, side_long 0.95, side_holdout 0.75); the 5 "no play"
+windows still found (a serve then only net and floor contacts, a dig then a floor, an empty one):
+no rule separates them from real short rallies, a serve into the net being one; the review's
+answers drop them from the page. Not started: identities jumping inside a long track (cutting
+tracks where their embedding jumps, scored by `benchmarks/identity/answers.py`); the ball
+tracker's misses (29 of 71 added touches: fine-tune the ball model on the owner's added touches
+and checked rallies, on the RTX 5080).
+
 ## Left, by value
 
 1. **Identity behind wrong touches.** 9 of the 135 answered players are among no candidate: tracks
