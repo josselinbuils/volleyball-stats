@@ -61,6 +61,16 @@ export function nextTouch(before: { type: string; team: Group } | undefined, ser
   }
 }
 
+/** `frame`, else the next one no touch holds: the answers name a touch by its frame. */
+export function freeFrame(taken: number[], frame: number): number {
+  const held = new Set(taken);
+  let free = frame;
+  while (held.has(free)) {
+    free += 1;
+  }
+  return free;
+}
+
 /** A report's video starts this long before the reported moment, and a touch's replay before the touch. */
 export const REPORT_LEAD_S = 2;
 

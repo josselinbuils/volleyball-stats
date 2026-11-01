@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
 
 describe('rallyAt', () => {
   const rallies = [
@@ -49,6 +49,13 @@ describe('withAdded', () => {
     expect(rallies.map((r) => r.start)).toEqual([10, 35]);
     expect(rallies.map((r) => r.end)).toEqual([20, 50]);
     expect(rallyOf(rallies, 36, 'pass')).toBe(1);
+  });
+});
+
+describe('freeFrame', () => {
+  it('keeps a frame next to a touch, and moves on from one holding a touch', () => {
+    expect(freeFrame([100], 101)).toBe(101);
+    expect(freeFrame([100, 101], 100)).toBe(102);
   });
 });
 

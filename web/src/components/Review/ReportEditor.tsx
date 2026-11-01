@@ -11,14 +11,12 @@ import type { Named, ReportChanges } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { freeFrame, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
 const RESULTS = ['play', 'point', 'error'] as const;
 const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
-/** A touch added under this long from one already listed is that one: the list shows it instead. */
-const ADD_SAME_S = 0.1;
 /** After the user scrolls the list, it stops following the video this long. */
 const HOLD_MS = 3000;
 /** The list shows this many rallies before and after the one the video is in. */
@@ -209,14 +207,8 @@ export function ReportEditor({
   const reported = new Set(rows.filter((row) => reports.some((r) => Math.abs(r.time - row.time) <= 0.6)).map((row) => row.frame));
   const canAdd = rallies.length > 0;
   const add = () => {
-    const time = timeOf();
-    const frame = frameOf(time);
-    const there = rows.find((row) => Math.abs(row.time - time) < ADD_SAME_S);
-    if (there) {
-      setFresh({ key: `t${there.frame}` });
-      onPause(there.time);
-      return;
-    }
+    const frame = freeFrame([...contacts.map((c) => c.f ?? frameOf(c.t)), ...added.map((a) => a.frame)], frameOf(timeOf()));
+    const time = frame / match.fps;
     // What follows the touch before it in its rally; with none, a serve by the last rally's winner.
     const before = rows.filter((row) => !row.removed && row.time <= time).at(-1);
     const follows = before && before.rally === rallyAt(shown, time) && time - before.time < NEXT_TOUCH_S;
