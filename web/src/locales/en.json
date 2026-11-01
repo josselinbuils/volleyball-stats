@@ -582,7 +582,6 @@
       "digOver_other": "Digs · {{count}} to the opponents of {{of}}",
       "allBalls": "On every ball · {{count}} touches",
       "alwaysDefending": "Always defending · {{count}} digs",
-      "teamLink": "The team's link · {{count}} sets",
       "safeServes": "Reliable serve · {{count}} in of {{of}}",
       "safeAttacks": "Reliable attack · {{count}} without a fault of {{of}}",
       "steady_one": "Steady · {{count}} fault in {{of}} touches",
@@ -601,7 +600,8 @@
         "topScorer": "The most points scored in their team: {{count}}.",
         "clutch": "Points scored from 20 points on, 2 points apart or less: {{count}}.",
         "versatile": "At least 3 times each: {{count}} kinds of touch among reception, set, attack, dig, block and free ball."
-      }
+      },
+      "usedSets": "Sets put to use · {{count}} of {{of}}"
     },
     "serveRatingDetail": "Aces: {{aces}} · Reception missed: {{lost}} · Put under pressure: {{tough}} · Received well: {{fair}} · Received perfectly: {{easy}} · Faults: {{faults}}"
   },

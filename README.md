@@ -427,7 +427,7 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 
 Its "Analyse" group lists each player's things to work on and, the rarest in their team first, three strengths at most:
 the rates at least 20 points above the rest of their team's; how present they are for their time on the court (on every ball,
-in defence, setting); how reliable (serve, attack, few faults); tough serves; assists, winning blocks, points when the score is
+in defence); how reliable (serve, attack, few faults); tough serves; sets followed by an attack; assists, winning blocks, points when the score is
 high and close, the most points in the team, and playing all around. Each is earned from a minimum, from 5 attempts on each side
 for a rate, so a player can have none.
 

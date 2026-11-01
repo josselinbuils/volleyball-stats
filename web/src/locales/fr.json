@@ -582,7 +582,6 @@
       "digOver_other": "Défenses · {{count}} chez l'adversaire sur {{of}}",
       "allBalls": "Sur tous les ballons · {{count}} touches",
       "alwaysDefending": "Toujours en défense · {{count}} défenses",
-      "teamLink": "Le relais de l'équipe · {{count}} passes",
       "safeServes": "Service sûr · {{count}} dans le terrain sur {{of}}",
       "safeAttacks": "Attaque sûre · {{count}} sans faute sur {{of}}",
       "steady_one": "Régularité · {{count}} faute sur {{of}} touches",
@@ -601,7 +600,8 @@
         "topScorer": "Le plus de points marqués de son équipe : {{count}}.",
         "clutch": "Points marqués à partir de 20 points, à 2 points d'écart ou moins : {{count}}.",
         "versatile": "Au moins 3 fois chacune : {{count}} types de touche parmi réception, passe, attaque, défense, contre et relance."
-      }
+      },
+      "usedSets": "Passes bien exploitées · {{count}} sur {{of}}"
     },
     "serveRatingDetail": "Aces : {{aces}} · Réception adverse ratée : {{lost}} · Ont mis en difficulté : {{tough}} · Bien reçus : {{fair}} · Parfaitement reçus : {{easy}} · Fautes : {{faults}}"
   },

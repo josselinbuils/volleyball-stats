@@ -71,6 +71,19 @@ describe('strengths', () => {
     expect(keys(of(contacts.slice(2)))).not.toContain('safeServes');
   });
 
+  it('rewards sets followed by an attack against the rest of the team, not many sets', () => {
+    const set = (r: number, setter: number, attacked: boolean) => [touch(r, 'set', setter), ...(attacked ? [touch(r, 'attack', 3)] : [])];
+    const contacts = [...times(5, (k) => set(k, 1, true)).flat(), ...times(5, (k) => set(k + 100, 2, k < 2)).flat()];
+    expect(
+      of(contacts)
+        .get(1)
+        ?.find((i) => i.key === 'usedSets'),
+    ).toMatchObject({ n: 5, of: 5, restN: 2, restOf: 5 });
+    expect(keys(of(contacts), 2)).not.toContain('usedSets');
+    const never = times(30, (k) => set(k, 1, false)).flat();
+    expect(keys(of([...never, ...times(5, (k) => set(k + 100, 2, true)).flat()], { 1: 600, 2: 600 }))).not.toContain('usedSets');
+  });
+
   it('counts the attacks won right after their sets, without their own', () => {
     const pair = (r: number, setter: number, attacker: number) => [touch(r, 'set', setter), touch(r, 'attack', attacker, 'point')];
     const contacts = [...pair(0, 1, 2), ...pair(1, 1, 2), ...pair(2, 1, 3), ...pair(3, 1, 1)];

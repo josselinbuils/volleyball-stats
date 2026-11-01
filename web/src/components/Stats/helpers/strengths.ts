@@ -14,7 +14,6 @@ const TOUGH_GAP = 0.15;
 const PRESENCE: { key: string; of: (s: Stats) => Contact[]; least: number; above: number }[] = [
   { key: 'allBalls', of: (s) => s.touches, least: 20, above: 1.15 },
   { key: 'alwaysDefending', of: (s) => s.digs, least: 6, above: 1.3 },
-  { key: 'teamLink', of: (s) => s.sets, least: 5, above: 1.5 },
 ];
 const ASSISTS_FROM = 3;
 const BLOCK_POINTS_FROM = 2;
@@ -53,7 +52,9 @@ export function strengths(found: Line[], seconds: (person: number) => number, co
   const team = found[found.length - 1].stats;
   const players = found.filter((l): l is Line & { id: number } => typeof l.id === 'number');
   const before = scoresBefore(rallies);
-  const kills = setAttacks(contacts).filter(({ attack }) => attack.result === 'point');
+  const attacked = setAttacks(contacts);
+  const kills = attacked.filter(({ attack }) => attack.result === 'point');
+  const used = new Set(attacked.map(({ set }) => set));
   const teamSeconds = players.reduce((sum, l) => sum + seconds(l.id), 0);
   const late = (c: Contact) => {
     const was = before.get(c.rally);
@@ -106,6 +107,8 @@ export function strengths(found: Line[], seconds: (person: number) => number, co
       const toughOnes = s.serveRated.filter((c) => !s.serveFair.includes(c) && !s.serveEasy.includes(c) && !s.serveFaults.includes(c));
       earned.push(rated('toughServes', tough(s), s.serveRated.length, tough(team) - tough(s), team.serveRated.length - s.serveRated.length, toughOnes, TOUGH_GAP));
       // What they give the others.
+      const usedSets = s.sets.filter((c) => used.has(c));
+      earned.push(rated('usedSets', usedSets.length, s.sets.length, team.sets.filter((c) => used.has(c)).length - usedSets.length, team.sets.length - s.sets.length, usedSets));
       const given = kills.filter(({ set, attack }) => playerKey(set.person, people) === key && playerKey(attack.person, people) !== key).map(({ attack }) => attack);
       if (given.length >= ASSISTS_FROM) {
         earned.push(counted('assists', given));
