@@ -216,7 +216,7 @@ ADDED_SAME_S, ADDED_FLOOR_S = 0.4, 0.2
 
 
 def with_added(
-    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0
+    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0, lead: int = 0
 ) -> tuple[list[tuple[int, int]], list[dict]]:
     """The rally windows and actions CSV rows `typed` with the touches the review added (`added`
     answers: the window's start, frame, team, type): a row each, at the ball's place seen nearest it
@@ -224,7 +224,8 @@ def with_added(
     a window ending before a touch added to it lasts to it, one starting after it (a serve the rally
     missed) starts at it. One in a window gone or at a frame already found is left out; a row found
     within `same` frames of one, of its team, or within `floor` frames, a floor or net, is that touch
-    found again (a rerun) and goes."""
+    found again (a rerun) and goes, the added touch taking its window (started `lead` frames early):
+    a rerun moves the windows the answers named."""
     starts = {start: k for k, (start, _) in enumerate(windows)}
     known = {int(r["frame"]) for r in typed}
     # A touch added twice: the last answer's.
@@ -233,16 +234,21 @@ def with_added(
     if not added:
         return windows, typed
 
-    def again(r: dict) -> bool:
-        f = int(r["frame"])
-        return any(abs(f - a["frame"]) <= (floor if r["type"] in NO_PLAYER else same if r.get("team") == str(a["team"]) else -1) for a in added)
+    def same_touch(r: dict, a: dict) -> bool:
+        return abs(int(r["frame"]) - a["frame"]) <= (floor if r["type"] in NO_PLAYER else same if r.get("team") == str(a["team"]) else -1)
 
-    typed = [r for r in typed if not again(r)]
+    # Each added touch's window: that of the row it replaces, else the one its answer named.
+    window = {}
+    for a in added:
+        found = [int(r["frame"]) for r in typed if same_touch(r, a)]
+        holding = [k for k, (start, end) in enumerate(windows) for f in found if start - lead <= f <= end]
+        window[a["frame"]] = holding[0] if holding else starts[a["start"]]
+    typed = [r for r in typed if not any(same_touch(r, a) for a in added)]
     windows = list(windows)
     places = ball_near(ball, [a["frame"] for a in added], near)
     new = []
     for a in added:
-        k = starts[a["start"]]
+        k = window[a["frame"]]
         windows[k] = (min(windows[k][0], a["frame"]), max(windows[k][1], a["frame"]))
         left = rows[k].get("left") or 1
         x, y = places.get(a["frame"], ("", ""))
@@ -556,7 +562,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     # The rallies end where the review says; touches past an end go.
     lead = round(LEAD_S * fps)
     windows, actions = with_added(
-        ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps)
+        ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead
     )
     scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
     # Two windows it says are one rally become one.

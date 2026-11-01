@@ -361,6 +361,16 @@ class TestWithAdded:
         # The serve and the floor were the added touches; the block is the other team's.
         assert [r["frame"] for r in rows_out] == ["110", "150", "160", "300"]
 
+    def test_a_touch_added_takes_the_window_of_the_row_it_replaces(self, tmp_path):
+        # Added to the first window before a rerun; the rerun found it at the second's start.
+        typed = [{"frame": "305", "type": "serve", "team": "2"}]
+        added = [{"start": 100, "frame": 298, "team": 2, "type": "serve"}]
+
+        w, rows_out = with_added([(100, 299), (310, 400)], [{"left": "1"}, {"left": "1"}], typed, added, tmp_path / "none.csv", 5, 10, 3, 6)
+
+        assert w == [(100, 299), (298, 400)]
+        assert [r["frame"] for r in rows_out] == ["298"]
+
     def test_ball_near_takes_the_nearest_place_seen(self, tmp_path):
         ball = tmp_path / "ball.csv"
         ball.write_text("frame,visible,x,y\n97,1,1,1\n99,0,,\n102,1,2,2\n")
