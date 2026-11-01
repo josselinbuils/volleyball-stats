@@ -32,6 +32,8 @@ SPARE_Y = 5.5
 # Seconds from a window's start within which a serve the players' positions show is its serve
 # (`unseen_serves`): 0.4-1.0 s after the contact on the first ASPOM match.
 UNSEEN_SERVE_S = 1.0
+# The line starting each step's output: a caller reading it (the review's progress) knows which runs.
+STAGE = "::stage "
 
 
 def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float) -> Iterator[tuple[ball.Position, list[players.Row]]]:
@@ -112,6 +114,10 @@ def unseen_serves(
             added.append((f, round((box[0] + box[2]) / 2), round(box[1])))
             out[k] = (min(out[k][0], f + lead), out[k][1])
     return out, added
+
+
+def stage(name: str) -> None:
+    print(f"{STAGE}{name}", flush=True)
 
 
 def in_rallies(frames: list[int], windows: list[tuple[int, int]], lead: int) -> list[int]:
@@ -258,6 +264,7 @@ def main() -> None:
     new_ball = args.force or not track_path.exists()
     new_players = args.players and (args.force or not players_path.exists())
     if new_ball or new_players:
+        stage("tracking")
         start = time.perf_counter()
         track(args.video, calibration, fps, track_path if new_ball else None, players_path if new_players else None)
         timings[" and ".join(name for name, new in (("ball", new_ball), ("players", new_players)) if new)] = time.perf_counter() - start
@@ -269,6 +276,7 @@ def main() -> None:
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
     rows = attribution.read_players(players_path) if args.players else None
+    stage("rallies")
     start = time.perf_counter()
     whistle_times = rallies.whistles(rallies.read_audio(args.video))
     positions = None if rows is None else [(r.frame, *r.court) for r in rows]
@@ -278,6 +286,7 @@ def main() -> None:
         windows = [w for w in windows if w[0] >= starts[0] * fps]
     timings["rallies and contacts"] = time.perf_counter() - start
 
+    stage("actions")
     start = time.perf_counter()
     typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
     if rows is not None:
@@ -302,6 +311,7 @@ def main() -> None:
         gaps = [attribution.gap_to_next(c) for c in candidates]
         # A dead ball is one track nearest the ball touch after touch, whatever the wrists say.
         dead, _ = actions.mark_dead(typed, [c[0][2] if c else None for c in candidates], [rally_of(t[0], windows, lead) for t in typed])
+        stage("wrists")
         start = time.perf_counter()
         # The learned order on the camera footage it was trained on, the wrists' rule elsewhere.
         learned = ranker.load() if decode.size(args.video)[1] >= ranker.MIN_HEIGHT else None
@@ -317,6 +327,7 @@ def main() -> None:
     crossings = in_rallies(crossings, windows, lead)
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     if args.players:
+        stage("teams")
         start = time.perf_counter()
         found_teams = teams.assign(args.video, rows, windows, fps, starts, out / "looks.npz")
         timings["teams"] = time.perf_counter() - start
@@ -340,6 +351,7 @@ def main() -> None:
         sets = teams.set_numbers(windows, [teams.seconds(s) for s in settled["sets"]], fps)
         write_csv(out / "rallies.csv", ["start_frame", "end_frame", "left", "set"], [[*w, "" if g is None else g, s] for w, g, s in zip(windows, found_teams.left, sets)])
         contact_teams = teams.contact_teams(typed, windows, found_teams.left, round(actions.LEAD_S * fps))
+        stage("identity")
         start = time.perf_counter()
         attributed = [(t[0], k) for t, k in zip(typed, touchers) if k is not None]
         known = identity.run(out, args.video, rows, windows, found_teams.left, fps, args.squad, attributed)

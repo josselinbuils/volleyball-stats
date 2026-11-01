@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -234,6 +234,17 @@ class TestReports:
         assert entry["touch"] == [{"frame": 2010, "team": 1, "identity": 4, "name": "Léa"}]
         assert locked(page, [], {}) == []
         assert unlocked([2000])[0]["locked"] == [{"start": 2000, "touches": None}]
+
+    def test_the_time_left_counts_the_stages_and_steps_still_to_run(self):
+        took = {"training": 100.0, "pipeline": 900.0, "pipeline:actions": 300.0, "pipeline:wrists": 400.0, "pipeline:teams": 500.0, "review": 10.0}
+        run = {"steps": ["training", "pipeline", "review"], "done": 1, "started": 0.0, "since": 100.0, "stage": "wrists", "stage_since": 500.0}
+
+        # 100 s of the wrists' 400 spent; the teams and the review to come; no tracking, the other stages unknown.
+        assert eta(run, took, 600.0) == {"steps": run["steps"], "done": 1, "stage": "wrists", "elapsed": 600.0, "left": 300.0 + 500.0 + 10.0, "late": False}
+        late = eta(run, took, 1000.0)
+        assert (late["left"], late["late"]) == (510.0, True)
+        # Before its first stage, a step counts as a whole.
+        assert eta({**run, "stage": None, "done": 0, "since": 0.0}, took, 40.0)["left"] == 60.0 + 900.0 + 10.0
 
     def test_a_correction_a_frame_off_names_the_touch_there(self):
         out = report_answer({"touches": [{"frame": 2101, "type": "dig"}]}, self.teams, self.windows, {}, 20)

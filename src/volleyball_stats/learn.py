@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import cv2
@@ -205,20 +206,29 @@ def train(match: Path, video: Path) -> None:
     )
 
 
-def rerun(match: Path, video: Path, court: Path) -> dict[str, Score]:
+def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None] = lambda _: None) -> dict[str, Score]:
     """The pipeline run again on the match (match.py, the trackers' outputs and the poses kept), the
-    answers moved onto its rally windows (`rekey`), then every step scored, kept in learn.json."""
-    from volleyball_stats import rekey
+    answers moved onto its rally windows (`rekey`), then every step scored, kept in learn.json.
+    `on_stage` is told each step as it starts (match.STAGE lines), "answers" for the last one."""
+    from volleyball_stats import match as pipeline, rekey
 
     before = match / "before-rerun"
     before.mkdir(exist_ok=True)
     shutil.copy2(match / "rallies.csv", before / "rallies.csv")
     if (match / "review" / "data.js").exists():
         shutil.copy2(match / "review" / "data.js", before / "review-data.js")
-    subprocess.run(
+    with subprocess.Popen(
         [sys.executable, "-m", "volleyball_stats.match", str(video), "--court", str(court), "--players", "--out", str(match.parent)],
-        stdin=subprocess.DEVNULL, check=True,
-    )
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True, bufsize=1,
+    ) as run:
+        for line in run.stdout:
+            if line.startswith(pipeline.STAGE):
+                on_stage(line.removeprefix(pipeline.STAGE).strip())
+            else:
+                sys.stdout.write(line)
+    if run.returncode:
+        raise subprocess.CalledProcessError(run.returncode, run.args)
+    on_stage("answers")
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     path = match / "identity_answers.json"
     if not path.exists():

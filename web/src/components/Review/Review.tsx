@@ -67,7 +67,7 @@ export function Review({
   learning?: LearnRun[];
   fetched?: { at: string; count: number; error: string | null } | null;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const f = useFormat();
   const [questions, setQuestions] = useState(initial);
   const [answered, setAnswered] = useState(before);
@@ -184,19 +184,27 @@ export function Review({
     [question, t],
   );
 
-  const [progress, setProgress] = useState<{ fraction: number; step: string } | null>(null);
+  /** Where the server's run stands: its step (and the pipeline's stage), which of how many, the time
+   * spent and left, and whether it takes longer than last time. */
+  const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
+  const minutes = (s: number) => (s < 60 ? t('review.lessThanMinute') : t('review.minutes', { count: Math.round(s / 60) }));
   const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports') => {
     setBusy(path);
-    // The server's steps, each advancing as long as it took last time.
+    // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {
       try {
-        const p = (await (await fetch('progress')).json()) as { steps?: string[]; done: number; took: Record<string, number>; elapsed: number };
+        const p = (await (await fetch('progress')).json()) as { steps?: string[]; done: number; stage: string | null; elapsed: number; left: number; late: boolean };
         if (p.steps) {
-          const time = (step: string) => p.took[step] ?? 1;
-          const total = p.steps.reduce((sum, step) => sum + time(step), 0);
-          const done = p.steps.slice(0, p.done).reduce((sum, step) => sum + time(step), 0);
-          const step = p.steps[p.done];
-          setProgress({ fraction: Math.min(0.99, (done + Math.min(p.elapsed, time(step))) / total), step });
+          setProgress({
+            fraction: Math.min(0.99, p.elapsed / Math.max(1, p.elapsed + p.left)),
+            step: p.steps[p.done],
+            stage: p.stage,
+            n: p.done + 1,
+            of: p.steps.length,
+            elapsed: p.elapsed,
+            left: p.left,
+            late: p.late,
+          });
         }
       } catch {
         // The bar waits for the next poll.
@@ -311,7 +319,20 @@ export function Review({
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress.fraction * 100}%` }} />
             </div>
-            <p className="m-0 text-xs text-muted-foreground">{t(`review.step.${progress.step}`)}</p>
+            <p className="m-0 text-sm">
+              {t(`review.step.${progress.step}`)}
+              {progress.stage && ` · ${t(`review.stage.${progress.stage}`, { defaultValue: progress.stage })}`}
+              <span className="text-muted-foreground"> · {t('review.stepOf', { n: progress.n, of: progress.of })}</span>
+            </p>
+            <p className="m-0 text-xs text-muted-foreground tabular-nums">
+              {progress.late
+                ? t('review.progressLate', { elapsed: minutes(progress.elapsed) })
+                : t('review.progressLeft', {
+                    left: minutes(progress.left),
+                    end: new Date(Date.now() + progress.left * 1000).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }),
+                    elapsed: minutes(progress.elapsed),
+                  })}
+            </p>
           </div>
         )}
         {players.length > 0 && (

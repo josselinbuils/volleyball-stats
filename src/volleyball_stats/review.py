@@ -1179,6 +1179,35 @@ def unlocked(keys: list[int]) -> list[dict]:
     return [{"id": "unlock", "choice": "unlocked", "locked": [{"start": k, "touches": None} for k in keys], "applied": True}] if keys else []
 
 
+# Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
+# match, 4K, on the M4 (1 Nov).
+TOOK = {
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0,
+    "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0,
+    "pipeline:identity": 20.0, "pipeline:answers": 60.0,
+}
+# The pipeline's stages in order (match.stage): "tracking" only when the trackers run again.
+STAGES = ("tracking", "rallies", "actions", "wrists", "teams", "identity", "answers")
+TIMINGS = "review_timings.json"
+
+
+def eta(progress: dict, took: dict[str, float], now: float) -> dict:
+    """Where a run of steps (`progress`: their names, the one running since when, its stage since
+    when) stands at `now`, from each one's last duration (`took`): the step and its stage, the time
+    spent and left, and whether the stage or step running already takes longer than it did."""
+    steps, done, stage = progress["steps"], progress["done"], progress.get("stage")
+    step = steps[done]
+    if stage:
+        later = [s for s in STAGES[STAGES.index(stage) + 1 :] if s != "tracking"] if stage in STAGES else []
+        spent, expected = now - progress["stage_since"], took.get(f"{step}:{stage}", 0.0)
+        here = max(0.0, expected - spent) + sum(took.get(f"{step}:{s}", 0.0) for s in later)
+    else:
+        spent, expected = now - progress["since"], took.get(step, 1.0)
+        here = max(0.0, expected - spent)
+    left = here + sum(took.get(s, 1.0) for s in steps[done + 1 :])
+    return {"steps": steps, "done": done, "stage": stage, "elapsed": now - progress["started"], "left": left, "late": 0 < expected < spent}
+
+
 def checked(log: list[dict]) -> list[int]:
     """The rallies the user checked and did not uncheck since, by their key: they show green while
     no report is open on them."""
@@ -1289,10 +1318,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         files.write_bytes(path, body)
         return body
 
-    # Where an apply stands, for the page's progress bar: the steps, the one running since when, and
-    # each step's last duration (first guesses from the first ASPOM match).
+    # Where an apply stands, for the page's progress bar: the steps, the one running since when and
+    # its stage (the pipeline's). Each step's and stage's last duration ("STEP:STAGE"), kept per match
+    # (TIMINGS) to outlive a restart, first guessed from the first ASPOM match.
     progress: dict = {}
-    took = {"reports": 3.0, "training": 180.0, "pipeline": 600.0, "players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0, "hosting": 60.0}
+    took = {**TOOK, **(json.loads((match / TIMINGS).read_text()) if (match / TIMINGS).exists() else {})}
     # The last hosting (publish.json): when, why it failed, and whether a change came since; the
     # page says it. The user puts the pages online ("/host"), an apply does not.
     hosted: dict = {"at": None, "error": None, "behind": True}
@@ -1322,14 +1352,23 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         return steps
 
     def run_steps(steps: list) -> None:
-        progress.update(steps=[name for name, _ in steps], took=took)
+        progress.update(steps=[name for name, _ in steps], started=time.time())
         try:
             for k, (name, work) in enumerate(steps):
-                progress.update(done=k, since=time.time())
+                progress.update(done=k, since=time.time(), stage=None)
                 work()
+                staged(None)
                 took[name] = time.time() - progress["since"]
+                files.write_text(match / TIMINGS, json.dumps(took, indent=1) + "\n")
         finally:
             progress.clear()
+
+    def staged(name: str | None) -> None:
+        """The running step's stage `name` starts (None: the step ends): the last one's time is kept."""
+        now, step = time.time(), progress["steps"][progress["done"]]
+        if progress.get("stage"):
+            took[f"{step}:{progress['stage']}"] = now - progress["stage_since"]
+        progress.update(stage=name, stage_since=now)
 
     def warm() -> None:
         """Cuts the review's pictures ahead of the user, READERS at a time."""
@@ -1413,9 +1452,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(body, "text/javascript")
             if url.path == "/progress":
                 state = dict(progress)
-                if state:
-                    state["elapsed"] = time.time() - state.pop("since")
-                return self.send(json.dumps(state).encode(), "application/json")
+                return self.send(json.dumps(eta(state, took, time.time()) if state else {}).encode(), "application/json")
             if url.path == "/more":
                 q = parse_qs(url.query)
                 team, number = int(q["team"][0]), int(q["identity"][0])
@@ -1610,7 +1647,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # The pipeline again, its identities with every answer: an apply too. Undo
                     # stops here: the answers moved onto the new rallies.
                     own, *published = pages()
-                    run_steps([("training", lambda: learn.train(match, video)), ("pipeline", lambda: learn.rerun(match, video, court)), own, ("questions", questions.load), *published])
+                    run_steps([("training", lambda: learn.train(match, video)), ("pipeline", lambda: learn.rerun(match, video, court, staged)), own, ("questions", questions.load), *published])
                     history.clear()
                     log = load_log(answers)
                     for entry in log:
