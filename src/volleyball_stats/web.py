@@ -224,6 +224,13 @@ def said_on(match: Path, kind: str, field: str) -> set[int]:
     return {start for start, said in {a["start"]: a[field] for a in answers(match, kind)}.items() if said}
 
 
+def said_players(match: Path) -> dict[int, str | int]:
+    """The player the review's last `touch` answer named on each touch, by frame: their name, which
+    a rerun keeps, else their identity; none for a touch it said is no touch."""
+    last = {a["frame"]: a for a in answers(match, "touch")}
+    return {frame: a.get("name") or a["identity"] for frame, a in last.items() if a["identity"] is not None}
+
+
 def said_types(match: Path) -> dict[int, str]:
     """The type the review's last `action` answer giving one gave each touch, by frame."""
     return {a["frame"]: a["type"] for a in answers(match, "action") if "type" in a}
@@ -235,7 +242,7 @@ def said_teams(match: Path) -> dict[int, int]:
 
 
 def with_added(
-    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0, lead: int = 0, said: dict[int, int] | None = None, kinds: dict[int, str] | None = None
+    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0, lead: int = 0, said: dict[int, int] | None = None, kinds: dict[int, str] | None = None, named: dict[int, str | int] | None = None
 ) -> tuple[list[tuple[int, int]], list[dict]]:
     """The rally windows and actions CSV rows `typed` with the touches the review added (`added`
     answers: the window's start, frame, team, type): a row each, at the ball's place seen nearest it
@@ -246,7 +253,8 @@ def with_added(
     found again (a rerun) and goes, the added touch taking its window (started `lead` frames early):
     a rerun moves the windows the answers named. A touch's team and type are those the review gave it
     (`said`, `kinds`, by frame), else its own. A playing fault is no touch of the ball: none goes for it.
-    A block and another touch are two: the same player may play the ball again right after their block."""
+    A block and another touch are two: the same player may play the ball again right after their block.
+    So are two touches the review names (`named`, by frame) different players of: a double block."""
     starts = {start: k for k, (start, _) in enumerate(windows)}
     known = {int(r["frame"]) for r in typed}
     # A touch added twice: the last answer's.
@@ -261,6 +269,9 @@ def with_added(
             return False
         if r["type"] in NO_PLAYER:
             return apart <= floor
+        one, other = (named or {}).get(int(r["frame"])), (named or {}).get(a["frame"])
+        if one is not None and other is not None and one != other:
+            return False
         kind_of = (kinds or {}).get
         if (kind_of(int(r["frame"]), r["type"]) == "block") != (kind_of(a["frame"], a["type"]) == "block"):
             return False
@@ -689,7 +700,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     added = answers(match, "added")
     kept = [{"start": start, **t} for start, touches in locks.items() if touches for t in touches]
     windows, actions = with_added(
-        ended(windows, answers(match, "end")), rally_rows, actions, kept + added, match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead, said_teams(match), said_types(match)
+        ended(windows, answers(match, "end")), rally_rows, actions, kept + added, match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead, said_teams(match), said_types(match), said_players(match)
     )
     allowed = {t["frame"] for t in kept} | {a["frame"] for a in added}
     shut = [(a - lead, b) for (a, b), row in zip(windows, rally_rows) if locks.get(int(row["start_frame"]))]

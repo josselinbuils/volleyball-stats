@@ -124,7 +124,7 @@ class Questions:
         lead = round(web.LEAD_S * self.fps)
         windows, actions = web.with_added(
             web.ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rallies], web.answers(self.match, "end")), rallies, actions, web.answers(self.match, "added"), self.match / "ball.csv",
-            round(web.ADDED_NEAR_S * self.fps), round(web.ADDED_SAME_S * self.fps), round(web.ADDED_FLOOR_S * self.fps), lead, web.said_teams(self.match), web.said_types(self.match),
+            round(web.ADDED_NEAR_S * self.fps), round(web.ADDED_SAME_S * self.fps), round(web.ADDED_FLOOR_S * self.fps), lead, web.said_teams(self.match), web.said_types(self.match), web.said_players(self.match),
         )
         self.touches = doubtful(actions, [(a - lead, b) for a, b in windows], unnamed(self.match / "review", self.fps))
         # Each rally's window by its key: a rally checked answers the questions about it.

@@ -372,6 +372,20 @@ class TestWithAdded:
         found_as_dig = [{"frame": "120", "type": "dig", "team": "1"}]
         assert kept(found_as_dig, [{"start": 100, "frame": 126, "team": 1, "type": "dig"}], kinds={120: "block"}) == [("120", "dig"), ("126", "dig")]
 
+    def test_two_touches_named_as_different_players_stay_two(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n")
+        typed = [{"frame": "120", "type": "block", "team": "1"}]
+        added = [{"start": 100, "frame": 126, "team": 1, "type": "block"}]
+
+        def kept(**named):
+            return [r["frame"] for r in with_added([(100, 200)], [{"left": "2"}], typed, added, ball, 5, 20, 10, **named)[1]]
+
+        assert kept(named={120: "Léa", 126: "Anaïs"}) == ["120", "126"]
+        # The same player, or one touch not named: the same touch found again.
+        assert kept(named={120: "Léa", 126: "Léa"}) == ["126"]
+        assert kept(named={126: "Anaïs"}) == ["126"]
+
     def test_a_playing_fault_added_replaces_no_touch_found_near_it(self, tmp_path):
         ball = tmp_path / "ball.csv"
         ball.write_text("frame,visible,x,y\n")
