@@ -21,8 +21,12 @@ const DARK = 0x35342e;
 const FLAGS = [0x233a8c, 0xf2c200];
 // Floor pixels per metre.
 const FLOOR_PX = 40;
-// Sponsors' boards on the side walls, each PANEL m wide.
-const PANEL = 3;
+// Sponsors' banners on the grey walls, clear of the posters and the bunting: their pictures' shape, where they hang, how wide.
+const BANNER_RATIO = 600 / 160;
+const SIDE_BANNER = 3;
+const SIDE_BANNER_H = 1.7;
+const SIDE_BANNERS = [-8.5, -3, 3];
+const FAR_BANNER = { x: -7.5, h: 2, width: 4 };
 
 /** A point in court metres to the scene's axes: x, height up, y towards the viewer. */
 export const at = (x: number, y: number, h = 0) => new THREE.Vector3(x, h, y);
@@ -293,7 +297,7 @@ export function addHall(scene: THREE.Scene, sponsors: Sponsor[], board: THREE.Te
     bunting.setColorAt(k, new THREE.Color(FLAGS[k % FLAGS.length]));
   }
   hall.add(bunting);
-  // Sponsors' boards along the side walls, near the court: the sponsors in turn, a blank one between two of them.
+  // Sponsors' banners flat on the grey walls, as the hall's own adverts hang: on the far wall, and the sponsors in turn beside the court.
   let gone = false;
   const boards = sponsors.map((sponsor) => {
     const texture = painted(600, 160, () => {});
@@ -335,15 +339,15 @@ export function addHall(scene: THREE.Scene, sponsors: Sponsor[], board: THREE.Te
     }
     return new THREE.MeshBasicMaterial({ map: texture });
   });
-  const blank = new THREE.MeshBasicMaterial({ color: 0xf2f2f2 });
   if (boards.length) {
+    onFar(FAR_BANNER.x, FAR_BANNER.h, FAR_BANNER.width, FAR_BANNER.width / BANNER_RATIO, boards[0]);
     for (const side of [-1, 1]) {
-      for (let n = 0; n < 7; n++) {
-        const panel = new THREE.Mesh(new THREE.PlaneGeometry(PANEL - 0.04, 0.8), n % 2 ? blank : boards[(n / 2) % boards.length]);
-        panel.position.copy(at(side * (WALL_X - 0.03), -9 + n * PANEL, 0.5));
+      SIDE_BANNERS.forEach((y, n) => {
+        const panel = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_BANNER, SIDE_BANNER / BANNER_RATIO), boards[n % boards.length]);
+        panel.position.copy(at(side * (WALL_X - 0.03), y, SIDE_BANNER_H));
         panel.rotation.y = -side * (Math.PI / 2);
         hall.add(panel);
-      }
+      });
     }
   }
   return {
