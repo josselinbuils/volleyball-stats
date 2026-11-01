@@ -591,7 +591,8 @@
         "server": "Servi par l'équipe qui a perdu le point d'avant",
         "noWinner": "Gagnant inconnu",
         "passWithoutServe": "Une réception sans service juste avant",
-        "serveNotReceived": "Un service suivi d'autre chose qu'une réception"
+        "serveNotReceived": "Un service suivi d'autre chose qu'une réception",
+        "afterFault": "Une action suit une faute dans le même échange"
       }
     },
     "details": "Préciser",

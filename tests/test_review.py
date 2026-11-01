@@ -131,7 +131,7 @@ class TestReports:
 
         page = {
             "teams": [{}, {}],
-            "rallies": [{"start": float(k), "end": k + 0.5, "set": 1, "winner": w} for k, w in enumerate([1, 1, 2, 2, None])],
+            "rallies": [{"start": float(k), "end": k + 0.5, "set": 1, "winner": w} for k, w in enumerate([1, 1, 2, 2, None, 1])],
             "contacts": [
                 c(0.1, "serve", 1, 0),  # fine
                 c(1.1, "pass", 2, 1),  # no serve
@@ -142,6 +142,8 @@ class TestReports:
                 c(3.5, "block", 2, 3),
                 *[c(3.6 + n / 100, kind, 2, 3) for n, kind in enumerate(["dig", "set", "attack", "relance"])],
                 c(4.1, "floor", None, 4),  # no touch, no winner
+                {**c(5.1, "serve", 2, 5), "result": "error"},  # a touch after a fault
+                c(5.2, "pass", 1, 5),
             ],
         }
 
@@ -156,6 +158,7 @@ class TestReports:
             (3.0, "auto.fourTouches"),
             (4.0, "auto.empty"),
             (4.0, "auto.noWinner"),
+            (5.0, "auto.afterFault"),
         ]
         assert found[0]["key"] == unusual(page)[0]["key"]
 

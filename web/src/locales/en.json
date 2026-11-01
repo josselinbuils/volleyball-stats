@@ -591,7 +591,8 @@
         "server": "Served by the team that lost the point before",
         "noWinner": "Winner unknown",
         "passWithoutServe": "A reception not right after a serve",
-        "serveNotReceived": "A serve followed by something other than a reception"
+        "serveNotReceived": "A serve followed by something other than a reception",
+        "afterFault": "An action follows a fault in the same rally"
       }
     },
     "details": "Add details",
