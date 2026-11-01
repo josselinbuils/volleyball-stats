@@ -185,6 +185,11 @@ class TestReports:
         assert (out["rally"], out["winner"], out["end"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}], [{"start": 3000, "end": 3400}])
         assert out["join"] == [{"start": 2000}]
 
+    def test_a_correction_a_frame_off_names_the_touch_there(self):
+        out = report_answer({"touches": [{"frame": 2101, "type": "dig"}]}, self.teams, self.windows, {}, 20)
+
+        assert out["action"] == [{"frame": 2100, "type": "dig"}]
+
     def test_a_touch_added_goes_to_the_rally_it_falls_in_else_a_serve_to_the_next_another_to_the_one_before(self):
         changes = {
             "added": [

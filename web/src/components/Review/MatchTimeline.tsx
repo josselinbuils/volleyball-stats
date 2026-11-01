@@ -102,7 +102,7 @@ export function MatchTimeline({
   const touches = [
     ...contacts
       .filter((c) => isTouch(c))
-      .map((c) => ({ key: `c${c.i}`, time: c.t, team: c.g, removed: removed.has(Math.round(c.t * match.fps)), label: touchLabel(t, c.type, c.result, c.g, c.person) })),
+      .map((c) => ({ key: `c${c.i}`, time: c.t, team: c.g, removed: removed.has(c.f ?? Math.round(c.t * match.fps)), label: touchLabel(t, c.type, c.result, c.g, c.person) })),
     ...(saved.added ?? []).map((a) => ({ key: `a${a.frame}`, time: a.frame / match.fps, team: a.team, removed: false, label: touchLabel(t, a.type, a.result, a.team, null) })),
   ];
   const marks = [...(saved.touches ?? []), ...(saved.added ?? [])].map((c) => c.frame / match.fps);

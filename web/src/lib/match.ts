@@ -13,6 +13,8 @@ export type Result = 'point' | 'error' | 'play';
 export interface Contact {
   i: number;
   t: number;
+  /** The touch's frame in the video, which the review's answers name it by. */
+  f?: number;
   type: ActionType;
   side: Side;
   team: Group | null;

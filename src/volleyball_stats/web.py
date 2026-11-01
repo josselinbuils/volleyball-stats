@@ -181,6 +181,8 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
             xy = xy or (spot(kind, (float(row["x"]), float(row["y"])), boxes, feet, calibration, reach) if row["x"] != "" else None)
         out.append({
             "t": round(frame / fps, 2),
+            # The exact frame: the answers name touches by it, which `t` may miss by one.
+            "f": frame,
             "type": kind,
             "side": row["side"],
             "team": int(row["team"]) if row.get("team") else None,

@@ -41,7 +41,7 @@ const touches = contacts
   .filter((c) => (TYPES as readonly string[]).includes(c.type) && c.team !== null)
   .map((c) => {
     const p = c.person === null ? undefined : match.people[c.person];
-    return { contact: c, frame: frameOf(c.t), player: p && p.number !== null ? `${p.team}:${p.number}` : '' };
+    return { contact: c, frame: c.f ?? frameOf(c.t), player: p && p.number !== null ? `${p.team}:${p.number}` : '' };
   });
 
 /** The match's touches beside its video: those of the rallies around where the video stands, the

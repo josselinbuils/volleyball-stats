@@ -222,7 +222,7 @@ class Questions:
         """The review page's touches' teams by frame, its rally windows (start, end frames) and the
         keys the answers name them by."""
         page = self.page or {"contacts": [], "rallies": []}
-        teams = {round(c["t"] * self.fps): c["team"] for c in page["contacts"] if c["type"] not in web.NO_PLAYER and c.get("team")}
+        teams = {c.get("f", round(c["t"] * self.fps)): c["team"] for c in page["contacts"] if c["type"] not in web.NO_PLAYER and c.get("team")}
         windows = [(round(r["start"] * self.fps), round(r["end"] * self.fps)) for r in page["rallies"]]
         return teams, windows, [r.get("key", start) for r, (start, _) in zip(page["rallies"], windows)]
 
@@ -668,7 +668,7 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
     people = page.get("people") or {}
     player = lambda p: (lambda q: f"{q['team']}:{q['number']}" if q and q.get("number") is not None else None)(people.get(str(p)) if p is not None else None)  # noqa: E731
     touches = [
-        {"frame": round(c["t"] * fps), "time": c["t"], "type": c["type"], "team": c["team"], "player": player(c.get("person")), "result": c.get("result")}
+        {"frame": c.get("f", round(c["t"] * fps)), "time": c["t"], "type": c["type"], "team": c["team"], "player": player(c.get("person")), "result": c.get("result")}
         for c in page["contacts"]
         if k is not None and c["rally"] == k and c["type"] not in web.NO_PLAYER
     ]
@@ -710,7 +710,8 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
             t, i = (int(v) for v in str(c["player"]).split(":"))
             out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
     for c in changes.get("touches", []):
-        frame = int(c["frame"])
+        # A page without its touches' frames gives them from their time, a frame off at times.
+        frame = next((f for f in (int(c["frame"]), int(c["frame"]) - 1, int(c["frame"]) + 1) if f in teams), int(c["frame"]))
         team = teams.get(frame)
         if team is None:
             continue
@@ -764,7 +765,7 @@ def unnamed(site: Path, fps: float) -> dict[int, str]:
     for c in data["contacts"]:
         p = people.get(str(c["person"])) if c.get("person") is not None else None
         if c["type"] not in web.NO_PLAYER and c.get("team") and not (p and p["number"] is not None and p["team"] == c["team"]):
-            out[round(c["t"] * fps)] = "brief" if c.get("brief") else "unknown"
+            out[c.get("f", round(c["t"] * fps))] = "brief" if c.get("brief") else "unknown"
     return out
 
 
