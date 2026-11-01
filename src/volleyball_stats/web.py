@@ -503,20 +503,16 @@ def acted(found: list[dict], typed: list[dict], fixes: dict[int, dict]) -> None:
 
 
 def credited(found: list[dict], typed: list[dict], fixed: set[int]) -> None:
-    """The serves and attacks of `found` (from actions CSV rows `typed`) the other team's next touch,
-    the rally's last, lost or won, as the stats count them: an ace when the reception lets the ball
-    go (a fault); a winning attack when the defence or the block does, a fault when blocked for a
-    point. Those whose result the review gave (`fixed` frames) stay as given."""
+    """The attacks of `found` (from actions CSV rows `typed`) blocked for a point, the rally's last
+    touch: a fault. A serve or an attack the other team touches and loses is no point by itself:
+    that touch's fault wins the rally (the owner's rule, 1 Nov). Those whose result the review gave
+    (`fixed` frames) stay as given."""
     touches = [(c, int(row["frame"])) for c, row in zip(found, typed) if c["type"] not in ("floor", "net")]
     last = {c["rally"]: id(c) for c, _ in touches}
     for (a, frame), (b, _) in zip(touches, touches[1:]):
         if a["result"] != "play" or frame in fixed or b["rally"] != a["rally"] or last[b["rally"]] != id(b) or b["team"] in (None, a["team"]):
             continue
-        if a["type"] == "serve" and b["type"] == "pass" and b["result"] == "error":
-            a["result"] = "point"
-        elif a["type"] == "attack" and b["result"] == "error":
-            a["result"] = "point"
-        elif a["type"] == "attack" and b["type"] == "block" and b["result"] == "point":
+        if a["type"] == "attack" and b["type"] == "block" and b["result"] == "point":
             a["result"] = "error"
 
 

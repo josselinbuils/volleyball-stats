@@ -13,8 +13,8 @@ describe('problems', () => {
 
   it('marks a touch after a point', () => {
     expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
-    // A touched ace: the reception's fault.
-    expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1', 'error')], 1, null, true))).toEqual({});
+    // A touched ace is no point: the reception's fault wins the rally.
+    expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1', 'error')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
   });
 
   it('marks each problem on the touch that shows it', () => {

@@ -472,7 +472,7 @@
     "about": {
       "touches": "Every time the player touches the ball, whatever the action.",
       "serves": "The serves, which put the ball in play.",
-      "aces": "The serves that win the point directly: they land in the other court or the reception cannot keep them in play.",
+      "aces": "The serves that win the point outright: they land in the other court with nobody touching them.",
       "serveFaults": "The serves into the net or out.",
       "receptions": "The first touches on the other team's serve, aces conceded included.",
       "missed": "The receptions lost: the ball lands, goes out or into the net. An ace conceded counts against the player nearest to where it landed.",
@@ -480,7 +480,7 @@
       "rated": "The receptions' mean rating, out of 3, from where the next touch is played: 3 within 1.5 m of the setter's target (1 m off the net, between zones 2 and 3), 2 within 3 m, 1 further or sent straight over the net, 0 for a fault.",
       "sets": "The team's second touches, the ones that set up the attack.",
       "attacks": "The third touches, hit above the head to send the ball to the other team.",
-      "kills": "The attacks that win the point: they land in the other court or the other team's defence (or block) cannot keep them in play.",
+      "kills": "The attacks that win the point outright: they land in the other court with nobody touching them. A dig or block of the other team that loses the ball counts as its fault.",
       "attackFaults": "The attacks out, into the net, landing on the player's own side or blocked for a point.",
       "defended": "The attacks the other team touches and keeps in play, with a dig or a block.",
       "relances": "The third touches sent back without attacking, with a forearm or an overhead pass.",
@@ -500,7 +500,7 @@
       "time": "Time on the court during the rallies (minutes:seconds), from the players' tracking: rough where a player is poorly tracked.",
       "overReceptions": "The receptions that go straight to the other team: their touch comes next, with no set or attack of the team.",
       "overDigs": "The digs that go straight to the other team: their touch comes next, with no set or attack of the team.",
-      "serveRated": "The serves' mean grade, out of 4, from the other team's reception: 4 for an ace, 3 when the reception is poor or sent straight back, 2 when it is good, 1 when it is perfect, 0 for a fault."
+      "serveRated": "The serves' mean grade, out of 4, from the other team's reception: 4 for an ace or a reception fault, 3 when the reception is poor or sent straight back, 2 when it is good, 1 when it is perfect, 0 for a fault."
     },
     "noteTitles": "Hover or tap a column's title to see what it counts; click it to sort the rows.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",

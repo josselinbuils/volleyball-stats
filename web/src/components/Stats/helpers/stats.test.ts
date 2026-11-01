@@ -185,6 +185,7 @@ describe('serveRating', () => {
     expect(serveRating(serve, pass, touch('set', 'left', 2.5, -1, 1.5))).toBe(1);
     expect(serveRating(serve, pass, touch('set', 'left', 2.5, -3, 3))).toBe(2);
     expect(serveRating(serve, pass, touch('dig', 'right', 2.5))).toBe(3);
+    expect(serveRating(serve, touch('pass', 'left', 1, null, null, 'error'), undefined)).toBe(4);
   });
 
   it('is null without a reception rated after it', () => {

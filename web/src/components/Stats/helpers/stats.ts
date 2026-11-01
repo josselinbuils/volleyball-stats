@@ -86,7 +86,8 @@ export function rating(c: Contact, next: Contact | undefined): number | null {
 const SERVE_GRADES = ['serveEasy', 'serveFair', 'serveTough'] as const;
 
 /** A serve's grade from the other team's reception (`next`, its own next touch `after`): 4 an ace,
- * 0 a fault, else 4 less the reception's grade (`rating`); null without a rated reception. */
+ * 0 a fault, 4 too when the reception is lost, else 4 less the reception's grade (`rating`); null
+ * without a rated reception. */
 export function serveRating(c: Contact, next: Contact | undefined, after: Contact | undefined): number | null {
   if (c.result === 'point') {
     return 4;
@@ -98,7 +99,8 @@ export function serveRating(c: Contact, next: Contact | undefined, after: Contac
     return null;
   }
   const grade = rating(next, after);
-  return grade === null || grade === 0 ? null : 4 - grade;
+  // A reception lost: the serve's best, though no point by itself.
+  return grade === null ? null : grade === 0 ? 4 : 4 - grade;
 }
 
 /** The mean grade of the rated serves of `s`, null without any. */

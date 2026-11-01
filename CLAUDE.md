@@ -83,9 +83,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   `uv run python -m volleyball_stats.learn outputs/first_match --video data/first_match.mp4 --court
   outputs/courts/aspom_begles.json` scores every step on the answers and the checked rallies, against
   its last run (`learn.json`).
-  Stats: an attack wins when the other team's last touch loses the ball and faults when blocked for
-  a point, a serve whose reception is lost is an ace (`web.credited`, the usual convention); a touched
-  ace counts its reception once. The viewers' "Signaler" reports (see Hosting) are the main source of
+  Stats: a serve or an attack the other team touches and loses is no point by itself, that touch's
+  fault wins the rally (the owner's rule, 1 Nov; an ace or a kill lands untouched); an attack blocked
+  for a point is a fault (`web.credited`). The viewers' "Signaler" reports (see Hosting) are the main source of
   corrections: fetch them, record the clear
   ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
   the rest (no comment, unsure) to the review's Match tab, which lists each rally reported; then score and fix

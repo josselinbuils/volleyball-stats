@@ -472,7 +472,7 @@
     "about": {
       "touches": "Toutes les fois où le joueur touche le ballon, quelle que soit l'action.",
       "serves": "Les services, les mises en jeu.",
-      "aces": "Les services qui gagnent directement le point : ils tombent dans le terrain adverse ou la réception ne peut pas les garder en jeu.",
+      "aces": "Les services qui gagnent directement le point : ils tombent dans le terrain adverse sans que personne ne les touche.",
       "serveFaults": "Les services dans le filet ou dehors.",
       "receptions": "Les premières touches sur le service adverse, aces subis compris.",
       "missed": "Les réceptions perdues : le ballon tombe, part dehors ou dans le filet. Un ace subi compte au joueur le plus proche de la chute du ballon.",
@@ -480,7 +480,7 @@
       "rated": "La note moyenne des réceptions, sur 3, selon où la touche suivante est jouée : 3 à moins de 1,5 m de la cible du passeur (à 1 m du filet, entre les zones 2 et 3), 2 à moins de 3 m, 1 plus loin ou renvoyée directement chez l'adversaire, 0 pour une faute.",
       "sets": "Les deuxièmes touches de l'équipe, celles qui préparent l'attaque.",
       "attacks": "Les troisièmes touches, frappées au-dessus de la tête pour envoyer le ballon chez l'adversaire.",
-      "kills": "Les attaques qui gagnent le point : elles tombent dans le terrain adverse ou la défense (ou le contre) adverse ne peut pas les garder en jeu.",
+      "kills": "Les attaques qui gagnent directement le point : elles tombent dans le terrain adverse sans que personne ne les touche. Une défense ou un contre adverse qui ne garde pas le ballon compte comme sa faute.",
       "attackFaults": "Les attaques dehors, dans le filet, tombées de son côté ou contrées pour un point.",
       "defended": "Les attaques que l'adversaire touche et remet en jeu, en défense ou au contre.",
       "relances": "Les troisièmes touches renvoyées sans attaquer, en manchette ou en passe.",
@@ -500,7 +500,7 @@
       "time": "Temps passé sur le terrain pendant les échanges (minutes:secondes), d'après le suivi des joueurs : approximatif quand un joueur est mal suivi.",
       "overReceptions": "Les réceptions qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
       "overDigs": "Les défenses qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
-      "serveRated": "La note moyenne des services, sur 4, selon la réception adverse : 4 pour un ace, 3 si la réception est difficile ou renvoyée directement, 2 si elle est bonne, 1 si elle est parfaite, 0 pour une faute."
+      "serveRated": "La note moyenne des services, sur 4, selon la réception adverse : 4 pour un ace ou une réception fautée, 3 si la réception est difficile ou renvoyée directement, 2 si elle est bonne, 1 si elle est parfaite, 0 pour une faute."
     },
     "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte ; cliquez dessus pour trier les lignes.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",

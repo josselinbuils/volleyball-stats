@@ -39,8 +39,7 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     if (before?.result === 'error' && c.type !== 'block') {
       mark(k, 'afterFault');
     }
-    // An ace or a winning attack the other team touches and loses: that touch is the fault.
-    if (before?.result === 'point' && !(c.team !== before.team && c.result === 'error')) {
+    if (before?.result === 'point') {
       mark(k, 'afterPoint');
     }
   });

@@ -161,7 +161,7 @@ class TestContacts:
 
         assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
 
-    def test_a_serve_or_an_attack_wins_when_the_other_team_s_last_touch_loses_the_ball_an_attack_loses_when_blocked(self):
+    def test_an_attack_blocked_for_a_point_loses_one_the_other_team_touches_and_loses_is_no_point(self):
         def c(kind, team, rally, result="play"):
             return {"type": kind, "team": team, "rally": rally, "result": result}
 
@@ -170,14 +170,14 @@ class TestContacts:
             c("attack", 1, 1), c("block", 2, 1, "point"),  # blocked
             c("attack", 1, 2), c("dig", 2, 2), c("floor", None, 2),  # kept in play
             c("attack", 1, 3), c("dig", 2, 3, "error"),  # its result given by the review
-            c("serve", 2, 4), c("pass", 1, 4, "error"),  # the reception lets it go: an ace
+            c("serve", 2, 4), c("pass", 1, 4, "error"),  # the reception lets it go: its fault
             c("serve", 2, 5), c("pass", 1, 5, "error"), c("set", 1, 5, "error"),  # touches after it
         ]
         typed = [{"frame": str(k)} for k in range(len(found))]
 
         credited(found, typed, {7})
 
-        assert [x["result"] for x in found if x["type"] in ("attack", "serve")] == ["point", "error", "play", "play", "point", "play"]
+        assert [x["result"] for x in found if x["type"] in ("attack", "serve")] == ["play", "error", "play", "play", "play", "play"]
 
     def test_the_review_s_types_and_results_replace_the_touches(self):
         found = [{"type": "serve", "result": "point"}, {"type": "pass", "result": "play"}]
