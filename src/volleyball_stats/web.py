@@ -224,13 +224,18 @@ def said_on(match: Path, kind: str, field: str) -> set[int]:
     return {start for start, said in {a["start"]: a[field] for a in answers(match, kind)}.items() if said}
 
 
+def said_types(match: Path) -> dict[int, str]:
+    """The type the review's last `action` answer giving one gave each touch, by frame."""
+    return {a["frame"]: a["type"] for a in answers(match, "action") if "type" in a}
+
+
 def said_teams(match: Path) -> dict[int, int]:
     """The team the review's last `touch` answer on each touch gave it, by frame."""
     return {a["frame"]: a["team"] for a in answers(match, "touch")}
 
 
 def with_added(
-    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0, lead: int = 0, said: dict[int, int] | None = None
+    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0, lead: int = 0, said: dict[int, int] | None = None, kinds: dict[int, str] | None = None
 ) -> tuple[list[tuple[int, int]], list[dict]]:
     """The rally windows and actions CSV rows `typed` with the touches the review added (`added`
     answers: the window's start, frame, team, type): a row each, at the ball's place seen nearest it
@@ -239,8 +244,9 @@ def with_added(
     missed) starts at it. One in a window gone or at a frame already found is left out; a row found
     within `same` frames of one, of its team, or within `floor` frames, a floor or net, is that touch
     found again (a rerun) and goes, the added touch taking its window (started `lead` frames early):
-    a rerun moves the windows the answers named. A row's team is the one the review `said` (by frame), else
-    its own. A playing fault is no touch of the ball: none goes for it."""
+    a rerun moves the windows the answers named. A touch's team and type are those the review gave it
+    (`said`, `kinds`, by frame), else its own. A playing fault is no touch of the ball: none goes for it.
+    A block and another touch are two: the same player may play the ball again right after their block."""
     starts = {start: k for k, (start, _) in enumerate(windows)}
     known = {int(r["frame"]) for r in typed}
     # A touch added twice: the last answer's.
@@ -250,8 +256,15 @@ def with_added(
         return windows, typed
 
     def same_touch(r: dict, a: dict) -> bool:
-        team = str((said or {}).get(int(r["frame"]), r.get("team")))
-        return a["type"] != "fault" and abs(int(r["frame"]) - a["frame"]) <= (floor if r["type"] in NO_PLAYER else same if team == str(a["team"]) else -1)
+        apart = abs(int(r["frame"]) - a["frame"])
+        if a["type"] == "fault":
+            return False
+        if r["type"] in NO_PLAYER:
+            return apart <= floor
+        kind_of = (kinds or {}).get
+        if (kind_of(int(r["frame"]), r["type"]) == "block") != (kind_of(a["frame"], a["type"]) == "block"):
+            return False
+        return str((said or {}).get(int(r["frame"]), r.get("team"))) == str(a["team"]) and apart <= same
 
     # Each added touch's window: that of the row it replaces, else the one its answer named.
     window = {}
@@ -676,7 +689,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     added = answers(match, "added")
     kept = [{"start": start, **t} for start, touches in locks.items() if touches for t in touches]
     windows, actions = with_added(
-        ended(windows, answers(match, "end")), rally_rows, actions, kept + added, match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead, said_teams(match)
+        ended(windows, answers(match, "end")), rally_rows, actions, kept + added, match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead, said_teams(match), said_types(match)
     )
     allowed = {t["frame"] for t in kept} | {a["frame"] for a in added}
     shut = [(a - lead, b) for (a, b), row in zip(windows, rally_rows) if locks.get(int(row["start_frame"]))]

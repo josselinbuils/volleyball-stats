@@ -346,14 +346,31 @@ class TestWithAdded:
         ball = tmp_path / "ball.csv"
         ball.write_text("frame,visible,x,y\n")
         typed = [{"frame": "120", "type": "attack", "team": "2"}]
-        block = [{"start": 100, "frame": 126, "team": 2, "type": "block"}]
+        added = [{"start": 100, "frame": 126, "team": 2, "type": "dig"}]
 
-        _, rows = with_added([(100, 200)], [{"left": "2"}], typed, block, ball, 5, 20, 10)
-        assert [r["type"] for r in rows] == ["block"]
+        _, rows = with_added([(100, 200)], [{"left": "2"}], typed, added, ball, 5, 20, 10)
+        assert [r["type"] for r in rows] == ["dig"]
 
-        # The attack is the other team's: the block does not take its place.
-        _, rows = with_added([(100, 200)], [{"left": "2"}], typed, block, ball, 5, 20, 10, said={120: 1})
-        assert [r["type"] for r in rows] == ["attack", "block"]
+        # The attack is the other team's: the dig does not take its place.
+        _, rows = with_added([(100, 200)], [{"left": "2"}], typed, added, ball, 5, 20, 10, said={120: 1})
+        assert [r["type"] for r in rows] == ["attack", "dig"]
+
+    def test_a_block_and_a_touch_added_right_after_or_before_it_are_two(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n")
+        windows, rows = [(100, 200)], [{"left": "2"}]
+
+        def kept(typed, added, **said):
+            return [(r["frame"], r["type"]) for r in with_added(windows, rows, typed, added, ball, 5, 20, 10, **said)[1]]
+
+        block = [{"frame": "120", "type": "block", "team": "1"}]
+        assert kept(block, [{"start": 100, "frame": 126, "team": 1, "type": "dig"}]) == [("120", "block"), ("126", "dig")]
+        dig = [{"frame": "126", "type": "dig", "team": "1"}]
+        assert kept(dig, [{"start": 100, "frame": 120, "team": 1, "type": "block"}]) == [("120", "block"), ("126", "dig")]
+        # The block found again stays one touch; a type the review set counts.
+        assert kept(block, [{"start": 100, "frame": 126, "team": 1, "type": "block"}]) == [("126", "block")]
+        found_as_dig = [{"frame": "120", "type": "dig", "team": "1"}]
+        assert kept(found_as_dig, [{"start": 100, "frame": 126, "team": 1, "type": "dig"}], kinds={120: "block"}) == [("120", "dig"), ("126", "dig")]
 
     def test_a_playing_fault_added_replaces_no_touch_found_near_it(self, tmp_path):
         ball = tmp_path / "ball.csv"
