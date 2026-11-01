@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, credited, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, credited, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -372,6 +372,15 @@ class TestWithAdded:
 
         assert w == [(100, 299), (298, 400)]
         assert [r["frame"] for r in rows_out] == ["298"]
+
+    def test_a_rally_is_won_by_the_next_server_when_it_soon_follows(self):
+        rallies = [{"set": 1, "start": 0.0, "end": 10.0, "winner": 1}, {"set": 1, "start": 30.0, "end": 40.0, "winner": 1}, {"set": 1, "start": 100.0, "end": 110.0, "winner": 1}]
+        found = [{"type": "serve", "team": 2, "rally": 1}, {"type": "serve", "team": 2, "rally": 2}]
+
+        served_next(rallies, found, 40.0)
+
+        # The third serve comes 60 s later: a rally may have been missed in between.
+        assert [r["winner"] for r in rallies] == [2, 1, 1]
 
     def test_ball_near_takes_the_nearest_place_seen(self, tmp_path):
         ball = tmp_path / "ball.csv"

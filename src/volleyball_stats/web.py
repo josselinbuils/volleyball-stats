@@ -455,6 +455,25 @@ def answers(match: Path, kind: str) -> list[dict]:
     return json.loads(path.read_text()).get(kind, []) if path.exists() else []
 
 
+# A next serve this soon after a rally ends follows it: no rally was missed in between. First ASPOM
+# match, 1 Nov, the set scores' points off the given ones: 9 without the rule, 9 at 25 s
+# (points.NEXT_S, the school clips'), 5 at 40 s, 7 from 50 s (a 48 s gap held a missed rally).
+NEXT_SERVE_S = 40.0
+
+
+def served_next(rallies: list[dict], found: list[dict], within: float = NEXT_SERVE_S) -> None:
+    """Each rally won by the team serving the next one of its set (the sideout rule), when that
+    serve (the page's `found` contacts, the review's added serves among them) comes under `within`
+    seconds after it."""
+    serves: dict[int, int] = {}
+    for c in found:
+        if c["type"] == "serve" and c.get("team") and c["rally"] not in serves:
+            serves[c["rally"]] = c["team"]
+    for k, (rally, after) in enumerate(zip(rallies, rallies[1:])):
+        if after["set"] == rally["set"] and after["start"] - rally["end"] <= within and k + 1 in serves:
+            rally["winner"] = serves[k + 1]
+
+
 def rewon(rallies: list[dict], winners: dict[int, int]) -> None:
     """`rallies`' winners the review gave (`winners`, by their `key`), then each set's running score
     counted from its rallies' winners: the score the page shows adds up with the winners it shows
@@ -610,6 +629,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
+    if teams:
+        served_next(rallies, found)
     rewon(rallies, {a["start"]: a["winner"] for a in answers(match, "winner")})
     settle(found, [r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
