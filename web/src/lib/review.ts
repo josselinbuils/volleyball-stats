@@ -48,6 +48,8 @@ export interface Question {
   choices: Choice[];
   /** Viewers' reports on a rally (`report`): what each reported, the rally's touches and its winner. */
   reports?: { kind: string | null; shown: string | null; comment: string; time: number }[];
+  /** A report's rally, by the key the answers name it by. */
+  rally?: number | null;
   touches?: ReportTouch[];
   winner?: Group | null;
 }
@@ -69,7 +71,7 @@ export interface ReportChanges {
   /** Touches the rallies missed, at their frame. */
   added?: { frame: number; team: Group; type: string; result: string; player?: string }[];
   /** Rallies by their start frame: their winner, no play, or their end frame. */
-  rallies?: { start: number; winner?: Group; play?: false; end?: number }[];
+  rallies?: { start: number; winner?: Group; play?: false; end?: number; join?: true }[];
 }
 
 /** A player to name: an identity with pictures of their clearest moments, their time on court, their
@@ -133,6 +135,10 @@ interface ReviewData {
   pending: number;
   changed: boolean;
   namesPending: boolean;
+  /** The corrections of the reports answered, not applied yet: where each report starts from. */
+  corrections: Partial<ReportChanges>;
+  /** The rallies checked, by their key. */
+  checked: number[];
   questions: Question[];
   players: Named[];
   /** The roster's players of each team, for typing a name. */
@@ -162,6 +168,8 @@ export interface Saved {
   pending?: number;
   changed?: boolean;
   namesPending?: boolean;
+  corrections?: Partial<ReportChanges>;
+  checked?: number[];
   rebuilt?: boolean;
   undone?: string | null;
   /** The user declined an answer joining two players of different names: nothing saved. */

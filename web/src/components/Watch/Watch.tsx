@@ -20,8 +20,11 @@ import { ballAt, zoomOn } from '@/components/Watch/helpers/zoom';
 
 // Share of the way to the zoom's target covered each frame: the view follows the ball within a fifth of a second.
 const EASE = 0.1;
-// What web.py's --av1-video takes: 1080p, 8-bit, level 4.0; a browser that cannot play it takes the next source.
+// What web.py's --av1-video takes: 1080p, 8-bit, level 4.0; a browser that cannot play it takes the H.264 copy.
 const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
+const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? match.av1 : match.video;
+// Wider than this on the screen (in its pixels), the 720p copy would be stretched: the player takes the 1080p one.
+const WIDE_PX = 1600;
 
 export function Watch() {
   const { t } = useTranslation();
@@ -81,6 +84,32 @@ export function Watch() {
     document.addEventListener('fullscreenchange', sync);
     return () => document.removeEventListener('fullscreenchange', sync);
   }, []);
+  // The 720p copy while the player is small; the 1080p one in full screen, zoomed on the ball or wide.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    if (!(video instanceof HTMLVideoElement)) {
+      return;
+    }
+    const observer = new ResizeObserver(() => setWide(video.clientWidth * devicePixelRatio > WIDE_PX));
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, [video]);
+  const src = match.small && !full && !follow && !wide ? match.small : BIG;
+  // A copy taking over carries on where the video stands, playing if it was.
+  useEffect(() => {
+    if (!(video instanceof HTMLVideoElement) || !src || video.getAttribute('src') === src) {
+      return;
+    }
+    const { readyState, currentTime, paused } = video;
+    video.src = src;
+    if (readyState > 0) {
+      video.preload = 'auto';
+      video.currentTime = currentTime;
+      if (!paused) {
+        video.play().catch(() => {});
+      }
+    }
+  }, [video, src]);
   // Without a video, a clock plays the moments on the court's top view.
   useEffect(() => {
     if (match.video || !court.current) {
@@ -156,7 +185,7 @@ export function Watch() {
               {/* Full screen takes the video with its controls. */}
               <div className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
                 {full && <Feedback />}
-                {playlist && reached === playlist && playlist.at + 1 < playlist.clips.length && <Preload time={playlist.clips[playlist.at + 1].start} />}
+                {playlist && reached === playlist && playlist.at + 1 < playlist.clips.length && <Preload src={src} time={playlist.clips[playlist.at + 1].start} />}
                 {/* What plays, over the video: the bar below is out of sight from the stats and in full screen. */}
                 {playlist && (
                   <span
@@ -175,10 +204,7 @@ export function Watch() {
                   aria-label={t('video')}
                   onClick={() => togglePlay(video)}
                   className="block aspect-video w-full cursor-pointer [:fullscreen>&]:aspect-auto [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1"
-                >
-                  {match.av1 && <source src={match.av1} type={AV1} />}
-                  <source src={match.video} />
-                </video>
+                />
                 <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} />
               </div>
             </div>
@@ -192,19 +218,14 @@ export function Watch() {
   );
 }
 
-/** A hidden copy of the video waiting at `time`, the next clip's start: the browser keeps what it
- * fetches for the video, which then jumps there without waiting. */
-function Preload({ time }: { time: number }) {
+/** A hidden copy of the video (`src`, the copy playing) waiting at `time`, the next clip's start:
+ * the browser keeps what it fetches for the video, which then jumps there without waiting. */
+function Preload({ src, time }: { src: string | null; time: number }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (ref.current) {
       ref.current.currentTime = time;
     }
   }, [time]);
-  return (
-    <video ref={ref} muted playsInline preload="auto" aria-hidden className="hidden">
-      {match.av1 && <source src={match.av1} type={AV1} />}
-      <source src={match.video ?? undefined} />
-    </video>
-  );
+  return <video ref={ref} src={src ?? undefined} muted playsInline preload="auto" aria-hidden className="hidden" />;
 }

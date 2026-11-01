@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type PointerEvent, type RefObject } from '
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
-import { match, rallies } from '@/lib/match';
+import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { boxAt, viewAt } from '@/components/Review/helpers/box';
 
@@ -19,7 +20,7 @@ const FREE_STEP_S = 10;
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. */
+ * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video's corner, in its team's colour. */
 export function ClipVideo({
   clip,
   width,
@@ -30,6 +31,8 @@ export function ClipVideo({
   showTime = false,
   free = false,
   onTime,
+  caption,
+  autoPlay = true,
 }: {
   clip: Clip;
   width: number;
@@ -40,6 +43,8 @@ export function ClipVideo({
   showTime?: boolean;
   free?: boolean;
   onTime?: (time: number) => void;
+  caption?: { team: Group; text: string } | null;
+  autoPlay?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
@@ -65,7 +70,9 @@ export function ClipVideo({
       return;
     }
     v.currentTime = Math.max(0, clip.start - around);
-    void v.play().catch(() => {});
+    if (autoPlay) {
+      void v.play().catch(() => {});
+    }
     let frame = 0;
     const tick = () => {
       if (!free && v.currentTime > clip.end + around) {
@@ -91,13 +98,15 @@ export function ClipVideo({
     return () => cancelAnimationFrame(frame);
   }, [clip]);
 
-  // A moment asked for (`n` counts the asks, so the same moment can be asked again): shown paused,
-  // or played from there (`play`).
+  // A moment asked for (`n` counts the asks, so the same moment can be asked again): played from
+  // there (`play`), shown paused (false) or as the video was (unset).
   useEffect(() => {
     const v = video.current;
     if (v && seek) {
       v.currentTime = seek.time;
-      void (seek.play ? v.play().catch(() => {}) : v.pause());
+      if (seek.play !== undefined) {
+        void (seek.play ? v.play().catch(() => {}) : v.pause());
+      }
     }
   }, [seek]);
 
@@ -151,6 +160,12 @@ export function ClipVideo({
             )}
           </svg>
         </div>
+        {caption && (
+          <span className="pointer-events-none absolute top-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
+            <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
+            <span className="truncate">{caption.text}</span>
+          </span>
+        )}
       </div>
       <div
         ref={bar}

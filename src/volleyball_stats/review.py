@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -121,11 +121,11 @@ class Questions:
         rallies = web.read_csv(self.match / "rallies.csv") if (self.match / "rallies.csv").exists() else []
         lead = round(web.LEAD_S * self.fps)
         windows, actions = web.with_added(
-            web.ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rallies], web.answers(self.match, "end")), rallies, actions, web.answers(self.match, "added"), self.match / "ball.csv", lead, round(web.ADDED_NEAR_S * self.fps)
+            web.ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rallies], web.answers(self.match, "end")), rallies, actions, web.answers(self.match, "added"), self.match / "ball.csv", round(web.ADDED_NEAR_S * self.fps)
         )
         self.touches = doubtful(actions, [(a - lead, b) for a, b in windows], unnamed(self.match / "review", self.fps))
         self.page = page_data(self.match / "review")
-        self.reports = reports(self.match)
+        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []), key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set")) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -215,11 +215,13 @@ class Questions:
             "boxes": [[round(int(self.frame_of[r]) / self.fps, 3), *(int(v) for v in self.box_of[r])] for r in rows],
         }
 
-    def page_index(self) -> tuple[dict[int, int], list[tuple[int, int]]]:
-        """The review page's touches' teams by frame and its rally windows (start, end frames)."""
+    def page_index(self) -> tuple[dict[int, int], list[tuple[int, int]], list[int]]:
+        """The review page's touches' teams by frame, its rally windows (start, end frames) and the
+        keys the answers name them by."""
         page = self.page or {"contacts": [], "rallies": []}
         teams = {round(c["t"] * self.fps): c["team"] for c in page["contacts"] if c["type"] not in web.NO_PLAYER and c.get("team")}
-        return teams, [(round(r["start"] * self.fps), round(r["end"] * self.fps)) for r in page["rallies"]]
+        windows = [(round(r["start"] * self.fps), round(r["end"] * self.fps)) for r in page["rallies"]]
+        return teams, windows, [r.get("key", start) for r, (start, _) in zip(page["rallies"], windows)]
 
     def touch_clip(self, frame: int, x: float | None, y: float | None) -> dict:
         """The clip around a touch at `frame`, its place (the ball then, at `x`, `y`) outlined, if known."""
@@ -599,6 +601,42 @@ def reports(match: Path) -> list[dict]:
     return sorted(found.values(), key=lambda r: r.get("time") or 0)
 
 
+def unusual(page: dict) -> list[dict]:
+    """The rallies of the review's `page` (its data.js) that do not look like one, as reports at
+    their start, `kind` "auto.REASON": no touch, not starting with a serve, two serves, a team
+    touching four times in a row (a block apart), served by the team that lost the set's point
+    before, no winner (with teams). The same rally and reason keep the same id: one handled is not
+    asked again."""
+    out = []
+    rallies = page["rallies"]
+    for k, r in enumerate(rallies):
+        touches = [c for c in page["contacts"] if c["rally"] == k and c["type"] not in web.NO_PLAYER]
+        serves = [c for c in touches if c["type"] == "serve"]
+        why = []
+        if not touches:
+            why.append("empty")
+        elif touches[0]["type"] != "serve":
+            why.append("noServe")
+        if len(serves) > 1:
+            why.append("twoServes")
+        run, side = 0, None
+        for c in touches:
+            who = c.get("team") or c["side"]
+            run, side = (0 if c["type"] == "block" else run + 1 if who == side else 1), who
+            if run > 3:
+                why.append("fourTouches")
+                break
+        before = rallies[k - 1] if k else None
+        if serves and serves[0].get("team") and before and before["set"] == r["set"] and before.get("winner") and serves[0]["team"] != before["winner"]:
+            why.append("server")
+        if page.get("teams") and r.get("winner") is None:
+            why.append("noWinner")
+        for reason in why:
+            said = f"auto:{reason}:{r['start']}"
+            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["start"], "kind": f"auto.{reason}", "comment": None})
+    return out
+
+
 def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
     """A viewer's `report` as a question on the rally of `page` (its data.js) it is about, by the time
     of the touch replayed then (`clip`) or of the report: what was reported (`reports`, more joined
@@ -607,7 +645,10 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
     rally window's start frame and each touch's team, by frame."""
     at = float((report.get("clip") or {}).get("time") or report.get("time") or 0)
     rallies = page["rallies"]
-    k = next((k for k, r in enumerate(rallies) if r["start"] - REPORT_BEFORE_S <= at <= r["end"] + REPORT_AFTER_S), None)
+    # The rally it falls in, else the one it falls near.
+    k = next((k for k, r in enumerate(rallies) if r["start"] <= at <= r["end"]), None)
+    if k is None:
+        k = next((k for k, r in enumerate(rallies) if r["start"] - REPORT_BEFORE_S <= at <= r["end"] + REPORT_AFTER_S), None)
     people = page.get("people") or {}
     player = lambda p: (lambda q: f"{q['team']}:{q['number']}" if q and q.get("number") is not None else None)(people.get(str(p)) if p is not None else None)  # noqa: E731
     touches = [
@@ -623,23 +664,30 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
         "reports": [{"kind": report.get("kind"), "shown": report.get("shown"), "comment": report.get("comment") or "", "time": round(at, 2)}],
         "touches": touches, "winner": rally.get("winner"),
     }
-    return question, {"start": round(rally["start"] * fps) if k is not None else None, "touches": {str(t["frame"]): t["team"] for t in touches}}
+    key = rally.get("key", round(rally["start"] * fps)) if k is not None else None
+    return {**question, "rally": key}, {"start": key, "touches": {str(t["frame"]): t["team"] for t in touches}}
 
 
-def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int, int]], given: dict[tuple[int, int], dict], lead: int) -> dict:
-    """What the corrections made from a viewer's report add to identity_answers.json, anywhere in the
-    match (the page's touches' `teams` by frame, its rally `windows`): a touch's player
-    ("TEAM:IDENTITY") or none ("none", no touch) as `touch` answers, its type or result as `action`
-    ones; a touch added (frame, team, type, result, player) as an `added` one with those, in the
-    window it falls in (from `lead` frames before it), else the one before it; a rally's (`rallies`,
-    by its window's start frame) no play (`rally`), winner (`winner`) or end frame (`end`)."""
+def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int, int]], given: dict[tuple[int, int], dict], lead: int, keys: list[int] | None = None) -> dict:
+    """What the corrections made in the review add to identity_answers.json, anywhere in the match
+    (the page's touches' `teams` by frame, its rally `windows` and the `keys` naming them, their
+    starts by default): a touch's player ("TEAM:IDENTITY") or none ("none", no touch) as `touch`
+    answers, its type or result as `action` ones; a touch added (frame, team, type, result, player)
+    as an `added` one with those, in its rally (`window_of`); a rally's (`rallies`, by its key) no
+    play (`rally`), winner (`winner`), end frame (`end`) or joining the next one (`join`)."""
+    keys = keys or [start for start, _ in windows]
     out: dict[str, list] = defaultdict(list)
+    # A rally starts at a serve added before it: the touches added after that serve are its own.
+    windows = list(windows)
+    for c in changes.get("added", []):
+        if c.get("type") == "serve" and (k := window_of(int(c["frame"]), windows, lead, True)) is not None:
+            windows[k] = (min(windows[k][0], int(c["frame"])), windows[k][1])
     for c in changes.get("added", []):
         frame, team = int(c["frame"]), int(c["team"])
-        k = window_of(frame, windows, lead)
+        k = window_of(frame, windows, lead, c.get("type") == "serve")
         if k is None or team not in (1, 2) or c.get("type") not in TOUCH_TYPES or frame in teams:
             continue
-        out["added"].append({"start": windows[k][0], "frame": frame, "team": team, "type": c["type"]})
+        out["added"].append({"start": keys[k], "frame": frame, "team": team, "type": c["type"]})
         if c.get("result") in RESULTS:
             out["action"].append({"frame": frame, "result": c["result"]})
         if c.get("player"):
@@ -658,7 +706,7 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
         fix = {k: c[k] for k, allowed in (("type", TOUCH_TYPES), ("result", RESULTS)) if c.get(k) in allowed}
         if fix:
             out["action"].append({"frame": frame, **fix})
-    starts = {start for start, _ in windows}
+    starts = set(keys)
     for r in changes.get("rallies", []):
         start = int(r["start"])
         if start not in starts:
@@ -669,17 +717,23 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
             out["winner"].append({"start": start, "winner": r["winner"]})
         if r.get("end") is not None and int(r["end"]) > start:
             out["end"].append({"start": start, "end": int(r["end"])})
+        if r.get("join") is True:
+            out["join"].append({"start": start})
     return dict(out)
 
 
-def window_of(frame: int, windows: list[tuple[int, int]], lead: int) -> int | None:
-    """The index of the window `frame` falls in (from `lead` frames before it), else of the last one
-    starting before it; None before the first."""
+def window_of(frame: int, windows: list[tuple[int, int]], lead: int, serve: bool = False) -> int | None:
+    """The index of the window a touch at `frame` belongs to: the one it falls in (from `lead`
+    frames before it); else a `serve` the next one's (the rally missed it), another touch the last
+    one started before it; before them all, the first. None without windows."""
     inside = next((k for k, (start, end) in enumerate(windows) if start - lead <= frame <= end), None)
     if inside is not None:
         return inside
+    after = next((k for k, (start, _) in enumerate(windows) if start > frame), None)
     before = [k for k, (start, _) in enumerate(windows) if start <= frame]
-    return before[-1] if before else None
+    if serve and after is not None:
+        return after
+    return before[-1] if before else after
 
 
 def unnamed(site: Path, fps: float) -> dict[int, str]:
@@ -1031,16 +1085,44 @@ def state(match: Path, log: list[dict]) -> dict:
     return json.loads(json.dumps(found))
 
 
-def waiting(match: Path, log: list[dict]) -> dict:
+def waiting_reports(log: list[dict], shown: set[str] | frozenset[str]) -> list[dict]:
+    """The report answers saved since the review's page was built (`shown`: the ids of the answers
+    it was built with), with the corrections they were sent."""
+    return [e for e in log if e.get("choice") == "report" and "changes" in e and e["id"] not in shown]
+
+
+def superseded(log: list[dict], shown: set[str] | frozenset[str]) -> list[dict]:
+    """`log` with the report answers saved since the review's page was built emptied of their
+    corrections: the next one carries them all, as the page shows them (`corrections`). New entries,
+    so that an undo gets the earlier ones back."""
+    later = {id(e) for e in waiting_reports(log, shown)}
+    return [{k: v for k, v in e.items() if k not in KINDS and k != "changes"} if id(e) in later else e for e in log]
+
+
+def corrections(log: list[dict], shown: set[str] | frozenset[str]) -> dict:
+    """The corrections of the report answers saved since the review's page was built (it shows the
+    earlier ones), as the page sent them: the last one's, which carries the others."""
+    return next((e["changes"] for e in reversed(waiting_reports(log, shown))), {})
+
+
+def checked(log: list[dict]) -> list[int]:
+    """The rallies the user checked, by their key: they show green while no report is open on them."""
+    return sorted({k for e in log for k in e.get("checked", [])})
+
+
+def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = frozenset()) -> dict:
     """What an apply would take in: the answers saying something not applied yet (those saved
     before the flag were), whether the answers or the jersey numbers, and the names, differ from
-    what the identities were computed from (APPLIED)."""
+    what the identities were computed from (APPLIED); and the reports' `corrections` the review's
+    page does not show yet (`shown`: the answers it was built with) and the rallies `checked`."""
     computed = match / APPLIED
     now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
     return {
         "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
         "changed": (now["answers"], now["jerseys"]) != (then.get("answers"), then.get("jerseys")),
         "namesPending": now["names"] != then.get("names"),
+        "corrections": corrections(log, shown),
+        "checked": checked(log),
     }
 
 
@@ -1073,6 +1155,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     fps, width, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cap.release()
     answers = match / "identity_answers.json"
+    # The answers the review's page was last built with: it shows their corrections.
+    shown = {e["id"] for e in load_log(answers)}
     if not (match / "identity_candidates.json").exists():
         identity.rerun(match, video, squad)
     questions = Questions(match, fps)
@@ -1131,7 +1215,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     def pages() -> list:
         """The steps rebuilding the review's page, the published one with its own choices, then the
         hosted ones when the match folder says how (publish.json)."""
-        steps = [("review", lambda: web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback"))]
+        def own() -> None:
+            web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback")
+            shown.clear()
+            shown.update(e["id"] for e in load_log(answers))
+
+        steps = [("review", own)]
         if (match / "page.json").exists():
             steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
         if (match / matches.PUBLISH).exists():
@@ -1181,7 +1270,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted or None}
+        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted or None}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -1303,29 +1392,39 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if self.path == "/photo":
                     set_photo(match, questions.table, int(body["team"]), int(body["identity"]), int(body["frame"]), body["box"])
                     run_steps(pages())
-                    return self.send(json.dumps(waiting(match, log)).encode(), "application/json")
+                    return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/team":
                     set_team(match, int(body["team"]), body.get("name"), body.get("colour"))
                     run_steps(pages())
-                    return self.send(json.dumps(waiting(match, log)).encode(), "application/json")
+                    return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/name":
                     jersey = body.get("jersey")
                     set_name(match, questions, int(body["team"]), int(body["identity"]), body.get("name"), None if jersey in (None, "") else int(jersey))
                     # Undo leaves the names as typed since.
                     for change in history:
                         change["names"] = None
-                    return self.send(json.dumps(waiting(match, log)).encode(), "application/json")
+                    return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/answer":
                     _, refs = questions.build({entry["id"] for entry in log})
-                    if body["id"] not in refs:
+                    # Corrections saved from the match tab, about no question.
+                    edit = str(body["id"]).startswith("edit:")
+                    if body["id"] not in refs and not edit:
                         return self.send(b'{"error":"unknown question"}', "application/json", 400)
-                    choice = str(body["choice"])
+                    choice = "report" if edit else str(body["choice"])
                     said = choice.split(":") if choice.startswith("player:") else None
                     player = said and questions.ref(int(said[1]), int(said[2]))
-                    if "report" in refs[body["id"]]:
+                    if edit or "report" in refs[body["id"]]:
                         given = identity.named(questions.table, identity.read_names(match))
-                        fixes = report_answer(body.get("changes") or {}, *questions.page_index(), given, round(web.LEAD_S * questions.fps)) if choice == "report" else {}
-                        log.append({"id": body["id"], "choice": choice, **fixes, "applied": False})
+                        changes = body.get("changes") or {}
+                        teams, windows, keys = questions.page_index()
+                        fixes = report_answer(changes, teams, windows, given, round(web.LEAD_S * questions.fps), keys) if choice == "report" else {}
+                        if choice == "report":
+                            log[:] = superseded(log, shown)
+                        ok = [int(k) for k in body.get("checked") or []] if edit else []
+                        asked = {entry["id"] for entry in log}
+                        log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if choice == "report" else {}), **({"checked": ok} if ok else {}), "applied": False})
+                        # The reports on a rally checked are handled with it.
+                        log += [{"id": qid, "choice": "checked", "applied": False} for qid, ref in refs.items() if "report" in ref and ref["report"]["start"] in ok and qid not in asked]
                     elif "rally" in refs[body["id"]]:
                         log.append({"id": body["id"], "choice": choice, **rally_answer(refs[body["id"]]["rally"], choice), "applied": False})
                     elif "receiver" in refs[body["id"]]:
@@ -1418,7 +1517,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         change["applied"] = True
                     save(answers, log)
                     files.write_text(computed, json.dumps(state(match, log)))
-            self.send(json.dumps({"answered": len(log), **waiting(match, log), "rebuilt": rebuilt, "undone": undone}).encode(), "application/json")
+            self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": rebuilt, "undone": undone}).encode(), "application/json")
 
         def log_message(self, *args) -> None:
             pass

@@ -212,15 +212,17 @@ def crossed(row: dict, said: tuple[int, int] | None) -> dict:
 ADDED_NEAR_S = 1.0
 
 
-def with_added(windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, lead: int, near: int) -> tuple[list[tuple[int, int]], list[dict]]:
+def with_added(windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int) -> tuple[list[tuple[int, int]], list[dict]]:
     """The rally windows and actions CSV rows `typed` with the touches the review added (`added`
     answers: the window's start, frame, team, type): a row each, at the ball's place seen nearest it
     under `near` frames (none when unseen), on its team's side of the rally (rallies.csv's `rows`);
-    a window ending before a touch added to it lasts to it. One before its window (less `lead`), in
-    a window gone or at a frame already found is left out."""
+    a window ending before a touch added to it lasts to it, one starting after it (a serve the rally
+    missed) starts at it. One in a window gone or at a frame already found is left out."""
     starts = {start: k for k, (start, _) in enumerate(windows)}
     known = {int(r["frame"]) for r in typed}
-    added = [a for a in added if a["start"] in starts and a["frame"] >= a["start"] - lead and a["frame"] not in known]
+    # A touch added twice: the last answer's.
+    added = list({a["frame"]: a for a in added}.values())
+    added = [a for a in added if a["start"] in starts and a["frame"] not in known]
     if not added:
         return windows, typed
     windows = list(windows)
@@ -228,7 +230,7 @@ def with_added(windows: list[tuple[int, int]], rows: list[dict], typed: list[dic
     new = []
     for a in added:
         k = starts[a["start"]]
-        windows[k] = (windows[k][0], max(windows[k][1], a["frame"]))
+        windows[k] = (min(windows[k][0], a["frame"]), max(windows[k][1], a["frame"]))
         left = rows[k].get("left") or 1
         x, y = places.get(a["frame"], ("", ""))
         new.append({"frame": str(a["frame"]), "x": x, "y": y, "type": a["type"], "side": "left" if int(left) == a["team"] else "right", "track": "", "gap": "", "team": str(a["team"]), "identity": ""})
@@ -431,13 +433,13 @@ def answers(match: Path, kind: str) -> list[dict]:
     return json.loads(path.read_text()).get(kind, []) if path.exists() else []
 
 
-def rewon(rallies: list[dict], windows: list[tuple[int, int]], winners: dict[int, int]) -> None:
-    """`rallies`' winners the review gave (`winners`, by window start frame); a set where one changed
-    gets its running score counted again from its winners."""
+def rewon(rallies: list[dict], winners: dict[int, int]) -> None:
+    """`rallies`' winners the review gave (`winners`, by their `key`); a set where one changed gets
+    its running score counted again from its winners."""
     changed = set()
-    for rally, (start, _) in zip(rallies, windows):
-        if start in winners and rally["winner"] != winners[start]:
-            rally["winner"] = winners[start]
+    for rally in rallies:
+        if rally["key"] in winners and rally["winner"] != winners[rally["key"]]:
+            rally["winner"] = winners[rally["key"]]
             changed.add(rally["set"])
     score: dict[int, list[int]] = {}
     for rally in rallies:
@@ -461,16 +463,39 @@ def no_rallies(match: Path) -> set[int]:
     return {r["start"] for r in (json.loads(path.read_text()).get("rally", []) if path.exists() else []) if not r["play"]}
 
 
+def merge_rallies(windows: list[tuple[int, int]], rows: list[dict], scores: list[dict], merged: set[int]) -> tuple[list, list, list]:
+    """The rally windows, rallies.csv's and points.csv's rows with each rally of `merged` (by its
+    start in rallies.csv) joined to the next one of its set: its start and row, the next's end and
+    point; each later score of the set less the point the first gave."""
+    out: tuple[list, list, list] = ([], [], [])
+    current, lost, join = None, [0, 0], False
+    for window, row, point in zip(windows, rows, scores):
+        if row.get("set") != current:
+            current, lost, join = row.get("set"), [0, 0], False
+        if point.get("score_1"):
+            point = {**point, "score_1": str(int(point["score_1"]) - lost[0]), "score_2": str(int(point["score_2"]) - lost[1])}
+        if join:
+            out[0][-1], out[2][-1] = (out[0][-1][0], max(out[0][-1][1], window[1])), point
+        else:
+            for part, value in zip(out, (window, row, point)):
+                part.append(value)
+        join = int(row["start_frame"]) in merged
+        if join and point.get("winner"):
+            lost[int(point["winner"]) - 1] += 1
+    return out
+
+
 def drop_rallies(windows: list[tuple[int, int]], rows: list[dict], scores: list[dict], actions: list[dict], gone: set[int], lead: int) -> tuple[list, list, list, list]:
-    """The rally windows, rallies.csv's and points.csv's rows and actions.csv's but the windows
-    starting at a frame of `gone` and their contacts (from `lead` frames before them), each later
-    score of their set less the points they gave."""
+    """The rally windows, rallies.csv's and points.csv's rows and actions.csv's but the rallies of
+    `gone` (by their start in rallies.csv) and their contacts (from `lead` frames before them), each
+    later score of their set less the points they gave."""
     kept: tuple[list, list, list] = ([], [], [])
-    current, lost = None, [0, 0]
+    current, lost, out = None, [0, 0], []
     for window, row, point in zip(windows, rows, scores):
         if row.get("set") != current:
             current, lost = row.get("set"), [0, 0]
-        if window[0] in gone:
+        if int(row["start_frame"]) in gone:
+            out.append(window)
             if point.get("winner"):
                 lost[int(point["winner"]) - 1] += 1
             continue
@@ -478,7 +503,6 @@ def drop_rallies(windows: list[tuple[int, int]], rows: list[dict], scores: list[
             point = {**point, "score_1": str(int(point["score_1"]) - lost[0]), "score_2": str(int(point["score_2"]) - lost[1])}
         for part, value in zip(kept, (window, row, point)):
             part.append(value)
-    out = [(a, b) for a, b in windows if a in gone]
     return *kept, [r for r in actions if not any(a - lead <= int(r["frame"]) <= b for a, b in out)]
 
 
@@ -499,10 +523,12 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     # for a touch) go, those it gives the other team change sides.
     # The rallies end where the review says; touches past an end go.
     lead = round(LEAD_S * fps)
-    windows, actions = with_added(ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", lead, round(ADDED_NEAR_S * fps))
+    windows, actions = with_added(ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", round(ADDED_NEAR_S * fps))
+    scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
+    # Two windows it says are one rally become one.
+    windows, rally_rows, scores = merge_rallies(windows, rally_rows, scores, {a["start"] for a in answers(match, "join")})
     said = touched(match, given)
     actions = [crossed(r, said.get(int(r["frame"]))) for r in actions if said.get(int(r["frame"]), ()) is not None and any(a - lead <= int(r["frame"]) <= b for a, b in windows)]
-    scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
     # And the windows it says are no rally (warm-up, a ball thrown back).
     windows, rally_rows, scores, actions = drop_rallies(windows, rally_rows, scores, actions, no_rallies(match), round(LEAD_S * fps))
     # The player rows around the touches place them; all the rows feed the samples, read once.
@@ -529,6 +555,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     rallies = []
     for (start, end), row, point in zip(windows, rally_rows, scores):
         rallies.append({
+            # What the review's answers name it by: its start in rallies.csv, which an added serve moves.
+            "key": int(row["start_frame"]),
             "start": round(start / fps, 2),
             "end": round(end / fps, 2),
             "set": int(row.get("set") or 1),
@@ -538,7 +566,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
-    rewon(rallies, windows, {a["start"]: a["winner"] for a in answers(match, "winner")})
+    rewon(rallies, {a["start"]: a["winner"] for a in answers(match, "winner")})
     settle(found, [r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
     missed = touched(match, given, "receiver")
@@ -569,7 +597,9 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     """ball.js's content: the ball's place where it is seen in the rallies (their lead included),
     every BALL_STEP_S, as flat [frame, x, y, ...] samples, x and y fractions of the picture."""
     lead, step = round(LEAD_S * fps), max(1, round(BALL_STEP_S * fps))
-    windows = [(start - lead, end) for start, end in ended([(int(r["start_frame"]), int(r["end_frame"])) for r in read_csv(match / "rallies.csv")], answers(match, "end"))]
+    rows = read_csv(match / "rallies.csv")
+    windows = ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rows], answers(match, "end"))
+    windows = [(start - lead, end) for start, end in merge_rallies(windows, rows, [{}] * len(rows), {a["start"] for a in answers(match, "join")})[0]]
     samples: list[float] = []
     with open(match / "ball.csv") as f:
         for row in csv.DictReader(f):
@@ -579,9 +609,9 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     return {"fps": fps, "samples": samples}
 
 
-def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None) -> None:
+def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None) -> None:
     """The page, data.js, players.js and, unless `video` is None, the video, its `av1` copy the page
-    plays first where the browser can, its poster, a frame from the middle of the first rally, and
+    plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
     the `ball`'s places in ball.js, which the page loads to zoom on it."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
@@ -594,6 +624,8 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     data = {**data, "video": video and video.name}
     if video and av1:
         data["av1"] = av1.name
+    if video and small:
+        data["small"] = small.name
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
@@ -612,7 +644,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     index = site / "index.html"
     index.write_text(index.read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
     # Copied with their dates: an upload skips the unchanged ones.
-    for kept in filter(None, (video, video and av1)):
+    for kept in filter(None, (video, video and av1, video and small)):
         if copy:
             shutil.copy2(kept, site / kept.name)
         else:
@@ -938,15 +970,16 @@ def build(
     link: str | None = None,
     feedback: str | None = None,
     av1: Path | None = None,
+    small: Path | None = None,
 ) -> dict:
     """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
     pictures of the `pictured` teams' players; `light` a lighter copy of `video` on its timeline for
-    the page to play with the full footage, `av1` an AV1 copy played first where the browser can, and `link`, on a page without footage, where the same
+    the page to play with the full footage, `av1` an AV1 copy played first where the browser can, `small` a 720p one played in a small player, and `link`, on a page without footage, where the same
     page with it is (behind a password); `feedback` where viewers report what is wrong in a moment
-    (none: they are not asked); returns data.js's match. ValueError for `light` or `av1` with a
+    (none: they are not asked); returns data.js's match. ValueError for `light`, `av1` or `small` with a
     footage to blur (blurring works on the tracked video)."""
-    if (light or av1) and footage != "full":
-        raise ValueError("--light-video and --av1-video go with --footage full")
+    if (light or av1 or small) and footage != "full":
+        raise ValueError("--light-video, --av1-video and --small-video go with --footage full")
     calibration = Calibration.load(court)
     calibration.check(decode.size(video))
     data, players = match_data(match, video, calibration)
@@ -958,7 +991,7 @@ def build(
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
     ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
-    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball)
+    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small)
     return data
 
 
@@ -969,7 +1002,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     club without one, or a court calibrated on another video."""
     path = match / "page.json"
     saved = json.loads(path.read_text()) if path.exists() and site is None else {}
-    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, "light": None, "av1": None, "link": None, "feedback": None, **saved}
+    settings = {"footage": "none", "club": None, "pictures": False, "copy": False, "light": None, "av1": None, "small": None, "link": None, "feedback": None, **saved}
     settings.update({k: v for k, v in given.items() if v is not None})
     if settings["club"] is None and (settings["footage"] == "blur-opponents" or settings["pictures"]):
         raise ValueError("--footage blur-opponents and --pictures need --club 1, 2 or both")
@@ -980,7 +1013,8 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     pictured = ({1, 2} if settings["club"] == "both" else {settings["club"]}) if settings["pictures"] else set()
     light = Path(settings["light"]) if settings["light"] else None
     av1 = Path(settings["av1"]) if settings["av1"] else None
-    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"], av1=av1)
+    small = Path(settings["small"]) if settings["small"] else None
+    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"], av1=av1, small=small)
     return data, settings
 
 
@@ -997,12 +1031,13 @@ def main() -> None:
     parser.add_argument("--copy-video", action=argparse.BooleanOptionalAction, help="Copy the video instead of symlinking it, for hosting")
     parser.add_argument("--light-video", type=Path, help="A lighter copy of --video on its timeline (e.g. 1080p) for the page to play with --footage full; the data still come from --video")
     parser.add_argument("--av1-video", type=Path, help="An AV1 copy of --video on its timeline, 1080p 8-bit (level 4.0), that the page plays first where the browser can; the others play --light-video or --video")
+    parser.add_argument("--small-video", type=Path, help="A 720p H.264 copy of --video on its timeline that the page plays while its player is small (not full screen, no zoom on the ball)")
     parser.add_argument("--feedback", help="Where viewers report what is wrong in a moment (e.g. /volleyball/feedback, the hosting's nginx keeps them); none asks nothing")
     parser.add_argument("--video-page", help="On a page without the video, a link to the same page with it, behind a password (e.g. video/)")
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
     args = parser.parse_args()
     try:
-        data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video, "light": args.light_video and str(args.light_video), "av1": args.av1_video and str(args.av1_video), "link": args.video_page, "feedback": args.feedback}, args.out)
+        data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video, "light": args.light_video and str(args.light_video), "av1": args.av1_video and str(args.av1_video), "small": args.small_video and str(args.small_video), "link": args.video_page, "feedback": args.feedback}, args.out)
     except ValueError as error:
         parser.error(str(error))
     site = args.out or args.match / "site"

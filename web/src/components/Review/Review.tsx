@@ -10,7 +10,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
 import { cn } from '@/lib/utils';
-import { allMarked, post, type Conflict, type Named, type Question, type Saved, type Suggestion } from '@/lib/review';
+import { allMarked, post, type Conflict, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
@@ -18,7 +18,7 @@ import { Conflicts } from '@/components/Review/Conflicts';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
-import { ReportComments, ReportEditor } from '@/components/Review/ReportEditor';
+import { MatchTab } from '@/components/Review/MatchTab';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
@@ -27,12 +27,9 @@ const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: '
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
 const REPORT_KEYS: Record<string, string> = { s: 'skip' };
-/** A report's video starts this long before the reported moment, and a touch's replay before the touch. */
-const REPORT_LEAD_S = 2;
-
-type Tab = 'questions' | 'names';
+type Tab = 'questions' | 'names' | 'match';
 // The tab survives the reload that applies the answers.
-const QUESTIONS_HASH = '#questions';
+const HASHES: Record<Tab, string> = { names: '', questions: '#questions', match: '#match' };
 
 /** The review: the players' names, then the identity step's doubts one at a time, answered on the
  * video and shown with the names given. */
@@ -43,6 +40,8 @@ export function Review({
   pending: waiting,
   changed,
   namesPending: renamed,
+  corrections: savedCorrections,
+  checked: savedChecked,
   questions: initial,
   players,
   roster,
@@ -55,6 +54,8 @@ export function Review({
   pending: number;
   changed: boolean;
   namesPending: boolean;
+  corrections: Partial<ReportChanges>;
+  checked: number[];
   questions: Question[];
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
@@ -67,7 +68,15 @@ export function Review({
   const [answered, setAnswered] = useState(before);
   // What an apply would take in: answers not applied yet, answers and names changed since.
   const [pending, setPending] = useState({ answers: waiting, changed, names: renamed });
+  const [corrections, setCorrections] = useState(savedCorrections);
+  const [checked, setChecked] = useState(savedChecked);
   const onSaved = (saved: Saved) => {
+    if (saved.corrections !== undefined) {
+      setCorrections(saved.corrections);
+    }
+    if (saved.checked !== undefined) {
+      setChecked(saved.checked);
+    }
     if (saved.answered !== undefined) {
       setAnswered(saved.answered);
     }
@@ -87,7 +96,7 @@ export function Review({
     const timer = window.setTimeout(() => setNotice(null), NOTICE_MS);
     return () => window.clearTimeout(timer);
   }, [notice]);
-  const [tab, setTab] = useState<Tab>(location.hash === QUESTIONS_HASH ? 'questions' : 'names');
+  const [tab, setTab] = useState<Tab>(() => (Object.keys(HASHES) as Tab[]).find((k) => HASHES[k] && HASHES[k] === location.hash) ?? 'names');
   const [given, setGiven] = useState(() => new Map(players.map((p) => [`${p.team}:${p.identity}`, { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
   const named = [...given.values()].filter((g) => g.name.trim() || g.jersey).length;
   const nameOf = (team: Group, n: number) => given.get(`${team}:${n}`)?.name.trim() || null;
@@ -98,18 +107,36 @@ export function Review({
   // namesake of a player offered before; whether two players are one makes no sense with such a
   // player, or once both carry the same name: that question goes.
   const at = (q: Question, k: number) => ({ team: q.team, identity: q.choices[k].identity });
-  const open = questions.filter((q) => !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
+  // The viewers' reports are handled in the match tab.
+  const open = questions.filter((q) => q.kind !== 'report' && !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
   const question = open[0];
-  // A report's video: where it plays (to its touches' rows) and the moment asked to be played from.
-  const [now, setNow] = useState(0);
-  const [seek, setSeek] = useState<{ time: number; n: number; play?: boolean }>();
-  const reportFrom = question?.kind === 'report' ? Math.max(question.clip.start, (question.reports?.[0]?.time ?? question.clip.start) - REPORT_LEAD_S) : null;
-  useEffect(() => {
-    setSeek(reportFrom === null ? undefined : { time: reportFrom, n: 0, play: true });
-  }, [question?.id]);
+  const reports = questions.filter((q) => q.kind === 'report');
   const show = (next: Tab) => {
     setTab(next);
-    history.replaceState(null, '', next === 'questions' ? QUESTIONS_HASH : location.pathname);
+    history.replaceState(null, '', HASHES[next] || location.pathname);
+  };
+  // A report marked handled, with the corrections as they stand.
+  const handled = async (report: Question, changes: ReportChanges) => {
+    try {
+      const saved = await post('answer', { id: report.id, choice: 'report', changes });
+      setDone((d) => [...d, report]);
+      setQuestions((qs) => qs.filter((q) => q.id !== report.id));
+      onSaved(saved);
+      setError(false);
+    } catch {
+      setError(true);
+    }
+  };
+  // Corrections saved from the match tab, about no question, the `rally` checked with them: its
+  // reports are handled.
+  const saveEdits = async (changes: ReportChanges, rally: number) => {
+    try {
+      onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, checked: [rally] }));
+      setQuestions((qs) => qs.filter((q) => !(q.kind === 'report' && q.rally === rally)));
+      setError(false);
+    } catch {
+      setError(true);
+    }
   };
 
   const answer = useCallback(
@@ -272,9 +299,12 @@ export function Review({
             <ToggleGroupItem value="questions" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
               {t('review.tabQuestions', { count: open.length })}
             </ToggleGroupItem>
+            <ToggleGroupItem value="match" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
+              {t('review.tabMatch', { count: reports.length })}
+            </ToggleGroupItem>
           </ToggleGroup>
         )}
-        <p className="px-1 text-muted-foreground">{t(tab === 'names' ? 'review.namesIntro' : 'review.intro')}</p>
+        <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro' }[tab])}</p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={players} nameOf={nameOf} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
@@ -283,21 +313,21 @@ export function Review({
         )}
         {tab === 'names' ? (
           <Names players={players} roster={roster} onNamed={setGiven} onSaved={onSaved} onError={() => setError(true)} />
+        ) : tab === 'match' ? (
+          <MatchTab width={width} height={height} players={players} nameOf={nameOf} saved={corrections} checked={checked} reports={reports} onSave={saveEdits} onHandled={handled} />
         ) : question ? (
           <Card>
             <CardHeader>
               <CardTitle>
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  {question.kind !== 'rally' && question.kind !== 'report' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
+                  {question.kind !== 'rally' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
                   {question.kind === 'piece'
                     ? t('review.who')
                     : question.kind === 'touch'
                       ? t(question.reason === 'ace' ? 'review.aceQuestion' : 'review.touchQuestion')
                       : question.kind === 'rally'
                         ? t('review.rallyQuestion')
-                        : question.kind === 'report'
-                          ? t('review.reportQuestion')
-                          : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
+                        : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
                 </h2>
               </CardTitle>
               <CardDescription>
@@ -305,9 +335,7 @@ export function Review({
                   ? [question.reason !== 'ace' && groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
                   : question.kind === 'rally'
                     ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
-                    : question.kind === 'report'
-                      ? [question.set && t('set', { n: question.set }), clock(question.reports?.[0]?.time ?? question.time ?? 0), t('review.reportWhy')]
-                      : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
+                    : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
                 )
                   .filter(Boolean)
                   .join(' · ')}
@@ -332,22 +360,8 @@ export function Review({
                   />
                 </label>
               )}
-              {question.kind === 'report' && (
-                <div className="lg:col-span-2">
-                  <ReportComments question={question} />
-                </div>
-              )}
               <div className="grid min-w-0 gap-3">
-                <ClipVideo
-                  key={`${question.id}${showOther}`}
-                  clip={showOther && question.other ? question.other : question.clip}
-                  width={width}
-                  height={height}
-                  timeRef={clipTime}
-                  {...(question.kind === 'report'
-                    ? { seek, free: true, marks: question.reports?.map((r) => r.time), showTime: true, onTime: (at: number) => setNow((n: number) => (Math.abs(n - at) >= 0.1 ? at : n)) }
-                    : {})}
-                />
+                <ClipVideo key={`${question.id}${showOther}`} clip={showOther && question.other ? question.other : question.clip} width={width} height={height} timeRef={clipTime} />
                 {question.kind === 'merge' && (
                   <div className="flex flex-wrap gap-2">
                     {question.choices.map((c, k) => (
@@ -366,77 +380,62 @@ export function Review({
                 )}
                 <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>
               </div>
-              {question.kind === 'report' ? (
-                <ReportEditor
-                  key={question.id}
-                  question={question}
-                  players={players}
-                  nameOf={nameOf}
-                  now={now}
-                  timeOf={() => clipTime.current}
-                  onPlay={(at: number) => setSeek((s) => ({ time: Math.max(0, at - REPORT_LEAD_S), n: (s?.n ?? 0) + 1, play: true }))}
-                  onPause={(at: number) => setSeek((s) => ({ time: at, n: (s?.n ?? 0) + 1 }))}
-                  onSave={(changes) => void answer('report', { changes })}
-                  onSkip={() => void answer('skip')}
-                />
-              ) : (
-                <div className="grid gap-3">
-                  {question.kind === 'rally' ? (
+              <div className="grid gap-3">
+                {question.kind === 'rally' ? (
+                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                    <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" onClick={() => void answer('rally')} />
+                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
+                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                  </div>
+                ) : question.kind === 'touch' ? (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                    {question.proposed != null && (
+                      <AnswerButton
+                        icon={<Check aria-hidden />}
+                        label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
+                        hint="1"
+                        onClick={() => void answer(`player:${question.team}:${question.proposed}`)}
+                      />
+                    )}
+                    <AnswerButton icon={<CircleOff aria-hidden />} label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')} hint="X" onClick={() => void answer('nobody')} />
+                    {question.reason !== 'ace' && <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />}
+                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                  </div>
+                ) : question.kind === 'piece' ? (
+                  <div className="grid gap-3">
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" onClick={() => void answer('rally')} />
-                      <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
+                      <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
+                      <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" onClick={() => void answer('cut')} />
                       <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
                     </div>
-                  ) : question.kind === 'touch' ? (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                      {question.proposed != null && (
-                        <AnswerButton
-                          icon={<Check aria-hidden />}
-                          label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
-                          hint="1"
-                          onClick={() => void answer(`player:${question.team}:${question.proposed}`)}
+                    <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
+                  </div>
+                ) : (
+                  <>
+                    {question.choices.map((c) => (
+                      <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
+                        <Pictures
+                          crops={c.crops}
+                          pieces={c.pieces}
+                          owner={{ team: question.team, identity: c.identity }}
+                          players={players}
+                          nameOf={nameOf}
+                          onSaved={onSaved}
+                          onError={() => setError(true)}
                         />
-                      )}
-                      <AnswerButton icon={<CircleOff aria-hidden />} label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')} hint="X" onClick={() => void answer('nobody')} />
-                      {question.reason !== 'ace' && <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />}
+                        <p className="m-0 text-sm font-medium">
+                          {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
+                        </p>
+                      </div>
+                    ))}
+                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                      <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" onClick={() => void answer('same')} />
+                      <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" onClick={() => void answer('different')} />
                       <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
                     </div>
-                  ) : question.kind === 'piece' ? (
-                    <div className="grid gap-3">
-                      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                        <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
-                        <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" onClick={() => void answer('cut')} />
-                        <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
-                      </div>
-                      <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
-                    </div>
-                  ) : (
-                    <>
-                      {question.choices.map((c) => (
-                        <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
-                          <Pictures
-                            crops={c.crops}
-                            pieces={c.pieces}
-                            owner={{ team: question.team, identity: c.identity }}
-                            players={players}
-                            nameOf={nameOf}
-                            onSaved={onSaved}
-                            onError={() => setError(true)}
-                          />
-                          <p className="m-0 text-sm font-medium">
-                            {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
-                          </p>
-                        </div>
-                      ))}
-                      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                        <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" onClick={() => void answer('same')} />
-                        <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" onClick={() => void answer('different')} />
-                        <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
         ) : (

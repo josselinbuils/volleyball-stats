@@ -74,18 +74,20 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   Stats: each team's points plus the other's faults give 74-53 (75-53 played). The viewers'
 "Signaler" reports (see Hosting) are the main source of corrections: fetch them, record the clear
   ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
-  the rest (no comment, unsure) to the review, which asks each rally reported; then score and fix
+  the rest (no comment, unsure) to the review's Match tab, which lists each rally reported; then score and fix
   the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.
   The review also asks every touch its page credits to no named player (a player on court under
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
 - Open, most useful first:
-  1. Done 31 Oct: report questions in free play (the video plays on through the match from the
-     reported moment, the list shows the rallies around it, any touch, winner, no play or end
-     corrected; `end` answers applied by `web.ended`). Not yet tried by the owner.
+  1. Done 1 Nov, in use by the owner: the review's Match tab (`#match`) holds the reports, no longer
+     questions. The video plays the match freely, over a zoomable bar of every rally, touch and report.
+     Beside it, the touches around the video: correct, add (a serve before a rally starts it), remove,
+     join two rallies (`join` answers). "Valider l'échange" saves and checks the rally: green, its
+     reports handled, until a new report. Automatic reports (`review.unusual`) flag the rallies with no
+     serve first, two serves, four touches in a row, the wrong server, no touch or no winner. Rallies
+     are named by their `rallies.csv` start (`key` on the page), which an added serve moves.
   2. Viewers' reports: 18 fetched on 31 Oct 23:10 (`outputs/feedback-20261031-231035.log`), the online
-     log emptied after. The owner undid their last 7 report answers on purpose (to redo them). Report
-     questions open in the review; 18:39 (Landy) and 53:12 (Killian) are clear enough to record if
-     the owner wants.
+     log emptied after; in the Match tab with the automatic ones (73 left on 1 Nov).
   3. The first match: answers pending, not applied; the pipeline rerun waits for the owner's go.
   4. Rally ends and winners: `rallies.whistled` as a fallback is in (held out found R 1.00, F1 ±1 s 0.57).
      Left on 50:00-60:00: two false windows (server bouncing the ball, a ball rolled back), ends cut by
@@ -118,7 +120,7 @@ takes commits on master directly. Cloudflare and browsers keep the hashed and `?
 unhashed ones load with the build's hash, card pictures with their own), images a day, pages are
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
-copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`,
+copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
 `club`, `upload` as `root@<OVH IP>:…/site/`, `key`), the review does all of it after each apply
 (`matches.host`, refusing to upload a video copy that opens without the password) and says when:
 
@@ -134,9 +136,11 @@ A match's video goes in its `video/` folder (`--out outputs/hosted/MATCH/video -
 -maxrate 5M -bufsize 10M -g 50 -c:a aac -b:a 96k -movflags +faststart`), `--av1-video` for an AV1
 one the browsers that can play first (same with `-c:v libsvtav1 -preset 6 -crf 40 -g 50`; VMAF 90.7
 at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s with `-g 250`); the public build links to it
-with `--video-page video/`, whose dialog asks the password). A keyframe every 2 s (`-g 50`) keeps
-the jumps between clips from freezing: 21 frames to decode a jump instead of 131 with `-g 250`, for
-+30% size in H.264, +60% in AV1. The
+with `--video-page video/`, whose dialog asks the password), `--small-video` for a 720p H.264 one
+(same with `scale=1280:720`, -56% against 1080p) the page plays while its player is small: the
+1080p copy in full screen, zoomed on the ball or over 1600 screen pixels wide, the video carrying on
+where it stood. A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21
+frames to decode a jump instead of 131 with `-g 250`, for +30% size in H.264, +60% in AV1. The
 service's nginx serves every `/volleyball/*/video/` file only with the cookie `video_key`, the
 SHA-256 of `volleyball:` and the password, listed in `volleyball-stats/video_key.conf` as
 `"<sha256>" 1;` (mounted in the container, `nginx -s reload` after a change); otherwise it redirects

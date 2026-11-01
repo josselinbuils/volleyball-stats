@@ -125,13 +125,13 @@ def protected(url: str) -> bool:
 
 def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> None:
     """The match's hosted pages rebuilt in `config`'s site folder (publish.json): the public one
-    with no footage nor pictures, its copy with both in video/ (the `light` and `av1` copies),
+    with no footage nor pictures, its copy with both in video/ (the `light`, `av1` and `small` copies),
     behind the host's password; the list; then the site uploaded by rsync to `upload` with the ssh
     `key`, once the copy at `url` turns a visitor without the password away. RuntimeError if not."""
     site = Path(config["site"]).expanduser()
     folder = next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] == match.name), site / match.name)
     path = lambda key: config.get(key) and str(Path(config[key]).expanduser())  # noqa: E731
-    copy = {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "feedback": FEEDBACK}
+    copy = {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}
     web.publish(match, video, court, theme, copy, folder / "video")
     web.publish(match, video, court, theme, {"footage": "none", "club": config.get("club", 1), "pictures": False, "link": "video/", "feedback": FEEDBACK}, folder)
     named = {m["name"]: m["path"] for m in build(site, theme)}[match.name]

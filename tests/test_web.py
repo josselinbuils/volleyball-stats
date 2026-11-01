@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -153,9 +153,9 @@ class TestContacts:
         assert out[0]["receiver"] is None
 
     def test_the_review_s_winners_count_their_set_s_score_again(self):
-        rallies = [{"set": 1, "winner": 1, "score": [1, 0]}, {"set": 1, "winner": 1, "score": [2, 0]}, {"set": 2, "winner": 2, "score": [0, 1]}]
+        rallies = [{"key": 100, "set": 1, "winner": 1, "score": [1, 0]}, {"key": 300, "set": 1, "winner": 1, "score": [2, 0]}, {"key": 500, "set": 2, "winner": 2, "score": [0, 1]}]
 
-        rewon(rallies, [(100, 200), (300, 400), (500, 600)], {100: 2, 500: 2})
+        rewon(rallies, {100: 2, 500: 2})
 
         assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
 
@@ -308,18 +308,26 @@ class TestWithAdded:
             {"start": 100, "frame": 120, "team": 1, "type": "set"},
         ]
 
-        w, rows_out = with_added(windows, rows, typed, added, ball, 20, 5)
+        w, rows_out = with_added(windows, rows, typed, added, ball, 5)
 
-        # Past its window's end the touch stretches it; before its start, in a window gone, or
+        # Past its window's end or before its start the touch stretches it; in a window gone, or
         # where a touch was already found, it is left out.
-        assert w == [(100, 260), (300, 400)]
+        assert w == [(100, 260), (250, 400)]
         assert [(r["frame"], r["type"], r.get("side"), r.get("x"), r.get("y")) for r in rows_out] == [
             ("120", "serve", None, None, None),
             ("150", "pass", "right", "10", "20"),
+            ("250", "set", "left", "", ""),
             ("260", "attack", "left", "50", "60"),
             ("330", "serve", None, None, None),
             ("380", "set", "left", "", ""),
         ]
+
+    def test_a_touch_added_twice_is_the_last_answers(self, tmp_path):
+        added = [{"start": 100, "frame": 150, "team": 1, "type": "pass"}, {"start": 100, "frame": 150, "team": 2, "type": "dig"}]
+
+        _, rows_out = with_added([(100, 200)], [{"left": "1"}], [], added, tmp_path / "none.csv", 5)
+
+        assert [(r["frame"], r["type"], r["team"]) for r in rows_out] == [("150", "dig", "2")]
 
     def test_ball_near_takes_the_nearest_place_seen(self, tmp_path):
         ball = tmp_path / "ball.csv"
@@ -330,9 +338,10 @@ class TestWithAdded:
 
 
 class TestDropRallies:
-    def test_a_window_said_to_be_no_rally_goes_with_its_contacts_and_points(self):
-        windows = [(100, 200), (300, 400), (500, 600), (700, 800)]
-        rows = [{"set": "1"}, {"set": "1"}, {"set": "1"}, {"set": "2"}]
+    def test_a_rally_said_to_be_none_goes_with_its_contacts_and_points_found_by_its_key(self):
+        # The second one's start moved back to a serve added.
+        windows = [(100, 200), (280, 400), (500, 600), (700, 800)]
+        rows = [{"set": "1", "start_frame": "100"}, {"set": "1", "start_frame": "300"}, {"set": "1", "start_frame": "500"}, {"set": "2", "start_frame": "700"}]
         scores = [
             {"winner": "1", "score_1": "1", "score_2": "0"},
             {"winner": "2", "score_1": "1", "score_2": "1"},
@@ -346,6 +355,24 @@ class TestDropRallies:
         assert w == [(100, 200), (500, 600), (700, 800)] and len(r) == 3
         assert [(p["score_1"], p["score_2"]) for p in s] == [("1", "0"), ("2", "0"), ("0", "1")]
         assert [x["frame"] for x in a] == ["150", "550"]
+
+
+class TestMergeRallies:
+    def test_a_window_said_to_join_the_next_one_of_its_set_takes_its_end_and_point(self):
+        windows = [(100, 200), (300, 400), (500, 600), (700, 800)]
+        rows = [{"set": "1", "start_frame": "100"}, {"set": "1", "start_frame": "300"}, {"set": "1", "start_frame": "500"}, {"set": "2", "start_frame": "700"}]
+        scores = [
+            {"winner": "1", "score_1": "1", "score_2": "0"},
+            {"winner": "2", "score_1": "1", "score_2": "1"},
+            {"winner": "1", "score_1": "2", "score_2": "1"},
+            {"winner": "2", "score_1": "0", "score_2": "1"},
+        ]
+
+        w, r, s = merge_rallies(windows, rows, scores, {100, 500})
+
+        assert w == [(100, 400), (500, 600), (700, 800)]
+        assert [x["set"] for x in r] == ["1", "1", "2"]
+        assert [(p["winner"], p["score_1"], p["score_2"]) for p in s] == [("2", "0", "1"), ("1", "1", "1"), ("2", "0", "1")]
 
 
 class TestSettle:
@@ -432,16 +459,18 @@ class TestWriteSite:
         assert (site / "match.mp4").read_bytes() == b"not a video"
         assert not (site / "poster.webp").exists()
 
-    def test_offers_an_av1_copy_beside_the_video_both_keeping_their_dates(self, tmp_path):
-        video, av1 = tmp_path / "match.mp4", tmp_path / "match_av1.mp4"
+    def test_offers_an_av1_and_a_small_copy_beside_the_video_all_keeping_their_dates(self, tmp_path):
+        video, av1, small = tmp_path / "match.mp4", tmp_path / "match_av1.mp4", tmp_path / "match_720p.mp4"
         video.write_bytes(b"h264")
         av1.write_bytes(b"av1")
+        small.write_bytes(b"720p")
         site = tmp_path / "site"
 
-        write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, av1=av1)
+        write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, av1=av1, small=small)
 
-        assert '"video":"match.mp4","av1":"match_av1.mp4"' in (site / "data.js").read_text()
+        assert '"video":"match.mp4","av1":"match_av1.mp4","small":"match_720p.mp4"' in (site / "data.js").read_text()
         assert (site / "match_av1.mp4").read_bytes() == b"av1"
+        assert (site / "match_720p.mp4").read_bytes() == b"720p"
         assert (site / "match.mp4").stat().st_mtime == video.stat().st_mtime
 
     def test_leaves_the_video_out_and_removes_a_previous_one(self, tmp_path):
@@ -512,7 +541,7 @@ class TestPublish:
 
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "full", "light": "v_1080p.mp4", "link": None}, tmp_path / "hosted")
 
-        assert built == [{"light": Path("v_1080p.mp4"), "link": None, "feedback": None, "av1": None}]
+        assert built == [{"light": Path("v_1080p.mp4"), "link": None, "feedback": None, "av1": None, "small": None}]
 
     def test_pictures_both_teams_of_the_club(self, tmp_path, monkeypatch):
         built = []

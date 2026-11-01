@@ -6,7 +6,7 @@ import { clipLabel, contactClips, rallyAt, rallyClips, rallyNear } from '@/lib/p
 
 describe('contactClips', () => {
   // The player's key is their number here.
-  const touch = (t: number, type: string, g: number, rally = 0, player: number | null = null) => ({ t, type, g, rally, player, person: player, name: null }) as Contact;
+  const touch = (t: number, type: string, g: number, rally = 0, player: number | null = null, result = 'play') => ({ t, type, g, rally, player, person: player, name: null, result }) as Contact;
 
   it('plays from 2 s before each touch to 1.5 s after, within the video', () => {
     const clips = contactClips([touch(1, 'serve', 1), touch(50, 'serve', 1, 3), touch(59, 'serve', 1, 4)], 60);
@@ -23,14 +23,21 @@ describe('contactClips', () => {
     expect(contactClips([touch(5, 'serve', 1), touch(9, 'serve', 2, 0, 3)], 60)[1]).toMatchObject({ type: undefined, team: 2, player: 3 });
   });
 
+  it('names how a touch ended when the playlist mixes the outcomes, with its action', () => {
+    const t = ((key: string, o?: { n: number }) => `${key}${o?.n !== undefined ? ` ${o.n}` : ''}`) as TFunction;
+    const clips = contactClips([touch(5, 'attack', 1, 0, 3, 'point'), touch(9, 'attack', 1, 1, 3)], 60);
+    expect(clips[1]).toMatchObject({ type: 'attack', result: 'play' });
+    expect(clipLabel(clips[1], t, {} as Format, (g) => `Team ${g}`)).toBe('actions.attack.play · rallyLower 2 · 0:09');
+  });
+
   it('names the player when the user named them', () => {
-    const t = ((key: string, o?: { n: number }) => `${key}${o ? ` ${o.n}` : ''}`) as TFunction;
+    const t = ((key: string, o?: { n: number }) => `${key}${o?.n !== undefined ? ` ${o.n}` : ''}`) as TFunction;
     const clip = contactClips([touch(1, 'serve', 1, 0, 3), { ...touch(5, 'serve', 1, 0, 4), name: 'Julie' }], 60)[1];
     expect(clipLabel(clip, t, {} as Format, (g) => `Team ${g}`)).toBe('Julie · rallyLower 1 · 0:05');
   });
 
   it('labels a touch with its action, team, player, rally and time', () => {
-    const t = ((key: string, o?: { n: number }) => `${key}${o ? ` ${o.n}` : ''}`) as TFunction;
+    const t = ((key: string, o?: { n: number }) => `${key}${o?.n !== undefined ? ` ${o.n}` : ''}`) as TFunction;
     const clip = contactClips([touch(5, 'serve', 1), touch(65, 'attack', 2, 3, 4)], 70)[1];
     expect(clipLabel(clip, t, {} as Format, (g) => `Team ${g}`)).toBe('types.attack · Team 2 · player 4 · rallyLower 4 · 1:05');
   });

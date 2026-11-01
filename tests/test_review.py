@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, report_answer, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, corrections, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -115,16 +115,53 @@ class TestReports:
 
         assert (question["clip"]["start"], question["winner"], question["reports"][0]["comment"]) == (40.0, 2, "Pas de faute")
         assert [(t["frame"], t["type"], t["player"]) for t in question["touches"]] == [(2050, "serve", None), (2100, "pass", "1:3")]
-        assert ref == {"start": 2000, "touches": {"2050": 2, "2100": 1}}
+        assert ref == {"start": 2000, "touches": {"2050": 2, "2100": 1}} and question["rally"] == 2000
         assert report_question({"time": 100.0, "clip": {"time": 12.0}}, self.page, 50.0)[1]["start"] == 500
+
+    def test_a_moment_in_a_rally_is_about_it_rather_than_the_one_just_before(self):
+        page = {**self.page, "rallies": [{"start": 10.0, "end": 36.0, "set": 1, "winner": 1}, *self.page["rallies"][1:]]}
+
+        assert report_question({"time": 40.0}, page, 50.0)[1]["start"] == 2000
+
+    def test_flags_the_rallies_that_do_not_look_like_one(self):
+        def c(t, kind, team, rally):
+            return {"t": t, "type": kind, "team": team, "side": "left" if team == 1 else "right", "rally": rally}
+
+        page = {
+            "teams": [{}, {}],
+            "rallies": [{"start": float(k), "end": k + 0.5, "set": 1, "winner": w} for k, w in enumerate([1, 1, 2, 2, None])],
+            "contacts": [
+                c(0.1, "serve", 1, 0),  # fine
+                c(1.1, "pass", 2, 1),  # no serve
+                c(2.1, "serve", 2, 2),  # served by the loser of the point before
+                c(2.2, "serve", 2, 2),
+                c(3.0, "serve", 2, 3),
+                *[c(3.1 + n / 10, kind, 1, 3) for n, kind in enumerate(["pass", "set", "attack"])],
+                c(3.5, "block", 2, 3),
+                *[c(3.6 + n / 100, kind, 2, 3) for n, kind in enumerate(["dig", "set", "attack", "relance"])],
+                c(4.1, "floor", None, 4),  # no touch, no winner
+            ],
+        }
+
+        found = unusual(page)
+
+        assert [(r["time"], r["kind"]) for r in found] == [
+            (1.0, "auto.noServe"),
+            (2.0, "auto.twoServes"),
+            (2.0, "auto.server"),
+            (3.0, "auto.fourTouches"),
+            (4.0, "auto.empty"),
+            (4.0, "auto.noWinner"),
+        ]
+        assert found[0]["key"] == unusual(page)[0]["key"]
 
     # Two rallies: 2000-2200 and 3000-3200; touches at 2050 (team 2), 2100 and 3050 (team 1).
     teams, windows = {2050: 2, 2100: 1, 3050: 1}, [(2000, 2200), (3000, 3200)]
 
-    def test_corrections_anywhere_become_touch_action_rally_winner_and_end_answers(self):
+    def test_corrections_anywhere_become_touch_action_rally_winner_end_and_join_answers(self):
         changes = {
             "touches": [{"frame": 2050, "player": "none"}, {"frame": 3050, "player": "1:4", "result": "play", "type": "bogus"}, {"frame": 9999, "player": "1:4"}],
-            "rallies": [{"start": 2000, "winner": 1, "play": False}, {"start": 3000, "end": 3400}, {"start": 1234, "winner": 2}],
+            "rallies": [{"start": 2000, "winner": 1, "play": False, "join": True}, {"start": 3000, "end": 3400}, {"start": 1234, "winner": 2}],
         }
 
         out = report_answer(changes, self.teams, self.windows, {(1, 4): {"name": "Léa"}}, 20)
@@ -132,23 +169,33 @@ class TestReports:
         assert out["touch"] == [{"frame": 2050, "team": 2, "identity": None, "name": None}, {"frame": 3050, "team": 1, "identity": 4, "name": "Léa"}]
         assert out["action"] == [{"frame": 3050, "result": "play"}]
         assert (out["rally"], out["winner"], out["end"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}], [{"start": 3000, "end": 3400}])
+        assert out["join"] == [{"start": 2000}]
 
-    def test_a_touch_added_goes_to_the_rally_it_falls_in_else_the_one_before(self):
+    def test_a_touch_added_goes_to_the_rally_it_falls_in_else_a_serve_to_the_next_another_to_the_one_before(self):
         changes = {
             "added": [
                 {"frame": 2075, "team": 1, "type": "pass", "result": "error", "player": "1:4"},
                 {"frame": 2500, "team": 2, "type": "dig"},
-                {"frame": 2985, "team": 2, "type": "serve"},
+                {"frame": 2600, "team": 2, "type": "serve"},
+                {"frame": 2650, "team": 1, "type": "pass"},
                 {"frame": 2050, "team": 1, "type": "pass"},
                 {"frame": 2080, "team": 1, "type": "bogus"},
                 {"frame": 1000, "team": 1, "type": "pass"},
             ]
         }
 
-        out = report_answer(changes, self.teams, self.windows, {(1, 4): {"name": "Léa"}}, 20)
+        # The second rally named by its key: its start moved back to a serve added before.
+        out = report_answer(changes, self.teams, self.windows, {(1, 4): {"name": "Léa"}}, 20, [2000, 3010])
 
         assert out == {
-            "added": [{"start": 2000, "frame": 2075, "team": 1, "type": "pass"}, {"start": 2000, "frame": 2500, "team": 2, "type": "dig"}, {"start": 3000, "frame": 2985, "team": 2, "type": "serve"}],
+            "added": [
+                {"start": 2000, "frame": 2075, "team": 1, "type": "pass"},
+                {"start": 2000, "frame": 2500, "team": 2, "type": "dig"},
+                {"start": 3010, "frame": 2600, "team": 2, "type": "serve"},
+                # After a serve added before a rally: in that rally.
+                {"start": 3010, "frame": 2650, "team": 1, "type": "pass"},
+                {"start": 2000, "frame": 1000, "team": 1, "type": "pass"},
+            ],
             "action": [{"frame": 2075, "result": "error"}],
             "touch": [{"frame": 2075, "team": 1, "identity": 4, "name": "Léa"}],
         }
@@ -204,7 +251,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "log": log}
 
 
 class TestRange:
@@ -293,12 +340,29 @@ class TestWaiting:
         log = [{**self.entry, "applied": True}]
         (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
 
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "checked": []}
         assert waiting(tmp_path, [])["changed"]
         write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Julie", "jersey": None}])
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "checked": []}
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
         assert waiting(tmp_path, log)["changed"]
+
+
+class TestReportCorrections:
+    def test_the_last_report_answer_since_the_page_was_built_carries_the_corrections_the_earlier_ones_emptied(self):
+        shown = {"id": "report:a", "choice": "report", "touch": [{"frame": 1}], "changes": {"touches": [{"frame": 1}]}, "applied": False}
+        before = {"id": "report:b", "choice": "report", "touch": [{"frame": 1}], "applied": False}
+        later = {"id": "report:c", "choice": "report", "touch": [{"frame": 2}], "changes": {"touches": [{"frame": 2, "player": "none"}]}, "applied": False}
+        log = [shown, before, later]
+
+        out = superseded(log, {"report:a"})
+
+        # In the page already, or saved before the answers kept their corrections: left as they are.
+        assert out[:2] == [shown, before] and out[2] == {"id": "report:c", "choice": "report", "applied": False}
+        assert log[2] is later and "touch" in later
+        assert corrections(log, {"report:a"}) == {"touches": [{"frame": 2, "player": "none"}]}
+        assert corrections(log, {"report:a", "report:c"}) == {}
+        assert corrections(out, {"report:a"}) == {}
 
 
 class TestUndo:

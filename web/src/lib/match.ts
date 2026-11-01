@@ -39,6 +39,8 @@ export interface Contact {
  * after it (team 1, team 2), null without teams. */
 export interface Rally {
   i: number;
+  /** What the review's answers name it by: its start frame in rallies.csv. */
+  key?: number;
   start: number;
   end: number;
   set: number;
@@ -104,6 +106,8 @@ interface Data {
   video: string | null;
   /** Its AV1 copy, lighter, played first where the browser can. */
   av1?: string | null;
+  /** Its 720p copy, played while the player is small. */
+  small?: string | null;
   /** On a page without the video, where the same page with it is, behind a password. */
   videoPage?: string | null;
   /** Where viewers send what they found wrong in a moment, null to not ask. */
@@ -139,6 +143,7 @@ export const match = {
   name: data.name,
   video: data.video,
   av1: data.av1 ?? null,
+  small: data.small ?? null,
   videoPage: data.videoPage ?? null,
   feedback: data.feedback ?? null,
   poster: data.poster,
