@@ -103,8 +103,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      to the hosted pages; the pipeline rerun waits for the owner's go. Backups of the answers from the
      1 Nov repairs (`outputs/first_match/identity_answers.before-*.json`) can go once the owner is happy.
   4. Videos: the hosted 1080p copies have a keyframe every 2 s and a 720p copy plays in small players
-     (all three live since 1 Nov). The previous copies wait in `~/Downloads/*.g250.mp4` (1.1 GB): delete
-     them once the owner has watched the new ones online.
+     (all three live since 1 Nov; their sources in `~/Downloads`, named in `publish.json`).
   5. Rally ends and winners: `rallies.whistled` as a fallback is in (held out found R 1.00, F1 ±1 s 0.57).
      Left on 50:00-60:00: two false windows (server bouncing the ball, a ball rolled back), ends cut by
      another court's whistle (-4.1 s) or the ball out of sight (-3.0, -2.3, and -10 s for 58:55), a rally
