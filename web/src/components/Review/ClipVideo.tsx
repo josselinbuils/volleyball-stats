@@ -25,7 +25,7 @@ const PINCH_SPEED = 0.01;
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video's corner, in its team's colour. */
+ * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: centred over the top of the video, above the court, in its team's colour. */
 export function ClipVideo({
   clip,
   width,
@@ -257,7 +257,7 @@ export function ClipVideo({
           </svg>
         </div>
         {caption && (
-          <span className="pointer-events-none absolute top-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
+          <span className="pointer-events-none absolute top-[8%] left-1/2 z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
             <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
             <span className="truncate">{caption.text}</span>
           </span>
