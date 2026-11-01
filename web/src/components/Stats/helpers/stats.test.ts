@@ -93,8 +93,8 @@ describe('lines', () => {
   it('grades the serves out of 5, a reception lost as high as an ace', () => {
     const [ace, lost, fair, fault] = [0, 1, 2, 3].map((t) => ({ t }) as Contact);
     const s = { serveRated: [ace, lost, fair, fault], aces: [ace], serveTough: [], serveFair: [fair], serveEasy: [], serveFaults: [fault] } as unknown as Stats;
-    // 4, 4, 2 and 0 out of 4: 2.5, so 3.125 out of 5.
-    expect(meanServeRating(s)).toBeCloseTo(3.125);
+    // An ace, a reception lost, a good reception and a fault: 5, 5, 3 and 0.
+    expect(meanServeRating(s)).toBeCloseTo(3.25);
   });
 });
 

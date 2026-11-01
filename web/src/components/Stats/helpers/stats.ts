@@ -105,12 +105,12 @@ export function serveRating(c: Contact, next: Contact | undefined, after: Contac
 /** Every rating reads out of this: the serves' 0 to 4 and the receptions' 0 to 3 grades scaled to it. */
 export const OUT_OF = 5;
 
-/** The mean grade of the rated serves of `s`, out of OUT_OF, null without any. A 4 is an ace or a
- * reception lost: the rated serves neither graded 1 to 3 nor faults (a fault is always rated). */
+/** The mean of the rated serves of `s`, out of OUT_OF: 5 for an ace or a reception lost (the rated serves neither
+ * graded 1 to 3 nor faults), 4, 3 and 2 for the grades 3, 2 and 1, 0 for a fault: a serve in play is worth something. */
 export function meanServeRating(s: Stats): number | null {
   const n = s.serveRated.length;
   const top = n - s.serveTough.length - s.serveFair.length - s.serveEasy.length - s.serveFaults.length;
-  return n ? (((4 * top + 3 * s.serveTough.length + 2 * s.serveFair.length + s.serveEasy.length) / n) * OUT_OF) / 4 : null;
+  return n ? (5 * top + 4 * s.serveTough.length + 3 * s.serveFair.length + 2 * s.serveEasy.length) / n : null;
 }
 
 /** The mean grade of the rated receptions of `s`, out of OUT_OF, null without any. */

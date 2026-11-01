@@ -540,7 +540,7 @@
       "time": "Time on the court during the rallies (minutes:seconds), from the players' tracking: rough where a player is poorly tracked.",
       "overReceptions": "The receptions that go straight to the other team: their touch comes next, with no set or attack of the team.",
       "overDigs": "The digs that go straight to the other team: their touch comes next, with no set or attack of the team.",
-      "serveRated": "The serves' mean grade, out of 5, from the other team's reception: 5 for an ace or a reception missed, 3.75 when the reception is poor or sent straight back, 2.5 when it is good, 1.25 when it is perfect, 0 for a fault."
+      "serveRated": "The serves' mean grade, out of 5, from the other team's reception: 5 for an ace or a reception missed, 4 when the reception is poor or sent straight back, 3 when it is good, 2 when it is perfect, 0 for a fault."
     },
     "noteTitles": "Hover or tap a column's title to see what it counts; click it to sort the rows.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",

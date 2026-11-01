@@ -540,7 +540,7 @@
       "time": "Temps passé sur le terrain pendant les échanges (minutes:secondes), d'après le suivi des joueurs : approximatif quand un joueur est mal suivi.",
       "overReceptions": "Les réceptions qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
       "overDigs": "Les défenses qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
-      "serveRated": "La note moyenne des services, sur 5, selon la réception adverse : 5 pour un ace ou une réception ratée, 3,75 si la réception est difficile ou renvoyée directement, 2,5 si elle est bonne, 1,25 si elle est parfaite, 0 pour une faute."
+      "serveRated": "La note moyenne des services, sur 5, selon la réception adverse : 5 pour un ace ou une réception ratée, 4 si la réception est difficile ou renvoyée directement, 3 si elle est bonne, 2 si elle est parfaite, 0 pour une faute."
     },
     "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte ; cliquez dessus pour trier les lignes.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
