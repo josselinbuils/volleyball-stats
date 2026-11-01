@@ -21,16 +21,19 @@ On 25 sampled rallies, touches found of 205 and contacts that are no touch:
 | frame step 2 | 191 | 88 | 88% |
 | `ball.csv`, gaps filled from step 2 at peak 0.5 | 193 | 49 | 84% |
 
+Whole match, the full pipeline on copies (`ball.csv` then gaps filled from step 2 at peak 0.5, gaps up to 2 s), on
+the 129 checked rallies: touches found 822 -> 840 of 944, pipeline touches real 813/859 -> 830/921, types 86.5% ->
+83.7%, named players 88.7% -> 88.6%; 26:00-36:00 F1 ±1 s 0.90 -> 0.88, 50:00-60:00 0.57 -> 0.62. Dropped: 18 touches
+found for 45 false ones, F1 0.907 -> 0.895, and 95 min more per match on the M4. The scores matching exact frames or
+rally starts (answered touches, types set, rallies kept, checked winners) fall by construction on a copy whose
+answers were not moved, so they say nothing.
+
 Next:
 
-1. Score the gap filling (`tube` in `ev2.py`) on all 129 rallies. Check the rallies starting late, which
-   follow the ball track.
-2. If it holds, make it the pipeline's: a second pass when the frame rate is about twice the model's
-   (a step of `round(fps / 30)`, so the school clips do not move), about 95 min on the M4 for this match.
-3. Then the 7 touches removed after detection, the 43 false ones, and the ball model fine-tuned on the
-   RTX 5080 only if the rest leaves it worthwhile.
-4. Tell the owner to launch "Apprendre de mes réponses": it fills the "Progrès" tab with the new
-   code. Without `--rerun`, `learn` only scores the old outputs. Report what improved and what did not.
+1. The owner launches "Apprendre de mes réponses" (`LIVE_SPEED` per second is the only pipeline change since the
+   last run; on the copy, touches found 826 -> 822 before `rekey`, so the run is its real score).
+2. The 40 touches outside windows and the 7 removed after detection, then the 46 false ones.
+3. The 71 with no contact: filtering the extra detections better, or the ball model fine-tuned on the RTX 5080.
 
 Tried and dropped: see `benchmarks/rallies/README.md`.
 

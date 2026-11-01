@@ -65,6 +65,16 @@ class TestBuild:
 
 
 class TestHost:
+    def test_stops_before_any_build_when_a_video_copy_is_missing(self, tmp_path, monkeypatch):
+        built = []
+        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append(args))
+        config = {"site": str(tmp_path), "url": "https://example.org/", "upload": "host:/site/", "key": "key", "light": str(tmp_path / "gone.mp4")}
+
+        with pytest.raises(RuntimeError, match="gone.mp4"):
+            matches.host(Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", config)
+
+        assert built == []
+
     def test_rebuilds_both_pages_and_uploads_only_a_copy_the_password_guards(self, tmp_path, monkeypatch):
         built, ran = [], []
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[5])) or ({}, {}))
