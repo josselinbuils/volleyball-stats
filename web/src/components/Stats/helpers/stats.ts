@@ -103,15 +103,20 @@ export function serveRating(c: Contact, next: Contact | undefined, after: Contac
   return grade === null ? null : grade === 0 ? 4 : 4 - grade;
 }
 
-/** The mean grade of the rated serves of `s`, null without any. */
+/** Every rating reads out of this: the serves' 0 to 4 and the receptions' 0 to 3 grades scaled to it. */
+export const OUT_OF = 5;
+
+/** The mean grade of the rated serves of `s`, out of OUT_OF, null without any. A 4 is an ace or a
+ * reception lost: the rated serves neither graded 1 to 3 nor faults (a fault is always rated). */
 export function meanServeRating(s: Stats): number | null {
-  const aces = s.serveRated.filter((c) => s.aces.includes(c)).length;
-  return s.serveRated.length ? (4 * aces + 3 * s.serveTough.length + 2 * s.serveFair.length + s.serveEasy.length) / s.serveRated.length : null;
+  const n = s.serveRated.length;
+  const top = n - s.serveTough.length - s.serveFair.length - s.serveEasy.length - s.serveFaults.length;
+  return n ? (((4 * top + 3 * s.serveTough.length + 2 * s.serveFair.length + s.serveEasy.length) / n) * OUT_OF) / 4 : null;
 }
 
-/** The mean grade of the rated receptions of `s`, null without any. */
+/** The mean grade of the rated receptions of `s`, out of OUT_OF, null without any. */
 export function meanRating(s: Stats): number | null {
-  return s.rated.length ? (3 * s.perfect.length + 2 * s.good.length + s.poor.length) / s.rated.length : null;
+  return s.rated.length ? (((3 * s.perfect.length + 2 * s.good.length + s.poor.length) / s.rated.length) * OUT_OF) / 3 : null;
 }
 
 /** Whether a reception's or a dig's team did not attack after it: it sent the ball back or the

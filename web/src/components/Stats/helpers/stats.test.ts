@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
 import type { Drop } from '@/components/Stats/helpers/between';
-import { lines, meanRating, mvp, over, rating, serveRating, unattacked, type Line, type Stats } from '@/components/Stats/helpers/stats';
+import { lines, meanRating, meanServeRating, mvp, over, rating, serveRating, unattacked, type Line, type Stats } from '@/components/Stats/helpers/stats';
 
 describe('lines', () => {
   const people: Record<string, Person> = {
@@ -86,7 +86,15 @@ describe('lines', () => {
     const at = (type: string, t: number, x: number, y: number) => ({ type, t, x, y, side: 'left', rally: 0, result: 'play' }) as Contact;
     const [one] = lines([{ ...at('pass', 0, -6, 0), g: 1, person: 0 }, at('set', 1.5, -1, 1), { ...at('pass', 3, -6, 0), g: 1, person: 0 }, at('set', 4.5, -6, -3)], people, 1);
     expect(count(one.stats)).toEqual({ touches: 2, receptions: 2, unattacked: 2, rated: 2, perfect: 1, poor: 1 });
-    expect(meanRating(one.stats)).toBe(2);
+    // A perfect one and a poor one: 2 of 3, 3.3 out of 5.
+    expect(meanRating(one.stats)).toBeCloseTo(10 / 3);
+  });
+
+  it('grades the serves out of 5, a reception lost as high as an ace', () => {
+    const [ace, lost, fair, fault] = [0, 1, 2, 3].map((t) => ({ t }) as Contact);
+    const s = { serveRated: [ace, lost, fair, fault], aces: [ace], serveTough: [], serveFair: [fair], serveEasy: [], serveFaults: [fault] } as unknown as Stats;
+    // 4, 4, 2 and 0 out of 4: 2.5, so 3.125 out of 5.
+    expect(meanServeRating(s)).toBeCloseTo(3.125);
   });
 });
 
