@@ -58,7 +58,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   (0.57 before the fixes; a 30 s rally missed whose server stood out of view); a third of the
   school match's held-out rallies missed. How a rally
   ends (in, out, fault) is the least reliable measure, attribution is right 76-87% of the time
-  on the labelled clips (pose on the wrists since 1 Nov; 104 of the 135 hard touches answered on the first match)
+  on the labelled clips (pose on the wrists since 1 Nov; 108 of the 139 hard touches answered on the first match)
   (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
   ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
   identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame
@@ -74,8 +74,14 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. On 1 Nov: 129 rallies
   on the page for 128 points (25-23, 25-12, 25-18 given), 46 questions open (touches found by the
   applies since).
-  Its outputs predate the 31 Oct `served` fixes: rerun the pipeline only when the owner says so (it
-  moves windows the review's answers point at; backup in `outputs/first_match/backup-before-rally-fix/`).
+  Rerun on 1 Nov with the owner's go (the 31 Oct and 1 Nov fixes; 40 min on the M4: relances 11.5,
+  wrists 12, teams 15.5; backup in `outputs/first_match/backup-before-rerun-1nov/`), the answers moved
+  onto the new windows by `volleyball_stats.rekey`. A rerun moves the windows the answers point at:
+  rekey after each one. Not in its outputs yet: the 1 Nov server's bounce fix (rally 43678, 14:33,
+  comes back with the next rerun).
+  `uv run python -m volleyball_stats.learn outputs/first_match --video data/first_match.mp4 --court
+  outputs/courts/aspom_begles.json` scores every step on the answers and the checked rallies, against
+  its last run (`learn.json`).
   Stats: an attack wins when the other team's last touch loses the ball and faults when blocked for
   a point, a serve whose reception is lost is an ace (`web.credited`, the usual convention); a touched
   ace counts its reception once. The viewers' "Signaler" reports (see Hosting) are the main source of
@@ -85,8 +91,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.
   The review also asks every touch its page credits to no named player (a player on court under
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
-- `docs/next_steps.md`: what the 1 Nov answers changed in the pipeline (not yet in the first match's
-  outputs: a rerun) and what is left, with the numbers.
+- `docs/next_steps.md`: what the 1 Nov answers changed in the pipeline and what is left, with the
+  numbers; the plan for learning from the review (`learn`).
 - Open, most useful first:
   1. In use by the owner since 1 Nov: the review's Match tab (`#match`) holds the reports, no longer
      questions. The video plays the match freely, over a zoomable bar of every rally, touch and report.
@@ -103,7 +109,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      rallies checked. `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers
      that disagreed at 14:00 (merged, Anthony kept).
   3. The first match: 1 answer waiting for the owner's apply, which also brings the 1 Nov stats rules
-     to the hosted pages; the pipeline rerun waits for the owner's go. Backups of the answers from the
+     and the rerun to the hosted pages. Backups of the answers from the
      1 Nov repairs (`outputs/first_match/identity_answers.before-*.json`) can go once the owner is happy.
   4. Videos: the hosted 1080p copies have a keyframe every 2 s and a 720p copy plays in small players
      (all three live since 1 Nov; their sources in `~/Downloads`, named in `publish.json`).

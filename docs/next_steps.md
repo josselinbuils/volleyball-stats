@@ -22,23 +22,47 @@ identity), `benchmarks/attribution/bench.py ... [--pose]`, `benchmarks/actions/b
 
 ## The first match
 
-None of the above is in its outputs: they take a pipeline rerun (owner's go; backup in
-`outputs/first_match/backup-before-rally-fix/`). What a rerun would bring, measured on the current
-outputs:
+Rerun on 1 Nov (owner's go), answers moved by `volleyball_stats.rekey` (28 rally answers, 30 added
+touches, 3 checked rallies onto their new windows; 21 rally answers saved 16 frames late by a review
+bug, fixed). `volleyball_stats.learn`, before and after:
 
-- Rallies (31 Oct fixes, `match.rally_windows` as it stands: 137 windows, 38 s on the M4 from
-  `ball.csv`, `players.csv` and the audio): it opens the rallies of the owner's added touches at
-  1:45 (4853-5348), 2:07 (6161-6612), 2:37 (7688-9497) and covers the 17 s rally of 4:13
-  (12660-14086, 14 touches added by hand). The serves the owner added just before windows (11:20,
-  18:38, 19:05: windows opening 0.44-0.56 s after them) are now `serve_starts`'. Still missed: the
-  first rally's serve at 0:09 (window from 0:16.6), a block at 17:17 (51853), passes at 0:48 and
-  26:13.
-- Attribution: 28 picks change, 20 of them already answered (the answers win): little for this
-  match, the gain is for the next ones.
-- `serve_starts` moves about 30 window starts 0.1-0.6 s earlier (to their serve + 0.33 s).
-- The answers stay valid: they point at frames (touches) and rally starts; a rally whose start
-  moves loses its rally answers (`rally`, `join`, `added`'s `start`), so check
-  `identity_answers.json`'s `added` starts against the new `rallies.csv` after a rerun.
+| Score | Before | After |
+| --- | --- | --- |
+| attribution: answered touches | 85/135 | 108/139 |
+| contacts: added touches found | 13/71 | 42/71 |
+| contacts: false ones gone | 18/26 | 20/26 |
+| actions: types set | 0/19 | 6/19 |
+| rallies: labelled serves with a window | 41/43 | 43/43 |
+| points: labelled servers | 22/41 | 43/43 |
+| points: labelled winners | 32/39 | 39/41 |
+| checked rallies (8): touches found | 62/103 | 92/108 |
+| checked: pipeline touches kept | 61/61 | 92/94 |
+| checked: types | 49/62 | 82/92 |
+| checked: named players | 51/55 | 75/83 |
+
+Report: 134 rallies (136), 867 contacts in rallies (718), set drifts +0 +2, +2 +4, +1 +5 (team 1,
+team 2). The rerun lost a real rally (43678, 14:33): the 31 Oct `served` opened it on the server's
+bounces, typed floor, so the whole rally was dead and `no_play` dropped it; fixed since
+(`actions.behind_end_line`, a serve bounced again is a catch), back with the next rerun. The touches
+the review added and the pipeline now finds too (0-20 frames off) are one (`web.ADDED_SAME_S`).
+
+## Learning from the review
+
+1. Done: `learn` scores every step on the answers and the checked rallies (full labels) and keeps
+   the history (`learn.json`); `wrists.json` caches the wrists' pose.
+2. Next: cache the relances' pose (11.5 min) and the teams' looks (15.5 min) like `wrists.json`, so
+   a rerun takes minutes; a `learn --rerun` (and a review button) that reruns from the caches,
+   rekeys and scores.
+3. Then: a settings search per step (contact threshold, wrist veto and margin, serve lead, rally
+   rules, tie-breaks), a change kept only if it gains on the answers held out (sets 1-2 against set
+   3, then the next match) and loses nothing on the school benchmarks; kept values in a committed
+   `params.json` with the report.
+4. Then: a learned attribution ranker (numpy logistic regression on distance, box size, wrists,
+   side, track age) on the 277 touch answers and the school labels; a projection of the re-ID
+   embeddings from the same/different pairs; the contact threshold where players crowd the ball from
+   the added touches.
+5. Asked of the owner: validate whole rallies (the unbiased labels) more than single questions; a
+   few random easy touches as spot checks.
 
 ## Left, by value
 
