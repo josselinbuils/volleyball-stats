@@ -94,12 +94,14 @@ export function unattacked(c: Contact, after: Contact[]): boolean {
 }
 
 /** The stats of the touches `mine` holds; `missedAce` holds the aces counted against them, as
- * receptions and faults. */
+ * receptions and faults, but those a reception touched: that touch counts. */
 export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missedAce: (c: Contact) => boolean): Stats {
   const out = Object.fromEntries(STATS.map((s) => [s, [] as Contact[]])) as Stats;
   for (const [k, c] of contacts.entries()) {
     const ace = c.type === 'serve' && c.result === 'point';
-    if (ace && missedAce(c)) {
+    // A reception touched and missed counts as its own fault.
+    const touched = contacts[k + 1]?.rally === c.rally && isTouch(contacts[k + 1]);
+    if (ace && !touched && missedAce(c)) {
       out.receptions.push(c);
       out.missed.push(c);
       out.faults.push(c);

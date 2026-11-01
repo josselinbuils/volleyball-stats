@@ -256,7 +256,7 @@ def receivers(found: list[dict], typed: list[dict], players: dict[int, list[dict
     """Each ace of `found` (the page's contacts, from actions CSV rows `typed`) gets the player who
     missed it (`receiver`): the identity the review `said` (by the serve's frame), None when it said
     no one; else the nearest to where it lands in its rally on the other side; unknown (no key)
-    without such a landing or a player there. A player said of the serve's own team means no serve:
+    without such a landing or a player there, or when a reception touched it. A player said of the serve's own team means no serve:
     a window starting late took their touch for one; it becomes their missed reception."""
     said = said or {}
     for k, (contact, after) in enumerate(zip(found, found[1:] + [None])):
@@ -267,7 +267,8 @@ def receivers(found: list[dict], typed: list[dict], players: dict[int, list[dict
             contact.update(type="pass", result="error", person=who(None, frame, said[frame]))
         elif frame in said:
             contact["receiver"] = None if said[frame] is None else who(None, frame, said[frame])
-        elif after and after["rally"] == contact["rally"] and after["side"] != contact["side"]:
+        # A reception touched and missed is a fault of its own: no receiver to add.
+        elif after and after["rally"] == contact["rally"] and after["side"] != contact["side"] and after["type"] in ("floor", "net"):
             at = int(typed[k + 1]["frame"])
             found_by = receiver(after, players.get(at, []), lambda track: who(track, at))
             if found_by is not None:
@@ -457,6 +458,24 @@ def acted(found: list[dict], typed: list[dict], fixes: dict[int, dict]) -> None:
         contact.update(fixes.get(int(row["frame"]), {}))
 
 
+def credited(found: list[dict], typed: list[dict], fixed: set[int]) -> None:
+    """The serves and attacks of `found` (from actions CSV rows `typed`) the other team's next touch,
+    the rally's last, lost or won, as the stats count them: an ace when the reception lets the ball
+    go (a fault); a winning attack when the defence or the block does, a fault when blocked for a
+    point. Those whose result the review gave (`fixed` frames) stay as given."""
+    touches = [(c, int(row["frame"])) for c, row in zip(found, typed) if c["type"] not in ("floor", "net")]
+    last = {c["rally"]: id(c) for c, _ in touches}
+    for (a, frame), (b, _) in zip(touches, touches[1:]):
+        if a["result"] != "play" or frame in fixed or b["rally"] != a["rally"] or last[b["rally"]] != id(b) or b["team"] in (None, a["team"]):
+            continue
+        if a["type"] == "serve" and b["type"] == "pass" and b["result"] == "error":
+            a["result"] = "point"
+        elif a["type"] == "attack" and b["result"] == "error":
+            a["result"] = "point"
+        elif a["type"] == "attack" and b["type"] == "block" and b["result"] == "point":
+            a["result"] = "error"
+
+
 def no_rallies(match: Path) -> set[int]:
     """Start frames of the rally windows the review's answers say are no rally (no play)."""
     path = match / "identity_answers.json"
@@ -569,6 +588,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     rewon(rallies, {a["start"]: a["winner"] for a in answers(match, "winner")})
     settle(found, [r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
+    credited(found, actions, {a["frame"] for a in answers(match, "action") if "result" in a})
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)

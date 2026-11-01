@@ -56,6 +56,14 @@ describe('lines', () => {
     expect(count(one.stats)).toEqual({ touches: 4, attacks: 1, defended: 1, blocks: 3, blockPoints: 1, blockFaults: 1, blockDefended: 1, points: 1, faults: 1 });
   });
 
+  it('counts an ace a reception touched once, as that reception', () => {
+    const serve = touch('serve', 2, 3, 'point', 0);
+    const pass = { ...touch('pass', 1, 0, 'error'), rally: serve.rally };
+    const [one, total] = lines([serve, pass], people, 1);
+    expect(count(one.stats)).toEqual({ touches: 1, receptions: 1, missed: 1, rated: 1, faults: 1 });
+    expect(count(total.stats)).toEqual({ touches: 1, receptions: 1, missed: 1, rated: 1, faults: 1 });
+  });
+
   it('counts an ace missed by no identified player in the rest', () => {
     const [player, rest] = lines([touch('serve', 1, 0, 'point', 2)], people, 2);
     expect([player.id, count(player.stats)]).toEqual(['rest', { receptions: 1, missed: 1, rated: 1, faults: 1 }]);
