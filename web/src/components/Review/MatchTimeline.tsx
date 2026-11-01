@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { clock } from '@/lib/format';
 import { contacts, groupName, match, playerLabel, rallies, teamColor, teamEdge, type Group } from '@/lib/match';
@@ -17,7 +17,8 @@ const HOLD_MS = 3000;
 const HEIGHT = 64;
 
 /** The whole match on one bar under the video: each rally a band, its winner's colour along its
- * bottom, green once checked, the sets parted; each touch a tick in its team's colour (grey once removed), the viewers'
+ * bottom, orange with a warning, else green once checked, the sets parted; buttons go to the rally
+ * to check (a warning, or not checked) before or after the video; each touch a tick in its team's colour (grey once removed), the viewers'
  * reports as red flags, the automatic ones as grey flags, the corrections saved and not applied as dots. A click moves the video there.
  * It zooms (buttons, or ctrl/⌘ and the wheel or a pinch, around the pointer) and scrolls sideways,
  * following the video unless just scrolled. */
@@ -26,6 +27,7 @@ export function MatchTimeline({
   saved,
   reports,
   green,
+  warned,
   onSeek,
 }: {
   now: number;
@@ -33,6 +35,8 @@ export function MatchTimeline({
   reports: { time: number; auto: boolean }[];
   /** The rallies checked with no report open since, by their key: green. */
   green: Set<number>;
+  /** The rallies with a warning, by their key: orange. */
+  warned: Set<number>;
   onSeek: (time: number) => void;
 }) {
   const { t } = useTranslation();
@@ -109,6 +113,9 @@ export function MatchTimeline({
   const step = tickStep(scale || 1);
   const total = Math.max(width, match.duration * scale);
   const sets = rallies.filter((r, k) => k === 0 || r.set !== rallies[k - 1].set);
+  const toCheck = rallies.filter((r) => r.key === undefined || warned.has(r.key) || !green.has(r.key));
+  const previous = toCheck.findLast((r) => r.end < now);
+  const next = toCheck.find((r) => r.start > now + 0.5);
   const seekTo = (event: MouseEvent<SVGSVGElement>) => {
     const left = event.currentTarget.getBoundingClientRect().left;
     onSeek(Math.min(match.duration, Math.max(0, (event.clientX - left) / scale)));
@@ -118,6 +125,31 @@ export function MatchTimeline({
     <div className="grid gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">{t('review.timeline')}</span>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8 bg-card"
+            title={t('review.previousToCheck')}
+            aria-label={t('review.previousToCheck')}
+            disabled={!previous}
+            onClick={() => previous && onSeek(previous.start)}
+          >
+            <ChevronLeft aria-hidden />
+          </Button>
+          <span className="text-sm tabular-nums">{t('review.toCheck', { count: toCheck.length })}</span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8 bg-card"
+            title={t('review.nextToCheck')}
+            aria-label={t('review.nextToCheck')}
+            disabled={!next}
+            onClick={() => next && onSeek(next.start)}
+          >
+            <ChevronRight aria-hidden />
+          </Button>
+        </div>
         <div className="ml-auto flex gap-1">
           <Button
             variant="outline"
@@ -155,10 +187,16 @@ export function MatchTimeline({
                 <rect
                   x={r.start * scale}
                   y={14}
-                  width={Math.max(1, (r.end - r.start) * scale)}
+                  width={Math.max(3, (r.end - r.start) * scale)}
                   height={26}
                   rx={Math.min(3, ((r.end - r.start) * scale) / 2)}
-                  className={r.key !== undefined && green.has(r.key) ? 'fill-emerald-200 dark:fill-emerald-900' : 'fill-muted'}
+                  className={
+                    r.key !== undefined && warned.has(r.key)
+                      ? 'fill-amber-400 dark:fill-amber-600'
+                      : r.key !== undefined && green.has(r.key)
+                        ? 'fill-emerald-300 dark:fill-emerald-800'
+                        : 'fill-muted-foreground/25'
+                  }
                 >
                   <title>{`${t('review.reportRally', { n: r.i + 1, from: clock(r.start), to: clock(r.end) })}${r.winner ? ` · ${t('review.wonBy', { team: groupName(t, r.winner) })}` : ''}`}</title>
                 </rect>

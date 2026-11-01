@@ -61,6 +61,7 @@ export function ReportEditor({
   onUncheck,
   onCaption,
   onChanges,
+  onWarnings,
   saved,
 }: {
   /** The moments viewers reported: their touches are flagged. */
@@ -84,6 +85,8 @@ export function ReportEditor({
   onUncheck: (rally: number) => void;
   /** The corrections as they stand, saved or not. */
   onChanges?: (changes: ReportChanges) => void;
+  /** The rallies with a warning as they stand, by their key. */
+  onWarnings?: (keys: number[]) => void;
   /** The touch the video is on in its rally, as it stands with the corrections: to show over the video. */
   onCaption?: (caption: { team: Group; text: string } | null) => void;
   saved: Partial<ReportChanges>;
@@ -146,26 +149,35 @@ export function ReportEditor({
   const here = rallyAt(shown, now);
   const first = Math.max(0, here - AROUND_RALLIES);
   const last = Math.min(shown.length - 1, here + AROUND_RALLIES);
-  const rows: Row[] = [
-    ...touches
-      .map(({ contact: c, frame, player }) => {
-        const fix = fixes[frame] ?? {};
-        return {
-          frame,
-          time: c.t,
-          rally: pieceOf(split, c.rally, c.t),
-          team: fix.player && fix.player !== 'none' ? teamOf(fix.player) : (c.team as Group),
-          type: fix.type ?? c.type,
-          result: fix.result ?? c.result,
-          player: fix.player === 'none' ? '' : (fix.player ?? player),
-          removed: fix.player === 'none',
-          added: false,
-          contact: c,
-        };
-      })
-      .filter((row) => row.rally >= first && row.rally <= last),
-    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: a.player ?? '', removed: false, added: true })).filter((a) => a.rally >= first && a.rally <= last),
+  // Every touch, to check every rally; those of the rallies around listed.
+  const allRows: Row[] = [
+    ...touches.map(({ contact: c, frame, player }) => {
+      const fix = fixes[frame] ?? {};
+      return {
+        frame,
+        time: c.t,
+        rally: pieceOf(split, c.rally, c.t),
+        team: fix.player && fix.player !== 'none' ? teamOf(fix.player) : (c.team as Group),
+        type: fix.type ?? c.type,
+        result: fix.result ?? c.result,
+        player: fix.player === 'none' ? '' : (fix.player ?? player),
+        removed: fix.player === 'none',
+        added: false,
+        contact: c,
+      };
+    }),
+    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: a.player ?? '', removed: false, added: true })),
   ].sort((a, b) => a.time - b.time);
+  const rows = allRows.filter((row) => row.rally >= first && row.rally <= last);
+  // The touches kept, by rally.
+  const kept = new Map<number, Row[]>();
+  for (const row of allRows) {
+    if (!row.removed) {
+      kept.set(row.rally, [...(kept.get(row.rally) ?? []), row]);
+    }
+  }
+  /** A rally's touches kept, the next one's too when joined to it. */
+  const mineOf = (k: number) => [...(kept.get(k) ?? []), ...(fixOf(k)?.join ? (kept.get(k + 1) ?? []) : [])];
 
   const changes: ReportChanges = {
     touches: Object.entries(fixes).map(([frame, c]) => ({ frame: Number(frame), ...c })),
@@ -266,7 +278,7 @@ export function ReportEditor({
   // What looks wrong in each rally shown, as it stands with the corrections: a rally joined to the
   // next one is checked with its touches, one said no play not at all.
   // A rally's winner: the one set, else the one its last touch's result says, else the page's.
-  const lastOf = (k: number) => rows.filter((row) => !row.removed && row.rally === (fixOf(k)?.join ? k + 1 : k)).at(-1);
+  const lastOf = (k: number) => kept.get(fixOf(k)?.join ? k + 1 : k)?.at(-1);
   const winnerOf = (k: number): Group | null => {
     // As on the page: the last touch says it, a point for its team or a fault for the other's; one
     // in play, or none, leaves the winner given.
@@ -289,17 +301,17 @@ export function ReportEditor({
   };
   const winner = rally ? winnerOf(here) : null;
   const found = new Map<number, ReturnType<typeof problems>>();
-  for (let k = first; k <= last; k++) {
+  for (let k = 0; k < shown.length; k++) {
     if (fixOf(k)?.play === false || fixOf(k - 1)?.join) {
       continue;
     }
-    const mine = rows.filter((row) => !row.removed && (row.rally === k || (fixOf(k)?.join && row.rally === k + 1)));
+    const mine = mineOf(k);
     const previous = k > 0 && shown[k - 1].set === shown[k].set && fixOf(k - 1)?.play !== false ? winnerOf(k - 1) : null;
     found.set(k, problems(mine, winnerOf(k), previous, hasTeams));
   }
   const problemsOf = (row: Row): Problem[] => {
     const k = fixOf(row.rally - 1)?.join ? row.rally - 1 : row.rally;
-    const mine = rows.filter((r) => !r.removed && (r.rally === k || (fixOf(k)?.join && r.rally === k + 1)));
+    const mine = mineOf(k);
     return row.removed ? [] : (found.get(k)?.touch.get(mine.indexOf(row)) ?? []);
   };
   const describe = (list: Problem[]) => list.map((p) => t(`feedback.kinds.auto.${p}`)).join(' · ');
@@ -309,13 +321,18 @@ export function ReportEditor({
   };
   // The score after each rally as it stands with the corrections, the rallies out of view with
   // their winner set or the page's; a set ending off the final score given is flagged.
-  const winnerAt = (k: number): Group | null => (k >= first && k <= last ? winnerOf(k) : (fixOf(k)?.winner ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k].winner) ?? null));
-  const scores = hasTeams ? runningScores(shown.map((r, k) => ({ set: r.set, winner: winnerAt(k), skip: fixOf(k)?.play === false || !!fixOf(k - 1)?.join }))) : [];
+  const scores = hasTeams ? runningScores(shown.map((r, k) => ({ set: r.set, winner: winnerOf(k), skip: fixOf(k)?.play === false || !!fixOf(k - 1)?.join }))) : [];
   const off = offGiven(
     shown.map((r) => r.set),
     scores,
     match.scores,
   );
+  // The rallies with a warning, by their key, for the match's bar.
+  const warned = shown.flatMap((r, k) => (rallyProblems(k).length > 0 || off.has(k) ? [r.key] : []));
+  const warnedJson = JSON.stringify(warned);
+  useEffect(() => {
+    onWarnings?.(warned);
+  }, [warnedJson]);
 
   return (
     <>

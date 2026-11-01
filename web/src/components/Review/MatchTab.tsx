@@ -62,6 +62,8 @@ export function MatchTab({
   // Checked, and no report open on it since.
   const open = new Set(reports.map((q) => q.rally));
   const green = new Set(checked.filter((k) => !open.has(k)));
+  // The rallies with a warning as the editor finds them, by their key.
+  const [warned, setWarned] = useState<Set<number>>(new Set());
   // The video, its bar, the editor and the reports fill the screen, the video as large as its height allows.
   const block = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
@@ -104,10 +106,11 @@ export function MatchTab({
                 )
               }
             />
-            <MatchTimeline now={now} saved={saved} reports={flags} green={green} onSeek={(time) => go(time)} />
+            <MatchTimeline now={now} saved={saved} reports={flags} green={green} warned={warned} onSeek={(time) => go(time)} />
           </div>
           <ReportEditor
             key={round}
+            onWarnings={(keys) => setWarned(new Set(keys))}
             reports={seen}
             players={players}
             nameOf={nameOf}
