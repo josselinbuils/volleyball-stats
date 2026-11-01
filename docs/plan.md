@@ -42,7 +42,7 @@ Tried and dropped: see `benchmarks/rallies/README.md`.
 ## Page: online
 
 "Mon match" (`web/src/components/MyMatch/`), "L'histoire du match" (`web/src/components/Story/`) and "Les trophées"
-(`web/src/components/Trophies/`), uploaded 1 Nov 21:51. The owner's rule on points is in `web.credited`.
+(`web/src/components/Trophies/`), uploaded 1 Nov 22:03. The owner's rule on points is in `web.credited`.
 
 ## Page: lighter (1 Nov)
 

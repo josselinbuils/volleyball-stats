@@ -79,8 +79,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   wants (`outputs/first_match/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
   Before stopping the review (a restart is needed for a server or page change), check that
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. Its review is finished
-  (1 Nov 22:00): 129 rallies, all checked, sets ending 25-23, 25-12, 25-18 as given, no warning, no
-  answer waiting, the viewers' reports handled (the hosted pages last uploaded 21:51).
+  (1 Nov 22:03): 129 rallies, all checked, sets ending 25-23, 25-12, 25-18 as given, no warning, no
+  answer waiting, the viewers' reports handled (the hosted pages last uploaded 22:03).
   `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers that disagreed (merged).
   Last rerun: the owner's "Apprendre de mes réponses", finished 1 Nov 21:41 (3 min on the M4 with the poses
   cached, 40 min without them; `outputs/first_match/before-rerun/`); it moves the answers onto
