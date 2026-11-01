@@ -8,7 +8,6 @@ import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { playerKey } from '@/helpers/players';
-import { usePlayers } from '@/lib/players';
 import { useSet } from '@/lib/sets';
 import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
@@ -23,10 +22,8 @@ export function PlayersTable() {
   const { t } = useTranslation();
   const { set, contacts } = useSet();
   const [group, setGroup] = useState<Group>(1);
-  const players = usePlayers();
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
-  // Without the players' positions, no ball is known to drop between two of them.
-  const dropped = useMemo(() => (typeof players === 'object' ? drops(contacts, players, match.fps, match.people) : []), [contacts, players]);
+  const dropped = useMemo(() => drops(contacts, match.people), [contacts]);
   const seconds = (person: number) => playingTime(person, set);
   const best = useMemo(() => (withPlayers ? bestPlayer() : null), [withPlayers]);
   const found = lines(contacts, match.people, group, dropped);

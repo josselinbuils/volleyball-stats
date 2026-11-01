@@ -44,11 +44,12 @@ against 33) match the match? They feed the top scorers, the highlights and the t
 
 ## Page: lighter (1 Nov)
 
-Lighthouse, mobile, 3 runs on localhost, the first match without footage: page 1,824 -> 1,070 KB, LCP 2.70 ->
-2.40 s, time to interactive 10.8 -> 7.1 s, blocking 578 -> 711 ms, score 82 -> 80 (the "before" build's settings
-may differ). `players.js` loads 500 ms after first paint: sooner, its short run counts as blocking the paint and
-Lighthouse's simulated LCP jumps to 6.6 s. Moving the review screens to their own bundle would save 24 KB
-compressed, not done; `i18next` (15 KB) and `cn` (8 KB) stay.
+The players' positions are one file a minute (`positions/N.js`, 13 KB compressed), loaded as the replay reaches
+them; the balls dropped between two players read theirs from `data.js` (`around`). Lighthouse, mobile, 3 runs on
+localhost, the first match without footage: first load 1,824 -> 282 KB, LCP 2.73 -> 2.41 s, time to interactive
+10.9 -> 3.05 s, blocking 664 -> 644 ms, score 80 -> 82 (desktop 99, 99). The first file loads 500 ms after mounting:
+a script running before the paint is recorded counts as blocking it in Lighthouse's simulated LCP. Moving the review
+screens to their own bundle would save 24 KB compressed, not done; `i18next` (15 KB) and `cn` (8 KB) stay.
 
 ## Page: other ideas, not started
 

@@ -100,7 +100,7 @@ def step(name: str) -> None:
         calibration = Calibration(np.eye(3))
         data, samples = web.match_data(OUT, VIDEO, calibration)
         size = len(json.dumps(samples, separators=(",", ":"))) if samples else 0
-        return print(f"{len(data['contacts'])} contacts, players.js {size / 1e6:.0f} MB")
+        return print(f"{len(data['contacts'])} contacts, positions {size / 1e6:.0f} MB")
     if name == "review":
         found, _ = review.Questions(OUT, fps).build(set())
         return print(f"{len(found)} questions")

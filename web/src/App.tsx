@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { VideoChoice } from '@/components/VideoChoice';
 import { BrandBar } from '@/components/BrandBar';
@@ -12,21 +11,9 @@ import { Trophies } from '@/components/Trophies/Trophies';
 import { Watch } from '@/components/Watch/Watch';
 import { PlayerProvider } from '@/lib/player';
 import { match } from '@/lib/match';
-import { loadPlayers } from '@/lib/players';
 import { SetProvider } from '@/lib/sets';
 
-const PLAYERS_DELAY_MS = 500;
-
 export function App() {
-  // The players' positions start loading shortly after the first paint: well before anyone presses play,
-  // without competing with that paint on a slow connection.
-  useEffect(() => {
-    const timer = window.setTimeout(loadPlayers, PLAYERS_DELAY_MS);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, []);
-
   return (
     <TooltipProvider delayDuration={200}>
       <PlayerProvider>

@@ -414,8 +414,7 @@ Without player tracks, everything counts each side of the net instead of each te
   section follows it, and the video's timeline then covers that set only.
 - **Theme:** a switch next to the language picks the light, dark or automatic theme (the system's,
   by default), remembered by the browser.
-- **Loading:** the players' positions over the whole video come in `players.js`, loaded right after
-  the first paint (0.9 MB, 0.23 MB gzipped, for 10 minutes).
+- **Loading:** the players' positions come in one file a minute (`positions/N.js`), loaded as the replay reaches them, the next one a little ahead; the balls dropped between two players read theirs from `data.js`.
 
 ### Hosting
 

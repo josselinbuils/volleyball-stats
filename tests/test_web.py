@@ -634,14 +634,14 @@ class TestWriteSite:
         version = (site / "index.html").read_text().split('src="data.js?v=')[1].split('"')[0]
         assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","v":"{version}"}};\n'
-        assert (site / "players.js").read_text() == 'window.MATCH_PLAYERS = {"step":3,"chunks":["[[[]],[[]],[[]]]"]};\n'
+        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":500,"files":1}},"contacts":[],"v":"{version}"}};\n'
+        assert (site / "positions" / "0.js").read_text() == "window.MATCH_POSITIONS(0,[[[]],[[]],[[]]]);\n"
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
 
         assert f'src="data.js?v={version}"' not in (site / "index.html").read_text()
 
-        assert not (site / "players.js").exists()
+        assert not (site / "positions").exists()
         assert (site / "match.mp4").read_bytes() == b"not a video"
         assert not (site / "poster.webp").exists()
 
@@ -744,12 +744,44 @@ class TestPublish:
             publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"pictures": True})
 
 
-class TestPackedPlayers:
-    def test_keeps_each_persons_moves_in_cm_across_chunks_and_samples_between(self, monkeypatch):
-        monkeypatch.setattr(web, "PACKED_SAMPLES", 3)
-        players = {"step": 5, "samples": [[1, -5.8, 3.32, 2, 1.53, -0.07], [1, -5.79, 3.31], [], [2, 1.5, -0.02, 1, -5.77, 3.31]]}
+class TestPositionFiles:
+    def test_keeps_each_persons_moves_in_cm_each_file_on_its_own(self):
+        players = {"step": 25, "samples": [[1, -5.8, 3.32, 2, 1.53, -0.07], [1, -5.79, 3.31], [], [2, 1.5, -0.02, 1, -5.77, 3.31]]}
 
-        assert web.packed_players(players) == {
-            "step": 5,
-            "chunks": ["[[[1,2],[1],[]],[[-580,153],[1],[]],[[332,-7],[-1],[]]]", "[[[2,1]],[[-3,2]],[[5,0]]]"],
-        }
+        # At 25 fps a sample a second: three to a file of 3 s.
+        web.POSITIONS_S, kept = 3, web.POSITIONS_S
+        try:
+            assert web.position_files(players, 25.0) == [
+                "window.MATCH_POSITIONS(0,[[[1,2],[1],[]],[[-580,153],[1],[]],[[332,-7],[-1],[]]]);\n",
+                "window.MATCH_POSITIONS(1,[[[2,1]],[[150,-577]],[[-2,331]]]);\n",
+            ]
+        finally:
+            web.POSITIONS_S = kept
+
+
+class TestWithLandings:
+    players = {"step": 1, "samples": [[1, 1.0, 1.0, 2, 2.0, 2.0], [1, 3.0, 3.0], [2, 9.0, 9.0]]}
+
+    @staticmethod
+    def contact(kind: str, rally: int = 0, t: float = 0.2, result: str = "play", x: float | None = 1.0) -> dict:
+        return {"type": kind, "rally": rally, "t": t, "result": result, "x": x, "y": 1.0}
+
+    def test_gives_a_landing_after_a_point_the_players_there_each_at_their_last_place(self):
+        found = web.with_landings([self.contact("attack", result="point"), self.contact("floor")], self.players, 10.0)
+
+        assert found[1]["around"] == [2, 9.0, 9.0, 1, 3.0, 3.0]
+        assert "around" not in found[0]
+
+    def test_leaves_a_landing_without_a_point_before_it_in_its_rally_or_a_place(self):
+        for contacts in (
+            [self.contact("attack"), self.contact("floor")],
+            [self.contact("attack", rally=1, result="point"), self.contact("floor")],
+            [self.contact("attack", result="point"), self.contact("floor", x=None)],
+            [self.contact("floor")],
+        ):
+            assert "around" not in web.with_landings(contacts, self.players, 10.0)[-1]
+
+    def test_holds_a_player_no_longer_than_half_a_second(self):
+        samples = [[1, 1.0, 1.0], [], [], [], [], [], [2, 2.0, 2.0]]
+        found = web.with_landings([self.contact("attack", result="point"), self.contact("floor", t=0.6)], {"step": 1, "samples": samples}, 10.0)
+        assert found[1]["around"] == [2, 2.0, 2.0]

@@ -1,103 +1,93 @@
 import { useSyncExternalStore } from 'react';
 import { match, versioned } from '@/lib/match';
 
-/** Player feet sampled every `step` frames from frame 0, each sample a flat [person, x, y, ...] list. */
+/** Player feet sampled every `step` frames from frame 0, each sample a flat [person, x, y, ...] list, only
+ * those of the files loaded so far. */
 export interface Players {
   step: number;
   samples: number[][];
 }
 
-/** players.js's positions: `chunks` of samples, each a JSON string of the samples' persons and each one's
- * move in cm since their last position, x then y. */
-export interface PackedPlayers {
-  step: number;
-  chunks: string[];
-}
+/** A file of positions: the samples' persons, and each one's move in cm since their last position in the file. */
+type Packed = [number[][], number[][], number[][]];
 
 declare global {
   interface Window {
-    MATCH_PLAYERS?: PackedPlayers;
+    MATCH_POSITIONS?: (file: number, packed: Packed) => void;
   }
 }
 
-/** Moves from a person's last position in cm: `x` and `y` by person. */
-export interface Last {
-  x: number[];
-  y: number[];
-}
+// From this close to a file's end, in seconds, the next one loads too.
+const AHEAD_S = 10;
 
-/** Adds one of players.js's `chunk`s to `samples`, from the positions in `last`. */
-export function unpackChunk(chunk: string, last: Last, samples: number[][]): void {
-  const [persons, xs, ys] = JSON.parse(chunk) as [number[][], number[][], number[][]];
-  for (let k = 0; k < persons.length; k++) {
+/** Puts a file's samples in `samples`, the `file`th of `every` samples each. */
+export function unpackFile(samples: number[][], every: number, file: number, [persons, xs, ys]: Packed): void {
+  const lastX: number[] = [];
+  const lastY: number[] = [];
+  persons.forEach((list, k) => {
     const flat: number[] = [];
-    for (let n = 0; n < persons[k].length; n++) {
-      const person = persons[k][n];
-      last.x[person] = (last.x[person] ?? 0) + xs[k][n];
-      last.y[person] = (last.y[person] ?? 0) + ys[k][n];
-      flat.push(person, last.x[person] / 100, last.y[person] / 100);
-    }
-    samples.push(flat);
-  }
+    list.forEach((person, n) => {
+      lastX[person] = (lastX[person] ?? 0) + xs[k][n];
+      lastY[person] = (lastY[person] ?? 0) + ys[k][n];
+      flat.push(person, lastX[person] / 100, lastY[person] / 100);
+    });
+    samples[file * every + k] = flat;
+  });
 }
 
-// The time in ms the page keeps unpacking before letting the browser work.
-const UNPACK_MS = 8;
-
-/** Unpacks `packed` a few chunks at a time, leaving the page responsive, then calls `done`. */
-function unpackAll(packed: PackedPlayers, done: (players: Players) => void) {
-  const samples: number[][] = [];
-  const last: Last = { x: [], y: [] };
-  let k = 0;
-  // Unlike a timeout, a message is not slowed down in a background tab.
-  const channel = new MessageChannel();
-  channel.port1.onmessage = () => {
-    const until = performance.now() + UNPACK_MS;
-    while (k < packed.chunks.length && performance.now() < until) {
-      unpackChunk(packed.chunks[k++], last, samples);
-    }
-    if (k < packed.chunks.length) {
-      channel.port2.postMessage(null);
-    } else {
-      channel.port1.close();
-      done({ step: packed.step, samples });
-    }
-  };
-  channel.port2.postMessage(null);
+/** The files to have at `time`: the one holding it, and the next near its end. None past the last. */
+export function filesAt(time: number, seconds: number, files: number): number[] {
+  const file = Math.floor(time / seconds);
+  return [file, ...(time - file * seconds >= seconds - AHEAD_S ? [file + 1] : [])].filter((n) => n >= 0 && n < files);
 }
 
-/** `loading` until players.js has run, `none` when the match has no player positions. */
-type State = Players | 'loading' | 'none';
+const positions = match.positions;
+/** `none` when the match has no player positions. */
+type State = Players | 'none';
 
-let state: State = Object.keys(match.people).length ? 'loading' : 'none';
-let started = false;
+let state: State = positions ? { step: positions.step, samples: [] } : 'none';
+const asked = new Set<number>();
 const listeners = new Set<() => void>();
 
-function settle(next: State) {
-  state = next;
-  listeners.forEach((listener) => listener());
-}
-
-/** Loads players.js, the players' positions over the whole video, as a classic script: it works
- * from file:// and stays out of the first render. */
-export function loadPlayers() {
-  if (started || state === 'none') {
-    return;
-  }
-  started = true;
-  const script = document.createElement('script');
-  script.src = versioned('players.js');
-  script.onload = () => {
-    const packed = window.MATCH_PLAYERS;
-    window.MATCH_PLAYERS = undefined;
-    if (packed) {
-      unpackAll(packed, settle);
-    } else {
-      settle('none');
+if (positions) {
+  window.MATCH_POSITIONS = (file, packed) => {
+    if (typeof state === 'object') {
+      unpackFile(state.samples, positions.every, file, packed);
+      state = { ...state };
+      listeners.forEach((listener) => listener());
     }
   };
-  script.onerror = () => settle('none');
-  document.head.append(script);
+}
+
+const fileSeconds = () => (positions ? (positions.every * positions.step) / match.fps : 1);
+
+/** What the positions to have at `time` are named by, to load them when it changes. */
+export const filesKey = (time: number) => (positions ? filesAt(time, fileSeconds(), positions.files).join() : '');
+
+/** Loads the positions' files for `time` not asked for yet, as classic scripts: they work from file://. */
+export function loadPlayersAt(time: number) {
+  if (!positions) {
+    return;
+  }
+  for (const file of filesAt(time, fileSeconds(), positions.files)) {
+    if (!asked.has(file)) {
+      asked.add(file);
+      const script = document.createElement('script');
+      script.src = versioned(`positions/${file}.js`);
+      // Asked again the next time that moment plays.
+      script.onerror = () => asked.delete(file);
+      document.head.append(script);
+    }
+  }
+}
+
+/** Whether the positions at `time` exist but have not arrived yet. */
+export function positionsPending(time: number): boolean {
+  if (!positions || typeof state !== 'object') {
+    return false;
+  }
+  const sample = Math.round((time * match.fps) / positions.step);
+  return sample < positions.every * positions.files && state.samples[sample] === undefined;
 }
 
 export function usePlayers(): State {

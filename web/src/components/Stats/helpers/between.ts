@@ -1,6 +1,4 @@
 import type { Contact, Person } from '@/lib/match';
-import type { Players } from '@/lib/players';
-import { playersAt } from '@/helpers/players';
 
 // A teammate this near where the ball lands could have played it.
 const REACH_M = 2.5;
@@ -16,16 +14,17 @@ export interface Drop {
 
 /** The balls that landed in untouched, the two teammates nearest to where they landed both within
  * REACH_M and about as near: the nearer at least EVEN of the other's distance. */
-export function drops(contacts: Contact[], players: Players, fps: number, people: Record<string, Person>): Drop[] {
+export function drops(contacts: Contact[], people: Record<string, Person>): Drop[] {
   const out: Drop[] = [];
   for (const [k, c] of contacts.entries()) {
     // A point of the touch before is the ball landing in, on the other side of the net.
     const before = contacts[k - 1];
-    if (c.type !== 'floor' || c.x === null || c.y === null || before?.rally !== c.rally || before.result !== 'point') {
+    if (c.type !== 'floor' || c.x === null || c.y === null || before?.rally !== c.rally || before.result !== 'point' || !c.around) {
       continue;
     }
-    const { x, y } = c;
-    const near = playersAt(players, fps, c.t)
+    const { x, y, around } = c;
+    const near = around
+      .flatMap((person, n) => (n % 3 === 0 ? [{ person, x: around[n + 1], y: around[n + 2] }] : []))
       .filter((p) => people[p.person]?.team === c.g && Math.sign(p.x) === Math.sign(x))
       .map((p) => ({ person: p.person, d: Math.hypot(p.x - x, p.y - y) }))
       .sort((a, b) => a.d - b.d);

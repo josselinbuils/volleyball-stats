@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerNumber, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { playersAt } from '@/helpers/players';
-import { usePlayers } from '@/lib/players';
+import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 import { ball3dAt, jumpAt, trail3dAt } from '@/components/Watch/helpers/flight';
@@ -16,6 +16,7 @@ import { Feedback } from '@/components/Watch/Feedback';
 import { scoreAt } from '@/components/Watch/helpers/score';
 
 const STORED = 'court-view';
+const FIRST_POSITIONS_MS = 500;
 
 /** The court seen from above, players and ball following the video; its legend under it unless
  * `captioned` is false, the page then showing `ReplayCaption` itself. */
@@ -23,6 +24,17 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const { t } = useTranslation();
   const time = useVideoTime((now) => now);
   const players = usePlayers();
+  const files = useVideoTime(filesKey);
+  const painted = useRef(false);
+  // The first positions wait for the first paint: nothing but a replay needs them.
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadPlayersAt(time), painted.current ? 0 : FIRST_POSITIONS_MS);
+    painted.current = true;
+    return () => {
+      clearTimeout(timer);
+    };
+    // Only when the moment moves on to other files.
+  }, [files]);
   const { video } = usePlayer();
   // Where the pointer went down: a click plays or pauses, a drag turning the 3D view does not.
   const down = useRef({ x: 0, y: 0 });
@@ -167,7 +179,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
             {ball && <circle cx={ball.x} cy={ball.y} r={0.28} className="ball-mark" />}
             {hovered && tip && <CourtTip x={hovered.x} y={hovered.y} text={tip} />}
           </Court>
-          {players === 'loading' && (
+          {positionsPending(time) && (
             <p className="pointer-events-none absolute inset-x-0 top-0 bottom-6 m-0 grid place-items-center">
               <span className="rounded-md bg-card/90 px-2.5 py-1 text-sm text-muted-foreground shadow-xs">{t('loadingPlayers')}</span>
             </p>

@@ -4,7 +4,7 @@
 
 The page (site/, built from web/ with `npm run build` and copied as is) reads the match from data.js,
 a script rather than fetched JSON so it opens from the disk by double-clicking index.html, and the
-players' positions over the whole video from players.js, which it loads once it has rendered. Every
+players' positions from a file a minute (positions/N.js), which it loads as the replay reaches them. Every
 path is relative: the site directory serves as plain static files. The page holds no footage by
 default (`--footage none`): its moments replay on the top view of the court. `--footage full` adds
 the video, `blur-opponents` the video with the team other than the `--club` one blurred (blur.py),
@@ -57,8 +57,9 @@ VIDEOS = (".mp4", ".mov", ".m4v")
 # sharp high-density screens, never enlarged. The pictures are 3 wide for 4 tall, like a photo.
 LOGO_PX, PHOTO_PX, PHOTO_RATIO = 128, 480, 0.75
 LOGO_QUALITY = 90
-# players.js's samples in one piece the page unpacks at once.
-PACKED_SAMPLES = 500
+# The seconds of players' positions in one file the page loads, and how long a player missing from a few samples
+# stays where they were last seen (the page's `playersAt`).
+POSITIONS_S, HOLD_S = 60, 0.5
 # The cards' pictures: in the pieces of a player the review shows and the user left unmarked (sure
 # to be them), PHOTO_SAMPLES moments each, alone, on the court (ON_COURT m around it at most: not
 # walking past the camera) and with room around them for a centred picture (ROOM of their height
@@ -681,7 +682,7 @@ def drop_rallies(windows: list[tuple[int, int]], rows: list[dict], scores: list[
 
 
 def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict, dict | None]:
-    """data.js's match and players.js's player positions, None without player tracks."""
+    """data.js's match and the player positions, None without player tracks."""
     cap = cv2.VideoCapture(str(video))
     fps, frame_count, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     cap.release()
@@ -805,16 +806,16 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     return {"fps": fps, "samples": samples}
 
 
-def packed_players(players: dict) -> dict:
-    """players.js's positions, half their size compressed and running in no time: `chunks` of PACKED_SAMPLES
-    samples, each a JSON string the page parses and unpacks when it has time (`unpackChunk`): the samples'
-    persons, then each one's move in cm since their last position, x then y."""
-    last: dict[int, tuple[int, int]] = {}
-    chunks = []
+def position_files(players: dict, fps: float) -> list[str]:
+    """`positions/N.js`'s contents, each POSITIONS_S of the players' positions the page loads as it plays them
+    (`unpackFile`): the samples' persons, then each one's move in cm since their last position in the file."""
+    every = round(POSITIONS_S * fps / players["step"])
     samples = players["samples"]
-    for start in range(0, len(samples), PACKED_SAMPLES):
+    files = []
+    for n, start in enumerate(range(0, len(samples), every)):
+        last: dict[int, tuple[int, int]] = {}
         persons, xs, ys = [], [], []
-        for flat in samples[start : start + PACKED_SAMPLES]:
+        for flat in samples[start : start + every]:
             persons.append(flat[0::3])
             xs.append([])
             ys.append([])
@@ -824,12 +825,32 @@ def packed_players(players: dict) -> dict:
                 xs[-1].append(at[0] - was[0])
                 ys[-1].append(at[1] - was[1])
                 last[person] = at
-        chunks.append(json.dumps([persons, xs, ys], separators=(",", ":")))
-    return {"step": players["step"], "chunks": chunks}
+        files.append(f"window.MATCH_POSITIONS({n},{json.dumps([persons, xs, ys], separators=(',', ':'))});\n")
+    return files
+
+
+def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]:
+    """`contacts` with, on each ball landing in after a point, the players' positions then in `around`: the
+    stats' balls dropped between two players read them, without the positions' files. As the page's `playersAt`,
+    a player missing from a few samples stays where they were last seen for up to HOLD_S."""
+    back = round(HOLD_S * fps / players["step"])
+    out = []
+    for k, c in enumerate(contacts):
+        before = contacts[k - 1] if k else None
+        if c["type"] != "floor" or c.get("x") is None or c.get("y") is None or not before or before["rally"] != c["rally"] or before["result"] != "point":
+            out.append(c)
+            continue
+        at = round(c["t"] * fps / players["step"])
+        seen: dict[int, tuple[float, float]] = {}
+        for flat in reversed(players["samples"][max(0, at - back) : at + 1]) if at < len(players["samples"]) else ():
+            for person, x, y in zip(flat[0::3], flat[1::3], flat[2::3]):
+                seen.setdefault(person, (x, y))
+        out.append({**c, "around": [v for person, (x, y) in seen.items() for v in (person, x, y)]})
+    return out
 
 
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None) -> None:
-    """The page, data.js, players.js and, unless `video` is None, the video, its `av1` copy the page
+    """The page, data.js, the positions' files and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
     the `ball`'s places in ball.js, which the page loads to zoom on it."""
     site.mkdir(parents=True, exist_ok=True)
@@ -848,16 +869,21 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
-    players_js = players and f"window.MATCH_PLAYERS = {json.dumps(packed_players(players), separators=(',', ':'))};\n"
-    if players_js:
-        (site / "players.js").write_text(players_js)
+    shutil.rmtree(site / "positions", ignore_errors=True)
+    positions = position_files(players, data["fps"]) if players else []
+    if positions:
+        (site / "positions").mkdir()
+        for n, content in enumerate(positions):
+            (site / "positions" / f"{n}.js").write_text(content)
+        data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions)}
+        data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
     if ball_js:
         (site / "ball.js").write_text(ball_js)
     # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
     # serves each build its own.
-    built = json.dumps(data, sort_keys=True) + (players_js or "") + (ball_js or "") + (site / "scene3d.js").read_text()
+    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + (site / "scene3d.js").read_text()
     data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     index = site / "index.html"
@@ -1260,7 +1286,7 @@ def main() -> None:
     except ValueError as error:
         parser.error(str(error))
     site = args.out or args.match / "site"
-    sizes = ", ".join(f"{name} {(site / name).stat().st_size / 1e3:.0f} KB" for name in ("data.js", "players.js") if (site / name).exists())
+    sizes = ", ".join(f"{name} {(site / name).stat().st_size / 1e3:.0f} KB" for name in ("data.js",) if (site / name).exists())
     shown = {"none": "no video", "full": "video", "blur-opponents": "video, opponents blurred", "blur-all": "video, both teams blurred"}[settings["footage"]]
     print(f"{len(data['contacts'])} contacts, {len(data['rallies'])} rallies, {sizes}, {shown}{', pictures' if settings['pictures'] else ''} -> {site / 'index.html'}")
 

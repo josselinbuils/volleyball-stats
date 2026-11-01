@@ -32,6 +32,8 @@ export interface Contact {
   player: number | null;
   /** That player's name, when the user gave one. */
   name: string | null;
+  /** On a ball landing in after a point, the players' positions then, flat [person, x, y, ...]. */
+  around?: number[];
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */
   receiver?: number | null;
@@ -127,6 +129,8 @@ interface Data {
   contacts: Omit<Contact, 'i' | 'g' | 'player' | 'name'>[];
   zones: ZoneCell[];
   people: Record<string, Person>;
+  /** The players' positions: a sample every `step` frames, `every` samples in each of `files` files; none without tracks. */
+  positions?: { step: number; every: number; files: number } | null;
   /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
   scores?: (string | null)[] | null;
   brand?: Brand | null;
@@ -158,6 +162,7 @@ export const match = {
   duration: data.duration,
   zones: data.zones,
   people: data.people,
+  positions: data.positions ?? null,
   scores: data.scores ?? [],
   brand: data.brand ?? null,
   date: data.date ?? null,
