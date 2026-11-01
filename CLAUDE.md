@@ -67,44 +67,58 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   where it shows.
 - The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`): its review
   runs with `uv run python -m volleyball_stats.review outputs/first_match --video data/first_match.mp4
-  --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review` for the questions);
-  every touch and rally-window question is answered, and each apply rebuilds and uploads the hosted
-  pages (`outputs/first_match/publish.json`). Rallies: 130 windows on the page for 128 points; the
-  estimated finals 26-23, 26-14, 23-18 against 25-23, 25-12, 25-18 given (the rest: missed rallies).
+  --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review#questions`,
+  `/review#match`); each apply rebuilds and uploads the hosted pages (`outputs/first_match/publish.json`).
+  Before stopping the review (a restart is needed for a server or page change), check that
+  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. On 1 Nov: 129 rallies
+  on the page for 128 points (25-23, 25-12, 25-18 given), 46 questions open (touches found by the
+  applies since).
   Its outputs predate the 31 Oct `served` fixes: rerun the pipeline only when the owner says so (it
   moves windows the review's answers point at; backup in `outputs/first_match/backup-before-rally-fix/`).
-  Stats: each team's points plus the other's faults give 74-53 (75-53 played). The viewers'
-"Signaler" reports (see Hosting) are the main source of corrections: fetch them, record the clear
+  Stats: an attack wins when the other team's last touch loses the ball and faults when blocked for
+  a point, a serve whose reception is lost is an ace (`web.credited`, the usual convention); a touched
+  ace counts its reception once. The viewers' "Signaler" reports (see Hosting) are the main source of
+  corrections: fetch them, record the clear
   ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
   the rest (no comment, unsure) to the review's Match tab, which lists each rally reported; then score and fix
   the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.
   The review also asks every touch its page credits to no named player (a player on court under
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
 - Open, most useful first:
-  1. Done 1 Nov, in use by the owner: the review's Match tab (`#match`) holds the reports, no longer
+  1. In use by the owner since 1 Nov: the review's Match tab (`#match`) holds the reports, no longer
      questions. The video plays the match freely, over a zoomable bar of every rally, touch and report.
-     Beside it, the touches around the video: correct, add (a serve before a rally starts it), remove,
-     join two rallies (`join` answers). "Valider l'échange" saves and checks the rally: green, its
-     reports handled, until a new report. Automatic reports (`review.unusual`) flag the rallies with no
-     serve first, two serves, four touches in a row, the wrong server, no touch or no winner. Rallies
-     are named by their `rallies.csv` start (`key` on the page), which an added serve moves.
-  2. Viewers' reports: 18 fetched on 31 Oct 23:10 (`outputs/feedback-20261031-231035.log`), the online
-     log emptied after; in the Match tab with the automatic ones (73 left on 1 Nov).
-  3. The first match: answers pending, not applied; the pipeline rerun waits for the owner's go.
-  4. Rally ends and winners: `rallies.whistled` as a fallback is in (held out found R 1.00, F1 ±1 s 0.57).
+     Beside it, the touches around the video: correct, add (a serve before a rally starts it, and the
+     touches added after it are that rally's), remove, join two rallies (`join` answers). "Valider
+     l'échange" saves and checks the rally: green, its reports handled, until a new report; "Retirer la
+     validation" unchecks it. Saved corrections not yet in the review's page show in the editor (the
+     last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)
+     flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
+     reception, four touches in a row, the wrong server, no touch, no winner. Rallies are named by
+     their `rallies.csv` start (`key` on the page), which an added serve moves.
+  2. Reports to handle in the Match tab: 76 on 1 Nov (22 from the viewers fetched on 31 Oct 23:10,
+     `outputs/feedback-20261031-231035.log`, the online log emptied after; the rest automatic), 3
+     rallies checked. `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers
+     that disagreed at 14:00 (merged, Anthony kept).
+  3. The first match: 1 answer waiting for the owner's apply, which also brings the 1 Nov stats rules
+     to the hosted pages; the pipeline rerun waits for the owner's go. Backups of the answers from the
+     1 Nov repairs (`outputs/first_match/identity_answers.before-*.json`) can go once the owner is happy.
+  4. Videos: the hosted 1080p copies have a keyframe every 2 s and a 720p copy plays in small players
+     (all three live since 1 Nov). The previous copies wait in `~/Downloads/*.g250.mp4` (1.1 GB): delete
+     them once the owner has watched the new ones online.
+  5. Rally ends and winners: `rallies.whistled` as a fallback is in (held out found R 1.00, F1 ±1 s 0.57).
      Left on 50:00-60:00: two false windows (server bouncing the ball, a ball rolled back), ends cut by
      another court's whistle (-4.1 s) or the ball out of sight (-3.0, -2.3, and -10 s for 58:55), a rally
      joined to its dead-ball tail by the 8 s rule (+10 s); then how rallies end (in, out, fault).
-  5. The review's rally answers (`identity_answers.json` "rally") as labels to drop false windows
+  6. The review's rally answers (`identity_answers.json` "rally") as labels to drop false windows
      automatically (asked, not started).
-  6. Node.js and library updates on the owner's services (offered by the owner, not done).
-  7. Names: a player without a jersey shows their tracking number (Sylvain: 10), which can clash with
+  7. Node.js and library updates on the owner's services (offered by the owner, not done).
+  8. Names: a player without a jersey shows their tracking number (Sylvain: 10), which can clash with
      real jerseys: show initials instead? (Théo and Maeva sharing 10 is right.)
-  8. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
+  9. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
-  9. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  10. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
+  10. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+  11. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
 
 ## Hosting
 
