@@ -426,10 +426,12 @@ class Questions:
 
     def build(self, asked: set[str]) -> tuple[list[dict], dict[str, dict]]:
         """The questions not asked yet, most at stake first, and what each answer means (the refs).
-        None that a rally checked answers: who made a touch it shows a named player for, whether it is a rally."""
+        None that a rally checked answers: who made a touch it shows a named player for, whether it is a rally;
+        nor who made a touch already answered elsewhere (the match tab, a rally checked)."""
         out, refs = [], {}
         checked_keys = set(checked(load_log(self.match / "identity_answers.json")))
         validated = [self.window_of[k] for k in checked_keys if k in self.window_of]
+        said = {a["frame"] for a in web.answers(self.match, "touch")}
         for c in self.candidates["segments"]:
             qid = f"piece:{c['track']}:{c['start_frame']}"
             options = [n for n in (c["identity"], c["runner_up"]) if n]
@@ -461,7 +463,7 @@ class Questions:
         for r, reason in self.touches:
             frame, team = int(r["frame"]), int(r["team"])
             qid = f"touch:{frame}"
-            if qid in asked or (reason not in ("unknown", "brief") and any(a <= frame <= b for a, b in validated)):
+            if qid in asked or frame in said or (reason not in ("unknown", "brief") and any(a <= frame <= b for a, b in validated)):
                 continue
             touches.append({
                 "id": qid, "kind": "touch", "team": team, "identity": None, "impact": identity.CONTACT_S, "seconds": 0, "contacts": 1,
