@@ -68,6 +68,16 @@ class TestFloor:
 
         assert kinds(classify_rally(contacts, [20], FPS, NET_X, self.CALIBRATION)) == ["serve", "pass", "floor", "floor"]
 
+    def test_the_server_bouncing_the_ball_behind_the_end_line_leaves_it_alive(self):
+        contacts = [self.at(0, 10, 3), self.at(20, 10.3, 3), self.at(50, 12, 0), self.at(90, -6, -6), self.at(130, -5, 3)]
+
+        assert kinds(classify_rally(contacts, [70], FPS, NET_X, self.CALIBRATION)) == ["floor", "floor", "serve", "pass", "floor"]
+
+    def test_a_serve_the_server_bounces_again_was_a_catch(self):
+        contacts = [self.at(0, 10, 3), self.at(20, 12, 0), self.at(40, 10.3, 3)]
+
+        assert kinds(classify_rally(contacts, [], FPS, NET_X, self.CALIBRATION)) == ["floor", "floor", "floor"]
+
     def test_the_last_contact_is_the_floor_when_it_projects_on_the_court(self):
         contacts = [self.at(0, 12, 0), self.at(40, -6, -6), self.at(80, -5, -3)]
 

@@ -111,17 +111,24 @@ def in_court(calibration: Calibration | None, x: float, y: float) -> bool:
     return abs(cx) < SERVE_X and cy <= 4.5 + MARGIN
 
 
+def behind_end_line(calibration: Calibration, x: float, y: float) -> bool:
+    """Whether the contact at image (x, y) is past an end line, where the server stands."""
+    return abs(calibration.to_court(np.array([[x, y]]))[0, 0]) > 9.0
+
+
 def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
     """(frame, x, y, type, side) of a rally's contacts, in frame order. A touch over NET_M from the
     net on the other side of the previous touch (blocks aside) follows a crossing, seen or not."""
     out: list[Typed] = []
     touches, crossed, blocked, attack, dead, thrown, unseen, previous = 0, 0, False, None, False, 0, 0, None
+    # The server's bounces behind the end line before the serve: the ball is not dead yet.
+    bounces = 0
     # Each contact's count of crossings before it.
     crossed_at: list[int] = []
     contacts = sorted(contacts)
     for frame, x, y in contacts:
         now = sum(c <= frame for c in crossings) + unseen
-        if not out and not now and in_court(calibration, x, y):
+        if len(out) == bounces and not now and in_court(calibration, x, y):
             # Counted as after a crossing that was no serve's.
             thrown = 1
         now += thrown
@@ -133,9 +140,11 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
             now += 1
         if now > crossed:
             touches, crossed = 0, now
-        if dead or on_floor(calibration, x, y, frame == contacts[-1][0]):
+        if len(out) == bounces and not now and not dead and on_floor(calibration, x, y, False) and behind_end_line(calibration, x, y):
+            kind, bounces = "floor", bounces + 1
+        elif dead or on_floor(calibration, x, y, frame == contacts[-1][0]):
             kind, dead = "floor", True
-        elif not out and not crossed:
+        elif len(out) == bounces and not crossed:
             kind = "serve"
         elif attack and frame - attack[0] <= BLOCK_S * fps:
             kind, side, touches, blocked = "block", "left" if attack[1] == "right" else "right", 0, True
@@ -158,6 +167,9 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
     for k, (a, b) in enumerate(zip(out, out[1:])):
         if k and a[3] == "dig" and (crossed_at[k + 1] > crossed_at[k] or b[4] != a[4]):
             out[k] = (*a[:3], "attack", a[4])
+        # A serve the ball bounces after behind the same end line, uncrossed, was the server catching it.
+        if a[3] == "serve" and b[3] == "floor" and crossed_at[k + 1] == crossed_at[k] and b[4] == a[4] and behind_end_line(calibration, b[1], b[2]):
+            out[k] = (*a[:3], "floor", a[4])
     return out
 
 
