@@ -1,7 +1,7 @@
 # Next steps from the review's answers (1 Nov)
 
 What the first match's answers (`outputs/first_match/identity_answers.json`: 277 touches, 71
-added, 34 rallies, 23 type fixes, 80 results) and the viewers' 18 reports taught the pipeline,
+added, 34 rallies, 23 type fixes, 81 results) and the viewers' 18 reports taught the pipeline,
 what is in the code since, and what is left, with the numbers to start from.
 
 ## In the code since 1 Nov
@@ -26,11 +26,12 @@ None of the above is in its outputs: they take a pipeline rerun (owner's go; bac
 `outputs/first_match/backup-before-rally-fix/`). What a rerun would bring, measured on the current
 outputs:
 
-- Rallies (31 Oct fixes, `match.rally_windows` as it stands, cached in the session's
-  `windows_now.json`, 137 windows): it opens the rallies of the owner's added touches at 1:45
-  (4853-5348), 2:07 (6161-6612), 2:37 (7688-9497) and covers the 17 s rally of 4:13 (12660-14086,
-  14 touches added by hand). Still missed: the first rally's serve at 0:09 (window from 0:16.6), a
-  serve at 11:20 (34013), 18:38 (55893), 19:05 (57277), a block at 17:17 (51853), passes at 0:48 and
+- Rallies (31 Oct fixes, `match.rally_windows` as it stands: 137 windows, 38 s on the M4 from
+  `ball.csv`, `players.csv` and the audio): it opens the rallies of the owner's added touches at
+  1:45 (4853-5348), 2:07 (6161-6612), 2:37 (7688-9497) and covers the 17 s rally of 4:13
+  (12660-14086, 14 touches added by hand). The serves the owner added just before windows (11:20,
+  18:38, 19:05: windows opening 0.44-0.56 s after them) are now `serve_starts`'. Still missed: the
+  first rally's serve at 0:09 (window from 0:16.6), a block at 17:17 (51853), passes at 0:48 and
   26:13.
 - Attribution: 28 picks change, 20 of them already answered (the answers win): little for this
   match, the gain is for the next ones.
@@ -69,7 +70,6 @@ outputs:
 8. **Pose cost.** `by_wrists` runs YOLO11m-pose 3 times per touch below the head with 2+
    candidates: 409 of the first match's 718 contacts, about 1 s each on the M4 Pro (3 crops); measure
    on the RTX 5080 with `speed.py`.
-
 9. **Automatic results.** Of the 81 result answers, 73 come with touches the owner added (the
    editor's default); 8 correct an automatic result, all to "play" (a viewer: "La deuxième n'est
    pas faute"). Rebuild the page's contacts (`web.contacts`, `web.result`) for those 8 frames to see
@@ -78,9 +78,23 @@ outputs:
     heights, the next candidate's 0.2 farther or vetoed) are still wrong 3 times in 16-27 on the
     answers: the review keeps asking every close call.
 
+11. **Winners on the first match.** The rally labels' notes (`benchmarks/rallies/ground_truth/
+    first_match_*.csv`, "left serves", "right serves") give each rally's server, so the winner of
+    the one before: a points benchmark on the 4K match (`benchmarks/points` has only the school
+    clips), now that 131 of 137 windows open on a serve.
+12. **Added serves' frames.** `unseen_serves` puts the serve where the server's stand ends, 0.1-0.5 s
+    after the contact: the page's serve clips start that late. The ball's first sighting after
+    the stand, or the window's first ball run, would place it closer.
+13. **The review's answers as benchmarks.** `answers.py --rerank` scores attribution on them; the
+    same for `action` types (`actions.classify_rally` on `actions.csv`'s contacts against the
+    owner's types) and `rally` verdicts would score those steps without labels.
+
 ## Tried and dropped (1 Nov)
 
 On the 135-136 answered touches, tie-breaks other than the bigger box: the smaller box 65, the ball
 nearest the box centre 66, nearest its centre x 75, an anchor per type 80, a track seen at the frame
 first 77. Pose alone with no veto: 102-105 depending on margin and confidence; the veto alone (the
-attribution README's 720p rule) 101.
+attribution README's 720p rule) 101; a box distance standing in for unseen wrists 98-104. A window
+starting at its serve rather than `LEAD_S` after it: 2 school rallies lost at ±1 s. Moving a window
+to a serve whose next contact is the server's own bounce (`BOUNCE_PX`): the real serve then typed
+"net" (`side_holdout` 17202).
