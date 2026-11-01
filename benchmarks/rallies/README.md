@@ -254,6 +254,15 @@ The school clips' pipeline and the actions benchmark do not move (F1 ±1 s 0.93,
 loses 2 school rallies at ±1 s (two "serves" found over 1 s early); a 1.0-1.25 s look-back finds the
 most serves.
 
+**Serves the ball track misses.** `match.py` then adds, in each window still with no serve, the
+serve `rallies.served` saw within `match.UNSEEN_SERVE_S` = 1 s of its start, as a contact at the top
+of the box of the player standing deepest behind that end line, before the window's first contact
+and crossing (`match.unseen_serves`); attribution then gives it that player. On the first match it
+adds 23 serves: 131 of 137 windows open on one, the 43 labelled serves are all found within ±1 s
+(35 within ±0.1 s, the added ones landing 0.1-0.5 s off the contact), one typed serve lies off a
+label, and the 6 that the owner had added by hand in the review go to the same player as the
+owner's. On `side_holdout` it adds 2, both labelled serves (8420, 9616; one from outside the frame).
+
 Before, the one miss was a serve into the net (no net crossing, no whistle after it). The ends were
 the errors: served rallies ran to the next whistle, often the next rally's go (+11.4 s, +12.8 s), or
 stopped with the serve's ball run while play went on near the net (−8.2 s, −1.6 s). The fixes of

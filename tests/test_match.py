@@ -1,6 +1,27 @@
 from pathlib import Path
 
-from volleyball_stats.match import in_rallies, report
+from volleyball_stats.match import in_rallies, report, unseen_serves
+from volleyball_stats.players import Row
+
+
+class TestUnseenServes:
+    def test_a_window_with_no_serve_gets_the_one_of_the_player_deepest_behind_the_end_line(self):
+        def row(track, x, box):
+            return Row(100, track, box, 0.9, (0.0, 0.0), (x, 0.0), "left")
+
+        rows = [row(1, -10.0, (10, 50, 30, 120)), row(2, -11.0, (40, 60, 60, 130)), row(3, -5.0, (100, 50, 120, 120))]
+        windows = [(90, 400), (500, 800)]
+        typed = [(150, 300, 100, "pass", "right"), (520, 0, 0, "serve", "left")]
+
+        found, added = unseen_serves(windows, typed, [130], [(100, 400, -1), (510, 800, -1)], rows, 50.0)
+
+        assert added == [(100, 50, 60)]
+        assert found == windows
+
+    def test_none_where_nobody_stands_behind_the_end_line(self):
+        rows = [Row(100, 1, (10, 50, 30, 120), 0.9, (0.0, 0.0), (-5.0, 0.0), "left")]
+
+        assert unseen_serves([(90, 400)], [], [], [(100, 400, -1)], rows, 50.0) == ([(90, 400)], [])
 
 
 class TestInRallies:

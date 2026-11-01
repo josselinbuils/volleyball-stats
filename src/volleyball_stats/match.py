@@ -29,6 +29,9 @@ TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
 # bounced or held off the court.
 SPARE_Y = 5.5
+# Seconds from a window's start within which a serve the players' positions show is its serve
+# (`unseen_serves`): 0.4-1.0 s after the contact on the first ASPOM match.
+UNSEEN_SERVE_S = 1.0
 
 
 def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float) -> Iterator[tuple[ball.Position, list[players.Row]]]:
@@ -76,6 +79,39 @@ def rally_windows(
         alone = rallies.alone(windows, rallies.whistled(track, whistle_times, fps, calibration), gap, round(rallies.ALONE_MIN_S * fps))
         windows = sorted(windows + actions.served(alone, found, fps, calibration))
     return actions.serve_starts(windows, found, crossings, fps, net_x, calibration, scale), found, crossings
+
+
+def unseen_serves(
+    windows: list[rallies.Rally], typed: list[actions.Typed], crossings: list[int], serves: list[tuple[int, int, int]], rows: list[players.Row], fps: float
+) -> tuple[list[rallies.Rally], list[contacts.Contact]]:
+    """The serves the ball track missed: in each window with no serve typed, a serve `rallies.served`
+    saw within UNSEEN_SERVE_S of its start (side -1 from the left end) is a contact at the top of the
+    box of the player standing deepest behind that end line, before the window's first contact and
+    crossing; the windows start early enough to hold them."""
+    lead, near = round(actions.LEAD_S * fps), round(UNSEEN_SERVE_S * fps)
+    served = {t[0] for t in typed if t[3] == "serve"}
+    wanted = {}
+    for k, (start, end) in enumerate(windows):
+        if any(start - lead <= f <= end for f in served):
+            continue
+        found = [(abs(f - start), f, side) for f, _, side in serves if abs(f - start) <= near]
+        if found:
+            _, f, side = min(found)
+            first = min([f, *(c - 1 for c in crossings if start - lead <= c <= end), *(t[0] - 1 for t in typed if start - lead <= t[0] <= end)])
+            wanted[k] = (first, side)
+    boxes: dict[int, list[players.Row]] = {}
+    frames = {f for f, _ in wanted.values()}
+    for r in rows:
+        if r.frame in frames:
+            boxes.setdefault(r.frame, []).append(r)
+    out, added = list(windows), []
+    for k, (f, side) in wanted.items():
+        behind = [r for r in boxes.get(f, []) if rallies.SERVER_X < side * r.court[0] < rallies.SERVER_MAX_X and abs(r.court[1]) < rallies.HALF_WIDTH]
+        if behind:
+            box = max(behind, key=lambda r: side * r.court[0]).box
+            added.append((f, round((box[0] + box[2]) / 2), round(box[1])))
+            out[k] = (min(out[k][0], f + lead), out[k][1])
+    return out, added
 
 
 def in_rallies(frames: list[int], windows: list[tuple[int, int]], lead: int) -> list[int]:
@@ -249,6 +285,13 @@ def main() -> None:
         far = attribution.unreached(typed, rows, fps)
         found = [c for c in found if c[0] not in far]
         typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    if rows is not None:
+        masked = rallies.load_track(track_path)
+        masked[calibration.in_front(masked, SPARE_Y)] = np.nan
+        windows, added = unseen_serves(windows, typed, crossings, rallies.served(positions, masked, whistle_times, fps, calibration), rows, fps)
+        if added:
+            found = sorted(found + added)
+            typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
     typed = actions.mark_relances(args.video, typed, fps)
     timings["actions"] = time.perf_counter() - start
 
