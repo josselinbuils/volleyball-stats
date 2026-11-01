@@ -202,6 +202,7 @@
     "apply_other": "Appliquer mes {{count}} réponses",
     "applying": "Mise à jour de la page du match…",
     "step": {
+      "pipeline": "Analyse du match (de quelques minutes à 40 minutes)…",
       "players": "Calcul des joueurs…",
       "questions": "Préparation des questions…",
       "roster": "Mise à jour du répertoire des joueurs…",
@@ -335,7 +336,11 @@
     "autoReport": "Vérification automatique",
     "validateRally": "Valider l'échange {{n}}",
     "rallyChecked": "Échange vérifié",
-    "uncheckRally": "Retirer la validation de l'échange {{n}}"
+    "uncheckRally": "Retirer la validation de l'échange {{n}}",
+    "rerun": "Relancer l'analyse",
+    "rerunning": "Analyse du match…",
+    "rerunNote": "Refait toute l'analyse du match avec les dernières améliorations et vos réponses, puis mesure ce qu'elles ont changé.",
+    "rerunConfirm": "Relancer toute l'analyse du match ? Cela prend de quelques minutes à 40 minutes ; la vérification attend pendant ce temps. Vos réponses sont gardées."
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",

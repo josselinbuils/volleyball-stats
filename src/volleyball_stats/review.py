@@ -1212,7 +1212,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # Where an apply stands, for the page's progress bar: the steps, the one running since when, and
     # each step's last duration (first guesses from the first ASPOM match).
     progress: dict = {}
-    took = {"players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0, "hosting": 60.0}
+    took = {"pipeline": 600.0, "players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0, "hosting": 60.0}
     # The last hosting (publish.json): when, and why it failed; the page says it.
     hosted: dict = {}
 
@@ -1502,6 +1502,20 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
                     log = [e for e in log if e["id"] != body["id"]]
                     log.append({"id": f"cut:{track}:{cut[0]['frame']}", "choice": "cut", **constraints("cut", {"choices": []}, cut=cut), "applied": False})
+                elif self.path == "/rerun":
+                    from volleyball_stats import learn
+
+                    # The pipeline again, its identities with every answer: an apply too. Undo
+                    # stops here: the answers moved onto the new rallies.
+                    own, *published = pages()
+                    run_steps([("pipeline", lambda: learn.rerun(match, video, court)), own, ("questions", questions.load), *published])
+                    history.clear()
+                    log = load_log(answers)
+                    for entry in log:
+                        entry["applied"] = True
+                    save(answers, log)
+                    files.write_text(computed, json.dumps(state(match, log)))
+                    return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": True, "undone": None}).encode(), "application/json")
                 elif self.path == "/undo" and (history or log):
                     log, renamed, undone, undo_applied = undo(log, history)
                 # An answer joining two players of different names waits for the user's go.

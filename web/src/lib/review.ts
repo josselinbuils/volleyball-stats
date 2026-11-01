@@ -202,7 +202,7 @@ export function onServerBusy(listener: () => void): () => void {
 
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
-export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo', body: object = {}): Promise<Saved> {
+export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo', body: object = {}): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   // An answer joining two players of different names: saved only once the user confirms.
   if (response.status === 409) {

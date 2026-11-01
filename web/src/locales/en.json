@@ -202,6 +202,7 @@
     "apply_other": "Apply my {{count}} answers",
     "applying": "Updating the match page…",
     "step": {
+      "pipeline": "Analysing the match (a few minutes to 40 minutes)…",
       "players": "Working out the players…",
       "questions": "Preparing the questions…",
       "roster": "Updating the players' roster…",
@@ -335,7 +336,11 @@
     "autoReport": "Automatic check",
     "validateRally": "Validate rally {{n}}",
     "rallyChecked": "Rally checked",
-    "uncheckRally": "Unvalidate rally {{n}}"
+    "uncheckRally": "Unvalidate rally {{n}}",
+    "rerun": "Run the analysis again",
+    "rerunning": "Analysing the match…",
+    "rerunNote": "Runs the whole match analysis again with the latest improvements and your answers, then measures what they changed.",
+    "rerunConfirm": "Run the whole match analysis again? It takes from a few minutes to 40 minutes; the review waits meanwhile. Your answers are kept."
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",

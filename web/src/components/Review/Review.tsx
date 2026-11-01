@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, HelpCircle, PenLine, Scissors, Undo2, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,7 +84,7 @@ export function Review({
       setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
     }
   };
-  const [busy, setBusy] = useState<'apply' | 'undo' | null>(null);
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   // What the last action did, shown for NOTICE_MS.
@@ -180,7 +180,7 @@ export function Review({
   );
 
   const [progress, setProgress] = useState<{ fraction: number; step: string } | null>(null);
-  const reload = async (path: 'undo' | 'apply') => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun') => {
     setBusy(path);
     // The server's steps, each advancing as long as it took last time.
     const poll = window.setInterval(async () => {
@@ -265,6 +265,10 @@ export function Review({
             <Button variant="outline" className="bg-card" disabled={!answered || busy !== null} onClick={() => void reload('undo')}>
               <Undo2 aria-hidden />
               {busy === 'undo' ? t('review.undoing') : t('review.undo')}
+            </Button>
+            <Button variant="outline" className="bg-card" disabled={busy !== null} title={t('review.rerunNote')} onClick={() => window.confirm(t('review.rerunConfirm')) && void reload('rerun')}>
+              <RefreshCw aria-hidden />
+              {busy === 'rerun' ? t('review.rerunning') : t('review.rerun')}
             </Button>
             <Button disabled={(!pending.changed && !pending.names) || busy !== null} onClick={() => void reload('apply')}>
               <Check aria-hidden />

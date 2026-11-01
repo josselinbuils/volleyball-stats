@@ -10,19 +10,24 @@ the match folder): what the answers teach, after each review or pipeline change.
 - checked: the rallies checked in the Match tab, labels in full: their touches, types, players and
   winner on the page against the pipeline's own.
 
-    uv run python -m volleyball_stats.learn outputs/VIDEO --video VIDEO --court COURT_JSON
+    uv run python -m volleyball_stats.learn outputs/VIDEO --video VIDEO --court COURT_JSON [--rerun]
+
+With --rerun (the review's "Relancer l'analyse"), the pipeline runs again first and the answers
+move onto its rally windows.
 """
 
 import argparse
 import csv
 import json
+import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 import cv2
 
-from volleyball_stats import actions, identity, review, web
+from volleyball_stats import actions, files, identity, review, web
 from volleyball_stats.court import Calibration
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -54,6 +59,8 @@ def near(frame: int, frames: list[int], within: int) -> int | None:
 
 def from_answers(match: Path, fps: float) -> dict[str, Score]:
     """The scores on the answers: right, asked."""
+    if not (match / "identity_answers.json").exists():
+        return {}
     answers = json.loads((match / "identity_answers.json").read_text())
     rows = read_rows(match / "actions.csv")
     by_frame = {int(r["frame"]): r for r in rows}
@@ -177,19 +184,58 @@ def report(now: dict[str, Score], before: dict[str, Score] | None) -> str:
     return "\n".join(lines)
 
 
+def rerun(match: Path, video: Path, court: Path) -> dict[str, Score]:
+    """The pipeline run again on the match (match.py, the trackers' outputs and the poses kept), the
+    answers moved onto its rally windows (`rekey`), then every step scored, kept in learn.json."""
+    from volleyball_stats import rekey
+
+    before = match / "before-rerun"
+    before.mkdir(exist_ok=True)
+    shutil.copy2(match / "rallies.csv", before / "rallies.csv")
+    if (match / "review" / "data.js").exists():
+        shutil.copy2(match / "review" / "data.js", before / "review-data.js")
+    subprocess.run(
+        [sys.executable, "-m", "volleyball_stats.match", str(video), "--court", str(court), "--players", "--out", str(match.parent)],
+        stdin=subprocess.DEVNULL, check=True,
+    )
+    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    path = match / "identity_answers.json"
+    if not path.exists():
+        return record(match, video, court)
+    shutil.copy2(path, before / "identity_answers.json")
+    log = rekey.moved(review.load_log(path), rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv"), round(actions.LEAD_S * fps))
+    review.save(path, log)
+    if (before / "review-data.js").exists():
+        page, _ = web.match_data(match, video, Calibration.load(court))
+        review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page)))
+    return record(match, video, court)
+
+
+def record(match: Path, video: Path, court: Path) -> dict[str, Score]:
+    """`scores`, added to learn.json; printed against the last ones."""
+    path = match / HISTORY
+    history = json.loads(path.read_text()) if path.exists() else []
+    now = scores(match, video, court)
+    print(report(now, history[-1]["scores"] if history else None))
+    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now})
+    files.write_text(path, json.dumps(history, indent=1) + "\n")
+    return now
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("match", type=Path)
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--court", type=Path, required=True)
     parser.add_argument("--labels", help="The match's name in the rallies benchmark (default: the folder's)")
+    parser.add_argument("--rerun", action="store_true", help="Run the pipeline again first, the answers moved onto its rallies")
     args = parser.parse_args()
-    path = args.match / HISTORY
-    history = json.loads(path.read_text()) if path.exists() else []
-    now = scores(args.match, args.video, args.court, args.labels)
-    print(report(now, history[-1]["scores"] if history else None))
-    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now})
-    path.write_text(json.dumps(history, indent=1) + "\n")
+    if args.rerun:
+        rerun(args.match, args.video, args.court)
+    elif args.labels:
+        print(report(scores(args.match, args.video, args.court, args.labels), None))
+    else:
+        record(args.match, args.video, args.court)
 
 
 if __name__ == "__main__":
