@@ -72,6 +72,8 @@ export interface ReportChanges {
   added?: { frame: number; team: Group; type: string; result: string; player?: string }[];
   /** Rallies by their start frame: their winner, no play, or their end frame. */
   rallies?: { start: number; winner?: Group; play?: false; end?: number; join?: true }[];
+  /** Rallies started at these frames: one missed, or the second of two taken for one. */
+  splits?: number[];
 }
 
 /** A player to name: an identity with pictures of their clearest moments, their time on court, their

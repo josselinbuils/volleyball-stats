@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, pinned, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -185,6 +185,25 @@ class TestReports:
         assert (out["rally"], out["winner"], out["end"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}], [{"start": 3000, "end": 3400}])
         assert out["join"] == [{"start": 2000}]
 
+    def test_a_rally_started_by_the_review_takes_the_touches_added_after_it(self):
+        changes = {
+            "splits": [2600, 3100],
+            "added": [{"frame": 2600, "team": 2, "type": "serve"}, {"frame": 2650, "team": 1, "type": "pass"}, {"frame": 3150, "team": 1, "type": "dig"}],
+            "rallies": [{"start": 2600, "winner": 1}, {"start": 3100, "join": True}],
+        }
+
+        out = report_answer(changes, self.teams, self.windows, {}, 20, [2000, 3010])
+
+        assert out["split"] == [{"frame": 2600}, {"frame": 3100}]
+        assert [(a["start"], a["frame"]) for a in out["added"]] == [(2600, 2600), (2600, 2650), (3100, 3150)]
+        assert (out["winner"], out["join"]) == ([{"start": 2600, "winner": 1}], [{"start": 3100}])
+
+    def test_the_winners_of_the_rallies_checked_are_pinned_as_the_page_shows_them(self):
+        page = {"rallies": [{"key": 2000, "winner": 1}, {"key": 3000, "winner": None}, {"key": 4000, "winner": 2}]}
+
+        assert pinned(page, [2000, 3000]) == [{"id": "pin", "choice": "pinned", "pinned": [{"start": 2000, "winner": 1}], "applied": True}]
+        assert pinned(page, [3000]) == []
+
     def test_a_correction_a_frame_off_names_the_touch_there(self):
         out = report_answer({"touches": [{"frame": 2101, "type": "dig"}]}, self.teams, self.windows, {}, 20)
 
@@ -271,7 +290,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "log": log}
 
 
 class TestRange:

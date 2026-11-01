@@ -95,14 +95,16 @@ export function MatchTab({
               marks={flags.map((r) => r.time)}
               showTime
               onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 ? at : n))}
+              extra={
+                document.fullscreenEnabled && (
+                  <Button variant="outline" size="sm" className="bg-card" onClick={toggleFull}>
+                    {full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+                    {t(full ? 'review.exitFullScreen' : 'review.fullScreen')}
+                  </Button>
+                )
+              }
             />
             <MatchTimeline now={now} saved={saved} reports={flags} green={green} onSeek={(time) => go(time)} />
-            {document.fullscreenEnabled && (
-              <Button variant="outline" size="sm" className="justify-self-start bg-card" onClick={toggleFull}>
-                {full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
-                {t(full ? 'review.exitFullScreen' : 'review.fullScreen')}
-              </Button>
-            )}
           </div>
           <ReportEditor
             key={round}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -10,7 +10,7 @@ import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamR
 import type { Named, ReportChanges } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { rallyAt, rallyOf, withServes } from '@/components/Review/helpers/report';
+import { pieceOf, rallyAt, rallyOf, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig'] as const;
@@ -29,8 +29,6 @@ type RallyFix = { winner?: Group; play?: false; end?: number; join?: true };
 /** The team of a player given as "TEAM:IDENTITY". */
 const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 const frameOf = (time: number) => Math.round(time * match.fps);
-/** What the answers name a rally by. */
-const keyOf = (k: number) => rallies[k].key ?? frameOf(rallies[k].start);
 /** A touch added: its team the picked player's, else the touch before's. */
 type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string };
 /** A touch as listed: one of the page's, or one added. */
@@ -46,8 +44,8 @@ const touches = contacts
 
 /** The match's touches beside its video: those of the rallies around where the video stands, the
  * one it plays centred, to correct (player of either team, action, result), remove or add at the
- * video's moment; under it the winner, no play, end and joining with the next one of the rally it is
- * in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
+ * video's moment, or start a rally there (one missed, or the second of two taken for one); under it
+ * the winner, no play, end and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
  * such; saving sends them all, with the new ones. */
 export function ReportEditor({
   reports,
@@ -93,17 +91,22 @@ export function ReportEditor({
   const { t } = useTranslation();
   const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
   const [added, setAdded] = useState<Added[]>(() => (saved.added ?? []).map((a) => ({ ...a, time: a.frame / match.fps })));
+  // The rallies started by the review, by their start frame.
+  const [splits, setSplits] = useState<number[]>(() => saved.splits ?? []);
+  // By the rally's key: a rally started before one keeps its index from moving its fixes.
   const [rallyFixes, setRallyFixes] = useState<Record<number, RallyFix>>(() =>
-    Object.fromEntries(
-      (saved.rallies ?? []).flatMap(({ start, end, ...fix }) => {
-        const k = rallies.findIndex((_, n) => keyOf(n) === start);
-        return k < 0 ? [] : [[k, { ...fix, ...(end !== undefined ? { end: end / match.fps } : {}) }]];
-      }),
-    ),
+    Object.fromEntries((saved.rallies ?? []).map(({ start, end, ...fix }) => [start, { ...fix, ...(end !== undefined ? { end: end / match.fps } : {}) }])),
   );
   // The touches and rallies the saved corrections change.
   const savedFrames = new Set([...(saved.touches ?? []), ...(saved.added ?? [])].map((x) => x.frame));
-  const savedStarts = new Set((saved.rallies ?? []).map((r) => r.start));
+  const savedStarts = new Set([...(saved.rallies ?? []).map((r) => r.start), ...(saved.splits ?? [])]);
+
+  // The rallies as they will be: those the review started, each starting at a serve added before it.
+  const split = withSplits(rallies, splits, match.fps);
+  const shown = withAdded(split, added);
+  /** What the answers name a rally by. */
+  const keyOf = (k: number) => shown[k].key;
+  const fixOf = (k: number): RallyFix | undefined => (shown[k] ? rallyFixes[shown[k].key] : undefined);
 
   // A change back to the touch's own value is no change.
   const edit = (row: Row, change: Fix) =>
@@ -123,9 +126,10 @@ export function ReportEditor({
   const editAdded = (frame: number, change: Partial<Added>) => setAdded((all) => all.map((a) => (a.frame === frame ? { ...a, ...change } : a)));
   const editRally = (k: number, change: RallyFix) =>
     setRallyFixes((all) => {
-      const next: RallyFix = { ...all[k], ...change };
+      const key = keyOf(k);
+      const next: RallyFix = { ...all[key], ...change };
       // Joined, the rally's winner is the next one's.
-      if (next.winner === (next.join ? rallies[k + 1]?.winner : rallies[k].winner)) {
+      if (next.winner === (next.join ? shown[k + 1]?.winner : shown[k].winner)) {
         delete next.winner;
       }
       for (const key of ['play', 'end', 'join'] as const) {
@@ -134,25 +138,22 @@ export function ReportEditor({
         }
       }
       const out = { ...all };
-      delete out[k];
-      return Object.keys(next).length ? { ...out, [k]: next } : out;
+      delete out[key];
+      return Object.keys(next).length ? { ...out, [key]: next } : out;
     });
 
   // The rally the video is in, or just ended, and those shown around it.
-  // The rallies as they will be: each starting at a serve added before it.
-  const shown = withServes(rallies, added);
   const here = rallyAt(shown, now);
   const first = Math.max(0, here - AROUND_RALLIES);
-  const last = Math.min(rallies.length - 1, here + AROUND_RALLIES);
+  const last = Math.min(shown.length - 1, here + AROUND_RALLIES);
   const rows: Row[] = [
     ...touches
-      .filter((x) => x.contact.rally >= first && x.contact.rally <= last)
       .map(({ contact: c, frame, player }) => {
         const fix = fixes[frame] ?? {};
         return {
           frame,
           time: c.t,
-          rally: c.rally,
+          rally: pieceOf(split, c.rally, c.t),
           team: fix.player && fix.player !== 'none' ? teamOf(fix.player) : (c.team as Group),
           type: fix.type ?? c.type,
           result: fix.result ?? c.result,
@@ -161,14 +162,16 @@ export function ReportEditor({
           added: false,
           contact: c,
         };
-      }),
+      })
+      .filter((row) => row.rally >= first && row.rally <= last),
     ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: a.player ?? '', removed: false, added: true })).filter((a) => a.rally >= first && a.rally <= last),
   ].sort((a, b) => a.time - b.time);
 
   const changes: ReportChanges = {
     touches: Object.entries(fixes).map(([frame, c]) => ({ frame: Number(frame), ...c })),
     ...(added.length ? { added: added.map(({ frame, team, type, result, player }) => ({ frame, team, type, result, ...(player ? { player } : {}) })) } : {}),
-    ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([k, f]) => ({ start: keyOf(Number(k)), ...f, ...(f.end !== undefined ? { end: frameOf(f.end) } : {}) })) } : {}),
+    ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([key, f]) => ({ start: Number(key), ...f, ...(f.end !== undefined ? { end: frameOf(f.end) } : {}) })) } : {}),
+    ...(splits.length ? { splits } : {}),
   };
   const json = JSON.stringify(changes);
   useEffect(() => {
@@ -196,6 +199,19 @@ export function ReportEditor({
     setAdded((all) => [...all, { frame, time, team: before?.team ?? GROUPS[0], type: 'pass', result: 'play' }]);
     setFresh({ key: `t${frame}` });
     onPause(time);
+  };
+  // A rally started where one already starts is that one.
+  const startHere = () => {
+    const frame = frameOf(timeOf());
+    if (!shown.some((r) => r.key === frame || frameOf(r.start) === frame)) {
+      setSplits((all) => [...all, frame]);
+    }
+    onPause(frame / match.fps);
+  };
+  const unsplit = (k: number) => {
+    const key = keyOf(k);
+    setSplits((all) => all.filter((f) => f !== key));
+    setRallyFixes((all) => Object.fromEntries(Object.entries(all).filter(([k]) => Number(k) !== key)));
   };
 
   // The list follows the video, its touch (else its rally) centred, except while a field in it is
@@ -233,39 +249,40 @@ export function ReportEditor({
     }
   }, [fresh]);
 
-  const rally = rallies[here];
-  const fix = rallyFixes[here] ?? {};
+  const rally = shown[here];
+  const fix = fixOf(here) ?? {};
   const end = fix.end ?? rally?.end;
-  const endOf = (k: number) => clock(rallyFixes[k]?.end ?? rallies[k].end);
+  const endOf = (k: number) => clock(fixOf(k)?.end ?? shown[k].end);
   const rallyLabel = (k: number) =>
-    rallyFixes[k]?.join
+    (fixOf(k)?.join
       ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(shown[k].start), to: endOf(k + 1) })
-      : t(rallyFixes[k - 1]?.join ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(shown[k].start), to: endOf(k) });
+      : t(fixOf(k - 1)?.join ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(shown[k].start), to: endOf(k) })) +
+    (splits.includes(shown[k].key) ? ` · ${t('review.reportRallyNew')}` : '');
   // Joined only to the next rally of its set.
-  const canJoin = rallies[here + 1]?.set === rally?.set;
+  const canJoin = shown[here + 1]?.set === rally?.set;
 
   // What looks wrong in each rally shown, as it stands with the corrections: a rally joined to the
   // next one is checked with its touches, one said no play not at all.
   // A rally's winner: the one set, else the one its last touch's result says, else the page's.
-  const lastOf = (k: number) => rows.filter((row) => !row.removed && row.rally === (rallyFixes[k]?.join ? k + 1 : k)).at(-1);
+  const lastOf = (k: number) => rows.filter((row) => !row.removed && row.rally === (fixOf(k)?.join ? k + 1 : k)).at(-1);
   const winnerOf = (k: number): Group | null => {
     const last = lastOf(k);
     const said = last?.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
-    return rallyFixes[k]?.winner ?? said ?? (rallyFixes[k]?.join ? rallies[k + 1]?.winner : rallies[k]?.winner) ?? null;
+    return fixOf(k)?.winner ?? said ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
   };
   const winner = rally ? winnerOf(here) : null;
   const found = new Map<number, ReturnType<typeof problems>>();
   for (let k = first; k <= last; k++) {
-    if (rallyFixes[k]?.play === false || rallyFixes[k - 1]?.join) {
+    if (fixOf(k)?.play === false || fixOf(k - 1)?.join) {
       continue;
     }
-    const mine = rows.filter((row) => !row.removed && (row.rally === k || (rallyFixes[k]?.join && row.rally === k + 1)));
-    const previous = k > 0 && rallies[k - 1].set === rallies[k].set && rallyFixes[k - 1]?.play !== false ? winnerOf(k - 1) : null;
+    const mine = rows.filter((row) => !row.removed && (row.rally === k || (fixOf(k)?.join && row.rally === k + 1)));
+    const previous = k > 0 && shown[k - 1].set === shown[k].set && fixOf(k - 1)?.play !== false ? winnerOf(k - 1) : null;
     found.set(k, problems(mine, winnerOf(k), previous, hasTeams));
   }
   const problemsOf = (row: Row): Problem[] => {
-    const k = rallyFixes[row.rally - 1]?.join ? row.rally - 1 : row.rally;
-    const mine = rows.filter((r) => !r.removed && (r.rally === k || (rallyFixes[k]?.join && r.rally === k + 1)));
+    const k = fixOf(row.rally - 1)?.join ? row.rally - 1 : row.rally;
+    const mine = rows.filter((r) => !r.removed && (r.rally === k || (fixOf(k)?.join && r.rally === k + 1)));
     return row.removed ? [] : (found.get(k)?.touch.get(mine.indexOf(row)) ?? []);
   };
   const describe = (list: Problem[]) => list.map((p) => t(`feedback.kinds.auto.${p}`)).join(' · ');
@@ -278,10 +295,16 @@ export function ReportEditor({
     <>
       <div className="relative lg:self-stretch">
         <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
-          <Button variant="outline" className="shrink-0 bg-card" disabled={!canAdd} onClick={add}>
-            <Plus aria-hidden />
-            {t('review.reportAdd', { time: clock(now) })}
-          </Button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
+              <Plus aria-hidden />
+              {t('review.reportAdd', { time: clock(now) })}
+            </Button>
+            <Button variant="outline" className="flex-1 bg-card" title={t('review.reportStartHelp')} onClick={startHere}>
+              <SquarePlus aria-hidden />
+              {t('review.reportStart', { time: clock(now) })}
+            </Button>
+          </div>
           <ol
             ref={list}
             aria-label={t('review.reportTouches')}
@@ -301,7 +324,7 @@ export function ReportEditor({
                     'flex w-full items-center gap-1.5 rounded-md border bg-muted px-2 py-1 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50',
                     green.has(keyOf(k)) && 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
                     k === here && 'border-primary',
-                    rallyFixes[k]?.play === false && 'line-through',
+                    fixOf(k)?.play === false && 'line-through',
                   )}
                 >
                   <Play aria-hidden className="size-3.5 shrink-0 fill-current" />
@@ -465,6 +488,12 @@ export function ReportEditor({
               )}
               {end !== undefined && fix.end !== undefined && <span className="text-muted-foreground">{t('review.reportEndMoved', { time: clock(end) })}</span>}
             </span>
+            {splits.includes(rally.key) && (
+              <Button variant="ghost" size="sm" onClick={() => unsplit(here)}>
+                <Undo2 aria-hidden />
+                {t('review.reportStartUndo')}
+              </Button>
+            )}
           </div>
         </div>
       )}

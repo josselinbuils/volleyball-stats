@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,8 @@ function savedCaption(): { x: number; y: number } {
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. */
+ * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour.
+ * `extra`: at the right end of the speeds' line. */
 export function ClipVideo({
   clip,
   width,
@@ -51,6 +52,7 @@ export function ClipVideo({
   onTime,
   caption,
   autoPlay = true,
+  extra,
 }: {
   clip: Clip;
   width: number;
@@ -63,6 +65,7 @@ export function ClipVideo({
   onTime?: (time: number) => void;
   caption?: { team: Group; text: string } | null;
   autoPlay?: boolean;
+  extra?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
@@ -406,6 +409,7 @@ export function ClipVideo({
             </Button>
           ))}
         </div>
+        {extra && <div className="ml-auto">{extra}</div>}
       </div>
     </div>
   );

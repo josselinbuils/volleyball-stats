@@ -516,6 +516,44 @@ def credited(found: list[dict], typed: list[dict], fixed: set[int]) -> None:
             a["result"] = "error"
 
 
+def split_at(windows: list[tuple[int, int]], frames: list[int]) -> list[tuple[int, int, int | None]]:
+    """`windows` (start, end) with a rally starting at each of `frames` (the review's `split`
+    answers), each with the index of the window it comes from: one inside a window ends it the
+    frame before; one between two is a rally the pipeline missed (None), ending there until the
+    touches added to it carry it on (`with_added`)."""
+    out: list[tuple[int, int, int | None]] = [(a, b, k) for k, (a, b) in enumerate(windows)]
+    for f in sorted(set(frames)):
+        k = next((n for n, (a, b, _) in enumerate(out) if a <= f <= b), None)
+        if k is None:
+            out.insert(sum(a < f for a, _, _ in out), (f, f, None))
+        elif out[k][0] < f:
+            a, b, origin = out[k]
+            out[k : k + 1] = [(a, f - 1, origin), (f, b, origin)]
+    return out
+
+
+def split_rallies(rows: list[dict], scores: list[dict], frames: list[int]) -> tuple[list[dict], list[dict]]:
+    """rallies.csv's and points.csv's rows split by the review's `split` answers (`split_at`): a
+    rally cut in two keeps its point on its second part; a missed rally takes the set and sides of
+    the one before it (else after) and no point (`served_next` and the review give its winner)."""
+    pieces = split_at([(int(r["start_frame"]), int(r["end_frame"])) for r in rows], frames)
+    out_rows, out_scores = [], []
+    for n, (a, b, origin) in enumerate(pieces):
+        near = origin if origin is not None else next((o for _, _, o in reversed(pieces[:n]) if o is not None), None)
+        near = near if near is not None else next((o for _, _, o in pieces[n:] if o is not None), None)
+        out_rows.append({**(rows[near] if near is not None else {}), "start_frame": str(a), "end_frame": str(b)})
+        last = origin is not None and (n + 1 == len(pieces) or pieces[n + 1][2] != origin)
+        out_scores.append(scores[origin] if last else {})
+    return out_rows, out_scores
+
+
+def rally_table(match: Path) -> tuple[list[dict], list[dict]]:
+    """rallies.csv's and points.csv's rows ({} each without it), split by the review's answers."""
+    rows = read_csv(match / "rallies.csv")
+    scores = read_csv(match / "points.csv") if (match / "points.csv").exists() else [{}] * len(rows)
+    return split_rallies(rows, scores, [a["frame"] for a in answers(match, "split")])
+
+
 def no_rallies(match: Path) -> set[int]:
     """Start frames of the rally windows the review's answers say are no rally (no play)."""
     path = match / "identity_answers.json"
@@ -570,8 +608,11 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     cap = cv2.VideoCapture(str(video))
     fps, frame_count, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     cap.release()
-    rally_rows = read_csv(match / "rallies.csv")
+    rally_rows, scores = rally_table(match)
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rally_rows]
+    # A rally the review split in two: its first part, whose winner was the whole's.
+    ends = {r["start_frame"]: r["end_frame"] for r in read_csv(match / "rallies.csv")}
+    cut = {int(r["start_frame"]) for r in rally_rows if ends.get(r["start_frame"], r["end_frame"]) != r["end_frame"]}
     actions = read_csv(match / "actions.csv")
     gap = round(GAP_S * fps)
     teams = read_teams(match)
@@ -585,7 +626,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     windows, actions = with_added(
         ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead
     )
-    scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
+    scores = scores if with_teams else [{}] * len(windows)
     # Two windows it says are one rally become one.
     windows, rally_rows, scores = merge_rallies(windows, rally_rows, scores, {a["start"] for a in answers(match, "join")})
     said = touched(match, given)
@@ -629,7 +670,9 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         contact["set"] = rallies[contact["rally"]]["set"]
     if teams:
         served_next(rallies, found)
-    rewon(rallies, {a["start"]: a["winner"] for a in answers(match, "winner")})
+    # A rally checked in the review keeps the winner it showed then; one the review gives wins.
+    pins = {a["start"]: a["winner"] for a in answers(match, "pinned") if a["start"] not in cut}
+    rewon(rallies, {**pins, **{a["start"]: a["winner"] for a in answers(match, "winner")}})
     settle(found, [r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
     credited(found, actions, {a["frame"] for a in answers(match, "action") if "result" in a})
@@ -661,7 +704,7 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     """ball.js's content: the ball's place where it is seen in the rallies (their lead included),
     every BALL_STEP_S, as flat [frame, x, y, ...] samples, x and y fractions of the picture."""
     lead, step = round(LEAD_S * fps), max(1, round(BALL_STEP_S * fps))
-    rows = read_csv(match / "rallies.csv")
+    rows, _ = rally_table(match)
     windows = ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rows], answers(match, "end"))
     windows = [(start - lead, end) for start, end in merge_rallies(windows, rows, [{}] * len(rows), {a["start"] for a in answers(match, "join")})[0]]
     samples: list[float] = []

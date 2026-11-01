@@ -17,11 +17,9 @@ export function rallyAt(rallies: Pick<Rally, 'start' | 'end'>[], time: number): 
   return Math.max(0, before);
 }
 
-/** The index of the rally a touch of `type` added at `time` belongs to, as the server files it: the
- * one it falls in; else a serve the next one's (the rally missed it), another touch `rallyAt`'s. */
 /** `rallies` each starting at a serve `added` before it, as the server files them: the touches added
- * after such a serve are that rally's. */
-export function withServes<R extends Pick<Rally, 'start' | 'end'>>(rallies: R[], added: { time: number; type: string }[]): R[] {
+ * after such a serve are that rally's; each lasting to the last touch added to it. */
+export function withAdded<R extends Pick<Rally, 'start' | 'end'>>(rallies: R[], added: { time: number; type: string }[]): R[] {
   const out = rallies.map((r) => ({ ...r }));
   for (const a of added) {
     const k = a.type === 'serve' ? rallyOf(out, a.time, 'serve') : -1;
@@ -29,9 +27,46 @@ export function withServes<R extends Pick<Rally, 'start' | 'end'>>(rallies: R[],
       out[k].start = Math.min(out[k].start, a.time);
     }
   }
+  for (const a of added) {
+    const r = out[rallyOf(out, a.time, a.type)];
+    if (r) {
+      r.end = Math.max(r.end, a.time);
+    }
+  }
   return out;
 }
 
+/** A rally as the editor lists it: the page's (`origin` its index), or one started by the review
+ * (`added`), named by its start frame. */
+export type Piece = Pick<Rally, 'start' | 'end' | 'set' | 'winner'> & { key: number; origin: number | null; added: boolean };
+
+/** `rallies` with a rally starting at each of `splits` (frames), as the server splits them: one
+ * inside a rally ends it just before, the new one its second part with its winner; one between two
+ * is a rally the pipeline missed, in the set of the one before (else after). */
+export function withSplits(rallies: Pick<Rally, 'start' | 'end' | 'set' | 'winner' | 'key'>[], splits: number[], fps: number): Piece[] {
+  const out: Piece[] = rallies.map((r, k) => ({ start: r.start, end: r.end, set: r.set, winner: r.winner, key: r.key ?? Math.round(r.start * fps), origin: k, added: false }));
+  for (const key of [...new Set(splits)].sort((a, b) => a - b)) {
+    const time = key / fps;
+    const k = out.findIndex((r) => r.start <= time && time <= r.end);
+    if (k < 0) {
+      const at = out.filter((r) => r.start < time).length;
+      out.splice(at, 0, { start: time, end: time, set: (out[at - 1] ?? out[at])?.set ?? 1, winner: null, key, origin: null, added: true });
+    } else if (out[k].start < time) {
+      out.splice(k, 1, { ...out[k], end: time - 1 / fps, winner: null }, { ...out[k], start: time, key, added: true });
+    }
+  }
+  return out;
+}
+
+/** The index in `pieces` of a page touch at `time` of the page's rally `origin`: the last part of
+ * that rally started by then. */
+export function pieceOf(pieces: Piece[], origin: number, time: number): number {
+  const mine = pieces.flatMap((p, k) => (p.origin === origin ? [k] : []));
+  return mine.findLast((k) => pieces[k].start <= time) ?? mine[0] ?? -1;
+}
+
+/** The index of the rally a touch of `type` added at `time` belongs to, as the server files it: the
+ * one it falls in; else a serve the next one's (the rally missed it), another touch `rallyAt`'s. */
 export function rallyOf(rallies: Pick<Rally, 'start' | 'end'>[], time: number, type: string): number {
   const inside = rallies.findIndex((r) => r.start - LEAD_S <= time && time <= r.end);
   const next = rallies.findIndex((r) => r.start > time);

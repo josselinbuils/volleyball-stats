@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, credited, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, credited, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -426,6 +426,24 @@ class TestMergeRallies:
         assert w == [(100, 400), (500, 600), (700, 800)]
         assert [x["set"] for x in r] == ["1", "1", "2"]
         assert [(p["winner"], p["score_1"], p["score_2"]) for p in s] == [("2", "0", "1"), ("1", "1", "1"), ("2", "0", "1")]
+
+
+class TestSplitRallies:
+    def test_a_rally_starts_inside_one_or_between_two_where_the_review_says(self):
+        rows = [{"set": "1", "left": "2", "start_frame": "100", "end_frame": "200"}, {"set": "2", "left": "1", "start_frame": "500", "end_frame": "600"}]
+        scores = [{"winner": "1"}, {"winner": "2"}]
+
+        r, s = split_rallies(rows, scores, [150, 300, 500, 50])
+
+        # Inside: the second part keeps the point; between: the sides and set of the one before; at a start: nothing.
+        assert [(x["start_frame"], x["end_frame"], x["set"], x["left"]) for x in r] == [
+            ("50", "50", "1", "2"),
+            ("100", "149", "1", "2"),
+            ("150", "200", "1", "2"),
+            ("300", "300", "1", "2"),
+            ("500", "600", "2", "1"),
+        ]
+        assert s == [{}, {}, {"winner": "1"}, {}, {"winner": "2"}]
 
 
 class TestSettle:
