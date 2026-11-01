@@ -129,6 +129,15 @@ export function Review({
   };
   // Corrections saved from the match tab, about no question, the `rally` checked with them: its
   // reports are handled.
+  // A rally checked by mistake, or to look at again: its corrections stay.
+  const uncheck = async (rally: number) => {
+    try {
+      onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', unchecked: [rally] }));
+      setError(false);
+    } catch {
+      setError(true);
+    }
+  };
   const saveEdits = async (changes: ReportChanges, rally: number) => {
     try {
       onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, checked: [rally] }));
@@ -314,7 +323,18 @@ export function Review({
         {tab === 'names' ? (
           <Names players={players} roster={roster} onNamed={setGiven} onSaved={onSaved} onError={() => setError(true)} />
         ) : tab === 'match' ? (
-          <MatchTab width={width} height={height} players={players} nameOf={nameOf} saved={corrections} checked={checked} reports={reports} onSave={saveEdits} onHandled={handled} />
+          <MatchTab
+            width={width}
+            height={height}
+            players={players}
+            nameOf={nameOf}
+            saved={corrections}
+            checked={checked}
+            reports={reports}
+            onSave={saveEdits}
+            onUncheck={uncheck}
+            onHandled={handled}
+          />
         ) : question ? (
           <Card>
             <CardHeader>

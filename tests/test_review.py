@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, corrections, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -149,7 +149,9 @@ class TestReports:
 
         assert [(r["time"], r["kind"]) for r in found] == [
             (1.0, "auto.noServe"),
+            (1.0, "auto.passWithoutServe"),
             (2.0, "auto.twoServes"),
+            (2.0, "auto.serveNotReceived"),
             (2.0, "auto.server"),
             (3.0, "auto.fourTouches"),
             (4.0, "auto.empty"),
@@ -365,6 +367,14 @@ class TestReportCorrections:
         assert corrections(log, {"report:a"}) == {"touches": [{"frame": 2, "player": "none"}]}
         assert corrections(log, {"report:a", "report:c"}) == {}
         assert corrections(out, {"report:a"}) == {}
+
+
+class TestChecked:
+    def test_a_rally_stays_checked_until_unchecked_and_can_be_checked_again(self):
+        log = [{"id": "edit:1", "checked": [100, 200]}, {"id": "edit:2", "unchecked": [100]}, {"id": "edit:3", "checked": [300]}]
+
+        assert checked(log) == [200, 300]
+        assert checked([*log, {"id": "edit:4", "checked": [100]}]) == [100, 200, 300]
 
 
 class TestUndo:

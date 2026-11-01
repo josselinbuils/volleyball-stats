@@ -334,7 +334,8 @@
     "reportHandledNote": "Marks this report as handled and saves the corrections as they stand.",
     "autoReport": "Automatic check",
     "validateRally": "Validate rally {{n}}",
-    "rallyChecked": "Rally checked"
+    "rallyChecked": "Rally checked",
+    "uncheckRally": "Unvalidate rally {{n}}"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -530,7 +531,9 @@
         "twoServes": "Two serves in one rally",
         "fourTouches": "A team touches the ball 4 times in a row",
         "server": "Served by the team that lost the point before",
-        "noWinner": "Winner unknown"
+        "noWinner": "Winner unknown",
+        "passWithoutServe": "A reception not right after a serve",
+        "serveNotReceived": "A serve followed by something other than a reception"
       }
     },
     "details": "Add details",

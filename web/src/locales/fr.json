@@ -334,7 +334,8 @@
     "reportHandledNote": "Marque ce signalement comme traité et enregistre les corrections en cours.",
     "autoReport": "Vérification automatique",
     "validateRally": "Valider l'échange {{n}}",
-    "rallyChecked": "Échange vérifié"
+    "rallyChecked": "Échange vérifié",
+    "uncheckRally": "Retirer la validation de l'échange {{n}}"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
@@ -530,7 +531,9 @@
         "twoServes": "Deux services dans le même échange",
         "fourTouches": "Une équipe touche le ballon 4 fois de suite",
         "server": "Servi par l'équipe qui a perdu le point d'avant",
-        "noWinner": "Gagnant inconnu"
+        "noWinner": "Gagnant inconnu",
+        "passWithoutServe": "Une réception sans service juste avant",
+        "serveNotReceived": "Un service suivi d'autre chose qu'une réception"
       }
     },
     "details": "Préciser",

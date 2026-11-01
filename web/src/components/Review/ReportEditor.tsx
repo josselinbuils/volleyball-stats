@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleCheck, CircleStop, Flag, PenLine, Play, Plus, Trash2, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, Trash2, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -58,6 +58,8 @@ export function ReportEditor({
   onPause,
   onSave,
   green,
+  checked,
+  onUncheck,
   onCaption,
   onChanges,
   saved,
@@ -78,6 +80,9 @@ export function ReportEditor({
   onSave: (changes: ReportChanges, rally: number) => void;
   /** The rallies checked with no report open since, by their key: shown green. */
   green: Set<number>;
+  /** The rallies checked, by their key, a report open on them or not. */
+  checked: Set<number>;
+  onUncheck: (rally: number) => void;
   /** The corrections as they stand, saved or not. */
   onChanges?: (changes: ReportChanges) => void;
   /** The touch the video is on in its rally, as it stands with the corrections: to show over the video. */
@@ -407,6 +412,12 @@ export function ReportEditor({
           <Check aria-hidden />
           {t('review.validateRally', { n: here + 1 })}
         </Button>
+        {rally && checked.has(keyOf(here)) && (
+          <Button variant="outline" className="bg-card" onClick={() => onUncheck(keyOf(here))}>
+            <CircleOff aria-hidden />
+            {t('review.uncheckRally', { n: here + 1 })}
+          </Button>
+        )}
       </div>
     </>
   );

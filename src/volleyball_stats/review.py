@@ -601,8 +601,9 @@ def reports(match: Path) -> list[dict]:
 
 def unusual(page: dict) -> list[dict]:
     """The rallies of the review's `page` (its data.js) that do not look like one, as reports at
-    their start, `kind` "auto.REASON": no touch, not starting with a serve, two serves, a team
-    touching four times in a row (a block apart), served by the team that lost the set's point
+    their start, `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
+    not right after a serve, a serve followed by something else than a reception, a team touching
+    four times in a row (a block apart), served by the team that lost the set's point
     before, no winner (with teams). The same rally and reason keep the same id: one handled is not
     asked again."""
     out = []
@@ -617,6 +618,11 @@ def unusual(page: dict) -> list[dict]:
             why.append("noServe")
         if len(serves) > 1:
             why.append("twoServes")
+        pairs = list(zip(touches, touches[1:]))
+        if any(b["type"] == "pass" and a["type"] != "serve" for a, b in pairs) or (touches and touches[0]["type"] == "pass"):
+            why.append("passWithoutServe")
+        if any(a["type"] == "serve" and b["type"] != "pass" for a, b in pairs):
+            why.append("serveNotReceived")
         run, side = 0, None
         for c in touches:
             who = c.get("team") or c["side"]
@@ -1105,8 +1111,12 @@ def corrections(log: list[dict], shown: set[str] | frozenset[str]) -> dict:
 
 
 def checked(log: list[dict]) -> list[int]:
-    """The rallies the user checked, by their key: they show green while no report is open on them."""
-    return sorted({k for e in log for k in e.get("checked", [])})
+    """The rallies the user checked and did not uncheck since, by their key: they show green while
+    no report is open on them."""
+    out: set[int] = set()
+    for e in log:
+        out = (out | set(e.get("checked", []))) - set(e.get("unchecked", []))
+    return sorted(out)
 
 
 def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = frozenset()) -> dict:
@@ -1414,14 +1424,17 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     player = said and questions.ref(int(said[1]), int(said[2]))
                     if edit or "report" in refs[body["id"]]:
                         given = identity.named(questions.table, identity.read_names(match))
+                        # An edit sent without corrections only checks or unchecks rallies: the corrections stay.
+                        sent = choice == "report" and "changes" in body
                         changes = body.get("changes") or {}
                         teams, windows, keys = questions.page_index()
-                        fixes = report_answer(changes, teams, windows, given, round(web.LEAD_S * questions.fps), keys) if choice == "report" else {}
-                        if choice == "report":
+                        fixes = report_answer(changes, teams, windows, given, round(web.LEAD_S * questions.fps), keys) if sent else {}
+                        if sent:
                             log[:] = superseded(log, shown)
                         ok = [int(k) for k in body.get("checked") or []] if edit else []
+                        off = [int(k) for k in body.get("unchecked") or []] if edit else []
                         asked = {entry["id"] for entry in log}
-                        log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if choice == "report" else {}), **({"checked": ok} if ok else {}), "applied": False})
+                        log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), "applied": False})
                         # The reports on a rally checked are handled with it.
                         log += [{"id": qid, "choice": "checked", "applied": False} for qid, ref in refs.items() if "report" in ref and ref["report"]["start"] in ok and qid not in asked]
                     elif "rally" in refs[body["id"]]:
