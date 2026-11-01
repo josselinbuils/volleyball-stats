@@ -28,12 +28,14 @@ found for 45 false ones, F1 0.907 -> 0.895, and 95 min more per match on the M4.
 rally starts (answered touches, types set, rallies kept, checked winners) fall by construction on a copy whose
 answers were not moved, so they say nothing.
 
+Last "Apprendre de mes réponses", 1 Nov 21:41, with `LIVE_SPEED` per second: touches found 826/944 -> 844/945, pipeline
+touches real 817/860 -> 835/883, types 86.7% both, named players 89.1% both, checked winners 114 -> 115, all 129 rallies
+still checked, same set scores. The hosted page is behind it by one floor contact (frame 186492).
+
 Next:
 
-1. The owner launches "Apprendre de mes réponses" (`LIVE_SPEED` per second is the only pipeline change since the
-   last run; on the copy, touches found 826 -> 822 before `rekey`, so the run is its real score).
-2. The 40 touches outside windows and the 7 removed after detection, then the 46 false ones.
-3. The 71 with no contact: filtering the extra detections better, or the ball model fine-tuned on the RTX 5080.
+1. The 40 touches outside windows and the 7 removed after detection, then the 46 false ones.
+2. The 71 with no contact: filtering the extra detections better, or the ball model fine-tuned on the RTX 5080.
 
 Tried and dropped: see `benchmarks/rallies/README.md`.
 
