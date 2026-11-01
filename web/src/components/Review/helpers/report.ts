@@ -1,4 +1,31 @@
-import type { Rally } from '@/lib/match';
+import type { Group, Rally } from '@/lib/match';
+
+/** A touch added under this long after the one before it in its rally follows it; later, it starts the next rally. */
+export const NEXT_TOUCH_S = 5;
+
+/** The touch most likely added after `before` (none: the rally's first, a serve by `server`): a
+ * serve's reception, a free ball's or an attack's dig by the other team; a reception's or a dig's
+ * set, a set's attack by the same team; after a block, a dig on the blockers' side. */
+export function nextTouch(before: { type: string; team: Group } | undefined, server: Group): { type: string; team: Group } {
+  if (!before) {
+    return { type: 'serve', team: server };
+  }
+  const other = (3 - before.team) as Group;
+  switch (before.type) {
+    case 'serve':
+      return { type: 'pass', team: other };
+    case 'attack':
+    case 'relance':
+      return { type: 'dig', team: other };
+    case 'pass':
+    case 'dig':
+      return { type: 'set', team: before.team };
+    case 'set':
+      return { type: 'attack', team: before.team };
+    default:
+      return { type: 'dig', team: before.team };
+  }
+}
 
 /** A report's video starts this long before the reported moment, and a touch's replay before the touch. */
 export const REPORT_LEAD_S = 2;

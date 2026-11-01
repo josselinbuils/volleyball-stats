@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pieceOf, rallyAt, rallyOf, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { nextTouch, pieceOf, rallyAt, rallyOf, withAdded, withSplits } from '@/components/Review/helpers/report';
 
 describe('rallyAt', () => {
   const rallies = [
@@ -78,5 +78,18 @@ describe('withSplits', () => {
     const out = withSplits(rallies, [150], 10);
 
     expect([pieceOf(out, 0, 12), pieceOf(out, 0, 16), pieceOf(out, 0, 9.8), pieceOf(out, 1, 55)]).toEqual([0, 1, 0, 2]);
+  });
+});
+
+describe('nextTouch', () => {
+  it('follows the touch before as a rally goes, a serve by the server first', () => {
+    expect(nextTouch(undefined, 2)).toEqual({ type: 'serve', team: 2 });
+    expect(nextTouch({ type: 'serve', team: 1 }, 1)).toEqual({ type: 'pass', team: 2 });
+    expect(nextTouch({ type: 'pass', team: 2 }, 1)).toEqual({ type: 'set', team: 2 });
+    expect(nextTouch({ type: 'set', team: 2 }, 1)).toEqual({ type: 'attack', team: 2 });
+    expect(nextTouch({ type: 'attack', team: 2 }, 1)).toEqual({ type: 'dig', team: 1 });
+    expect(nextTouch({ type: 'relance', team: 1 }, 1)).toEqual({ type: 'dig', team: 2 });
+    expect(nextTouch({ type: 'dig', team: 1 }, 1)).toEqual({ type: 'set', team: 1 });
+    expect(nextTouch({ type: 'block', team: 1 }, 1)).toEqual({ type: 'dig', team: 1 });
   });
 });

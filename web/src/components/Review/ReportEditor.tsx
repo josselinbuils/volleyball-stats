@@ -10,7 +10,7 @@ import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamR
 import type { Named, ReportChanges } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { pieceOf, rallyAt, rallyOf, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { NEXT_TOUCH_S, nextTouch, pieceOf, rallyAt, rallyOf, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig'] as const;
@@ -194,9 +194,11 @@ export function ReportEditor({
       onPause(there.time);
       return;
     }
-    // The team of the touch before it, most often the same.
-    const before = rows.filter((row) => row.time <= time).at(-1);
-    setAdded((all) => [...all, { frame, time, team: before?.team ?? GROUPS[0], type: 'pass', result: 'play' }]);
+    // What follows the touch before it in its rally; with none, a serve by the last rally's winner.
+    const before = rows.filter((row) => !row.removed && row.time <= time).at(-1);
+    const follows = before && before.rally === rallyAt(shown, time) && time - before.time < NEXT_TOUCH_S;
+    const guess = nextTouch(follows ? before : undefined, (before && winnerOf(before.rally)) ?? before?.team ?? GROUPS[0]);
+    setAdded((all) => [...all, { frame, time, ...guess, result: 'play' }]);
     setFresh({ key: `t${frame}` });
     onPause(time);
   };
