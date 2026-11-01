@@ -560,8 +560,6 @@ def receiver_answer(ace: dict, choice: str, given: dict[tuple[int, int], dict]) 
     if choice == "not_play":
         return {}
     found = touch_answer(ace, choice, given).get("touch")
-    if found and choice.startswith("player:"):
-        found = [{**found[0], "team": int(choice.split(":")[1])}]
     return {"receiver": found} if found else {}
 
 
@@ -779,7 +777,8 @@ def doubtful(actions: list[dict], windows: list[tuple[int, int]], unnamed: dict[
 
 def touch_answer(touch: dict, choice: str, given: dict[tuple[int, int], dict]) -> dict:
     """What an answer to a touch question adds to identity_answers.json: the touch is the player's
-    of "player:TEAM:IDENTITY", with the name `given` them, which outlives the identities' numbers;
+    of "player:TEAM:IDENTITY", of either team (the touch's team is often wrong; the page moves it to
+    theirs), with the name `given` them, which outlives the identities' numbers;
     no touch at all for "nobody" (identity None), nor for "not_play", outside the play (also
     `play` false: where the rallies step went wrong); nothing for another answer."""
     if choice in ("nobody", "not_play"):
@@ -787,7 +786,7 @@ def touch_answer(touch: dict, choice: str, given: dict[tuple[int, int], dict]) -
     if not choice.startswith("player:"):
         return {}
     player = tuple(int(v) for v in choice.split(":")[1:3])
-    return {"touch": [{**touch, "identity": player[1], "name": (given.get(player) or {}).get("name")}]}
+    return {"touch": [{**touch, "team": player[0], "identity": player[1], "name": (given.get(player) or {}).get("name")}]}
 
 
 def piece_key(ref: Ref) -> str:

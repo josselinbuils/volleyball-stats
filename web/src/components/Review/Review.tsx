@@ -347,8 +347,8 @@ export function Review({
                   {t('review.whoIs')}
                   <PlayerSelect
                     key={question.id}
-                    // Who missed an ace: both teams, the side the ball lands on is only a guess.
-                    players={question.kind === 'touch' && question.reason !== 'ace' ? players.filter((p) => p.team === question.team) : players}
+                    // Both teams: the touch's team, or for an ace the side the ball lands on, is only a guess.
+                    players={players}
                     nameOf={nameOf}
                     value=""
                     empty={t('review.pickPlayer')}

@@ -19,6 +19,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - The review server binds 127.0.0.1 only. `outputs/` (gitignored) holds names of real people
   (`player_names.json`, `roster.json`): never commit it.
 - Benchmark-driven: change a step, run its benchmark, report the numbers before and after.
+- A review question about who touched the ball always offers every player of both teams: the
+  touch's team is often wrong. The answer takes the picked player's team.
 
 ## Conventions
 
