@@ -314,3 +314,17 @@ class TestSettle:
         for sets, scores in ((None, ["25"]), (None, ["25-21", "1-2", "3-4"]), (["soon"], None)):
             with pytest.raises(ValueError):
                 settle(path, self.found, self.windows, 10.0, None, False, self.recorded, sets=sets, scores=scores)
+
+
+class TestSampled:
+    def test_the_cache_gives_back_the_looks_and_crops(self, tmp_path, monkeypatch):
+        crop = np.full((20, 10, 3), 128, dtype=np.uint8)
+        monkeypatch.setattr(teams, "sample", lambda video, rows: ({4: np.arange(6.0)}, {4: crop}))
+        cache = tmp_path / "looks.npz"
+
+        teams.sampled(tmp_path / "none.mp4", [], cache)
+        monkeypatch.setattr(teams, "sample", lambda video, rows: pytest.fail("sampled again"))
+        looks, crops = teams.sampled(tmp_path / "none.mp4", [], cache)
+
+        assert list(looks) == [4] and looks[4].tolist() == list(range(6))
+        assert crops[4].shape == (20, 10, 3)

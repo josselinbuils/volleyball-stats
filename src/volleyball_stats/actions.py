@@ -16,11 +16,13 @@ only if the ball is on the floor; a ball in the air projects farther from the ca
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 import cv2
 import numpy as np
 
+from volleyball_stats import files
 from volleyball_stats.court import Calibration
 
 # Relances (free balls): a third touch played without attacking, ball not above the player's head
@@ -267,24 +269,31 @@ def overlap(box: np.ndarray, boxes: np.ndarray) -> np.ndarray:
     return inter / ((box[2] - box[0]) * (box[3] - box[1]) + (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1]) - inter)
 
 
-def mark_relances(video: Path, typed: list[Typed], fps: float) -> list[Typed]:
-    """`typed` with the attacks played as relances retyped "relance".
+def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | None = None) -> list[Typed]:
+    """`typed` with the attacks played as relances retyped "relance"; the pose boxes of each frame
+    looked at kept in `cache` (JSON, by frame) for the next runs.
 
     ponytail: runs after the rules, so a touch right after a relance stays typed as its block.
     """
     attacks = [t for t in typed if t[3] == "attack"]
     if not attacks:
         return typed
-    from ultralytics import YOLO
-
-    model = YOLO(str(POSE_MODEL))
-    cap = cv2.VideoCapture(str(video))
+    kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
+    model, cap, fresh = None, cv2.VideoCapture(str(video)), False
     reach = UNDER_PX * cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 720
 
     def boxes_at(frame: int) -> np.ndarray:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-        ok, image = cap.read()
-        return model.predict(image, imgsz=1280, conf=0.25, verbose=False)[0].boxes.xyxy.cpu().numpy() if ok else np.empty((0, 4))
+        nonlocal model, fresh
+        if str(frame) not in kept:
+            if model is None:
+                from ultralytics import YOLO
+
+                model = YOLO(str(POSE_MODEL))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+            ok, image = cap.read()
+            found = model.predict(image, imgsz=1280, conf=0.25, verbose=False)[0].boxes.xyxy.cpu().numpy() if ok else np.empty((0, 4))
+            kept[str(frame)], fresh = np.round(found, 1).tolist(), True
+        return np.array(kept[str(frame)], dtype=float).reshape(-1, 4)
 
     relances = set()
     step = max(1, round(0.1 * fps))
@@ -305,6 +314,8 @@ def mark_relances(video: Path, typed: list[Typed], fps: float) -> list[Typed]:
         if above <= ABOVE and lift < LIFT:
             relances.add(frame)
     cap.release()
+    if cache and fresh:
+        files.write_text(cache, json.dumps(kept, separators=(",", ":")))
     return [(f, x, y, "relance" if f in relances else kind, side) for f, x, y, kind, side in typed]
 
 

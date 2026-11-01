@@ -263,7 +263,7 @@ def main() -> None:
         timings[" and ".join(name for name, new in (("ball", new_ball), ("players", new_players)) if new)] = time.perf_counter() - start
     if new_players:
         # New tracks: the identities and their embeddings start over.
-        for stale in ("identities.csv", "embeddings.npz"):
+        for stale in ("identities.csv", "embeddings.npz", "looks.npz"):
             (out / stale).unlink(missing_ok=True)
         if (out / "identity_answers.json").exists():
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
@@ -292,7 +292,7 @@ def main() -> None:
         if added:
             found = sorted(found + added)
             typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
-    typed = actions.mark_relances(args.video, typed, fps)
+    typed = actions.mark_relances(args.video, typed, fps, out / "relances.json")
     timings["actions"] = time.perf_counter() - start
 
     tracks, touchers, gaps, found_teams, settled = None, [None] * len(typed), [None] * len(typed), None, None
@@ -316,7 +316,7 @@ def main() -> None:
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     if args.players:
         start = time.perf_counter()
-        found_teams = teams.assign(args.video, rows, windows, fps, starts)
+        found_teams = teams.assign(args.video, rows, windows, fps, starts, out / "looks.npz")
         timings["teams"] = time.perf_counter() - start
         try:
             settled = teams.settle(

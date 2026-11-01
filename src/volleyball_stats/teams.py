@@ -31,6 +31,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from volleyball_stats import files
 from volleyball_stats.players import Row
 
 SAMPLES = 8
@@ -252,10 +253,27 @@ def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int 
     return out
 
 
-def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]], fps: float, starts: list[float] | None = None) -> Teams:
-    """Teams of a match's player tracks, numbered so that team 1 is on the left at the first rally
-    with players; `starts` are the set starts (seconds) when known."""
+def sampled(video: Path, rows: list[Row], cache: Path | None = None) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
+    """`sample`'s looks and crops, kept in `cache` (npz, crops as JPEG) for the next runs on the
+    same tracks."""
+    if cache and cache.exists():
+        data = np.load(cache)
+        looks = dict(zip(data["tracks"].tolist(), data["looks"]))
+        crops = {int(k[5:]): cv2.imdecode(data[k], cv2.IMREAD_COLOR) for k in data.files if k.startswith("crop_")}
+        return looks, crops
     looks, crops = sample(video, rows)
+    if cache:
+        tracks = sorted(looks)
+        encoded = {f"crop_{t}": cv2.imencode(".jpg", c)[1] for t, c in crops.items() if c.size}
+        with files.replacing(cache, "wb") as f:
+            np.savez(f, tracks=np.array(tracks, dtype=int), looks=np.array([looks[t] for t in tracks]).reshape(-1, 6), **encoded)
+    return looks, crops
+
+
+def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]], fps: float, starts: list[float] | None = None, cache: Path | None = None) -> Teams:
+    """Teams of a match's player tracks, numbered so that team 1 is on the left at the first rally
+    with players; `starts` are the set starts (seconds) when known; the tracks' looks kept in `cache`."""
+    looks, crops = sampled(video, rows, cache)
     lengths = {track: len(r) for track, r in by_track(rows).items()}
     left = lefts(rows, windows, looks, fps, starts)
     tracks = track_teams(rows, windows, left)

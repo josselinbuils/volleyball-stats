@@ -183,3 +183,27 @@ class TestPlayerUnder:
         assert player_under((110.0, 140.0), boxes, reach=15) == 1
         assert player_under((250.0, 140.0), boxes, reach=15) is None
         assert player_under((110.0, 140.0), np.empty((0, 4)), reach=15) is None
+
+
+class TestMarkRelances:
+    def test_the_cached_boxes_spare_the_video(self, tmp_path):
+        import json
+
+        from volleyball_stats.actions import mark_relances
+
+        # A player standing under the ball, feet still: a relance.
+        frames = {str(f): [[100.0, 100.0, 140.0, 300.0]] for f in range(70, 101)}
+        cache = tmp_path / "relances.json"
+        cache.write_text(json.dumps(frames))
+
+        import cv2
+
+        # The video only gives its height: the boxes come from the cache.
+        video = tmp_path / "blank.mp4"
+        writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 30.0, (64, 720))
+        writer.write(np.zeros((720, 64, 3), dtype=np.uint8))
+        writer.release()
+
+        out = mark_relances(video, [(100, 120, 150, "attack", "left")], 30.0, cache)
+
+        assert out[0][3] == "relance"
