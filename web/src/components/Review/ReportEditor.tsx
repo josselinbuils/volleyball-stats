@@ -348,7 +348,10 @@ export function ReportEditor({
                   onClick={() => onPlay(shown[k].start)}
                   className={cn(
                     'flex w-full items-center gap-1.5 rounded-md border bg-muted px-2 py-1 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50',
-                    green.has(keyOf(k)) && 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
+                    // A warning outweighs the check: the rally needs another look.
+                    rallyProblems(k).length > 0 || off.has(k)
+                      ? 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900'
+                      : green.has(keyOf(k)) && 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
                     k === here && 'border-primary',
                     fixOf(k)?.play === false && 'line-through',
                   )}
