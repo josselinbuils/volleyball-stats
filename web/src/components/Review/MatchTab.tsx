@@ -79,7 +79,7 @@ export function MatchTab({
           ref={block}
           className={cn(
             'grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]',
-            full && 'h-screen overflow-hidden bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]',
+            full && 'h-screen overflow-y-auto overscroll-contain bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]',
           )}
         >
           <div className={cn('grid min-w-0 gap-4', full && 'mx-auto w-full max-w-[calc((100vh-11rem)*16/9)]')}>
