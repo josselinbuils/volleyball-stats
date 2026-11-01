@@ -12,6 +12,7 @@ what is in the code since, and what is left, with the numbers to start from.
 | attribution | other side's tracks over `CROSS_M` 1 m inside the contact's side | 93 → 97 | unchanged |
 | attribution | `by_wrists`: pose on touches below the head (veto 0.4, then nearest wrists within 0.2) | 97 → 104 | tuning 58 → 61, 57 → 60; held-out 33 → 36, 30 → 32 |
 | actions | a dig sending the ball straight over is an attack (not a rally's first contact) | 6 owner fixes, 5 viewer reports | tuning truth 80 → 79 (dig 577), rest unchanged |
+| match | a window opening up to 1 s after its serve starts at it (`actions.serve_starts`) | serves typed 81 → 108 of 137 windows, labelled 19 → 35 of 43 | unchanged |
 | match | windows with 2+ floors and no touch dropped (`actions.no_play`) | 2 of the 6 "no play" windows, no rally lost | 50:00-60:00 F1 ±1 s 0.57 → 0.59, P 0.88 → 0.95 |
 
 Scored with `benchmarks/attribution/answers.py outputs/first_match --rerank [--video data/first_match.mp4]`
@@ -32,6 +33,7 @@ outputs:
   26:13.
 - Attribution: 28 picks change, 20 of them already answered (the answers win): little for this
   match, the gain is for the next ones.
+- `serve_starts` moves about 30 window starts 0.1-0.6 s earlier (to their serve + 0.33 s).
 - The answers stay valid: they point at frames (touches) and rally starts; a rally whose start
   moves loses its rally answers (`rally`, `join`, `added`'s `start`), so check
   `identity_answers.json`'s `added` starts against the new `rallies.csv` after a rerun.
@@ -66,6 +68,14 @@ outputs:
 8. **Pose cost.** `by_wrists` runs YOLO11m-pose 3 times per touch below the head with 2+
    candidates: 409 of the first match's 718 contacts, about 1 s each on the M4 Pro (3 crops); measure
    on the RTX 5080 with `speed.py`.
+
+9. **Automatic results.** Of the 81 result answers, 73 come with touches the owner added (the
+   editor's default); 8 correct an automatic result, all to "play" (a viewer: "La deuxième n'est
+   pas faute"). Rebuild the page's contacts (`web.contacts`, `web.result`) for those 8 frames to see
+   which landing the rule misread.
+10. **Fewer close-call questions.** Pose-confident picks (the pick's wrists within 0.1-0.15 box
+    heights, the next candidate's 0.2 farther or vetoed) are still wrong 3 times in 16-27 on the
+    answers: the review keeps asking every close call.
 
 ## Tried and dropped (1 Nov)
 

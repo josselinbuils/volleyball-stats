@@ -1,6 +1,6 @@
 import numpy as np
 
-from volleyball_stats.actions import classify, classify_rally, mark_dead, no_play, player_under, relance_cues, served
+from volleyball_stats.actions import classify, classify_rally, mark_dead, no_play, player_under, relance_cues, serve_starts, served
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -124,6 +124,25 @@ class TestMarkDead:
         typed = [(f, 0, 0, kind, "left") for f, kind in enumerate(["dig", "set", "attack"])]
 
         assert mark_dead(typed, [1, 1, 2], [0, 0, 0]) == (typed, [1, 1, 2])
+
+
+class TestServeStarts:
+    def test_a_window_opening_after_its_serve_starts_lead_s_after_it(self):
+        # The serve at 0, the window found by the ball from 20 (LEAD_S is 10 frames at 30 fps).
+        contacts = [(0, *RIGHT), (40, *LEFT), (80, *LEFT)]
+
+        assert serve_starts([(20, 100)], contacts, [20], FPS, NET_X) == [(10, 100)]
+        assert serve_starts([(5, 100)], contacts, [20], FPS, NET_X) == [(5, 100)]
+
+    def test_a_ball_bounced_by_the_server_moves_nothing(self):
+        contacts = [(0, *RIGHT), (12, RIGHT[0] + 20, RIGHT[1]), (40, *LEFT)]
+
+        assert serve_starts([(20, 100)], contacts, [25], FPS, NET_X) == [(20, 100)]
+
+    def test_takes_no_contact_of_the_previous_rally(self):
+        contacts = [(0, *RIGHT), (40, *LEFT), (80, *LEFT)]
+
+        assert serve_starts([(-50, 0), (20, 100)], contacts, [20], FPS, NET_X) == [(-50, 0), (20, 100)]
 
 
 class TestNoPlay:

@@ -38,6 +38,13 @@ LIFT_S = 1.0
 # ponytail: rallies.py starts a window 1-7 frames after the serve contact, so windows start this
 # many seconds earlier; drop it once rallies.py starts at the contact.
 LEAD_S = 0.33
+# A window may open up to SERVE_BEFORE_S after its serve contact (first ASPOM match, 4K 50 fps: 21 of
+# the 43 labelled rallies over LEAD_S, up to 1.0 s): `serve_starts` moves it to the serve.
+SERVE_BEFORE_S = 1.0
+# Pixels at the school court's scale (rallies.COURT_PX) within which a contact after a serve, on its
+# side, is the server catching a bounce: 7-334 px at 4K on the first match (a scale of 2.16), 56 px
+# on the school match; a false contact in the serve's flight lies 570 px or more from the server.
+BOUNCE_PX = 200
 # Seconds after an attack within which a touch is the block: 0.1-0.2 s on the labelled clips, the
 # next dig 0.67 s or more.
 BLOCK_S = 0.33
@@ -164,6 +171,26 @@ def served(rallies: list[tuple[int, int]], contacts: list[Contact], fps: float, 
         first = min((c for c in contacts if start - lead <= c[0] <= end), default=None)
         if first is None or first[0] > start or not in_court(calibration, first[1], first[2]):
             out.append((start, end))
+    return out
+
+
+def serve_starts(
+    rallies: list[tuple[int, int]], contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None, scale: float = 1.0
+) -> list[tuple[int, int]]:
+    """`rallies` with each one whose contacts, from SERVE_BEFORE_S before it and after the previous
+    one's end, open on a serve before its LEAD_S starting LEAD_S after that serve, where a window
+    found by the ball starts."""
+    lead, before = round(LEAD_S * fps), round(SERVE_BEFORE_S * fps)
+    out: list[tuple[int, int]] = []
+    for start, end in rallies:
+        since = max(start - before, out[-1][1] + 1 if out else 0)
+        typed = classify_rally([c for c in contacts if since <= c[0] <= end], [c for c in crossings if since <= c <= end], fps, net_x, calibration)
+        # The serving side touching it again near the server before it crosses: the server bounced
+        # the ball first (farther, a false contact in the serve's flight).
+        bounced = len(typed) > 1 and typed[1][3] == "net" and np.hypot(typed[1][1] - typed[0][1], typed[1][2] - typed[0][2]) < BOUNCE_PX * scale
+        if typed and typed[0][3] == "serve" and typed[0][0] < start - lead and not bounced:
+            start = typed[0][0] + lead
+        out.append((start, end))
     return out
 
 

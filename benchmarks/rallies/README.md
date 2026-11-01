@@ -234,6 +234,26 @@ both answered "no play" in the review (of 6 so answered, against 23 confirmed ra
 4 have a serve or a player touch: a serve followed by 4 net contacts, a dig then 5 floors, a lone
 floor, an empty window.
 
+**Serves before the window.** At 4K 50 fps the windows open later than on the school match: 21
+of the 43 labelled rallies of both spans open over `LEAD_S` = 0.33 s after their serve contact, 10
+over 0.5 s, up to 1.0 s, so the serve fell outside its window and was never typed. `match.rally_windows`
+then types each window's contacts from `actions.SERVE_BEFORE_S` = 1 s before it (after the previous
+window's end) and, when they open on a serve before its lead, starts the window `LEAD_S` after that
+serve (`actions.serve_starts`), unless the next contact is the serving side's within `BOUNCE_PX`
+of the server: the server bouncing the ball before serving (`side_holdout` 17170, whose real serve
+was then typed "net"; 7-334 px at 4K, against 570 px and more for a false contact in the serve's
+flight).
+
+| Windows of the current code | Serves typed | Labelled serves found ±0.1 s | Typed serves off a label | F1 ±1 s 26-36 / 50-60 | MAE 26-36 / 50-60 |
+| --- | --- | --- | --- | --- | --- |
+| before | 81 of 137 | 19 of 43 | 7 | 0.86 / 0.57 | 0.29 / 0.49 s |
+| **`serve_starts`** | **108 of 137** | **35 of 43** | **5** | **0.90 / 0.57** | **0.25 / 0.42 s** |
+
+The school clips' pipeline and the actions benchmark do not move (F1 ±1 s 0.93, 0.95, 0.75;
+71/81 and 33/48 contacts). Starting the window at the serve itself instead of `LEAD_S` after it
+loses 2 school rallies at ±1 s (two "serves" found over 1 s early); a 1.0-1.25 s look-back finds the
+most serves.
+
 Before, the one miss was a serve into the net (no net crossing, no whistle after it). The ends were
 the errors: served rallies ran to the next whistle, often the next rally's go (+11.4 s, +12.8 s), or
 stopped with the serve's ball run while play went on near the net (−8.2 s, −1.6 s). The fixes of
