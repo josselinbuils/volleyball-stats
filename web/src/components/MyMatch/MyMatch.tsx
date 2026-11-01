@@ -143,7 +143,7 @@ function Player({ player }: { player: string }) {
 
   return (
     <div className="grid gap-6 md:grid-cols-[15rem_minmax(0,1fr)]">
-      <div className="max-sm:mx-auto max-sm:w-full max-sm:max-w-64">
+      <div className="max-md:mx-auto max-md:w-full max-md:max-w-64">
         <PlayerCard id={`mine:${set}:${line.id}`} row={row} g={g} mvp={best?.key === player ? best : undefined} />
       </div>
       <div className="grid content-start gap-6">
