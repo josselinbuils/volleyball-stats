@@ -390,7 +390,7 @@ export function Review({
             </ToggleGroupItem>
           </ToggleGroup>
         )}
-        {tab !== 'match' && <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', progress: 'review.progressIntro' }[tab])}</p>}
+        <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={players} nameOf={nameOf} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, CircleCheck, CircleOff, CircleStop, Flag, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ export function ReportEditor({
   saved,
   comments,
   onComment,
+  actionsIn,
 }: {
   /** The moments viewers reported: their touches are flagged. */
   reports: { time: number }[];
@@ -96,6 +98,8 @@ export function ReportEditor({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
+  /** Where the buttons validating the rally go: under the video, always in view. */
+  actionsIn: HTMLElement | null;
 }) {
   const { t } = useTranslation();
   const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
@@ -375,10 +379,9 @@ export function ReportEditor({
 
   return (
     <>
-      <div className="relative lg:self-stretch">
-        <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
-          {/* Above the list that scrolls: always in view, in full screen too. */}
-          <div className="flex shrink-0 flex-wrap gap-2">
+      {actionsIn &&
+        createPortal(
+          <div className="flex flex-wrap gap-2">
             <Button className="h-auto min-h-9 flex-1 whitespace-normal" disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
               <Check aria-hidden />
               {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}
@@ -389,7 +392,11 @@ export function ReportEditor({
                 {t('review.uncheckRally', { n: here + 1 })}
               </Button>
             )}
-          </div>
+          </div>,
+          actionsIn,
+        )}
+      <div className="relative lg:self-stretch">
+        <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
               <Plus aria-hidden />

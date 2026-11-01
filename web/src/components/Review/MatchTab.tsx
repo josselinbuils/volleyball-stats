@@ -72,6 +72,7 @@ export function MatchTab({
   // The video, its bar, the editor and the reports fill the screen, the video as large as its height allows.
   const block = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
+  const [actionsIn, setActionsIn] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     const changed = () => setFull(document.fullscreenElement === block.current);
     document.addEventListener('fullscreenchange', changed);
@@ -80,7 +81,8 @@ export function MatchTab({
   const toggleFull = () => void (full ? document.exitFullscreen() : block.current?.requestFullscreen());
 
   return (
-    <Card>
+    // Not hidden: it would hold the validate buttons from sticking to the window.
+    <Card className="overflow-visible">
       <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6 pt-6">
         <div
           ref={block}
@@ -112,6 +114,8 @@ export function MatchTab({
               }
             />
             <MatchTimeline now={now} saved={saved} reports={flags} green={green} warned={warned} comments={comments} onSeek={(time) => go(time)} />
+            {/* Pinned to the window's bottom while its place is below it. */}
+            <div ref={setActionsIn} className={cn('sticky bottom-0 z-20 py-2', full ? 'bg-background' : 'bg-card')} />
           </div>
           <ReportEditor
             key={round}
@@ -141,6 +145,7 @@ export function MatchTab({
             saved={saved}
             comments={comments}
             onComment={onComment}
+            actionsIn={actionsIn}
           />
           <section className="grid gap-2 lg:col-span-2" aria-labelledby="reports-title">
             <h3 id="reports-title" className="text-base font-semibold">

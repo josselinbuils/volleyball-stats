@@ -266,7 +266,6 @@ export function MatchTimeline({
           </svg>
         )}
       </div>
-      <p className="m-0 text-[13px] text-muted-foreground">{t('review.timelineNote')}</p>
     </div>
   );
 }
