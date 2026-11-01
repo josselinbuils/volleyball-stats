@@ -30,7 +30,7 @@ describe('ball3dAt', () => {
   });
 
   it('follows the ball back in time for its trail', () => {
-    const trail = trail3dAt([touch(0, 'set', 0), touch(1, 'attack', 4)], 0.5, 0.2, 3);
+    const trail = trail3dAt([touch(0, 'set', 0), touch(1, 'attack', 4)], 0.5, null, 0.2, 3);
     expect(trail.map((p) => p.x)).toEqual([1.2, 1.6, 2]);
   });
 });

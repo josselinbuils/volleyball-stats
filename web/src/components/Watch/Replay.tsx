@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -6,16 +6,21 @@ import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerMark, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
-import { playersAt } from '@/helpers/players';
+import { playerKey, playersAt } from '@/helpers/players';
+import { useBall3d } from '@/lib/ball3d';
 import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 import { ball3dAt, jumpAt, trail3dAt } from '@/components/Watch/helpers/flight';
 import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
+import { BroadcastControls, BroadcastOverlay } from '@/components/Watch/Broadcast';
 import { Feedback } from '@/components/Watch/Feedback';
+import { idleCamera, rallyCamera, replayAt, replayCamera, replays } from '@/components/Watch/helpers/director';
 import { scoreAt } from '@/components/Watch/helpers/score';
 
 const STORED = 'court-view';
+const VIEWS = ['2d', '3d', 'tv'] as const;
+type View = (typeof VIEWS)[number];
 const FIRST_POSITIONS_MS = 500;
 
 /** The court seen from above, players and ball following the video; its legend under it unless
@@ -24,6 +29,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const { t } = useTranslation();
   const time = useVideoTime((now) => now);
   const players = usePlayers();
+  const places = useBall3d();
   const files = useVideoTime(filesKey);
   const painted = useRef(false);
   // The first positions wait for the first paint: nothing but a replay needs them.
@@ -38,28 +44,16 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const { video } = usePlayer();
   // Where the pointer went down: a click plays or pauses, a drag turning the 3D view does not.
   const down = useRef({ x: 0, y: 0 });
-  const rally = rallyAt(rallies, time);
-  const sides = sidesAt(rallies, time);
-  const ball = rally ? ballAt(rally.contacts, time) : null;
-  const trail = rally ? trailAt(rally.contacts, time) : [];
-  const touches = rally ? touchesAt(rally.contacts, time) : [];
-  const landings = rally ? landingsAt(rally.contacts, time) : [];
-  const last = rally && lastTouch(rally.contacts, time);
-  const dots = typeof players === 'object' ? playersAt(players, match.fps, time) : [];
-  const score = scoreAt(rallies, time, match.scores);
-  // The player under the pointer, named above their mark.
-  const [hover, setHover] = useState<number | null>(null);
-  const hovered = dots.find((d) => d.person === hover);
-  const tip = hovered && playerLabel(t, hovered.person);
   // The view chosen last time, remembered by the browser when it can.
-  const [view, setView] = useState<'2d' | '3d'>(() => {
+  const [view, setView] = useState<View>(() => {
     try {
-      return localStorage.getItem(STORED) === '3d' && canDraw3d() ? '3d' : '2d';
+      const stored = localStorage.getItem(STORED);
+      return (stored === '3d' || stored === 'tv') && canDraw3d() ? stored : '2d';
     } catch {
       return '2d';
     }
   });
-  const choose = (next: '2d' | '3d') => {
+  const choose = (next: View) => {
     setView(next);
     try {
       localStorage.setItem(STORED, next);
@@ -67,8 +61,29 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
       // Private browsing: the choice lasts for the page only.
     }
   };
-
-  let now = rally ? t('rally', { n: rally.i + 1 }) : t('betweenRallies');
+  const [voice, setVoice] = useState(false);
+  const chosen = useMemo(() => replays(rallies), []);
+  const tv = view === 'tv';
+  // A replay shows an earlier moment of its rally in the dead time after it.
+  const replay = tv ? replayAt(rallies, chosen, time) : null;
+  const moment = replay?.time ?? time;
+  const playing = rallyAt(rallies, time);
+  const rally = replay?.rally ?? playing;
+  const sides = sidesAt(rallies, time);
+  const ball = rally ? ballAt(rally.contacts, moment) : null;
+  const trail = rally ? trailAt(rally.contacts, moment) : [];
+  const touches = rally ? touchesAt(rally.contacts, moment) : [];
+  const landings = rally ? landingsAt(rally.contacts, moment) : [];
+  const last = playing && lastTouch(playing.contacts, time);
+  const dots = typeof players === 'object' ? playersAt(players, match.fps, moment) : [];
+  const score = scoreAt(rallies, time, match.scores);
+  const followed = replay ? (dots.find((d) => playerKey(d.person, match.people) === playerKey(replay.contact.person, match.people)) ?? undefined) : undefined;
+  const camera = !tv ? null : replay ? replayCamera(replay, followed, places) : rally ? rallyCamera(rally, moment, places) : idleCamera(time);
+  // The player under the pointer, named above their mark.
+  const [hover, setHover] = useState<number | null>(null);
+  const hovered = dots.find((d) => d.person === hover);
+  const tip = hovered && playerLabel(t, hovered.person);
+  let now = playing ? t('rally', { n: playing.i + 1 }) : t('betweenRallies');
   if (last) {
     const who = [groupName(t, last.g), playerLabel(t, last.person)].filter(Boolean).join(', ');
     now += ` · ${t('lastTouch', { type: t(`types.${last.type}`).toLowerCase(), who })}`;
@@ -83,17 +98,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
           {now}
         </p>
         {canDraw3d() && (
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            spacing={0}
-            value={view}
-            onValueChange={(v) => v && choose(v as '2d' | '3d')}
-            aria-label={t('scene3d.label')}
-            className="shrink-0 bg-card"
-          >
-            {(['2d', '3d'] as const).map((v) => (
+          <ToggleGroup type="single" variant="outline" size="sm" spacing={0} value={view} onValueChange={(v) => v && choose(v as View)} aria-label={t('scene3d.label')} className="shrink-0 bg-card">
+            {VIEWS.map((v) => (
               <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                 {t(`scene3d.${v}`)}
               </ToggleGroupItem>
@@ -113,32 +119,36 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
           }
         }}
       >
-        {view === '3d' && (
+        {view !== '2d' && (
           <Scene3D
+            badge={!tv}
+            overlay={tv ? <BroadcastOverlay time={time} rally={playing?.i ?? null} replay={replay} score={score} voice={voice} /> : null}
             state={{
               players: dots.map(({ person, x, y }) => ({
                 key: person,
                 x,
                 y,
-                jump: rally ? jumpAt(rally.contacts, person, time) : 0,
+                jump: rally ? jumpAt(rally.contacts, person, moment) : 0,
                 team: match.people[person]?.team ?? 1,
                 label: playerMark(person) ?? '',
                 tip: person === hover ? (tip ?? undefined) : undefined,
               })),
-              ball: rally ? ball3dAt(rally.contacts, time) : null,
-              trail: rally ? trail3dAt(rally.contacts, time) : [],
+              ball: rally ? ball3dAt(rally.contacts, moment, places) : null,
+              trail: rally ? trail3dAt(rally.contacts, moment, places) : [],
               rings: touches.flatMap(({ touch, f }) => {
                 const at = dots.find((d) => d.person === touch.person) ?? (touch.x !== null && touch.y !== null ? { x: touch.x, y: touch.y } : null);
                 return at ? [{ x: at.x, y: at.y, f }] : [];
               }),
               landings,
               board: score && { teams: [groupName(t, 1), groupName(t, 2)], score: score.score, set: t('set', { n: score.set }) },
+              camera,
+              hidden: followed?.person ?? null,
             }}
             onHover={setHover}
           />
         )}
         {/* Full screen: the court as large as the space allows, its end labels over its bottom. */}
-        <div className={cn('relative [:fullscreen_&]:h-full', view === '3d' && 'hidden')}>
+        <div className={cn('relative [:fullscreen_&]:h-full', view !== '2d' && 'hidden')}>
           <Court
             role="img"
             aria-label={t('replayLabel')}
@@ -187,6 +197,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
         </div>
       </div>
       {captioned && <ReplayCaption />}
+      {tv && <BroadcastControls voice={voice} onVoice={setVoice} />}
     </figure>
   );
 }

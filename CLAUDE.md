@@ -128,7 +128,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   winner is the other team. Nothing trains on how rallies end yet: such training reads these answers. The rally's "Commentaire": the owner's note, in the review only
   (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field.
 - Open, most useful first:
-  1. `docs/plan.md`: the touches left, the page ideas left. A second match, filmed by the owner (2 Nov).
+  1. `docs/plan.md`: the touches left, the page ideas left, the 3D ball and TV mode's limits. A second match, filmed by the owner (2 Nov).
   2. That second match, held out whole: everything is tuned on the first. Retrain the ranker and
      re-sweep `identity.SHARPEN` after its review.
   3. Rally ends and winners (checked winners 114 of 128): `rallies.whistled` as a fallback is in (held
@@ -144,7 +144,6 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
   8. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  9. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
 
 ## Hosting
 

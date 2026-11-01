@@ -18,31 +18,40 @@ const JUMP_S = 0.4;
 // A ball crossing the net clears it: its centre above the scene's net top (2.35 m) by the drawn ball's radius.
 const OVER_NET = 2.6;
 
-type Placed = Contact & { x: number; y: number };
-
 const height = (c: Contact) => HEIGHTS[c.type] ?? 1.5;
 
-/** The ball at `time` in 3D: straight between the placed touches of a rally seen from above, and
- * up the arc gravity gives a flight of that duration (g T² / 8 at its middle), raised to clear the
- * net when it crosses it, unless it ends or starts in the net; at the first touch before it, at the
- * last one after. */
-export function ball3dAt(contacts: Contact[], time: number): Point3 | null {
+/** The touches' 3D places by index in the contacts. */
+export type Places = Map<number, Point3> | null;
+
+/** A touch's place: found from the ball's flights (`places`), else on the floor under it at its action's typical height. */
+function placeOf(c: Contact, places: Places): (Point3 & { type: string; t: number }) | null {
+  const found = places?.get(c.i) ?? (c.x !== null && c.y !== null ? { x: c.x, y: c.y, h: height(c) } : null);
+  return found && { ...found, type: c.type, t: c.t };
+}
+
+/** The ball at `time` in 3D: straight between the touches of a rally seen from above, and up the arc gravity gives a
+ * flight of that duration (g T² / 8 at its middle), raised to clear the net when it crosses it, unless it ends or
+ * starts in the net; at the first touch before it, at the last one after. */
+export function ball3dAt(contacts: Contact[], time: number, places: Places = null): Point3 | null {
   // A playing fault is no touch of the ball.
-  const pts = contacts.filter((c): c is Placed => c.x !== null && c.y !== null && c.type !== 'fault');
+  const pts = contacts.flatMap((c) => {
+    const at = c.type === 'fault' ? null : placeOf(c, places);
+    return at ? [at] : [];
+  });
   if (!pts.length) {
     return null;
   }
   const k = pts.findIndex((c) => c.t > time);
   if (k === 0 || k === -1) {
-    const c = k === 0 ? pts[0] : pts[pts.length - 1];
-    return { x: c.x, y: c.y, h: height(c) };
+    const { x, y, h } = k === 0 ? pts[0] : pts[pts.length - 1];
+    return { x, y, h };
   }
   const a = pts[k - 1];
   const b = pts[k];
   const span = b.t - a.t;
   const f = (time - a.t) / span;
   const flight = Math.min(span, LONGEST_S);
-  const arc = (u: number) => height(a) + u * (height(b) - height(a)) + (G * flight * flight * u * (1 - u)) / 2;
+  const arc = (u: number) => a.h + u * (b.h - a.h) + (G * flight * flight * u * (1 - u)) / 2;
   let h = arc(f);
   if (a.x * b.x < 0 && a.type !== 'net' && b.type !== 'net') {
     // A bump of 1 where the ball crosses the net, 0 at the touches.
@@ -54,10 +63,10 @@ export function ball3dAt(contacts: Contact[], time: number): Point3 | null {
 }
 
 /** The ball's path over the last `span` seconds, `steps` points from the oldest to `time`'s. */
-export function trail3dAt(contacts: Contact[], time: number, span = 0.35, steps = 8): Point3[] {
+export function trail3dAt(contacts: Contact[], time: number, places: Places = null, span = 0.35, steps = 8): Point3[] {
   const out: Point3[] = [];
   for (let k = steps - 1; k >= 0; k--) {
-    const at = ball3dAt(contacts, time - (span * k) / (steps - 1));
+    const at = ball3dAt(contacts, time - (span * k) / (steps - 1), places);
     if (at) {
       out.push(at);
     }

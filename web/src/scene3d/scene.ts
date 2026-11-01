@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Sponsor } from '@/lib/match';
+import { addHall, at, painted } from '@/scene3d/hall';
 
 /** A point of the scene in court metres: x along the court (net at 0), y across it (towards the
  * camera positive), h above the floor. */
@@ -20,6 +21,10 @@ export interface SceneState {
   landings: { x: number; y: number; f: number }[];
   /** The hall's scoreboard: the teams, team 1 first, their points and the set; null before the first rally. */
   board: { teams: [string, string]; score: [number, number]; set: string } | null;
+  /** The TV director's camera, null for the view turned with the pointer. */
+  camera?: { eye: Point3; target: Point3; fov: number } | null;
+  /** The player the camera looks out of, not drawn. */
+  hidden?: number | null;
   colors: { team: [string, string]; teamText: [string, string]; floor: string; foreground: string; primary: string };
 }
 
@@ -34,6 +39,13 @@ export interface Scene {
 // net shows in perspective, and the point it looks at; the pointer turns it around that point.
 const EYE = new THREE.Vector3(-3.5, 7.5, 15.5);
 const TARGET = new THREE.Vector3(0.5, 0.6, 0);
+const FOV = 40;
+const NEAR = 0.5;
+const FAR = 90;
+// A camera at a player's eyes sees the ball closer.
+const DIRECTED_NEAR = 0.15;
+// In the TV view the ball is its real size.
+const TV_BALL = 0.55;
 // What the first view holds whatever the view's shape: the court with half a metre behind its end lines,
 // the net posts, inside FIT of the view's half width and height.
 const FRAMED = [-9.5, 9.5].flatMap((x) => [-5, 5].map((y) => new THREE.Vector3(x, 0, y))).concat([-5, 5].map((y) => new THREE.Vector3(0, 2.6, y)));
@@ -46,9 +58,6 @@ const SLOW = 4;
 const FAST = 14;
 // Twice the real ball's radius, to follow it at a glance as on the top view.
 const BALL_R = 0.21;
-
-// Court metres to the scene's axes: x, height up, y towards the viewer.
-const at = (x: number, y: number, h = 0) => new THREE.Vector3(x, h, y);
 
 /** A number painted on a sprite, facing the camera. */
 function badge(text: string, background: string, color: string): THREE.Sprite {
@@ -76,62 +85,6 @@ const TIP_PX = 26;
 // The figures' skin, and hair colours given out by player key: made up, not the players' own.
 const SKIN = 0xe2b48e;
 const HAIRS = [0x2b1d14, 0x4a2f1d, 0x6e4a2a, 0x161210, 0xa7834f];
-
-// Spectators' shirts, a crowd's mix.
-const CROWD = [0xc0392b, 0x2e86c1, 0x27ae60, 0xf1c40f, 0x8e44ad, 0xe67e22, 0x7f8c8d, 0xecf0f1, 0x34495e];
-
-/** A wooden court: planks of varied shades with dark joints. */
-function wood(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 512;
-  const g = canvas.getContext('2d')!;
-  let seed = 7;
-  const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-  for (let row = 0; row < 16; row++) {
-    for (let x = -random() * 256; x < 512; x += 192 + random() * 128) {
-      const shade = 0.9 + random() * 0.14;
-      g.fillStyle = `rgb(${Math.round(214 * shade)}, ${Math.round(172 * shade)}, ${Math.round(122 * shade)})`;
-      g.fillRect(x, row * 32, 320, 32);
-      g.fillStyle = 'rgba(90, 60, 30, 0.35)';
-      g.fillRect(x, row * 32, 2, 32);
-    }
-    g.fillStyle = 'rgba(90, 60, 30, 0.3)';
-    g.fillRect(0, row * 32, 512, 1);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  // One canvas is 4 m of floor, its planks 25 cm wide.
-  texture.repeat.set(18 / 4, 9 / 4);
-  return texture;
-}
-
-/** A canvas of `width` × `height` pixels drawn by `paint`, as a texture. */
-function painted(width: number, height: number, paint: (g: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  paint(canvas.getContext('2d')!);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-/** A window: pale sky panes in a dark frame. */
-const windowPanes = () =>
-  painted(240, 140, (g) => {
-    g.fillStyle = '#2b2f36';
-    g.fillRect(0, 0, 240, 140);
-    for (let col = 0; col < 4; col++) {
-      for (let row = 0; row < 2; row++) {
-        const sky = g.createLinearGradient(0, row * 64, 0, row * 64 + 58);
-        sky.addColorStop(0, '#ffffff');
-        sky.addColorStop(1, '#dce9f7');
-        g.fillStyle = sky;
-        g.fillRect(8 + col * 58, 8 + row * 64, 52, 58);
-      }
-    }
-  });
 
 /** Paints the hall's scoreboard on `canvas`: each team's name over its points, the set between them;
  * dashes without a score. */
@@ -225,7 +178,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   element.append(renderer.domElement);
   const scene = new THREE.Scene();
   // A depth range no wider than the scene: depth stays precise near the floor.
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 80);
+  const camera = new THREE.PerspectiveCamera(FOV, 1, NEAR, FAR);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI / 2 - 0.05;
@@ -266,20 +219,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   const castShadows = (object: THREE.Object3D) => object.traverse((o) => (o.castShadow = o instanceof THREE.Mesh));
 
   const solid = (color = 0xffffff) => new THREE.MeshLambertMaterial({ color });
-  // The floor's layers (hall, court, lines, then shadows and rings) are drawn in that order without
-  // writing depth, not told apart by millimetres of height: no flicker between them. A glossy blue
-  // hall floor, the wooden court on it, both taking the shadows.
-  const glossy = (geometry: THREE.PlaneGeometry, color: number, order: number, map?: THREE.Texture) => {
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color, map, specular: 0x3a3a3a, shininess: 70, depthWrite: false }));
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.renderOrder = order;
-    mesh.receiveShadow = true;
-    return mesh;
-  };
-  scene.add(glossy(new THREE.PlaneGeometry(36, 28), 0x2f6db5, -3), glossy(new THREE.PlaneGeometry(18, 9), 0xffffff, -2, wood()));
-  // The lines: the boundary, the centre line and the attack lines, 5 cm wide.
+  // The lines, black in this gym, over the floor: the boundary, the centre line and the attack lines, 5 cm wide.
   const lines = new THREE.Group();
-  const line = new THREE.MeshPhongMaterial({ color: 0xf6f6f6, specular: 0x666666, shininess: 90, depthWrite: false });
+  const line = new THREE.MeshBasicMaterial({ color: 0x17140c, depthWrite: false });
   const strip = (x: number, y: number, w: number, d: number) => {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), line);
     mesh.rotation.x = -Math.PI / 2;
@@ -293,9 +235,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     strip(x, 0, 0.05, 9);
   }
   scene.add(lines);
-  // The net: two posts in red pads, a see-through mesh, a white band on top.
+  // The net: two posts in white pads, a see-through mesh, a white band on top.
   const post = solid(0x555555);
-  const pad = solid(0xc0392b);
+  const pad = solid(0xf1ede3);
   for (const y of [-5, 5]) {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, NET_TOP + 0.2, 12), post);
     mesh.position.copy(at(0, y, (NET_TOP + 0.2) / 2));
@@ -326,105 +268,10 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     scene.add(rod);
   }
 
-  // The hall's walls, seen only from inside: the one between the camera and the court is not drawn.
-  // A blue band along the bottom, pale above, windows high up, a scoreboard and doors.
-  const WALL = 7;
-  const BAND = 2.4;
-  // Lit from above, the walls glow a little to read as pale as a real hall's.
-  const pale = new THREE.MeshLambertMaterial({ color: 0xe9ebee, emissive: 0x6b6d70 });
-  const banded = new THREE.MeshLambertMaterial({ color: 0x2a5ea8, emissive: 0x122a4c });
-  const panes = new THREE.MeshBasicMaterial({ map: windowPanes() });
-  const doorMaterial = solid(0x23345c);
-  const exit = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });
-  const wall = (length: number, x: number, y: number, turn: number, windows: number[], doors: number[]) => {
-    const side = new THREE.Group();
-    const face = (height: number, h: number, material: THREE.Material) => {
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(length, height), material);
-      mesh.position.set(0, h, 0);
-      side.add(mesh);
-    };
-    face(BAND, BAND / 2, banded);
-    face(WALL - BAND, (WALL + BAND) / 2, pale);
-    for (const along of windows) {
-      const pane = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), panes);
-      pane.position.set(along, 5.5, 0.02);
-      side.add(pane);
-    }
-    for (const along of doors) {
-      const door = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.2), doorMaterial);
-      door.position.set(along, 1.1, 0.02);
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.15), exit);
-      sign.position.set(along, 2.5, 0.02);
-      side.add(door, sign);
-    }
-    side.position.copy(at(x, y));
-    side.rotation.y = turn;
-    scene.add(side);
-    return side;
-  };
-  const far = wall(36, 0, -14, 0, [-14, -9, 9, 14], []);
   // The scoreboard, repainted when the score changes.
   const boardTexture = painted(600, 280, (g) => paintScoreboard(g.canvas, null));
   let shown = '';
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.4), new THREE.MeshBasicMaterial({ map: boardTexture }));
-  board.position.set(0, 4.4, 0.03);
-  far.add(board);
-  wall(36, 0, 14, Math.PI, [-9, 9], []);
-  wall(28, -18, 0, Math.PI / 2, [-6, 6], [-9, 9]);
-  wall(28, 18, 0, -Math.PI / 2, [-6, 6], [-9, 9]);
-  // Advertising boards along the front of the stands, 3 m each: the sponsors in turn, a blank one
-  // between two of them.
-  const PANEL = 3;
-  // Set by dispose: a logo loading later draws nothing.
-  let gone = false;
-  const boards = sponsors.map((sponsor) => {
-    const texture = painted(600, 160, () => {});
-    const paint = (picture?: HTMLImageElement) => {
-      const g = (texture.image as HTMLCanvasElement).getContext('2d')!;
-      g.fillStyle = sponsor.background;
-      g.fillRect(0, 0, 600, 160);
-      // A logo alone fills the board's height, centred; a picture otherwise stands at both ends of the name.
-      if (!sponsor.text) {
-        if (picture) {
-          const width = Math.min(580, (picture.width * 150) / picture.height);
-          g.drawImage(picture, 300 - width / 2, 80 - (width * picture.height) / picture.width / 2, width, (width * picture.height) / picture.width);
-        }
-        texture.needsUpdate = true;
-        return;
-      }
-      const width = picture ? (picture.width * 140) / picture.height : 0;
-      for (const x of picture ? [20, 580 - width] : []) {
-        g.drawImage(picture!, x, 10, width, 140);
-      }
-      g.fillStyle = sponsor.text;
-      g.font = 'bold 96px system-ui, sans-serif';
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText(sponsor.name, 300, 86, 600 - 2 * (width + 40));
-      texture.needsUpdate = true;
-    };
-    paint();
-    if (sponsor.logo) {
-      const picture = new Image();
-      picture.onload = () => {
-        if (gone) {
-          return;
-        }
-        paint(picture);
-        request();
-      };
-      picture.src = sponsor.logo;
-    }
-    return new THREE.MeshBasicMaterial({ map: texture });
-  });
-  const blank = new THREE.MeshBasicMaterial({ color: 0xf2f2f2 });
-  if (boards.length) {
-    for (let n = 0; n < 24 / PANEL; n++) {
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(PANEL - 0.04, 0.8), n % 2 ? blank : boards[(n / 2) % boards.length]);
-      board.position.copy(at(-12 + PANEL / 2 + n * PANEL, -9.75, 0.42));
-      scene.add(board);
-    }
-  }
+  const hall = addHall(scene, sponsors, boardTexture, renderer.capabilities.getMaxAnisotropy(), () => request());
 
   // Players: chibi figures about 1.65 m tall facing +z, shirt and shorts in their team's colours, a
   // soft shadow and their number above them; made as they first show.
@@ -495,28 +342,6 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   castShadows(stand);
   castShadows(referee);
   scene.add(stand, referee);
-  // Stands along the far side: three pale tiers with blue seats, spectators seated with gaps between groups.
-  const tier = solid(0xd3d7dc);
-  const seat = solid(0x2c5fa8);
-  const shirts = CROWD.map((color) => solid(color));
-  for (let row = 0; row < 3; row++) {
-    const top = 0.45 * (row + 1);
-    const depth = -10.2 - 0.8 * row;
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(24, top, 0.8), tier);
-    bench.position.copy(at(0, depth, top / 2));
-    const seats = new THREE.Mesh(new THREE.BoxGeometry(24, 0.08, 0.4), seat);
-    seats.position.copy(at(0, depth + 0.15, top + 0.04));
-    scene.add(bench, seats);
-    for (let k = 0; k < 22; k++) {
-      const n = row * 22 + k;
-      if ((n * 5) % 7 < 3) {
-        continue;
-      }
-      const fan = figure(n, shirts[(n * 7 + 3) % shirts.length], black, true);
-      fan.position.copy(at(-11 + k + 0.4 * (row % 2), depth, top - 0.5));
-      scene.add(fan);
-    }
-  }
   const player = (key: number, team: number, label: string, colors: SceneState['colors']) => {
     const known = bodies.get(key);
     if (known && known.label === label && known.team === team) {
@@ -542,6 +367,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     const number = look.badge.clone();
     number.position.y = 2.0;
     group.add(number);
+    group.userData.badge = number;
     group.userData.key = key;
     castShadows(group);
     const ground = new THREE.Mesh(disc, shadow);
@@ -576,7 +402,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   let frame = 0;
   const draw = () => {
     frame = 0;
-    controls.update();
+    if (!directed) {
+      controls.update();
+    }
     renderer.render(scene, camera);
     // Damping carries the turn on over the next frames.
     if (moving) {
@@ -587,6 +415,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     frame ||= requestAnimationFrame(draw);
   };
   let moving = false;
+  // The TV director holds the camera: the view the pointer left comes back after.
+  let directed: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
   controls.addEventListener('start', () => {
     moving = true;
     turned = true;
@@ -604,7 +434,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();
-    if (!turned) {
+    if (!turned && !directed) {
       frame3d();
     }
     // Resizing clears the canvas: drawn at once, not a frame later, or it shows empty for a frame.
@@ -617,6 +447,25 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   return {
     update(state) {
       const { colors } = state;
+      hall.frame.visible = !!state.camera;
+      if (state.camera) {
+        directed ??= { position: camera.position.clone(), target: controls.target.clone() };
+        controls.enabled = false;
+        camera.position.copy(at(state.camera.eye.x, state.camera.eye.y, state.camera.eye.h));
+        camera.lookAt(at(state.camera.target.x, state.camera.target.y, state.camera.target.h));
+        camera.fov = state.camera.fov;
+        camera.near = DIRECTED_NEAR;
+        camera.updateProjectionMatrix();
+      } else if (directed) {
+        camera.position.copy(directed.position);
+        controls.target.copy(directed.target);
+        directed = null;
+        controls.enabled = true;
+        camera.fov = FOV;
+        camera.near = NEAR;
+        camera.updateProjectionMatrix();
+        controls.update();
+      }
       teamMaterials.forEach((m, k) => m.color.set(colors.team[k]));
       shortsMaterials.forEach((m, k) => m.color.set(colors.team[k]).multiplyScalar(0.78));
       ringMaterial.color.set(colors.foreground);
@@ -631,7 +480,10 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
           body.group.rotation.y = Math.atan2(tx - p.x, ty - p.y);
         }
         body.shadow.position.copy(at(p.x, p.y, 0.006));
-        body.group.visible = body.shadow.visible = true;
+        body.group.visible = p.key !== state.hidden;
+        // On TV the shirts and the commentary say who it is: a badge would fill a close-up.
+        (body.group.userData.badge as THREE.Sprite).visible = !state.camera;
+        body.shadow.visible = true;
         seen.add(p.key);
       }
       for (const [key, body] of bodies) {
@@ -660,6 +512,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
         scene.add(tip.sprite);
       }
       ball.visible = ballShadow.visible = state.ball !== null;
+      ball.scale.setScalar(state.camera ? TV_BALL : 1);
       if (state.ball) {
         ball.position.copy(at(state.ball.x, state.ball.y, Math.max(BALL_R, state.ball.h)));
         ballShadow.position.copy(at(state.ball.x, state.ball.y, 0.007));
@@ -729,7 +582,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       return hit ? (hit.userData.key as number) : null;
     },
     dispose() {
-      gone = true;
+      hall.stop();
       observer.disconnect();
       cancelAnimationFrame(frame);
       controls.dispose();

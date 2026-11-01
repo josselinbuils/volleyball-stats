@@ -46,7 +46,19 @@ Tried and dropped: see `benchmarks/rallies/README.md`.
 
 ## Page: built, not uploaded
 
-"Le coin du coach" (`web/src/components/Coach/`): waits for the owner's "Mettre en ligne".
+"Le coin du coach" (`web/src/components/Coach/`) and "Mode TV" (README, `Watch/Broadcast.tsx`, `scene3d/hall.ts`): wait for the
+owner's "Mettre en ligne".
+
+The ball in 3D (`benchmarks/ball3d/bench.py`, first match, no 3D truth): the camera found at x 0.1, y 11.83, 3.93 m high (set up
+on the net's line, about 6 m from the sideline, 3.6 m high: 7.3 m from it); path to the ball in the picture, median and 90%,
+typical heights 93 and 205 px, fitted 8 and 77; median heights attack 2.66, block 2.60, serve 2.39, set 1.85, pass 1.29, dig 1.46.
+Floor position found with the feet hidden, median: set 0.70 m, pass 0.94, dig 0.96, relance 1.66, attack 2.11, block 3.72, serve 2.90
+(a serve's frame can be late, next_steps 12). No drag or spin; a flight over 2.2 s (a missed touch) is left out. Without a lens the
+focal length may not come out (`side_holdout`): typical heights stay.
+
+The gym, measured through the camera: the handball court 39.4 m by 20 against the real 40, the near goal line on the camera's post.
+Later: a hall per gym (every match shows this one); the near goal; a sharper replay choice from the viewers' reports. The voice is the
+browser's: not heard in the checks, which run without sound.
 
 Tried and removed (owner's call, not useful enough; code in `3377048`): the score of each six and a serve map by zone.
 From them: lineups from the positions, smoothed over 2 rallies each side, gave the first match 4 and 3 sixes whose
@@ -63,8 +75,4 @@ screens to their own bundle would save 24 KB compressed, not done; `i18next` (15
 
 ## Page: other ideas, not started
 
-1. **Broadcast mode in 3D** (the owner's wish for the 3D scene, and open item "the ASPOM gymnasium"): the
-   real gym, a TV camera following the ball and cutting to net-side angles on attacks, replays from the
-   attacker's or blocker's point of view, generated French commentary. No footage, so the whole match can
-   be public without consent. Needs a real 3D ball path: its height is only estimated today.
-2. **La saison**: each player's progress over matches and the team's form. Needs a second match.
+1. **La saison**: each player's progress over matches and the team's form. Needs a second match.

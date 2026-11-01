@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { loadBall3d } from '@/lib/ball3d';
 import { match, versioned } from '@/lib/match';
 import type { Scene, SceneState } from '@/scene3d/scene';
 
@@ -54,7 +55,7 @@ function rgb(color: string): string {
 
 /** The 3D scene of the court at the moment `state` describes, turned with the pointer; `onHover`
  * hears of the player under the pointer, null when none or while turning. */
-export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>; onHover: (key: number | null) => void }) {
+export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit<SceneState, 'colors'>; onHover: (key: number | null) => void; badge?: boolean; overlay?: ReactNode }) {
   const { t } = useTranslation();
   const box = useRef<HTMLDivElement>(null);
   const scene = useRef<Scene | null>(null);
@@ -69,6 +70,7 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
 
   useEffect(() => {
     let gone = false;
+    loadBall3d();
     load()
       .then(() => {
         if (!gone && box.current && window.VolleyScene) {
@@ -112,12 +114,13 @@ export function Scene3D({ state, onHover }: { state: Omit<SceneState, 'colors'>;
         onPointerLeave={() => onHover(null)}
       />
       {status !== 'ready' && <p className="absolute inset-0 m-0 grid place-items-center text-sm text-muted-foreground">{t(status === 'failed' ? 'scene3d.failed' : 'scene3d.loading')}</p>}
-      {status === 'ready' && (
+      {overlay}
+      {status === 'ready' && badge && (
         <p
           className="absolute top-2 right-2 m-0 [:fullscreen_&]:top-auto [:fullscreen_&]:bottom-2 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground"
-          title={t('scene3d.note')}
+          title={t(match.ball3d ? 'scene3d.noteFound' : 'scene3d.note')}
         >
-          {t('scene3d.badge')}
+          {t(match.ball3d ? 'scene3d.badgeFound' : 'scene3d.badge')}
         </p>
       )}
     </div>

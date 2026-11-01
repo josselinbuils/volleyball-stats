@@ -381,6 +381,21 @@ a tie shares one. Each replays its moments. Most touches, winning attacks, winni
 and perfect receptions, the longest run on serve, the setter and attacker with the most winning attacks, and
 the longest rally.
 
+### Mode TV
+
+The view's "TV" switch films the match like a broadcast, in a 3D model of the first match's gym, with no footage, so the
+whole match can be public without anyone's consent. "Regarder le match" plays every rally of the set shown, one after another.
+
+- **Ball:** each flight is an arc under gravity between two touches, each touch placed in 3D where the path best matches
+  the ball in the video (`ball3d.py`, `ball3d.js` on the page, loaded with the 3D view). It needs the camera's lens: without
+  it, typical heights per action stay. `benchmarks/ball3d/bench.py` scores it.
+- **Director** (`Watch/helpers/director.ts`, a function of the time alone, so pausing and jumping just work): behind the
+  server, then a wide shot following the ball, a cut to the net's side from each set to the attack.
+- **Replays:** in the real pauses between rallies, slowed down, through the eyes of who scored: aces, winning blocks, attacks
+  ending a long rally or a set, and one winning attack in four otherwise.
+- **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions and
+  spoken by the browser's voice on request. It names who did something and who scored; a point given away names the team only.
+
 ### Le coin du coach
 
 Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number.

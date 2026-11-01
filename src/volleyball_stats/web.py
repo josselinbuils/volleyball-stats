@@ -32,6 +32,7 @@ import cv2
 import numpy as np
 
 from volleyball_stats import decode, files
+from volleyball_stats.ball3d import touch_places
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, NO_PLAYER, box_at
 from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
@@ -791,6 +792,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         if p in table:
             table[p]["seconds"] = {n: v for n, v in seconds.items() if v >= BRIEF_S}
     data["people"] = table
+    data["ball3d"] = touch_places(found, match / "ball.csv", calibration, fps)
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 
@@ -854,7 +856,7 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 
 
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None) -> None:
-    """The page, data.js, the positions' files and, unless `video` is None, the video, its `av1` copy the page
+    """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
     the `ball`'s places in ball.js, which the page loads to zoom on it."""
     site.mkdir(parents=True, exist_ok=True)
@@ -885,9 +887,16 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
     if ball_js:
         (site / "ball.js").write_text(ball_js)
+    (site / "ball3d.js").unlink(missing_ok=True)
+    places = data.pop("ball3d", None)
+    places_js = f"window.MATCH_BALL3D = {json.dumps(places, separators=(',', ':'))};\n" if places else ""
+    if places_js:
+        (site / "ball3d.js").write_text(places_js)
+    if places_js:
+        data["ball3d"] = True
     # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
     # serves each build its own.
-    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + (site / "scene3d.js").read_text()
+    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + places_js + (site / "scene3d.js").read_text()
     data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     index = site / "index.html"

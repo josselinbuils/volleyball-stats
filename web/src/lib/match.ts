@@ -130,6 +130,8 @@ interface Data {
   contacts: Omit<Contact, 'i' | 'g' | 'player' | 'name'>[];
   zones: ZoneCell[];
   people: Record<string, Person>;
+  /** Whether ball3d.js holds the touches' 3D places. */
+  ball3d?: boolean;
   /** The players' positions: a sample every `step` frames, `every` samples in each of `files` files; none without tracks. */
   positions?: { step: number; every: number; files: number } | null;
   /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
@@ -163,6 +165,7 @@ export const match = {
   duration: data.duration,
   zones: data.zones,
   people: data.people,
+  ball3d: data.ball3d ?? false,
   positions: data.positions ?? null,
   scores: data.scores ?? [],
   brand: data.brand ?? null,
