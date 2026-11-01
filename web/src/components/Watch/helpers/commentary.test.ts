@@ -40,18 +40,19 @@ describe('commentary', () => {
     expect(last([rally(0, [touch(0, 'serve', 2, 3, 'point')], 2, [1, 4])])?.vars.score).toBe('4-1');
   });
 
-  it('names a team and never a player for a fault', () => {
+  it('names who gave the point away', () => {
     const fault = last([rally(0, [touch(0, 'serve', 2, 3), touch(1, 'attack', 1, 2, 'error')], 2, [0, 1])]);
-    expect(fault?.key).toBe('attackFault');
-    expect(fault?.vars).toMatchObject({ team: 'T2', other: 'T1' });
-    expect(fault?.vars.name).toBeUndefined();
-    expect(JSON.stringify(lines([rally(0, [touch(1, 'attack', 1, 2, 'error')], 2, [0, 1])]))).not.toContain('Manon');
+    expect(fault?.key).toBe('attackFaultNamed');
+    expect(fault?.vars).toMatchObject({ name: 'Manon', ofName: 'de Manon', team: 'T2', other: 'T1' });
   });
 
-  it('does not name a touch losing the rally after a point', () => {
+  it('says the team when no one is named on the fault', () => {
+    expect(last([rally(0, [touch(1, 'attack', 1, null, 'error')], 2, [0, 1])])?.key).toBe('attackFault');
+  });
+
+  it('tells a touch losing the rally after a point once, on the point', () => {
     const found = lines([rally(0, [touch(0, 'attack', 2, 3, 'point'), touch(1, 'dig', 1, 2, 'error')], 2, [0, 1])]);
-    expect(JSON.stringify(found)).not.toContain('Manon');
-    expect(found.at(-1)?.key).toBe('attackPoint');
+    expect(found.map((l) => l.key)).toEqual(['attackPoint']);
   });
 
   it('stays silent on a touch of no one named, and says the team on its point', () => {

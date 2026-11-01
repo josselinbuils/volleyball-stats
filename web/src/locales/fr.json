@@ -886,7 +886,23 @@
       "relanceFaultSet": "La relance {{ofOther}} ne passe pas. {{team}} remporte le set {{score}}.",
       "faultFaultSet": "Faute de jeu côté {{other}}. {{team}} remporte le set {{score}}.",
       "otherFaultSet": "C'est fini. {{team}} remporte le set {{score}}.",
-      "pointSet": "{{team}} remporte le set {{score}}."
+      "pointSet": "{{team}} remporte le set {{score}}.",
+      "serveFaultNamed": "Le service {{ofName}} ne passe pas. Point pour {{team}}, {{score}}.",
+      "serveFaultNamedSet": "Le service {{ofName}} ne passe pas. {{team}} remporte le set {{score}}.",
+      "attackFaultNamed": "L'attaque {{ofName}} ne passe pas. Point pour {{team}}, {{score}}.",
+      "attackFaultNamedSet": "L'attaque {{ofName}} ne passe pas. {{team}} remporte le set {{score}}.",
+      "passFaultNamed": "La réception {{ofName}} ne tient pas. Point pour {{team}}, {{score}}.",
+      "passFaultNamedSet": "La réception {{ofName}} ne tient pas. {{team}} remporte le set {{score}}.",
+      "setFaultNamed": "Le ballon échappe à {{name}}. Point pour {{team}}, {{score}}.",
+      "setFaultNamedSet": "Le ballon échappe à {{name}}. {{team}} remporte le set {{score}}.",
+      "digFaultNamed": "{{name}} ne peut pas suivre en défense. Point pour {{team}}, {{score}}.",
+      "digFaultNamedSet": "{{name}} ne peut pas suivre en défense. {{team}} remporte le set {{score}}.",
+      "blockFaultNamed": "Le contre {{ofName}} ne suffit pas. Point pour {{team}}, {{score}}.",
+      "blockFaultNamedSet": "Le contre {{ofName}} ne suffit pas. {{team}} remporte le set {{score}}.",
+      "relanceFaultNamed": "La relance {{ofName}} ne passe pas. Point pour {{team}}, {{score}}.",
+      "relanceFaultNamedSet": "La relance {{ofName}} ne passe pas. {{team}} remporte le set {{score}}.",
+      "faultFaultNamed": "Faute de jeu {{ofName}}. Point pour {{team}}, {{score}}.",
+      "faultFaultNamedSet": "Faute de jeu {{ofName}}. {{team}} remporte le set {{score}}."
     },
     "captionEstimated": "Reconstitution en 3D d'après la vidéo : ni images ni voix du match. La hauteur du ballon est estimée, le commentaire est généré à partir des touches reconnues, et peut se tromper."
   }

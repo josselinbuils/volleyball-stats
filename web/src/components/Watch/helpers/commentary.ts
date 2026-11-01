@@ -22,6 +22,7 @@ const SHOWN_S = 5;
 const LONG_RALLY = 8;
 // How many ways a line can be said: picked by the moment so that it stays the same on a replay of the moment.
 const WAYS: Record<string, number> = { serve: 3, pass: 2, set: 2, attack: 3, dig: 2, block: 2, relance: 1 };
+const FAULTS = ['serve', 'attack', 'pass', 'set', 'dig', 'block', 'relance', 'fault'];
 const SET_AT = 25;
 const LAST_SET_AT = 15;
 
@@ -50,7 +51,7 @@ function touchLine(c: Contact, names: Names): Line | null {
   return { t: c.t, key: `${c.type}_${c.i % ways}`, vars: vars({ name, team: names.team(c.g) }), strong: c.type === 'attack' || c.type === 'block' };
 }
 
-/** What the rally's end says: who scored by name, a team only for a point given away. */
+/** What the rally's end says: who scored, or who gave the point away, by name when known. */
 function endLine(rally: Rally, names: Names, set: boolean): Line | null {
   const winner = rally.winner;
   const touches = rally.contacts.filter((c) => isTouch(c) || c.type === 'fault');
@@ -71,7 +72,9 @@ function endLine(rally: Rally, names: Names, set: boolean): Line | null {
     return { t, key: `${scored.type}Point${name ? '' : 'Team'}${suffix}`, vars: vars({ ...common, name: name ?? '' }), strong: true };
   }
   if (last.g !== winner && last.result === 'error') {
-    return { t, key: `${['serve', 'attack', 'pass', 'set', 'dig', 'block', 'relance', 'fault'].includes(last.type) ? last.type : 'other'}Fault${suffix}`, vars: vars(common), strong: true };
+    const kind = FAULTS.includes(last.type) ? last.type : 'other';
+    const name = names.player(last.person);
+    return { t, key: `${kind}Fault${name && kind !== 'other' ? 'Named' : ''}${suffix}`, vars: vars({ ...common, name: name ?? '' }), strong: true };
   }
   return { t, key: `point${suffix}`, vars: vars(common), strong: true };
 }
@@ -107,7 +110,7 @@ export function commentary(rallies: Rally[], names: Names, sets: number): Map<nu
     const touches = r.contacts.filter(isTouch);
     const scored = scoringTouch(r);
     touches.forEach((c, n) => {
-      // The rally's end tells its last touches.
+      // The rally's end tells its last touch and the one that scored.
       if (c === scored || (n === touches.length - 1 && c.result === 'error')) {
         return;
       }

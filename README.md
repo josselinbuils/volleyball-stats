@@ -397,7 +397,7 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 - **Replays:** in the real pauses between rallies, slowed down, through the eyes of who scored: aces, winning blocks, attacks
   ending a long rally or a set, and one winning attack in four otherwise.
 - **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions and
-  spoken by the browser's voice on request. It names who did something and who scored; a point given away names the team only.
+  spoken by the browser's voice on request. It names who did something, who scored and who gave a point away.
 
 ### Le coin du coach
 

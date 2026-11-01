@@ -886,7 +886,23 @@
       "relanceFaultSet": "{{other}} can't play it back. {{team}} take the set {{score}}.",
       "faultFaultSet": "A playing fault on {{other}}'s side. {{team}} take the set {{score}}.",
       "otherFaultSet": "That's it. {{team}} take the set {{score}}.",
-      "pointSet": "{{team}} take the set {{score}}."
+      "pointSet": "{{team}} take the set {{score}}.",
+      "serveFaultNamed": "{{name}}'s serve doesn't make it. Point {{team}}, {{score}}.",
+      "serveFaultNamedSet": "{{name}}'s serve doesn't make it. {{team}} take the set {{score}}.",
+      "attackFaultNamed": "{{name}}'s attack doesn't make it. Point {{team}}, {{score}}.",
+      "attackFaultNamedSet": "{{name}}'s attack doesn't make it. {{team}} take the set {{score}}.",
+      "passFaultNamed": "{{name}} can't hold the reception. Point {{team}}, {{score}}.",
+      "passFaultNamedSet": "{{name}} can't hold the reception. {{team}} take the set {{score}}.",
+      "setFaultNamed": "The ball gets away from {{name}}. Point {{team}}, {{score}}.",
+      "setFaultNamedSet": "The ball gets away from {{name}}. {{team}} take the set {{score}}.",
+      "digFaultNamed": "{{name}} can't keep it alive. Point {{team}}, {{score}}.",
+      "digFaultNamedSet": "{{name}} can't keep it alive. {{team}} take the set {{score}}.",
+      "blockFaultNamed": "{{name}}'s block isn't enough. Point {{team}}, {{score}}.",
+      "blockFaultNamedSet": "{{name}}'s block isn't enough. {{team}} take the set {{score}}.",
+      "relanceFaultNamed": "{{name}} can't play it back. Point {{team}}, {{score}}.",
+      "relanceFaultNamedSet": "{{name}} can't play it back. {{team}} take the set {{score}}.",
+      "faultFaultNamed": "A playing fault by {{name}}. Point {{team}}, {{score}}.",
+      "faultFaultNamedSet": "A playing fault by {{name}}. {{team}} take the set {{score}}."
     },
     "captionEstimated": "Reconstructed in 3D from the video: no pictures or sound from the match. The ball's height is estimated, and the commentary is generated from the touches recognised, so it can be wrong."
   }
