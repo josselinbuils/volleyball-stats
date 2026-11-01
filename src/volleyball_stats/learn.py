@@ -12,8 +12,8 @@ the match folder): what the answers teach, after each review or pipeline change.
 
     uv run python -m volleyball_stats.learn outputs/VIDEO --video VIDEO --court COURT_JSON [--rerun]
 
-With --rerun (the review's "Relancer l'analyse"), the pipeline runs again first and the answers
-move onto its rally windows.
+With --rerun (the review's "Apprendre de mes réponses"), the learned attribution is trained again on the
+answers (`train`), the pipeline runs again and the answers move onto its rally windows.
 """
 
 import argparse
@@ -32,6 +32,8 @@ from volleyball_stats.court import Calibration
 
 ROOT = Path(__file__).resolve().parents[2]
 HISTORY = "learn.json"
+# The learned attribution's last training: its held-out scores (`train`).
+RANKER = "ranker.json"
 # How far a pipeline contact may be from a touch the review gave.
 SAME_S = 0.2
 # How far a window's start may be from its labelled serve.
@@ -169,10 +171,19 @@ def commit() -> str:
     return run.stdout.strip()
 
 
+def from_training(match: Path) -> dict[str, Score]:
+    """The learned attribution's held-out scores at its last training, against the rule's."""
+    path = match / RANKER
+    if not path.exists():
+        return {}
+    found = json.loads(path.read_text())
+    return {"attribution: held out, learned": (found["learned"], found["touches"]), "attribution: held out, rule": (found["rule"], found["touches"])}
+
+
 def scores(match: Path, video: Path, court: Path, name: str | None = None) -> dict[str, Score]:
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     page, _ = web.match_data(match, video, Calibration.load(court))
-    return {**from_answers(match, fps), **from_labels(match, fps, name or match.name), **from_checked(match, page, fps)}
+    return {**from_answers(match, fps), **from_training(match), **from_labels(match, fps, name or match.name), **from_checked(match, page, fps)}
 
 
 def report(now: dict[str, Score], before: dict[str, Score] | None) -> str:
@@ -182,6 +193,16 @@ def report(now: dict[str, Score], before: dict[str, Score] | None) -> str:
         change = "" if then is None or tuple(then) == (right, total) else f"  (was {then[0]}/{then[1]})"
         lines.append(f"{name:42} {right}/{total}{change}")
     return "\n".join(lines)
+
+
+def train(match: Path, video: Path) -> None:
+    """The learned order of who touched the ball (ranker.py) trained again on the match's answers
+    and the school clips' labels, kept only if it gains on the rule on the match's touches held out
+    set by set; its held-out scores in ranker.json for `scores`."""
+    subprocess.run(
+        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), f"{match}:{video}", "--write", "--if-better", "--summary", str(match / RANKER)],
+        cwd=ROOT, stdin=subprocess.DEVNULL, check=True,
+    )
 
 
 def rerun(match: Path, video: Path, court: Path) -> dict[str, Score]:
@@ -231,6 +252,7 @@ def main() -> None:
     parser.add_argument("--rerun", action="store_true", help="Run the pipeline again first, the answers moved onto its rallies")
     args = parser.parse_args()
     if args.rerun:
+        train(args.match, args.video)
         rerun(args.match, args.video, args.court)
     elif args.labels:
         print(report(scores(args.match, args.video, args.court, args.labels), None))

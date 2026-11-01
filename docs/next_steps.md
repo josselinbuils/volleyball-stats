@@ -52,12 +52,12 @@ In the code since 1 Nov:
 
 - `learn` scores every step on the answers and the checked rallies (full labels), each run kept in
   `learn.json`; the review's "Progrès" tab charts them per measure.
-- The review's "Relancer l'analyse" (`learn --rerun`) reruns the pipeline, moves the answers
+- The review's "Apprendre de mes réponses" (`learn --rerun`) reruns the pipeline, moves the answers
   (`rekey`) and scores; `wrists.json`, `relances.json` and `looks.npz` cache the poses and looks
   (side_holdout: 3 min, then 6 s). "Mettre en ligne" uploads; an apply no longer does.
 - Attribution: a learned order (`ranker.py`, `benchmarks/attribution/ranker.py --write` retrains it
   on the answers), on 4K footage only: +12 of 180 held-out answered touches, -6 of 120 on the 720p
-  school clips. Not in the first match's outputs yet: the next "Relancer l'analyse".
+  school clips. Not in the first match's outputs yet: the next "Apprendre de mes réponses".
 - Identity: `SHARPEN` 0.5 -> 0.9 (the share of the embedding weights learned from the answers):
   69.5% -> 73.4% of the held-out answers kept.
 - Contacts: the threshold sweep on the checked rallies and added touches is flat (360 and 0.17 s

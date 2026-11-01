@@ -7,7 +7,14 @@ import { cn } from '@/lib/utils';
 
 // learn.json's measures, by step, with their label key: each a share of answers or labels right.
 const GROUPS: [string, [string, string][]][] = [
-  ['who', [['attribution: answered touches', 'touched']]],
+  [
+    'who',
+    [
+      ['attribution: answered touches', 'touched'],
+      ['attribution: held out, learned', 'heldLearned'],
+      ['attribution: held out, rule', 'heldRule'],
+    ],
+  ],
   [
     'touches',
     [

@@ -70,7 +70,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   runs with `uv run python -m volleyball_stats.review outputs/first_match --video data/first_match.mp4
   --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review#questions`,
   `/review#match`); each apply rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner
-  wants (`outputs/first_match/publish.json`); "Relancer l'analyse" reruns the pipeline (`learn --rerun`).
+  wants (`outputs/first_match/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
   Before stopping the review (a restart is needed for a server or page change), check that
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. On 1 Nov: 129 rallies
   on the page for 128 points (25-23, 25-12, 25-18 given), 46 questions open (touches found by the

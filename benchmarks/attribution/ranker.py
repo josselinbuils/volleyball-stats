@@ -110,10 +110,12 @@ def main() -> None:
     parser.add_argument("--clips", nargs="*", default=["side_club", "side_long", "side_holdout"])
     parser.add_argument("--l2", type=float, default=0.01)
     parser.add_argument("--write", action="store_true", help=f"Write the weights fit on everything to {ranker.WEIGHTS}")
+    parser.add_argument("--if-better", action="store_true", help="With --write, only when the matches' held-out touches gain on the rule")
+    parser.add_argument("--summary", type=Path, help="Write the matches' held-out scores there (JSON: touches, rule, learned, kept)")
     args = parser.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
     data = [d for m in args.matches for d in from_match(Path(m.split(":")[0]), Path(m.split(":")[1]))] + [d for c in args.clips for d in from_clip(c)]
-    total = [0, 0, 0]
+    total, matches = [0, 0, 0], [0, 0, 0]
     for g in sorted({d["group"] for d in data}):
         test = [d for d in data if d["group"] == g]
         model = ranker.fit(trainable([d for d in data if d["group"] != g]), args.l2)
@@ -121,11 +123,19 @@ def main() -> None:
         learned = sum(d["right"][pick(model, d)] for d in test)
         print(f"{g:24} {len(test):4} touches: rule {rule:4}, learned {learned:4}")
         total = [total[0] + len(test), total[1] + rule, total[2] + learned]
+        # The school clips are 720p: the model runs on the matches' footage only.
+        if g not in args.clips:
+            matches = [matches[0] + len(test), matches[1] + rule, matches[2] + learned]
     print(f"{'held out, all':24} {total[0]:4} touches: rule {total[1]:4}, learned {total[2]:4}")
-    if args.write:
+    kept = args.write and (not args.if_better or matches[2] > matches[1])
+    if kept:
         ranker.WEIGHTS.parent.mkdir(exist_ok=True)
         ranker.WEIGHTS.write_text(json.dumps({**ranker.fit(trainable(data), args.l2), "touches": len(trainable(data))}) + "\n")
         print(f"{ranker.WEIGHTS} written")
+    elif args.write:
+        print(f"{ranker.WEIGHTS} kept: no gain on the rule held out ({matches[2]} against {matches[1]} of {matches[0]})")
+    if args.summary:
+        args.summary.write_text(json.dumps({"touches": matches[0], "rule": matches[1], "learned": matches[2], "kept": kept}) + "\n")
 
 
 if __name__ == "__main__":
