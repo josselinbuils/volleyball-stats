@@ -11,7 +11,7 @@ import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import type { Insight } from '@/components/Stats/helpers/insights';
-import { meanRating, type Stat, type Stats } from '@/components/Stats/helpers/stats';
+import { meanRating, meanServeRating, type Stat, type Stats } from '@/components/Stats/helpers/stats';
 
 /** The columns, each a count of touches (`stat`) under its group's title (`of`), named by `label`
  * within it. */
@@ -20,6 +20,7 @@ export const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'serves', of: 'serves', label: 'total' },
   { stat: 'aces', of: 'serves', label: 'aces' },
   { stat: 'serveFaults', of: 'serves', label: 'faults' },
+  { stat: 'serveRated', of: 'serves', label: 'serveRating' },
   { stat: 'receptions', of: 'receptions', label: 'total' },
   { stat: 'missed', of: 'receptions', label: 'faults' },
   { stat: 'unattacked', of: 'receptions', label: 'unattacked' },
@@ -73,7 +74,9 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
   const f = useFormat();
   const [sort, setSort] = useState<{ stat: Stat | 'time'; desc: boolean } | null>(null);
   const sortBy = (stat: Stat | 'time') => setSort((s) => (s?.stat !== stat ? { stat, desc: true } : s.desc ? { stat, desc: false } : null));
-  const value = (r: Row, stat: Stat | 'time') => (stat === 'time' ? (r.seconds ?? -1) : stat === 'rated' ? (meanRating(r.stats) ?? -1) : r.stats[stat].length);
+  // The ratings' cells show their mean grade.
+  const mean = (r: Row, stat: Stat) => (stat === 'rated' ? meanRating(r.stats) : stat === 'serveRated' ? meanServeRating(r.stats) : null);
+  const value = (r: Row, stat: Stat | 'time') => (stat === 'time' ? (r.seconds ?? -1) : stat === 'rated' || stat === 'serveRated' ? (mean(r, stat) ?? -1) : r.stats[stat].length);
   const order = (stat: Stat | 'time') => (sort?.stat === stat ? (sort.desc ? 'descending' : 'ascending') : undefined);
   // The players' time on the court, beside their names.
   const timed = rows.some((r) => r.seconds !== undefined);
@@ -82,7 +85,17 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
   // A line parts each group from its neighbours.
   const parts = (k: number) => k > 0 && columns[k - 1].of !== columns[k].of;
   const tip = (r: Row, stat: Stat) =>
-    stat === 'rated' ? t('stats.ratingDetail', { perfect: r.stats.perfect.length, good: r.stats.good.length, poor: r.stats.poor.length, missed: r.stats.missed.length }) : r.tips?.[stat];
+    stat === 'rated'
+      ? t('stats.ratingDetail', { perfect: r.stats.perfect.length, good: r.stats.good.length, poor: r.stats.poor.length, missed: r.stats.missed.length })
+      : stat === 'serveRated'
+        ? t('stats.serveRatingDetail', {
+            aces: r.stats.aces.length,
+            tough: r.stats.serveTough.length,
+            fair: r.stats.serveFair.length,
+            easy: r.stats.serveEasy.length,
+            faults: r.stats.serveFaults.length,
+          })
+        : r.tips?.[stat];
   const row = (r: Row) => (
     <TableRow key={r.key} className={r.total ? 'hover:bg-transparent' : undefined}>
       <TableCell className={cn(FIRST, 'max-w-48 py-1.5 whitespace-normal', r.total && 'font-semibold')}>{r.name}</TableCell>
@@ -93,7 +106,7 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
             id={`${id}:${r.key}:${stat}`}
             title={(tr) => `${tr(`stats.names.${stat}`)}, ${r.title(tr)}`}
             picked={r.stats[stat]}
-            value={stat === 'rated' && r.stats.rated.length ? f.dec(meanRating(r.stats)!) : undefined}
+            value={mean(r, stat) !== null ? f.dec(mean(r, stat)!) : undefined}
             tip={tip(r, stat)}
             className="min-w-10"
           />

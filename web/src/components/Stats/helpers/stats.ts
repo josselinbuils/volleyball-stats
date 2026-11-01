@@ -9,6 +9,10 @@ export const STATS = [
   'serves',
   'aces',
   'serveFaults',
+  'serveRated',
+  'serveTough',
+  'serveFair',
+  'serveEasy',
   'receptions',
   'missed',
   'unattacked',
@@ -78,6 +82,31 @@ export function rating(c: Contact, next: Contact | undefined): number | null {
   return d <= PERFECT_M ? 3 : d <= GOOD_M ? 2 : 1;
 }
 
+// The stats of a serve's grades 1 to 3 (4 an ace, 0 a fault): the reception's grade reversed.
+const SERVE_GRADES = ['serveEasy', 'serveFair', 'serveTough'] as const;
+
+/** A serve's grade from the other team's reception (`next`, its own next touch `after`): 4 an ace,
+ * 0 a fault, else 4 less the reception's grade (`rating`); null without a rated reception. */
+export function serveRating(c: Contact, next: Contact | undefined, after: Contact | undefined): number | null {
+  if (c.result === 'point') {
+    return 4;
+  }
+  if (c.result === 'error') {
+    return 0;
+  }
+  if (!next || next.rally !== c.rally || next.type !== 'pass') {
+    return null;
+  }
+  const grade = rating(next, after);
+  return grade === null || grade === 0 ? null : 4 - grade;
+}
+
+/** The mean grade of the rated serves of `s`, null without any. */
+export function meanServeRating(s: Stats): number | null {
+  const aces = s.serveRated.filter((c) => s.aces.includes(c)).length;
+  return s.serveRated.length ? (4 * aces + 3 * s.serveTough.length + 2 * s.serveFair.length + s.serveEasy.length) / s.serveRated.length : null;
+}
+
 /** The mean grade of the rated receptions of `s`, null without any. */
 export function meanRating(s: Stats): number | null {
   return s.rated.length ? (3 * s.perfect.length + 2 * s.good.length + s.poor.length) / s.rated.length : null;
@@ -137,6 +166,13 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
     };
     if (c.type === 'serve') {
       add('serves', 'aces', 'serveFaults');
+      const grade = serveRating(c, contacts[k + 1], contacts[k + 2]);
+      if (grade !== null) {
+        out.serveRated.push(c);
+        if (grade > 0 && grade < 4) {
+          out[SERVE_GRADES[grade - 1]].push(c);
+        }
+      }
     } else if (c.type === 'pass') {
       add('receptions', null, 'missed');
       // A rally holds a handful of touches.

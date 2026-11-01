@@ -433,7 +433,8 @@
       "rated": "Note des réceptions",
       "between": "Ballons entre deux",
       "overReceptions": "Réceptions chez l'adversaire",
-      "overDigs": "Défenses chez l'adversaire"
+      "overDigs": "Défenses chez l'adversaire",
+      "serveRated": "Note des services"
     },
     "columns": {
       "total": "Total",
@@ -448,7 +449,8 @@
       "defended": "Défendues",
       "blockPoints": "Gagnants",
       "blockDefended": "Défendus",
-      "over": "Chez l'adversaire"
+      "over": "Chez l'adversaire",
+      "serveRating": "Note /4"
     },
     "about": {
       "touches": "Toutes les fois où le joueur touche le ballon, quelle que soit l'action.",
@@ -480,7 +482,8 @@
       "toWorkOn": "Ce qu'un joueur rate nettement plus que le reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments.",
       "time": "Temps passé sur le terrain pendant les échanges (minutes:secondes), d'après le suivi des joueurs : approximatif quand un joueur est mal suivi.",
       "overReceptions": "Les réceptions qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
-      "overDigs": "Les défenses qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe."
+      "overDigs": "Les défenses qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
+      "serveRated": "La note moyenne des services, sur 4, selon la réception adverse : 4 pour un ace, 3 si la réception est difficile ou renvoyée directement, 2 si elle est bonne, 1 si elle est parfaite, 0 pour une faute."
     },
     "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte ; cliquez dessus pour trier les lignes.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
@@ -520,7 +523,8 @@
       "receptionOver_other": "Réceptions · {{count}} chez l'adversaire sur {{of}}",
       "digOver_one": "Défenses · {{count}} chez l'adversaire sur {{of}}",
       "digOver_other": "Défenses · {{count}} chez l'adversaire sur {{of}}"
-    }
+    },
+    "serveRatingDetail": "Aces : {{aces}} · Réceptions difficiles : {{tough}} · Bonnes : {{fair}} · Parfaites : {{easy}} · Fautes : {{faults}}"
   },
   "players": {
     "title": "Statistiques",

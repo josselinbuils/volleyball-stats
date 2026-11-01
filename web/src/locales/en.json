@@ -433,7 +433,8 @@
       "rated": "Reception rating",
       "between": "Balls between two",
       "overReceptions": "Receptions to the opponents",
-      "overDigs": "Digs to the opponents"
+      "overDigs": "Digs to the opponents",
+      "serveRated": "Serve rating"
     },
     "columns": {
       "total": "Total",
@@ -448,7 +449,8 @@
       "defended": "Defended",
       "blockPoints": "Winning",
       "blockDefended": "Defended",
-      "over": "To the opponents"
+      "over": "To the opponents",
+      "serveRating": "Rating /4"
     },
     "about": {
       "touches": "Every time the player touches the ball, whatever the action.",
@@ -480,7 +482,8 @@
       "toWorkOn": "What a player does clearly worse than the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click one to watch those moments.",
       "time": "Time on the court during the rallies (minutes:seconds), from the players' tracking: rough where a player is poorly tracked.",
       "overReceptions": "The receptions that go straight to the other team: their touch comes next, with no set or attack of the team.",
-      "overDigs": "The digs that go straight to the other team: their touch comes next, with no set or attack of the team."
+      "overDigs": "The digs that go straight to the other team: their touch comes next, with no set or attack of the team.",
+      "serveRated": "The serves' mean grade, out of 4, from the other team's reception: 4 for an ace, 3 when the reception is poor or sent straight back, 2 when it is good, 1 when it is perfect, 0 for a fault."
     },
     "noteTitles": "Hover or tap a column's title to see what it counts; click it to sort the rows.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",
@@ -520,7 +523,8 @@
       "receptionOver_other": "Receptions · {{count}} to the opponents of {{of}}",
       "digOver_one": "Digs · {{count}} to the opponents of {{of}}",
       "digOver_other": "Digs · {{count}} to the opponents of {{of}}"
-    }
+    },
+    "serveRatingDetail": "Aces: {{aces}} · Poor receptions: {{tough}} · Good: {{fair}} · Perfect: {{easy}} · Faults: {{faults}}"
   },
   "players": {
     "title": "Statistics",
