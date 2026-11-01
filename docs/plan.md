@@ -34,15 +34,11 @@ Next:
 
 Tried and dropped: see `benchmarks/rallies/README.md`.
 
-## Page: being built
+## Page: built, not uploaded
 
-- **Mon match** (`web/src/components/MyMatch/`): pick a name, remembered; their story, touches to replay,
-  best points, serve run, who sets whom, what they lead the team in, the card to save (no picture on
-  the hosted page).
-- **L'histoire du match** (`web/src/components/Story/`): the score gap rally by rally with the key
-  moments, plain sentences per set, each moment replaying.
-
-Upload only once the owner has seen them.
+"Mon match" (`web/src/components/MyMatch/`) and "L'histoire du match" (`web/src/components/Story/`) are in
+the page's build. The hosted page gets them with the owner's next "Mettre en ligne", once they have seen them.
+Left: team 1's area is nearly invisible in dark mode when its jersey is black.
 
 ## Page: other ideas, not started
 

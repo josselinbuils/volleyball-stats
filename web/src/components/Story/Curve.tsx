@@ -1,0 +1,173 @@
+import { Fragment, useId } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Swatch } from '@/components/Swatch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFormat } from '@/lib/format';
+import { groupName, match, rallies as allRallies, teamColor, teamRing } from '@/lib/match';
+import { usePlayer, useVideoTime } from '@/lib/player';
+import { rallyAt, rallyClips } from '@/lib/playlist';
+import { useSet } from '@/lib/sets';
+import { momentText } from '@/components/Story/helpers/momentText';
+import type { Chapter, Moment } from '@/components/Story/helpers/story';
+
+// The gap the scale shows at least, and the room between two sets, in rallies.
+const MIN_GAP = 5;
+const SET_ROOM = 3;
+// Two moments' marks closer than this share of the width stand one above the other.
+const MARK_ROOM = 0.035;
+// The chart's height, a mark's distance from the curve and from the mark below it, in px.
+const HEIGHT = 192;
+const MARK_OFF = 14;
+const MARK_STEP = 26;
+
+/** The score gap after each rally, set after set: above the line team 1 leads, below team 2, with
+ * the moments' numbered marks; a rally replays from where it is clicked. */
+export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Moment[] }) {
+  const { t } = useTranslation();
+  const f = useFormat();
+  const { play } = usePlayer();
+  const { set, rallies } = useSet();
+  const clip = useId();
+  const current = useVideoTime((time) => rallyAt(rallies, time)?.i ?? -1);
+
+  // Each point's place along the width, a set starting level.
+  const placed: { rally: number; gap: number; x: number; set: number }[] = [];
+  let x = 0;
+  for (const c of chapters) {
+    x++;
+    for (const p of c.points) {
+      placed.push({ ...p, x, set: c.set });
+      x++;
+    }
+    x += SET_ROOM;
+  }
+  const width = Math.max(1, x - SET_ROOM - 1);
+  const top = Math.max(MIN_GAP, ...placed.map((p) => p.gap));
+  const bottom = Math.max(MIN_GAP, ...placed.map((p) => -p.gap));
+  const px = (at: number) => (100 * at) / width;
+  const py = (gap: number) => (100 * (top - gap)) / (top + bottom);
+  const level = py(0);
+  const paths = chapters.map((c) => {
+    const of = placed.filter((p) => p.set === c.set);
+    const start = (of[0]?.x ?? 1) - 1;
+    const line = [`${px(start)},${level}`, ...of.map((p) => `${px(p.x)},${py(p.gap)}`)];
+    return { set: c.set, start, end: of[of.length - 1]?.x ?? start, line: line.join(' ') };
+  });
+  const byRally = new Map(placed.map((p) => [p.rally, p]));
+  const playAt = (rally: number) => {
+    const k = rallies.findIndex((r) => r.i === rally);
+    play((tr) => (set === null ? tr('rallies') : tr('set', { n: set })), rallyClips(rallies, match.duration), k);
+  };
+  const score = (rally: number) => allRallies[rally]?.score?.join('-') ?? '';
+  const shown = byRally.get(current);
+
+  // A mark at the end of its moment, those too close lifted away from the line.
+  const marks: { moment: Moment; n: number; left: number; y: number }[] = [];
+  moments.forEach((moment, k) => {
+    const at = byRally.get(moment.rallies[moment.rallies.length - 1]);
+    if (at) {
+      const close = marks.filter((m) => Math.abs(m.left - px(at.x)) < MARK_ROOM * 100).length;
+      const y = (py(at.gap) * HEIGHT) / 100;
+      const off = MARK_OFF + close * MARK_STEP;
+      // Away from the zero line, unless that leaves the chart.
+      const down = at.gap >= 0 ? y - off < MARK_OFF : y + off <= HEIGHT - MARK_OFF;
+      marks.push({ moment, n: k + 1, left: px(at.x), y: down ? y + off : y - off });
+    }
+  });
+
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        {([1, 2] as const).map((g) => (
+          <span key={g} className="flex items-center gap-1.5">
+            <Swatch color={teamColor(g)} ring={teamRing(g)} />
+            {g === 1 ? '↑ ' : '↓ '}
+            {t('story.ahead', { team: groupName(t, g) })}
+          </span>
+        ))}
+      </div>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 text-xs text-muted-foreground tabular-nums">
+        <div aria-hidden className="col-start-2 relative mx-3 h-4">
+          {chapters.length > 1 &&
+            paths.map((p) => (
+              <span key={p.set} className="absolute font-semibold whitespace-nowrap text-foreground" style={{ left: `${px(p.start)}%` }}>
+                {t('set', { n: p.set })}
+              </span>
+            ))}
+        </div>
+        <div aria-hidden className="relative w-9" style={{ height: HEIGHT }}>
+          {[top, 0, -bottom].map((gap) => (
+            <span key={gap} className="absolute right-0 -translate-y-1/2" style={{ top: `${py(gap)}%` }}>
+              {gap === 0 ? t('story.tied') : `+${Math.abs(gap)}`}
+            </span>
+          ))}
+        </div>
+        <div className="relative mx-3" style={{ height: HEIGHT }}>
+          <svg aria-hidden viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible">
+            <defs>
+              <clipPath id={`${clip}-1`}>
+                <rect x="-1" y="-1" width="102" height={level + 1} />
+              </clipPath>
+              <clipPath id={`${clip}-2`}>
+                <rect x="-1" y={level} width="102" height={101 - level} />
+              </clipPath>
+            </defs>
+            {paths.map((p) => (
+              <Fragment key={p.set}>
+                {([1, 2] as const).map((g) => (
+                  <polygon key={g} clipPath={`url(#${clip}-${g})`} points={`${p.line} ${px(p.end)},${level}`} fill={teamColor(g)} fillOpacity={0.7} />
+                ))}
+                <line x1={px(p.start)} x2={px(p.end)} y1={level} y2={level} stroke="var(--border)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                <polyline points={p.line} fill="none" stroke="var(--foreground)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              </Fragment>
+            ))}
+          </svg>
+          {shown && <div aria-hidden className="pointer-events-none absolute inset-y-0 w-px bg-foreground" style={{ left: `${px(shown.x)}%` }} />}
+          {placed.map((p) => {
+            const label = `${t('story.point', { n: p.rally + 1, score: score(p.rally) })} · ${t('watchRally')}`;
+            return (
+              <Tooltip key={p.rally}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={label}
+                    onClick={() => playAt(p.rally)}
+                    className="absolute inset-y-0 -translate-x-1/2 cursor-pointer rounded-sm outline-none hover:bg-foreground/10 focus-visible:ring-3 focus-visible:ring-ring/60"
+                    style={{ left: `${px(p.x)}%`, width: `max(8px, ${100 / width}%)` }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{t('story.point', { n: p.rally + 1, score: score(p.rally) })}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+          {marks.map(({ moment, n, left, y }) => (
+            <Tooltip key={n}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${n} · ${momentText(t, moment, f.secs)}`}
+                  onClick={() =>
+                    play(
+                      (tr) => momentText(tr, moment, f.secs),
+                      rallyClips(
+                        allRallies.filter((r) => moment.rallies.includes(r.i)),
+                        match.duration,
+                      ),
+                      0,
+                      `story:${moment.kind}:${moment.rallies[0]}`,
+                    )
+                  }
+                  className="absolute inline-grid size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-foreground text-xs font-semibold text-background ring-2 ring-card outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+                  style={{ left: `${left}%`, top: y }}
+                >
+                  {n}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{momentText(t, moment, f.secs)}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

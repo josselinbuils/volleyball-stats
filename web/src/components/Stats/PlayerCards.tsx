@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Copy, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
@@ -11,7 +12,8 @@ import { playerKey } from '@/helpers/players';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { cardPicture, SHIELD } from '@/components/Stats/helpers/cardPicture';
-import type { Stat, Stats } from '@/components/Stats/helpers/stats';
+import type { Best } from '@/components/Stats/helpers/best';
+import type { Stat } from '@/components/Stats/helpers/stats';
 import { GOLD_CSS, Mvp } from '@/components/Stats/Mvp';
 import { InsightChip, type Row } from '@/components/Stats/StatsTable';
 
@@ -25,14 +27,7 @@ const SPARKLES: [number, number, number, number][] = [
 ];
 const SHIELD_CSS = `polygon(${SHIELD.map(([x, y]) => `${x}% ${y}%`).join(', ')})`;
 
-type CardRow = Row & { key: number };
-/** The match's MVP: their `playerKey`, stats and time on the court over the whole match. */
-interface Best {
-  key: string | null;
-  stats: Stats;
-  seconds: number;
-}
-
+export type CardRow = Row & { key: number };
 /** One collection card per player of team `g`, shaped like a FIFA card, with their picture, number, name and counts, each
  * count playing its moments, the `mvp`'s marked; their strengths and things to work on under it. */
 export function PlayerCards({ id, rows, g, mvp }: { id: string; rows: CardRow[]; g: Group; mvp: Best | null }) {
@@ -60,6 +55,8 @@ interface CardProps {
   row: CardRow;
   g: Group;
   mvp?: Best;
+  /** Its picture's actions as buttons under it, beside its menu. */
+  buttons?: boolean;
 }
 
 /** A count that plays its touches, in the card's own style; 0 for none. */
@@ -92,7 +89,7 @@ function cardName(t: TFunction, person: number): string {
   return match.people[person]?.name ?? playerLabel(t, person) ?? '';
 }
 
-function FifaCard({ id, row: r, g, mvp }: CardProps) {
+export function FifaCard({ id, row: r, g, mvp, buttons }: CardProps) {
   const { t } = useTranslation();
   const photo = match.people[r.key]?.photo;
   // Its menu (right click, a long press on phones) saves the card as a picture, or copies it; a phone
@@ -207,6 +204,12 @@ function FifaCard({ id, row: r, g, mvp }: CardProps) {
           </ContextMenuItem>
         )}
       </ContextMenuContent>
+      {buttons && (
+        <Button variant="outline" className="mt-2 w-full" onClick={() => picture((blob) => save(blob))}>
+          <Download aria-hidden />
+          {t('players.cards.download')}
+        </Button>
+      )}
     </ContextMenu>
   );
 }

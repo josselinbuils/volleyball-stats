@@ -366,6 +366,13 @@ uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBR
   - the ball's height reconstructed, each flight rising as high as gravity requires for its duration,
     and over the net when it crosses it, each touch at a typical height for its action.
 
+### Mon match and L'histoire du match
+
+"Mon match": a viewer picks their name (remembered on that device) and sees what they did, their touches
+to replay, their best points, their run on serve, who sets whom and their card to save. "L'histoire du
+match": the score gap rally by rally, a few plain sentences per set and the key moments (runs of 5 points,
+deficits of 4 caught up, set points saved, the longest rally), each replaying. Both follow the set filter.
+
 ### Statistics
 
 The "Statistiques" table gives, team by team, each player's and the whole team's:

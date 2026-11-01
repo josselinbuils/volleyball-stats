@@ -7,13 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
-import { contacts as allContacts, GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasTeams, match, playerLabel, playerNumber, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { playerKey } from '@/helpers/players';
 import { usePlayers } from '@/lib/players';
 import { useSet } from '@/lib/sets';
+import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
 import { insights } from '@/components/Stats/helpers/insights';
-import { lines, mvp } from '@/components/Stats/helpers/stats';
+import { lines } from '@/components/Stats/helpers/stats';
 import { Mvp } from '@/components/Stats/Mvp';
 import { PlayerCards } from '@/components/Stats/PlayerCards';
 import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
@@ -30,16 +31,7 @@ export function PlayersTable() {
   // Without the players' positions, no ball is known to drop between two of them.
   const dropped = typeof players === 'object' ? drops(contacts, players, match.fps, match.people) : [];
   const seconds = (person: number) => playingTime(person, set);
-  // The whole match's MVP, whatever the set shown: a player, as their identities may differ by set.
-  const best = useMemo(() => {
-    if (!withPlayers) {
-      return null;
-    }
-    const all = GROUPS.flatMap((g) => lines(allContacts, match.people, g, typeof players === 'object' ? drops(allContacts, players, match.fps, match.people) : []));
-    const id = mvp(all, (p) => playingTime(p, null));
-    const line = all.find((l) => l.id === id);
-    return id === null || !line ? null : { key: playerKey(id, match.people), stats: line.stats, seconds: playingTime(id, null) };
-  }, [withPlayers, players]);
+  const best = useMemo(() => (withPlayers ? bestPlayer() : null), [withPlayers]);
   const found = lines(contacts, match.people, group, dropped);
   const team = found[found.length - 1].stats;
   const rows = found
@@ -138,15 +130,6 @@ export function PlayersTable() {
 }
 
 /** A player's number in their team's colour, and their name. */
-/** A player's time on the court: their identities', in `set` or the whole match (null). */
-function playingTime(person: number, set: number | null): number {
-  const key = playerKey(person, match.people);
-  return Object.entries(match.people)
-    .filter(([k]) => playerKey(Number(k), match.people) === key)
-    .flatMap(([, p]) => Object.entries(p.seconds ?? {}))
-    .reduce((sum, [n, v]) => (set === null || Number(n) === set ? sum + v : sum), 0);
-}
-
 function Who({ person, g }: { person: number; g: Group }) {
   const { t } = useTranslation();
   return (
