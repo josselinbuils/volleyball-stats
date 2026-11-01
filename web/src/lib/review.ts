@@ -149,9 +149,11 @@ interface ReviewData {
   conflicts: Conflict[];
   /** Each player's (`team:identity`) card picture first, then the other moments to pick for it. */
   photos?: Record<string, PhotoMoment[]>;
-  /** The hosted pages' last update after a change (when the match is hosted): its time, and why it failed. */
-  hosted?: { at: string; error: string | null } | null;
+  /** The hosted pages (when the match is hosted): their last update's time (none yet since the server started), why it failed, whether a change came since. */
+  hosted?: Hosted | null;
 }
+
+export type Hosted = { at: string | null; error: string | null; behind: boolean };
 
 declare global {
   interface Window {
@@ -202,7 +204,7 @@ export function onServerBusy(listener: () => void): () => void {
 
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
-export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo', body: object = {}): Promise<Saved> {
+export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo', body: object = {}): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   // An answer joining two players of different names: saved only once the user confirms.
   if (response.status === 409) {

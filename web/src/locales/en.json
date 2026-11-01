@@ -340,7 +340,10 @@
     "rerun": "Run the analysis again",
     "rerunning": "Analysing the match…",
     "rerunNote": "Runs the whole match analysis again with the latest improvements and your answers, then measures what they changed.",
-    "rerunConfirm": "Run the whole match analysis again? It takes from a few minutes to 40 minutes; the review waits meanwhile. Your answers are kept."
+    "rerunConfirm": "Run the whole match analysis again? It takes from a few minutes to 40 minutes; the review waits meanwhile. Your answers are kept.",
+    "host": "Put online",
+    "hosting": "Putting online…",
+    "hostedBehind": "The online page lacks your latest changes: put it online whenever you like."
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",

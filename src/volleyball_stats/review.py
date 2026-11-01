@@ -1213,30 +1213,30 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # each step's last duration (first guesses from the first ASPOM match).
     progress: dict = {}
     took = {"pipeline": 600.0, "players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0, "hosting": 60.0}
-    # The last hosting (publish.json): when, and why it failed; the page says it.
-    hosted: dict = {}
+    # The last hosting (publish.json): when, why it failed, and whether a change came since; the
+    # page says it. The user puts the pages online ("/host"), an apply does not.
+    hosted: dict = {"at": None, "error": None, "behind": True}
 
     def hosting() -> None:
         try:
             matches.host(match, video, court, theme, json.loads((match / matches.PUBLISH).read_text()))
-            hosted.update(at=time.strftime("%H:%M"), error=None)
+            hosted.update(at=time.strftime("%H:%M"), error=None, behind=False)
         except Exception as error:  # noqa: BLE001
             # The answers stay applied: only the hosted page is behind.
             hosted.update(at=time.strftime("%H:%M"), error=str(error) or type(error).__name__)
 
     def pages() -> list:
-        """The steps rebuilding the review's page, the published one with its own choices, then the
-        hosted ones when the match folder says how (publish.json)."""
+        """The steps rebuilding the review's page and the published one with its own choices; the
+        hosted ones are then behind."""
         def own() -> None:
             web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback")
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
+            hosted["behind"] = True
 
         steps = [("review", own)]
         if (match / "page.json").exists():
             steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
-        if (match / matches.PUBLISH).exists():
-            steps.append(("hosting", hosting))
         return steps
 
     def run_steps(steps: list) -> None:
@@ -1282,7 +1282,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted or None}
+        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None}
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
@@ -1502,6 +1502,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
                     log = [e for e in log if e["id"] != body["id"]]
                     log.append({"id": f"cut:{track}:{cut[0]['frame']}", "choice": "cut", **constraints("cut", {"choices": []}, cut=cut), "applied": False})
+                elif self.path == "/host" and (match / matches.PUBLISH).exists():
+                    run_steps([("hosting", hosting)])
+                    return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/rerun":
                     from volleyball_stats import learn
 

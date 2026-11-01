@@ -340,7 +340,10 @@
     "rerun": "Relancer l'analyse",
     "rerunning": "Analyse du match…",
     "rerunNote": "Refait toute l'analyse du match avec les dernières améliorations et vos réponses, puis mesure ce qu'elles ont changé.",
-    "rerunConfirm": "Relancer toute l'analyse du match ? Cela prend de quelques minutes à 40 minutes ; la vérification attend pendant ce temps. Vos réponses sont gardées."
+    "rerunConfirm": "Relancer toute l'analyse du match ? Cela prend de quelques minutes à 40 minutes ; la vérification attend pendant ce temps. Vos réponses sont gardées.",
+    "host": "Mettre en ligne",
+    "hosting": "Mise en ligne…",
+    "hostedBehind": "La page en ligne n'a pas vos derniers changements : mettez-la en ligne quand vous voulez."
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",

@@ -69,7 +69,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 - The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`): its review
   runs with `uv run python -m volleyball_stats.review outputs/first_match --video data/first_match.mp4
   --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review#questions`,
-  `/review#match`); each apply rebuilds and uploads the hosted pages (`outputs/first_match/publish.json`).
+  `/review#match`); each apply rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner
+  wants (`outputs/first_match/publish.json`); "Relancer l'analyse" reruns the pipeline (`learn --rerun`).
   Before stopping the review (a restart is needed for a server or page change), check that
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. On 1 Nov: 129 rallies
   on the page for 128 points (25-23, 25-12, 25-18 given), 46 questions open (touches found by the
@@ -145,7 +146,7 @@ unhashed ones load with the build's hash, card pictures with their own), images 
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
-`club`, `upload` as `root@<OVH IP>:…/site/`, `key`), the review does all of it after each apply
+`club`, `upload` as `root@<OVH IP>:…/site/`, `key`), the review's "Mettre en ligne" does all of it
 (`matches.host`, refusing to upload a video copy that opens without the password) and says when:
 
 ```bash

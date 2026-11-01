@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, CloudUpload, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
 import { cn } from '@/lib/utils';
-import { allMarked, post, type Conflict, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
+import { allMarked, post, type Conflict, type Hosted, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
@@ -60,7 +60,7 @@ export function Review({
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
   conflicts: Conflict[];
-  hosted?: { at: string; error: string | null } | null;
+  hosted?: Hosted | null;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -84,7 +84,7 @@ export function Review({
       setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
     }
   };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | null>(null);
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   // What the last action did, shown for NOTICE_MS.
@@ -180,7 +180,7 @@ export function Review({
   );
 
   const [progress, setProgress] = useState<{ fraction: number; step: string } | null>(null);
-  const reload = async (path: 'undo' | 'apply' | 'rerun') => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host') => {
     setBusy(path);
     // The server's steps, each advancing as long as it took last time.
     const poll = window.setInterval(async () => {
@@ -257,7 +257,7 @@ export function Review({
             </p>
             {hosted && (
               <p className={cn('mt-0.5 text-sm', hosted.error ? 'text-destructive' : 'text-muted-foreground')} title={hosted.error ?? undefined}>
-                {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : t('review.hosted', { at: hosted.at })}
+                {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : hosted.behind ? t('review.hostedBehind') : t('review.hosted', { at: hosted.at })}
               </p>
             )}
           </div>
@@ -270,6 +270,12 @@ export function Review({
               <RefreshCw aria-hidden />
               {busy === 'rerun' ? t('review.rerunning') : t('review.rerun')}
             </Button>
+            {hosted && (
+              <Button variant="outline" className="bg-card" disabled={!hosted.behind || busy !== null} onClick={() => void reload('host')}>
+                <CloudUpload aria-hidden />
+                {busy === 'host' ? t('review.hosting') : t('review.host')}
+              </Button>
+            )}
             <Button disabled={(!pending.changed && !pending.names) || busy !== null} onClick={() => void reload('apply')}>
               <Check aria-hidden />
               {busy === 'apply'
