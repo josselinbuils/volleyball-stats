@@ -347,6 +347,20 @@ class TestWithAdded:
 
         assert [(r["frame"], r["type"], r["team"]) for r in rows_out] == [("150", "dig", "2")]
 
+    def test_a_touch_found_again_near_an_added_one_goes(self, tmp_path):
+        typed = [
+            {"frame": "118", "type": "serve", "team": "1"},
+            {"frame": "152", "type": "floor", "team": "2"},
+            {"frame": "160", "type": "block", "team": "2"},
+            {"frame": "300", "type": "set", "team": "1"},
+        ]
+        added = [{"start": 100, "frame": 110, "team": 1, "type": "serve"}, {"start": 100, "frame": 150, "team": 1, "type": "attack"}]
+
+        _, rows_out = with_added([(100, 400)], [{"left": "1"}], typed, added, tmp_path / "none.csv", 5, 10, 3)
+
+        # The serve and the floor were the added touches; the block is the other team's.
+        assert [r["frame"] for r in rows_out] == ["110", "150", "160", "300"]
+
     def test_ball_near_takes_the_nearest_place_seen(self, tmp_path):
         ball = tmp_path / "ball.csv"
         ball.write_text("frame,visible,x,y\n97,1,1,1\n99,0,,\n102,1,2,2\n")

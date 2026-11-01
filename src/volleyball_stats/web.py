@@ -210,14 +210,21 @@ def crossed(row: dict, said: tuple[int, int] | None) -> dict:
 
 # How far from an added touch the ball's place is looked for.
 ADDED_NEAR_S = 1.0
+# How far from an added touch a contact the pipeline found is that touch: one of the same team, a
+# floor or net contact (a touch near the floor). An attack and its block, 0.2 s apart, are two teams'.
+ADDED_SAME_S, ADDED_FLOOR_S = 0.4, 0.2
 
 
-def with_added(windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int) -> tuple[list[tuple[int, int]], list[dict]]:
+def with_added(
+    windows: list[tuple[int, int]], rows: list[dict], typed: list[dict], added: list[dict], ball: Path, near: int, same: int = 0, floor: int = 0
+) -> tuple[list[tuple[int, int]], list[dict]]:
     """The rally windows and actions CSV rows `typed` with the touches the review added (`added`
     answers: the window's start, frame, team, type): a row each, at the ball's place seen nearest it
     under `near` frames (none when unseen), on its team's side of the rally (rallies.csv's `rows`);
     a window ending before a touch added to it lasts to it, one starting after it (a serve the rally
-    missed) starts at it. One in a window gone or at a frame already found is left out."""
+    missed) starts at it. One in a window gone or at a frame already found is left out; a row found
+    within `same` frames of one, of its team, or within `floor` frames, a floor or net, is that touch
+    found again (a rerun) and goes."""
     starts = {start: k for k, (start, _) in enumerate(windows)}
     known = {int(r["frame"]) for r in typed}
     # A touch added twice: the last answer's.
@@ -225,6 +232,12 @@ def with_added(windows: list[tuple[int, int]], rows: list[dict], typed: list[dic
     added = [a for a in added if a["start"] in starts and a["frame"] not in known]
     if not added:
         return windows, typed
+
+    def again(r: dict) -> bool:
+        f = int(r["frame"])
+        return any(abs(f - a["frame"]) <= (floor if r["type"] in NO_PLAYER else same if r.get("team") == str(a["team"]) else -1) for a in added)
+
+    typed = [r for r in typed if not again(r)]
     windows = list(windows)
     places = ball_near(ball, [a["frame"] for a in added], near)
     new = []
@@ -542,7 +555,9 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     # for a touch) go, those it gives the other team change sides.
     # The rallies end where the review says; touches past an end go.
     lead = round(LEAD_S * fps)
-    windows, actions = with_added(ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", round(ADDED_NEAR_S * fps))
+    windows, actions = with_added(
+        ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps)
+    )
     scores = read_csv(match / "points.csv") if with_teams and (match / "points.csv").exists() else [{}] * len(windows)
     # Two windows it says are one rally become one.
     windows, rally_rows, scores = merge_rallies(windows, rally_rows, scores, {a["start"] for a in answers(match, "join")})
