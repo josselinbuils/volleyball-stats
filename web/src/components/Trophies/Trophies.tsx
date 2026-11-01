@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { BatteryFull, Crosshair, Hammer, Hourglass, Mountain, Music, Shield, ShieldCheck, Timer, Users, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
 import { useFormat } from '@/lib/format';
@@ -97,9 +96,8 @@ export function Trophies() {
 function Award({ id, trophy }: { id: string; trophy: Trophy }) {
   const { t } = useTranslation();
   const f = useFormat();
-  const { playlist, play } = usePlayer();
+  const { play } = usePlayer();
   const Icon = ICONS[trophy.kind];
-  const on = playlist?.key === id;
   const name = t(`trophies.names.${trophy.kind}`);
   const who = winners(t, trophy);
   const detail =
@@ -110,13 +108,9 @@ function Award({ id, trophy }: { id: string; trophy: Trophy }) {
     <li>
       <button
         type="button"
-        aria-pressed={on}
         title={t('watchN', { count: clips(trophy).length })}
         onClick={() => play((tr) => [tr(`trophies.names.${trophy.kind}`), winners(tr, trophy)].filter(Boolean).join(', '), clips(trophy), 0, id)}
-        className={cn(
-          'flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
-          on && 'border-primary bg-primary/8 hover:bg-primary/12',
-        )}
+        className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span aria-hidden className="inline-grid size-9 shrink-0 place-items-center rounded-full text-[#3a2a00] shadow-sm" style={{ background: GOLD_CSS }}>
           <Icon className="size-5" />
