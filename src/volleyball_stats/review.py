@@ -83,7 +83,7 @@ CHANGES = ("/answer", "/odd", "/more", "/repin", "/forget", "/cut")
 def with_review(html: str) -> str:
     """The page loading review.js right after data.js (its build hash in the query or not), before
     the app that reads both."""
-    return re.sub(r'(<script defer src="data\.js[^"]*"></script>)', r'\1<script defer src="review.js"></script>', html, count=1)
+    return re.sub(r'(<script defer [^>]*src="data\.js[^"]*"></script>)', r'\1<script defer src="review.js"></script>', html, count=1)
 # Matches of a player the roster keeps (the latest), and names suggested per identity.
 ROSTER_MATCHES, SUGGESTIONS = 5, 3
 

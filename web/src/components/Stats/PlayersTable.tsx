@@ -26,7 +26,7 @@ export function PlayersTable() {
   const players = usePlayers();
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
   // Without the players' positions, no ball is known to drop between two of them.
-  const dropped = typeof players === 'object' ? drops(contacts, players, match.fps, match.people) : [];
+  const dropped = useMemo(() => (typeof players === 'object' ? drops(contacts, players, match.fps, match.people) : []), [contacts, players]);
   const seconds = (person: number) => playingTime(person, set);
   const best = useMemo(() => (withPlayers ? bestPlayer() : null), [withPlayers]);
   const found = lines(contacts, match.people, group, dropped);

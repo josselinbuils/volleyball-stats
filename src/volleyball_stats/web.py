@@ -56,6 +56,9 @@ VIDEOS = (".mp4", ".mov", ".m4v")
 # The club logo shows at most 64 px tall, the players' pictures about 240 px: kept at twice that for
 # sharp high-density screens, never enlarged. The pictures are 3 wide for 4 tall, like a photo.
 LOGO_PX, PHOTO_PX, PHOTO_RATIO = 128, 480, 0.75
+LOGO_QUALITY = 90
+# players.js's samples in one piece the page unpacks at once.
+PACKED_SAMPLES = 500
 # The cards' pictures: in the pieces of a player the review shows and the user left unmarked (sure
 # to be them), PHOTO_SAMPLES moments each, alone, on the court (ON_COURT m around it at most: not
 # walking past the camera) and with room around them for a centred picture (ROOM of their height
@@ -458,8 +461,8 @@ def brand(name: str, site: Path) -> dict | None:
         logo = cv2.imread(str(path.parent / data["logo"]), cv2.IMREAD_UNCHANGED)
         if logo.shape[0] > LOGO_PX:
             logo = cv2.resize(logo, (round(logo.shape[1] * LOGO_PX / logo.shape[0]), LOGO_PX), interpolation=cv2.INTER_AREA)
-        target = site / "brand" / f"{Path(data['logo']).stem}.png"
-        cv2.imwrite(str(target), logo)
+        target = site / "brand" / f"{Path(data['logo']).stem}.webp"
+        cv2.imwrite(str(target), logo, [cv2.IMWRITE_WEBP_QUALITY, LOGO_QUALITY])
         data["logo"] = f"brand/{target.name}"
     sponsors = path.parent / "sponsors"
     data["sponsors"] = json.loads((sponsors / "sponsors.json").read_text()) if (sponsors / "sponsors.json").exists() else []
@@ -467,7 +470,7 @@ def brand(name: str, site: Path) -> dict | None:
     for sponsor in (s for s in data["sponsors"] if s.get("logo")):
         picture = cv2.imread(str(sponsors / sponsor["logo"]), cv2.IMREAD_UNCHANGED)
         picture = cv2.resize(picture, (round(picture.shape[1] * SPONSOR_PX / picture.shape[0]), SPONSOR_PX), interpolation=cv2.INTER_AREA)
-        sponsor["logo"] = "data:image/png;base64," + base64.b64encode(cv2.imencode(".png", picture)[1]).decode()
+        sponsor["logo"] = "data:image/webp;base64," + base64.b64encode(cv2.imencode(".webp", picture, [cv2.IMWRITE_WEBP_QUALITY, LOGO_QUALITY])[1]).decode()
     return data
 
 
@@ -802,6 +805,29 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     return {"fps": fps, "samples": samples}
 
 
+def packed_players(players: dict) -> dict:
+    """players.js's positions, half their size compressed and running in no time: `chunks` of PACKED_SAMPLES
+    samples, each a JSON string the page parses and unpacks when it has time (`unpackChunk`): the samples'
+    persons, then each one's move in cm since their last position, x then y."""
+    last: dict[int, tuple[int, int]] = {}
+    chunks = []
+    samples = players["samples"]
+    for start in range(0, len(samples), PACKED_SAMPLES):
+        persons, xs, ys = [], [], []
+        for flat in samples[start : start + PACKED_SAMPLES]:
+            persons.append(flat[0::3])
+            xs.append([])
+            ys.append([])
+            for person, x, y in zip(flat[0::3], flat[1::3], flat[2::3]):
+                at = round(x * 100), round(y * 100)
+                was = last.get(person, (0, 0))
+                xs[-1].append(at[0] - was[0])
+                ys[-1].append(at[1] - was[1])
+                last[person] = at
+        chunks.append(json.dumps([persons, xs, ys], separators=(",", ":")))
+    return {"step": players["step"], "chunks": chunks}
+
+
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None) -> None:
     """The page, data.js, players.js and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
@@ -822,7 +848,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
-    players_js = players and f"window.MATCH_PLAYERS = {json.dumps(players, separators=(',', ':'))};\n"
+    players_js = players and f"window.MATCH_PLAYERS = {json.dumps(packed_players(players), separators=(',', ':'))};\n"
     if players_js:
         (site / "players.js").write_text(players_js)
     (site / "ball.js").unlink(missing_ok=True)

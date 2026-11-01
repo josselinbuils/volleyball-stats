@@ -586,9 +586,9 @@ class TestBrand:
 
         data = brand("club", tmp_path / "site")
 
-        assert data["logo"] == "brand/logo.png"
-        assert cv2.imread(str(tmp_path / "site" / "brand" / "logo.png"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
-        inlined = base64.b64decode(data["sponsors"][0]["logo"].removeprefix("data:image/png;base64,"))
+        assert data["logo"] == "brand/logo.webp"
+        assert cv2.imread(str(tmp_path / "site" / "brand" / "logo.webp"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
+        inlined = base64.b64decode(data["sponsors"][0]["logo"].removeprefix("data:image/webp;base64,"))
         assert cv2.imdecode(np.frombuffer(inlined, np.uint8), cv2.IMREAD_UNCHANGED).shape == (160, 100, 4)
         assert data["sponsors"][1] == {"name": "Bakery"}
         assert brand("none", tmp_path / "site") is None
@@ -635,7 +635,7 @@ class TestWriteSite:
         assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
         assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","v":"{version}"}};\n'
-        assert (site / "players.js").read_text() == 'window.MATCH_PLAYERS = {"step":3,"samples":[[]]};\n'
+        assert (site / "players.js").read_text() == 'window.MATCH_PLAYERS = {"step":3,"chunks":["[[[]],[[]],[[]]]"]};\n'
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
 
@@ -742,3 +742,14 @@ class TestPublish:
     def test_refuses_pictures_or_a_blurred_opponent_without_a_club(self, tmp_path):
         with pytest.raises(ValueError):
             publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"pictures": True})
+
+
+class TestPackedPlayers:
+    def test_keeps_each_persons_moves_in_cm_across_chunks_and_samples_between(self, monkeypatch):
+        monkeypatch.setattr(web, "PACKED_SAMPLES", 3)
+        players = {"step": 5, "samples": [[1, -5.8, 3.32, 2, 1.53, -0.07], [1, -5.79, 3.31], [], [2, 1.5, -0.02, 1, -5.77, 3.31]]}
+
+        assert web.packed_players(players) == {
+            "step": 5,
+            "chunks": ["[[[1,2],[1],[]],[[-580,153],[1],[]],[[332,-7],[-1],[]]]", "[[[2,1]],[[-3,2]],[[5,0]]]"],
+        }

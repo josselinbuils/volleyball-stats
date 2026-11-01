@@ -15,16 +15,14 @@ import { match } from '@/lib/match';
 import { loadPlayers } from '@/lib/players';
 import { SetProvider } from '@/lib/sets';
 
+const PLAYERS_DELAY_MS = 500;
+
 export function App() {
-  // The players' positions start loading right after the first paint: well before anyone presses
-  // play, without delaying that paint.
+  // The players' positions start loading shortly after the first paint: well before anyone presses play,
+  // without competing with that paint on a slow connection.
   useEffect(() => {
-    let timer = 0;
-    const frame = requestAnimationFrame(() => {
-      timer = window.setTimeout(loadPlayers);
-    });
+    const timer = window.setTimeout(loadPlayers, PLAYERS_DELAY_MS);
     return () => {
-      cancelAnimationFrame(frame);
       clearTimeout(timer);
     };
   }, []);

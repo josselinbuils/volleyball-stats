@@ -42,6 +42,14 @@ next "Mettre en ligne", once they have seen them. Left: team 1's area on the sto
 in dark mode when its jersey is black. Asked of the owner: do few direct points against many faults (set 2: 5
 against 33) match the match? They feed the top scorers, the highlights and the trophies.
 
+## Page: lighter (1 Nov)
+
+Lighthouse, mobile, 3 runs on localhost, the first match without footage: page 1,824 -> 1,070 KB, LCP 2.70 ->
+2.40 s, time to interactive 10.8 -> 7.1 s, blocking 578 -> 711 ms, score 82 -> 80 (the "before" build's settings
+may differ). `players.js` loads 500 ms after first paint: sooner, its short run counts as blocking the paint and
+Lighthouse's simulated LCP jumps to 6.6 s. Moving the review screens to their own bundle would save 24 KB
+compressed, not done; `i18next` (15 KB) and `cn` (8 KB) stay.
+
 ## Page: other ideas, not started
 
 - **Le résumé** and **personal links** came out as the smallest next steps: a button playing the story's

@@ -21,7 +21,13 @@ export function RallyCards() {
   const present = TYPES.filter((type) => rallies.some((r) => r.contacts.some((c) => c.type === type)));
 
   // Brings the current rally's card to the start of the list when it is not wholly in view, without scrolling the page.
+  // On the first render the list stands at its start: measuring it would only slow the first paint.
+  const shown = useRef(false);
   useEffect(() => {
+    if (!shown.current) {
+      shown.current = true;
+      return;
+    }
     const box = list.current;
     const item = box?.children[rallies.findIndex((r) => r.i === current)] as HTMLElement | undefined;
     if (box && item && (item.offsetLeft < box.scrollLeft || item.offsetLeft + item.offsetWidth > box.scrollLeft + box.clientWidth)) {
