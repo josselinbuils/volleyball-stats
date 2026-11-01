@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, Trash2, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { contacts, GROUPS, groupName, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
+import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import type { Named, ReportChanges } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { rallyAt, rallyOf, withServes } from '@/components/Review/helpers/report';
+import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig'] as const;
 const RESULTS = ['play', 'point', 'error'] as const;
@@ -244,6 +245,29 @@ export function ReportEditor({
   // Joined only to the next rally of its set.
   const canJoin = rallies[here + 1]?.set === rally?.set;
 
+  // What looks wrong in each rally shown, as it stands with the corrections: a rally joined to the
+  // next one is checked with its touches, one said no play not at all.
+  const winnerOf = (k: number) => rallyFixes[k]?.winner ?? (rallyFixes[k]?.join ? rallies[k + 1]?.winner : rallies[k]?.winner) ?? null;
+  const found = new Map<number, ReturnType<typeof problems>>();
+  for (let k = first; k <= last; k++) {
+    if (rallyFixes[k]?.play === false || rallyFixes[k - 1]?.join) {
+      continue;
+    }
+    const mine = rows.filter((row) => !row.removed && (row.rally === k || (rallyFixes[k]?.join && row.rally === k + 1)));
+    const previous = k > 0 && rallies[k - 1].set === rallies[k].set && rallyFixes[k - 1]?.play !== false ? winnerOf(k - 1) : null;
+    found.set(k, problems(mine, winnerOf(k), previous, hasTeams));
+  }
+  const problemsOf = (row: Row): Problem[] => {
+    const k = rallyFixes[row.rally - 1]?.join ? row.rally - 1 : row.rally;
+    const mine = rows.filter((r) => !r.removed && (r.rally === k || (rallyFixes[k]?.join && r.rally === k + 1)));
+    return row.removed ? [] : (found.get(k)?.touch.get(mine.indexOf(row)) ?? []);
+  };
+  const describe = (list: Problem[]) => list.map((p) => t(`feedback.kinds.auto.${p}`)).join(' · ');
+  const rallyProblems = (k: number) => {
+    const f = found.get(k);
+    return f ? [...f.rally, ...[...f.touch.values()].flat()] : [];
+  };
+
   return (
     <>
       <div className="relative lg:self-stretch">
@@ -277,6 +301,11 @@ export function ReportEditor({
                   <Play aria-hidden className="size-3.5 shrink-0 fill-current" />
                   <span className="truncate">{rallyLabel(k)}</span>
                   {green.has(keyOf(k)) && <CircleCheck aria-label={t('review.rallyChecked')} className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />}
+                  {rallyProblems(k).length > 0 && (
+                    <span role="img" title={describe([...new Set(rallyProblems(k))])} aria-label={describe([...new Set(rallyProblems(k))])} className="shrink-0">
+                      <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
+                    </span>
+                  )}
                   {savedStarts.has(keyOf(k)) && (
                     <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
                       <PenLine aria-hidden className="size-3.5" />
@@ -284,6 +313,14 @@ export function ReportEditor({
                   )}
                 </button>
               </li>,
+              ...(found.get(k)?.rally.length
+                ? [
+                    <li key={`p${k}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">
+                      <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+                      {describe(found.get(k)!.rally)}
+                    </li>,
+                  ]
+                : []),
               ...rows
                 .filter((row) => row.rally === k)
                 .map((row) => {
@@ -348,6 +385,12 @@ export function ReportEditor({
                           {row.removed ? <Undo2 aria-hidden /> : <Trash2 aria-hidden />}
                         </Button>
                       </div>
+                      {problemsOf(row).length > 0 && (
+                        <p className="m-0 flex items-center gap-1.5 px-1 text-xs text-amber-800 dark:text-amber-300">
+                          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+                          {describe(problemsOf(row))}
+                        </p>
+                      )}
                       {!row.removed && (
                         <PlayerSelect
                           // Anyone of either team: the touch takes the player's team.
