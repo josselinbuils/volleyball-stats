@@ -55,12 +55,15 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## State and next steps
 
-- Weak spots: rally ends. On two labelled 10 minutes of the first match (`benchmarks/rallies`),
-  pipeline F1 ±1 s 0.86 on the span the 31 Oct `served` fixes were tuned on, 0.58 on the other
-  (0.57 before the fixes; a 30 s rally missed whose server stood out of view); a third of the
-  school match's held-out rallies missed. How a rally
-  ends (in, out, fault) is the least reliable measure, attribution is right 76-87% of the time
-  on the labelled clips (pose on the wrists since 1 Nov; 108 of the 139 hard touches answered on the first match)
+- Weak spots: touches and rally ends. On the first match's 129 checked rallies (`learn`, 1 Nov 17:43)
+  the pipeline finds 826 of the 944 touches and 817 of its 860 are real. Of the 118 missed, 71 have no
+  contact in the ball track, 40 are detected outside a window (a rally cut early or started late), 7
+  are removed after detection. Rallies on two labelled 10 minutes of that match (`benchmarks/rallies`):
+  pipeline F1 ±1 s 0.90 on the span the 31 Oct `served` fixes were tuned on, 0.57 on the other (a 30 s
+  rally missed whose server stood out of view); a third of the school match's held-out rallies
+  missed. How a rally ends (in, out, fault) is the least reliable measure, attribution is right 76-87%
+  of the time on the labelled clips (pose on the wrists since 1 Nov; 607 of the 673 touches answered on
+  the first match; held out, the learned order 628 of 702, the rule 615)
   (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
   ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
   identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame
@@ -74,11 +77,12 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   `/review#match`); each apply rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner
   wants (`outputs/first_match/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
   Before stopping the review (a restart is needed for a server or page change), check that
-  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. On 1 Nov 14:30: 130 rallies
-  on the review's page, sets ending 25-23, 25-13, 24-20 (25-23, 25-12, 25-18 given), 53 rallies checked,
-  no question left but 34 reports in the Match tab, 1 answer waiting for an apply.
-  Last rerun: the owner's "Apprendre de mes réponses", 1 Nov 13:14-13:54 (40 min on the M4: actions with
-  relances 10.6, wrists 13.2, teams 14.6; `outputs/first_match/before-rerun/`); it moves the answers onto
+  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. Its review is finished
+  (1 Nov 17:50): 129 rallies, all checked, sets ending 25-23, 25-12, 25-18 as given, no warning, no
+  answer waiting, the viewers' reports handled, the hosted pages up to date (uploaded 17:49).
+  `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers that disagreed (merged).
+  Last rerun: the owner's "Apprendre de mes réponses", finished 1 Nov 17:43 (10 min on the M4: training
+  9, pipeline 1 with the poses cached, 40 min without them; `outputs/first_match/before-rerun/`); it moves the answers onto
   the new windows itself (`learn.rerun`, `rekey`), and the rallies checked came through it unchanged.
   The review's progress names each step and the pipeline's stage, with the time left from each one's
   last duration (`outputs/MATCH/review_timings.json`).
@@ -96,48 +100,48 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
 - `docs/next_steps.md`: what the 1 Nov answers changed in the pipeline and what is left, with the
   numbers; the plan for learning from the review (`learn`).
+- The review's Match tab (`#match`) holds the reports, no longer questions. The video plays the match freely,
+  over a zoomable bar of every rally, touch and report.
+  questions. The video plays the match freely, over a zoomable bar of every rally, touch and report.
+  Beside it, the touches around the video: correct, add (a serve before a rally starts it, and the
+  touches added after it are that rally's), remove, end a rally (`end` answers), join two rallies (`join` answers), start a rally
+  at a moment (`split` answers: one missed, or the second of two taken for one; `web.rally_table`).
+  A rally checked is locked as it showed: its winner (`pinned`), touches (`locked`: a rerun loses or adds
+  none), their players and actions (`touch`, `action`); no question its check answers is asked; unchecking
+  unlocks it. A rally's winner follows its last touch (`web.followed`). "Valider
+  l'échange" saves and checks the rally: green, its reports handled, until a new report; "Retirer la
+  validation" unchecks it. Saved corrections not yet in the review's page show in the editor (the
+  last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)
+  flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
+  reception, four touches in a row, the wrong server, no touch, no winner, a set ending off the
+  score given (`scoreOff`, asked again once the score moves; the list shows the running score). Rallies are named by
+  their `rallies.csv` start (`key` on the page), which an added serve moves. A line between rallies
+  shows the score after each one; a rally header turns orange with a warning; the match bar colours
+  each rally (orange warning, green checked, grey to check) and its arrows go to the next one to
+  check. "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in
+  the review: always a fault, no touch of the ball in the checks, counted in its player's faults.
+  "À rejouer" (`redo`, beside the winners): the rally stays, its touches in play, nobody scores; picking
+  a winner takes it back. "Erreur d'arbitrage" (`referee` answers, `wrongCall` on the page): the winner stays the
+  team that got the point, the score follows it, the last touch keeps what really happened: the true
+  winner is the other team. Nothing trains on how rallies end yet: such training reads these answers. The rally's "Commentaire": the owner's note, in the review only
+  (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field.
 - Open, most useful first:
-  1. In use by the owner since 1 Nov: the review's Match tab (`#match`) holds the reports, no longer
-     questions. The video plays the match freely, over a zoomable bar of every rally, touch and report.
-     Beside it, the touches around the video: correct, add (a serve before a rally starts it, and the
-     touches added after it are that rally's), remove, join two rallies (`join` answers), start a rally
-     at a moment (`split` answers: one missed, or the second of two taken for one; `web.rally_table`).
-     A rally checked is locked as it showed: its winner (`pinned`), touches (`locked`: a rerun loses or adds
-     none), their players and actions (`touch`, `action`); no question its check answers is asked; unchecking
-     unlocks it. A rally's winner follows its last touch (`web.followed`). "Valider
-     l'échange" saves and checks the rally: green, its reports handled, until a new report; "Retirer la
-     validation" unchecks it. Saved corrections not yet in the review's page show in the editor (the
-     last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)
-     flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
-     reception, four touches in a row, the wrong server, no touch, no winner, a set ending off the
-     score given (`scoreOff`, asked again once the score moves; the list shows the running score). Rallies are named by
-     their `rallies.csv` start (`key` on the page), which an added serve moves. A line between rallies
-     shows the score after each one; a rally header turns orange with a warning; the match bar colours
-     each rally (orange warning, green checked, grey to check) and its arrows go to the next one to
-     check. "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in
-     the review: always a fault, no touch of the ball in the checks, counted in its player's faults.
-     "À rejouer" (`redo`, beside the winners): the rally stays, its touches in play, nobody scores; picking
-     a winner takes it back. "Erreur d'arbitrage" (`referee` answers, `wrongCall` on the page): the winner stays the
-     team that got the point, the score follows it, the last touch keeps what really happened: the true
-     winner is the other team. Nothing trains on how rallies end yet: such training reads these answers. The rally's "Commentaire": the owner's note, in the review only
-     (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field.
-  2. Reports to handle in the Match tab: 34 on 1 Nov 14:30 (the viewers' fetched on 31 Oct 23:10,
-     `outputs/feedback-20261031-231035.log`, the online log emptied after; the rest automatic, 3 of
-     them the sets ending off the given score). `outputs/feedback-conflicts.log` is no viewer's: Claude's
-     note on two answers that disagreed at 14:00 (merged, Anthony kept). To look at: rally 1 (0:09)
-     ends on Loick's block marked a fault while ASPOM 02 serves rally 2.
-  3. The first match: 1 answer waiting for the owner's apply; "Mettre en ligne" then brings the 1 Nov
-     changes (stats rules, ratings out of 5, the rerun) to the hosted pages. Backups of the answers
-     (`outputs/first_match/identity_answers.before-*.json`, before the pins and the locks among them)
-     can go once the owner is happy.
-  4. Videos: the hosted 1080p copies have a keyframe every 2 s and a 720p copy plays in small players
-     (all three live since 1 Nov; their sources in `~/Downloads`, named in `publish.json`).
-  5. Rally ends and winners: `rallies.whistled` as a fallback is in (held out found R 1.00, F1 ±1 s 0.57).
-     Left on 50:00-60:00: two false windows (server bouncing the ball, a ball rolled back), ends cut by
-     another court's whistle (-4.1 s) or the ball out of sight (-3.0, -2.3, and -10 s for 58:55), a rally
-     joined to its dead-ball tail by the 8 s rule (+10 s); then how rallies end (in, out, fault).
-  6. The review's rally answers (`identity_answers.json` "rally") as labels to drop false windows
+  1. Touches, on this Mac until it needs more power: the missed ones above, measured on the 129 checked
+     rallies. Being tested: WASB's input size and frame step (the 4K frames go down to 512x288 today);
+     closing whistles that cut a rally still in play. Then fine-tune the ball model on the RTX 5080 if
+     it still helps; the 43 false touches.
+  2. A second match, to hold out whole: everything is tuned on the first. Retrain the ranker and
+     re-sweep `identity.SHARPEN` after its review.
+  3. Rally ends and winners (checked winners 114 of 128): `rallies.whistled` as a fallback is in (held
+     out found R 1.00, F1 ±1 s 0.57). Left on 50:00-60:00: two false windows (server bouncing the ball,
+     a ball rolled back), ends cut by another court's whistle (-4.1 s) or the ball out of sight (-3.0,
+     -2.3, and -10 s for 58:55), a rally joined to its dead-ball tail by the 8 s rule (+10 s); then how
+     rallies end (in, out, fault).
+  4. The review's rally answers and the 129 checked rallies as labels to drop false windows
      automatically (asked, not started).
+  5. A copy of the source video (see Backup): it has none, and the answers rest on its frames.
+  6. Backups of the answers (`outputs/first_match/identity_answers.before-*.json`, before the pins and
+     the locks among them) can go once the owner is happy.
   7. Node.js and library updates on the owner's services (offered by the owner, not done).
   8. Names: a player without a jersey shows their tracking number (Sylvain: 10), which can clash with
      real jerseys: show initials instead? (Théo and Maeva sharing 10 is right.)
