@@ -372,6 +372,19 @@ class TestWithAdded:
         found_as_dig = [{"frame": "120", "type": "dig", "team": "1"}]
         assert kept(found_as_dig, [{"start": 100, "frame": 126, "team": 1, "type": "dig"}], kinds={120: "block"}) == [("120", "dig"), ("126", "dig")]
 
+    def test_a_serve_added_stays_in_the_rally_named_when_the_one_it_replaces_starts_another(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n")
+        # A rally started on the serve the pipeline found, the next one 16 frames later (a lead of 16).
+        windows, rows = [(100, 100), (116, 300)], [{"left": "2"}, {"left": "2"}]
+        typed = [{"frame": "100", "type": "serve", "team": "2"}, {"frame": "150", "type": "pass", "team": "1"}]
+        added = [{"start": 100, "frame": 40, "team": 1, "type": "serve"}, {"start": 116, "frame": 108, "team": 2, "type": "serve"}]
+
+        w, out = with_added(windows, rows, typed, added, ball, 5, 20, 10, 16)
+
+        assert w == [(40, 100), (108, 300)]
+        assert [r["frame"] for r in out] == ["40", "108", "150"]
+
     def test_two_touches_named_as_different_players_stay_two(self, tmp_path):
         ball = tmp_path / "ball.csv"
         ball.write_text("frame,visible,x,y\n")

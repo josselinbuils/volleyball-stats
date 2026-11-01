@@ -277,12 +277,15 @@ def with_added(
             return False
         return str((said or {}).get(int(r["frame"]), r.get("team"))) == str(a["team"]) and apart <= same
 
-    # Each added touch's window: that of the row it replaces, else the one its answer named.
+    # Each added touch's window: the one its answer named when it opens it (in its lead), else that of
+    # the row it replaces, else the one named.
     window = {}
     for a in added:
+        named_window = starts[a["start"]]
         found = [int(r["frame"]) for r in typed if same_touch(r, a)]
         holding = [k for k, (start, end) in enumerate(windows) for f in found if start - lead <= f <= end]
-        window[a["frame"]] = holding[0] if holding else starts[a["start"]]
+        opens = a["start"] - lead <= a["frame"] < a["start"]
+        window[a["frame"]] = holding[0] if holding and not opens else named_window
     typed = [r for r in typed if not any(same_touch(r, a) for a in added)]
     windows = list(windows)
     places = ball_near(ball, [a["frame"] for a in added], near)
