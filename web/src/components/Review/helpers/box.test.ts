@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxAt, viewAt } from '@/components/Review/helpers/box';
+import { boxAt, MAX_ZOOM, panView, viewAt, zoomView } from '@/components/Review/helpers/box';
 
 describe('boxAt', () => {
   const clip = {
@@ -44,5 +44,30 @@ describe('viewAt', () => {
 
   it('shows the whole frame without boxes', () => {
     expect(viewAt({ start: 0, end: 1, boxes: [] }, 0, 1600, 900)).toEqual({ x: 0, y: 0, w: 1600, h: 900 });
+  });
+});
+
+describe('zoomView', () => {
+  const all = { x: 0, y: 0, w: 1600, h: 900 };
+
+  it('zooms around the point under the fingers, which stays put', () => {
+    const v = zoomView(all, 0.25, 0.5, 2, 1600, 900)!;
+    expect(v).toEqual({ x: 200, y: 225, w: 800, h: 450 });
+    // The point at a quarter of the width, the middle of the height, before and after.
+    expect(v.x + 0.25 * v.w).toBe(400);
+    expect(v.y + 0.5 * v.h).toBe(450);
+  });
+
+  it('stays inside the frame, up to MAX_ZOOM, and gives the whole frame back at 1', () => {
+    expect(zoomView(all, 0, 0, 2, 1600, 900)).toEqual({ x: 0, y: 0, w: 800, h: 450 });
+    expect(1600 / zoomView(all, 0.5, 0.5, 100, 1600, 900)!.w).toBe(MAX_ZOOM);
+    expect(zoomView({ x: 0, y: 0, w: 800, h: 450 }, 0.5, 0.5, 0.5, 1600, 900)).toBeNull();
+  });
+});
+
+describe('panView', () => {
+  it('moves the view inside the frame', () => {
+    expect(panView({ x: 100, y: 100, w: 800, h: 450 }, 50, -500, 1600, 900)).toEqual({ x: 150, y: 0, w: 800, h: 450 });
+    expect(panView({ x: 700, y: 100, w: 800, h: 450 }, 500, 0, 1600, 900).x).toBe(800);
   });
 });

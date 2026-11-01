@@ -322,7 +322,7 @@
     "reportEndMoved": "End moved to {{time}}",
     "reportJoin": "Join with the next rally ({{n}})",
     "timeline": "The match",
-    "timelineNote": "Zoom with the magnifiers, or Ctrl (⌘ on a Mac) + wheel or a trackpad pinch; scroll the bar sideways. Red flag: a viewer's report; grey: an automatic check. A grey dot: a correction saved, not applied yet.",
+    "timelineNote": "On the video: pinch the trackpad to zoom, slide two fingers to move around, hold a click to slow it down. On the bar: zoom with the magnifiers, or Ctrl (⌘ on a Mac) + wheel or a trackpad pinch; scroll the bar sideways. Red flag: a viewer's report; grey: an automatic check. A grey dot: a correction saved, not applied yet.",
     "zoomInTimeline": "Zoom in on the bar",
     "zoomOutTimeline": "Zoom out of the bar",
     "wholeMatch": "Whole match",
@@ -382,7 +382,9 @@
       "measureColumn": "Measure"
     },
     "fullScreen": "Full screen",
-    "exitFullScreen": "Exit full screen"
+    "exitFullScreen": "Exit full screen",
+    "wholeView": "Whole view",
+    "pinchNote": "Pinch the trackpad over the video to zoom, slide two fingers to move around; hold a click to slow it down."
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",

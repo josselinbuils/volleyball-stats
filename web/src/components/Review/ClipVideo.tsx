@@ -6,7 +6,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
-import { boxAt, viewAt } from '@/components/Review/helpers/box';
+import { boxAt, panView, viewAt, zoomView, type View } from '@/components/Review/helpers/box';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
 const AROUND = 0.5;
@@ -17,6 +17,11 @@ let picked = 1;
 const FREE_SPAN = [20, 70];
 /** In free play, the step of the buttons going back and forth. */
 const FREE_STEP_S = 10;
+/** A press on the video held this long plays it at HOLD_RATE until released. */
+const HOLD_MS = 250;
+const HOLD_RATE = 0.25;
+/** How much a pinch's wheel step (Ctrl + wheel, as browsers send a trackpad pinch) zooms. */
+const PINCH_SPEED = 0.01;
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
@@ -55,6 +60,14 @@ export function ClipVideo({
   const [anchor, setAnchor] = useState(clip.start);
   const anchored = useRef(clip.start);
   const dragging = useRef(false);
+  // A press held on the video: slowed down while it lasts, no play or pause on its release.
+  const held = useRef(false);
+  const holdTimer = useRef(0);
+  const wasPaused = useRef(false);
+  const swallowClick = useRef(false);
+  // The part of the frame a pinch zoomed on, null for the automatic view.
+  const [pinched, setPinched] = useState<View | null>(null);
+  const frame = useRef<HTMLDivElement>(null);
   // Loading the video resets its rate to the default one: both are set.
   useEffect(() => {
     if (video.current) {
@@ -83,7 +96,7 @@ export function ClipVideo({
         anchored.current = v.currentTime;
         setAnchor(v.currentTime);
       }
-      const rate = clip.slow && v.currentTime >= clip.start && v.currentTime <= clip.end ? Math.min(clip.slow, picked) : picked;
+      const rate = held.current ? HOLD_RATE : clip.slow && v.currentTime >= clip.start && v.currentTime <= clip.end ? Math.min(clip.slow, picked) : picked;
       if (v.playbackRate !== rate) {
         v.playbackRate = rate;
       }
@@ -130,19 +143,102 @@ export function ClipVideo({
     }
   };
   const keys: Record<string, (step: number) => number> = { ArrowLeft: (step) => time - step, ArrowRight: (step) => time + step, Home: () => from, End: () => to };
-  const view = zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height };
+  const view = pinched ?? (zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height });
+  const shown = useRef(view);
+  shown.current = view;
+  // A trackpad pinch (Ctrl + wheel; Safari's gesture events) zooms where the fingers are, two
+  // fingers then move the zoomed view; the page neither zooms nor scrolls meanwhile.
+  useEffect(() => {
+    const el = frame.current;
+    if (!el) {
+      return;
+    }
+    const at = (x: number, y: number) => {
+      const r = el.getBoundingClientRect();
+      return [(x - r.left) / r.width, (y - r.top) / r.height, r] as const;
+    };
+    const wheel = (event: WheelEvent) => {
+      const [fx, fy, r] = at(event.clientX, event.clientY);
+      if (event.ctrlKey) {
+        event.preventDefault();
+        setPinched(zoomView(shown.current, fx, fy, Math.exp(-event.deltaY * PINCH_SPEED), width, height));
+      } else if (shown.current.w < width) {
+        event.preventDefault();
+        const v = shown.current;
+        setPinched(panView(v, (event.deltaX * v.w) / r.width, (event.deltaY * v.h) / r.height, width, height));
+      }
+    };
+    let last = 1;
+    const gesture = (event: Event & { scale?: number; clientX?: number; clientY?: number }) => {
+      event.preventDefault();
+      const [fx, fy] = at(event.clientX ?? 0, event.clientY ?? 0);
+      const scale = event.scale ?? 1;
+      setPinched(zoomView(shown.current, fx, fy, scale / last, width, height));
+      last = scale;
+    };
+    const start = (event: Event) => {
+      event.preventDefault();
+      last = 1;
+    };
+    el.addEventListener('wheel', wheel, { passive: false });
+    el.addEventListener('gesturestart', start);
+    el.addEventListener('gesturechange', gesture);
+    return () => {
+      el.removeEventListener('wheel', wheel);
+      el.removeEventListener('gesturestart', start);
+      el.removeEventListener('gesturechange', gesture);
+    };
+  }, [width, height]);
   // The native controls would zoom with the video: a click plays or pauses it instead.
+  const own = zoom || pinched !== null;
   const toggle = () => {
     const v = video.current;
+    if (swallowClick.current) {
+      swallowClick.current = false;
+      return;
+    }
     if (v) {
       void (v.paused ? v.play().catch(() => {}) : v.pause());
     }
   };
+  const press = () => {
+    holdTimer.current = window.setTimeout(() => {
+      const v = video.current;
+      if (v) {
+        held.current = true;
+        wasPaused.current = v.paused;
+        void v.play().catch(() => {});
+      }
+    }, HOLD_MS);
+  };
+  const release = () => {
+    window.clearTimeout(holdTimer.current);
+    if (held.current) {
+      held.current = false;
+      swallowClick.current = true;
+      if (wasPaused.current) {
+        video.current?.pause();
+      }
+    }
+  };
   return (
     <div className="grid gap-2">
-      <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
+      <div ref={frame} className="relative aspect-video overflow-hidden rounded-lg bg-black">
         <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${width / view.w}) translate(${(-100 * view.x) / width}%, ${(-100 * view.y) / height}%)` }}>
-          <video ref={video} src={match.video ?? undefined} muted playsInline controls={!zoom} onClick={zoom ? toggle : undefined} aria-label={t('review.video')} className="block size-full" />
+          <video
+            ref={video}
+            src={match.video ?? undefined}
+            muted
+            playsInline
+            controls={!own}
+            onClick={own ? toggle : undefined}
+            onPointerDown={press}
+            onPointerUp={release}
+            onPointerCancel={release}
+            onPointerLeave={release}
+            aria-label={t('review.video')}
+            className="block size-full select-none"
+          />
           <svg viewBox={`0 0 ${width} ${height}`} aria-hidden className="pointer-events-none absolute inset-0 size-full">
             {box && (
               <rect
@@ -220,9 +316,23 @@ export function ClipVideo({
             ))}
           </div>
         )}
+        {pinched && (
+          <Button variant="outline" size="sm" className="bg-card" title={t('review.pinchNote')} onClick={() => setPinched(null)}>
+            <ZoomOut aria-hidden />
+            {t('review.wholeView')}
+          </Button>
+        )}
         {/* No outline, nothing to zoom on. */}
         {clip.boxes.length > 0 && (
-          <Button variant="outline" size="sm" className="bg-card" onClick={() => setZoom((z) => !z)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-card"
+            onClick={() => {
+              setPinched(null);
+              setZoom((z) => !z);
+            }}
+          >
             {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
             {t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
           </Button>

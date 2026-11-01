@@ -34,3 +34,26 @@ export function viewAt(clip: Clip, time: number, width: number, height: number):
   const cy = path.reduce((sum, b) => sum + (b[2] + b[4]) / 2, 0) / path.length;
   return { x: Math.min(width - w, Math.max(0, cx - w / 2)), y: Math.min(height - h, Math.max(0, cy - h / 2)), w, h };
 }
+
+export type View = { x: number; y: number; w: number; h: number };
+
+/** The most a pinch zooms the video in. */
+export const MAX_ZOOM = 6;
+
+/** `view` (the part of the `width` × `height` frame shown) moved by (`dx`, `dy`) frame pixels, kept
+ * inside the frame. */
+export function panView(view: View, dx: number, dy: number, width: number, height: number): View {
+  return { ...view, x: Math.min(width - view.w, Math.max(0, view.x + dx)), y: Math.min(height - view.h, Math.max(0, view.y + dy)) };
+}
+
+/** `view` zoomed by `factor` around the point at fractions (`fx`, `fy`) of it, which stays put; null
+ * back at the whole frame. */
+export function zoomView(view: View, fx: number, fy: number, factor: number, width: number, height: number): View | null {
+  const scale = Math.min(MAX_ZOOM, (width / view.w) * factor);
+  if (scale <= 1.01) {
+    return null;
+  }
+  const w = width / scale;
+  const h = height / scale;
+  return panView({ x: view.x + fx * view.w - fx * w, y: view.y + fy * view.h - fy * h, w, h }, 0, 0, width, height);
+}
