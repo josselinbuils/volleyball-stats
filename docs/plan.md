@@ -63,13 +63,8 @@ screens to their own bundle would save 24 KB compressed, not done; `i18next` (15
 
 ## Page: other ideas, not started
 
-- **Le résumé** and **personal links** came out as the smallest next steps: a button playing the story's
-  moments back to back; a link opening the page on a player's Mon match.
-
 1. **Broadcast mode in 3D** (the owner's wish for the 3D scene, and open item "the ASPOM gymnasium"): the
    real gym, a TV camera following the ball and cutting to net-side angles on attacks, replays from the
    attacker's or blocker's point of view, generated French commentary. No footage, so the whole match can
    be public without consent. Needs a real 3D ball path: its height is only estimated today.
-2. **Le résumé en 3 minutes**: a highlight reel of the longest rallies, comebacks and set points, behind the
-   password in video, in 3D for everyone.
-3. **La saison**: each player's progress over matches and the team's form. Needs a second match.
+2. **La saison**: each player's progress over matches and the team's form. Needs a second match.
