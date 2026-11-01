@@ -235,7 +235,6 @@ export function ReportEditor({
 
   const rally = rallies[here];
   const fix = rallyFixes[here] ?? {};
-  const winner = fix.winner ?? (fix.join ? rallies[here + 1]?.winner : rally?.winner) ?? null;
   const end = fix.end ?? rally?.end;
   const endOf = (k: number) => clock(rallyFixes[k]?.end ?? rallies[k].end);
   const rallyLabel = (k: number) =>
@@ -247,7 +246,14 @@ export function ReportEditor({
 
   // What looks wrong in each rally shown, as it stands with the corrections: a rally joined to the
   // next one is checked with its touches, one said no play not at all.
-  const winnerOf = (k: number) => rallyFixes[k]?.winner ?? (rallyFixes[k]?.join ? rallies[k + 1]?.winner : rallies[k]?.winner) ?? null;
+  // A rally's winner: the one set, else the one its last touch's result says, else the page's.
+  const lastOf = (k: number) => rows.filter((row) => !row.removed && row.rally === (rallyFixes[k]?.join ? k + 1 : k)).at(-1);
+  const winnerOf = (k: number): Group | null => {
+    const last = lastOf(k);
+    const said = last?.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
+    return rallyFixes[k]?.winner ?? said ?? (rallyFixes[k]?.join ? rallies[k + 1]?.winner : rallies[k]?.winner) ?? null;
+  };
+  const winner = rally ? winnerOf(here) : null;
   const found = new Map<number, ReturnType<typeof problems>>();
   for (let k = first; k <= last; k++) {
     if (rallyFixes[k]?.play === false || rallyFixes[k - 1]?.join) {
@@ -365,7 +371,19 @@ export function ReportEditor({
                                 </option>
                               ))}
                             </select>
-                            <select className={SELECT} aria-label={t('review.reportResult')} value={row.result} onChange={(e) => change({ result: e.target.value })}>
+                            <select
+                              className={SELECT}
+                              aria-label={t('review.reportResult')}
+                              value={row.result}
+                              onChange={(e) => {
+                                change({ result: e.target.value });
+                                // A rally's last touch won or lost it: its winner follows.
+                                const last = rows.filter((r) => !r.removed && r.rally === row.rally).at(-1);
+                                if (last?.frame === row.frame && e.target.value !== 'play') {
+                                  editRally(row.rally, { winner: (e.target.value === 'point' ? row.team : 3 - row.team) as Group });
+                                }
+                              }}
+                            >
                               {RESULTS.map((result) => (
                                 <option key={result} value={result}>
                                   {t(`results.${result}`)}
