@@ -25,6 +25,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 
 ## Conventions
 
+- Web commands need Node 22 (`.nvmrc`): `nvm use` first.
 - Format web files with `npx prettier --single-quote --print-width 200` (no config file: the
   defaults restyle everything). Some files already differ; only format the ones you touch.
 - Spacing in `web/`: the design system's values only, and coherent: mirror what the neighbouring elements use.
@@ -55,9 +56,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## State and next steps
 
-- Weak spots: touches and rally ends. On the first match's 129 checked rallies (`learn`, 1 Nov 17:43)
-  the pipeline finds 826 of the 944 touches and 817 of its 860 are real. Of the 118 missed, 71 have no
-  contact in the ball track, 40 are detected outside a window (a rally cut early or started late), 7
+- Weak spots: touches and rally ends. On the first match's 129 checked rallies (`learn`, 1 Nov 21:41)
+  the pipeline finds 844 of the 945 touches and 835 of its 883 are real. Of the 101 missed, 71 have no
+  contact in the ball track, 23 are detected outside a window (a rally cut early or started late), 7
   are removed after detection. Rallies on two labelled 10 minutes of that match (`benchmarks/rallies`):
   pipeline F1 ±1 s 0.90 on the span the 31 Oct `served` fixes were tuned on, 0.57 on the other (a 30 s
   rally missed whose server stood out of view); a third of the school match's held-out rallies
@@ -78,11 +79,11 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   wants (`outputs/first_match/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
   Before stopping the review (a restart is needed for a server or page change), check that
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. Its review is finished
-  (1 Nov 17:50): 129 rallies, all checked, sets ending 25-23, 25-12, 25-18 as given, no warning, no
-  answer waiting, the viewers' reports handled, the hosted pages up to date (uploaded 17:49).
+  (1 Nov 22:00): 129 rallies, all checked, sets ending 25-23, 25-12, 25-18 as given, no warning, no
+  answer waiting, the viewers' reports handled (the hosted pages last uploaded 21:51).
   `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers that disagreed (merged).
-  Last rerun: the owner's "Apprendre de mes réponses", finished 1 Nov 17:43 (10 min on the M4: training
-  9, pipeline 1 with the poses cached, 40 min without them; `outputs/first_match/before-rerun/`); it moves the answers onto
+  Last rerun: the owner's "Apprendre de mes réponses", finished 1 Nov 21:41 (3 min on the M4 with the poses
+  cached, 40 min without them; `outputs/first_match/before-rerun/`); it moves the answers onto
   the new windows itself (`learn.rerun`, `rekey`), and the rallies checked came through it unchanged.
   The review's progress names each step and the pipeline's stage, with the time left from each one's
   last duration (`outputs/MATCH/review_timings.json`).
@@ -126,10 +127,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   winner is the other team. Nothing trains on how rallies end yet: such training reads these answers. The rally's "Commentaire": the owner's note, in the review only
   (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field.
 - Open, most useful first:
-  1. In progress (1 Nov), `docs/plan.md`: touches on this Mac, then the owner launches "Apprendre de mes
-     réponses" once told to (not before: it rewrites `actions.csv`); "Mon match" and "L'histoire du match"
-     on the page; the other page ideas.
-  2. A second match, to hold out whole: everything is tuned on the first. Retrain the ranker and
+  1. `docs/plan.md`: the touches left, the page ideas left. A second match, filmed by the owner (2 Nov).
+  2. That second match, held out whole: everything is tuned on the first. Retrain the ranker and
      re-sweep `identity.SHARPEN` after its review.
   3. Rally ends and winners (checked winners 114 of 128): `rallies.whistled` as a fallback is in (held
      out found R 1.00, F1 ±1 s 0.57). Left on 50:00-60:00: two false windows (server bouncing the ball,
@@ -139,16 +138,14 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   4. The review's rally answers and the 129 checked rallies as labels to drop false windows
      automatically (asked, not started).
   5. A copy of the source video (see Backup): it has none, and the answers rest on its frames.
-  6. Backups of the answers (`outputs/first_match/identity_answers.before-*.json`, before the pins and
-     the locks among them) can go once the owner is happy.
-  7. Node.js and library updates on the owner's services (offered by the owner, not done).
-  8. Names: a player without a jersey shows their tracking number (Sylvain: 10), which can clash with
+  6. Node.js and library updates on the owner's services (offered by the owner, not done).
+  7. Names: a player without a jersey shows their tracking number (Sylvain: 10), which can clash with
      real jerseys: show initials instead? (Théo and Maeva sharing 10 is right.)
-  9. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
+  8. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
-  10. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  11. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
+  9. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+  10. Later: a 3D view that looks like the ASPOM gymnasium of the first match.
 
 ## Hosting
 

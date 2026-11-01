@@ -115,7 +115,11 @@ export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Mom
             {paths.map((p) => (
               <Fragment key={p.set}>
                 {([1, 2] as const).map((g) => (
-                  <polygon key={g} clipPath={`url(#${clip}-${g})`} points={`${p.line} ${px(p.end)},${level}`} fill={teamColor(g)} fillOpacity={0.7} />
+                  <g key={g} clipPath={`url(#${clip}-${g})`}>
+                    <polygon points={`${p.line} ${px(p.end)},${level}`} fill={teamColor(g)} fillOpacity={0.7} />
+                    {/* A jersey the colour of the card shows through its team's ring, transparent otherwise. */}
+                    <polygon points={`${p.line} ${px(p.end)},${level}`} fill={teamRing(g)} fillOpacity={0.35} />
+                  </g>
                 ))}
                 <line x1={px(p.start)} x2={px(p.end)} y1={level} y2={level} stroke="var(--border)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
                 <polyline points={p.line} fill="none" stroke="var(--foreground)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />

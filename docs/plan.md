@@ -2,9 +2,9 @@
 
 ## Touches
 
-Missed on the 129 checked rallies, 118 of 944: 71 no contact in the ball track, 40 outside a window, 7
-removed after detection. 43 of the pipeline's 860 touches are false. `benchmarks/rallies/checked.py`
-scores the windows on the whole match.
+Missed on the 129 checked rallies, 101 of 945: 71 no contact in the ball track, 23 outside a window, 7 removed after
+detection. 48 of the pipeline's 883 touches are false. `benchmarks/rallies/checked.py` scores the windows on the whole
+match.
 
 Done: `LIVE_SPEED` per second (812 -> 829 touches in windows, `side_holdout` 0.75 -> 0.86).
 
@@ -34,18 +34,15 @@ still checked, same set scores. The hosted page is behind it by one floor contac
 
 Next:
 
-1. The 40 touches outside windows and the 7 removed after detection, then the 46 false ones.
+1. The 23 touches outside windows and the 7 removed after detection, then the 48 false ones.
 2. The 71 with no contact: filtering the extra detections better, or the ball model fine-tuned on the RTX 5080.
 
 Tried and dropped: see `benchmarks/rallies/README.md`.
 
-## Page: built, not uploaded
+## Page: online
 
-"Mon match" (`web/src/components/MyMatch/`), "L'histoire du match" (`web/src/components/Story/`) and "Les
-trophées" (`web/src/components/Trophies/`) are in the page's build. The hosted page gets them with the owner's
-next "Mettre en ligne", once they have seen them. Left: team 1's area on the story's curve is nearly invisible
-in dark mode when its jersey is black. Asked of the owner: do few direct points against many faults (set 2: 5
-against 33) match the match? They feed the top scorers, the highlights and the trophies.
+"Mon match" (`web/src/components/MyMatch/`), "L'histoire du match" (`web/src/components/Story/`) and "Les trophées"
+(`web/src/components/Trophies/`), uploaded 1 Nov 21:51. The owner's rule on points is in `web.credited`.
 
 ## Page: lighter (1 Nov)
 
