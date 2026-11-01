@@ -15,7 +15,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-from volleyball_stats import attribution, identity, web
+from volleyball_stats import attribution, identity, ranker, web
 from volleyball_stats.actions import LEAD_S
 from volleyball_stats.players import Row
 from volleyball_stats.review import UNKNOWN, doubtful
@@ -85,7 +85,8 @@ def rerank(match: Path, asked: list[dict], truth: dict[int, tuple[int, int]], ta
     for r in table:
         by_track[r[0]].append(r)
     candidates = attribution.ranked(typed, rows, fps)
-    for name, found in (("ranked", candidates), *((("by_wrists", attribution.by_wrists(video, typed, candidates, rows, fps, match / "wrists.json")),) if video else ())):
+    for name, found in (("ranked", candidates), *((("by_wrists", attribution.by_wrists(video, typed, candidates, rows, fps, match / "wrists.json")),) if video else ()),
+        *((("learned", attribution.by_wrists(video, typed, candidates, rows, fps, match / "wrists.json", ranker.load())),) if video and ranker.load() else ())):
         first, among, by_type = 0, 0, defaultdict(list)
         for t, c in zip(typed, found):
             ids = [identity.lookup(by_track[k], k, t[0]) for *_, k in c]

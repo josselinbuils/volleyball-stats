@@ -151,17 +151,22 @@ def wrist_distance(ball: tuple[float, float], box: Box, poses: list[list[tuple[B
     return min(found) / (box[3] - box[1]) if found else None
 
 
-def by_wrists(video: Path, typed: list[Typed], candidates: list[list[Candidate]], rows: list[Row], fps: float, cache: Path | None = None) -> list[list[Candidate]]:
-    """`candidates` reordered by the wrists for touches below the head (see WRIST_VETO); YOLO pose
-    on a crop around the ball, kept in `cache` (JSON, by frame and ball place) for the next runs.
-    First ASPOM match: 97 -> 104 of the 135 touches answered."""
+def by_wrists(
+    video: Path, typed: list[Typed], candidates: list[list[Candidate]], rows: list[Row], fps: float, cache: Path | None = None, learned: dict | None = None
+) -> list[list[Candidate]]:
+    """`candidates` reordered by the wrists for touches below the head (see WRIST_VETO), or, with a
+    `learned` ranker (ranker.py), every touch's by its scores; YOLO pose on a crop around the ball,
+    kept in `cache` (JSON, by frame and ball place) for the next runs. First ASPOM match: 97 -> 104
+    of the 135 touches answered."""
     import cv2
+
+    from volleyball_stats import ranker
 
     by_track, gap = tracks(rows), round(GAP_S * fps)
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     model, cap, out = None, None, []
-    for (frame, x, y, kind, _), found in zip(typed, candidates):
-        if kind not in BELOW_HEAD or len(found) < 2:
+    for (frame, x, y, kind, side), found in zip(typed, candidates):
+        if len(found) < 2 or (learned is None and kind not in BELOW_HEAD):
             out.append(found)
             continue
         key = f"{frame}:{x}:{y}"
@@ -172,7 +177,17 @@ def by_wrists(video: Path, typed: list[Typed], candidates: list[list[Candidate]]
                 model, cap = YOLO(str(POSE_MODEL)), cv2.VideoCapture(str(video))
             kept[key] = poses_at(model, cap, frame, x, y)
         poses = [[(tuple(b), np.array(k)) for b, k in f] for f in kept[key]]
-        out.append(wrist_order(found, {c[2]: wrist_distance((x, y), box_at(by_track[c[2]][1], frame, gap), poses) for c in found}))
+        boxes = {c[2]: box_at(by_track[c[2]][1], frame, gap) for c in found}
+        wrists = {c[2]: wrist_distance((x, y), boxes[c[2]], poses) for c in found}
+        if learned is None:
+            out.append(wrist_order(found, wrists))
+            continue
+        tallest = max(b[3] - b[1] for b in boxes.values())
+        x_ = np.array([
+            ranker.features((x, y), kind, c, found[0][0], k, boxes[c[2]], tallest, wrists[c[2]], by_track[c[2]][0] == side, (frame - min(by_track[c[2]][1])) / fps)
+            for k, c in enumerate(found)
+        ])
+        out.append([found[k] for k in np.argsort(-ranker.scores(learned, x_), kind="stable")])
     if cap is not None:
         cap.release()
         if cache:

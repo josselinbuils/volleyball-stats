@@ -261,6 +261,35 @@ of the first match's 718 contacts, 3 crops each); the `gap` written to `actions.
 review asks, stays the distance gap, and `mark_dead` looks for one track touching three times in a
 row on the picks before the pose.
 
+### Learned order (`ranker.py`)
+
+A conditional logit over each touch's candidates (distance to the ball and to the nearest, box size
+against the tallest, wrists, the ball's place on the box, own side, track age; each again for
+touches below the head), trained by `ranker.py` here on the review's touch answers and the school
+clips' labelled touchers, the weights in `src/volleyball_stats/attribution_ranker.json`:
+
+```bash
+uv run --group bench python benchmarks/attribution/ranker.py outputs/first_match:data/first_match.mp4 [--write]
+```
+
+Each group held out in turn (a set of the first match, a school clip), 1 Nov:
+
+| Held out | Touches | `by_wrists` | Learned |
+| --- | --- | --- | --- |
+| first match set 1 | 60 | 40 | 42 |
+| first match set 2 | 70 | 54 | 59 |
+| first match set 3 | 50 | 40 | 45 |
+| `side_club` | 30 | 25 | 22 |
+| `side_holdout` | 47 | 39 | 37 |
+| `side_long` | 43 | 39 | 38 |
+
++12 of 180 on the 4K match, -6 of 120 on the 720p clips: `match.py` uses it on footage of
+`ranker.MIN_HEIGHT` (1440) pixels or more, the rule elsewhere. It poses every touch with two
+candidates or more (the rule only those below the head). Trained on the 4K match alone it gains
+less (+7-8 of 139): the school clips help. Tried: the rule's pick as a feature, the model choosing
+only within 0.1-0.2 box heights of the nearest (+2-6 on the match, still -2 on `side_club`).
+Rerun `ranker.py --write` after a review: the answers grow (135 -> 180 on 1 Nov).
+
 ## Tried and dropped
 
 - Anchors per type (distance to a point above the box top for attacks, at mid-height for passes):

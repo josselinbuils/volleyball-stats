@@ -48,21 +48,28 @@ the review added and the pipeline now finds too (0-20 frames off) are one (`web.
 
 ## Learning from the review
 
-1. Done: `learn` scores every step on the answers and the checked rallies (full labels) and keeps
-   the history (`learn.json`); `wrists.json` caches the wrists' pose.
-2. Next: cache the relances' pose (11.5 min) and the teams' looks (15.5 min) like `wrists.json`, so
-   a rerun takes minutes; a `learn --rerun` (and a review button) that reruns from the caches,
-   rekeys and scores.
-3. Then: a settings search per step (contact threshold, wrist veto and margin, serve lead, rally
-   rules, tie-breaks), a change kept only if it gains on the answers held out (sets 1-2 against set
-   3, then the next match) and loses nothing on the school benchmarks; kept values in a committed
-   `params.json` with the report.
-4. Then: a learned attribution ranker (numpy logistic regression on distance, box size, wrists,
-   side, track age) on the 277 touch answers and the school labels; a projection of the re-ID
-   embeddings from the same/different pairs; the contact threshold where players crowd the ball from
-   the added touches.
-5. Asked of the owner: validate whole rallies (the unbiased labels) more than single questions; a
-   few random easy touches as spot checks.
+In the code since 1 Nov:
+
+- `learn` scores every step on the answers and the checked rallies (full labels), each run kept in
+  `learn.json`; the review's "Progrès" tab charts them per measure.
+- The review's "Relancer l'analyse" (`learn --rerun`) reruns the pipeline, moves the answers
+  (`rekey`) and scores; `wrists.json`, `relances.json` and `looks.npz` cache the poses and looks
+  (side_holdout: 3 min, then 6 s). "Mettre en ligne" uploads; an apply no longer does.
+- Attribution: a learned order (`ranker.py`, `benchmarks/attribution/ranker.py --write` retrains it
+  on the answers), on 4K footage only: +12 of 180 held-out answered touches, -6 of 120 on the 720p
+  school clips. Not in the first match's outputs yet: the next "Relancer l'analyse".
+- Identity: `SHARPEN` 0.5 -> 0.9 (the share of the embedding weights learned from the answers):
+  69.5% -> 73.4% of the held-out answers kept.
+- Contacts: the threshold sweep on the checked rallies and added touches is flat (360 and 0.17 s
+  stay): the 11 checked touches missed are the ball tracker's.
+
+Left:
+
+1. Retrain the ranker and re-sweep `SHARPEN` after each review (both on the answers); a second match
+   to hold out whole.
+2. A settings search for the rallies' rules (serve lead, `no_play`, ends) on the rally answers and
+   checked rallies.
+3. Asked of the owner: validate whole rallies (the unbiased labels) more than single questions.
 
 ## Left, by value
 

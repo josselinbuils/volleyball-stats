@@ -23,7 +23,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, contacts, court, decode, files, identity, players, points, rallies, teams
+from volleyball_stats import actions, attribution, ball, contacts, court, decode, files, identity, players, points, rallies, ranker, teams
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -303,7 +303,9 @@ def main() -> None:
         # A dead ball is one track nearest the ball touch after touch, whatever the wrists say.
         dead, _ = actions.mark_dead(typed, [c[0][2] if c else None for c in candidates], [rally_of(t[0], windows, lead) for t in typed])
         start = time.perf_counter()
-        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json")
+        # The learned order on the camera footage it was trained on, the wrists' rule elsewhere.
+        learned = ranker.load() if decode.size(args.video)[1] >= ranker.MIN_HEIGHT else None
+        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json", learned)
         timings["wrists"] = time.perf_counter() - start
         touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
         typed = dead
