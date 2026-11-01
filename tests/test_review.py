@@ -245,6 +245,7 @@ class TestAces:
         assert receiver_answer(ace, "player:2:4", {(2, 4): {"name": "Tom"}}) == {"receiver": [{"frame": 500, "team": 2, "identity": 4, "name": "Tom"}]}
         assert receiver_answer(ace, "nobody", {}) == {"receiver": [{"frame": 500, "team": 1, "identity": None, "name": None}]}
         assert receiver_answer(ace, "not_play", {}) == {}
+        assert receiver_answer(ace, "not_play", {}, 480) == {"rally": [{"start": 480, "play": False}]}
         assert receiver_answer(ace, "skip", {}) == {}
 
 
