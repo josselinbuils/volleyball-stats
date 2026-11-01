@@ -16,8 +16,7 @@ import { usePlayer } from '@/lib/player';
 import { contactClips, rallyClips, type Clip } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
-import { insights } from '@/components/Stats/helpers/insights';
-import { strengths } from '@/components/Stats/helpers/strengths';
+import { strengths, toWorkOn } from '@/components/Stats/helpers/strengths';
 import { lines, type Stat } from '@/components/Stats/helpers/stats';
 import { InsightChip } from '@/components/Stats/StatsTable';
 import { highlights, tops } from '@/components/MyMatch/helpers/myMatch';
@@ -115,7 +114,7 @@ function Player({ player }: { player: string }) {
   const moments = highlights(rallies, player, match.people);
   const run = serveRun(rallies, player, match.people);
   const partners = duos(contacts, player, match.people);
-  const chips = [...(strengths(found, (p) => playingTime(p, set), contacts, rallies, match.people).get(line.id) ?? []), ...insights(line.stats, team).filter((i) => !i.strength)];
+  const chips = [...(strengths(found, (p) => playingTime(p, set), contacts, rallies, match.people).get(line.id) ?? []), ...toWorkOn(line.stats, team)];
   const touches = t('myMatch.summaryTouches', { count: line.stats.touches.length });
   const points = line.stats.points.length;
   const headline = [

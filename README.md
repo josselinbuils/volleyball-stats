@@ -425,7 +425,7 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 - "Bilan": points, faults, and "Entre deux": the balls that landed in untouched within 2.5 m of two
   teammates about as close as each other, the pair on hover.
 
-Its "Analyse" group lists each player's things to work on and, the rarest in their team first, three strengths at most:
+Its "Analyse" group lists each player's main thing to work on, its largest gap with the rest of the team, and, the rarest in their team first, two strengths at most, beside the MVP's badge:
 the rates at least 20 points above the rest of their team's; how present they are for their time on the court (on every ball,
 in defence); how reliable (serve, attack, few faults); tough serves; sets followed by an attack; assists, winning blocks, points when the score is
 high and close, the most points in the team, and playing all around. Each is earned from a minimum, from 5 attempts on each side

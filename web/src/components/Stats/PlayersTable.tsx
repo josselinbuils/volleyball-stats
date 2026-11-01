@@ -11,8 +11,7 @@ import { playerKey } from '@/helpers/players';
 import { useSet } from '@/lib/sets';
 import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
-import { insights } from '@/components/Stats/helpers/insights';
-import { strengths } from '@/components/Stats/helpers/strengths';
+import { strengths, toWorkOn } from '@/components/Stats/helpers/strengths';
 import { lines } from '@/components/Stats/helpers/stats';
 import { Mvp } from '@/components/Stats/Mvp';
 import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
@@ -43,7 +42,7 @@ export function PlayersTable() {
       title: (tr: TFunction) => (line.id === 'rest' ? tr('players.rest') : line.id === 'total' ? groupName(tr, group) : (playerLabel(tr, line.id) ?? '')),
       stats: line.stats,
       tips: { between: pairs(t, dropped, line.stats.between) },
-      insights: typeof line.id === 'number' ? [...(earned.get(line.id) ?? []), ...insights(line.stats, team).filter((i) => !i.strength)] : undefined,
+      insights: typeof line.id === 'number' ? [...(earned.get(line.id) ?? []), ...toWorkOn(line.stats, team)] : undefined,
       badge: typeof line.id === 'number' && best && playerKey(line.id, match.people) === best.key ? <Mvp stats={best.stats} seconds={best.seconds} /> : undefined,
       seconds: typeof line.id === 'number' ? seconds(line.id) : undefined,
       total: line.id === 'total',

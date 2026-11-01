@@ -5,7 +5,7 @@ import { insights, type Insight } from '@/components/Stats/helpers/insights';
 import type { Line, Stats } from '@/components/Stats/helpers/stats';
 
 // At most this many strengths a player shows, the rarest in their team first.
-const SHOWN = 3;
+const SHOWN = 2;
 // A rate counts from this many attempts on both sides and this far above the rest of the team.
 const TRIES = 5;
 const GAP = 0.1;
@@ -138,4 +138,11 @@ export function strengths(found: Line[], seconds: (person: number) => number, co
     }
   }
   return new Map([...all].map(([id, list]) => [id, [...list].sort((a, b) => (holders.get(a.key) ?? 0) - (holders.get(b.key) ?? 0)).slice(0, SHOWN)]));
+}
+
+/** The one thing a player has to work on most, its largest gap with the rest of their team; none without one. */
+export function toWorkOn(player: Stats, team: Stats): Insight[] {
+  return insights(player, team)
+    .filter((i) => !i.strength)
+    .slice(0, 1);
 }

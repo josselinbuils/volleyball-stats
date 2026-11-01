@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Group, Person, Rally } from '@/lib/match';
 import { lines } from '@/components/Stats/helpers/stats';
-import { strengths } from '@/components/Stats/helpers/strengths';
+import { strengths, toWorkOn } from '@/components/Stats/helpers/strengths';
 
 describe('strengths', () => {
   const people: Record<string, Person> = {
@@ -127,7 +127,7 @@ describe('strengths', () => {
     expect(keys(of(contacts.slice(1)))).not.toContain('versatile');
   });
 
-  it('shows the rarest in the team first, 3 at most', () => {
+  it('shows the rarest in the team first, 2 at most', () => {
     const contacts = [
       ...times(6, (k) => touch(k, 'attack', 1, 'point')),
       ...times(2, (k) => touch(k, 'block', 1, 'point'), 50),
@@ -136,8 +136,21 @@ describe('strengths', () => {
       ...times(5, (k) => touch(k, 'serve', 2, 'error'), 80),
     ];
     const found = keys(of(contacts));
-    expect(found.indexOf('topScorer')).toBeLessThan(found.indexOf('blockPoints'));
-    expect(found.length).toBeLessThanOrEqual(3);
+    expect(found).toContain('topScorer');
+    expect(found).not.toContain('blockPoints');
+    expect(found).toHaveLength(2);
+  });
+
+  it('names the one thing to work on with the largest gap', () => {
+    const contacts = [
+      ...times(5, (k) => touch(k, 'serve', 1, k < 4 ? 'error' : 'play')),
+      ...times(5, (k) => touch(k + 10, 'attack', 1, k < 2 ? 'error' : 'play')),
+      ...times(5, (k) => touch(k + 20, 'serve', 2)),
+      ...times(5, (k) => touch(k + 30, 'attack', 2)),
+    ];
+    const found = lines(contacts, people, 1);
+    const player = found.find((l) => l.id === 1)?.stats;
+    expect(player && toWorkOn(player, found[found.length - 1].stats).map((i) => i.key)).toEqual(['serveFaults']);
   });
 
   it('gives no one a strength for nothing', () => {
