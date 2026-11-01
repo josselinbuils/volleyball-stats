@@ -607,8 +607,9 @@ def unusual(page: dict) -> list[dict]:
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
     touch after a fault or a point (either ends the rally), served by the team that lost the set's point
-    before, no winner (with teams). The same rally and reason keep the same id: one handled is not
-    asked again."""
+    before, no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
+    its id with the score: asked again once it moves). The same rally and reason keep the same id:
+    one handled is not asked again."""
     out = []
     rallies = page["rallies"]
     for k, r in enumerate(rallies):
@@ -645,8 +646,12 @@ def unusual(page: dict) -> list[dict]:
             why.append("server")
         if page.get("teams") and r.get("winner") is None:
             why.append("noWinner")
+        given = dict(enumerate(page.get("scores") or [], 1)).get(r["set"])
+        score = r.get("score") and f"{r['score'][0]}-{r['score'][1]}"
+        if given and score and score != given and (k + 1 == len(rallies) or rallies[k + 1]["set"] != r["set"]):
+            why.append("scoreOff")
         for reason in why:
-            said = f"auto:{reason}:{r['start']}"
+            said = f"auto:{reason}:{r['start']}" + (f":{score}" if reason == "scoreOff" else "")
             out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["start"], "kind": f"auto.{reason}", "comment": None})
     return out
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextTouch, pieceOf, rallyAt, rallyOf, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
 
 describe('rallyAt', () => {
   const rallies = [
@@ -91,5 +91,20 @@ describe('nextTouch', () => {
     expect(nextTouch({ type: 'relance', team: 1 }, 1)).toEqual({ type: 'dig', team: 2 });
     expect(nextTouch({ type: 'dig', team: 1 }, 1)).toEqual({ type: 'set', team: 1 });
     expect(nextTouch({ type: 'block', team: 1 }, 1)).toEqual({ type: 'dig', team: 1 });
+  });
+});
+
+describe('runningScores', () => {
+  it('counts each set from 0, a rally of no play or joined to the one before for nothing', () => {
+    const scores = runningScores([
+      { set: 1, winner: 1, skip: false },
+      { set: 1, winner: 2, skip: true },
+      { set: 1, winner: 2, skip: false },
+      { set: 1, winner: null, skip: false },
+      { set: 2, winner: 2, skip: false },
+    ]);
+
+    expect(scores).toEqual([[1, 0], null, [1, 1], [1, 1], [0, 1]]);
+    expect(offGiven([1, 1, 1, 1, 2], scores, ['1-1', '1-0', null])).toEqual(new Map([[4, '1-0']]));
   });
 });

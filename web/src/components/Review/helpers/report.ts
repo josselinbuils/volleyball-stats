@@ -1,5 +1,39 @@
 import type { Group, Rally } from '@/lib/match';
 
+/** Each rally's score in its set (team 1, team 2) after it, counted from the rallies' winners;
+ * null for one that counts for nothing (`skip`: no play, or joined to the one before). */
+export function runningScores(rallies: { set: number; winner: Group | null; skip: boolean }[]): ([number, number] | null)[] {
+  let set: number | null = null;
+  let score: [number, number] = [0, 0];
+  return rallies.map((r) => {
+    if (r.set !== set) {
+      set = r.set;
+      score = [0, 0];
+    }
+    if (r.skip) {
+      return null;
+    }
+    if (r.winner) {
+      score = r.winner === 1 ? [score[0] + 1, score[1]] : [score[0], score[1] + 1];
+    }
+    return score;
+  });
+}
+
+/** The rally indices at which a set's running score (`runningScores`) ends off its final score
+ * the user gave (`given`, "25-21" by set), with that score. */
+export function offGiven(sets: number[], scores: ([number, number] | null)[], given: (string | null)[]): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const [n, text] of given.entries()) {
+    const k = scores.findLastIndex((s, i) => s !== null && sets[i] === n + 1);
+    const final = text?.match(/^(\d+)-(\d+)$/);
+    if (k >= 0 && final && (scores[k]![0] !== Number(final[1]) || scores[k]![1] !== Number(final[2]))) {
+      out.set(k, text!);
+    }
+  }
+  return out;
+}
+
 /** A touch added under this long after the one before it in its rally follows it; later, it starts the next rally. */
 export const NEXT_TOUCH_S = 5;
 

@@ -10,7 +10,7 @@ import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamR
 import type { Named, ReportChanges } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { NEXT_TOUCH_S, nextTouch, pieceOf, rallyAt, rallyOf, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig'] as const;
@@ -268,8 +268,10 @@ export function ReportEditor({
   // A rally's winner: the one set, else the one its last touch's result says, else the page's.
   const lastOf = (k: number) => rows.filter((row) => !row.removed && row.rally === (fixOf(k)?.join ? k + 1 : k)).at(-1);
   const winnerOf = (k: number): Group | null => {
+    // The last touch says it once added or its result corrected; else the page's winner stands.
     const last = lastOf(k);
-    const said = last?.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
+    const changed = last && (last.added || fixes[last.frame]?.result !== undefined);
+    const said = !changed ? undefined : last.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
     return fixOf(k)?.winner ?? said ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
   };
   const winner = rally ? winnerOf(here) : null;
@@ -292,6 +294,15 @@ export function ReportEditor({
     const f = found.get(k);
     return f ? [...f.rally, ...[...f.touch.values()].flat()] : [];
   };
+  // The score after each rally as it stands with the corrections, the rallies out of view with
+  // their winner set or the page's; a set ending off the final score given is flagged.
+  const winnerAt = (k: number): Group | null => (k >= first && k <= last ? winnerOf(k) : (fixOf(k)?.winner ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k].winner) ?? null));
+  const scores = hasTeams ? runningScores(shown.map((r, k) => ({ set: r.set, winner: winnerAt(k), skip: fixOf(k)?.play === false || !!fixOf(k - 1)?.join }))) : [];
+  const off = offGiven(
+    shown.map((r) => r.set),
+    scores,
+    match.scores,
+  );
 
   return (
     <>
@@ -337,13 +348,30 @@ export function ReportEditor({
                       <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
                     </span>
                   )}
+                  <span className="ml-auto flex shrink-0 items-center gap-1 text-xs tabular-nums" title={scores[k] ? t('review.reportScore') : undefined}>
+                    {scores[k] && (
+                      <>
+                        <Swatch color={teamColor(1)} ring={teamRing(1)} />
+                        {scores[k]!.join('–')}
+                        <Swatch color={teamColor(2)} ring={teamRing(2)} />
+                      </>
+                    )}
+                  </span>
                   {savedStarts.has(keyOf(k)) && (
-                    <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
+                    <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="shrink-0">
                       <PenLine aria-hidden className="size-3.5" />
                     </span>
                   )}
                 </button>
               </li>,
+              ...(off.has(k)
+                ? [
+                    <li key={`s${k}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">
+                      <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+                      {t('review.reportScoreOff', { given: off.get(k), found: scores[k]!.join('-') })}
+                    </li>,
+                  ]
+                : []),
               ...(found.get(k)?.rally.length
                 ? [
                     <li key={`p${k}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">

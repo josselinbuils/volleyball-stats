@@ -105,7 +105,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      validation" unchecks it. Saved corrections not yet in the review's page show in the editor (the
      last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)
      flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
-     reception, four touches in a row, the wrong server, no touch, no winner. Rallies are named by
+     reception, four touches in a row, the wrong server, no touch, no winner, a set ending off the
+     score given (`scoreOff`, asked again once the score moves; the list shows the running score). Rallies are named by
      their `rallies.csv` start (`key` on the page), which an added serve moves.
   2. Reports to handle in the Match tab: 76 on 1 Nov (22 from the viewers fetched on 31 Oct 23:10,
      `outputs/feedback-20261031-231035.log`, the online log emptied after; the rest automatic), 3

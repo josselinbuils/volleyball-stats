@@ -132,6 +132,7 @@ class TestReports:
         page = {
             "teams": [{}, {}],
             "rallies": [{"start": float(k), "end": k + 0.5, "set": 1, "winner": w} for k, w in enumerate([1, 1, 2, 2, None, 1, 1, 1])],
+            "scores": ["5-3"],
             "contacts": [
                 c(0.1, "serve", 1, 0),  # fine
                 c(1.1, "pass", 2, 1),  # no serve
@@ -168,6 +169,14 @@ class TestReports:
             (7.0, "auto.afterPoint"),
         ]
         assert found[0]["key"] == unusual(page)[0]["key"]
+        # The set's last rally ends off the final score given; its report comes back once the score moves.
+        page["rallies"][-1]["score"] = [5, 2]
+        off = [r for r in unusual(page) if r["kind"] == "auto.scoreOff"]
+        assert [r["time"] for r in off] == [7.0]
+        page["rallies"][-1]["score"] = [4, 3]
+        assert [r["key"] for r in unusual(page) if r["kind"] == "auto.scoreOff"] != [off[0]["key"]]
+        page["rallies"][-1]["score"] = [5, 3]
+        assert not [r for r in unusual(page) if r["kind"] == "auto.scoreOff"]
 
     # Two rallies: 2000-2200 and 3000-3200; touches at 2050 (team 2), 2100 and 3050 (team 1).
     teams, windows = {2050: 2, 2100: 1, 3050: 1}, [(2000, 2200), (3000, 3200)]
