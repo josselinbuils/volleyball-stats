@@ -545,7 +545,7 @@
       "digOver_one": "Défenses · {{count}} chez l'adversaire sur {{of}}",
       "digOver_other": "Défenses · {{count}} chez l'adversaire sur {{of}}"
     },
-    "serveRatingDetail": "Aces : {{aces}} · Réceptions difficiles : {{tough}} · Bonnes : {{fair}} · Parfaites : {{easy}} · Fautes : {{faults}}"
+    "serveRatingDetail": "Aces : {{aces}} · Réception adverse ratée : {{lost}} · Ont mis en difficulté : {{tough}} · Bien reçus : {{fair}} · Parfaitement reçus : {{easy}} · Fautes : {{faults}}"
   },
   "players": {
     "title": "Statistiques",

@@ -545,7 +545,7 @@
       "digOver_one": "Digs · {{count}} to the opponents of {{of}}",
       "digOver_other": "Digs · {{count}} to the opponents of {{of}}"
     },
-    "serveRatingDetail": "Aces: {{aces}} · Poor receptions: {{tough}} · Good: {{fair}} · Perfect: {{easy}} · Faults: {{faults}}"
+    "serveRatingDetail": "Aces: {{aces}} · Reception missed: {{lost}} · Put under pressure: {{tough}} · Received well: {{fair}} · Received perfectly: {{easy}} · Faults: {{faults}}"
   },
   "players": {
     "title": "Statistics",

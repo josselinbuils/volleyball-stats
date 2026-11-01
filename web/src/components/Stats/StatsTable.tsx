@@ -89,6 +89,8 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
       : stat === 'serveRated'
         ? t('stats.serveRatingDetail', {
             aces: r.stats.aces.length,
+            // Rated 4 as an ace: aces and faults are all rated.
+            lost: r.stats.serveRated.length - r.stats.aces.length - r.stats.serveTough.length - r.stats.serveFair.length - r.stats.serveEasy.length - r.stats.serveFaults.length,
             tough: r.stats.serveTough.length,
             fair: r.stats.serveFair.length,
             easy: r.stats.serveEasy.length,
