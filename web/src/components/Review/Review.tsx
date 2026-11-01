@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, CloudUpload, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, CloudDownload, CloudUpload, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +49,7 @@ export function Review({
   conflicts,
   hosted,
   learning = [],
+  fetched,
 }: {
   width: number;
   height: number;
@@ -64,6 +65,7 @@ export function Review({
   conflicts: Conflict[];
   hosted?: Hosted | null;
   learning?: LearnRun[];
+  fetched?: { at: string; count: number; error: string | null } | null;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -87,7 +89,7 @@ export function Review({
       setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
     }
   };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | null>(null);
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'reports' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   // What the last action did, shown for NOTICE_MS.
@@ -183,7 +185,7 @@ export function Review({
   );
 
   const [progress, setProgress] = useState<{ fraction: number; step: string } | null>(null);
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host') => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports') => {
     setBusy(path);
     // The server's steps, each advancing as long as it took last time.
     const poll = window.setInterval(async () => {
@@ -263,6 +265,11 @@ export function Review({
                 {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : hosted.behind ? t('review.hostedBehind') : t('review.hosted', { at: hosted.at })}
               </p>
             )}
+            {fetched && (
+              <p className={cn('mt-0.5 text-sm', fetched.error ? 'text-destructive' : 'text-muted-foreground')} title={fetched.error ?? undefined}>
+                {fetched.error ? t('review.fetchFailed', { at: fetched.at }) : t('review.fetched', { count: fetched.count, at: fetched.at })}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="bg-card" disabled={!answered || busy !== null} onClick={() => void reload('undo')}>
@@ -273,6 +280,12 @@ export function Review({
               <RefreshCw aria-hidden />
               {busy === 'rerun' ? t('review.rerunning') : t('review.rerun')}
             </Button>
+            {hosted && (
+              <Button variant="outline" className="bg-card" disabled={busy !== null} title={t('review.fetchNote')} onClick={() => void reload('reports')}>
+                <CloudDownload aria-hidden />
+                {busy === 'reports' ? t('review.fetching') : t('review.fetch')}
+              </Button>
+            )}
             {hosted && (
               <Button variant="outline" className="bg-card" disabled={!hosted.behind || busy !== null} onClick={() => void reload('host')}>
                 <CloudUpload aria-hidden />

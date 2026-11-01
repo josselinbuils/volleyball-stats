@@ -153,6 +153,8 @@ interface ReviewData {
   hosted?: Hosted | null;
   /** The analysis runs' scores on the answers (learn.json): each measure's right and total. */
   learning?: LearnRun[];
+  /** The last fetch of the viewers' reports from the hosting: when, how many for this match, why it failed. */
+  fetched?: { at: string; count: number; error: string | null } | null;
 }
 
 export type LearnRun = { time: string; commit: string; scores: Record<string, [number, number]> };
@@ -208,7 +210,10 @@ export function onServerBusy(listener: () => void): () => void {
 
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
-export async function post(path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo', body: object = {}): Promise<Saved> {
+export async function post(
+  path: 'answer' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
+  body: object = {},
+): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   // An answer joining two players of different names: saved only once the user confirms.
   if (response.status === 409) {

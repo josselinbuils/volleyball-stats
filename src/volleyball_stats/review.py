@@ -1218,10 +1218,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # Where an apply stands, for the page's progress bar: the steps, the one running since when, and
     # each step's last duration (first guesses from the first ASPOM match).
     progress: dict = {}
-    took = {"training": 180.0, "pipeline": 600.0, "players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0, "hosting": 60.0}
+    took = {"reports": 3.0, "training": 180.0, "pipeline": 600.0, "players": 30.0, "questions": 3.0, "roster": 1.0, "review": 10.0, "page": 10.0, "hosting": 60.0}
     # The last hosting (publish.json): when, why it failed, and whether a change came since; the
     # page says it. The user puts the pages online ("/host"), an apply does not.
     hosted: dict = {"at": None, "error": None, "behind": True}
+    # The last fetch of the viewers' reports from the hosting: when, and how many for this match.
+    fetched_log: dict = {}
 
     def hosting() -> None:
         try:
@@ -1290,6 +1292,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         }
         data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
             "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
+            "fetched": fetched_log or None,
         }
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
@@ -1510,6 +1513,18 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
                     log = [e for e in log if e["id"] != body["id"]]
                     log.append({"id": f"cut:{track}:{cut[0]['frame']}", "choice": "cut", **constraints("cut", {"choices": []}, cut=cut), "applied": False})
+                elif self.path == "/reports" and (match / matches.PUBLISH).exists():
+                    config = json.loads((match / matches.PUBLISH).read_text())
+
+                    def fetched() -> None:
+                        try:
+                            got = feedback.fetch(match.parent, config["upload"], config["key"])
+                            fetched_log.update(at=time.strftime("%H:%M"), count=len([r for r in feedback.read(got) if r.get("match") == match.name]) if got else 0, error=None)
+                        except Exception as error:  # noqa: BLE001
+                            fetched_log.update(at=time.strftime("%H:%M"), count=0, error=str(error) or type(error).__name__)
+
+                    run_steps([("reports", fetched), ("questions", questions.load)])
+                    return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None, "fetched": fetched_log}).encode(), "application/json")
                 elif self.path == "/host" and (match / matches.PUBLISH).exists():
                     run_steps([("hosting", hosting)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")

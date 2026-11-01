@@ -7,6 +7,8 @@ log: one JSON object a line, the body the page sent in its "report". Listed by m
 
 import argparse
 import json
+import subprocess
+import time
 from pathlib import Path
 
 
@@ -37,6 +39,22 @@ def read(path: Path) -> list[dict]:
                 by_id[report["id"]] = len(out)
             out.append(report)
     return out
+
+
+def fetch(outputs: Path, upload: str, key: str) -> Path | None:
+    """The hosting's report log (beside the site of `upload`, publish.json's "root@HOST:.../site/")
+    copied to `outputs`/feedback-DATE.log, which the review reads, then emptied online; None when it
+    holds nothing. The copy is kept before the log is emptied."""
+    host, site = upload.split(":", 1)
+    online = str(Path(site.rstrip("/")).parent / "feedback" / "feedback.log")
+    ssh = ["-i", str(Path(key).expanduser()), "-o", "BatchMode=yes"]
+    target = outputs / f"feedback-{time.strftime('%Y%m%d-%H%M%S')}.log"
+    subprocess.run(["scp", *ssh, f"{host}:{online}", str(target)], check=True, capture_output=True)
+    if not target.stat().st_size:
+        target.unlink()
+        return None
+    subprocess.run(["ssh", *ssh, host, f": > {online}"], check=True, capture_output=True)
+    return target
 
 
 def main() -> None:

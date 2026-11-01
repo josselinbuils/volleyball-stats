@@ -202,6 +202,7 @@
     "apply_other": "Appliquer mes {{count}} réponses",
     "applying": "Mise à jour de la page du match…",
     "step": {
+      "reports": "Chargement des signalements en ligne…",
       "training": "Entraînement du modèle « qui a touché » sur vos réponses (quelques minutes)…",
       "pipeline": "Analyse du match (de quelques minutes à 40 minutes)…",
       "players": "Calcul des joueurs…",
@@ -389,7 +390,14 @@
     "wholeView": "Vue entière",
     "pinchNote": "Pincez le pavé tactile sur la vidéo pour zoomer, glissez à deux doigts pour vous déplacer ; maintenez un clic pour la ralentir.",
     "captionMove": "Glissez pour déplacer ; double-clic pour le remettre au centre",
-    "updateRally": "Mettre à jour l'échange {{n}}"
+    "updateRally": "Mettre à jour l'échange {{n}}",
+    "fetch": "Charger les signalements",
+    "fetching": "Chargement des signalements…",
+    "fetchNote": "Récupère les signalements des spectateurs depuis la page en ligne (une copie datée est gardée ici), puis vide le journal en ligne.",
+    "fetched_zero": "Aucun nouveau signalement à {{at}}",
+    "fetched_one": "{{count}} nouveau signalement chargé à {{at}}",
+    "fetched_other": "{{count}} nouveaux signalements chargés à {{at}}",
+    "fetchFailed": "Les signalements n'ont pas pu être chargés à {{at}} : réessayez plus tard."
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",

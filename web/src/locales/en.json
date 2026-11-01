@@ -202,6 +202,7 @@
     "apply_other": "Apply my {{count}} answers",
     "applying": "Updating the match page…",
     "step": {
+      "reports": "Loading the online reports…",
       "training": "Training the who-touched model on your answers (a few minutes)…",
       "pipeline": "Analysing the match (a few minutes to 40 minutes)…",
       "players": "Working out the players…",
@@ -389,7 +390,14 @@
     "wholeView": "Whole view",
     "pinchNote": "Pinch the trackpad over the video to zoom, slide two fingers to move around; hold a click to slow it down.",
     "captionMove": "Drag to move; double-click to centre it again",
-    "updateRally": "Update rally {{n}}"
+    "updateRally": "Update rally {{n}}",
+    "fetch": "Load the reports",
+    "fetching": "Loading the reports…",
+    "fetchNote": "Fetches the viewers' reports from the online page (a dated copy is kept here), then empties the online log.",
+    "fetched_zero": "No new report at {{at}}",
+    "fetched_one": "{{count}} new report loaded at {{at}}",
+    "fetched_other": "{{count}} new reports loaded at {{at}}",
+    "fetchFailed": "The reports could not be loaded at {{at}}: try again later."
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",

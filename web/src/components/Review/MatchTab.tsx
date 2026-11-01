@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { rallies, type Group } from '@/lib/match';
+import { match, rallies, type Group } from '@/lib/match';
 import type { Named, Question, ReportChanges } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { REPORT_LEAD_S } from '@/components/Review/helpers/report';
@@ -113,7 +113,16 @@ export function MatchTab({
             timeOf={() => clipTime.current}
             onPlay={(at) => go(at - REPORT_LEAD_S, true)}
             onPause={(at) => go(at, false)}
-            onSave={(changes, rally) => void onSave(changes, rally).then(() => setRound((r) => r + 1))}
+            onSave={(changes, rally) =>
+              void onSave(changes, rally).then(() => {
+                setRound((r) => r + 1);
+                // Checked: on to the next rally.
+                const k = rallies.findIndex((r) => (r.key ?? Math.round(r.start * match.fps)) === rally);
+                if (k >= 0 && rallies[k + 1]) {
+                  go(rallies[k + 1].start - REPORT_LEAD_S, true);
+                }
+              })
+            }
             green={green}
             checked={new Set(checked)}
             onUncheck={(rally) => void onUncheck(rally)}
