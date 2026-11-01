@@ -21,11 +21,11 @@ const DARK = 0x35342e;
 const FLAGS = [0x233a8c, 0xf2c200];
 // Floor pixels per metre.
 const FLOOR_PX = 40;
-// Sponsors' banners on the grey walls, clear of the posters and the bunting: their pictures' shape, where they hang, how wide.
+// Sponsors' banners on the grey walls, under the bunting and well apart: their pictures' shape, where they hang, how wide.
 const BANNER_RATIO = 600 / 160;
 const SIDE_BANNER = 3;
 const SIDE_BANNER_H = 1.7;
-const SIDE_BANNERS = [-8.5, -3, 3];
+const SIDE_BANNERS = [-14, -5, 4];
 const FAR_BANNER = { x: -7.5, h: 2, width: 4 };
 
 /** A point in court metres to the scene's axes: x, height up, y towards the viewer. */
@@ -247,7 +247,7 @@ export function addHall(scene: THREE.Scene, sponsors: Sponsor[], board: THREE.Te
     beam.position.copy(at(0, y, EAVES + 0.2));
     frame.add(beam);
   }
-  // The far wall: its goal, its mural, the scoreboard; the x < 0 wall's posters.
+  // The far wall: its goal, its mural, the scoreboard.
   const goal = new THREE.MeshLambertMaterial({ color: 0xf1ede3 });
   const bar = new THREE.BoxGeometry(0.08, 2, 0.08);
   for (const x of [-HANDBALL.goal, HANDBALL.goal]) {
@@ -265,21 +265,7 @@ export function addHall(scene: THREE.Scene, sponsors: Sponsor[], board: THREE.Te
   };
   onFar(4, 1.7, 7, 2.6, new THREE.MeshBasicMaterial({ map: mural(), transparent: true }));
   onFar(0, 5.3, 6, 2.8, new THREE.MeshBasicMaterial({ map: board }));
-  onFar(-3.5, 2.5, 2.2, 0.8, new THREE.MeshBasicMaterial({ color: 0xf2f2f2 }));
   onFar(-0.6, 2.5, 2.2, 0.8, new THREE.MeshBasicMaterial({ color: 0x1d1d1d }));
-  onFar(10.5, 4.6, 1.3, 1.1, new THREE.MeshBasicMaterial({ color: 0xd9c13a }));
-  const posters: [number, number, number, number, number][] = [
-    [-18, 1.9, 3, 1.4, 0x4a6ea8],
-    [-11, 2.1, 1.8, 1.2, 0xe6c81e],
-    [-6, 2.1, 1.6, 1.8, 0x6a5a8a],
-    [9, 2.3, 2.4, 1, 0xb5332a],
-  ];
-  for (const [y, h, w, tall, color] of posters) {
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, tall), new THREE.MeshBasicMaterial({ color }));
-    mesh.position.copy(at(-WALL_X + 0.02, y, h));
-    mesh.rotation.y = Math.PI / 2;
-    hall.add(mesh);
-  }
   // Bunting along the wall under the stand, blue and yellow.
   const pennant = new THREE.Shape();
   pennant.moveTo(-0.22, 0);
