@@ -10,6 +10,7 @@ import { SetBadge } from '@/components/SetBadge';
 import { clock } from '@/lib/format';
 import { contacts as allContacts, GROUPS, groupName, hasTeams, match, playerLabel, rallies as allRallies, type Contact, type Group } from '@/lib/match';
 import { playerKey } from '@/helpers/players';
+import { duos, serveRun } from '@/helpers/plays';
 import { usePlayer } from '@/lib/player';
 import { contactClips, rallyClips, type Clip } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
@@ -17,7 +18,7 @@ import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { insights } from '@/components/Stats/helpers/insights';
 import { lines, type Stat } from '@/components/Stats/helpers/stats';
 import { InsightChip } from '@/components/Stats/StatsTable';
-import { duos, highlights, serveRun, tops } from '@/components/MyMatch/helpers/myMatch';
+import { highlights, tops } from '@/components/MyMatch/helpers/myMatch';
 import { PlayerCard, type CardRow } from '@/components/MyMatch/PlayerCard';
 
 // What a player can lead their team in.

@@ -1,5 +1,6 @@
 import type { Contact, Group, Rally } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
+import { longestRally } from '@/helpers/plays';
 
 // Points in a row, a deficit caught up and a touch count that make a moment.
 const RUN = 5;
@@ -170,9 +171,7 @@ function setPoints(all: Step[], target: number): Moment[] {
 
 /** The longest of `rallies` in touches, then seconds, `person` scoring its last touch when a point. */
 function longest(rallies: Rally[]): Moment | null {
-  const touches = (r: Rally) => r.contacts.filter(isTouch).length;
-  const seen = rallies.filter((r) => r.score && touches(r) > 0);
-  const rally = [...seen].sort((a, b) => touches(b) - touches(a) || b.end - b.start - (a.end - a.start))[0];
+  const rally = longestRally(rallies);
   if (!rally?.score) {
     return null;
   }
@@ -186,7 +185,7 @@ function longest(rallies: Rally[]): Moment | null {
     team,
     from: team ? teamFirst(before, team) : before,
     to: team ? teamFirst(rally.score, team) : rally.score,
-    n: touches(rally),
+    n: rally.contacts.filter(isTouch).length,
     person: last?.result === 'point' && last.g === team ? last.person : null,
     seconds: rally.end - rally.start,
   };

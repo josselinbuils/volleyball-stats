@@ -36,11 +36,16 @@ Tried and dropped: see `benchmarks/rallies/README.md`.
 
 ## Page: built, not uploaded
 
-"Mon match" (`web/src/components/MyMatch/`) and "L'histoire du match" (`web/src/components/Story/`) are in
-the page's build. The hosted page gets them with the owner's next "Mettre en ligne", once they have seen them.
-Left: team 1's area is nearly invisible in dark mode when its jersey is black.
+"Mon match" (`web/src/components/MyMatch/`), "L'histoire du match" (`web/src/components/Story/`) and "Les
+trophées" (`web/src/components/Trophies/`) are in the page's build. The hosted page gets them with the owner's
+next "Mettre en ligne", once they have seen them. Left: team 1's area on the story's curve is nearly invisible
+in dark mode when its jersey is black. Asked of the owner: do few direct points against many faults (set 2: 5
+against 33) match the match? They feed the top scorers, the highlights and the trophies.
 
 ## Page: other ideas, not started
+
+- **Le résumé** and **personal links** came out as the smallest next steps: a button playing the story's
+  moments back to back; a link opening the page on a player's Mon match.
 
 1. **Broadcast mode in 3D** (the owner's wish for the 3D scene, and open item "the ASPOM gymnasium"): the
    real gym, a TV camera following the ball and cutting to net-side angles on attacks, replays from the
@@ -50,6 +55,4 @@ Left: team 1's area is nearly invisible in dark mode when its jersey is black.
    password in video, in 3D for everyone.
 3. **Le coin du coach**: who sets whom and with what success, the score with each lineup, where serves cause
    trouble, three things to work on. Lineups are the least certain (about 9 players a team rotate in).
-4. **Les trophées**: end-of-match awards ("Le Mur", "L'Infatigable", the longest rally). Positive only, never
-   ranking faults: attribution is about 90% right and these are teammates.
-5. **La saison**: each player's progress over matches and the team's form. Needs a second match.
+4. **La saison**: each player's progress over matches and the team's form. Needs a second match.

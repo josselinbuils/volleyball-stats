@@ -373,6 +373,13 @@ to replay, their best points, their run on serve, who sets whom and their card t
 match": the score gap rally by rally, a few plain sentences per set and the key moments (runs of 5 points,
 deficits of 4 caught up, set points saved, the longest rally), each replaying. Both follow the set filter.
 
+### Les trophées
+
+Awards for what players did well, never for faults, from a minimum so that none goes to next to nothing;
+a tie shares one. Each replays its moments. Most touches, winning attacks, winning blocks, aces, digs, sets
+and perfect receptions, the longest run on serve, the setter and attacker with the most winning attacks, and
+the longest rally.
+
 ### Statistics
 
 The "Statistiques" table gives, team by team, each player's and the whole team's:

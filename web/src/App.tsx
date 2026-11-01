@@ -8,6 +8,7 @@ import { MyMatch } from '@/components/MyMatch/MyMatch';
 import { PlayersTable } from '@/components/Stats/PlayersTable';
 import { RallyCharts } from '@/components/RallyCharts/RallyCharts';
 import { Story } from '@/components/Story/Story';
+import { Trophies } from '@/components/Trophies/Trophies';
 import { Watch } from '@/components/Watch/Watch';
 import { PlayerProvider } from '@/lib/player';
 import { match } from '@/lib/match';
@@ -41,6 +42,7 @@ export function App() {
             <Watch />
             <CourtChart />
             <MyMatch />
+            <Trophies />
             <RallyCharts />
           </main>
         </SetProvider>

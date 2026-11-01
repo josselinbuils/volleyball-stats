@@ -737,5 +737,44 @@
     "duoAttacks_other": "{{count}} attaques",
     "duoWon_one": "{{count}} gagnante",
     "duoWon_other": "{{count}} gagnantes"
+  },
+  "trophies": {
+    "title": "Les trophées",
+    "caption": "Décernés automatiquement à partir des touches reconnues. Cliquez sur un trophée pour revoir ces moments.",
+    "and": "{{a}} et {{b}}",
+    "duoNames": "{{setter}} → {{attacker}}",
+    "names": {
+      "touches": "L'Infatigable",
+      "kills": "Le Marteau",
+      "blockPoints": "Le Mur",
+      "aces": "Le Sniper",
+      "digs": "L'Ange gardien",
+      "sets": "Le Chef d'orchestre",
+      "perfect": "Le Roc",
+      "serveRun": "Le Métronome",
+      "duo": "Le Duo",
+      "longest": "Le Marathon"
+    },
+    "details": {
+      "touches_one": "{{count}} ballon touché",
+      "touches_other": "{{count}} ballons touchés",
+      "kills_one": "{{count}} attaque gagnante",
+      "kills_other": "{{count}} attaques gagnantes",
+      "blockPoints_one": "{{count}} contre gagnant",
+      "blockPoints_other": "{{count}} contres gagnants",
+      "aces_one": "{{count}} ace",
+      "aces_other": "{{count}} aces",
+      "digs_one": "{{count}} défense",
+      "digs_other": "{{count}} défenses",
+      "sets_one": "{{count}} passe",
+      "sets_other": "{{count}} passes",
+      "perfect_one": "{{count}} réception parfaite",
+      "perfect_other": "{{count}} réceptions parfaites",
+      "serveRun_one": "{{count}} point d'affilée au service",
+      "serveRun_other": "{{count}} points d'affilée au service",
+      "duo_one": "{{count}} attaque gagnante sur {{of}}",
+      "duo_other": "{{count}} attaques gagnantes sur {{of}}",
+      "longest": "L'échange le plus long : {{n}} touches en {{seconds}}"
+    }
   }
 }
