@@ -1,6 +1,7 @@
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { VideoChoice } from '@/components/VideoChoice';
 import { BrandBar } from '@/components/BrandBar';
+import { Coach } from '@/components/Coach/Coach';
 import { CourtChart } from '@/components/CourtChart/CourtChart';
 import { Header } from '@/components/Header/Header';
 import { MyMatch } from '@/components/MyMatch/MyMatch';
@@ -28,6 +29,7 @@ export function App() {
             <CourtChart />
             <MyMatch />
             <Trophies />
+            <Coach />
             <RallyCharts />
           </main>
         </SetProvider>

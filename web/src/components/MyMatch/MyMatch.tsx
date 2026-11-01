@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { SetBadge } from '@/components/SetBadge';
 import { clock } from '@/lib/format';
 import { contacts as allContacts, GROUPS, groupName, hasTeams, match, playerLabel, rallies as allRallies, type Contact, type Group } from '@/lib/match';
+import { remember, remembered } from '@/lib/me';
 import { playerKey } from '@/helpers/players';
 import { duos, serveRun } from '@/helpers/plays';
 import { usePlayer } from '@/lib/player';
@@ -26,23 +27,6 @@ const TOPS: readonly Stat[] = ['points', 'kills', 'aces', 'blockPoints', 'digs',
 // What a player mostly does, the serves left out: everyone serves.
 const MAIN = ['sets', 'attacks', 'receptions', 'digs'] as const;
 const DUOS_SHOWN = 4;
-const storageKey = () => `volleyball-stats-me:${match.name}`;
-
-function remembered(): string | null {
-  try {
-    return localStorage.getItem(storageKey());
-  } catch {
-    return null;
-  }
-}
-
-function remember(key: string) {
-  try {
-    localStorage.setItem(storageKey(), key);
-  } catch {
-    // Storage blocked: the choice lasts until the page closes.
-  }
-}
 
 /** Every identified player who touched the ball in the match, by team, named first. */
 function everyone(t: TFunction): { g: Group; players: { key: string; label: string }[] }[] {

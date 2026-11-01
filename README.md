@@ -380,6 +380,18 @@ a tie shares one. Each replays its moments. Most touches, winning attacks, winni
 and perfect receptions, the longest run on serve, the setter and attacker with the most winning attacks, and
 the longest rally.
 
+### Le coin du coach
+
+Team by team, following the set filter, each row replaying its moments. Faults are read for the team, never named:
+
+- what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
+  team's last touch scoring), with the other team's count and a tip;
+- who sets whom: each setter from 5 sets, the attacks right after, winning ones out of the total;
+- the score of each six on the court, with the points scored on each player's serves. The six comes from the players'
+  positions, smoothed over 2 rallies each side in the set (`web.lineups`), and is only as good as the identities: run
+  `benchmarks/lineups/bench.py`;
+- where serves hurt, by the zone they reach: an ace, or a reception lost or graded 1.
+
 ### Statistics
 
 The "Statistiques" table gives, team by team, each player's and the whole team's:

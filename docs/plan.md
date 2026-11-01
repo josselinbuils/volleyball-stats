@@ -44,6 +44,16 @@ Tried and dropped: see `benchmarks/rallies/README.md`.
 "Mon match" (`web/src/components/MyMatch/`), "L'histoire du match" (`web/src/components/Story/`) and "Les trophées"
 (`web/src/components/Trophies/`), uploaded 1 Nov 22:03. The owner's rule on points is in `web.credited`.
 
+## Page: built, not uploaded
+
+"Le coin du coach" (`web/src/components/Coach/`): waits for the owner's "Mettre en ligne".
+
+Lineups (`web.lineups`, `benchmarks/lineups/bench.py`, no labels): first match 4 and 3 sixes for 129 rallies, their set
+scores adding up to the given 25-23, 25-12, 25-18, the one mid-set substitution sharp in the positions (rally 115,
+Olivier 1.0 -> 0.0 of the rally on court, Jessy 0.0 -> 1.0). Its names are reviewed: on clips whose names are not,
+`side_holdout` has 4 and 7 sixes for 15 rallies. The page hides a six under 3 rallies. Touches on a player of the six
+(851 of 851) count a toucher as on court, so they only catch a broken build. Check the sixes on the second match.
+
 ## Page: lighter (1 Nov)
 
 The players' positions are one file a minute (`positions/N.js`, 13 KB compressed), loaded as the replay reaches
@@ -64,6 +74,4 @@ screens to their own bundle would save 24 KB compressed, not done; `i18next` (15
    be public without consent. Needs a real 3D ball path: its height is only estimated today.
 2. **Le résumé en 3 minutes**: a highlight reel of the longest rallies, comebacks and set points, behind the
    password in video, in 3D for everyone.
-3. **Le coin du coach**: who sets whom and with what success, the score with each lineup, where serves cause
-   trouble, three things to work on. Lineups are the least certain (about 9 players a team rotate in).
-4. **La saison**: each player's progress over matches and the team's form. Needs a second match.
+3. **La saison**: each player's progress over matches and the team's form. Needs a second match.

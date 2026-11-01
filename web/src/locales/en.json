@@ -776,5 +776,70 @@
       "duo_other": "{{count}} winning attacks of {{of}}",
       "longest": "The longest rally: {{n}} touches in {{seconds}}"
     }
+  },
+  "coach": {
+    "title": "The coach's corner",
+    "caption": "Ideas for practice, from the touches recognised, to check by replaying the moments. Click a row to replay them.",
+    "teamFilter": "Team",
+    "things": {
+      "title": "To work on first",
+      "caption_one": "{{team}} lost {{count}} point: here is what cost the most.",
+      "caption_other": "{{team}} lost {{count}} points: here is what cost the most.",
+      "count_one": "{{count}} point lost, against {{other}} for {{team}}",
+      "count_other": "{{count}} points lost, against {{other}} for {{team}}",
+      "names": {
+        "serve": "Missed serves",
+        "attack": "Attacks out or blocked",
+        "defense": "Balls lost in defence",
+        "reception": "Reception",
+        "set": "Sets lost",
+        "relance": "Free balls lost",
+        "block": "Losing blocks",
+        "fault": "Playing faults"
+      },
+      "tips": {
+        "serve": "In tight moments, a serve in the court makes the other team build a play.",
+        "attack": "Look at the block before hitting: a placed ball beats a hit out or blocked.",
+        "defense": "Get in place before the other team hits, and call who takes the ball.",
+        "reception": "Share the court before each serve and aim high at the setter.",
+        "set": "Get under the ball and call who you are setting.",
+        "relance": "With no attack on, send it high and deep rather than forcing it.",
+        "block": "Jump straight up, hands above the net, without touching it.",
+        "fault": "Watch the net, the centre line and the rotation."
+      }
+    },
+    "setters": {
+      "title": "Who sets whom",
+      "caption": "The attacks after each setter's sets, winners out of the total.",
+      "sets_one": "{{count}} set, {{attacked}} attacked",
+      "sets_other": "{{count}} sets, {{attacked}} attacked",
+      "row": "{{kills}} of {{count}}",
+      "playing": "{{setter}} to {{attacker}}",
+      "detail": "{{kills}} winners, {{play}} in play, {{faults}} faults",
+      "won": "Winner",
+      "play": "In play",
+      "fault": "Fault",
+      "others_one": "Other ({{count}})",
+      "others_other": "Others ({{count}})",
+      "playingOthers": "{{setter}} to the other attackers"
+    },
+    "lineups": {
+      "title": "The score of each six",
+      "caption": "The six players on the court, estimated from their positions. Under each six, the points scored on each player's serves. Click a server to replay their serves.",
+      "served": "On serve",
+      "servedRow": "{{won}} of {{of}}",
+      "serverTitle": "On serve: {{name}}",
+      "sets_one": "Set {{list}}",
+      "sets_other": "Sets {{list}}",
+      "score": "{{team}}'s score: {{won}} to {{lost}}"
+    },
+    "zones": {
+      "title": "Where serves hurt",
+      "caption": "By the zone a serve reaches, those causing trouble: an ace, or a reception lost or far from the setter. The net is on the right.",
+      "own": "{{team}}'s serves",
+      "against": "{{team}}'s reception",
+      "cell": "Zone {{zone}}: {{trouble}} of {{of}}",
+      "cellTitle": "{{title}}, zone {{zone}}"
+    }
   }
 }

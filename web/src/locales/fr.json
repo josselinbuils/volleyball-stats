@@ -776,5 +776,70 @@
       "duo_other": "{{count}} attaques gagnantes sur {{of}}",
       "longest": "L'échange le plus long : {{n}} touches en {{seconds}}"
     }
+  },
+  "coach": {
+    "title": "Le coin du coach",
+    "caption": "Des pistes pour l'entraînement, tirées des touches reconnues, à vérifier en revoyant les moments. Cliquez sur une ligne pour les revoir.",
+    "teamFilter": "Équipe",
+    "things": {
+      "title": "À travailler en priorité",
+      "caption_one": "{{team}} a perdu {{count}} point : voici ce qui en a coûté le plus.",
+      "caption_other": "{{team}} a perdu {{count}} points : voici ce qui en a coûté le plus.",
+      "count_one": "{{count}} point perdu, contre {{other}} pour {{team}}",
+      "count_other": "{{count}} points perdus, contre {{other}} pour {{team}}",
+      "names": {
+        "serve": "Les services ratés",
+        "attack": "Les attaques fautées ou contrées",
+        "defense": "Les ballons perdus en défense",
+        "reception": "La réception",
+        "set": "Les passes perdues",
+        "relance": "Les relances perdues",
+        "block": "Les contres perdants",
+        "fault": "Les fautes de jeu"
+      },
+      "tips": {
+        "serve": "Dans les moments serrés, un service dans le terrain oblige l'adversaire à construire.",
+        "attack": "Regarder le contre avant de frapper : une balle placée vaut mieux qu'une frappe dehors ou contrée.",
+        "defense": "Se placer avant la frappe adverse et annoncer qui prend le ballon.",
+        "reception": "Se répartir le terrain avant chaque service et viser le passeur, ballon haut.",
+        "set": "Se placer sous le ballon et annoncer à qui on passe.",
+        "relance": "Sans attaque possible, renvoyer haut et au fond plutôt que de forcer.",
+        "block": "Sauter droit, mains au-dessus du filet, sans le toucher.",
+        "fault": "Attention au filet, à la ligne centrale et à la rotation."
+      }
+    },
+    "setters": {
+      "title": "Qui passe à qui",
+      "caption": "Les attaques qui suivent chaque passeur, avec les gagnantes sur le total.",
+      "sets_one": "{{count}} passe, {{attacked}} attaquée",
+      "sets_other": "{{count}} passes, {{attacked}} attaquées",
+      "row": "{{kills}} sur {{count}}",
+      "playing": "{{setter}} vers {{attacker}}",
+      "detail": "{{kills}} gagnantes, {{play}} en jeu, {{faults}} fautes",
+      "won": "Gagnante",
+      "play": "En jeu",
+      "fault": "Faute",
+      "others_one": "Autre ({{count}})",
+      "others_other": "Autres ({{count}})",
+      "playingOthers": "{{setter}} vers les autres attaquants"
+    },
+    "lineups": {
+      "title": "Le score de chaque six",
+      "caption": "Les six joueurs sur le terrain, estimés d'après leurs positions. Sous chaque six, les points marqués au service de chacun. Cliquez sur un serveur pour revoir ses services.",
+      "served": "Au service",
+      "servedRow": "{{won}} sur {{of}}",
+      "serverTitle": "Au service : {{name}}",
+      "sets_one": "Set {{list}}",
+      "sets_other": "Sets {{list}}",
+      "score": "Score {{team}} : {{won}} à {{lost}}"
+    },
+    "zones": {
+      "title": "Où les services font mal",
+      "caption": "Par zone où le service arrive, ceux qui gênent : un ace, ou une réception perdue ou loin du passeur. Le filet est à droite.",
+      "own": "Les services de {{team}}",
+      "against": "La réception de {{team}}",
+      "cell": "Zone {{zone}} : {{trouble}} sur {{of}}",
+      "cellTitle": "{{title}}, zone {{zone}}"
+    }
   }
 }

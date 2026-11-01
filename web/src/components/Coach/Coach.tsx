@@ -1,0 +1,117 @@
+import { useMemo, useState } from 'react';
+import { Play } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { SetBadge } from '@/components/SetBadge';
+import { GROUPS, groupName, hasTeams, match, type Group } from '@/lib/match';
+import { remembered } from '@/lib/me';
+import { usePlayer } from '@/lib/player';
+import { contactClips } from '@/lib/playlist';
+import { useSet } from '@/lib/sets';
+import { Lineups } from '@/components/Coach/Lineups';
+import { Section } from '@/components/Coach/Section';
+import { ServeZones } from '@/components/Coach/ServeZones';
+import { Setters } from '@/components/Coach/Setters';
+import { lineupScores, serveZones, setters, things, type Thing } from '@/components/Coach/helpers/coach';
+
+/** What a coach reads for one team, team-wide on faults: what cost it points, who sets whom, the score of each six
+ * and where serves hurt. */
+export function Coach() {
+  const { t } = useTranslation();
+  const { contacts, rallies } = useSet();
+  const [picked, pick] = useState<Group>(() => (Number(remembered()?.split(':')[0]) === 2 ? 2 : 1));
+  const read = useMemo(
+    () =>
+      GROUPS.map((g) => ({
+        things: things(rallies, g),
+        setters: setters(contacts, g, match.people),
+        lineups: lineupScores(match.lineups, rallies, g, match.people),
+        zones: serveZones(contacts, g),
+        against: serveZones(contacts, (3 - g) as Group),
+      })),
+    [contacts, rallies],
+  );
+  if (!hasTeams || read.every((r) => !r.things.found.length && !r.setters.length && !r.lineups.length && !r.zones.size)) {
+    return null;
+  }
+  const { things: lost, setters: setting, lineups, zones, against } = read[picked - 1];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h2 className="text-lg font-semibold">
+            {t('coach.title')}
+            <SetBadge />
+          </h2>
+        </CardTitle>
+        <CardDescription>{t('coach.caption')}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-6">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          spacing={0}
+          value={String(picked)}
+          onValueChange={(v) => {
+            if (v) {
+              pick(Number(v) as Group);
+            }
+          }}
+          aria-label={t('coach.teamFilter')}
+          className="bg-card"
+        >
+          {GROUPS.map((g) => (
+            <ToggleGroupItem key={g} value={String(g)} className="h-9 min-w-0 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground">
+              <span className="truncate">{groupName(t, g)}</span>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        {lost.found.length > 0 && (
+          <Section title={t('coach.things.title')} caption={t('coach.things.caption', { team: groupName(t, picked), count: lost.lost })}>
+            <ol className="m-0 grid list-none gap-2 p-0 lg:grid-cols-3">
+              {lost.found.map((thing, k) => (
+                <ThingRow key={thing.cause} id={`coach:thing:${picked}:${thing.cause}:${rallies.length}`} thing={thing} rank={k + 1} g={picked} />
+              ))}
+            </ol>
+          </Section>
+        )}
+        {setting.length > 0 && <Setters setters={setting} g={picked} rallies={rallies.length} />}
+        {lineups.length > 0 && <Lineups lineups={lineups} g={picked} />}
+        {(zones.size > 0 || against.size > 0) && <ServeZones own={zones} against={against} g={picked} rallies={rallies.length} />}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ThingRow({ id, thing, rank, g }: { id: string; thing: Thing; rank: number; g: Group }) {
+  const { t } = useTranslation();
+  const { playlist, play } = usePlayer();
+  const title = (tr: TFunction) => tr(`coach.things.names.${thing.cause}`);
+  return (
+    <li>
+      <button
+        type="button"
+        aria-pressed={playlist?.key === id}
+        title={t('watchN', { count: thing.n })}
+        onClick={() => play(title, contactClips(thing.contacts, match.duration), 0, id)}
+        className={cn(
+          'flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
+          playlist?.key === id && 'bg-primary/8 hover:bg-primary/12',
+        )}
+      >
+        <span aria-hidden className="inline-grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-sm font-semibold text-background tabular-nums">
+          {rank}
+        </span>
+        <span className="grid min-w-0 flex-1 gap-0.5">
+          <b className="font-semibold">{title(t)}</b>
+          <span className="text-sm font-medium tabular-nums">{t('coach.things.count', { count: thing.n, other: thing.other, team: groupName(t, (3 - g) as Group) })}</span>
+          <span className="text-[13px] text-muted-foreground">{t(`coach.things.tips.${thing.cause}`)}</span>
+        </span>
+        <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+      </button>
+    </li>
+  );
+}
