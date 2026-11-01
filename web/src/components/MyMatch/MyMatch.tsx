@@ -16,9 +16,9 @@ import { useSet } from '@/lib/sets';
 import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { insights } from '@/components/Stats/helpers/insights';
 import { lines, type Stat } from '@/components/Stats/helpers/stats';
-import { FifaCard, type CardRow } from '@/components/Stats/PlayerCards';
 import { InsightChip } from '@/components/Stats/StatsTable';
 import { duos, highlights, serveRun, tops } from '@/components/MyMatch/helpers/myMatch';
+import { PlayerCard, type CardRow } from '@/components/MyMatch/PlayerCard';
 
 // What a player can lead their team in.
 const TOPS: readonly Stat[] = ['points', 'kills', 'aces', 'blockPoints', 'digs', 'receptions', 'sets'];
@@ -143,7 +143,7 @@ function Player({ player }: { player: string }) {
   return (
     <div className="grid gap-6 md:grid-cols-[15rem_minmax(0,1fr)]">
       <div className="max-sm:mx-auto max-sm:w-full max-sm:max-w-64">
-        <FifaCard id={`mine:${set}:${line.id}`} row={row} g={g} mvp={best?.key === player ? best : undefined} buttons />
+        <PlayerCard id={`mine:${set}:${line.id}`} row={row} g={g} mvp={best?.key === player ? best : undefined} />
       </div>
       <div className="grid content-start gap-6">
         <div className="grid gap-3">

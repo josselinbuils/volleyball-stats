@@ -590,12 +590,6 @@
     "rest": "Joueur non identifié",
     "total": "Toute l'équipe",
     "captionSides": "Sans le suivi des joueurs, les touches sont comptées par côté du filet, vu depuis la caméra. Cliquez sur un nombre pour revoir ces moments.",
-    "views": {
-      "table": "Tableau",
-      "cards": "Cartes"
-    },
-    "viewsLabel": "Affichage",
-    "noCards": "Aucun joueur identifié de cette équipe n'a touché le ballon : le tableau montre les touches de toute l'équipe.",
     "cards": {
       "points_one": "point",
       "points_other": "points",

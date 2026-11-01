@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { LayoutGrid, Table2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
@@ -16,7 +15,6 @@ import { drops, type Drop } from '@/components/Stats/helpers/between';
 import { insights } from '@/components/Stats/helpers/insights';
 import { lines } from '@/components/Stats/helpers/stats';
 import { Mvp } from '@/components/Stats/Mvp';
-import { PlayerCards } from '@/components/Stats/PlayerCards';
 import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
 
 /** What each player of a team did with the ball, a count per action and how it ended, and the whole
@@ -25,7 +23,6 @@ export function PlayersTable() {
   const { t } = useTranslation();
   const { set, contacts } = useSet();
   const [group, setGroup] = useState<Group>(1);
-  const [view, setView] = useState<'table' | 'cards'>('table');
   const players = usePlayers();
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
   // Without the players' positions, no ball is known to drop between two of them.
@@ -52,7 +49,6 @@ export function PlayersTable() {
       seconds: typeof line.id === 'number' ? seconds(line.id) : undefined,
       total: line.id === 'total',
     }));
-  const cards = rows.filter((r): r is (typeof rows)[number] & { key: number } => typeof r.key === 'number');
 
   return (
     <Card>
@@ -91,38 +87,8 @@ export function PlayersTable() {
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          {withPlayers && (
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              spacing={0}
-              value={view}
-              onValueChange={(v) => {
-                if (v) {
-                  setView(v as 'table' | 'cards');
-                }
-              }}
-              aria-label={t('players.viewsLabel')}
-              className="w-full items-stretch bg-card sm:w-auto"
-            >
-              {(['table', 'cards'] as const).map((v) => (
-                <ToggleGroupItem key={v} value={v} className="h-auto min-h-8 flex-1 gap-2 py-1.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:flex-none">
-                  {v === 'table' ? <Table2 aria-hidden /> : <LayoutGrid aria-hidden />}
-                  {t(`players.views.${v}`)}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          )}
         </div>
-        {view === 'cards' && withPlayers ? (
-          cards.length ? (
-            <PlayerCards id={`cards:${set}:${group}`} rows={cards} g={group} mvp={best} />
-          ) : (
-            <p className="text-sm text-muted-foreground">{t('players.noCards')}</p>
-          )
-        ) : (
-          <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} columns={COLUMNS} insights={withPlayers} />
-        )}
+        <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} columns={COLUMNS} insights={withPlayers} />
         <p className="text-[13px] text-muted-foreground">{`${t('stats.noteTitles')} ${t('stats.noteVideo')}`}</p>
       </CardContent>
     </Card>

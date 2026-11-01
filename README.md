@@ -394,7 +394,7 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 Its "Analyse" group lists each player's strengths and things to work on: the rates at least 20
 points apart from the rest of their team's, with 5 attempts or more on each side.
 
-A switch shows the table as one FIFA-style card per player instead, with their picture from the
+"Mon match" shows the picked player's FIFA-style card, with their picture from the
 video (`site/players/`: the clearest moment of their longest stretch on court, 3 wide for 4 tall).
 
 Without player tracks, everything counts each side of the net instead of each team.
