@@ -72,16 +72,16 @@ describe('strengths', () => {
   });
 
   it('rewards sets followed by an attack against the rest of the team, not many sets', () => {
-    const set = (r: number, setter: number, attacked: boolean) => [touch(r, 'set', setter), ...(attacked ? [touch(r, 'attack', 3)] : [])];
-    const contacts = [...times(5, (k) => set(k, 1, true)).flat(), ...times(5, (k) => set(k + 100, 2, k < 2)).flat()];
+    const sets = (n: number, from: number, setter: number, attacked: number) =>
+      Array.from({ length: n }, (_, k) => [touch(from + k, 'set', setter), ...(k < attacked ? [touch(from + k, 'attack', 3)] : [])]).flat();
+    const contacts = [...sets(5, 0, 1, 5), ...sets(5, 100, 2, 2)];
     expect(
       of(contacts)
         .get(1)
         ?.find((i) => i.key === 'usedSets'),
     ).toMatchObject({ n: 5, of: 5, restN: 2, restOf: 5 });
     expect(keys(of(contacts), 2)).not.toContain('usedSets');
-    const never = times(30, (k) => set(k, 1, false)).flat();
-    expect(keys(of([...never, ...times(5, (k) => set(k + 100, 2, true)).flat()], { 1: 600, 2: 600 }))).not.toContain('usedSets');
+    expect(keys(of([...sets(30, 0, 1, 0), ...sets(5, 100, 2, 5)], { 1: 600, 2: 600 }))).not.toContain('usedSets');
   });
 
   it('counts the attacks won right after their sets, without their own', () => {
