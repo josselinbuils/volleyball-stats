@@ -94,6 +94,8 @@ class TestResult:
     def test_is_in_play_when_the_ball_is_played_again_or_the_rally_ends(self):
         assert result(self.attack, {"type": "dig", "side": "left", "x": -6.0, "y": 0.0}) == "play"
         assert result(self.attack, None) == "play"
+        # The rally goes on after it: no landing, a serve brushing the net on its way over.
+        assert result({"type": "serve", "side": "left"}, {"type": "net", "side": "left", "x": -0.5, "y": 0.0}, played=True) == "play"
 
 
 class TestContacts:

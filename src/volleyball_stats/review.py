@@ -629,7 +629,8 @@ def unusual(page: dict) -> list[dict]:
             why.append("serveNotReceived")
         if any(a.get("person") is not None and a.get("person") == b.get("person") and a["type"] != "block" for a, b in pairs):
             why.append("samePlayer")
-        if any(c.get("result") == "error" for c in touches[:-1]):
+        # An attack blocked for a point is the attacker's fault, the block after it.
+        if any(a.get("result") == "error" and b["type"] != "block" for a, b in pairs):
             why.append("afterFault")
         run, side = 0, None
         for c in touches:

@@ -35,7 +35,8 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     if (before && before.type !== 'block' && before.player && before.player === c.player) {
       mark(k, 'samePlayer');
     }
-    if (before?.result === 'error') {
+    // An attack blocked for a point is the attacker's fault, the block after it.
+    if (before?.result === 'error' && c.type !== 'block') {
       mark(k, 'afterFault');
     }
   });

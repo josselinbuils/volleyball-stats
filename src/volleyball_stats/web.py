@@ -129,13 +129,14 @@ def zone_cells() -> list[dict]:
     return cells
 
 
-def result(contact: dict, after: dict | None) -> str:
+def result(contact: dict, after: dict | None, played: bool = False) -> str:
     """Outcome of a contact from the next one of its rally, the landing judged as the score's
     (`points.landing`): "point" when that is the ball landing in the court on the other side of the
     net, or at the foot of the net after a block (the attacker sent it there); "error" when it lands
-    on the contact's side, out, at the foot of the net or in the net; "play" otherwise, and for the
-    floor and net contacts themselves."""
-    if contact["type"] in ("floor", "net") or after is None or after["type"] not in ("floor", "net"):
+    on the contact's side, out, at the foot of the net or in the net; "play" otherwise, for the
+    floor and net contacts themselves, and when a touch is `played` after that landing in the rally:
+    no landing then (a serve brushing the net on its way over, a floor taken for a low touch)."""
+    if contact["type"] in ("floor", "net") or after is None or after["type"] not in ("floor", "net") or played:
         return "play"
     where = landing(after["x"], after["y"]) if after["type"] == "floor" and after["x"] is not None else None
     if where == "net" and contact["type"] == "block":
@@ -189,8 +190,9 @@ def contacts(typed: list[dict], windows: list[tuple[int, int]], players: dict[in
             "zone": None if xy is None else zone(*xy),
             "person": who(track, frame, (said or {}).get(frame)),
         })
-    for contact, after in zip(out, out[1:] + [None]):
-        contact["result"] = result(contact, after if after and after["rally"] == contact["rally"] else None)
+    for k, contact in enumerate(out):
+        rest = [c for c in out[k + 1 :] if c["rally"] == contact["rally"]]
+        contact["result"] = result(contact, rest[0] if rest else None, any(c["type"] not in ("floor", "net") for c in rest[1:]))
     return out
 
 
