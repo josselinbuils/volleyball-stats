@@ -592,7 +592,8 @@
         "noWinner": "Gagnant inconnu",
         "passWithoutServe": "Une réception sans service juste avant",
         "serveNotReceived": "Un service suivi d'autre chose qu'une réception",
-        "afterFault": "Une action suit une faute dans le même échange"
+        "afterFault": "Une action suit une faute dans le même échange",
+        "samePlayer": "Le même joueur touche le ballon 2 fois de suite"
       }
     },
     "details": "Préciser",

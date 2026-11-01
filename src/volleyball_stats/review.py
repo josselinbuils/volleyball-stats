@@ -606,7 +606,8 @@ def unusual(page: dict) -> list[dict]:
     """The rallies of the review's `page` (its data.js) that do not look like one, as reports at
     their start, `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
-    four times in a row (a block apart), a touch after a fault (a fault ends the rally), served by the team that lost the set's point
+    four times in a row (a block apart), a player touching twice in a row (after a block aside), a
+    touch after a fault (a fault ends the rally), served by the team that lost the set's point
     before, no winner (with teams). The same rally and reason keep the same id: one handled is not
     asked again."""
     out = []
@@ -626,6 +627,8 @@ def unusual(page: dict) -> list[dict]:
             why.append("passWithoutServe")
         if any(a["type"] == "serve" and b["type"] != "pass" for a, b in pairs):
             why.append("serveNotReceived")
+        if any(a.get("person") is not None and a.get("person") == b.get("person") and a["type"] != "block" for a, b in pairs):
+            why.append("samePlayer")
         if any(c.get("result") == "error" for c in touches[:-1]):
             why.append("afterFault")
         run, side = 0, None
