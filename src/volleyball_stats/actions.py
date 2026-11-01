@@ -29,9 +29,11 @@ from volleyball_stats.court import Calibration
 # and feet on the floor; an attack is hit above the head, often jumping. Measured on the player's
 # box from a pose model, whose boxes leave out the blurred hitting arm: on the labelled clips the
 # ball is above the box top for 21 of 22 attacks, at or below it for the relances.
-# ponytail: thresholds from 1 labelled relance and 3 likely ones; set them on labelled matches.
+# On the first ASPOM match's answers (4K) the feet barely tell (the boxes' feet jump): the ball at
+# most ABOVE over the head takes 6 of the owner's 8 relances and 2 of 24 attacks of the checked
+# rallies, against none with ABOVE 0 and LIFT 0.1; the school clips' labels score the same.
 POSE_MODEL = Path("models/yolo11m-pose.pt")
-ABOVE, LIFT = 0.0, 0.1
+ABOVE, LIFT = 0.03, 0.6
 # The player under the ball is within UNDER_PX of it horizontally (at 720p); their feet are followed
 # back LIFT_S seconds by box overlap.
 UNDER_PX = 15
