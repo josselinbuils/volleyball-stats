@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -125,6 +125,8 @@ class Questions:
             round(web.ADDED_NEAR_S * self.fps), round(web.ADDED_SAME_S * self.fps), round(web.ADDED_FLOOR_S * self.fps), lead,
         )
         self.touches = doubtful(actions, [(a - lead, b) for a, b in windows], unnamed(self.match / "review", self.fps))
+        # Each rally's window by its key: a rally checked answers the questions about it.
+        self.window_of = {int(r["start_frame"]): (a - lead, b) for (a, b), r in zip(windows, rallies)}
         self.page = page_data(self.match / "review")
         self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []), key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
@@ -423,8 +425,11 @@ class Questions:
         return out
 
     def build(self, asked: set[str]) -> tuple[list[dict], dict[str, dict]]:
-        """The questions not asked yet, most at stake first, and what each answer means (the refs)."""
+        """The questions not asked yet, most at stake first, and what each answer means (the refs).
+        None that a rally checked answers: who made a touch it shows a named player for, whether it is a rally."""
         out, refs = [], {}
+        checked_keys = set(checked(load_log(self.match / "identity_answers.json")))
+        validated = [self.window_of[k] for k in checked_keys if k in self.window_of]
         for c in self.candidates["segments"]:
             qid = f"piece:{c['track']}:{c['start_frame']}"
             options = [n for n in (c["identity"], c["runner_up"]) if n]
@@ -456,7 +461,7 @@ class Questions:
         for r, reason in self.touches:
             frame, team = int(r["frame"]), int(r["team"])
             qid = f"touch:{frame}"
-            if qid in asked:
+            if qid in asked or (reason not in ("unknown", "brief") and any(a <= frame <= b for a, b in validated)):
                 continue
             touches.append({
                 "id": qid, "kind": "touch", "team": team, "identity": None, "impact": identity.CONTACT_S, "seconds": 0, "contacts": 1,
@@ -498,7 +503,7 @@ class Questions:
         found = []
         for (start, end), number, key in self.empty:
             qid = f"rally:{start}"
-            if qid in asked:
+            if qid in asked or key in checked_keys:
                 continue
             found.append({
                 "id": qid, "kind": "rally", "team": 1, "identity": None, "impact": 0, "seconds": round((end - start) / self.fps, 1), "contacts": 0,
@@ -1110,7 +1115,7 @@ def state(match: Path, log: list[dict]) -> dict:
     the jersey numbers, as JSON gives them back."""
     read = match / jerseys.FILE
     # The winners pinned change no identity nor the page.
-    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind != "pinned"}, "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
+    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind not in ("pinned", "locked")}, "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
     return json.loads(json.dumps(found))
 
 
@@ -1140,6 +1145,36 @@ def pinned(page: dict | None, keys: list[int]) -> list[dict]:
     wins. None without one to pin. The page shows them already: applied."""
     found = [{"start": r["key"], "winner": r["winner"]} for r in (page or {"rallies": []})["rallies"] if r.get("key") in set(keys) and r.get("winner")]
     return [{"id": "pin", "choice": "pinned", "pinned": found, "applied": True}] if found else []
+
+
+def locked(page: dict | None, keys: list[int], given: dict[tuple[int, int], dict]) -> list[dict]:
+    """An answer locking the rallies checked (`keys`) as `page` shows them: each touch's named
+    player (`touch`), action and result (`action`), and the touches themselves (`locked`: the page
+    keeps those, re-adds one a rerun loses and lets in no other but those the review adds). None
+    without one to lock. The page shows them already: applied."""
+    out: dict[str, list] = defaultdict(list)
+    people = (page or {}).get("people") or {}
+    for k, r in enumerate((page or {"rallies": []})["rallies"]):
+        if r.get("key") not in set(keys):
+            continue
+        mine = []
+        for c in page["contacts"]:
+            if c["rally"] != k or c["type"] in web.NO_PLAYER or not c.get("team"):
+                continue
+            frame = c.get("f", round(c["t"] * page["fps"]))
+            mine.append({"frame": frame, "team": c["team"], "type": c["type"]})
+            out["action"].append({"frame": frame, "type": c["type"], "result": c["result"]})
+            # Keyed by text once read from data.js.
+            p = people.get(str(c["person"]), people.get(c["person"])) if c.get("person") is not None else None
+            if p and p.get("number") is not None and p["team"] == c["team"]:
+                out["touch"] += touch_answer({"frame": frame, "team": c["team"]}, f"player:{p['team']}:{p['number']}", given)["touch"]
+        out["locked"].append({"start": r["key"], "touches": mine})
+    return [{"id": "lock", "choice": "locked", **out, "applied": True}] if out else []
+
+
+def unlocked(keys: list[int]) -> list[dict]:
+    """An answer unlocking the rallies unchecked (`keys`): their touches stay as answered."""
+    return [{"id": "unlock", "choice": "unlocked", "locked": [{"start": k, "touches": None} for k in keys], "applied": True}] if keys else []
 
 
 def checked(log: list[dict]) -> list[int]:
@@ -1209,6 +1244,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     if first:
         save(answers, first + log)
         print(f"{len(first[0]['pinned'])} winners of rallies checked pinned", flush=True)
+        log = first + log
+    have = {p["start"] for e in log for p in e.get("locked", [])}
+    lock = locked(questions.page, [k for k in checked(log) if k not in have], identity.named(questions.table, identity.read_names(match)))
+    if lock:
+        save(answers, lock + log)
+        print(f"{len(lock[0]['locked'])} rallies checked locked", flush=True)
     where = lambda r: identity.lookup(questions.table, r["track"], r["frame"])  # noqa: E731
     computed = match / APPLIED
     done = match / "identities.csv"
@@ -1480,7 +1521,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         off = [int(k) for k in body.get("unchecked") or []] if edit else []
                         asked = {entry["id"] for entry in log}
                         # Before the answer: an undo after a restart takes that one away.
-                        log += pinned(questions.page, ok)
+                        log += pinned(questions.page, ok) + locked(questions.page, ok, given) + unlocked(off)
                         log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), "applied": False})
                         # The reports on a rally checked are handled with it.
                         log += [{"id": qid, "choice": "checked", "applied": False} for qid, ref in refs.items() if "report" in ref and ref["report"]["start"] in ok and qid not in asked]

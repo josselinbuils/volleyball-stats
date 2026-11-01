@@ -428,6 +428,14 @@ class TestMergeRallies:
         assert [(p["winner"], p["score_1"], p["score_2"]) for p in s] == [("2", "0", "1"), ("1", "1", "1"), ("2", "0", "1")]
 
 
+class TestBallNear:
+    def test_a_ball_frame_near_two_touches_places_both(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n100,1,10,20\n130,0,0,0\n")
+
+        assert ball_near(ball, [95, 105], 10) == {95: ("10", "20"), 105: ("10", "20")}
+
+
 class TestFollowed:
     def test_a_rallys_last_touch_gives_its_winner_and_the_score_follows(self):
         rallies = [{"set": 1, "winner": 2}, {"set": 1, "winner": 2}, {"set": 1, "winner": 1}, {"set": 2, "winner": None}]

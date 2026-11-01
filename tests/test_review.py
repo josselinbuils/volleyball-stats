@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, pinned, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, checked, corrections, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -213,6 +213,28 @@ class TestReports:
         assert pinned(page, [2000, 3000]) == [{"id": "pin", "choice": "pinned", "pinned": [{"start": 2000, "winner": 1}], "applied": True}]
         assert pinned(page, [3000]) == []
 
+    def test_a_rally_checked_is_locked_as_the_page_shows_it(self):
+        page = {
+            "fps": 50,
+            "rallies": [{"key": 2000}, {"key": 3000}],
+            "people": {"7": {"team": 1, "number": 4}, "8": {"team": 2, "number": None}},
+            "contacts": [
+                {"rally": 0, "f": 2010, "t": 40.2, "type": "serve", "team": 1, "result": "play", "person": 7},
+                {"rally": 0, "f": 2050, "t": 41.0, "type": "pass", "team": 2, "result": "error", "person": 8},
+                {"rally": 0, "f": 2060, "t": 41.2, "type": "floor", "team": None, "result": "play", "person": None},
+                {"rally": 1, "f": 3010, "t": 60.2, "type": "serve", "team": 2, "result": "point", "person": None},
+            ],
+        }
+
+        [entry] = locked(page, [2000], {(1, 4): {"name": "Léa"}})
+
+        assert entry["locked"] == [{"start": 2000, "touches": [{"frame": 2010, "team": 1, "type": "serve"}, {"frame": 2050, "team": 2, "type": "pass"}]}]
+        assert entry["action"] == [{"frame": 2010, "type": "serve", "result": "play"}, {"frame": 2050, "type": "pass", "result": "error"}]
+        # Only a named player is kept: none was shown for the pass.
+        assert entry["touch"] == [{"frame": 2010, "team": 1, "identity": 4, "name": "Léa"}]
+        assert locked(page, [], {}) == []
+        assert unlocked([2000])[0]["locked"] == [{"start": 2000, "touches": None}]
+
     def test_a_correction_a_frame_off_names_the_touch_there(self):
         out = report_answer({"touches": [{"frame": 2101, "type": "dig"}]}, self.teams, self.windows, {}, 20)
 
@@ -299,7 +321,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "log": log}
 
 
 class TestRange:

@@ -262,16 +262,20 @@ def with_added(
 
 def ball_near(path: Path, frames: list[int], near: int) -> dict[int, tuple[str, str]]:
     """The ball's place (x, y as in ball.csv) seen nearest each of `frames`, under `near` frames from it."""
-    wanted = {f + d: f for f in frames for d in range(-near, near + 1)}
+    # A ball frame near two touches counts for both.
+    wanted: dict[int, list[int]] = {}
+    for f in frames:
+        for d in range(-near, near + 1):
+            wanted.setdefault(f + d, []).append(f)
     best: dict[int, tuple[int, str, str]] = {}
     if path.exists():
         with open(path) as f:
             for row in csv.DictReader(f):
                 frame = int(row["frame"])
                 if row["visible"] == "1" and frame in wanted:
-                    want = wanted[frame]
-                    if want not in best or abs(frame - want) < best[want][0]:
-                        best[want] = (abs(frame - want), row["x"], row["y"])
+                    for want in wanted[frame]:
+                        if want not in best or abs(frame - want) < best[want][0]:
+                            best[want] = (abs(frame - want), row["x"], row["y"])
     return {f: (x, y) for f, (_, x, y) in best.items()}
 
 
@@ -639,9 +643,18 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     # for a touch) go, those it gives the other team change sides.
     # The rallies end where the review says; touches past an end go.
     lead = round(LEAD_S * fps)
+    # A rally checked in the review is locked: its touches come back (a rerun may lose one) and no
+    # other comes in but those the review adds. One the review split in two is not.
+    locks = {a["start"]: a["touches"] for a in answers(match, "locked") if a["start"] not in cut}
+    added = answers(match, "added")
+    kept = [{"start": start, **t} for start, touches in locks.items() if touches for t in touches]
     windows, actions = with_added(
-        ended(windows, answers(match, "end")), rally_rows, actions, answers(match, "added"), match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead
+        ended(windows, answers(match, "end")), rally_rows, actions, kept + added, match / "ball.csv", round(ADDED_NEAR_S * fps), round(ADDED_SAME_S * fps), round(ADDED_FLOOR_S * fps), lead
     )
+    allowed = {t["frame"] for t in kept} | {a["frame"] for a in added}
+    shut = [(a - lead, b) for (a, b), row in zip(windows, rally_rows) if locks.get(int(row["start_frame"]))]
+    # The ball's floor and net contacts stay: the lock holds the players' touches.
+    actions = [r for r in actions if r["type"] in NO_PLAYER or int(r["frame"]) in allowed or not any(a <= int(r["frame"]) <= b for a, b in shut)]
     scores = scores if with_teams else [{}] * len(windows)
     # Two windows it says are one rally become one.
     windows, rally_rows, scores = merge_rallies(windows, rally_rows, scores, {a["start"] for a in answers(match, "join")})

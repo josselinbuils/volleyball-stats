@@ -101,7 +101,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      Beside it, the touches around the video: correct, add (a serve before a rally starts it, and the
      touches added after it are that rally's), remove, join two rallies (`join` answers), start a rally
      at a moment (`split` answers: one missed, or the second of two taken for one; `web.rally_table`).
-     A rally checked keeps the winner it showed (`pinned` answers, the review's winner answers still win). "Valider
+     A rally checked is locked as it showed: its winner (`pinned`), touches (`locked`: a rerun loses or adds
+     none), their players and actions (`touch`, `action`); no question its check answers is asked; unchecking
+     unlocks it. A rally's winner follows its last touch (`web.followed`). "Valider
      l'échange" saves and checks the rally: green, its reports handled, until a new report; "Retirer la
      validation" unchecks it. Saved corrections not yet in the review's page show in the editor (the
      last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)

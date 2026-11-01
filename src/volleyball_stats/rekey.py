@@ -66,6 +66,8 @@ def moved(log: list[dict], before: list[Window], after: list[Window], lead: int)
         for kind in ("rally", "winner", "pinned", "end"):
             if kind in e:
                 e[kind] = [{**a, "start": key(a["start"], whole)} for a in e[kind]]
+        if "locked" in e:
+            e["locked"] = [{**a, "start": key(a["start"])} for a in e["locked"]]
         if "join" in e:
             e["join"] = [{**a, "start": key(a["start"])} for a in e["join"] if not joined(a["start"])]
         for kind in ("checked", "unchecked"):
