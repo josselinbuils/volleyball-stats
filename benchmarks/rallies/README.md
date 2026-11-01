@@ -272,3 +272,26 @@ unchanged by them (F1 ±1 s 0.93, 0.95, 0.74). Over the whole match (held out), 
 duplicates joined to their rally, the 7 rallies the review confirmed all kept. Three of 21 ends are
 still more than 1 s off: a ball out of sight 1.6 s after a block, a dig sending the ball away, a
 rally the ball's motion overruns into the dead ball.
+
+## Whole match, on the review's checked rallies
+
+`checked.py` scores `match.rally_windows` on every rally a match's review checked: the touches with a
+contact inside a window, the contacts in windows that are no touch, the windows on no rally, the rallies
+with no window.
+
+```bash
+uv run --group bench python benchmarks/rallies/checked.py outputs/first_match --video data/first_match.mp4 --court outputs/courts/aspom_begles.json
+```
+
+On the first match's 129 rallies and 944 touches (1 Nov), the ball speed saying a rally is still live
+(`LIVE_SPEED`) in px/s rather than px/frame, 600 instead of 15 at 50 fps:
+
+| | Touches in windows | Contacts no touch | False windows | Rallies missed | `side_holdout` F1 ±1 s |
+| --- | --- | --- | --- | --- | --- |
+| before | 812 | 146 | 8 | 2 | 0.75 |
+| after | 829 | 153 | 8 | 2 | 0.86 |
+
+`side_club` 0.93, `side_long` 0.95, 26:00-36:00 0.90 and 50:00-60:00 0.57 do not move. Tried and dropped: a whistle
+closing nothing while the ball run goes on 3 s after it (+7 touches on the match, but `side_club` 0.80, `side_long`
+0.89, `side_holdout` 0.67); `MIN_SPEED` and `MAX_SPEED` per second (`MIN_SPEED` 3.6 at 50 fps: 814 touches, 217 no touch,
+12 false windows).

@@ -92,8 +92,8 @@ class TestSegment:
         assert segment(self.rally, [(0.5, 0.8)], FPS) == []
 
     def test_skips_a_whistle_followed_by_a_flying_ball(self):
-        # A serve, then 110 frames of the ball bouncing high at 16 px/frame.
-        bouncing = np.column_stack([np.full(110, 500.0), 200 + 16 * (20 - np.abs(np.arange(110) % 40 - 20))])
+        # A serve, then 110 frames of the ball bouncing high at 22 px/frame.
+        bouncing = np.column_stack([np.full(110, 500.0), 200 + 22 * (20 - np.abs(np.arange(110) % 40 - 20))])
         track = np.concatenate([np.full((30, 2), np.nan), flight(40, 1100, -15.0), bouncing, np.full((300, 2), np.nan)])
 
         # 2.5 s: the ball is still flying 1-3 s later; 6.5 s: it has stopped.

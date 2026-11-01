@@ -46,9 +46,9 @@ MIN_TRAVEL = 300
 # A serve covers 200 px of width within a second.
 SERVE_TRAVEL = 200
 # The closing whistle is the first one at least 0.5 s after the serve, at most 2 s after the last
-# ball motion, that is not followed 1-3 s later by a ball still flying at 15 px/frame.
+# ball motion, that is not followed 1-3 s later by a ball still flying at 600 px/s.
 MIN_RALLY_S, WHISTLE_AFTER_S = 0.5, 2.0
-LIVE_SPEED = 15
+LIVE_SPEED = 600
 LIVE_WINDOW_S = (1.0, 3.0)
 # A server stands behind an end line (court x past SERVER_X meters, inside the sidelines'
 # extension) for SERVER_S or more, gaps up to SERVER_GAP_S bridged. The serve leaves as the stand
@@ -170,7 +170,7 @@ def segment(track: np.ndarray, whistle_times: list[tuple[float, float]], fps: fl
     ponytail: no whistle, no rally. The dead ball keeps bouncing, rolling and being thrown back for
     up to 8 s, and only the court module's floor position could retire it without the whistle.
     """
-    fast = speed(track) >= LIVE_SPEED * scale
+    fast = speed(track) >= LIVE_SPEED / fps * scale
     onsets = np.array([w[0] for w in whistle_times])
     out = []
     for start, end in ball_runs(track, fps, scale):
@@ -239,7 +239,7 @@ def served(players: list[tuple[int, float, float]], track: np.ndarray, whistle_t
         if kept and frame - kept[-1][1] < SAME_SERVE_S * fps and not np.any((closing > kept[-1][1]) & (closing < frame)):
             continue
         kept.append((stand, frame, side))
-    fast = speed(track) >= LIVE_SPEED * scale
+    fast = speed(track) >= LIVE_SPEED / fps * scale
     live = [round(s * fps) for s in LIVE_WINDOW_S]
     out = []
     for (_, frame, side), (stand, following, _) in zip(kept, [*kept[1:], (len(track), len(track), 0)]):
@@ -259,7 +259,7 @@ def whistled(track: np.ndarray, whistle_times: list[tuple[float, float]], fps: f
     net_x = float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
     ends_x = calibration.to_image(np.array([[-9.0, 0.0], [9.0, 0.0]]))[:, 0]
     onsets = np.array([w[0] * fps for w in whistle_times])
-    fast = speed(track) >= LIVE_SPEED * scale
+    fast = speed(track) >= LIVE_SPEED / fps * scale
     live = [round(s * fps) for s in LIVE_WINDOW_S]
     starts = []
     for start, _ in ball_runs(track, fps, scale):
