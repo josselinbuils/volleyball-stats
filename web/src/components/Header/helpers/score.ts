@@ -1,5 +1,6 @@
 import type { Contact, Group, Rally } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
+import { scoringTouch } from '@/helpers/plays';
 
 /** A set's final score (team 1, team 2), `final` when the user gave it, else estimated. */
 export interface SetScore {
@@ -27,14 +28,18 @@ export function setsWon(scores: SetScore[]): [number, number] {
   return [scores.filter((s) => s.score[0] > s.score[1]).length, scores.filter((s) => s.score[1] > s.score[0]).length];
 }
 
-/** The last touches of the rallies of `rallies` team `g` won: its own points (`direct`) and the other
- * team's faults (`faults`). */
+/** The rallies of `rallies` team `g` won: the touches that scored them (`direct`) and the other team's last
+ * touches, its faults (`faults`). */
 export function pointSplit(rallies: Rally[], g: Group): { direct: Contact[]; faults: Contact[] } {
   const out = { direct: [] as Contact[], faults: [] as Contact[] };
   for (const r of rallies) {
-    const last = r.winner === g ? r.contacts.filter(isTouch).at(-1) : undefined;
-    if (last?.g === g && last.result === 'point') {
-      out.direct.push(last);
+    if (r.winner !== g) {
+      continue;
+    }
+    const scored = scoringTouch(r);
+    const last = r.contacts.filter(isTouch).at(-1);
+    if (scored?.g === g) {
+      out.direct.push(scored);
     } else if (last && last.g !== g && last.result === 'error') {
       out.faults.push(last);
     }

@@ -1,7 +1,7 @@
 import type { Contact, Person, Rally } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
 import { playerKey } from '@/helpers/players';
-import { scoresBefore, teamFirst } from '@/helpers/plays';
+import { scoresBefore, scoringTouch, teamFirst } from '@/helpers/plays';
 
 // A point in a rally this long is a moment.
 const LONG_RALLY = 7;
@@ -26,8 +26,8 @@ export function highlights(rallies: Rally[], key: string, people: Record<string,
   const before = scoresBefore(rallies);
   const out: Highlight[] = [];
   for (const [k, r] of rallies.entries()) {
-    const c = r.contacts.filter(isTouch).at(-1);
-    if (!c || c.result !== 'point' || r.winner !== c.g || !r.score || playerKey(c.person, people) !== key) {
+    const c = scoringTouch(r);
+    if (!c || r.winner !== c.g || !r.score || playerKey(c.person, people) !== key) {
       continue;
     }
     const was = before.get(r.i) as [number, number];

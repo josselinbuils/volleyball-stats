@@ -645,7 +645,9 @@ def unusual(page: dict) -> list[dict]:
         # An attack blocked for a point is the attacker's fault, the block after it.
         if any(a.get("result") == "error" and b["type"] != "block" for a, b in zip(touches, touches[1:])):
             why.append("afterFault")
-        if any(a.get("result") == "point" for a in touches[:-1]):
+        # An attack or a block the other team then loses is a point, that last touch its fault.
+        lost = len(touches) >= 2 and touches[-2]["type"] in ("attack", "block") and touches[-1].get("result") == "error" and touches[-1].get("team") != touches[-2].get("team")
+        if any(a.get("result") == "point" for a in touches[: -2 if lost else -1]):
             why.append("afterPoint")
         run, side = 0, None
         for c in played:

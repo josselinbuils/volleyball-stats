@@ -161,23 +161,30 @@ class TestContacts:
 
         assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
 
-    def test_an_attack_blocked_for_a_point_loses_one_the_other_team_touches_and_loses_is_no_point(self):
+    def test_an_attack_or_a_block_the_other_team_loses_is_a_point_an_attack_blocked_for_one_a_fault(self):
         def c(kind, team, rally, result="play"):
             return {"type": kind, "team": team, "rally": rally, "result": result}
 
         found = [
             c("attack", 1, 0), c("dig", 2, 0, "error"),  # the dig lets it go
-            c("attack", 1, 1), c("block", 2, 1, "point"),  # blocked
-            c("attack", 1, 2), c("dig", 2, 2), c("floor", None, 2),  # kept in play
-            c("attack", 1, 3), c("dig", 2, 3, "error"),  # its result given by the review
-            c("serve", 2, 4), c("pass", 1, 4, "error"),  # the reception lets it go: its fault
-            c("serve", 2, 5), c("pass", 1, 5, "error"), c("set", 1, 5, "error"),  # touches after it
+            c("attack", 1, 1), c("block", 2, 1, "error"),  # off the block
+            c("block", 1, 2), c("dig", 2, 2, "error"),  # the block's ball lost
+            c("attack", 1, 3), c("block", 2, 3, "point"),  # blocked
+            c("attack", 1, 4), c("dig", 2, 4), c("floor", None, 4),  # kept in play
+            c("attack", 1, 5), c("dig", 2, 5, "error"),  # in play in the review: the same
+            c("attack", 1, 6, "error"), c("dig", 2, 6, "error"),  # a fault in the review stays
+            c("attack", 1, 7), c("block", 2, 7, "point"),  # its result given by the review
+            c("attack", 1, 8), c("dig", 2, 8, "error"), c("set", 2, 8, "error"),  # touches after it
+            c("attack", 1, 9), c("attack", 2, 9, "error"),  # the other team's own attack
+            c("serve", 2, 10), c("pass", 1, 10, "error"),  # a serve is not concerned
         ]
         typed = [{"frame": str(k)} for k in range(len(found))]
 
-        credited(found, typed, {7})
+        credited(found, typed, {11, 15})
 
-        assert [x["result"] for x in found if x["type"] in ("attack", "serve")] == ["play", "error", "play", "play", "play", "play"]
+        assert [x["result"] for x in found if x["type"] in ("attack", "serve") or x["team"] == 1 and x["type"] == "block"] == [
+            "point", "point", "point", "error", "play", "point", "error", "play", "play", "play", "error", "play",
+        ]
 
     def test_the_review_s_types_and_results_replace_the_touches(self):
         found = [{"type": "serve", "result": "point"}, {"type": "pass", "result": "play"}]

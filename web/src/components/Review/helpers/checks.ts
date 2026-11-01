@@ -47,7 +47,9 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     if (before?.result === 'error' && c.type !== 'block') {
       mark(k, 'afterFault');
     }
-    if (before?.result === 'point') {
+    // An attack or a block the other team then loses is a point, that last touch its fault.
+    const lost = k === touches.length - 1 && c.result === 'error' && c.team !== before?.team && (before?.type === 'attack' || before?.type === 'block');
+    if (before?.result === 'point' && !lost) {
       mark(k, 'afterPoint');
     }
   });

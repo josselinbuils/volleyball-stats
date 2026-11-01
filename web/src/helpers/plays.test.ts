@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Group, Person, Rally } from '@/lib/match';
-import { duos, longestRally, serveRun } from '@/helpers/plays';
+import { duos, longestRally, scoringTouch, serveRun } from '@/helpers/plays';
 
 describe('plays', () => {
   const people: Record<string, Person> = {
@@ -56,6 +56,19 @@ describe('plays', () => {
 
     it('needs 2 points', () => {
       expect(serveRun([rally(0, [touch(0, 'serve', 1)], [1, 0])], ALEX, people)).toBeNull();
+    });
+  });
+
+  describe('scoringTouch', () => {
+    it('takes a last touch scoring, or an attack the other team then lost', () => {
+      const ace = touch(0, 'serve', 1, 'point');
+      expect(scoringTouch(rally(0, [ace], [1, 0]))).toBe(ace);
+      const attack = touch(1, 'attack', 1, 'point');
+      expect(scoringTouch(rally(1, [attack, touch(1, 'dig', 4, 'error', 2)], [1, 0]))).toBe(attack);
+    });
+
+    it('takes none for a plain fault', () => {
+      expect(scoringTouch(rally(0, [touch(0, 'attack', 1), touch(0, 'dig', 4, 'error', 2)], [1, 0]))).toBeUndefined();
     });
   });
 

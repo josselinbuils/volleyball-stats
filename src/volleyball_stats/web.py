@@ -60,6 +60,8 @@ LOGO_QUALITY = 90
 # The seconds of players' positions in one file the page loads, and how long a player missing from a few samples
 # stays where they were last seen (the page's `playersAt`).
 POSITIONS_S, HOLD_S = 60, 0.5
+# The touches that lose an attack or a block coming at them: not a serve, nor an attack of their own.
+LOSING_TOUCHES = ("pass", "set", "relance", "block", "dig")
 # The cards' pictures: in the pieces of a player the review shows and the user left unmarked (sure
 # to be them), PHOTO_SAMPLES moments each, alone, on the court (ON_COURT m around it at most: not
 # walking past the camera) and with room around them for a centred picture (ROOM of their height
@@ -581,16 +583,18 @@ def acted(found: list[dict], typed: list[dict], fixes: dict[int, dict]) -> None:
 
 
 def credited(found: list[dict], typed: list[dict], fixed: set[int]) -> None:
-    """The attacks of `found` (from actions CSV rows `typed`) blocked for a point, the rally's last
-    touch: a fault. A serve or an attack the other team touches and loses is no point by itself:
-    that touch's fault wins the rally (the owner's rule, 1 Nov). Those whose result the review gave
-    (`fixed` frames) stay as given."""
+    """The attacks and blocks of `found` (from actions CSV rows `typed`) the other team's next touch, the
+    rally's last, loses: a point, that touch staying a fault (the owner's rule, 1 Nov), whatever the review
+    gave them but a result other than in play. An attack blocked for a point is a fault, unless the
+    review gave its result (`fixed` frames)."""
     touches = [(c, int(row["frame"])) for c, row in zip(found, typed) if c["type"] not in ("floor", "net")]
     last = {c["rally"]: id(c) for c, _ in touches}
     for (a, frame), (b, _) in zip(touches, touches[1:]):
-        if a["result"] != "play" or frame in fixed or b["rally"] != a["rally"] or last[b["rally"]] != id(b) or b["team"] in (None, a["team"]):
+        if a["result"] != "play" or b["rally"] != a["rally"] or last[b["rally"]] != id(b) or b["team"] in (None, a["team"]):
             continue
-        if a["type"] == "attack" and b["type"] == "block" and b["result"] == "point":
+        if a["type"] in ("attack", "block") and b["type"] in LOSING_TOUCHES and b["result"] == "error":
+            a["result"] = "point"
+        elif a["type"] == "attack" and b["type"] == "block" and b["result"] == "point" and frame not in fixed:
             a["result"] = "error"
 
 
