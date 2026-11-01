@@ -172,7 +172,8 @@ export function PlayerSelect({
               </li>
             ))}
           </ul>,
-          document.body,
+          // In full screen, only the full-screen block shows.
+          document.fullscreenElement ?? document.body,
         )}
     </>
   );
