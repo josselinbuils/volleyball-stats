@@ -163,7 +163,7 @@ def from_checked(match: Path, page: dict, fps: float) -> dict[str, Score]:
         "checked: pipeline touches kept": (kept, mine),
         "checked: types": (typed, found),
         "checked: named players": (player, asked),
-        "checked: winners": (won, len(rallies)),
+        "checked: winners": (won, sum(not r.get("redo") for _, r in rallies)),
     }
 
 

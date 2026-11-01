@@ -50,6 +50,8 @@ export interface Rally {
   left: Group;
   flipped: boolean;
   winner: Group | null;
+  /** To replay: nobody gets the point. */
+  redo?: boolean;
   score: [number, number] | null;
   contacts: Contact[];
 }

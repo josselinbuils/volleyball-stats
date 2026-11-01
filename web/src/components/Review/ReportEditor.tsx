@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -24,8 +24,9 @@ const HOLD_MS = 3000;
 const AROUND_RALLIES = 2;
 
 type Fix = { player?: string; type?: string; result?: string };
-/** `join`: the rally and the next one are one, ending at the next one's end. */
-type RallyFix = { winner?: Group; play?: false; end?: number; join?: true };
+/** `join`: the rally and the next one are one, ending at the next one's end. `redo`: to replay,
+ * nobody gets the point; false takes back what the page shows. */
+type RallyFix = { winner?: Group; play?: false; end?: number; join?: true; redo?: boolean };
 /** The team of a player given as "TEAM:IDENTITY". */
 const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 const frameOf = (time: number) => Math.round(time * match.fps);
@@ -45,7 +46,7 @@ const touches = contacts
 /** The match's touches beside its video: those of the rallies around where the video stands, the
  * one it plays centred, to correct (player of either team, action, result), remove or add at the
  * video's moment, or start a rally there (one missed, or the second of two taken for one); under it
- * the winner, no play, end and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
+ * the winner or to replay, no play, end and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
  * such; saving sends them all, with the new ones. */
 export function ReportEditor({
   reports,
@@ -110,6 +111,7 @@ export function ReportEditor({
   /** What the answers name a rally by. */
   const keyOf = (k: number) => shown[k].key;
   const fixOf = (k: number): RallyFix | undefined => (shown[k] ? rallyFixes[shown[k].key] : undefined);
+  const toReplay = (k: number) => fixOf(k)?.redo ?? shown[k]?.redo ?? false;
 
   // A change back to the touch's own value is no change.
   const edit = (row: Row, change: Fix) =>
@@ -135,7 +137,10 @@ export function ReportEditor({
       if (next.winner === (next.join ? shown[k + 1]?.winner : shown[k].winner)) {
         delete next.winner;
       }
-      for (const key of ['play', 'end', 'join'] as const) {
+      if (next.redo === !!shown[k].redo) {
+        delete next.redo;
+      }
+      for (const key of ['winner', 'play', 'end', 'join', 'redo'] as const) {
         if (next[key] === undefined) {
           delete next[key];
         }
@@ -271,7 +276,8 @@ export function ReportEditor({
     (fixOf(k)?.join
       ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(shown[k].start), to: endOf(k + 1) })
       : t(fixOf(k - 1)?.join ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(shown[k].start), to: endOf(k) })) +
-    (splits.includes(shown[k].key) ? ` · ${t('review.reportRallyNew')}` : '');
+    (splits.includes(shown[k].key) ? ` · ${t('review.reportRallyNew')}` : '') +
+    (toReplay(k) ? ` · ${t('review.reportRedo')}` : '');
   // Joined only to the next rally of its set.
   const canJoin = shown[here + 1]?.set === rally?.set;
 
@@ -280,24 +286,35 @@ export function ReportEditor({
   // A rally's winner: the one set, else the one its last touch's result says, else the page's.
   const lastOf = (k: number) => kept.get(fixOf(k)?.join ? k + 1 : k)?.at(-1);
   const winnerOf = (k: number): Group | null => {
+    if (toReplay(k)) {
+      return null;
+    }
     // As on the page: the last touch says it, a point for its team or a fault for the other's; one
     // in play, or none, leaves the winner given.
     const last = lastOf(k);
     const said = last?.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
     return said ?? fixOf(k)?.winner ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
   };
+  const setLastResult = (k: number, result: string) => {
+    const last = lastOf(k);
+    if (last?.added) {
+      editAdded(last.frame, { result });
+    } else if (last) {
+      edit(last, { result });
+    }
+  };
   // A winner picked makes the rally's last touch a point for them or a fault of the other team.
   const pickWinner = (k: number, w: Group) => {
     const last = lastOf(k);
     if (last) {
-      const result = last.team === w ? 'point' : 'error';
-      if (last.added) {
-        editAdded(last.frame, { result });
-      } else {
-        edit(last, { result });
-      }
+      setLastResult(k, last.team === w ? 'point' : 'error');
     }
-    editRally(k, { winner: w });
+    editRally(k, { winner: w, redo: false });
+  };
+  // To replay: nobody gets the point, its last touch stays in play.
+  const pickReplay = (k: number) => {
+    setLastResult(k, 'play');
+    editRally(k, { winner: undefined, redo: true });
   };
   const winner = rally ? winnerOf(here) : null;
   const found = new Map<number, ReturnType<typeof problems>>();
@@ -307,7 +324,7 @@ export function ReportEditor({
     }
     const mine = mineOf(k);
     const previous = k > 0 && shown[k - 1].set === shown[k].set && fixOf(k - 1)?.play !== false ? winnerOf(k - 1) : null;
-    found.set(k, problems(mine, winnerOf(k), previous, hasTeams));
+    found.set(k, problems(mine, winnerOf(k), previous, hasTeams && !toReplay(k)));
   }
   const problemsOf = (row: Row): Problem[] => {
     const k = fixOf(row.rally - 1)?.join ? row.rally - 1 : row.rally;
@@ -400,7 +417,18 @@ export function ReportEditor({
                 .filter((row) => row.rally === k)
                 .map((row) => {
                   const remove = () => (row.added ? setAdded((all) => all.filter((a) => a.frame !== row.frame)) : edit(row, { player: 'none' }));
-                  const change = (c: Fix) => (row.added ? editAdded(row.frame, c) : edit(row, c));
+                  const change = (c: Fix) => {
+                    // A point or a fault said on a touch ends the rally: it is no longer to replay.
+                    const owner = fixOf(row.rally - 1)?.join ? row.rally - 1 : row.rally;
+                    if (c.result && c.result !== 'play' && toReplay(owner)) {
+                      editRally(owner, { redo: false });
+                    }
+                    if (row.added) {
+                      editAdded(row.frame, c);
+                    } else {
+                      edit(row, c);
+                    }
+                  };
                   return (
                     <li
                       key={`t${row.frame}`}
@@ -537,13 +565,23 @@ export function ReportEditor({
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
             <span className="flex flex-wrap items-center gap-2">
               {t('review.reportWinner')}
-              <ToggleGroup type="single" variant="outline" spacing={0} value={winner === null ? '' : String(winner)} onValueChange={(v) => v && pickWinner(here, Number(v) as Group)}>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={0}
+                value={toReplay(here) ? 'redo' : winner === null ? '' : String(winner)}
+                onValueChange={(v) => v && (v === 'redo' ? pickReplay(here) : pickWinner(here, Number(v) as Group))}
+              >
                 {GROUPS.map((g) => (
                   <ToggleGroupItem key={g} value={String(g)} className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                     <Swatch color={teamColor(g)} ring={teamRing(g)} />
                     {groupName(t, g)}
                   </ToggleGroupItem>
                 ))}
+                <ToggleGroupItem value="redo" title={t('review.reportRedoHelp')} className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                  <RotateCcw aria-hidden />
+                  {t('review.reportRedo')}
+                </ToggleGroupItem>
               </ToggleGroup>
             </span>
             <label className="flex items-center gap-2">

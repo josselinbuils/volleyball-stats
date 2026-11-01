@@ -44,7 +44,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked")
+KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -655,7 +655,7 @@ def unusual(page: dict) -> list[dict]:
         before = rallies[k - 1] if k else None
         if serves and serves[0].get("team") and before and before["set"] == r["set"] and before.get("winner") and serves[0]["team"] != before["winner"]:
             why.append("server")
-        if page.get("teams") and r.get("winner") is None:
+        if page.get("teams") and r.get("winner") is None and not r.get("redo"):
             why.append("noWinner")
         given = dict(enumerate(page.get("scores") or [], 1)).get(r["set"])
         score = r.get("score") and f"{r['score'][0]}-{r['score'][1]}"
@@ -704,7 +704,8 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
     starts by default): a touch's player ("TEAM:IDENTITY") or none ("none", no touch) as `touch`
     answers, its type or result as `action` ones; a touch added (frame, team, type, result, player)
     as an `added` one with those, in its rally (`window_of`); a rally's (`rallies`, by its key) no
-    play (`rally`), winner (`winner`), end frame (`end`) or joining the next one (`join`); a rally
+    play (`rally`), winner (`winner`), end frame (`end`), joining the next one (`join`) or being
+    replayed, or no longer (`redo`); a rally
     starting at a frame (`splits`, `split`), its key that frame: one the pipeline missed, or the
     second of two it took for one."""
     keys = keys or [start for start, _ in windows]
@@ -757,6 +758,8 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
             out["end"].append({"start": start, "end": int(r["end"])})
         if r.get("join") is True:
             out["join"].append({"start": start})
+        if r.get("redo") in (True, False):
+            out["redo"].append({"start": start, "redo": r["redo"]})
     return dict(out)
 
 

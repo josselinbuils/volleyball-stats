@@ -452,6 +452,20 @@ class TestFollowed:
         assert [r["winner"] for r in rallies] == [1, 2, 2, None]
         assert [r.get("score") for r in rallies] == [[1, 0], [1, 1], [1, 2], [0, 0]]
 
+    def test_a_rally_to_replay_gives_nobody_a_point_and_its_touches_stay_in_play(self):
+        rallies = [{"key": 100, "set": 1, "winner": 1}, {"key": 200, "set": 1, "winner": 2}, {"key": 300, "set": 1, "winner": 1}]
+        found = [
+            {"rally": 0, "type": "attack", "team": 1, "result": "point"},
+            {"rally": 1, "type": "dig", "team": 1, "result": "play"},
+            {"rally": 1, "type": "attack", "team": 2, "result": "error"},
+            {"rally": 2, "type": "attack", "team": 1, "result": "point"},
+        ]
+
+        followed(rallies, found, {200})
+
+        assert [(r["winner"], r.get("redo"), r["score"]) for r in rallies] == [(1, None, [1, 0]), (None, True, [1, 0]), (1, None, [2, 0])]
+        assert [c["result"] for c in found] == ["point", "play", "play", "point"]
+
 
 class TestSplitRallies:
     def test_a_rally_starts_inside_one_or_between_two_where_the_review_says(self):

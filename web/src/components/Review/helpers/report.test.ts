@@ -74,6 +74,15 @@ describe('withSplits', () => {
     ]);
   });
 
+  it('leaves "to replay" on the part of a rally keeping its key', () => {
+    const out = withSplits([{ start: 10, end: 20, set: 1, winner: null, redo: true, key: 100 }], [150], 10);
+
+    expect(out.map((r) => [r.key, r.redo])).toEqual([
+      [100, true],
+      [150, undefined],
+    ]);
+  });
+
   it('files a page touch under the part of its rally started by then', () => {
     const out = withSplits(rallies, [150], 10);
 

@@ -491,15 +491,21 @@ def rewon(rallies: list[dict], winners: dict[int, int]) -> None:
     counted(rallies)
 
 
-def followed(rallies: list[dict], found: list[dict]) -> None:
+def followed(rallies: list[dict], found: list[dict], redo: frozenset[int] | set[int] = frozenset()) -> None:
     """`rallies`' winners from their last touch in `found` (the page's contacts, the review's
     results included): a point for its team, a fault for the other's; one whose last touch is in
-    play, or without a touch, keeps its own. The score follows the actions (the owner's rule, 1 Nov)."""
+    play, or without a touch, keeps its own. The score follows the actions (the owner's rule, 1 Nov).
+    A rally to replay (`redo`, by `key`) gives nobody a point: no winner, its touches in play."""
+    replayed = {k for k, rally in enumerate(rallies) if rally.get("key") in redo}
     for c in found:
         # A playing fault is a fault, whatever the rally's winner said.
         if c["type"] == "fault":
             c["result"] = "error"
-    last = {c["rally"]: c for c in found if c["type"] not in NO_PLAYER and c.get("team")}
+        elif c["rally"] in replayed and c["type"] not in NO_PLAYER:
+            c["result"] = "play"
+    for k in replayed:
+        rallies[k].update(winner=None, redo=True)
+    last = {c["rally"]: c for c in found if c["type"] not in NO_PLAYER and c.get("team") and c["rally"] not in replayed}
     for k, c in last.items():
         if c["result"] in ("point", "error"):
             rallies[k]["winner"] = c["team"] if c["result"] == "point" else 3 - c["team"]
@@ -709,7 +715,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     settle(found, [r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
     credited(found, actions, {a["frame"] for a in answers(match, "action") if "result" in a})
-    followed(rallies, found)
+    # The last answer on a rally stands: choosing a winner takes "to replay" back.
+    followed(rallies, found, {start for start, redo in {a["start"]: a["redo"] for a in answers(match, "redo")}.items() if redo})
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)

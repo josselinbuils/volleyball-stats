@@ -298,6 +298,8 @@
     "reportResult": "Result",
     "reportNoTouches": "No touch found in this rally.",
     "reportWinner": "Rally won by",
+    "reportRedo": "To replay",
+    "reportRedoHelp": "The point is to be replayed: nobody scores it and the score stays.",
     "reportAdd": "Add a touch at {{time}}",
     "reportScoreAfter": "Score",
     "reportScoreSet": "End of set {{n}}",

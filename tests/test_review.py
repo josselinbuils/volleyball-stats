@@ -188,6 +188,12 @@ class TestReports:
         page["contacts"].append(c(1.0, "pass", 2))
         assert [r["kind"] for r in unusual(page)] == ["auto.afterFault"]
 
+    def test_a_rally_to_replay_is_not_reported_for_having_no_winner(self):
+        page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 5.0, "set": 1, "winner": None, "redo": True}], "contacts": [{"t": 0.1, "type": "serve", "team": 1, "side": "left", "rally": 0, "result": "play"}, {"t": 1.0, "type": "pass", "team": 2, "side": "right", "rally": 0, "result": "play"}]}
+        assert unusual(page) == []
+        del page["rallies"][0]["redo"]
+        assert [r["kind"] for r in unusual(page)] == ["auto.noWinner"]
+
     # Two rallies: 2000-2200 and 3000-3200; touches at 2050 (team 2), 2100 and 3050 (team 1).
     teams, windows = {2050: 2, 2100: 1, 3050: 1}, [(2000, 2200), (3000, 3200)]
 
@@ -203,6 +209,13 @@ class TestReports:
         assert out["action"] == [{"frame": 3050, "result": "play"}]
         assert (out["rally"], out["winner"], out["end"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}], [{"start": 3000, "end": 3400}])
         assert out["join"] == [{"start": 2000}]
+
+    def test_a_rally_to_replay_or_no_longer_becomes_a_redo_answer(self):
+        changes = {"rallies": [{"start": 2000, "redo": True}, {"start": 3000, "redo": False}, {"start": 1234, "redo": True}]}
+
+        out = report_answer(changes, self.teams, self.windows, {}, 20)
+
+        assert out["redo"] == [{"start": 2000, "redo": True}, {"start": 3000, "redo": False}]
 
     def test_a_rally_started_by_the_review_takes_the_touches_added_after_it(self):
         changes = {
@@ -342,7 +355,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "log": log}
 
 
 class TestRange:

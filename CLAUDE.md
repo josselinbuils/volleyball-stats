@@ -115,6 +115,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      each rally (orange warning, green checked, grey to check) and its arrows go to the next one to
      check. "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in
      the review: always a fault, no touch of the ball in the checks, counted in its player's faults.
+     "À rejouer" (`redo`, beside the winners): the rally stays, its touches in play, nobody scores; picking
+     a winner takes it back.
   2. Reports to handle in the Match tab: 34 on 1 Nov 14:30 (the viewers' fetched on 31 Oct 23:10,
      `outputs/feedback-20261031-231035.log`, the online log emptied after; the rest automatic, 3 of
      them the sets ending off the given score). `outputs/feedback-conflicts.log` is no viewer's: Claude's

@@ -298,6 +298,8 @@
     "reportResult": "Résultat",
     "reportNoTouches": "Aucune touche reconnue dans cet échange.",
     "reportWinner": "Gagnant de l'échange",
+    "reportRedo": "À rejouer",
+    "reportRedoHelp": "Le point est à rejouer : personne ne le marque et le score ne bouge pas.",
     "reportAdd": "Ajouter une touche à {{time}}",
     "reportScoreAfter": "Score",
     "reportScoreSet": "Fin du set {{n}}",
