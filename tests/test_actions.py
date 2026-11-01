@@ -1,6 +1,6 @@
 import numpy as np
 
-from volleyball_stats.actions import classify, classify_rally, mark_dead, player_under, relance_cues, served
+from volleyball_stats.actions import classify, classify_rally, mark_dead, no_play, player_under, relance_cues, served
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -36,6 +36,13 @@ class TestClassifyRally:
         contacts = [(0, *RIGHT), (40, *LEFT), (80, *LEFT), (120, *LEFT), (125, *NET), (160, *LEFT)]
 
         assert kinds(classify_rally(contacts, [20], FPS, NET_X)) == ["serve", "pass", "set", "attack", "block", "dig"]
+
+    def test_a_dig_sending_the_ball_straight_over_is_an_attack_a_pass_stays_a_pass(self):
+        contacts = [(0, *RIGHT), (40, *LEFT), (80, *RIGHT), (120, *RIGHT), (160, *RIGHT), (200, *LEFT), (240, *RIGHT)]
+
+        typed = classify_rally(contacts, [20, 60, 180, 220], FPS, NET_X)
+
+        assert kinds(typed) == ["serve", "pass", "dig", "set", "attack", "attack", "dig"]
 
     def test_the_serving_side_touching_the_ball_before_it_crosses_is_the_net(self):
         assert kinds(classify_rally([(0, *RIGHT), (40, *NET)], [], FPS, NET_X)) == ["serve", "net"]
@@ -117,6 +124,13 @@ class TestMarkDead:
         typed = [(f, 0, 0, kind, "left") for f, kind in enumerate(["dig", "set", "attack"])]
 
         assert mark_dead(typed, [1, 1, 2], [0, 0, 0]) == (typed, [1, 1, 2])
+
+
+class TestNoPlay:
+    def test_a_window_of_floor_contacts_only_is_no_rally(self):
+        typed = [(10, 0, 0, "floor", "left"), (20, 0, 0, "floor", "left"), (30, 0, 0, "serve", "left"), (40, 0, 0, "floor", "right"), (50, 0, 0, "floor", "right"), (60, 0, 0, "floor", "left")]
+
+        assert no_play(typed, [0, 0, 1, 1, 1, 2]) == {0}
 
 
 class TestRelanceCues:

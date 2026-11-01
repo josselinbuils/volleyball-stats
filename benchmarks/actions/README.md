@@ -57,6 +57,16 @@ In frame order, within a rally window (`rallies.py` windows start 0.33 s earlier
 4. **net**: a touch before any crossing, after the serve: the serving side cannot touch it again.
 5. Otherwise the touches since the last crossing count: **pass** (1st after the serve's crossing),
    **dig** (1st after any other crossing or a block), **set** (2nd), **attack** (3rd and later).
+6. A **dig** that sends the ball straight to the other side (a crossing before the next contact, or
+   the next contact on the other side, a floor included) is an **attack**, unless it is the rally's
+   first contact (the reception of a serve nobody saw). From the first ASPOM
+   match's review: the owner retyped 6 such digs as attacks and kept none as digs, viewers reported
+   5 more ("Défense" → "C'est une attaque"); a pass sent straight over stays a pass (one validated
+   rally). On the clips it changes one labelled contact, the tuning dig 577 that falls on the
+   other side, labelled dig before this convention: truth 80 → 79 of 81, detected, pipeline and
+   held-out unchanged (77/81, 71/81; 46/48, 40/48, 33/48). On the first match it turns about 22 digs into
+   attacks, 6 of them the owner's corrections. Sets sent straight over were left: 1 retyped as an
+   attack, 4 seen and kept, 20 never seen.
 
 **Side**: left or right of the net's image line, the line through the calibrated net feet on both
 sidelines (`--net-x` without a calibration). The camera stands (nearly) in the net plane, so the plane

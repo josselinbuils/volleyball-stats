@@ -59,6 +59,8 @@ NET_M = 1.0
 # nobody plays it twice running. ponytail: from 2 examples; runs of 2 are mostly attribution errors
 # (71-83% right), set it on labelled matches.
 DEAD_RUN = 3
+# A window with this many floor contacts and no player touch is no rally (`no_play`).
+IDLE_FLOORS = 2
 
 Contact = tuple[int, int, int]
 Typed = tuple[int, int, int, str, str]
@@ -107,6 +109,8 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
     net on the other side of the previous touch (blocks aside) follows a crossing, seen or not."""
     out: list[Typed] = []
     touches, crossed, blocked, attack, dead, thrown, unseen, previous = 0, 0, False, None, False, 0, 0, None
+    # Each contact's count of crossings before it.
+    crossed_at: list[int] = []
     contacts = sorted(contacts)
     for frame, x, y in contacts:
         now = sum(c <= frame for c in crossings) + unseen
@@ -141,6 +145,12 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
         attack = (frame, side) if kind == "attack" else attack if kind == "block" else None
         previous = previous if kind in ("block", "floor") else (side, now)
         out.append((frame, x, y, kind, side))
+        crossed_at.append(now)
+    # A dig that sends the ball straight to the other side is an attack; a rally's first contact
+    # typed dig receives a serve nobody saw.
+    for k, (a, b) in enumerate(zip(out, out[1:])):
+        if k and a[3] == "dig" and (crossed_at[k + 1] > crossed_at[k] or b[4] != a[4]):
+            out[k] = (*a[:3], "attack", a[4])
     return out
 
 
@@ -184,6 +194,17 @@ def mark_dead(typed: list[Typed], touchers: list[int | None], rallies: list[int 
                 touchers[m] = None
         k = end
     return typed, touchers
+
+
+def no_play(typed: list[Typed], rallies: list[int | None]) -> set[int]:
+    """The rallies whose contacts are IDLE_FLOORS floor contacts or more and no player touch: the
+    next server bouncing the ball, a ball rolled back (first ASPOM match: the 2 such windows of
+    50:00-60:00, labelled no rally, and none other on the match); `rallies` holds each contact's."""
+    found: dict[int, list[str]] = {}
+    for t, k in zip(typed, rallies):
+        if k is not None:
+            found.setdefault(k, []).append(t[3])
+    return {k for k, kinds in found.items() if kinds.count("floor") >= IDLE_FLOORS and set(kinds) <= {"floor", "net"}}
 
 
 def player_under(ball: tuple[float, float], boxes: np.ndarray, reach: float) -> int | None:

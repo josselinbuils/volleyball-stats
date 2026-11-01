@@ -225,6 +225,15 @@ and 58:55 (missed rallies) and 1:18 (warm-up). Left: two false windows (the next
 bouncing the ball, a ball rolled back), ends cut by another court's whistle (−4.1 s) or with the
 ball out of sight (−3.0, −2.3 s), and a rally joined to its dead-ball tail by the 8 s rule (+10 s).
 
+**No player touch.** `match.py` then drops the windows whose contacts are 2 floor contacts or more
+and no player touch (`actions.no_play`, after `mark_dead` turns a player bouncing the ball into
+floor contacts): the two false windows above. On the windows of the first match's outputs (before
+the 31 Oct fixes), 50:00-60:00 goes from F1 ±1 s 0.57, found P 0.88 to 0.59, P 0.95 (24 → 22
+windows, none missed more); 26:00-36:00 is unchanged; over the match it drops these 2 windows only,
+both answered "no play" in the review (of 6 so answered, against 23 confirmed rallies). The other
+4 have a serve or a player touch: a serve followed by 4 net contacts, a dig then 5 floors, a lone
+floor, an empty window.
+
 Before, the one miss was a serve into the net (no net crossing, no whistle after it). The ends were
 the errors: served rallies ran to the next whistle, often the next rally's go (+11.4 s, +12.8 s), or
 stopped with the serve's ball run while play went on near the net (−8.2 s, −1.6 s). The fixes of
