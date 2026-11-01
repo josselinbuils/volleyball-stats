@@ -385,7 +385,7 @@ the longest rally.
 The "Statistiques" table gives, team by team, each player's and the whole team's:
 
 - touches;
-- serves: aces, faults;
+- serves: aces (nobody touches it, or the first receiver loses it with no touch after), faults;
 - receptions and digs: faults (an ace counts against the receiver nearest to where it landed), and
   those after which the team did not attack;
 - receptions: a rating out of 3 from where the next touch is played: 3 within 1.5 m of the setter's

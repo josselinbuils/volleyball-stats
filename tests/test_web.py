@@ -176,14 +176,16 @@ class TestContacts:
             c("attack", 1, 7), c("block", 2, 7, "point"),  # its result given by the review
             c("attack", 1, 8), c("dig", 2, 8, "error"), c("set", 2, 8, "error"),  # touches after it
             c("attack", 1, 9), c("attack", 2, 9, "error"),  # the other team's own attack
-            c("serve", 2, 10), c("pass", 1, 10, "error"),  # a serve is not concerned
+            c("serve", 2, 10), c("pass", 1, 10, "error"),  # the first receiver loses it: an ace
+            c("serve", 2, 11), c("pass", 1, 11, "error"), c("set", 1, 11, "error"),  # another touch after it: no ace
+            c("serve", 2, 12), c("pass", 1, 12), c("floor", None, 12),  # kept in play
         ]
         typed = [{"frame": str(k)} for k in range(len(found))]
 
         credited(found, typed, {11, 15})
 
         assert [x["result"] for x in found if x["type"] in ("attack", "serve") or x["team"] == 1 and x["type"] == "block"] == [
-            "point", "point", "point", "error", "play", "point", "error", "play", "play", "play", "error", "play",
+            "point", "point", "point", "error", "play", "point", "error", "play", "play", "play", "error", "point", "play", "play",
         ]
 
     def test_the_review_s_types_and_results_replace_the_touches(self):

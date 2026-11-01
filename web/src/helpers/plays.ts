@@ -94,7 +94,7 @@ export function longestRally(rallies: Rally[]): Rally | undefined {
   return rallies.filter((r) => r.score && touches(r) > 0).sort((a, b) => touches(b) - touches(a) || b.end - b.start - (a.end - a.start))[0];
 }
 
-/** The touch that scored a rally: its last, or the attack or block before a last touch the other team lost. */
+/** The touch that scored a rally: its last, or the serve, attack or block before a last touch the other team lost. */
 export function scoringTouch(rally: Rally): Contact | undefined {
   const touches = rally.contacts.filter(isTouch);
   const [before, last] = [touches.at(-2), touches.at(-1)];

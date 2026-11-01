@@ -99,7 +99,6 @@ export function serveRating(c: Contact, next: Contact | undefined, after: Contac
     return null;
   }
   const grade = rating(next, after);
-  // A reception lost: the serve's best, though no point by itself.
   return grade === null ? null : grade === 0 ? 4 : 4 - grade;
 }
 

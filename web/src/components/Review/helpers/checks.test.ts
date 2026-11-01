@@ -21,8 +21,8 @@ describe('problems', () => {
 
   it('marks a touch after a point', () => {
     expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
-    // A serve is not concerned: a touched ace is no point.
-    expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1', 'error')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
+    // A reception lost is the ace's own fault, its last touch.
+    expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1', 'error')], 1, null, true))).toEqual({});
   });
 
   it('marks each problem on the touch that shows it', () => {
