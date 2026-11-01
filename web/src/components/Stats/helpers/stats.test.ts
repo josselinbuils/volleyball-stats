@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
 import type { Drop } from '@/components/Stats/helpers/between';
-import { lines, meanRating, mvp, rating, unattacked, type Line, type Stats } from '@/components/Stats/helpers/stats';
+import { lines, meanRating, mvp, over, rating, unattacked, type Line, type Stats } from '@/components/Stats/helpers/stats';
 
 describe('lines', () => {
   const people: Record<string, Person> = {
@@ -155,5 +155,21 @@ describe('mvp', () => {
 
   it('names no one without a balance above 0', () => {
     expect(mvp([line(1, 2, 2), line(2, 0, 1)], () => 60)).toBeNull();
+  });
+});
+
+describe('over', () => {
+  const touch = (type: string, team: number, rally = 0, result = 'play') => ({ type, team, side: team === 1 ? 'left' : 'right', rally, result }) as Contact;
+
+  it('is a reception or a dig whose next touch is the other team’s', () => {
+    expect(over(touch('pass', 1), [touch('dig', 2)])).toBe(true);
+    expect(over(touch('dig', 1), [touch('floor', 2), touch('attack', 2)])).toBe(true);
+    expect(over(touch('pass', 1), [touch('set', 1), touch('attack', 1)])).toBe(false);
+  });
+
+  it('is false for a fault, another touch or none after it in the rally', () => {
+    expect(over(touch('pass', 1, 0, 'error'), [touch('dig', 2)])).toBe(false);
+    expect(over(touch('set', 1), [touch('dig', 2)])).toBe(false);
+    expect(over(touch('pass', 1), [touch('serve', 2, 1)])).toBe(false);
   });
 });

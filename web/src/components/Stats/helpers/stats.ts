@@ -12,6 +12,7 @@ export const STATS = [
   'receptions',
   'missed',
   'unattacked',
+  'overReceptions',
   'rated',
   'perfect',
   'good',
@@ -29,6 +30,7 @@ export const STATS = [
   'digs',
   'digFaults',
   'unattackedDigs',
+  'overDigs',
   'sets',
   'points',
   'faults',
@@ -93,6 +95,16 @@ export function unattacked(c: Contact, after: Contact[]): boolean {
   return !next.slice(0, crossed < 0 ? undefined : crossed).some((n) => n.type === 'attack');
 }
 
+/** Whether a reception or a dig in play sent the ball straight to the other team: the next touch
+ * of the rally is theirs. */
+export function over(c: Contact, after: Contact[]): boolean {
+  if ((c.type !== 'pass' && c.type !== 'dig') || c.result !== 'play') {
+    return false;
+  }
+  const next = after.find((n) => n.rally === c.rally && isTouch(n));
+  return !!next && (next.team != null && c.team != null ? next.team !== c.team : next.side !== c.side);
+}
+
 /** The stats of the touches `mine` holds; `missedAce` holds the aces counted against them, as
  * receptions and faults, but those a reception touched: that touch counts. */
 export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missedAce: (c: Contact) => boolean): Stats {
@@ -131,6 +143,9 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       if (unattacked(c, contacts.slice(k + 1, k + 8))) {
         out.unattacked.push(c);
       }
+      if (over(c, contacts.slice(k + 1, k + 8))) {
+        out.overReceptions.push(c);
+      }
       const grade = rating(c, contacts[k + 1]);
       if (grade !== null) {
         out.rated.push(c);
@@ -148,6 +163,9 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       add('digs', null, 'digFaults');
       if (unattacked(c, contacts.slice(k + 1, k + 8))) {
         out.unattackedDigs.push(c);
+      }
+      if (over(c, contacts.slice(k + 1, k + 8))) {
+        out.overDigs.push(c);
       }
     } else if (c.type === 'set') {
       add('sets', null, null);

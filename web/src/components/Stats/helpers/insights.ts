@@ -13,6 +13,7 @@ const MEASURES: { key: string; of: Stat; picked: (s: Stats) => Contact[]; streng
   { key: 'goodReceptions', of: 'receptions', picked: (s) => s.receptions.filter((c) => !s.missed.includes(c) && !s.unattacked.includes(c)), strength: true },
   { key: 'receptionFaults', of: 'receptions', picked: (s) => s.missed, strength: false },
   { key: 'receptionUnattacked', of: 'receptions', picked: (s) => s.unattacked, strength: false },
+  { key: 'receptionOver', of: 'receptions', picked: (s) => s.overReceptions, strength: false },
   { key: 'perfectPasses', of: 'rated', picked: (s) => s.perfect, strength: true },
   { key: 'poorPasses', of: 'rated', picked: (s) => s.poor, strength: false },
   { key: 'kills', of: 'attacks', picked: (s) => s.kills, strength: true },
@@ -20,6 +21,7 @@ const MEASURES: { key: string; of: Stat; picked: (s: Stats) => Contact[]; streng
   { key: 'cleanDigs', of: 'digs', picked: (s) => s.digs.filter((c) => !s.digFaults.includes(c)), strength: true },
   { key: 'digFaults', of: 'digs', picked: (s) => s.digFaults, strength: false },
   { key: 'digUnattacked', of: 'digs', picked: (s) => s.unattackedDigs, strength: false },
+  { key: 'digOver', of: 'digs', picked: (s) => s.overDigs, strength: false },
   { key: 'relanceFaults', of: 'relances', picked: (s) => s.relanceFaults, strength: false },
 ];
 
