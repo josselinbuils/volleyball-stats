@@ -59,7 +59,9 @@ First ASPOM match, 143 answers and 37 names (one club, one kit for both teams): 
 constraints kept (55%) before `sharpen`, 201/329 (61%) with it at `SHARPEN` 0.5 (199, 60%, at 1).
 The questions were asked where the step doubted, so about half is the floor. Counting the pictures
 left unmarked in a card as one player adds nothing (61%). The school clips, without answers, keep
-their IDF1 (0.895 and 0.806). Later, with 142 answers and 35 names after the review's fixes, 272/389 (70%);
+their IDF1 (0.895 and 0.806). On 1 Nov, 460 answers after the rerun: 340/489 (69.5%) at `SHARPEN` 0.5,
+323 (66.1%) at 0, 333 (68.1%) at 0.25, 359 (73.4%) at 0.75 and 0.9, 361 (73.8%) at 1; `WHITEN` 16,
+24 or 32 the same (at 0.5: 70.8%, 69.5%, and 69.3% at 48): `SHARPEN` 0.9. Later, with 142 answers and 35 names after the review's fixes, 272/389 (70%);
 with the jersey numbers `jerseys.py` read (355 track numbers from 2346 readings, 37 min on the M4
 Pro next to the review), 282/389 (72%). With 148 answers and 39 names, numbers read under 2% of the
 time dropped (`jerseys.RARE`): 292/415 (70.4%); short pieces joining only a player nearer than

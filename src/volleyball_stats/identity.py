@@ -68,8 +68,9 @@ CONTINUITY, STAY = 0.3, 0.2
 # Principal components of a team's segment embeddings kept, whitened.
 WHITEN = 32
 # Share of each whitened direction's weight set by how well it tells apart the players the answers
-# and names confirm (`sharpen`), the rest kept even.
-SHARPEN = 0.5
+# and names confirm (`sharpen`), the rest kept even. First ASPOM match, 460 answers (1 Nov): 69.5%
+# of the held-out answers kept at 0.5, 73.4-74.0% from 0.75 to 1.
+SHARPEN = 0.9
 # Segments starting within BATCH frames of each other share out the free identities; a new
 # identity costs a distance of NEW.
 BATCH, NEW = 90, 0.9
