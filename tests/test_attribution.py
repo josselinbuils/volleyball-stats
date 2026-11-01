@@ -1,4 +1,4 @@
-from volleyball_stats.attribution import FAR, GAP_S, REACH, SIDE_M, attribute, box_at, distance, gap_to_next, ranked, read_players, unreached
+from volleyball_stats.attribution import CROSS_M, FAR, GAP_S, REACH, SIDE_M, attribute, box_at, distance, gap_to_next, ranked, read_players, unreached
 from volleyball_stats.players import Row, write_csv
 
 FPS = 30.0
@@ -75,6 +75,19 @@ class TestAttribute:
         rows = [row(50, 1, (100, 200, 140, 300), x=SIDE_M + 0.1), row(50, 2, (150, 200, 190, 300), x=-0.3)]
 
         assert attribute([(50, 120, 250, "block", "left")], rows, FPS) == [2]
+
+    def test_takes_a_track_of_the_other_side_standing_well_inside_the_contact_side(self):
+        # Track 2 kept the right side of the player it followed first; it now shows a left player.
+        rows = [row(50, 1, (100, 200, 140, 300), x=-3.0), row(50, 2, (150, 200, 190, 300), "right", x=-CROSS_M - 0.5), row(50, 3, (195, 200, 235, 300), "right", x=-0.5)]
+
+        assert attribute([(50, 170, 250, "set", "left")], rows, FPS) == [2]
+        assert attribute([(50, 215, 250, "set", "left")], rows, FPS) == [2]
+
+    def test_a_ball_inside_two_boxes_goes_to_the_bigger_one(self):
+        # Track 2, nearer the camera, stands in front of track 1 and its box holds track 1's.
+        rows = [row(50, 1, (100, 200, 140, 300)), row(50, 2, (90, 180, 160, 340))]
+
+        assert attribute([(50, 120, 250, "pass", "left")], rows, FPS) == [2]
 
     def test_the_gap_to_the_next_candidate_measures_the_doubt(self):
         rows = [row(50, 1, (100, 200, 140, 300)), row(50, 2, (150, 200, 190, 300))]

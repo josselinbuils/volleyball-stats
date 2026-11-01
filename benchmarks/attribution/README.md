@@ -191,6 +191,37 @@ On the first ASPOM match (4K, 649 touches), the 138 touches asked were all answe
 pick was right for 10 of the 10 spot checks, 59 of the 86 close calls and 6 of the 33 players twice
 in a row; 22 of the touches asked were no touch at all (mostly the ball flying out of the frame).
 
+## The first match's answers
+
+`answers.py --rerank` runs `attribution.ranked` as it stands on `actions.csv`'s contacts and
+`players.csv`, a touch's player being its track's identity in `identities.csv`, against the 135
+touches the review answered with a player (1 Nov). These are the hard ones (close calls, players
+twice in a row, unknown players), so the share is lower than on the labelled clips.
+
+| Method | Answered player first | Among the candidates | Tuning truth / detected | Held-out truth / detected |
+| --- | --- | --- | --- | --- |
+| Ties to the lower track number (before) | 85 | 122 | 58/70, 56/70 | 33/42, 30/42 |
+| + equal distances to the bigger box | 93 | 122 | 58/70, 57/70 | 33/42, 30/42 |
+| **+ the other side's tracks over `CROSS_M` = 1 m inside the contact's side (`ranked`)** | **97** | **126** | **58/70, 57/70** | **33/42, 30/42** |
+
+- **Bigger box.** Most wrong picks on the match were the ball inside two boxes (distance 0 to
+  both), which went to the lower track number. The bigger box, the player in front, is right far
+  more often: sets 26 → 31 of 43. Tie-breaks tried on the same answers: the smaller box 65 of 136,
+  the ball nearest the box centre 66, nearest its centre x 75, an anchor per type (forearms for
+  passes, top for sets) 80, a track seen at the frame before an interpolated one 77. Counting as
+  ties candidates within 0.02 box heights gives 97 for the bigger box alone but one fewer detected
+  on the clips: exact ties only.
+- **Feet inside the contact's side.** A track that swapped players at the net keeps its median
+  side, so the player it follows after the swap was no candidate (track 1751 of the first match is
+  a right player, then a left one: 4 sets of 5 asked). A track of the other side is a candidate
+  when its feet stand over 1 m inside the contact's side at the contact frame; 0.5 m scores the
+  same, 1.5-3 m one or two fewer.
+- Tried and left out: the same identity touching twice in a row in a rally gives the next
+  candidate when within 0.05-0.2 box heights: 1-2 more of 136, and identities do not exist yet when
+  `match.py` attributes.
+- Left: 9 answered players have no candidate at all (identity step: tracks with no identity, two
+  serves whose server's track holds an identity 14 of team 1), 26 are second.
+
 ## Pose
 
 `bench.py --pose` runs YOLO11m-pose at frames t-1, t and t+1 of each set, pass, dig and unclear

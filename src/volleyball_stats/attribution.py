@@ -6,8 +6,10 @@ A contact played above the head (serve, attack, block) may lie up to an arm abov
 detector leaves the blurred hitting arm out. A track the detector drops for a few frames around the
 contact (blur, a teammate in front) stays a candidate, its box interpolated over the gap, unless its
 feet stand clearly on the other side of the net then: a track that swapped players across the net.
-Floor and net contacts have no player. Two candidates about as near the ball make the pick a doubt,
-asked in the review. See benchmarks/attribution/README.md for the numbers behind the constants.
+For the same reason a track of the other side whose feet stand well inside the contact's side is a
+candidate. A ball inside two boxes goes to the bigger one, the player nearer the camera. Floor and
+net contacts have no player. Two candidates about as near the ball make the pick a doubt, asked in
+the review. See benchmarks/attribution/README.md for the numbers behind the constants.
 
     uv run python -m volleyball_stats.attribution ACTIONS_CSV PLAYERS_CSV --fps FPS [--out DIR]
 """
@@ -30,6 +32,10 @@ GAP_S = 0.17
 # A candidate whose feet stand over SIDE_M meters past the net on the other side at the contact
 # frame is out: its track kept the side of the player it followed first.
 SIDE_M = 0.5
+# A track of the other side whose feet stand over CROSS_M meters inside the contact's side at the
+# contact frame is a candidate: it swapped players at the net (first ASPOM match: 4 more of the 135
+# touches answered right).
+CROSS_M = 1.0
 # A next candidate under DOUBT box heights farther from the ball than the toucher makes a doubt.
 DOUBT = 0.05
 # A touch whose nearest candidate stands over FAR box heights from the ball is none: the ball
@@ -89,7 +95,9 @@ def court_x(xs: dict[int, float], frame: int, gap: int) -> float | None:
 
 def ranked(typed: list[Typed], rows: list[Row], fps: float) -> list[list[tuple[float, float, int]]]:
     """Each contact's candidates, nearest first: (distance with the reach, plain distance, track);
-    none for the floor and the net."""
+    none for the floor and the net. Equal distances go to the bigger box: a ball inside two boxes
+    is mostly the front player's (first ASPOM match: 93 of the 135 touches answered right, against
+    85 for the track number)."""
     by_track, gap = tracks(rows), round(GAP_S * fps)
     feet: dict[int, dict[int, float]] = {}
     for r in rows:
@@ -100,12 +108,16 @@ def ranked(typed: list[Typed], rows: list[Row], fps: float) -> list[list[tuple[f
     for frame, x, y, kind, side in typed:
         reach = REACH if kind in ABOVE_HEAD else 0.0
         found = []
+        # Feet court x times `inward` is positive inside the contact's side.
+        inward = -1 if side == "left" else 1
         for track, (team, boxes) in by_track.items():
-            box = box_at(boxes, frame, gap) if team == side and kind not in NO_PLAYER else None
-            at = None if box is None else court_x(feet[track], frame, gap)
-            if box is not None and not (at is not None and (at > SIDE_M if side == "left" else at < -SIDE_M)):
-                found.append((distance((x, y), box, reach), distance((x, y), box), track))
-        out.append(sorted(found))
+            box = None if kind in NO_PLAYER else box_at(boxes, frame, gap)
+            if box is None:
+                continue
+            at = court_x(feet[track], frame, gap)
+            if (at is None or at * inward >= -SIDE_M) if team == side else (at is not None and at * inward > CROSS_M):
+                found.append((distance((x, y), box, reach), distance((x, y), box), box[1] - box[3], track))
+        out.append([(d, plain, track) for d, plain, _, track in sorted(found)])
     return out
 
 

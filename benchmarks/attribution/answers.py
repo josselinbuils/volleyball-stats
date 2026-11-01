@@ -1,18 +1,23 @@
 """Score attribution on a match's own review answers: each touch asked in the review and answered
 with a player (identity_answers.json's "touch") against the automatic pick (actions.csv's
 identity), by why it was asked and by the gap to the next candidate. The spot checks estimate the
-wrong picks the doubts miss; the gaps, where to set attribution.DOUBT.
+wrong picks the doubts miss; the gaps, where to set attribution.DOUBT. With --rerank, also
+attribution.ranked as it stands run again on actions.csv's contacts and players.csv (the touch's
+identity being its track's in identities.csv), to score a change to the step without rerunning the
+pipeline.
 
-    uv run python benchmarks/attribution/answers.py outputs/first_match
+    uv run python benchmarks/attribution/answers.py outputs/first_match [--rerank]
 """
 
 import argparse
+import csv
 import json
 from collections import defaultdict
 from pathlib import Path
 
-from volleyball_stats import identity, web
+from volleyball_stats import attribution, identity, web
 from volleyball_stats.actions import LEAD_S
+from volleyball_stats.players import Row
 from volleyball_stats.review import UNKNOWN, doubtful
 
 GAPS = (0.01, 0.02, 0.05, 0.1)
@@ -22,6 +27,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("match", type=Path)
     parser.add_argument("--fps", type=float, default=50.0)
+    parser.add_argument("--rerank", action="store_true", help="Also score attribution.ranked run again on players.csv")
     args = parser.parse_args()
     actions = web.read_csv(args.match / "actions.csv")
     windows = [(int(r["start_frame"]) - round(LEAD_S * args.fps), int(r["end_frame"])) for r in web.read_csv(args.match / "rallies.csv")]
@@ -50,6 +56,40 @@ def main() -> None:
     for g in (*GAPS, None):
         if by_gap[g]:
             print(f"  gap {'< ' + str(g) if g else '>= ' + str(GAPS[-1]):7} right {sum(by_gap[g])}/{len(by_gap[g])}")
+    if args.rerank:
+        table = identity.read_identities(args.match / "identities.csv")
+        # The last answer to a touch wins; "nobody" leaves it out.
+        last = {a["frame"]: a for a in answers if str(a["frame"]) in row}
+        truth = {f: (a["team"], by_name.get((a["team"], a.get("name")), a["identity"])) for f, a in last.items() if a["identity"] is not None}
+        rerank(args.match, [row[str(f)] for f in sorted(truth)], truth, table, args.fps)
+
+
+def near_rows(path: Path, frames: set[int], margin: int) -> list[Row]:
+    """players.csv's rows within `margin` frames of `frames`."""
+    keep = {f + d for f in frames for d in range(-margin, margin + 1)}
+    with open(path) as f:
+        return [
+            Row(int(r["frame"]), int(r["track"]), tuple(float(r[k]) for k in ("x1", "y1", "x2", "y2")), float(r["conf"]),
+                (float(r["feet_x"]), float(r["feet_y"])), (float(r["court_x"]), float(r["court_y"])), r["team"])
+            for r in csv.DictReader(f) if int(r["frame"]) in keep
+        ]
+
+
+def rerank(match: Path, asked: list[dict], truth: dict[int, tuple[int, int]], table: list, fps: float) -> None:
+    """attribution.ranked on the answered touches: the answered player first, among the candidates, by type."""
+    typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in asked]
+    rows = near_rows(match / "players.csv", {t[0] for t in typed}, round(attribution.GAP_S * fps) + 1)
+    by_track = defaultdict(list)
+    for r in table:
+        by_track[r[0]].append(r)
+    first, among, by_type = 0, 0, defaultdict(list)
+    for t, candidates in zip(typed, attribution.ranked(typed, rows, fps)):
+        ids = [identity.lookup(by_track[k], k, t[0]) for *_, k in candidates]
+        first += bool(ids) and ids[0] == truth[t[0]]
+        among += truth[t[0]] in ids
+        by_type[t[3]].append(bool(ids) and ids[0] == truth[t[0]])
+    print(f"attribution.ranked again: answered player first {first}/{len(typed)}, among the candidates {among}")
+    print("  " + ", ".join(f"{k} {sum(v)}/{len(v)}" for k, v in sorted(by_type.items())))
 
 
 if __name__ == "__main__":
