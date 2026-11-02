@@ -20,7 +20,7 @@ from volleyball_stats import matches
 
 ROOT = "/root/backups/volleyball-stats"
 # Old copies of the results, the pages built from them (the review's links the video), half-written files.
-SKIP = ("backup-*", "review", "site", ".*.tmp")
+SKIP = ("backup-*", "review", "site", "films", ".*.tmp")
 SPONSORS = Path("branding/aspom/sponsors")
 KEEP = 30
 # Under this, no copy: the server also runs the owner's websites.

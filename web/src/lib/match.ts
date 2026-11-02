@@ -138,6 +138,8 @@ interface Data {
   ball3d?: boolean;
   /** Whether voice/index.js holds the commentary's audio. */
   voice?: boolean;
+  /** The players' films, by name, on a page with the video. */
+  films?: Record<string, string>;
   /** The players' positions: a sample every `step` frames, `every` samples in each of `files` files; none without tracks. */
   positions?: { step: number; every: number; files: number; cm: number } | null;
   /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
@@ -173,6 +175,7 @@ export const match = {
   people: data.people,
   ball3d: data.ball3d ?? false,
   voice: data.voice ?? false,
+  films: data.films,
   positions: data.positions ?? null,
   scores: data.scores ?? [],
   brand: data.brand ?? null,

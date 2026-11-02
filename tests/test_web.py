@@ -781,6 +781,46 @@ class TestPositionFiles:
             web.POSITION_CM = kept_cm
 
 
+class TestFilms:
+    def films(self, tmp_path):
+        folder = tmp_path / "films"
+        folder.mkdir()
+        (folder / "1-ana.mp4").write_bytes(b"film")
+        (folder / "manifest.json").write_text(json.dumps({"Ana": {"hash": "abc", "file": "1-ana.mp4"}}))
+        return folder
+
+    def test_goes_beside_a_page_with_the_video(self, tmp_path):
+        site, video = tmp_path / "site", tmp_path / "match.mp4"
+        video.write_bytes(b"video")
+
+        web.write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, films=self.films(tmp_path))
+
+        assert (site / "films" / "1-ana.mp4").read_bytes() == b"film"
+        assert '"films":{"Ana":"films/1-ana.mp4?v=abc"}' in (site / "data.js").read_text()
+
+    def test_never_beside_a_page_without_it_even_where_one_was(self, tmp_path):
+        site, video = tmp_path / "site", tmp_path / "match.mp4"
+        video.write_bytes(b"video")
+        web.write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, films=self.films(tmp_path))
+
+        web.write_site({"fps": 25.0, "rallies": []}, None, None, site, copy=False, films=tmp_path / "films")
+
+        assert not (site / "films").exists()
+        assert "films" not in (site / "data.js").read_text()
+
+    def test_leaves_a_film_unchanged_in_place_and_drops_those_gone(self, tmp_path):
+        folder, site = self.films(tmp_path), tmp_path / "site"
+        site.mkdir()
+        web.copy_films(folder, site)
+        kept = (site / "films" / "1-ana.mp4").stat().st_mtime_ns
+        (site / "films" / "2-gone.mp4").write_bytes(b"old")
+
+        web.copy_films(folder, site)
+
+        assert (site / "films" / "1-ana.mp4").stat().st_mtime_ns == kept
+        assert not (site / "films" / "2-gone.mp4").exists()
+
+
 class TestNaturalMotion:
     @staticmethod
     def track(places):

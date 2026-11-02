@@ -155,6 +155,9 @@ interface ReviewData {
   photos?: Record<string, PhotoMoment[]>;
   /** The hosted pages (when the match is hosted): their last update's time (none yet since the server started), why it failed, whether a change came since. */
   hosted?: Hosted | null;
+  /** The players' films: how many there should be, how many are missing or out of date. */
+  films?: { total: number; stale: number };
+  filmsError?: string | null;
   /** The analysis runs' scores on the answers (learn.json): each measure's right and total. */
   learning?: LearnRun[];
   /** The last fetch of the viewers' reports from the hosting: when, how many for this match, why it failed. */
@@ -217,7 +220,7 @@ export function onServerBusy(listener: () => void): () => void {
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
 export async function post(
-  path: 'answer' | 'comment' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
+  path: 'answer' | 'comment' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
   body: object = {},
 ): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));

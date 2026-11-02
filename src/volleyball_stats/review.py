@@ -35,7 +35,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, feedback, files, identity, jerseys, matches, web
+from volleyball_stats import attribution, backup, feedback, film, files, identity, jerseys, matches, web
 from volleyball_stats.court import LENGTH, Calibration
 from volleyball_stats.teams import parse_colour
 
@@ -1331,7 +1331,7 @@ def unlocked(keys: list[int]) -> list[dict]:
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0,
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0,
     "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0,
     "pipeline:identity": 20.0, "pipeline:answers": 60.0,
 }
@@ -1369,8 +1369,9 @@ def checked(log: list[dict]) -> list[int]:
 def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = frozenset()) -> dict:
     """What an apply would take in: the answers saying something not applied yet (those saved
     before the flag were), whether the answers or the jersey numbers, and the names, differ from
-    what the identities were computed from (APPLIED); and the reports' `corrections` the review's
-    page does not show yet (`shown`: the answers it was built with) and the rallies `checked`."""
+    what the identities were computed from (APPLIED); the reports' `corrections` the review's
+    page does not show yet (`shown`: the answers it was built with), the rallies `checked` and the
+    players' `films` to make."""
     computed = match / APPLIED
     now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
     return {
@@ -1379,6 +1380,7 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
         "namesPending": now["names"] != then.get("names"),
         "corrections": corrections(log, shown),
         "checked": checked(log),
+        "films": film.status(match),
     }
 
 
@@ -1475,6 +1477,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # The last hosting (publish.json): when, why it failed, and whether a change came since; the
     # page says it. The user puts the pages online ("/host"), an apply does not.
     hosted: dict = {"at": None, "error": None, "behind": True}
+    filmed: dict = {"error": None}
     # The last fetch of the viewers' reports from the hosting: when, and how many for this match.
     fetched_log: dict = {}
     backed: dict = {}
@@ -1503,6 +1506,14 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         except Exception as error:  # noqa: BLE001
             # The answers stay applied: only the hosted page is behind.
             hosted.update(at=time.strftime("%H:%M"), error=str(error) or type(error).__name__)
+
+    def filming() -> None:
+        try:
+            film.build(match, video, court, staged)
+            filmed["error"] = None
+        except Exception as error:  # noqa: BLE001
+            # The films made are kept: the next press makes those left.
+            filmed["error"] = str(error) or type(error).__name__
 
     def pages() -> list:
         """The steps rebuilding the review's page and the published one with its own choices; the
@@ -1574,6 +1585,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
             "fetched": fetched_log or None,
             "backup": backed or None,
+            "filmsError": filmed["error"],
         }
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
@@ -1817,6 +1829,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None, "fetched": fetched_log}).encode(), "application/json")
                 elif self.path == "/host" and (match / matches.PUBLISH).exists():
                     run_steps([("hosting", hosting)])
+                    return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
+                elif self.path == "/films":
+                    # The page then shows them, the hosted one on its next upload.
+                    run_steps([("films", filming), *pages()])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/rerun":
                     from volleyball_stats import learn

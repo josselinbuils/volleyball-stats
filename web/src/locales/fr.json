@@ -208,7 +208,8 @@
       "roster": "Mise à jour du répertoire des joueurs…",
       "review": "Reconstruction de cette page…",
       "page": "Reconstruction de la page du match…",
-      "hosting": "Mise à jour de la page en ligne…"
+      "hosting": "Mise à jour de la page en ligne…",
+      "films": "Création des films"
     },
     "error": "La réponse n'a pas été enregistrée : le serveur de vérification est-il toujours lancé ?",
     "who": "Qui est entouré en jaune ?",
@@ -344,6 +345,8 @@
     "minutes_one": "{{count}} min",
     "minutes_other": "{{count}} min",
     "stage": {
+      "filmsBall": "recherche du ballon",
+      "filmsRender": "montage",
       "tracking": "suivi du ballon et des joueurs",
       "rallies": "échanges et touches",
       "actions": "actions et relances",
@@ -375,6 +378,11 @@
     "rerunning": "Apprentissage…",
     "rerunNote": "Réentraîne le modèle « qui a touché » et refait toute l'analyse du match avec vos réponses. Rien ne part en ligne.",
     "rerunConfirm": "Apprendre de vos réponses ? L'analyse du match est refaite : de quelques minutes à 40 minutes, la vérification attend. Vos réponses sont gardées.",
+    "films_one": "Créer {{count}} film",
+    "films_other": "Créer {{count}} films",
+    "filmsMaking": "Création des films…",
+    "filmsDone": "Films à jour",
+    "filmsFailed": "Des films n'ont pas pu être créés : réessayez.",
     "host": "Mettre en ligne",
     "hosting": "Mise en ligne…",
     "hostedBehind": "La page en ligne n'a pas vos derniers changements.",
@@ -728,6 +736,10 @@
     "replay": "Revoir ce moment"
   },
   "myMatch": {
+    "film": {
+      "watch": "Voir mon film",
+      "save": "Enregistrer le film"
+    },
     "title": "Mon match",
     "caption": "Choisissez votre nom pour voir votre match. Votre choix reste sur cet appareil.",
     "pick": "Qui êtes-vous ?",

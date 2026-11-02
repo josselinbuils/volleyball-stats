@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, CloudDownload, CloudUpload, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, Clapperboard, CirclePause, CloudDownload, CloudUpload, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +52,8 @@ export function Review({
   learning = [],
   fetched,
   backup,
+  films: savedFilms,
+  filmsError,
 }: {
   width: number;
   height: number;
@@ -70,6 +72,8 @@ export function Review({
   learning?: LearnRun[];
   fetched?: { at: string; count: number; error: string | null } | null;
   backup?: { at: string; error: string | null } | null;
+  films?: { total: number; stale: number };
+  filmsError?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
@@ -94,7 +98,8 @@ export function Review({
       setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
     }
   };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'reports' | null>(null);
+  const films = savedFilms ?? { total: 0, stale: 0 };
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'reports' | 'films' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   // What the last action did, shown for NOTICE_MS.
@@ -210,7 +215,7 @@ export function Review({
    * spent and left, and whether it takes longer than last time. */
   const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
   const minutes = (s: number) => (s < 60 ? t('review.lessThanMinute') : t('review.minutes', { count: Math.round(s / 60) }));
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports') => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films') => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {
@@ -295,6 +300,11 @@ export function Review({
                 {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : hosted.behind ? t('review.hostedBehind') : t('review.hosted', { at: hosted.at })}
               </p>
             )}
+            {filmsError && (
+              <p className="mt-0.5 text-sm text-destructive" title={filmsError}>
+                {t('review.filmsFailed')}
+              </p>
+            )}
             {backup && (
               <p className={cn('mt-0.5 text-sm', backup.error ? 'text-destructive' : 'text-muted-foreground')} title={backup.error ?? undefined}>
                 {t(backup.error ? 'review.backupFailed' : 'review.backedUp', { at: backup.at })}
@@ -319,6 +329,12 @@ export function Review({
               <Button variant="outline" className="bg-card" disabled={busy !== null} title={t('review.fetchNote')} onClick={() => void reload('reports')}>
                 <CloudDownload aria-hidden />
                 {busy === 'reports' ? t('review.fetching') : t('review.fetch')}
+              </Button>
+            )}
+            {films.total > 0 && (
+              <Button variant="outline" className="bg-card" disabled={!films.stale || busy !== null} onClick={() => void reload('films')}>
+                <Clapperboard aria-hidden />
+                {busy === 'films' ? t('review.filmsMaking') : films.stale ? t('review.films', { count: films.stale }) : t('review.filmsDone')}
               </Button>
             )}
             {hosted && (

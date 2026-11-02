@@ -545,10 +545,10 @@ class TestWaiting:
         log = [{**self.entry, "applied": True}]
         (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
 
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "checked": []}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "films": {"total": 0, "stale": 0}, "checked": []}
         assert waiting(tmp_path, [])["changed"]
         write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Julie", "jersey": None}])
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "checked": []}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "films": {"total": 0, "stale": 0}, "checked": []}
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
         assert waiting(tmp_path, log)["changed"]
 
