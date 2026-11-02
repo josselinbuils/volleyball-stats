@@ -45,6 +45,7 @@ export function Story() {
         {match.films?.['*'] && (
           <div className="flex flex-wrap gap-2">
             <Film name="*" label={t('story.film')} />
+            <Film name="*wide" label={t('story.filmWide')} wide />
           </div>
         )}
         <Curve chapters={chapters} moments={numbered} />

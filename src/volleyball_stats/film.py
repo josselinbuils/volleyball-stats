@@ -30,13 +30,15 @@ FILMS = "films"
 MANIFEST = "manifest.json"
 BALL_CACHE, TIMES_CACHE = "film_ball.json", "frame_times.npy"
 # Bumped when films must be made again whatever their data.
-VERSION = 2
+VERSION = 3
 SEG_S, SEG_M = Path("models/yolo11s-seg.pt"), Path("models/yolo11m-seg.pt")
 LOCALE = Path(__file__).resolve().parents[2] / "web/src/locales/fr.json"
 # Films made at once.
 WORKERS = 3
 
-WIDTH, HEIGHT = 720, 1280
+# The film being made's size: upright, or 16/9 (`use_format`).
+FORMATS = {"tall": (720, 1280), "wide": (1920, 1080)}
+WIDTH, HEIGHT = FORMATS["tall"]
 ASPECT = WIDTH / HEIGHT
 SOURCE_W, SOURCE_H = 3840, 2160
 FPS = 50.0
@@ -53,7 +55,7 @@ REPLAY_BEFORE_S, REPLAY_AFTER_S, REPLAY_SPEED = 1.0, 0.8, 0.5
 # The replay slows into a freeze on the touch.
 REPLAY_PRE, FREEZE = 1.75, 0.6
 # The match's film, under this name among the players'.
-HIGHLIGHTS = "*"
+HIGHLIGHTS, HIGHLIGHTS_WIDE = "*", "*wide"
 HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS, LONGEST_S = 65.0, 8, 3, 18.0
 # A clip starts this long before its rally, the server getting ready, and runs on to its end, up to END_S after the touch.
 BEFORE_RALLY_S, END_S = 1.5, 4.0
@@ -65,8 +67,14 @@ TOUCHES = {"serve", "pass", "set", "attack", "relance", "block", "dig"}
 # The ball. A ball never stays put this long, moves no faster, and a sudden change of its velocity is a touch, a block or the floor.
 STILL_FRAMES, STILL_PX, TELEPORT_PX = 20, 14.0, 110.0
 CHAIN_FRAMES, KINK_PX, INLIER_PX = 60, 8.0, 16.0
-# Flights this close join up; after the last touch this long unseen, the ball is lost.
-JOIN_FRAMES, LOST_FRAMES = 30, 8
+# A flight this much smaller than a ball on our court can look, at its worst, is a ball on another court: its size, read against
+# frames SIZE_GAP away so that all of it shows. Single frames read too small at times, so a flight is judged by its upper sizes.
+SMALL_FLIGHT, SIZE_GAP, SIZE_LEAST_POINTS = 0.7, 10, 5
+# A ball's diameter, and the volume it plays in around the court, in metres.
+BALL_M, VOLUME_X, VOLUME_Y, VOLUME_H = 0.21, 13.0, 7.0, 10.0
+# Flights this close join up: a line drawn over a longer hole is a guess, and no effect is better than one on nothing. After the
+# last touch this long unseen, the ball is lost.
+JOIN_FRAMES, LOST_FRAMES = 10, 8
 # Where the search looks around the first pass: sharper first, in up to 4 times the first pass's detail.
 CROPS = ((1536, 864), (960, 540))
 TAIL_CROPS = ((1536, 864), (2560, 1440))
@@ -84,6 +92,13 @@ def serving_body(named: tuple[float, float] | None, team: dict[int, tuple[float,
         return None
     behind = sorted((-abs(p[0]), person) for person, p in team.items() if abs(p[0]) >= SERVER_FROM_NET_M)
     return behind[0][1] if behind else None
+
+
+def use_format(name: str) -> None:
+    """Makes the film being made upright or 16/9: a process makes one film at a time."""
+    global WIDTH, HEIGHT, ASPECT
+    WIDTH, HEIGHT = FORMATS[name]
+    ASPECT = WIDTH / HEIGHT
 
 
 def locale() -> dict:
@@ -429,6 +444,10 @@ def plan(page: dict, site: Path, stamp: str = "") -> dict[str, dict]:
     match_film = highlight_film(page, site, stamp)
     if match_film:
         out[HIGHLIGHTS] = match_film
+        wide = {k: v for k, v in match_film.items() if k not in ("hash", "file")}
+        wide["format"] = "wide"
+        wide["hash"] = hashlib.sha256(json.dumps(wide, sort_keys=True).encode()).hexdigest()[:12]
+        out[HIGHLIGHTS_WIDE] = {**wide, "file": "resume-16-9.mp4"}
     return out
 
 
@@ -557,14 +576,39 @@ def curve(part: list[tuple]) -> tuple[np.ndarray, np.ndarray]:
     return frames, np.c_[design(frames) @ cx + smooth(off[:, 0]), design(frames) @ cy + smooth(off[:, 1])]
 
 
-def rally_path(found: dict, marks: list[int], start: int, end: int, also: dict | None = None) -> dict[int, tuple[float, float]]:
-    """Frame -> the ball's place through [start, end] from the detections `found` and `also`; after the last touch (`marks`) it ends
-    at the landing, or where the ball is lost. A touch's own frame can be some frames off: the ball's motion makes the flights."""
+def size_key(frame: int, x: float, y: float) -> str:
+    return f"{frame}:{round(x)}:{round(y)}"
+
+
+def too_small(part: list[tuple], sizes: dict[str, float], least: Callable[[float, float], float]) -> bool:
+    """Whether this flight's ball is too small to be on our court."""
+    read = [sizes[size_key(*p)] for p in part if size_key(*p) in sizes]
+    if len(read) < SIZE_LEAST_POINTS:
+        return False
+    middle = part[len(part) // 2]
+    return float(np.percentile(read, 80)) < SMALL_FLIGHT * least(middle[1], middle[2])
+
+
+def small_flights(found: dict, also: dict | None, start: int, end: int, sizes: dict[str, float], least: Callable[[float, float], float]) -> list[list[tuple]]:
+    """The flights among the detections too small to be on our court."""
+    return [part for run in chains(moving(candidates(found, also, start, end))) for part in split(run) if too_small(part, sizes, least)]
+
+
+def candidates(found: dict, also: dict | None, start: int, end: int, rejected: dict | None = None) -> list[tuple]:
+    """The detections through [start, end] as (frame, x, y), both when they differ, without those `rejected`."""
     points = [(q, float(found[q][0]), float(found[q][1])) for q in range(start, end + 1) if q in found]
     for q in range(start, end + 1):
         if also and q in also and (q not in found or np.hypot(found[q][0] - also[q][0], found[q][1] - also[q][1]) > 3):
             points.append((q, float(also[q][0]), float(also[q][1])))
-    points.sort()
+    if rejected:
+        points = [p for p in points if not (p[0] in rejected and np.hypot(p[1] - rejected[p[0]][0], p[2] - rejected[p[0]][1]) < 15)]
+    return sorted(points)
+
+
+def rally_path(found: dict, marks: list[int], start: int, end: int, also: dict | None = None, rejected: dict | None = None) -> dict[int, tuple[float, float]]:
+    """Frame -> the ball's place through [start, end] from the detections `found` and `also` but those `rejected`; after the last touch
+    (`marks`) it ends at the landing, or where the ball is lost. A touch's own frame can be some frames off: the ball's motion makes the flights."""
+    points = candidates(found, also, start, end, rejected)
     last_touch = max([m for m in marks if start < m < end], default=end)
     out: dict[int, tuple[float, float]] = {}
     was = None
@@ -606,6 +650,69 @@ def projector(cal: Calibration) -> Callable[[float, float, float], np.ndarray]:
 
     sign = 1.0 if project(0, 0, 2)[1] < project(0, 0, 0)[1] else -1.0
     return lambda x, y, height: project(x, y, height, sign)
+
+
+def least_sizes(cal: Calibration) -> Callable[[float, float], float]:
+    """Point of the picture -> the smallest a ball can look there while on our court, in pixels: along the ray through it, inside the
+    volume it plays in, as far from the camera as it gets. From a grid of the picture."""
+    k = np.array(cal.lens["K"], float)
+    inverse = np.linalg.inv(k)
+    h1, h2, h3 = (inverse @ cal.homography[:, c] for c in range(3))
+    scale = (np.linalg.norm(h1) + np.linalg.norm(h2)) / 2
+    r1, r2, t = h1 / scale, h2 / scale, h3 / scale
+    r3 = np.cross(r1, r2)
+    camera = -np.c_[r1, r2, r3].T @ t
+    if camera[2] < 0:
+        r3 = -r3
+        camera = -np.c_[r1, r2, r3].T @ t
+    rotation = np.c_[r1, r2, r3]
+
+    def project(points: np.ndarray) -> np.ndarray:
+        p = (k @ (rotation @ points.T + t[:, None])).T
+        return distort(p[:, :2] / p[:, 2:], cal.lens)
+
+    xs, ys = np.arange(0, SOURCE_W + 1, 120), np.arange(0, SOURCE_H + 1, 120)
+    grid = np.zeros((len(ys), len(xs)))
+    distances = np.linspace(1, 60, 120)[:, None]
+    for j, y in enumerate(ys):
+        pinhole = undistort(np.c_[xs, np.full(len(xs), y)].astype(float), cal.lens)
+        for i, u in enumerate(pinhole):
+            ray = rotation.T @ (inverse @ np.array([u[0], u[1], 1.0]))
+            ray /= np.linalg.norm(ray)
+            side = np.cross(ray, [0, 0, 1.0])
+            side /= np.linalg.norm(side)
+            points = camera + distances * ray
+            inside = points[(np.abs(points[:, 0]) <= VOLUME_X) & (np.abs(points[:, 1]) <= VOLUME_Y) & (points[:, 2] >= 0) & (points[:, 2] <= VOLUME_H)]
+            if len(inside):
+                grid[j, i] = np.hypot(*(project(inside + side * BALL_M / 2) - project(inside - side * BALL_M / 2)).T).min()
+
+    def least(x: float, y: float) -> float:
+        return float(grid[int(np.clip(round(y / 120), 0, len(ys) - 1)), int(np.clip(round(x / 120), 0, len(xs) - 1))])
+
+    return least
+
+
+def ball_size(before: np.ndarray, picture: np.ndarray, after: np.ndarray, x: float, y: float) -> float | None:
+    """The narrow side of what is at (x, y) in `picture` alone, in pixels: its length is the ball's blur."""
+    reach = 70
+    x0, y0 = int(max(0, x - reach)), int(max(0, y - reach))
+    x1, y1 = int(x + reach), int(y + reach)
+    if x1 <= x0 or y1 <= y0:
+        return None
+    crops = [cv2.cvtColor(p[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.int16) for p in (before, picture, after)]
+    if not crops[1].size:
+        return None
+    changed = np.minimum(np.abs(crops[1] - crops[0]), np.abs(crops[1] - crops[2])).astype(np.uint8)
+    mask = cv2.morphologyEx((changed > 16).astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    count, labels, stats, centres = cv2.connectedComponentsWithStats(mask)
+    best, nearest = None, 40.0
+    for k in range(1, count):
+        d = np.hypot(centres[k][0] + x0 - x, centres[k][1] + y0 - y)
+        if d < nearest and stats[k, cv2.CC_STAT_AREA] >= 12:
+            best, nearest = k, d
+    if best is None:
+        return None
+    return float(min(cv2.minAreaRect(np.argwhere(labels == best)[:, ::-1].astype(np.float32))[1]))
 
 
 def read_ball(path: Path) -> dict[int, tuple[float, float]]:
@@ -659,7 +766,7 @@ def shown_span(shot: dict, t: float) -> tuple[float, float]:
     return (t - REPLAY_BEFORE_S, t + REPLAY_AFTER_S) if shot["kind"] == "replay" else (shot["from"], shot["from"] + shot["length"] * shot["speed"])
 
 
-def search_ball(match: Path, video: Path, films: dict[str, dict], page: dict) -> dict:
+def search_ball(match: Path, video: Path, court: Path, films: dict[str, dict], page: dict) -> dict:
     """The ball searched again around where the first pass puts it, in the frames these films show and no search has seen. Kept."""
     import torch
 
@@ -667,6 +774,10 @@ def search_ball(match: Path, video: Path, films: dict[str, dict], page: dict) ->
     cache = json.loads(path.read_text()) if path.exists() else {"seen": [], "found": {}}
     seen = {int(q) for q in cache["seen"]}
     found = {int(q): tuple(v) for q, v in cache["found"].items()}
+    sizes: dict[str, float] = cache.get("sizes", {})
+    sized = {int(q) for q in cache.get("sized", [])}
+    rejected = {int(q): tuple(v) for q, v in cache.get("rejected", {}).items()}
+    least = least_sizes(Calibration.load(court))
     detected = read_ball(match / "ball.csv")
     times = frame_times(match, video)
     marks_of = marks(page)
@@ -680,21 +791,25 @@ def search_ball(match: Path, video: Path, films: dict[str, dict], page: dict) ->
     model = tracker.load_model(device)
 
     @torch.no_grad()
-    def look(jobs: list[tuple], crop: tuple[int, int]) -> list[tuple | None]:
-        """The best place of each job (three frames, a centre) in a crop around its centre."""
+    def look(jobs: list[tuple], crop: tuple[int, int], avoid: Callable[[int], tuple | None] = lambda _: None) -> list[tuple | None]:
+        """The best place of each job (three frames, a centre, a frame) in a crop around its centre, away from `avoid`'s for its frame."""
         out = []
         w, h = crop
         for at in range(0, len(jobs), BATCH):
             part = jobs[at : at + BATCH]
-            corners = [(int(np.clip(c[0] - w / 2, 0, SOURCE_W - w)), int(np.clip(c[1] - h / 2, 0, SOURCE_H - h))) for _, c in part]
-            inputs = np.stack([np.concatenate([tracker.preprocess(p[y : y + h, x : x + w]) for p in pictures]) for (pictures, _), (x, y) in zip(part, corners)])
+            corners = [(int(np.clip(job[1][0] - w / 2, 0, SOURCE_W - w)), int(np.clip(job[1][1] - h / 2, 0, SOURCE_H - h))) for job in part]
+            inputs = np.stack([np.concatenate([tracker.preprocess(p[y : y + h, x : x + w]) for p in job[0]]) for job, (x, y) in zip(part, corners)])
             maps = model(torch.from_numpy(inputs).to(device))[0].sigmoid().cpu().numpy()
-            for heat, (x, y) in zip(maps, corners):
-                blob = tracker.best_blob(heat[1])
+            for heat, (x, y), job in zip(maps, corners, part):
+                middle = heat[1].copy()
+                spot = avoid(job[2]) if len(job) > 2 else None
+                if spot:
+                    cv2.circle(middle, (round((spot[0] - x) * tracker.WIDTH / w), round((spot[1] - y) * tracker.HEIGHT / h)), max(3, round(50 * tracker.WIDTH / w)), 0, -1)
+                blob = tracker.best_blob(middle)
                 out.append((round(x + blob[0] * w / tracker.WIDTH, 1), round(y + blob[1] * h / tracker.HEIGHT, 1), round(blob[2], 3)) if blob and blob[2] >= tracker.THRESHOLD[1] else None)
         return out
 
-    def sweep(frames: list[int], centre: Callable[[int], tuple[float, float]]) -> None:
+    def sweep(frames: list[int], centre: Callable[[int], tuple[float, float]], avoid: Callable[[int], tuple | None] = lambda _: None) -> None:
         """Searches `frames`, around `centre`, in the sharper crop where the wider one misses or doubts."""
         asked = set(frames)
         for a, b in ranges(frames):
@@ -703,13 +818,15 @@ def search_ball(match: Path, video: Path, films: dict[str, dict], page: dict) ->
             current = a - 2
 
             def flush() -> None:
-                results = look([(pictures, centre(q)) for q, pictures in pending], CROPS[0])
+                results = look([(pictures, centre(q), q) for q, pictures in pending], CROPS[0], avoid)
                 sharper = [(k, q, pictures) for k, ((q, pictures), hit) in enumerate(zip(pending, results)) if hit is None]
-                for (k, _, _), hit in zip(sharper, look([(pictures, centre(q)) for _, q, pictures in sharper], CROPS[1])):
+                for (k, _, _), hit in zip(sharper, look([(pictures, centre(q), q) for _, q, pictures in sharper], CROPS[1], avoid)):
                     results[k] = hit
                 for (q, _), hit in zip(pending, results):
                     if hit:
                         found[q] = hit
+                    elif avoid(q):
+                        found.pop(q, None)
                 pending.clear()
 
             while current < b + 1:
@@ -764,23 +881,59 @@ def search_ball(match: Path, video: Path, films: dict[str, dict], page: dict) ->
                         found[q] = best[1]
         closed(process)
 
+    def measure(frames: list[int]) -> None:
+        """The size of every detection at `frames`."""
+        for a, b in ranges(frames):
+            process = decoder(video, times, a - SIZE_GAP - 1, b - a + 2 * SIZE_GAP + 3)
+            pictures: dict[int, np.ndarray] = {}
+            current = a - SIZE_GAP - 2
+            while current < b + SIZE_GAP:
+                picture = read_picture(process)
+                if picture is None:
+                    break
+                current += 1
+                pictures[current] = picture
+                q = current - SIZE_GAP
+                if q >= a and q - SIZE_GAP in pictures:
+                    for place in (found.get(q), detected.get(q)):
+                        if place:
+                            size = ball_size(pictures[q - SIZE_GAP], pictures[q], picture, place[0], place[1])
+                            if size is not None:
+                                sizes[size_key(q, place[0], place[1])] = round(size, 1)
+                    sized.add(q)
+                pictures.pop(current - 2 * SIZE_GAP - 1, None)
+            closed(process)
+
     def save() -> None:
-        files.write_text(path, json.dumps({"seen": sorted(seen), "found": {str(q): v for q, v in found.items()}}, separators=(",", ":")))
+        files.write_text(path, json.dumps({"seen": sorted(seen), "found": {str(q): v for q, v in found.items()}, "sizes": sizes, "sized": sorted(sized), "rejected": {str(q): v for q, v in rejected.items()}}, separators=(",", ":")))
 
     for k, frames in sorted(wanted.items()):
         new = sorted(frames - seen)
-        if not new:
-            continue
         rally_marks = marks_of[k]
+        if not new:
+            if frames <= sized:
+                continue
         last = max(rally_marks)
         inside = [q for q in new if q <= last]
-        wide = rally_path({}, rally_marks, min(rally_marks) - 30, last + 10, detected)
-        sweep(inside, centre_of(wide, detected))
-        missing = [q for q in inside if q not in found]
-        if missing:
-            sweep(missing, centre_of(rally_path(found, rally_marks, min(rally_marks) - 30, last + 10, detected), detected))
+        if inside:
+            wide = rally_path({}, rally_marks, min(rally_marks) - 30, last + 10, detected)
+            sweep(inside, centre_of(wide, detected))
+            missing = [q for q in inside if q not in found]
+            if missing:
+                sweep(missing, centre_of(rally_path(found, rally_marks, min(rally_marks) - 30, last + 10, detected), detected))
         follow(k, [q for q in new if q > last], last)
         seen.update(new)
+        # What is too small is another court's ball: dropped, its frames searched again away from it for the real one.
+        start, end = min(rally_marks) - 30, last + TAIL_FRAMES
+        measure(sorted(frames - sized))
+        for part in small_flights(found, detected, start, end, sizes, least):
+            rejected.update({p[0]: (p[1], p[2]) for p in part})
+        wrong = sorted(q for q in rejected if q in frames and q <= last)
+        if wrong:
+            sweep(wrong, centre_of(rally_path(found, rally_marks, start, end, detected, rejected), detected), rejected.get)
+            for q in wrong:
+                sized.discard(q)
+            measure(wrong)
         save()
     return found
 
@@ -811,14 +964,14 @@ def marks(page: dict) -> dict[int, list[int]]:
     return out
 
 
-def film_path(page: dict, film: dict, detected: dict, found: dict, places: dict[int, list[float]], cal: Calibration) -> dict[int, tuple[float, float]]:
+def film_path(page: dict, film: dict, detected: dict, found: dict, places: dict[int, list[float]], cal: Calibration, rejected: dict | None = None) -> dict[int, tuple[float, float]]:
     """Frame -> the ball's place through a film's rallies, across the holes; up to a touch's 3D place for a fast ball nothing sees."""
     project = projector(cal)
     out: dict[int, tuple[float, float]] = {}
     marks_of = marks(page)
     for k in {s["rally"] for s in film["shots"]}:
         m = marks_of[k]
-        path = rally_path(found, m, min(m) - 30, max(m) + TAIL_FRAMES, detected)
+        path = rally_path(found, m, min(m) - 30, max(m) + TAIL_FRAMES, detected, rejected)
         for c in page["rallies"][k]["contacts"]:
             frame = int(c.get("f", round(c["t"] * FPS)))
             before = max((q for q in path if q < frame), default=None)
@@ -929,6 +1082,7 @@ class Maker:
         self.detected = read_ball(match / "ball.csv")
         cache = json.loads((match / BALL_CACHE).read_text()) if (match / BALL_CACHE).exists() else {"found": {}}
         self.found = {int(q): tuple(v) for q, v in cache["found"].items()}
+        self.rejected = {int(q): tuple(v) for q, v in cache.get("rejected", {}).items()}
         site = match / "review"
         text = (site / "ball3d.js").read_text() if (site / "ball3d.js").exists() else "=[]"
         flat = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
@@ -1003,9 +1157,10 @@ class Maker:
 
     def make(self, film: dict, out: Path) -> None:
         """The film of `film` (`plan`) in the file `out`, H.264 with its sound."""
+        use_format(film.get("format", "tall"))
         self.film = film
         self.name = film["name"]
-        self.ball = film_path(self.page, film, self.detected, self.found, self.places, self.cal)
+        self.ball = film_path(self.page, film, self.detected, self.found, self.places, self.cal, self.rejected)
         self.rng = np.random.default_rng(7)
         self.cuts = [s["start"] for s in film["shots"][1:]]
         self.masks: dict[tuple, np.ndarray | None] = {}
@@ -1383,10 +1538,10 @@ class Maker:
         else:
             slant(g, 30 + off, top, 16, 118, RED)
             x = 50
-        slant(g, x + off, top, WIDTH - x - 60, 118, INK, 0.88)
-        write(g, who["name"].upper(), x + 26 + off, top + 58, 48, self.italic, widest=WIDTH - x - 110)
+        slant(g, x + off, top, 720 - x - 60, 118, INK, 0.88)
+        write(g, who["name"].upper(), x + 26 + off, top + 58, 48, self.italic, widest=720 - x - 110)
         action = self.words["actions"].get(c["type"], {}).get(c.get("result"), c["type"])
-        write(g, action.upper(), x + 24 + off, top + 98, 28, self.cond, GOLD, widest=WIDTH - x - 110)
+        write(g, action.upper(), x + 24 + off, top + 98, 28, self.cond, GOLD, widest=720 - x - 110)
         if shot["kind"] == "replay":
             tag = self.words["broadcast"]["replayTag"].upper()
             wide = text_width(tag, self.italic, 30)
@@ -1413,26 +1568,31 @@ class Maker:
         for cut in self.cuts:
             u = (film_t - cut) / 0.24
             if -1 < u < 1:
-                for k, (color, wide) in enumerate(((INK, 900), (RED, 620), (WHITE, 90))):
-                    x = int(-1100 + (u + 1) * 1.05 * (WIDTH + 1500) - k * 140)
+                # As wide as the picture asks.
+                f = max(1.0, WIDTH / 720)
+                for k, (color, wide) in enumerate(((INK, 900 * f), (RED, 620 * f), (WHITE, 90 * f))):
+                    x = -1100 * f + (u + 1) * 1.05 * (WIDTH + 1500 * f) - k * 140 * f
                     cv2.fillPoly(g, [np.array([[x + 300, 0], [x + wide + 300, 0], [x + wide - 300, HEIGHT], [x - 300, HEIGHT]], np.int32)], color, cv2.LINE_AA)
 
     def title_card(self, g: np.ndarray, tau: float) -> None:
         g[:] = (g * 0.42).astype(np.uint8)
-        off, off2 = int((1 - out_back((tau - 0.1) / 0.4)) * -760), int((1 - out_back((tau - 0.35) / 0.4)) * 760)
+        # Laid out for the upright picture, centred in any other.
+        dx, dy = (WIDTH - 720) // 2, (HEIGHT - 1280) // 2
+        off, off2 = int((1 - out_back((tau - 0.1) / 0.4)) * -(760 + dx)), int((1 - out_back((tau - 0.35) / 0.4)) * (760 + dx))
         match_film = self.film.get("kind") == "highlights"
         of = "d'" if re.match(r"[aeiouyhàâäéèêëîïôöùûü]", self.name, re.I) else "de"
-        slant(g, 20 + off, 520, 680, 150, RED, 1.0, 30)
-        write(g, "LE RÉSUMÉ DU MATCH" if match_film else f"LE FILM {of}".upper(), 50 + off, 505, 40, self.cond)
+        slant(g, dx + 20 + off, dy + 520, 680, 150, RED, 1.0, 30)
+        write(g, "LE RÉSUMÉ DU MATCH" if match_film else f"LE FILM {of}".upper(), dx + 50 + off, dy + 505, 40, self.cond)
         title = " - ".join(self.film["teams"]) if match_film else self.name
-        write(g, title.upper(), WIDTH // 2 + off, 634, 112, self.italic, widest=620, center=True)
-        slant(g, 60 + off2, 680, 620, 50, INK, 1.0, 16)
-        write(g, self.below, WIDTH // 2 + off2, 716, 28, self.cond, widest=580, center=True)
+        write(g, title.upper(), dx + 360 + off, dy + 634, 112, self.italic, widest=620, center=True)
+        slant(g, dx + 60 + off2, dy + 680, 620, 50, INK, 1.0, 16)
+        write(g, self.below, dx + 360 + off2, dy + 716, 28, self.cond, widest=580, center=True)
 
     def end_card(self, g: np.ndarray, tau: float) -> None:
         g[:] = (g * 0.28).astype(np.uint8)
-        off = int((1 - out_back(tau / 0.35)) * -760)
-        slant(g, 20 + off, 300, 680, 130, RED, 1.0, 30)
+        dx, dy = (WIDTH - 720) // 2, min(0, (HEIGHT - 1280) // 2 - 80)
+        off = int((1 - out_back(tau / 0.35)) * -(760 + dx))
+        slant(g, dx + 20 + off, dy + 300, 680, 130, RED, 1.0, 30)
         film = self.film
         if film.get("kind") == "highlights":
             title = f"{film['teams'][0]}  {film['won'][0]}-{film['won'][1]}  {film['teams'][1]}"
@@ -1444,15 +1604,15 @@ class Maker:
             rows = [("POINTS", film["points"], ""), ("BALLONS TOUCHÉS", film["touches"], "")]
             if film["fastest"]:
                 rows.append(("SERVICE LE PLUS RAPIDE", film["fastest"], " KM/H"))
-        write(g, title.upper(), WIDTH // 2 + off, 398, 96, self.italic, widest=620, center=True)
+        write(g, title.upper(), dx + 360 + off, dy + 398, 96, self.italic, widest=620, center=True)
         for k, (label, value, unit) in enumerate(rows):
             begin = 0.35 + k * 0.3
-            shift, y, count = int((1 - out_back((tau - begin) / 0.3)) * 760), 470 + k * 140, float(ease(begin, begin + 0.7, tau))
-            slant(g, 40 + shift, y, 640, 122, INK, 0.92)
-            slant(g, 40 + shift, y, 8, 122, GOLD)
-            write(g, label, 72 + shift, y + 42, 26, self.cond, GREY, widest=560)
+            shift, y, count = int((1 - out_back((tau - begin) / 0.3)) * (760 + dx)), dy + 470 + k * 140, float(ease(begin, begin + 0.7, tau))
+            slant(g, dx + 40 + shift, y, 640, 122, INK, 0.92)
+            slant(g, dx + 40 + shift, y, 8, 122, GOLD)
+            write(g, label, dx + 72 + shift, y + 42, 26, self.cond, GREY, widest=560)
             shown = unit if value is None else f"{int(round(value * count))}{unit}"
-            write(g, shown, 70 + shift, y + 106, 62, self.din, GOLD if count >= 1 else WHITE, widest=590)
+            write(g, shown, dx + 70 + shift, y + 106, 62, self.din, GOLD if count >= 1 else WHITE, widest=590)
         write(g, self.below, WIDTH // 2, HEIGHT - 120, 28, self.cond, (210, 210, 210), widest=620, center=True)
 
     def sound(self) -> np.ndarray:
@@ -1555,7 +1715,7 @@ def main() -> None:
         page = read_page(args.match / "review")
         films = plan(page, args.match / "review", tracking_stamp(args.match))
         if args.search:
-            search_ball(args.match, args.video, {n: films[n] for n in args.search.split(",")}, page)
+            search_ball(args.match, args.video, args.court, {n: films[n] for n in args.search.split(",")}, page)
         else:
             film = films[args.make]
             target = args.match / FILMS / film["file"]

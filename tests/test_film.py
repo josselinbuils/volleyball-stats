@@ -2,6 +2,7 @@ import json
 import math
 import subprocess
 
+import cv2
 import numpy as np
 import pytest
 
@@ -168,6 +169,13 @@ class TestHighlights:
         people = {"1": {"name": "Ana"}}
         assert film.rally_touch(rally(0, [winner_touch, fault], [1, 0]), people) is winner_touch
 
+    def test_comes_in_both_formats_each_its_own_film(self, tmp_path):
+        films = film.plan(self.page(), tmp_path)
+        assert films[film.HIGHLIGHTS]["file"] != films[film.HIGHLIGHTS_WIDE]["file"]
+        assert films[film.HIGHLIGHTS]["hash"] != films[film.HIGHLIGHTS_WIDE]["hash"]
+        assert films[film.HIGHLIGHTS_WIDE]["format"] == "wide"
+        assert films[film.HIGHLIGHTS]["shots"] == films[film.HIGHLIGHTS_WIDE]["shots"]
+
     def test_a_too_short_match_has_no_film(self, tmp_path):
         assert film.highlight_film(TestPlan.page(), tmp_path, "") is None
 
@@ -266,6 +274,29 @@ class TestBallPath:
     def test_ends_where_the_ball_is_lost_after_the_last_touch(self):
         ball = {**self.flight(100, 20, 500, 300, 10, 5), **self.flight(150, 20, 700, 1100, -10, -5)}
         assert max(film.rally_path(ball, [100], 90, 175)) == 119
+
+
+class TestBallSize:
+    def test_reads_the_narrow_side_of_what_moved(self):
+        empty = np.full((400, 400, 3), 120, np.uint8)
+        picture = empty.copy()
+        cv2.ellipse(picture, (200, 200), (30, 12), 0, 0, 360, (20, 20, 20), -1)
+        assert film.ball_size(empty, picture, empty, 200, 200) == pytest.approx(25, abs=3)
+        assert film.ball_size(empty, empty, empty, 200, 200) is None
+
+    def test_a_flight_too_small_for_our_court_is_another_court_s(self):
+        part = [(q, 100.0, 100.0) for q in range(10)]
+        small = {film.size_key(*p): 8.0 for p in part}
+        assert film.too_small(part, small, lambda *_: 20.0)
+        assert not film.too_small(part, {k: 19.0 for k in small}, lambda *_: 20.0)
+        # Too few read to say.
+        assert not film.too_small(part, dict(list(small.items())[:3]), lambda *_: 20.0)
+
+    def test_leaves_out_what_was_rejected(self):
+        ball = TestBallPath.flight(100, 60, 500, 500, 12, -8)
+        wrong = {q: (2500.0 + q, 300.0) for q in range(100, 160)}
+        path = film.rally_path(wrong, [100], 90, 170, ball, wrong)
+        assert all(p[0] < 2000 for p in path.values()) and 130 in path
 
 
 class TestFrames:

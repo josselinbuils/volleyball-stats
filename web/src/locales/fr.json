@@ -708,7 +708,8 @@
   },
   "followBall": "Zoomer sur le ballon",
   "story": {
-    "film": "Voir le résumé en film",
+    "film": "Résumé en film (mobile)",
+    "filmWide": "Résumé en film (16/9)",
     "title": "L'histoire du match",
     "caption": "Qui mène, de combien, échange après échange. Cliquez sur un moment ou sur la courbe pour le revoir.",
     "ahead": "{{team}} devant",
