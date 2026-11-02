@@ -491,7 +491,9 @@
       "between": "Balls between two",
       "overReceptions": "Receptions to the opponents",
       "overDigs": "Digs to the opponents",
-      "serveRated": "Serve rating"
+      "serveRated": "Serve rating",
+      "attackRated": "Attack rating",
+      "digRated": "Dig rating"
     },
     "columns": {
       "total": "Total",
@@ -540,7 +542,9 @@
       "time": "Time on the court during the rallies (minutes:seconds), from the players' tracking: rough where a player is poorly tracked.",
       "overReceptions": "The receptions that go straight to the other team: their touch comes next, with no set or attack of the team.",
       "overDigs": "The digs that go straight to the other team: their touch comes next, with no set or attack of the team.",
-      "serveRated": "The serves' mean grade, out of 5, from the other team's reception: 5 for an ace or a reception missed, 4 when the reception is poor or sent straight back, 3 when it is good, 2 when it is perfect, 0 for a fault."
+      "serveRated": "The serves' mean grade, out of 5, from the other team's reception: 5 for an ace or a reception missed, 4 when the reception is poor or sent straight back, 3 when it is good, 2 when it is perfect, 0 for a fault.",
+      "attackRated": "The mean rating of the attacks, out of 5, from 5 attacks: 5 if it wins the point, 4 if the ball stays in play with no counter-attack, 2 if the other team counter-attacks, 1 if it is blocked, 0 for another fault.",
+      "digRated": "The mean rating of the digs, out of 5, from 5 digs, as for receptions: 5 if the next touch is played within 1.5 m of the setter's target, 3.3 within 3 m, 1.7 further or sent straight over, 0 for a fault."
     },
     "noteTitles": "Hover or tap a column's title to see what it counts; click it to sort the rows.",
     "noteVideo": "It all comes from the video: touches can be missing or given to the wrong player.",
@@ -603,7 +607,8 @@
       },
       "usedSets": "Sets put to use · {{count}} of {{of}}"
     },
-    "serveRatingDetail": "Aces: {{aces}} · Reception missed: {{lost}} · Put under pressure: {{tough}} · Received well: {{fair}} · Received perfectly: {{easy}} · Faults: {{faults}}"
+    "serveRatingDetail": "Aces: {{aces}} · Reception missed: {{lost}} · Put under pressure: {{tough}} · Received well: {{fair}} · Received perfectly: {{easy}} · Faults: {{faults}}",
+    "attackRatingDetail": "Winning: {{kills}} · No counter-attack: {{noCounter}} · Counter-attacked: {{countered}} · Blocked: {{blocked}} · Faults: {{faults}}"
   },
   "players": {
     "title": "Statistics",

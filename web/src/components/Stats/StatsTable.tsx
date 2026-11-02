@@ -11,7 +11,7 @@ import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import type { Insight } from '@/components/Stats/helpers/insights';
-import { meanRating, meanServeRating, type Stat, type Stats } from '@/components/Stats/helpers/stats';
+import { meanAttackRating, meanDigRating, meanRating, meanServeRating, type Stat, type Stats } from '@/components/Stats/helpers/stats';
 
 /** The columns, each a count of touches (`stat`) under its group's title (`of`), named by `label`
  * within it. */
@@ -31,6 +31,7 @@ export const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'kills', of: 'attacks', label: 'kills' },
   { stat: 'attackFaults', of: 'attacks', label: 'faults' },
   { stat: 'defended', of: 'attacks', label: 'defended' },
+  { stat: 'attackRated', of: 'attacks', label: 'rating' },
   { stat: 'relances', of: 'relances', label: 'total' },
   { stat: 'relanceFaults', of: 'relances', label: 'faults' },
   { stat: 'blocks', of: 'blocks', label: 'total' },
@@ -41,9 +42,12 @@ export const COLUMNS: { stat: Stat; of: Stat | 'overall'; label: string }[] = [
   { stat: 'digFaults', of: 'digs', label: 'faults' },
   { stat: 'unattackedDigs', of: 'digs', label: 'unattacked' },
   { stat: 'overDigs', of: 'digs', label: 'over' },
+  { stat: 'digRated', of: 'digs', label: 'rating' },
   { stat: 'points', of: 'overall', label: 'points' },
   { stat: 'faults', of: 'overall', label: 'faults' },
 ];
+// The attacks' and digs' ratings show from this many attempts: under them one touch swings them too far.
+const RATED_FROM = 5;
 const HEAD = 'px-1 text-center leading-tight whitespace-normal text-muted-foreground';
 // The first column stays in view while the table scrolls sideways.
 const FIRST = 'sticky left-0 z-10 min-w-32 bg-card pl-3 shadow-[inset_-1px_0_0_var(--border)] max-sm:pl-2';
@@ -66,7 +70,7 @@ export interface Row {
 
 /** Counts of touches per action and how they ended in `columns`, `first` heading the rows' column,
  * then the rows' strengths and things to work on when `insights`; each count and each of those
- * plays its touches. The receptions' rating shows their mean grade. A column's title sorts the rows
+ * plays its touches. The ratings show their mean grades. A column's title sorts the rows
  * by it, most first, then fewest first, then back to their order. */
 export function StatsTable({ id, first, rows, columns = COLUMNS, insights = false }: { id: string; first: string; rows: Row[]; columns?: typeof COLUMNS; insights?: boolean }) {
   const { t } = useTranslation();
@@ -74,8 +78,14 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
   const [sort, setSort] = useState<{ stat: Stat | 'time'; desc: boolean } | null>(null);
   const sortBy = (stat: Stat | 'time') => setSort((s) => (s?.stat !== stat ? { stat, desc: true } : s.desc ? { stat, desc: false } : null));
   // The ratings' cells show their mean grade.
-  const mean = (r: Row, stat: Stat) => (stat === 'rated' ? meanRating(r.stats) : stat === 'serveRated' ? meanServeRating(r.stats) : null);
-  const value = (r: Row, stat: Stat | 'time') => (stat === 'time' ? (r.seconds ?? -1) : stat === 'rated' || stat === 'serveRated' ? (mean(r, stat) ?? -1) : r.stats[stat].length);
+  const mean = (r: Row, stat: Stat) => {
+    if (stat === 'attackRated' || stat === 'digRated') {
+      return r.stats[stat].length < RATED_FROM ? null : stat === 'attackRated' ? meanAttackRating(r.stats) : meanDigRating(r.stats);
+    }
+    return stat === 'rated' ? meanRating(r.stats) : stat === 'serveRated' ? meanServeRating(r.stats) : null;
+  };
+  const rating = (stat: Stat | 'time') => stat === 'rated' || stat === 'serveRated' || stat === 'attackRated' || stat === 'digRated';
+  const value = (r: Row, stat: Stat | 'time') => (stat === 'time' ? (r.seconds ?? -1) : rating(stat) ? (mean(r, stat as Stat) ?? -1) : r.stats[stat as Stat].length);
   const order = (stat: Stat | 'time') => (sort?.stat === stat ? (sort.desc ? 'descending' : 'ascending') : undefined);
   // The players' time on the court, beside their names.
   const timed = rows.some((r) => r.seconds !== undefined);
@@ -84,19 +94,29 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
   // A line parts each group from its neighbours.
   const parts = (k: number) => k > 0 && columns[k - 1].of !== columns[k].of;
   const tip = (r: Row, stat: Stat) =>
-    stat === 'rated'
-      ? t('stats.ratingDetail', { perfect: r.stats.perfect.length, good: r.stats.good.length, poor: r.stats.poor.length, missed: r.stats.missed.length })
-      : stat === 'serveRated'
-        ? t('stats.serveRatingDetail', {
-            aces: r.stats.aces.length,
-            // Rated 4 as an ace: aces and faults are all rated.
-            lost: r.stats.serveRated.length - r.stats.aces.length - r.stats.serveTough.length - r.stats.serveFair.length - r.stats.serveEasy.length - r.stats.serveFaults.length,
-            tough: r.stats.serveTough.length,
-            fair: r.stats.serveFair.length,
-            easy: r.stats.serveEasy.length,
-            faults: r.stats.serveFaults.length,
-          })
-        : r.tips?.[stat];
+    stat === 'attackRated'
+      ? t('stats.attackRatingDetail', {
+          kills: r.stats.kills.length,
+          noCounter: r.stats.attackNoCounter.length,
+          countered: r.stats.attackCountered.length,
+          blocked: r.stats.attackBlocked.length,
+          faults: r.stats.attackFaults.length - r.stats.attackBlocked.length,
+        })
+      : stat === 'digRated'
+        ? t('stats.ratingDetail', { perfect: r.stats.digPerfect.length, good: r.stats.digGood.length, poor: r.stats.digPoor.length, missed: r.stats.digFaults.length })
+        : stat === 'rated'
+          ? t('stats.ratingDetail', { perfect: r.stats.perfect.length, good: r.stats.good.length, poor: r.stats.poor.length, missed: r.stats.missed.length })
+          : stat === 'serveRated'
+            ? t('stats.serveRatingDetail', {
+                aces: r.stats.aces.length,
+                // Rated 4 as an ace: aces and faults are all rated.
+                lost: r.stats.serveRated.length - r.stats.aces.length - r.stats.serveTough.length - r.stats.serveFair.length - r.stats.serveEasy.length - r.stats.serveFaults.length,
+                tough: r.stats.serveTough.length,
+                fair: r.stats.serveFair.length,
+                easy: r.stats.serveEasy.length,
+                faults: r.stats.serveFaults.length,
+              })
+            : r.tips?.[stat];
   const row = (r: Row) => (
     <TableRow key={r.key} className={r.total ? 'hover:bg-transparent' : undefined}>
       <TableCell className={cn(FIRST, 'max-w-48 py-1.5 whitespace-normal', r.total && 'font-semibold')}>{r.name}</TableCell>
@@ -107,7 +127,7 @@ export function StatsTable({ id, first, rows, columns = COLUMNS, insights = fals
             id={`${id}:${r.key}:${stat}`}
             title={(tr) => `${tr(`stats.names.${stat}`)}, ${r.title(tr)}`}
             picked={r.stats[stat]}
-            value={mean(r, stat) !== null ? f.dec(mean(r, stat)!) : undefined}
+            value={mean(r, stat) !== null ? f.dec(mean(r, stat)!) : (stat === 'attackRated' || stat === 'digRated') && r.stats[stat].length ? '–' : undefined}
             tip={tip(r, stat)}
             className="min-w-10"
           />

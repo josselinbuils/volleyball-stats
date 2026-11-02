@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
 import type { Drop } from '@/components/Stats/helpers/between';
-import { lines, meanRating, meanServeRating, mvp, over, rating, serveRating, unattacked, type Line, type Stats } from '@/components/Stats/helpers/stats';
+import { attackRating, lines, meanAttackRating, meanDigRating, meanRating, meanServeRating, mvp, over, rating, serveRating, unattacked, type Line, type Stats } from '@/components/Stats/helpers/stats';
 
 describe('lines', () => {
   const people: Record<string, Person> = {
@@ -33,17 +33,17 @@ describe('lines', () => {
   it('counts the touches, points and faults of each player, aces missed included, then the rest and the team', () => {
     const [one, two, rest, total] = lines(contacts, people, 1);
     expect([one.id, two.id, rest.id, total.id]).toEqual([0, 1, 'rest', 'total']);
-    expect(count(one.stats)).toEqual({ touches: 2, serves: 1, aces: 1, serveRated: 1, attacks: 1, kills: 1, points: 2 });
+    expect(count(one.stats)).toEqual({ touches: 2, serves: 1, aces: 1, serveRated: 1, attacks: 1, kills: 1, attackRated: 1, points: 2 });
     expect(count(two.stats)).toEqual({ touches: 1, receptions: 2, missed: 2, rated: 2, faults: 2 });
-    expect(count(rest.stats)).toEqual({ touches: 2, attacks: 1, attackFaults: 1, digs: 1, faults: 1 });
-    expect(count(total.stats)).toEqual({ touches: 5, serves: 1, aces: 1, serveRated: 1, receptions: 2, missed: 2, rated: 2, attacks: 2, kills: 1, attackFaults: 1, digs: 1, points: 2, faults: 3 });
+    expect(count(rest.stats)).toEqual({ touches: 2, attacks: 1, attackFaults: 1, attackRated: 1, digs: 1, faults: 1 });
+    expect(count(total.stats)).toEqual({ touches: 5, serves: 1, aces: 1, serveRated: 1, receptions: 2, missed: 2, rated: 2, attacks: 2, kills: 1, attackFaults: 1, attackRated: 2, digs: 1, points: 2, faults: 3 });
   });
 
   it('makes one player of the identities given one name, shown by the one with the most touches', () => {
     const named: Record<string, Person> = { ...people, 0: { ...people[0], name: 'Lou' }, 1: { ...people[1], name: 'Lou' } };
     const [lou, rest, total] = lines(contacts, named, 1);
     expect([lou.id, rest.id, total.id]).toEqual([0, 'rest', 'total']);
-    expect(count(lou.stats)).toEqual({ touches: 3, serves: 1, aces: 1, serveRated: 1, receptions: 2, missed: 2, rated: 2, attacks: 1, kills: 1, points: 2, faults: 2 });
+    expect(count(lou.stats)).toEqual({ touches: 3, serves: 1, aces: 1, serveRated: 1, receptions: 2, missed: 2, rated: 2, attacks: 1, kills: 1, attackRated: 1, points: 2, faults: 2 });
   });
 
   it('counts free balls and their faults', () => {
@@ -199,5 +199,44 @@ describe('serveRating', () => {
   it('is null without a reception rated after it', () => {
     expect(serveRating(touch('serve', 'right', 0), touch('dig', 'left', 1), undefined)).toBeNull();
     expect(serveRating(touch('serve', 'right', 0), touch('pass', 'left', 1), undefined)).toBeNull();
+  });
+});
+
+describe('attackRating', () => {
+  function touch(type: Contact['type'], g: 1 | 2, result: Contact['result'] = 'play', rally = 0): Contact {
+    return { i: 0, t: 0, type, g, team: g, side: g === 1 ? 'left' : 'right', rally, set: 1, x: 0, y: 0, zone: null, result, person: 1, player: null, name: null };
+  }
+
+  it('gives a winner 5, a fault 0 and a block for a point 1', () => {
+    expect(attackRating(touch('attack', 1, 'point'), [])).toBe(5);
+    expect(attackRating(touch('attack', 1, 'error'), [touch('floor', 2)])).toBe(0);
+    expect(attackRating(touch('attack', 1, 'error'), [touch('block', 2, 'point')])).toBe(1);
+  });
+
+  it('gives 2 when the other team attacks back before the ball returns, 4 when it does not', () => {
+    const attack = touch('attack', 1);
+    expect(attackRating(attack, [touch('dig', 2), touch('set', 2), touch('attack', 2)])).toBe(2);
+    expect(attackRating(attack, [touch('dig', 2), touch('relance', 2), touch('dig', 1), touch('attack', 1)])).toBe(4);
+    expect(attackRating(attack, [touch('dig', 2), touch('relance', 2), touch('dig', 1), touch('attack', 1), touch('attack', 2)])).toBe(4);
+  });
+
+  it('leaves unrated an attack with no touch after it in its rally', () => {
+    expect(attackRating(touch('attack', 1), [touch('floor', 2)])).toBeNull();
+    expect(attackRating(touch('attack', 1), [touch('dig', 2, 'play', 1)])).toBeNull();
+  });
+
+  it('feeds the mean of the attacks and of the digs', () => {
+    const contacts = [
+      touch('attack', 1, 'point', 0),
+      touch('attack', 1, 'error', 1),
+      touch('block', 2, 'point', 1),
+      touch('attack', 1, 'play', 2),
+      touch('dig', 2, 'play', 2),
+      touch('attack', 2, 'play', 2),
+    ];
+    const people = { 1: { team: 1, number: 1, jersey: null, name: 'A' } } as const;
+    const line = lines(contacts, people as never, 1).find((l) => l.id === 'total');
+    expect(line && meanAttackRating(line.stats)).toBeCloseTo((5 + 1 + 2) / 3);
+    expect(line && meanDigRating(line.stats)).toBeNull();
   });
 });

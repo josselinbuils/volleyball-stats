@@ -25,6 +25,10 @@ export const STATS = [
   'kills',
   'attackFaults',
   'defended',
+  'attackRated',
+  'attackNoCounter',
+  'attackCountered',
+  'attackBlocked',
   'relances',
   'relanceFaults',
   'blocks',
@@ -35,6 +39,10 @@ export const STATS = [
   'digFaults',
   'unattackedDigs',
   'overDigs',
+  'digRated',
+  'digPerfect',
+  'digGood',
+  'digPoor',
   'sets',
   'points',
   'faults',
@@ -82,6 +90,10 @@ export function rating(c: Contact, next: Contact | undefined): number | null {
   return d <= PERFECT_M ? 3 : d <= GOOD_M ? 2 : 1;
 }
 
+// The stats of a dig's grades 1 to 3 and of an attack's in play or blocked.
+const DIG_GRADES = ['digPoor', 'digGood', 'digPerfect'] as const;
+const ATTACK_GRADES = { 4: 'attackNoCounter', 2: 'attackCountered', 1: 'attackBlocked' } as const;
+
 // The stats of a serve's grades 1 to 3 (4 an ace, 0 a fault): the reception's grade reversed.
 const SERVE_GRADES = ['serveEasy', 'serveFair', 'serveTough'] as const;
 
@@ -102,6 +114,21 @@ export function serveRating(c: Contact, next: Contact | undefined, after: Contac
   return grade === null ? null : grade === 0 ? 4 : 4 - grade;
 }
 
+/** An attack's grade from what follows in its rally (`after`): 5 winning, 4 in play with no attack of the other team before
+ * its own next touch, 2 with one, 1 blocked for a point, 0 another fault; null with no touch after in play. */
+export function attackRating(c: Contact, after: Contact[]): number | null {
+  if (c.result === 'point') {
+    return 5;
+  }
+  const touches = after.filter((n) => n.rally === c.rally && isTouch(n));
+  if (c.result === 'error') {
+    return touches[0]?.type === 'block' && touches[0].result === 'point' && touches[0].g !== c.g ? 1 : 0;
+  }
+  const back = touches.findIndex((n, k) => n.g === c.g && k > 0 && touches[k - 1].g !== c.g);
+  const theirs = touches.slice(0, back < 0 ? undefined : back).filter((n) => n.g !== c.g);
+  return !theirs.length ? null : theirs.some((n) => n.type === 'attack') ? 2 : 4;
+}
+
 /** Every rating reads out of this: the serves' 0 to 4 and the receptions' 0 to 3 grades scaled to it. */
 export const OUT_OF = 5;
 
@@ -111,6 +138,17 @@ export function meanServeRating(s: Stats): number | null {
   const n = s.serveRated.length;
   const top = n - s.serveTough.length - s.serveFair.length - s.serveEasy.length - s.serveFaults.length;
   return n ? (5 * top + 4 * s.serveTough.length + 3 * s.serveFair.length + 2 * s.serveEasy.length) / n : null;
+}
+
+/** The mean grade of the rated attacks of `s`, out of OUT_OF (`attackRating`), null without any. */
+export function meanAttackRating(s: Stats): number | null {
+  const n = s.attackRated.length;
+  return n ? (5 * s.kills.length + 4 * s.attackNoCounter.length + 2 * s.attackCountered.length + s.attackBlocked.length) / n : null;
+}
+
+/** The mean grade of the rated digs of `s`, out of OUT_OF, as for receptions (`rating`), null without any. */
+export function meanDigRating(s: Stats): number | null {
+  return s.digRated.length ? (((3 * s.digPerfect.length + 2 * s.digGood.length + s.digPoor.length) / s.digRated.length) * OUT_OF) / 3 : null;
 }
 
 /** The mean grade of the rated receptions of `s`, out of OUT_OF, null without any. */
@@ -202,12 +240,26 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       }
     } else if (c.type === 'attack') {
       add('attacks', 'kills', 'attackFaults', 'defended');
+      const grade = attackRating(c, contacts.slice(k + 1, k + 8));
+      if (grade !== null) {
+        out.attackRated.push(c);
+        if (grade === 4 || grade === 2 || grade === 1) {
+          out[ATTACK_GRADES[grade]].push(c);
+        }
+      }
     } else if (c.type === 'relance') {
       add('relances', null, 'relanceFaults');
     } else if (c.type === 'block') {
       add('blocks', 'blockPoints', 'blockFaults', 'blockDefended');
     } else if (c.type === 'dig') {
       add('digs', null, 'digFaults');
+      const grade = rating(c, contacts[k + 1]);
+      if (grade !== null) {
+        out.digRated.push(c);
+        if (grade > 0) {
+          out[DIG_GRADES[grade - 1]].push(c);
+        }
+      }
       if (unattacked(c, contacts.slice(k + 1, k + 8))) {
         out.unattackedDigs.push(c);
       }

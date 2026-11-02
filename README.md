@@ -419,9 +419,11 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
   target (1 m off the net, between zones 2 and 3), 2 within 3 m, 1 further or sent straight over the
   net, 0 for a fault;
 - sets;
-- attacks: winning, faults;
+- attacks: winning, faults, and from 5 attacks a rating out of 5: 5 winning, 4 in play with no counter-attack, 2 with one, 1 blocked,
+  0 another fault;
 - free balls: faults;
 - blocks;
+- digs: from 5 digs a rating out of 5, as for receptions;
 - "Bilan": points, faults, and "Entre deux": the balls that landed in untouched within 2.5 m of two
   teammates about as close as each other, the pair on hover.
 

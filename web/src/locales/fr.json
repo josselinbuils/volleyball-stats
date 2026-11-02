@@ -491,7 +491,9 @@
       "between": "Ballons entre deux",
       "overReceptions": "Réceptions chez l'adversaire",
       "overDigs": "Défenses chez l'adversaire",
-      "serveRated": "Note des services"
+      "serveRated": "Note des services",
+      "attackRated": "Note des attaques",
+      "digRated": "Note des défenses"
     },
     "columns": {
       "total": "Total",
@@ -540,7 +542,9 @@
       "time": "Temps passé sur le terrain pendant les échanges (minutes:secondes), d'après le suivi des joueurs : approximatif quand un joueur est mal suivi.",
       "overReceptions": "Les réceptions qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
       "overDigs": "Les défenses qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
-      "serveRated": "La note moyenne des services, sur 5, selon la réception adverse : 5 pour un ace ou une réception ratée, 4 si la réception est difficile ou renvoyée directement, 3 si elle est bonne, 2 si elle est parfaite, 0 pour une faute."
+      "serveRated": "La note moyenne des services, sur 5, selon la réception adverse : 5 pour un ace ou une réception ratée, 4 si la réception est difficile ou renvoyée directement, 3 si elle est bonne, 2 si elle est parfaite, 0 pour une faute.",
+      "attackRated": "La note moyenne des attaques, sur 5, à partir de 5 attaques : 5 si elle gagne le point, 4 si le ballon reste en jeu sans contre-attaque adverse, 2 si l'adversaire contre-attaque, 1 si elle est contrée, 0 pour une autre faute.",
+      "digRated": "La note moyenne des défenses, sur 5, à partir de 5 défenses, comme pour les réceptions : 5 si la touche suivante est jouée à moins de 1,5 m de la cible du passeur, 3,3 à moins de 3 m, 1,7 plus loin ou renvoyée directement chez l'adversaire, 0 pour une faute."
     },
     "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte ; cliquez dessus pour trier les lignes.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",
@@ -603,7 +607,8 @@
       },
       "usedSets": "Passes bien exploitées · {{count}} sur {{of}}"
     },
-    "serveRatingDetail": "Aces : {{aces}} · Réception adverse ratée : {{lost}} · Ont mis en difficulté : {{tough}} · Bien reçus : {{fair}} · Parfaitement reçus : {{easy}} · Fautes : {{faults}}"
+    "serveRatingDetail": "Aces : {{aces}} · Réception adverse ratée : {{lost}} · Ont mis en difficulté : {{tough}} · Bien reçus : {{fair}} · Parfaitement reçus : {{easy}} · Fautes : {{faults}}",
+    "attackRatingDetail": "Gagnantes : {{kills}} · Sans contre-attaque : {{noCounter}} · Contre-attaquées : {{countered}} · Contrées : {{blocked}} · Fautes : {{faults}}"
   },
   "players": {
     "title": "Statistiques",
