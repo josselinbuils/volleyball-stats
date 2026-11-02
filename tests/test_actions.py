@@ -1,7 +1,7 @@
 import numpy as np
 
 from volleyball_stats import actions
-from volleyball_stats.actions import classify, classify_rally, late_serves, mark_dead, no_play, player_under, relance_cues, serve_starts, served
+from volleyball_stats.actions import by_flight, classify, classify_rally, late_serves, mark_dead, no_play, player_under, relance_cues, serve_starts, served
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -262,3 +262,33 @@ class TestLateServes:
 
     def test_a_contact_short_of_the_end_line_is_no_serve(self):
         assert self.moved([(100, 1800, 700)], [140], [(1.0, 1.2)]) == 500
+
+
+class TestByFlight:
+    FPS = 50.0
+
+    def typed(self, kind):
+        return [(0, 0, 0, kind, "left"), (50, 0, 0, "dig", "right")]
+
+    def test_a_high_ball_sent_down_is_an_attack(self):
+        places = {0: np.array([1.0, 0.0, 2.8]), 50: np.array([-5.0, 0.0, 1.0])}
+
+        assert by_flight(self.typed("relance"), places, self.FPS)[0][3] == "attack"
+
+    def test_a_ball_sent_up_is_a_relance(self):
+        places = {0: np.array([1.0, 0.0, 2.3]), 50: np.array([-5.0, 0.0, 4.0])}
+
+        assert by_flight(self.typed("attack"), places, self.FPS)[0][3] == "relance"
+
+    def test_a_low_ball_is_a_relance(self):
+        places = {0: np.array([1.0, 0.0, 1.5]), 50: np.array([-5.0, 0.0, 0.5])}
+
+        assert by_flight(self.typed("attack"), places, self.FPS)[0][3] == "relance"
+
+    def test_no_flight_known_stays(self):
+        assert by_flight(self.typed("attack"), {}, self.FPS)[0][3] == "attack"
+
+    def test_other_touches_stay(self):
+        places = {0: np.array([1.0, 0.0, 1.0]), 50: np.array([-5.0, 0.0, 1.0])}
+
+        assert by_flight(self.typed("set"), places, self.FPS)[0][3] == "set"

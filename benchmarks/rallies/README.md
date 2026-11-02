@@ -295,3 +295,32 @@ On the first match's 129 rallies and 944 touches (1 Nov), the ball speed saying 
 closing nothing while the ball run goes on 3 s after it (+7 touches on the match, but `side_club` 0.80, `side_long`
 0.89, `side_holdout` 0.67); `MIN_SPEED` and `MAX_SPEED` per second (`MIN_SPEED` 3.6 at 50 fps: 814 touches, 217 no touch,
 12 false windows).
+
+### 2 Nov: late windows and windows that are no rally
+
+All 129 rallies being checked, every window can be scored by its start. Three rules, tuned there:
+
+- `actions.late_serves`: a window opening up to 10 s after its serve starts at it, the serve being the
+  contact deep behind the first crossing since the previous window and the referee's go (2 s back without
+  a go). A window already opening on a serve stays: an earlier one is a ball thrown over the net.
+- `actions.no_play` with the windows: one with no serve, or over 3 s with no crossing (a real serve into
+  the net lasts at most 1.6 s), is none. Of the 5 windows it takes, the owner had answered "no play" on 4;
+  the fifth is the tail of a real rally, which keeps its window.
+- `attribution.unreached`: a serve whose ball crosses the net within 1.2 s stays with no player at the ball
+  (a server out of view: the match's first rally).
+
+| | Rally starts ±1 s of 129 | Windows | Touches in windows | 26:00-36:00 F1 ±1 s | 50:00-60:00 |
+| --- | --- | --- | --- | --- | --- |
+| before | 123 | 135 | 844 | 0.90 | 0.57 |
+| after | 126 | 130 | 872 | 0.90 | 0.57 |
+
+A rerun on a copy of the match kept all 129 checked rallies, their winners and running scores, every named
+player on the touches they share, the sets' scores and no warning; 3 rallies change, by a floor or net
+contact only (the lock holds the players' touches).
+
+Settings searched one at a time (30 constants of `rallies`, `actions`, `attribution` and `contacts`, sets
+1-2 apart from set 3): none gains on both but `MOTION_BRIDGE_S` 3 (+0.003, +0.004 of touches F1, one rally
+start fewer): left at 2. The constants sit on a plateau, so what is left on 50:00-60:00 needs another signal
+(ends with no whistle). Tried and dropped: carrying a rally through the next contacts after its window
+(7 real touches for 16-29 false).
+

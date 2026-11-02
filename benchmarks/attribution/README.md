@@ -269,7 +269,7 @@ touches below the head), trained by `ranker.py` here on the review's touch answe
 clips' labelled touchers, the weights in `src/volleyball_stats/attribution_ranker.json`:
 
 ```bash
-uv run --group bench python benchmarks/attribution/ranker.py outputs/first_match:data/first_match.mp4 [--write]
+uv run --group bench python benchmarks/attribution/ranker.py outputs/first_match:data/first_match.mp4:outputs/courts/aspom_begles.json [--write]
 ```
 
 Each group held out in turn (a set of the first match, a school clip), 1 Nov:
@@ -289,6 +289,19 @@ candidates or more (the rule only those below the head). Trained on the 4K match
 less (+7-8 of 139): the school clips help. Tried: the rule's pick as a feature, the model choosing
 only within 0.1-0.2 box heights of the nearest (+2-6 on the match, still -2 on `side_club`).
 Rerun `ranker.py --write` after a review: the answers grow (135 -> 180 on 1 Nov).
+
+**The ball's 3D place (2 Nov).** The ranker also takes each candidate's metres on the court from the ball
+(`ball3d.flight_places`, the ball's flights alone, no player's feet in it) over the nearest candidate's: it
+tells apart players in line with the camera. Alone it is far weaker than the pick (477 of the 692 checked
+touches against 648), yet right on 24 of the 44 picks wrong. Held out set by set on those touches: 640 -> 652.
+Retrained on the answers (`ranker.py MATCH:VIDEO:COURT`, needed for the places; school clips without it), rule
+against learned: 207/209, 229/237, 171/177 of 235, 264, 191. On a copy of the match, named players on the
+checked rallies 651/731 -> 677/761, answered touches 607/673 -> 609/668.
+
+**Tried and dropped (2 Nov).** Touch answers as identity pins, where the answered player is on no candidate
+(next_steps' idea), half the answers given and half held out: 608 -> 507 of 673, the wrong pieces' pins pull
+whole identities over. Of the 78 wrong named players then: 42 wrong picks, 24 no track holding the player, 12
+the player seen elsewhere.
 
 ## Tried and dropped
 

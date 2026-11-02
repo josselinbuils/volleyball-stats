@@ -34,6 +34,9 @@ from volleyball_stats.court import Calibration
 # rallies, against none with ABOVE 0 and LIFT 0.1; the school clips' labels score the same.
 POSE_MODEL = Path("models/yolo11m-pose.pt")
 ABOVE, LIFT = 0.03, 0.6
+# With the ball's 3D place (`by_flight`), an attack leaves from ATTACK_M or higher and rising at under
+# RISE_MS: first ASPOM match's checked rallies, each set held out, 137 -> 144 of 169 attacks and relances.
+ATTACK_M, RISE_MS = 2.1, 6.0
 # The player under the ball is within UNDER_PX of it horizontally (at 720p); their feet are followed
 # back LIFT_S seconds by box overlap.
 UNDER_PX = 15
@@ -365,6 +368,22 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
     if cache and fresh:
         files.write_text(cache, json.dumps(kept, separators=(",", ":")))
     return [(f, x, y, "relance" if f in relances else kind, side) for f, x, y, kind, side in typed]
+
+
+def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, longest: float = 2.2, gravity: float = 9.81) -> list[Typed]:
+    """`typed` with the attacks and relances retyped from the ball's 3D `places` by frame: how high
+    it leaves and how fast it rises until the next contact, which is under `longest` seconds away;
+    those with no such flight stay."""
+    out = list(typed)
+    for k, (frame, x, y, kind, side) in enumerate(typed):
+        if kind not in ("attack", "relance") or k + 1 == len(typed):
+            continue
+        after = typed[k + 1][0]
+        seconds = (after - frame) / fps
+        if frame in places and after in places and seconds <= longest:
+            rise = (places[after][2] - places[frame][2] + gravity * seconds**2 / 2) / seconds
+            out[k] = (frame, x, y, "attack" if places[frame][2] >= ATTACK_M and rise <= RISE_MS else "relance", side)
+    return out
 
 
 def read_rows(path: Path) -> list[list[int]]:

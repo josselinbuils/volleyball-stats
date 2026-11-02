@@ -55,6 +55,27 @@ fitting whatever is visible on each side, so a contact hidden for up to 6 frames
 and placed on the interpolated track; a gap longer than the window on either side gives no value,
 so an apex lost against the windows never fires.
 
+**Hidden contacts** (`contacts.hidden_contacts`, 2 Nov): that leaves the contacts lost with the ball at
+the hands. Most of the first match's touches with no contact had the ball seen under half of the ±0.4 s
+around them. Across a gap of 0.1-1.5 s, the flights fitted on each side under gravity are taken to where
+they come closest: a contact if they meet within 60 px (school scale) and the velocity changes by over
+360 px/s there. On the floor (`on_floor`, the rally's last contact's rule) it is the ball out of sight
+near the floor: 7 false of 8, left out. On the first match's 129 checked rallies:
+
+| | Touches found of 945 | Pipeline touches real | Types right |
+| --- | --- | --- | --- |
+| before | 844 | 835/883 | 732 |
+| with hidden contacts | 863 | 854/912 | 751 |
+
+Of the ones it adds, typed anything but floor: 26 real, 6 false. Against the track of every other frame
+gap-filled at 95 min more per match, dropped on 1 Nov (+18 touches, +45 false), this takes seconds. The
+settings sit on a plateau (`HIDDEN_RMS` 4-9, `HIDDEN_MISS` 40-90, `HIDDEN_MAX_S` 1-2). School clips: serves
+5/7 -> 6/7 on `side_holdout`, the rest unchanged.
+
+**Tried and dropped (2 Nov):** a logit on every candidate down to 0.3-0.5 of the threshold (strength,
+ball seen, speeds in and out, height, net, nearest player), cross-validated: at best F1 0.89 against 0.895
+for the threshold and `attribution.FAR` alone.
+
 A net crossing is a sign change of x − 612 between consecutive visible frames under 1 s apart,
 counted once the ball gets 30 px past the net, so a ball played at the net does not cross back
 and forth.
