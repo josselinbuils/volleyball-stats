@@ -23,7 +23,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, contacts, court, decode, files, identity, players, points, rallies, ranker, teams
+from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, players, points, rallies, ranker, teams
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -75,7 +75,7 @@ def rally_windows(
     gap = round(rallies.SAME_SERVE_S * fps)
     if positions is not None:
         windows = rallies.with_serves(windows, rallies.served(positions, track, whistle_times, fps, calibration), round(rallies.SERVE_LEAD_S * fps), gap)
-    found, crossings = contacts.detect(track, fps, net_x, scale)
+    found, crossings = contacts.detect(track, fps, net_x, scale, (lambda x, y: actions.on_floor(calibration, x, y, True)) if calibration is not None else None)
     windows = actions.served(windows, found, fps, calibration)
     if positions is not None:
         alone = rallies.alone(windows, rallies.whistled(track, whistle_times, fps, calibration), gap, round(rallies.ALONE_MIN_S * fps))
@@ -294,7 +294,7 @@ def main() -> None:
     typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
     if rows is not None:
         # Touches with no player at the ball are none; the rest typed again without them.
-        far = attribution.unreached(typed, rows, fps)
+        far = attribution.unreached(typed, rows, fps, crossings)
         found = [c for c in found if c[0] not in far]
         typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
     if rows is not None:
@@ -318,7 +318,8 @@ def main() -> None:
         start = time.perf_counter()
         # The learned order on the camera footage it was trained on, the wrists' rule elsewhere.
         learned = ranker.load() if decode.size(args.video)[1] >= ranker.MIN_HEIGHT else None
-        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json", learned)
+        places = ball3d.flight_places(typed, windows, lead, track_path, calibration, fps) if learned else None
+        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json", learned, places)
         timings["wrists"] = time.perf_counter() - start
         touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
         typed = dead

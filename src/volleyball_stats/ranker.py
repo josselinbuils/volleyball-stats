@@ -1,5 +1,6 @@
 """A learned order of a touch's candidates: a conditional logit over each candidate's distance to
-the ball, box size, wrists, place of the ball on the box and track age, trained by
+the ball, box size, wrists, place of the ball on the box, track age and distance on the court to the
+ball's 3D place (held out set by set on the first ASPOM match's 692 checked touches: 640 -> 652), trained by
 `benchmarks/attribution/ranker.py` on the review's touch answers and the labelled school clips
 (attribution_ranker.json beside this module). First ASPOM match, each set held out in turn: 117 of 139 answered
 touches right against 107 for the rule (`attribution.wrist_order`); on the 720p school clips it
@@ -16,15 +17,16 @@ MIN_HEIGHT = 1440
 BELOW_HEAD = {"pass", "set", "dig", "relance"}
 
 
-def features(ball: tuple[float, float], kind: str, candidate: tuple[float, float, int], best: float, rank: int, box: tuple, tallest: float, wrist: float | None, own: bool, age: float) -> list[float]:
-    """One candidate's features (box heights and seconds), each again for touches below the head."""
+def features(ball: tuple[float, float], kind: str, candidate: tuple[float, float, int], best: float, rank: int, box: tuple, tallest: float, wrist: float | None, own: bool, age: float, court_m: float = 0.0) -> list[float]:
+    """One candidate's features (box heights, seconds and, `court_m`, metres on the court from the
+    ball's 3D place over the nearest candidate's), each again for touches below the head."""
     x, y = ball
     h = box[3] - box[1]
     seen = wrist is not None
     base = [
         candidate[0] - best, min(candidate[0] - best, 1.0), candidate[1], float(rank == 0), float(rank), h / tallest, float(h == tallest),
         float(seen), min(wrist, 2.0) if seen else 0.0, float(seen and wrist > 0.4), (y - box[1]) / h, abs(x - (box[0] + box[2]) / 2) / h, float(own),
-        min(age, 10.0) / 10, float(age < 0.5),
+        min(age, 10.0) / 10, float(age < 0.5), court_m, min(court_m, 2.0),
     ]
     below = kind in BELOW_HEAD
     return base + [v * below for v in base]

@@ -8,6 +8,7 @@ where the ball passes the net's pixel x, which the court calibration module will
 
 import argparse
 import csv
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -174,12 +175,14 @@ def detect_crossings(track: np.ndarray, net_x: float, fps: float, margin: float 
     return crossings
 
 
-def detect(track: np.ndarray, fps: float, net_x: float, scale: float = 1.0) -> tuple[list[Contact], list[int]]:
-    """Contacts as (frame, x, y) and net crossing frames of a track with NaN where not visible."""
+def detect(track: np.ndarray, fps: float, net_x: float, scale: float = 1.0, on_floor: Callable[[int, int], bool] | None = None) -> tuple[list[Contact], list[int]]:
+    """Contacts as (frame, x, y) and net crossing frames of a track with NaN where not visible;
+    `on_floor` tells a place on the floor, where a contact hidden in a gap is the ball out of sight
+    near the floor, no contact (first ASPOM match, checked rallies: 7 false of 8)."""
     found = detect_contacts(track, fps, scale=scale)
     gap = round(GAP * fps)
     seen = np.array([c[0] for c in found], dtype=int)
-    hidden = [c for c in hidden_contacts(track, fps, scale=scale) if not np.any(np.abs(seen - c[0]) <= gap)]
+    hidden = [c for c in hidden_contacts(track, fps, scale=scale) if not np.any(np.abs(seen - c[0]) <= gap) and not (on_floor and on_floor(c[1], c[2]))]
     return sorted(found + hidden), detect_crossings(track, net_x, fps, MARGIN * scale)
 
 

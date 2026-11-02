@@ -196,12 +196,12 @@ def report(now: dict[str, Score], before: dict[str, Score] | None) -> str:
     return "\n".join(lines)
 
 
-def train(match: Path, video: Path) -> None:
+def train(match: Path, video: Path, court: Path) -> None:
     """The learned order of who touched the ball (ranker.py) trained again on the match's answers
     and the school clips' labels, kept only if it gains on the rule on the match's touches held out
     set by set; its held-out scores in ranker.json for `scores`."""
     subprocess.run(
-        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), f"{match}:{video}", "--write", "--if-better", "--summary", str(match / RANKER)],
+        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), f"{match}:{video}:{court}", "--write", "--if-better", "--summary", str(match / RANKER)],
         cwd=ROOT, stdin=subprocess.DEVNULL, check=True,
     )
 
@@ -265,7 +265,7 @@ def main() -> None:
     parser.add_argument("--rerun", action="store_true", help="Run the pipeline again first, the answers moved onto its rallies")
     args = parser.parse_args()
     if args.rerun:
-        train(args.match, args.video)
+        train(args.match, args.video, args.court)
         rerun(args.match, args.video, args.court)
     elif args.labels:
         print(report(scores(args.match, args.video, args.court, args.labels), None))

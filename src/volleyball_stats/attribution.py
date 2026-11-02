@@ -23,7 +23,7 @@ from pathlib import Path
 import numpy as np
 
 from volleyball_stats import files
-from volleyball_stats.actions import POSE_MODEL, Typed
+from volleyball_stats.actions import LATE_FLIGHT_S, POSE_MODEL, Typed
 from volleyball_stats.players import Row
 
 NO_PLAYER = {"floor", "net"}
@@ -54,6 +54,8 @@ FEET = 0.9
 # of the nearest, the one whose wrists come nearest to the ball wins (`wrist_order`).
 BELOW_HEAD = {"pass", "set", "dig", "relance"}
 WRIST_VETO, WRIST_MARGIN, WRIST_CONF, WRIST_IOU = 0.4, 0.2, 0.7, 0.5
+# Metres from the ball's 3D place beyond which a candidate's distance says no more (`court_metres`).
+COURT_MAX_M = 6.0
 # The pose model sees a square of POSE_CROP frame heights around the ball.
 POSE_CROP = 0.74
 
@@ -154,18 +156,47 @@ def wrist_distance(ball: tuple[float, float], box: Box, poses: list[list[tuple[B
     return min(found) / (box[3] - box[1]) if found else None
 
 
+def court_metres(place: np.ndarray | None, frame: int, found: list[Candidate], feet: dict[int, dict[int, tuple[float, float]]], gap: int) -> dict[int, float]:
+    """Each candidate's metres on the court from the ball's `place` (`ball3d.flight_places`) over the
+    nearest one's, at most COURT_MAX_M; 0 when the place or a candidate's feet are not known."""
+    if place is None:
+        return {c[2]: 0.0 for c in found}
+    apart = {}
+    for c in found:
+        at = next((feet[c[2]][f] for d in range(gap + 1) for f in (frame - d, frame + d) if f in feet.get(c[2], {})), None)
+        apart[c[2]] = None if at is None else float(np.hypot(at[0] - place[0], at[1] - place[1]))
+    nearest = min((d for d in apart.values() if d is not None), default=0.0)
+    return {k: 0.0 if d is None else min(d - nearest, COURT_MAX_M) for k, d in apart.items()}
+
+
+def feet_on_court(rows: list[Row]) -> dict[int, dict[int, tuple[float, float]]]:
+    """Track -> frame -> feet on the court."""
+    out: dict[int, dict[int, tuple[float, float]]] = {}
+    for r in rows:
+        out.setdefault(r.track, {})[r.frame] = r.court
+    return out
+
+
 def by_wrists(
-    video: Path, typed: list[Typed], candidates: list[list[Candidate]], rows: list[Row], fps: float, cache: Path | None = None, learned: dict | None = None
+    video: Path,
+    typed: list[Typed],
+    candidates: list[list[Candidate]],
+    rows: list[Row],
+    fps: float,
+    cache: Path | None = None,
+    learned: dict | None = None,
+    places: dict[int, np.ndarray] | None = None,
 ) -> list[list[Candidate]]:
     """`candidates` reordered by the wrists for touches below the head (see WRIST_VETO), or, with a
-    `learned` ranker (ranker.py), every touch's by its scores; YOLO pose on a crop around the ball,
-    kept in `cache` (JSON, by frame and ball place) for the next runs. First ASPOM match: 97 -> 104
-    of the 135 touches answered."""
+    `learned` ranker (ranker.py), every touch's by its scores, the ball's 3D `places` by frame among
+    them; YOLO pose on a crop around the ball, kept in `cache` (JSON, by frame and ball place) for
+    the next runs. First ASPOM match: 97 -> 104 of the 135 touches answered."""
     import cv2
 
     from volleyball_stats import ranker
 
     by_track, gap = tracks(rows), round(GAP_S * fps)
+    feet = feet_on_court(rows) if places else {}
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     model, cap, out = None, None, []
     for (frame, x, y, kind, side), found in zip(typed, candidates):
@@ -186,8 +217,9 @@ def by_wrists(
             out.append(wrist_order(found, wrists))
             continue
         tallest = max(b[3] - b[1] for b in boxes.values())
+        metres = court_metres((places or {}).get(frame), frame, found, feet, gap)
         x_ = np.array([
-            ranker.features((x, y), kind, c, found[0][0], k, boxes[c[2]], tallest, wrists[c[2]], by_track[c[2]][0] == side, (frame - min(by_track[c[2]][1])) / fps)
+            ranker.features((x, y), kind, c, found[0][0], k, boxes[c[2]], tallest, wrists[c[2]], by_track[c[2]][0] == side, (frame - min(by_track[c[2]][1])) / fps, metres[c[2]])
             for k, c in enumerate(found)
         ])
         out.append([found[k] for k in np.argsort(-ranker.scores(learned, x_), kind="stable")])
@@ -233,16 +265,21 @@ def wrist_order(found: list[Candidate], wrists: dict[int, float | None]) -> list
     return close + [c for c in kept if c not in close] + [c for c in found if c not in kept]
 
 
-def unreached(typed: list[Typed], rows: list[Row], fps: float) -> set[int]:
-    """Frames of the contacts typed as touches with candidates, none within FAR of the ball (not a
-    serve's, whose server may stand out of the frame) or with the ball at the nearest one's feet."""
+def unreached(typed: list[Typed], rows: list[Row], fps: float, crossings: list[int] | None = None) -> set[int]:
+    """Frames of the contacts typed as touches with candidates, none within FAR of the ball or with
+    the ball at the nearest one's feet; not a serve whose ball then crosses the net (`crossings`
+    within LATE_FLIGHT_S), whose server may stand out of the frame."""
     by_track, gap = tracks(rows), round(GAP_S * fps)
+    flight = LATE_FLIGHT_S * fps
 
     def at_feet(t: Typed, track: int) -> bool:
         box = box_at(by_track[track][1], t[0], gap)
         return box is not None and t[2] >= box[1] + FEET * (box[3] - box[1])
 
-    return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and t[3] != "serve" and (c[0][0] > FAR or at_feet(t, c[0][2]))}
+    def sent_over(t: Typed) -> bool:
+        return t[3] == "serve" and any(t[0] < c <= t[0] + flight for c in crossings or [])
+
+    return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and not sent_over(t) and (c[0][0] > FAR or at_feet(t, c[0][2]))}
 
 
 def gap_to_next(candidates: list[Candidate]) -> float | None:

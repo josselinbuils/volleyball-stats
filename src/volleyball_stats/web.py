@@ -267,13 +267,15 @@ def with_added(
     known = {int(r["frame"]) for r in typed}
     # A touch added twice: the last answer's.
     added = list({a["frame"]: a for a in added}.values())
+    # A row at a frame the review gave is that touch: an older answer near it does not take it.
+    given = {a["frame"] for a in added}
     added = [a for a in added if a["start"] in starts and a["frame"] not in known]
     if not added:
         return windows, typed
 
     def same_touch(r: dict, a: dict) -> bool:
         apart = abs(int(r["frame"]) - a["frame"])
-        if a["type"] == "fault":
+        if a["type"] == "fault" or int(r["frame"]) in given:
             return False
         if r["type"] in NO_PLAYER:
             return apart <= floor

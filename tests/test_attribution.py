@@ -1,7 +1,7 @@
 import json
 
 import numpy as np
-from volleyball_stats.attribution import CROSS_M, FAR, GAP_S, REACH, SIDE_M, WRIST_CONF, attribute, box_at, by_wrists, distance, gap_to_next, ranked, read_players, unreached, wrist_distance, wrist_order
+from volleyball_stats.attribution import COURT_MAX_M, CROSS_M, FAR, GAP_S, REACH, SIDE_M, WRIST_CONF, attribute, box_at, by_wrists, court_metres, distance, gap_to_next, ranked, read_players, unreached, wrist_distance, wrist_order
 from volleyball_stats.players import Row, write_csv
 
 FPS = 30.0
@@ -115,10 +115,30 @@ class TestUnreached:
         assert unreached([(50, 120, 295, "dig", "left")], rows, FPS) == {50}
         assert unreached([(50, 120, 270, "dig", "left")], rows, FPS) == set()
 
-    def test_a_serve_stays_whoever_is_at_the_ball(self):
+    def test_a_serve_crossing_the_net_stays_with_no_player_at_the_ball(self):
         rows = [row(60, 1, (100, 200, 140, 300))]
+        serve = (60, 120, 200 - (REACH + FAR + 0.1) * 100, "serve", "left")
 
-        assert unreached([(60, 120, 200 - (REACH + FAR + 0.1) * 100, "serve", "left")], rows, FPS) == set()
+        assert unreached([serve], rows, FPS, [70]) == set()
+        assert unreached([serve], rows, FPS) == {60}
+
+
+class TestCourtMetres:
+    FEET = {1: {50: (0.0, 0.0)}, 2: {50: (3.0, 4.0)}, 3: {48: (1.0, 0.0)}}
+
+    def test_counts_over_the_nearest_candidate_within_the_gap(self):
+        found = [(0.0, 0.0, 1), (0.0, 0.0, 2), (0.0, 0.0, 3)]
+
+        assert court_metres(np.array([0.0, 0.0, 1.0]), 50, found, self.FEET, 2) == {1: 0.0, 2: 5.0, 3: 1.0}
+
+    def test_says_nothing_without_a_place_or_feet(self):
+        found = [(0.0, 0.0, 1), (0.0, 0.0, 9)]
+
+        assert court_metres(None, 50, found, self.FEET, 2) == {1: 0.0, 9: 0.0}
+        assert court_metres(np.array([0.0, 0.0, 1.0]), 50, found, self.FEET, 2) == {1: 0.0, 9: 0.0}
+
+    def test_stops_at_its_maximum(self):
+        assert court_metres(np.array([0.0, 0.0, 1.0]), 50, [(0.0, 0.0, 1), (0.0, 0.0, 2)], {1: {50: (0.0, 0.0)}, 2: {50: (0.0, 40.0)}}, 2)[2] == COURT_MAX_M
 
 
 class TestReadPlayers:

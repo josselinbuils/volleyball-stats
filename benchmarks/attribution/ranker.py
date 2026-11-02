@@ -3,7 +3,7 @@ matches given and the labelled school clips, score it with each group held out i
 a match, each clip) against the rule (attribution.by_wrists without it), then write the weights fit
 on everything to src/volleyball_stats/attribution_ranker.json.
 
-    uv run --group bench python benchmarks/attribution/ranker.py outputs/first_match:data/first_match.mp4 [--clips side_club side_long side_holdout] [--write]
+    uv run --group bench python benchmarks/attribution/ranker.py outputs/first_match:data/first_match.mp4:outputs/courts/aspom_begles.json [--clips side_club side_long side_holdout] [--write]
 
 The poses are kept in outputs/ranker/ (first run: about a second per touch).
 """
@@ -19,19 +19,21 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 import bench  # noqa: E402
 
-from volleyball_stats import actions, attribution, contacts, identity, ranker, web  # noqa: E402
+from volleyball_stats import actions, attribution, ball3d, contacts, identity, ranker, web  # noqa: E402
+from volleyball_stats.court import Calibration  # noqa: E402
 
 CACHE = Path("outputs/ranker")
 
 
-def candidates_features(video: Path, typed: list, rows: list, fps: float, cache: Path) -> tuple[list, list, list]:
+def candidates_features(video: Path, typed: list, rows: list, fps: float, cache: Path, places: dict | None = None) -> tuple[list, list, list]:
     """Each touch's candidates, their features as by_wrists computes them, and the rule's order."""
     found = attribution.ranked(typed, rows, fps)
     # The poses of every touch with two candidates or more, kept for the next runs.
-    attribution.by_wrists(video, typed, found, rows, fps, cache, learned={"w": [0.0] * 30, "mean": [0.0] * 30, "std": [1.0] * 30})
+    attribution.by_wrists(video, typed, found, rows, fps, cache, learned={"w": [0.0] * 34, "mean": [0.0] * 34, "std": [1.0] * 34})
     rule = attribution.by_wrists(video, typed, found, rows, fps, cache)
     kept = json.loads(cache.read_text()) if cache.exists() else {}
     by_track, gap = attribution.tracks(rows), round(attribution.GAP_S * fps)
+    feet = attribution.feet_on_court(rows) if places else {}
     feats = []
     for (frame, x, y, kind, side), c in zip(typed, found):
         if len(c) < 2:
@@ -40,15 +42,17 @@ def candidates_features(video: Path, typed: list, rows: list, fps: float, cache:
         poses = [[(tuple(b), np.array(k)) for b, k in f] for f in kept.get(f"{frame}:{x}:{y}", [])]
         boxes = {k[2]: attribution.box_at(by_track[k[2]][1], frame, gap) for k in c}
         tallest = max(b[3] - b[1] for b in boxes.values())
+        metres = attribution.court_metres((places or {}).get(frame), frame, c, feet, gap)
         feats.append(np.array([
-            ranker.features((x, y), kind, k, c[0][0], r, boxes[k[2]], tallest, attribution.wrist_distance((x, y), boxes[k[2]], poses), by_track[k[2]][0] == side, (frame - min(by_track[k[2]][1])) / fps)
+            ranker.features((x, y), kind, k, c[0][0], r, boxes[k[2]], tallest, attribution.wrist_distance((x, y), boxes[k[2]], poses), by_track[k[2]][0] == side, (frame - min(by_track[k[2]][1])) / fps, metres[k[2]])
             for r, k in enumerate(c)
         ]))
     return found, feats, rule
 
 
-def from_match(match: Path, video: Path) -> list[dict]:
-    """The answered touches of a match: group "MATCH set N"."""
+def from_match(match: Path, video: Path, court: Path | None = None) -> list[dict]:
+    """The answered touches of a match: group "MATCH set N"; with its `court`, the ball's 3D places
+    are among the features."""
     fps = 50.0
     rows_csv = {int(r["frame"]): r for r in web.read_csv(match / "actions.csv")}
     answers = json.loads((match / "identity_answers.json").read_text())
@@ -59,7 +63,10 @@ def from_match(match: Path, video: Path) -> list[dict]:
     truth = {f: (a["team"], by_name.get((a["team"], a.get("name")), a["identity"])) for f, a in last.items()}
     typed = [(f, int(rows_csv[f]["x"]), int(rows_csv[f]["y"]), rows_csv[f]["type"], rows_csv[f]["side"]) for f in sorted(truth)]
     rows = attribution.read_players(match / "players.csv")
-    found, feats, rule = candidates_features(video, typed, rows, fps, CACHE / f"{match.name}_wrists.json")
+    windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in web.read_csv(match / "rallies.csv")]
+    every = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in web.read_csv(match / "actions.csv")]
+    places = ball3d.flight_places(every, windows, round(actions.LEAD_S * fps), match / "ball.csv", Calibration.load(court), fps) if court else None
+    found, feats, rule = candidates_features(video, typed, rows, fps, CACHE / f"{match.name}_wrists.json", places)
     by_track = defaultdict(list)
     for r in table:
         by_track[r[0]].append(r)
@@ -106,7 +113,7 @@ def trainable(data: list[dict]) -> list[tuple[np.ndarray, int]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("matches", nargs="*", help="MATCH_DIR:VIDEO, answered in the review")
+    parser.add_argument("matches", nargs="*", help="MATCH_DIR:VIDEO[:COURT_JSON], answered in the review")
     parser.add_argument("--clips", nargs="*", default=["side_club", "side_long", "side_holdout"])
     parser.add_argument("--l2", type=float, default=0.01)
     parser.add_argument("--write", action="store_true", help=f"Write the weights fit on everything to {ranker.WEIGHTS}")
@@ -114,7 +121,7 @@ def main() -> None:
     parser.add_argument("--summary", type=Path, help="Write the matches' held-out scores there (JSON: touches, rule, learned, kept)")
     args = parser.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
-    data = [d for m in args.matches for d in from_match(Path(m.split(":")[0]), Path(m.split(":")[1]))] + [d for c in args.clips for d in from_clip(c)]
+    data = [d for m in args.matches for d in from_match(*map(Path, m.split(":")))] + [d for c in args.clips for d in from_clip(c)]
     total, matches = [0, 0, 0], [0, 0, 0]
     for g in sorted({d["group"] for d in data}):
         test = [d for d in data if d["group"] == g]

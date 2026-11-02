@@ -20,5 +20,5 @@ class TestRanker:
         args = ((100, 150), "pass", (0.0, 0.1, 7), 0.0, 0, (90, 100, 130, 300), 200, 0.2, True, 3.0)
         below = features(*args)
         attack = features(*args[:1], "attack", *args[2:])
-        assert len(below) == len(attack) == 30
-        assert below[:15] == below[15:] and attack[15:] == [0.0] * 15
+        assert len(below) == len(attack) == 34
+        assert below[:17] == below[17:] and attack[17:] == [0.0] * 17

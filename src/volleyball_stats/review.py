@@ -1717,7 +1717,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # The pipeline again, its identities with every answer: an apply too. Undo
                     # stops here: the answers moved onto the new rallies.
                     own, *published = pages()
-                    run_steps([("training", lambda: learn.train(match, video)), ("pipeline", lambda: learn.rerun(match, video, court, staged)), own, ("questions", questions.load), *published])
+                    run_steps([("training", lambda: learn.train(match, video, court)), ("pipeline", lambda: learn.rerun(match, video, court, staged)), own, ("questions", questions.load), *published])
                     history.clear()
                     log = load_log(answers)
                     for entry in log:

@@ -364,6 +364,17 @@ class TestWithAdded:
         _, rows = with_added([(100, 200)], [{"left": "2"}], typed, added, ball, 5, 20, 10, said={120: 1})
         assert [r["type"] for r in rows] == ["attack", "dig"]
 
+
+    def test_a_row_at_a_frame_the_review_gave_stays_near_an_older_answer(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n")
+        typed = [{"frame": "120", "x": "1", "y": "2", "type": "serve", "side": "left", "track": "", "gap": "", "team": "1", "identity": ""}]
+        added = [{"start": 130, "frame": 122, "team": 1, "type": "serve"}, {"start": 130, "frame": 120, "team": 1, "type": "serve"}]
+
+        _, rows = with_added([(130, 200)], [{"left": "1"}], typed, added, ball, 5, 20, 10, 16)
+
+        assert "120" in [str(r["frame"]) for r in rows]
+
     def test_a_block_and_a_touch_added_right_after_or_before_it_are_two(self, tmp_path):
         ball = tmp_path / "ball.csv"
         ball.write_text("frame,visible,x,y\n")

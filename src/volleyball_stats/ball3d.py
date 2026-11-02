@@ -161,6 +161,24 @@ def read_sightings(path: Path, calibration: Calibration, frames: list[tuple[int,
     return dict(zip(found, undistorted))
 
 
+def flight_places(typed: list[tuple], windows: list[tuple[int, int]], lead: int, ball: Path, calibration: Calibration, fps: float) -> dict[int, np.ndarray]:
+    """Each contact's 3D place by frame, from the ball's flights alone: no player's feet in it, so
+    it can tell who touched the ball; none without a camera, the ball track or a rally of 2 contacts."""
+    P = projection(calibration)
+    if P is None or not ball.exists():
+        return {}
+    sightings = read_sightings(ball, calibration, [(start - lead, end) for start, end in windows])
+    width = calibration.size[0] if calibration.size else 3840
+    out: dict[int, np.ndarray] = {}
+    for start, end in windows:
+        inside = [t for t in typed if start - lead <= t[0] <= end]
+        if len(inside) >= 2:
+            touches = [{"f": t[0], "type": t[3], "x": None, "y": None} for t in inside]
+            places, _ = fit_rally(touches, sightings, P, fps, width)
+            out.update({t[0]: place for t, place in zip(inside, places) if place[2] <= HIGHEST_M and abs(place[0]) <= FARTHEST_X and abs(place[1]) <= FARTHEST_Y})
+    return out
+
+
 def touch_places(contacts: list[dict], ball: Path, calibration: Calibration, fps: float) -> list[float]:
     """Each touch's 3D place as flat [index in `contacts`, x, y, height, ...], in metres to the centimetre; none without
     a camera or the ball track. A rally needs two touches."""
