@@ -169,12 +169,10 @@ class TestHighlights:
         people = {"1": {"name": "Ana"}}
         assert film.rally_touch(rally(0, [winner_touch, fault], [1, 0]), people) is winner_touch
 
-    def test_comes_in_both_formats_each_its_own_film(self, tmp_path):
+    def test_is_a_single_film_in_16_9(self, tmp_path):
         films = film.plan(self.page(), tmp_path)
-        assert films[film.HIGHLIGHTS]["file"] != films[film.HIGHLIGHTS_WIDE]["file"]
-        assert films[film.HIGHLIGHTS]["hash"] != films[film.HIGHLIGHTS_WIDE]["hash"]
-        assert films[film.HIGHLIGHTS_WIDE]["format"] == "wide"
-        assert films[film.HIGHLIGHTS]["shots"] == films[film.HIGHLIGHTS_WIDE]["shots"]
+        assert [n for n in films if n.startswith(film.HIGHLIGHTS)] == [film.HIGHLIGHTS]
+        assert films[film.HIGHLIGHTS]["format"] == "wide"
 
     def test_a_too_short_match_has_no_film(self, tmp_path):
         assert film.highlight_film(TestPlan.page(), tmp_path, "") is None

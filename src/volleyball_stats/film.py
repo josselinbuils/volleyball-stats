@@ -2,7 +2,7 @@
 
     uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT_JSON [--names NAME,NAME]
 
-The moments are a player's fastest serve and best points, each played then replayed slowly; the match has its own film of about a
+The moments are a player's fastest serve and best points, each played then replayed slowly; the match has its own 16/9 film of about a
 minute (HIGHLIGHTS). `build` makes only the films whose `plan` changed (FILMS/manifest.json); the ball's search is kept whatever
 changes. Real footage: a film stays behind the hosted page's password (web.write_site puts them only beside a page with the video).
 """
@@ -55,7 +55,7 @@ REPLAY_BEFORE_S, REPLAY_AFTER_S, REPLAY_SPEED = 1.0, 0.8, 0.5
 # The replay slows into a freeze on the touch.
 REPLAY_PRE, FREEZE = 1.75, 0.6
 # The match's film, under this name among the players'.
-HIGHLIGHTS, HIGHLIGHTS_WIDE = "*", "*wide"
+HIGHLIGHTS = "*"
 HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS, LONGEST_S = 65.0, 8, 3, 18.0
 # A clip starts this long before its rally, the server getting ready, and runs on to its end, up to END_S after the touch.
 BEFORE_RALLY_S, END_S = 1.5, 4.0
@@ -358,6 +358,7 @@ def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
         "stamp": stamp,
         "kind": "highlights",
         "name": HIGHLIGHTS,
+        "format": "wide",
         "team": None,
         "persons": [],
         "jersey": None,
@@ -447,10 +448,6 @@ def plan(page: dict, site: Path, stamp: str = "") -> dict[str, dict]:
     match_film = highlight_film(page, site, stamp)
     if match_film:
         out[HIGHLIGHTS] = match_film
-        wide = {k: v for k, v in match_film.items() if k not in ("hash", "file")}
-        wide["format"] = "wide"
-        wide["hash"] = hashlib.sha256(json.dumps(wide, sort_keys=True).encode()).hexdigest()[:12]
-        out[HIGHLIGHTS_WIDE] = {**wide, "file": "resume-16-9.mp4"}
     return out
 
 

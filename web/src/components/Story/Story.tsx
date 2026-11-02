@@ -44,8 +44,7 @@ export function Story() {
         {set === null && <p className="font-medium">{won === lost ? t('story.matchDraw', { count: won }) : t('story.match', { team: groupName(t, leader), count: won, lost })}</p>}
         {match.films?.['*'] && (
           <div className="flex flex-wrap gap-2">
-            <Film name="*" label={t('story.film')} />
-            <Film name="*wide" label={t('story.filmWide')} wide />
+            <Film name="*" label={t('story.film')} wide />
           </div>
         )}
         <Curve chapters={chapters} moments={numbered} />
