@@ -30,7 +30,7 @@ answers were not moved, so they say nothing.
 
 Last "Apprendre de mes réponses", 1 Nov 21:41, with `LIVE_SPEED` per second: touches found 826/944 -> 844/945, pipeline
 touches real 817/860 -> 835/883, types 86.7% both, named players 89.1% both, checked winners 114 -> 115, all 129 rallies
-still checked, same set scores. The hosted page is behind it by one floor contact (frame 186492).
+still checked, same set scores.
 
 In the code and the first match's outputs since 2 Nov (the owner's "Apprendre de mes réponses", 10:17), against the last run: touches
 found 844 -> 872 of 945, pipeline touches real 835/883 -> 863/909, types 732/844 -> 778/872, named players 651/731 -> 679/761, answered
@@ -64,10 +64,9 @@ Tried and dropped: see `benchmarks/rallies/README.md`.
 "Mon match" (`web/src/components/MyMatch/`), "L'histoire du match" (`web/src/components/Story/`) and "Les trophées"
 (`web/src/components/Trophies/`), uploaded 1 Nov 22:03. The owner's rule on points is in `web.credited`.
 
-## Page: built, not uploaded
+## Page: online since 2 Nov
 
-"Le coin du coach" (`web/src/components/Coach/`) and "Mode TV" (README, `Watch/Broadcast.tsx`, `scene3d/hall.ts`): wait for the
-owner's "Mettre en ligne".
+"Le coin du coach" (`web/src/components/Coach/`) and "Mode TV" (README, `Watch/Broadcast.tsx`, `scene3d/hall.ts`).
 
 The ball in 3D (`benchmarks/ball3d/bench.py`, first match, no 3D truth): the camera found at x 0.1, y 11.83, 3.93 m high (set up
 on the net's line, about 6 m from the sideline, 3.6 m high: 7.3 m from it); path to the ball in the picture, median and 90%,
