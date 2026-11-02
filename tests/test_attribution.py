@@ -109,6 +109,12 @@ class TestUnreached:
 
         assert unreached(typed, rows, FPS) == {60}
 
+    def test_a_ball_at_the_nearest_player_s_feet_bounced_beside_them(self):
+        rows = [row(50, 1, (100, 200, 140, 300))]
+
+        assert unreached([(50, 120, 295, "dig", "left")], rows, FPS) == {50}
+        assert unreached([(50, 120, 270, "dig", "left")], rows, FPS) == set()
+
     def test_a_serve_stays_whoever_is_at_the_ball(self):
         rows = [row(60, 1, (100, 200, 140, 300))]
 

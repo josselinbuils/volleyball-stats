@@ -45,6 +45,9 @@ DOUBT = 0.05
 # changing course with no player at it, mostly out of the frame and back (first ASPOM match: 16 of
 # the 22 touches the review said were none, none of the 116 it confirmed).
 FAR = 0.5
+# A touch with the ball at FEET or lower of its nearest candidate's box height is a bounce beside
+# them (first ASPOM match, checked rallies: 7 false, no real one; at 0.85, 8 and 4).
+FEET = 0.9
 # Touches below the head (`by_wrists`): a candidate whose wrists (pose keypoints over WRIST_CONF, of
 # the pose box overlapping the track's by WRIST_IOU or more, frames t-1..t+1) all stand over
 # WRIST_VETO box heights from the ball goes last; among the others within WRIST_MARGIN box heights
@@ -231,9 +234,15 @@ def wrist_order(found: list[Candidate], wrists: dict[int, float | None]) -> list
 
 
 def unreached(typed: list[Typed], rows: list[Row], fps: float) -> set[int]:
-    """Frames of the contacts typed as touches with candidates, none within FAR of the ball; not a
-    serve's, whose server may stand out of the frame."""
-    return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and c[0][0] > FAR and t[3] != "serve"}
+    """Frames of the contacts typed as touches with candidates, none within FAR of the ball (not a
+    serve's, whose server may stand out of the frame) or with the ball at the nearest one's feet."""
+    by_track, gap = tracks(rows), round(GAP_S * fps)
+
+    def at_feet(t: Typed, track: int) -> bool:
+        box = box_at(by_track[track][1], t[0], gap)
+        return box is not None and t[2] >= box[1] + FEET * (box[3] - box[1])
+
+    return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and t[3] != "serve" and (c[0][0] > FAR or at_feet(t, c[0][2]))}
 
 
 def gap_to_next(candidates: list[Candidate]) -> float | None:
