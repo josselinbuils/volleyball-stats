@@ -1,6 +1,5 @@
-import type { Contact, Person, Rally } from '@/lib/match';
-import { playerKey } from '@/helpers/players';
-import { scoresBefore, setAttacks } from '@/helpers/plays';
+import type { Contact, Rally } from '@/lib/match';
+import { scoresBefore } from '@/helpers/plays';
 import { insights, type Insight } from '@/components/Stats/helpers/insights';
 import type { Line, Stats } from '@/components/Stats/helpers/stats';
 
@@ -48,13 +47,10 @@ function clean(key: string, s: Stats, team: Stats, of: (x: Stats) => Contact[], 
 /** Each player's strengths among `lines` (a team's, the whole team's last), by line id: what the rates of `insights` show,
  * plus how present they are for the time they played (`seconds`), how reliable, what they give the others and when it counts.
  * The rarest in the team come first, SHOWN at most. */
-export function strengths(found: Line[], seconds: (person: number) => number, contacts: Contact[], rallies: Rally[], people: Record<string, Person>): Map<number, Insight[]> {
+export function strengths(found: Line[], seconds: (person: number) => number, rallies: Rally[]): Map<number, Insight[]> {
   const team = found[found.length - 1].stats;
   const players = found.filter((l): l is Line & { id: number } => typeof l.id === 'number');
   const before = scoresBefore(rallies);
-  const attacked = setAttacks(contacts);
-  const kills = attacked.filter(({ attack }) => attack.result === 'point');
-  const used = new Set(attacked.map(({ set }) => set));
   const teamSeconds = players.reduce((sum, l) => sum + seconds(l.id), 0);
   const late = (c: Contact) => {
     const was = before.get(c.rally);
@@ -65,7 +61,6 @@ export function strengths(found: Line[], seconds: (person: number) => number, co
   const all = new Map(
     players.map((line) => {
       const s = line.stats;
-      const key = playerKey(line.id, people);
       const mine = seconds(line.id);
       const restSeconds = teamSeconds - mine;
       const earned: (Insight | null)[] = insights(s, team).filter((i) => i.strength);
@@ -107,11 +102,9 @@ export function strengths(found: Line[], seconds: (person: number) => number, co
       const toughOnes = s.serveRated.filter((c) => !s.serveFair.includes(c) && !s.serveEasy.includes(c) && !s.serveFaults.includes(c));
       earned.push(rated('toughServes', tough(s), s.serveRated.length, tough(team) - tough(s), team.serveRated.length - s.serveRated.length, toughOnes, TOUGH_GAP));
       // What they give the others.
-      const usedSets = s.sets.filter((c) => used.has(c));
-      earned.push(rated('usedSets', usedSets.length, s.sets.length, team.sets.filter((c) => used.has(c)).length - usedSets.length, team.sets.length - s.sets.length, usedSets));
-      const given = kills.filter(({ set, attack }) => playerKey(set.person, people) === key && playerKey(attack.person, people) !== key).map(({ attack }) => attack);
-      if (given.length >= ASSISTS_FROM) {
-        earned.push(counted('assists', given));
+      earned.push(rated('usedSets', s.setsAttacked.length, s.sets.length, team.setsAttacked.length - s.setsAttacked.length, team.sets.length - s.sets.length, s.setsAttacked));
+      if (s.setAssists.length >= ASSISTS_FROM) {
+        earned.push(counted('assists', s.setAssists));
       }
       // Scoring, and when it counts.
       if (s.blockPoints.length >= BLOCK_POINTS_FROM) {

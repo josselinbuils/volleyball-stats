@@ -27,7 +27,7 @@ export function PlayersTable() {
   const seconds = (person: number) => playingTime(person, set);
   const best = useMemo(() => (withPlayers ? bestPlayer() : null), [withPlayers]);
   const found = lines(contacts, match.people, group, dropped);
-  const earned = strengths(found, seconds, contacts, rallies, match.people);
+  const earned = strengths(found, seconds, rallies);
   const team = found[found.length - 1].stats;
   const rows = found
     .filter((line) => withPlayers || line.id === 'total')

@@ -493,7 +493,10 @@
       "overDigs": "Défenses chez l'adversaire",
       "serveRated": "Note des services",
       "attackRated": "Note des attaques",
-      "digRated": "Note des défenses"
+      "digRated": "Note des défenses",
+      "setsAttacked": "Passes attaquées",
+      "setAssists": "Passes décisives",
+      "setFaults": "Passes en faute"
     },
     "columns": {
       "total": "Total",
@@ -509,7 +512,9 @@
       "blockPoints": "Gagnants",
       "blockDefended": "Défendus",
       "over": "Chez l'adversaire",
-      "serveRating": "Note /5"
+      "serveRating": "Note /5",
+      "attacked": "Attaquées",
+      "assists": "Décisives"
     },
     "about": {
       "touches": "Toutes les fois où le joueur touche le ballon, quelle que soit l'action.",
@@ -544,7 +549,10 @@
       "overDigs": "Les défenses qui partent directement chez l'adversaire : sa touche suit, sans passe ni attaque de l'équipe.",
       "serveRated": "La note moyenne des services, sur 5, selon la réception adverse : 5 pour un ace ou une réception ratée, 4 si la réception est difficile ou renvoyée directement, 3 si elle est bonne, 2 si elle est parfaite, 0 pour une faute.",
       "attackRated": "La note moyenne des attaques, sur 5, à partir de 5 attaques : 5 si elle gagne le point, 4 si le ballon reste en jeu sans contre-attaque adverse, 2 si l'adversaire contre-attaque, 1 si elle est contrée, 0 pour une autre faute.",
-      "digRated": "La note moyenne des défenses, sur 5, à partir de 5 défenses, comme pour les réceptions : 5 si la touche suivante est jouée à moins de 1,5 m de la cible du passeur, 3,3 à moins de 3 m, 1,7 plus loin ou renvoyée directement chez l'adversaire, 0 pour une faute."
+      "digRated": "La note moyenne des défenses, sur 5, à partir de 5 défenses, comme pour les réceptions : 5 si la touche suivante est jouée à moins de 1,5 m de la cible du passeur, 3,3 à moins de 3 m, 1,7 plus loin ou renvoyée directement chez l'adversaire, 0 pour une faute.",
+      "setsAttacked": "Les passes suivies juste après d'une attaque de son équipe.",
+      "setAssists": "Les attaques gagnantes juste après ses passes, par un coéquipier.",
+      "setFaults": "Les passes perdues : le ballon tombe, part dehors ou dans le filet."
     },
     "noteTitles": "Survolez ou touchez le titre d'une colonne pour savoir ce qu'elle compte ; cliquez dessus pour trier les lignes.",
     "noteVideo": "Tout vient de la vidéo : des touches peuvent manquer ou être données au mauvais joueur.",

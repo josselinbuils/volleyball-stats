@@ -44,6 +44,9 @@ export const STATS = [
   'digGood',
   'digPoor',
   'sets',
+  'setsAttacked',
+  'setAssists',
+  'setFaults',
   'points',
   'faults',
   'between',
@@ -267,7 +270,15 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
         out.overDigs.push(c);
       }
     } else if (c.type === 'set') {
-      add('sets', null, null);
+      add('sets', null, 'setFaults');
+      const next = contacts[k + 1];
+      if (next?.rally === c.rally && next.type === 'attack' && next.g === c.g) {
+        out.setsAttacked.push(c);
+        // A player's own attack after their set assists no one.
+        if (next.result === 'point' && next.person !== c.person) {
+          out.setAssists.push(next);
+        }
+      }
     }
     if (c.result === 'point') {
       out.points.push(c);

@@ -36,7 +36,22 @@ describe('lines', () => {
     expect(count(one.stats)).toEqual({ touches: 2, serves: 1, aces: 1, serveRated: 1, attacks: 1, kills: 1, attackRated: 1, points: 2 });
     expect(count(two.stats)).toEqual({ touches: 1, receptions: 2, missed: 2, rated: 2, faults: 2 });
     expect(count(rest.stats)).toEqual({ touches: 2, attacks: 1, attackFaults: 1, attackRated: 1, digs: 1, faults: 1 });
-    expect(count(total.stats)).toEqual({ touches: 5, serves: 1, aces: 1, serveRated: 1, receptions: 2, missed: 2, rated: 2, attacks: 2, kills: 1, attackFaults: 1, attackRated: 2, digs: 1, points: 2, faults: 3 });
+    expect(count(total.stats)).toEqual({
+      touches: 5,
+      serves: 1,
+      aces: 1,
+      serveRated: 1,
+      receptions: 2,
+      missed: 2,
+      rated: 2,
+      attacks: 2,
+      kills: 1,
+      attackFaults: 1,
+      attackRated: 2,
+      digs: 1,
+      points: 2,
+      faults: 3,
+    });
   });
 
   it('makes one player of the identities given one name, shown by the one with the most touches', () => {
@@ -199,6 +214,32 @@ describe('serveRating', () => {
   it('is null without a reception rated after it', () => {
     expect(serveRating(touch('serve', 'right', 0), touch('dig', 'left', 1), undefined)).toBeNull();
     expect(serveRating(touch('serve', 'right', 0), touch('pass', 'left', 1), undefined)).toBeNull();
+  });
+});
+
+describe('sets', () => {
+  function touch(type: Contact['type'], person: number, g: 1 | 2 = 1, result: Contact['result'] = 'play', rally = 0): Contact {
+    return { i: 0, t: 0, type, g, team: g, side: g === 1 ? 'left' : 'right', rally, set: 1, x: 0, y: 0, zone: null, result, person, player: null, name: null };
+  }
+
+  const people = { 1: { team: 1, number: 1, jersey: null, name: 'A' }, 2: { team: 1, number: 2, jersey: null, name: 'B' } } as const;
+  const setter = (contacts: Contact[]) => lines(contacts, people as never, 1).find((l) => l.id === 1)?.stats;
+
+  it('counts a set attacked right after by its team, and an assist when a teammate wins the point', () => {
+    const s = setter([touch('set', 1), touch('attack', 2, 1, 'point')]);
+    expect(s?.setsAttacked).toHaveLength(1);
+    expect(s?.setAssists).toHaveLength(1);
+    expect(setter([touch('set', 1), touch('attack', 2)])?.setAssists).toHaveLength(0);
+  });
+
+  it('counts no assist for their own attack, nor an attack of the other team or another rally', () => {
+    expect(setter([touch('set', 1), touch('attack', 1, 1, 'point')])?.setAssists).toHaveLength(0);
+    expect(setter([touch('set', 1), touch('attack', 2, 2, 'point')])?.setsAttacked).toHaveLength(0);
+    expect(setter([touch('set', 1), touch('attack', 2, 1, 'point', 1)])?.setsAttacked).toHaveLength(0);
+  });
+
+  it('counts a set lost as its fault', () => {
+    expect(setter([touch('set', 1, 1, 'error')])?.setFaults).toHaveLength(1);
   });
 });
 

@@ -422,7 +422,7 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 - receptions: a rating out of 3 from where the next touch is played: 3 within 1.5 m of the setter's
   target (1 m off the net, between zones 2 and 3), 2 within 3 m, 1 further or sent straight over the
   net, 0 for a fault;
-- sets;
+- sets: attacked right after, assists (a teammate's winning attack right after), faults;
 - attacks: winning, faults, and from 5 attacks a rating out of 5: 5 winning, 4 in play with no counter-attack, 2 with one, 1 blocked,
   0 another fault;
 - free balls: faults;

@@ -114,7 +114,7 @@ function Player({ player }: { player: string }) {
   const moments = highlights(rallies, player, match.people);
   const run = serveRun(rallies, player, match.people);
   const partners = duos(contacts, player, match.people);
-  const chips = [...(strengths(found, (p) => playingTime(p, set), contacts, rallies, match.people).get(line.id) ?? []), ...toWorkOn(line.stats, team)];
+  const chips = [...(strengths(found, (p) => playingTime(p, set), rallies).get(line.id) ?? []), ...toWorkOn(line.stats, team)];
   const touches = t('myMatch.summaryTouches', { count: line.stats.touches.length });
   const points = line.stats.points.length;
   const headline = [

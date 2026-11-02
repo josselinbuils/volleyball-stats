@@ -39,7 +39,7 @@ describe('strengths', () => {
           contacts.filter((c) => c.rally === r),
         ),
       );
-    return strengths(found, (p) => seconds[p] ?? 0, contacts, all, people);
+    return strengths(found, (p) => seconds[p] ?? 0, all);
   }
 
   const times = (n: number, make: (k: number) => Contact, from = 0) => Array.from({ length: n }, (_, k) => make(from + k));
