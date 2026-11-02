@@ -33,6 +33,7 @@ import numpy as np
 
 from volleyball_stats import decode, files
 from volleyball_stats.ball3d import touch_places
+from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, NO_PLAYER, box_at
 from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
@@ -855,8 +856,8 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
     return out
 
 
-def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None) -> None:
-    """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, and, unless `video` is None, the video, its `av1` copy the page
+def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None) -> None:
+    """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, the commentary's `voice` (`speech.voice_index`) and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
     the `ball`'s places in ball.js, which the page loads to zoom on it."""
     site.mkdir(parents=True, exist_ok=True)
@@ -894,9 +895,18 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         (site / "ball3d.js").write_text(places_js)
     if places_js:
         data["ball3d"] = True
+    shutil.rmtree(site / "voice", ignore_errors=True)
+    voice_js = ""
+    if voice:
+        (site / "voice").mkdir()
+        for clip in {row[1] for row in voice["lines"]} | set(voice["replay"].values()):
+            shutil.copy2(voice["folder"] / clip, site / "voice" / clip)
+        voice_js = f"window.MATCH_VOICE = {json.dumps({'lines': voice['lines'], 'replay': voice['replay']}, separators=(',', ':'), ensure_ascii=False)};\n"
+        (site / "voice" / "index.js").write_text(voice_js)
+        data["voice"] = True
     # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
     # serves each build its own.
-    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + places_js + (site / "scene3d.js").read_text()
+    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + places_js + voice_js + (site / "scene3d.js").read_text()
     data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     index = site / "index.html"
@@ -1249,7 +1259,7 @@ def build(
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
     ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
-    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small)
+    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data))
     return data
 
 

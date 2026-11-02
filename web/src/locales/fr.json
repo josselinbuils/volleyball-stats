@@ -931,6 +931,7 @@
       "faultFaultNamed": "Faute de jeu {{ofName}}. Point pour {{team}}, {{score}}.",
       "faultFaultNamedSet": "Faute de jeu {{ofName}}. {{team}} remporte le set {{score}}."
     },
-    "captionEstimated": "Reconstitution en 3D d'après la vidéo : ni images ni voix du match. La hauteur du ballon est estimée, le commentaire est généré à partir des touches reconnues, et peut se tromper."
+    "captionEstimated": "Reconstitution en 3D d'après la vidéo : ni images ni voix du match. La hauteur du ballon est estimée, le commentaire est généré à partir des touches reconnues, et peut se tromper.",
+    "voiceCredit": "Voix générée par ordinateur en français : Kokoro, voix issue du corpus SIWIS (CC BY 4.0)."
   }
 }

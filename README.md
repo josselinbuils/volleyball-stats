@@ -396,8 +396,12 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
   2.5 m. The gestures are illustrative, not the player's own technique. A serve starts in the server's hand.
 - **Replays:** in the real pauses between rallies, slowed down, through the eyes of who scored: aces, winning blocks, attacks
   ending a long rally or a set, and one winning attack in four otherwise.
-- **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions and
-  spoken by the browser's voice on request. It names who did something, who scored and who gave a point away.
+- **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions, naming who
+  did something, who scored and who gave a point away.
+- **Voice:** a shorter script for speech (`speech.py`), in French, spoken on request by a voice generated on this machine: Kokoro,
+  the SIWIS voice at 1.2 times its speed. `uv run --group voice python -m volleyball_stats.voice outputs/MATCH` makes the audio missing
+  in `outputs/MATCH/voice/` (`spoken.json` there spells names for it, never committed), then build the page: a build keeps the lines
+  still true of the match, so run it again after a review's changes. Without audio, or in English, the browser's voice.
 
 ### Le coin du coach
 

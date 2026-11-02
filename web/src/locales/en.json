@@ -931,6 +931,7 @@
       "faultFaultNamed": "A playing fault by {{name}}. Point {{team}}, {{score}}.",
       "faultFaultNamedSet": "A playing fault by {{name}}. {{team}} take the set {{score}}."
     },
-    "captionEstimated": "Reconstructed in 3D from the video: no pictures or sound from the match. The ball's height is estimated, and the commentary is generated from the touches recognised, so it can be wrong."
+    "captionEstimated": "Reconstructed in 3D from the video: no pictures or sound from the match. The ball's height is estimated, and the commentary is generated from the touches recognised, so it can be wrong.",
+    "voiceCredit": "The voice is computer-generated, in French: Kokoro, a voice from the SIWIS dataset (CC BY 4.0)."
   }
 }

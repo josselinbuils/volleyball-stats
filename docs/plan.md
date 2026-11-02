@@ -61,6 +61,11 @@ on the first match: set 0.63 m, dig 0.86, pass 0.89, relance 1.24, attack 1.46, 
 dig 75%, attack 52%, block 33%, serve 14%: hence the lunge, and a stock gesture past 2.5 m. Real movements from the video: not done
 (pose on every player and frame, unreliable in 3D from one camera, and the owner's call on consent).
 
+The voice (`speech.py`, `voice.py`): the owner's pick by ear among Chatterbox, Piper, Kokoro and Kokoro variants, Kokoro's `ff_siwis` at 1.2 (their
+"E"); 19-22 characters a second against 15 for the ones judged flat. First match: 248 texts, 314 lines kept, 5.2 MB, 2 minutes on the M4. Whisper small
+reads it back at 0.60 of the words (it writes numbers as digits, so that understates it; very short lines are the weakest). Not done: Phonon 40M's French
+voices (CC BY-NC, gated: the owner's Hugging Face login), English audio (the browser's voice).
+
 The gym, measured through the camera: the handball court 39.4 m by 20 against the real 40, the near goal line on the camera's post.
 Later: a hall per gym (every match shows this one); the near goal; a sharper replay choice from the viewers' reports. The voice is the
 browser's: not heard in the checks, which run without sound.

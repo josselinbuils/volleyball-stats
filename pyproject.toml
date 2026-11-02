@@ -19,6 +19,13 @@ bench = ["onnxruntime", "pillow", "pyyaml"]
 jerseys = [
     "rapidocr-onnxruntime>=1.4.4",
 ]
+voice = [
+    "espeakng-loader>=0.2.4",
+    "kokoro>=0.9.4",
+    "misaki[en]>=0.9.4",
+    "phonemizer-fork>=3.3.2",
+    "soundfile>=0.14.0",
+]
 
 [build-system]
 requires = ["hatchling"]

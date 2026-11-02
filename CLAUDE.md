@@ -189,6 +189,9 @@ to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Cont
 no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
 video. The copies keep their source's date, so an upload skips an unchanged video.
 
+The commentary's voice: `uv run --group voice python -m volleyball_stats.voice outputs/MATCH` after a page's build makes the missing audio in
+`outputs/MATCH/voice/`, the next build takes it (a line no longer true of the match is left out), so after a review's changes run it, then upload.
+
 Hosted pages are built with `--feedback /volleyball/feedback`: one tap on "Signaler" reports the
 moment, "Préciser" then adds what is wrong and a comment to the same report (its `id`); the
 service's nginx logs each POST (2 KB, 5 a minute per visitor) to
