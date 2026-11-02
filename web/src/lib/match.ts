@@ -139,7 +139,7 @@ interface Data {
   /** Whether voice/index.js holds the commentary's audio. */
   voice?: boolean;
   /** The players' positions: a sample every `step` frames, `every` samples in each of `files` files; none without tracks. */
-  positions?: { step: number; every: number; files: number } | null;
+  positions?: { step: number; every: number; files: number; cm: number } | null;
   /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
   scores?: (string | null)[] | null;
   brand?: Brand | null;

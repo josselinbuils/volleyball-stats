@@ -8,8 +8,9 @@ export interface Players {
   samples: number[][];
 }
 
-/** A file of positions: the samples' persons, and each one's move in cm since their last position in the file. */
-type Packed = [number[][], number[][], number[][]];
+/** A file of positions: its samples' count, then per person the runs of samples they are away and there, in turn, and their
+ * moves since their last position in the file, in the match's `cm`. */
+type Packed = [number, [number, number[], number[], number[]][]];
 
 declare global {
   interface Window {
@@ -20,17 +21,26 @@ declare global {
 // From this close to a file's end, in seconds, the next one loads too.
 const AHEAD_S = 10;
 
-/** Puts a file's samples in `samples`, the `file`th of `every` samples each. */
-export function unpackFile(samples: number[][], every: number, file: number, [persons, xs, ys]: Packed): void {
-  const lastX: number[] = [];
-  const lastY: number[] = [];
-  persons.forEach((list, k) => {
-    const flat: number[] = [];
-    list.forEach((person, n) => {
-      lastX[person] = (lastX[person] ?? 0) + xs[k][n];
-      lastY[person] = (lastY[person] ?? 0) + ys[k][n];
-      flat.push(person, lastX[person] / 100, lastY[person] / 100);
+/** Puts a file's samples in `samples`, the `file`th of `every` samples each, its moves in `cm`. */
+export function unpackFile(samples: number[][], every: number, file: number, [count, columns]: Packed, cm: number): void {
+  const flats = Array.from({ length: count }, () => [] as number[]);
+  for (const [person, runs, xs, ys] of columns) {
+    let k = 0;
+    let move = 0;
+    let [x, y] = [0, 0];
+    runs.forEach((run, n) => {
+      if (n % 2) {
+        for (const end = k + run; k < end; k++, move++) {
+          x += xs[move];
+          y += ys[move];
+          flats[k].push(person, (x * cm) / 100, (y * cm) / 100);
+        }
+      } else {
+        k += run;
+      }
     });
+  }
+  flats.forEach((flat, k) => {
     samples[file * every + k] = flat;
   });
 }
@@ -53,7 +63,7 @@ const listeners = new Set<() => void>();
 if (positions) {
   window.MATCH_POSITIONS = (file, packed) => {
     if (typeof state === 'object') {
-      unpackFile(state.samples, positions.every, file, packed);
+      unpackFile(state.samples, positions.every, file, packed, positions.cm);
       state = { ...state };
       listeners.forEach((listener) => listener());
     }

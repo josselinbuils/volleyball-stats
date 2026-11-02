@@ -654,8 +654,8 @@ class TestWriteSite:
         version = (site / "index.html").read_text().split('src="data.js?v=')[1].split('"')[0]
         assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":500,"files":1}},"contacts":[],"v":"{version}"}};\n'
-        assert (site / "positions" / "0.js").read_text() == "window.MATCH_POSITIONS(0,[[[]],[[]],[[]]]);\n"
+        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":500,"files":1,"cm":5}},"contacts":[],"v":"{version}"}};\n'
+        assert (site / "positions" / "0.js").read_text() == "window.MATCH_POSITIONS(0,[1,[]]);\n"
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
 
@@ -765,15 +765,15 @@ class TestPublish:
 
 
 class TestPositionFiles:
-    def test_keeps_each_persons_moves_in_cm_each_file_on_its_own(self):
+    def test_keeps_each_persons_runs_and_moves_each_file_on_its_own(self):
         players = {"step": 25, "samples": [[1, -5.8, 3.32, 2, 1.53, -0.07], [1, -5.79, 3.31], [], [2, 1.5, -0.02, 1, -5.77, 3.31]]}
 
         # At 25 fps a sample a second: three to a file of 3 s.
         web.POSITIONS_S, kept = 3, web.POSITIONS_S
         try:
             assert web.position_files(players, 25.0) == [
-                "window.MATCH_POSITIONS(0,[[[1,2],[1],[]],[[-580,153],[1],[]],[[332,-7],[-1],[]]]);\n",
-                "window.MATCH_POSITIONS(1,[[[2,1]],[[150,-577]],[[-2,331]]]);\n",
+                "window.MATCH_POSITIONS(0,[3,[[1,[0,2],[-116,0],[66,0]],[2,[0,1],[31],[-1]]]]);\n",
+                "window.MATCH_POSITIONS(1,[1,[[1,[0,1],[-115],[66]],[2,[0,1],[30],[0]]]]);\n",
             ]
         finally:
             web.POSITIONS_S = kept

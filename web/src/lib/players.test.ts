@@ -12,12 +12,20 @@ describe('players', () => {
     it('gives back the positions, in their place, with a person away', async () => {
       const { unpackFile } = await load();
       const samples: number[][] = [];
-      unpackFile(samples, 3, 1, [
-        [[1, 2], [1], []],
-        [[-580, 153], [1], []],
-        [[332, -7], [-1], []],
-      ]);
-      expect(samples.slice(3)).toEqual([[1, -5.8, 3.32, 2, 1.53, -0.07], [1, -5.79, 3.31], []]);
+      unpackFile(
+        samples,
+        3,
+        1,
+        [
+          3,
+          [
+            [1, [0, 2], [-116, 0], [66, -1]],
+            [2, [0, 1], [31], [-1]],
+          ],
+        ],
+        5,
+      );
+      expect(samples.slice(3)).toEqual([[1, -5.8, 3.3, 2, 1.55, -0.05], [1, -5.8, 3.25], []]);
       expect(samples[0]).toBeUndefined();
     });
   });

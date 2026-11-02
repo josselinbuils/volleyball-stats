@@ -62,6 +62,8 @@ LOGO_QUALITY = 90
 # The seconds of players' positions in one file the page loads, and how long a player missing from a few samples
 # stays where they were last seen (the page's `playersAt`).
 POSITIONS_S, HOLD_S = 60, 0.5
+# How finely the page's files place a player: never over 3 cm off, nearly half the size of 1 cm (`docs/plan.md`).
+POSITION_CM = 5
 # The touches that lose a serve, an attack or a block coming at them: not a serve, nor an attack of their own.
 LOSING_TOUCHES = ("pass", "set", "relance", "block", "dig")
 # The cards' pictures: in the pieces of a player the review shows and the user left unmarked (sure
@@ -819,24 +821,34 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
 
 def position_files(players: dict, fps: float) -> list[str]:
     """`positions/N.js`'s contents, each POSITIONS_S of the players' positions the page loads as it plays them
-    (`unpackFile`): the samples' persons, then each one's move in cm since their last position in the file."""
+    (`unpackFile`): its samples' count, then per person the runs of samples they are away and there, in turn, and their
+    moves since their last position in the file, in POSITION_CM."""
     every = round(POSITIONS_S * fps / players["step"])
     samples = players["samples"]
     files = []
     for n, start in enumerate(range(0, len(samples), every)):
-        last: dict[int, tuple[int, int]] = {}
-        persons, xs, ys = [], [], []
-        for flat in samples[start : start + every]:
-            persons.append(flat[0::3])
-            xs.append([])
-            ys.append([])
+        chunk = samples[start : start + every]
+        by_person: dict[int, dict[int, tuple[float, float]]] = {}
+        for k, flat in enumerate(chunk):
             for person, x, y in zip(flat[0::3], flat[1::3], flat[2::3]):
-                at = round(x * 100), round(y * 100)
-                was = last.get(person, (0, 0))
-                xs[-1].append(at[0] - was[0])
-                ys[-1].append(at[1] - was[1])
-                last[person] = at
-        files.append(f"window.MATCH_POSITIONS({n},{json.dumps([persons, xs, ys], separators=(',', ':'))});\n")
+                by_person.setdefault(person, {})[k] = (x, y)
+        columns = []
+        for person, places in sorted(by_person.items()):
+            runs, xs, ys = [], [], []
+            there, run = False, 0
+            was_x, was_y = 0, 0
+            for k in range(len(chunk)):
+                if (k in places) != there:
+                    runs.append(run)
+                    there, run = not there, 0
+                run += 1
+                if k in places:
+                    x, y = round(places[k][0] * 100 / POSITION_CM), round(places[k][1] * 100 / POSITION_CM)
+                    xs.append(x - was_x)
+                    ys.append(y - was_y)
+                    was_x, was_y = x, y
+            columns.append([person, [*runs, run] if there else runs, xs, ys])
+        files.append(f"window.MATCH_POSITIONS({n},{json.dumps([len(chunk), columns], separators=(',', ':'))});\n")
     return files
 
 
@@ -886,7 +898,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         (site / "positions").mkdir()
         for n, content in enumerate(positions):
             (site / "positions" / f"{n}.js").write_text(content)
-        data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions)}
+        data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions), "cm": POSITION_CM}
         data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
