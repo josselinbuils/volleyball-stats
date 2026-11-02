@@ -109,6 +109,10 @@ the page must stay open, a slow device drops frames. Checked in headless Chrome 
 
 The page showed each 0.1 s sample as it was: a jump every 0.1 s, 3.1% of moves in rallies over 7 m/s (depth mostly: a box's foot), players blinking in holes over 0.5 s. Now `web.natural_motion` at build (outliers, holes while the team has under 6 there, a Gaussian of 0.2 s, for the positions' files only: stats stay on the tracking; filling every hole doubled moments over 12 players, from 14% to 26%), the page's `playersAt` between samples, in both views, and bodies turning over 0.12 s (`benchmarks/players/motion.py`).
 
+## The first match's video timing (2 Nov)
+
+4 of its frames last 33 ms (frames 96157, 111731, 142115, 173361), so a frame's real time runs up to 2.3 frames past `frame / 50` late in the match. Cutting exact frames needs the file's timestamps (`ffprobe ... packet=pts_time`); the page's video is up to about 45 ms off its data there, not visible and not changed.
+
 ## Page: lighter (2 Nov, positions)
 
 The first match's 67 position files, gzip: JSON per sample 821 KB, 12.3 a file; per person in columns 732; at 5 cm 450 (6.7 a file; 2.8 cm off at most, speeds unchanged).
