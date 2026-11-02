@@ -1,5 +1,8 @@
 /** What looks wrong in a rally, as the review's automatic reports find it (review.unusual). */
-export type Problem = 'empty' | 'noServe' | 'twoServes' | 'passWithoutServe' | 'serveNotReceived' | 'fourTouches' | 'samePlayer' | 'afterFault' | 'afterPoint' | 'server' | 'noWinner';
+export type Problem = 'empty' | 'noServe' | 'twoServes' | 'passWithoutServe' | 'serveNotReceived' | 'fourTouches' | 'samePlayer' | 'afterFault' | 'afterPoint' | 'server' | 'noWinner' | 'gap';
+
+// Over this long between two touches, in seconds, one is often missing (review.GAP_S).
+const GAP_S = 2.5;
 
 /** A touch as the editor lists it: its player "TEAM:IDENTITY", '' when unknown. */
 export interface Checked {
@@ -7,6 +10,8 @@ export interface Checked {
   team: number;
   player: string;
   result: string;
+  /** In seconds. */
+  time?: number;
 }
 
 /** The problems of a rally's touches (in order, the removed ones left out; a playing fault is no touch
@@ -39,6 +44,9 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     }
     if (before && before.type !== 'block' && before.player && before.player === c.player) {
       mark(k, 'samePlayer');
+    }
+    if (before?.time !== undefined && c.time !== undefined && c.time - before.time > GAP_S) {
+      mark(k, 'gap');
     }
   });
   touches.forEach((c, k) => {

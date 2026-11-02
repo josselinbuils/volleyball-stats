@@ -801,6 +801,14 @@ class TestWithLandings:
         ):
             assert "around" not in web.with_landings(contacts, self.players, 10.0)[-1]
 
+    def test_gives_a_serve_how_far_from_the_net_its_player_stood(self):
+        samples = [[1, -8.94, 2.0, 2, 3.0, 1.0]]
+        serve = {"t": 0.0, "type": "serve", "person": 1}
+
+        found = web.with_server_places([serve, {**serve, "person": 3}, {**serve, "type": "pass"}], {"step": 1, "samples": samples}, 10.0)
+
+        assert [c.get("stood") for c in found] == [8.9, None, None]
+
     def test_holds_a_player_no_longer_than_half_a_second(self):
         samples = [[1, 1.0, 1.0], [], [], [], [], [], [2, 2.0, 2.0]]
         found = web.with_landings([self.contact("attack", result="point"), self.contact("floor", t=0.6)], {"step": 1, "samples": samples}, 10.0)

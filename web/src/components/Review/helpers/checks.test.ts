@@ -19,6 +19,12 @@ describe('problems', () => {
     expect(marks(problems([c('serve', 1, '1:2'), c('pass', 2, '2:1'), c('attack', 2, '2:4', 'point'), c('dig', 1, '1:3')], 2, 1, true))[3]).toContain('afterPoint');
   });
 
+  it('marks a touch coming long after the one before', () => {
+    const at = (type: string, time: number) => ({ ...c(type, 1), time });
+    expect(marks(problems([at('serve', 0), { ...c('pass', 2), time: 1 }, { ...c('set', 2), time: 3.5 }], null, null, false))).toEqual({});
+    expect(marks(problems([at('serve', 0), { ...c('pass', 2), time: 1 }, { ...c('set', 2), time: 3.6 }], null, null, false))).toEqual({ 2: ['gap'] });
+  });
+
   it('marks a touch after a point', () => {
     expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
     // A reception lost is the ace's own fault, its last touch.

@@ -7,6 +7,7 @@ import { isTouch } from '@/helpers/contacts';
 import { playerKey, playersAt } from '@/helpers/players';
 import { ball3dLoaded } from '@/lib/ball3d';
 import { contacts as allContacts, groupName, match, playerLabel, rallies as allRallies, versioned, type Group } from '@/lib/match';
+import { ofName } from '@/components/Watch/helpers/commentary';
 import { playersLoaded } from '@/lib/players';
 import { voiceLoaded } from '@/lib/voice';
 import { lines } from '@/components/Stats/helpers/stats';
@@ -128,9 +129,11 @@ export function Film({ person, group }: { person: number; group: Group }) {
         .map((x) => t(`trophies.names.${x.kind}`));
       const speeds = mine.flatMap((c) => (c.speed === undefined ? [] : [c.speed]));
       const stats = line?.stats;
+      const label = playerLabel(t, person) ?? '';
       const text: FilmText = {
-        name: playerLabel(t, person) ?? '',
-        titleAbove: t('myMatch.film.titleAbove'),
+        name: label,
+        // "de" or "d'", alone: the name is written below it.
+        titleAbove: t('myMatch.film.titleAbove', { of: ofName(label).replace(label, '').trim() }),
         titleBelow: [groupName(t, group), match.date && f.date(match.date)].filter(Boolean).join(' · '),
         endLines: [
           stats && t('myMatch.summaryPoints', { count: stats.points.length }),

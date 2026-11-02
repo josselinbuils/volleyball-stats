@@ -36,6 +36,7 @@ import cv2
 import numpy as np
 
 from volleyball_stats import attribution, backup, feedback, files, identity, jerseys, matches, web
+from volleyball_stats.court import LENGTH, Calibration
 from volleyball_stats.teams import parse_colour
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
@@ -97,8 +98,10 @@ def mid(start: int, end: int) -> int:
 class Questions:
     """The review's questions from a match folder's identities, candidates and player tracks."""
 
-    def __init__(self, match: Path, fps: float):
+    def __init__(self, match: Path, fps: float, pitch: Path | None = None):
         self.match, self.fps = match, fps
+        # Where the court is in the picture, for the moments that may be a missed point.
+        self.calibration = Calibration.load(pitch) if pitch else None
         # Pieces marked as someone else: never a player's pin.
         self.avoid: set[tuple[int, int, int] | None] = set()
         # frame, track, x1, y1, x2, y2 of every player box, sorted by frame (players.csv's order):
@@ -130,7 +133,8 @@ class Questions:
         # Each rally's window by its key: a rally checked answers the questions about it.
         self.window_of = {int(r["start_frame"]): (a - lead, b) for (a, b), r in zip(windows, rallies)}
         self.page = page_data(self.match / "review")
-        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []), key=lambda r: r.get("time") or 0)
+        missed = missed_points(self.page, self.match / "ball.csv", self.calibration) if self.page and self.calibration else []
+        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []) + missed, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -611,6 +615,45 @@ def reports(match: Path) -> list[dict]:
     return sorted(found.values(), key=lambda r: r.get("time") or 0)
 
 
+# Over this long between two touches, in seconds, one is often missing (first match, before the review: 10 of 14 hid one).
+GAP_S = 2.5
+# A server stands 9 m or more from the net: under this, tracking error aside, they are not the one serving.
+SERVER_FROM_NET_M = 8.0
+# A team's six players serve in turn: under this many turns apart, it is not the same player's turn.
+ROTATION = 6
+
+
+def rotation_slips(page: dict) -> set[int]:
+    """The rallies, by index, served out of their team's order in their set: by a player back under ROTATION
+    turns after their last, or by another one while their team kept the serve."""
+    rallies = page["rallies"]
+    serves: dict[int, dict] = {}
+    for c in page["contacts"]:
+        if c["type"] == "serve":
+            serves.setdefault(c["rally"], c)
+    people = page.get("people") or {}
+    # A player with two tracking numbers is one by their name.
+    who = lambda p: people.get(str(p), {}).get("name") or p  # noqa: E731
+    turns: dict[tuple[int, int], list] = defaultdict(list)
+    slips = set()
+    last = None
+    for k, r in enumerate(rallies):
+        serve = serves.get(k)
+        if not serve or serve.get("person") is None or not serve.get("team"):
+            continue
+        at, server = (r["set"], serve["team"]), who(serve["person"])
+        if last and last[0] == at:
+            if last[1] != server:
+                slips.add(k)
+                turns[at].append(server)
+        else:
+            if server in turns[at][-(ROTATION - 1) :]:
+                slips.add(k)
+            turns[at].append(server)
+        last = (at, server)
+    return slips
+
+
 def unusual(page: dict) -> list[dict]:
     """The rallies of the review's `page` (its data.js) that do not look like one, as reports at
     their start, `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
@@ -618,11 +661,15 @@ def unusual(page: dict) -> list[dict]:
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
     touch after a fault or a point (either ends the rally), served by the team that lost the set's point
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
-    its id with the score: asked again once it moves). A playing fault ("fault") is no touch of the
-    ball in the order of touches; one ends the rally as a fault does. The same rally and reason keep
-    the same id: one handled is not asked again."""
+    its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order
+    (`rotation_slips`) or inside the court (`stood`), and, on the first rally either plays, two players of a team with one jersey.
+    A playing fault ("fault") is no touch of the ball in the order of touches; one ends the rally as a fault does. The same rally
+    and reason keep the same id: one handled is not asked again. `shown` names who it is about."""
     out = []
     rallies = page["rallies"]
+    people = page.get("people") or {}
+    name = lambda c: people.get(str(c.get("person")), {}).get("name")  # noqa: E731
+    slips = rotation_slips(page)
     for k, r in enumerate(rallies):
         touches = [c for c in page["contacts"] if c["rally"] == k and c["type"] not in web.NO_PLAYER]
         # The touches of the ball, playing faults aside.
@@ -665,9 +712,73 @@ def unusual(page: dict) -> list[dict]:
         score = r.get("score") and f"{r['score'][0]}-{r['score'][1]}"
         if given and score and score != given and (k + 1 == len(rallies) or rallies[k + 1]["set"] != r["set"]):
             why.append("scoreOff")
+        if any(b["t"] - a["t"] > GAP_S for a, b in pairs):
+            why.append("gap")
+        if k in slips:
+            why.append("serverOrder")
+        if serves and serves[0].get("stood") is not None and serves[0]["stood"] < SERVER_FROM_NET_M:
+            why.append("serverPlace")
         for reason in why:
             said = f"auto:{reason}:{r['start']}" + (f":{score}" if reason == "scoreOff" else "")
-            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["start"], "kind": f"auto.{reason}", "comment": None})
+            about = {"shown": name(serves[0])} if reason in ("serverOrder", "serverPlace") and name(serves[0]) else {}
+            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["start"], "kind": f"auto.{reason}", "comment": None, **about})
+    wearing: dict[tuple[int, int], set[int]] = defaultdict(set)
+    for p, q in people.items():
+        if q.get("jersey") is not None and q.get("name"):
+            wearing[(q["team"], q["jersey"])].add(int(p))
+    for (team, jersey), persons in wearing.items():
+        names = sorted({people[str(p)]["name"] for p in persons})
+        first = next((c["rally"] for c in page["contacts"] if c.get("person") in persons), None)
+        if len(names) > 1 and first is not None:
+            said = f"auto:sameJersey:{team}:{jersey}"
+            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[first]["start"], "kind": "auto.sameJersey", "comment": None, "shown": f"{jersey} · {', '.join(names)}"})
+    return out
+
+
+# A ball in play outside the rallies: over MISSED_S seconds, seen no closer to a rally than RALLY_ROOM_S, in runs with holes up to
+# RUN_HOLE_S, crossing the net and over this share of the court's length. A set shows the MISSED_SHOWN with the most moves over
+# HARD_M_S: of the first match's 129 rallies, each hidden in turn, they hold 86.
+MISSED_S, RALLY_ROOM_S, RUN_HOLE_S, MISSED_REACH, MISSED_SHOWN, HARD_M_S = 1.0, 2.0, 0.5, 0.3, 5, 10.0
+
+
+def missed_points(page: dict, ball: Path, calibration: Calibration) -> list[dict]:
+    """For each set ending off the final score given (`unusual`'s "scoreOff"), the moments the ball seems in play outside
+    its rallies, as reports: where the point missing may be. Their id holds the score: asked again once it moves."""
+    rallies, fps = page["rallies"], page["fps"]
+    given = dict(enumerate(page.get("scores") or [], 1))
+    off = []
+    for k, r in enumerate(rallies):
+        score = r.get("score") and f"{r['score'][0]}-{r['score'][1]}"
+        following = rallies[k + 1] if k + 1 < len(rallies) else None
+        if given.get(r["set"]) and score and score != given[r["set"]] and (not following or following["set"] != r["set"]):
+            earlier = [q["end"] for q in rallies[:k] if q["set"] != r["set"]]
+            off.append((max(earlier, default=0.0), following["start"] if following else page.get("duration", r["end"] + 600.0), score))
+    if not off or not ball.exists():
+        return []
+    net, left, right = calibration.to_image(np.array([[0.0, 0.0], [-LENGTH / 2, 0.0], [LENGTH / 2, 0.0]]))[:, 0]
+    length = abs(right - left)
+    hard = HARD_M_S * length / LENGTH / fps
+    with open(ball) as f:
+        seen = [(int(row["frame"]), float(row["x"])) for row in csv.DictReader(f) if row["visible"] == "1"]
+    room = round(RALLY_ROOM_S * fps)
+    away = np.ones(max((frame for frame, _ in seen), default=0) + 1, bool)
+    for r in rallies:
+        away[max(0, round(r["start"] * fps) - room) : round(r["end"] * fps) + room + 1] = False
+    seen = [(frame, x) for frame, x in seen if away[frame]]
+    out = []
+    for start, end, score in off:
+        kept = [(frame, x) for frame, x in seen if start * fps <= frame <= end * fps]
+        if not kept:
+            continue
+        frames, xs = zip(*kept)
+        cuts = np.flatnonzero(np.diff(frames) > RUN_HOLE_S * fps) + 1
+        found = []
+        for run, at in zip(np.split(np.array(frames), cuts), np.split(np.array(xs), cuts)):
+            if (run[-1] - run[0]) / fps >= MISSED_S and np.ptp(at) >= MISSED_REACH * length and np.diff(at > net).any():
+                found.append((int((np.abs(np.diff(at)) / np.diff(run) > hard).sum()), int(run[0])))
+        for _, frame in sorted(found, reverse=True)[:MISSED_SHOWN]:
+            said = f"auto:missedPoint:{frame}:{score}"
+            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": round(frame / fps, 2), "kind": "auto.missedPoint", "comment": None})
     return out
 
 
@@ -1308,7 +1419,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     shown = {e["id"] for e in load_log(answers)}
     if not (match / "identity_candidates.json").exists():
         identity.rerun(match, video, squad)
-    questions = Questions(match, fps)
+    questions = Questions(match, fps, court)
     # The rallies checked before the winners were pinned: those their page shows. First in the log:
     # an undo after a restart takes away the last answer.
     log = load_log(answers)

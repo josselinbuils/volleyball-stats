@@ -852,6 +852,16 @@ def position_files(players: dict, fps: float) -> list[str]:
     return files
 
 
+def places_at(players: dict, t: float, fps: float, back: int) -> dict[int, tuple[float, float]]:
+    """Each player's place at `t`, or their last one up to `back` samples before."""
+    at = round(t * fps / players["step"])
+    seen: dict[int, tuple[float, float]] = {}
+    for flat in reversed(players["samples"][max(0, at - back) : at + 1]) if at < len(players["samples"]) else ():
+        for person, x, y in zip(flat[0::3], flat[1::3], flat[2::3]):
+            seen.setdefault(person, (x, y))
+    return seen
+
+
 def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]:
     """`contacts` with, on each ball landing in after a point, the players' positions then in `around`: the
     stats' balls dropped between two players read them, without the positions' files. As the page's `playersAt`,
@@ -863,12 +873,18 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
         if c["type"] != "floor" or c.get("x") is None or c.get("y") is None or not before or before["rally"] != c["rally"] or before["result"] != "point":
             out.append(c)
             continue
-        at = round(c["t"] * fps / players["step"])
-        seen: dict[int, tuple[float, float]] = {}
-        for flat in reversed(players["samples"][max(0, at - back) : at + 1]) if at < len(players["samples"]) else ():
-            for person, x, y in zip(flat[0::3], flat[1::3], flat[2::3]):
-                seen.setdefault(person, (x, y))
+        seen = places_at(players, c["t"], fps, back)
         out.append({**c, "around": [v for person, (x, y) in seen.items() for v in (person, x, y)]})
+    return out
+
+
+def with_server_places(contacts: list[dict], players: dict, fps: float) -> list[dict]:
+    """`contacts` with, on each serve, how far from the net its player stood along the court then, in metres (`stood`): the review checks it."""
+    back = round(HOLD_S * fps / players["step"])
+    out = []
+    for c in contacts:
+        place = places_at(players, c["t"], fps, back).get(c.get("person")) if c["type"] == "serve" else None
+        out.append({**c, "stood": round(abs(place[0]), 1)} if place else c)
     return out
 
 
@@ -899,7 +915,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         for n, content in enumerate(positions):
             (site / "positions" / f"{n}.js").write_text(content)
         data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions), "cm": POSITION_CM}
-        data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
+        data["contacts"] = with_server_places(with_landings(data.get("contacts", []), players, data["fps"]), players, data["fps"])
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
     if ball_js:

@@ -676,7 +676,12 @@
         "serveNotReceived": "Un service suivi d'autre chose qu'une réception",
         "afterFault": "Une action suit une faute dans le même échange",
         "samePlayer": "Le même joueur touche le ballon 2 fois de suite",
-        "afterPoint": "Une action suit un point dans le même échange"
+        "afterPoint": "Une action suit un point dans le même échange",
+        "gap": "Longue pause entre deux touches",
+        "serverOrder": "Serveur hors de l'ordre de rotation",
+        "serverPlace": "Serveur pas derrière sa ligne",
+        "sameJersey": "Deux joueurs avec le même maillot",
+        "missedPoint": "Ballon en jeu hors des échanges : un point manqué ?"
       }
     },
     "details": "Préciser",
@@ -783,7 +788,7 @@
       "stopped": "Film interrompu : gardez la page ouverte.",
       "save": "Enregistrer le film",
       "again": "Recommencer",
-      "titleAbove": "Le film de",
+      "titleAbove": "Le film {{of}}",
       "serveSpeed": "Service à {{speed}} km/h"
     }
   },

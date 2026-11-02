@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats.review import APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
 
 
 class TestConstraints:
@@ -196,6 +196,62 @@ class TestReports:
         assert "auto.server" not in [r["kind"] for r in unusual(page)]
         del page["rallies"][0]["wrongCall"]
         assert "auto.server" in [r["kind"] for r in unusual(page)]
+
+    def test_a_long_pause_between_two_touches_is_reported(self):
+        def touch(t, kind):
+            return {"t": t, "type": kind, "team": 1, "side": "left", "rally": 0, "result": "play"}
+
+        page = {"rallies": [{"start": 0.0, "end": 9.0, "set": 1}], "contacts": [touch(0.0, "serve"), {**touch(1.0, "pass"), "team": 2}, {**touch(3.5, "set"), "team": 2}]}
+        assert unusual(page) == []
+        page["contacts"][-1]["t"] = 3.6
+        assert [r["kind"] for r in unusual(page)] == ["auto.gap"]
+
+    def test_a_server_inside_the_court_is_reported_with_their_name(self):
+        page = {"people": {"1": {"team": 1, "name": "Ana"}}, "rallies": [{"start": 0.0, "end": 1.0, "set": 1}], "contacts": [{"t": 0.0, "type": "serve", "team": 1, "side": "left", "rally": 0, "result": "error", "person": 1, "stood": 8.0}]}
+        assert unusual(page) == []
+        page["contacts"][0]["stood"] = 7.9
+        assert [(r["kind"], r["shown"]) for r in unusual(page)] == [("auto.serverPlace", "Ana")]
+
+    def test_two_named_players_of_a_team_with_one_jersey_are_reported_once(self):
+        people = {"1": {"team": 1, "jersey": 10, "name": "Ana"}, "2": {"team": 1, "jersey": 10, "name": "Zoé"}, "3": {"team": 2, "jersey": 10, "name": "Léa"}, "4": {"team": 1, "jersey": 7, "name": "Ana"}}
+        rallies = [{"start": 0.0, "end": 1.0, "set": 1}, {"start": 2.0, "end": 3.0, "set": 1}]
+        contact = {"t": 2.1, "type": "serve", "team": 1, "side": "left", "rally": 1, "result": "error", "person": 2}
+        found = unusual({"people": people, "rallies": rallies, "contacts": [contact]})
+        assert [(r["kind"], r["time"], r["shown"]) for r in found if r["kind"] == "auto.sameJersey"] == [("auto.sameJersey", 2.0, "10 · Ana, Zoé")]
+        # One player under two tracking numbers wears one jersey.
+        people["2"]["name"] = "Ana"
+        assert not [r for r in unusual({"people": people, "rallies": rallies, "contacts": [contact]}) if r["kind"] == "auto.sameJersey"]
+
+    def test_a_server_out_of_their_teams_order_is_found(self):
+        def page(*serves):
+            rallies = [{"start": float(k), "end": k + 0.5, "set": set_} for k, (set_, _, _) in enumerate(serves)]
+            contacts = [{"t": float(k), "type": "serve", "team": team, "rally": k, "person": person} for k, (_, team, person) in enumerate(serves)]
+            return {"rallies": rallies, "contacts": contacts, "people": {}}
+
+        # The other team's servers keep to their own order.
+        turn = lambda *servers: [x for k, s in enumerate(servers) for x in ((1, 1, s), (1, 2, 90 + k % 6))]  # noqa: E731
+        # Six turns apart is the order; five is not.
+        assert rotation_slips(page(*turn(1, 2, 3, 4, 5, 6, 1))) == set()
+        assert rotation_slips(page(*turn(1, 2, 3, 4, 5, 1))) == {10}
+        # A team keeping the serve keeps its server; a new set starts again.
+        assert rotation_slips(page((1, 1, 1), (1, 1, 1), (1, 1, 2))) == {2}
+        assert rotation_slips(page((1, 1, 1), (2, 1, 1))) == set()
+
+    def test_a_set_off_its_score_lists_the_ball_in_play_outside_its_rallies(self, tmp_path):
+        calibration = SimpleNamespace(to_image=lambda points: np.array([[1000.0, 0.0], [0.0, 0.0], [1800.0, 0.0]]))
+        ball = tmp_path / "ball.csv"
+        rows = ["frame,visible,x,y"]
+        # A rally the pipeline missed from frame 200, fast and over the net; a ball rolling on one side from frame 500.
+        rows += [f"{f},1,{200 + (f - 200) * 25},0" for f in range(200, 260)]
+        rows += [f"{f},1,{200 + (f - 500)},0" for f in range(500, 900)]
+        ball.write_text("\n".join(rows))
+        page = {"fps": 50.0, "duration": 30.0, "scores": ["2-1"], "rallies": [{"start": 0.0, "end": 1.0, "set": 1, "score": [1, 1]}], "contacts": []}
+
+        found = missed_points(page, ball, calibration)
+
+        assert [(r["kind"], r["time"]) for r in found] == [("auto.missedPoint", 4.0)]
+        page["rallies"][0]["score"] = [2, 1]
+        assert missed_points(page, ball, calibration) == []
 
     def test_a_rally_to_replay_is_not_reported_for_having_no_winner(self):
         page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 5.0, "set": 1, "winner": None, "redo": True}], "contacts": [{"t": 0.1, "type": "serve", "team": 1, "side": "left", "rally": 0, "result": "play"}, {"t": 1.0, "type": "pass", "team": 2, "side": "right", "rally": 0, "result": "play"}]}

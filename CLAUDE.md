@@ -121,7 +121,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)
   flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
   reception, four touches in a row, the wrong server, no touch, no winner, a set ending off the
-  score given (`scoreOff`, asked again once the score moves; the list shows the running score). Rallies are named by
+  score given (`scoreOff`, asked again once the score moves; the list shows the running score), then the moments the ball seems in play outside that set's rallies (`missedPoint`, `review.missed_points`: of 129 rallies hidden in turn, its 5 per set hold 86), over 2.5 s between two touches, a server out of rotation order or inside the court, one jersey on two players of a team (allowed, the owner's: both may wear no team jersey; handled once). Rallies are named by
   their `rallies.csv` start (`key` on the page), which an added serve moves. A line between rallies
   shows the score after each one; a rally header turns orange with a warning; the match bar colours
   each rally (orange warning, green checked, grey to check) and its arrows go to the next one to

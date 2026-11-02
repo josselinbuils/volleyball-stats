@@ -676,7 +676,12 @@
         "serveNotReceived": "A serve followed by something other than a reception",
         "afterFault": "An action follows a fault in the same rally",
         "samePlayer": "The same player touches the ball twice in a row",
-        "afterPoint": "An action follows a point in the same rally"
+        "afterPoint": "An action follows a point in the same rally",
+        "gap": "Long pause between two touches",
+        "serverOrder": "Server out of rotation order",
+        "serverPlace": "Server not behind their line",
+        "sameJersey": "Two players with the same jersey",
+        "missedPoint": "Ball in play outside the rallies: a missed point?"
       }
     },
     "details": "Add details",
