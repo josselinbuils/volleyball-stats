@@ -109,6 +109,11 @@ class TestUnreached:
 
         assert unreached(typed, rows, FPS) == {60}
 
+    def test_a_serve_stays_whoever_is_at_the_ball(self):
+        rows = [row(60, 1, (100, 200, 140, 300))]
+
+        assert unreached([(60, 120, 200 - (REACH + FAR + 0.1) * 100, "serve", "left")], rows, FPS) == set()
+
 
 class TestReadPlayers:
     def test_reads_back_what_players_writes(self, tmp_path):

@@ -1,6 +1,7 @@
 import numpy as np
 
-from volleyball_stats.actions import classify, classify_rally, mark_dead, no_play, player_under, relance_cues, serve_starts, served
+from volleyball_stats import actions
+from volleyball_stats.actions import classify, classify_rally, late_serves, mark_dead, no_play, player_under, relance_cues, serve_starts, served
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -207,3 +208,57 @@ class TestMarkRelances:
         out = mark_relances(video, [(100, 120, 150, "attack", "left")], 30.0, cache)
 
         assert out[0][3] == "relance"
+
+
+class TestNoPlayWindows:
+    FPS = 50.0
+
+    def test_a_window_with_no_serve_is_none(self):
+        typed = [(10, 0, 0, "dig", "left"), (20, 0, 0, "set", "left")]
+
+        assert no_play(typed, [0, 0], [(0, 100)], [50], self.FPS) == {0}
+
+    def test_a_long_window_with_no_crossing_is_none(self):
+        typed = [(10, 0, 0, "serve", "left"), (20, 0, 0, "net", "left")]
+
+        assert no_play(typed, [0, 0], [(0, 200)], [], self.FPS) == {0}
+
+    def test_a_short_serve_into_the_net_stays(self):
+        typed = [(10, 0, 0, "serve", "left"), (20, 0, 0, "net", "left")]
+
+        assert no_play(typed, [0, 0], [(0, 80)], [], self.FPS) == set()
+
+    def test_a_long_rally_crossing_the_net_stays(self):
+        typed = [(10, 0, 0, "serve", "left"), (60, 0, 0, "pass", "right")]
+
+        assert no_play(typed, [0, 0], [(0, 200)], [40], self.FPS) == set()
+
+
+class TestLateServes:
+    FPS = 50.0
+
+    @staticmethod
+    def calibration():
+        from unittest.mock import Mock
+
+        found = Mock()
+        found.to_image.return_value = np.array([[800.0, 0.0], [3000.0, 0.0]])
+        # Every contact in the air: its floor projection falls behind the far sideline.
+        found.to_court.return_value = np.array([[0.0, -20.0]])
+        return found
+
+    def moved(self, contacts, crossings, whistles, start=500):
+        return late_serves([(start, 900)], contacts, crossings, whistles, self.FPS, 1900.0, self.calibration())[0][0]
+
+    def test_a_window_opening_late_starts_at_the_serve_after_the_go(self):
+        assert self.moved([(100, 900, 700), (250, 2800, 800)], [140], [(1.0, 1.2)]) == 100 + round(actions.LEAD_S * self.FPS)
+
+    def test_no_serve_before_the_go(self):
+        assert self.moved([(100, 900, 700)], [140], [(3.0, 3.2)]) == 500
+
+    def test_without_a_go_only_just_before_the_window(self):
+        assert self.moved([(100, 900, 700)], [140], []) == 500
+        assert self.moved([(420, 900, 700)], [460], []) == 420 + round(actions.LEAD_S * self.FPS)
+
+    def test_a_contact_short_of_the_end_line_is_no_serve(self):
+        assert self.moved([(100, 1800, 700)], [140], [(1.0, 1.2)]) == 500

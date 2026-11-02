@@ -45,6 +45,11 @@ LEAD_S = 0.33
 # A window may open up to SERVE_BEFORE_S after its serve contact (first ASPOM match, 4K 50 fps: 21 of
 # the 43 labelled rallies over LEAD_S, up to 1.0 s): `serve_starts` moves it to the serve.
 SERVE_BEFORE_S = 1.0
+# A window may open later on a serve the ball's run missed (`late_serves`): up to LATE_MAX_S after the
+# contact whose ball crosses the net within LATE_FLIGHT_S (0.6-1.0 s on the first ASPOM match), from
+# over LATE_DEPTH of the way from the net to an end line, since the referee's go; without a go heard,
+# up to LATE_NO_GO_S.
+LATE_MAX_S, LATE_FLIGHT_S, LATE_DEPTH, LATE_NO_GO_S = 10.0, 1.2, 0.7, 2.0
 # Pixels at the school court's scale (rallies.COURT_PX) within which a contact after a serve, on its
 # side, is the server catching a bounce: 7-334 px at 4K on the first match (a scale of 2.16), 56 px
 # on the school match; a false contact in the serve's flight lies 570 px or more from the server.
@@ -72,6 +77,7 @@ NET_M = 1.0
 DEAD_RUN = 3
 # A window with this many floor contacts and no player touch is no rally (`no_play`).
 IDLE_FLOORS = 2
+NO_CROSSING_S = 3.0
 
 Contact = tuple[int, int, int]
 Typed = tuple[int, int, int, str, str]
@@ -210,6 +216,30 @@ def serve_starts(
     return out
 
 
+def late_serves(
+    rallies: list[tuple[int, int]], contacts: list[Contact], crossings: list[int], whistle_times: list[tuple[float, float]], fps: float, net_x: float, calibration: Calibration
+) -> list[tuple[int, int]]:
+    """`rallies` with each one opening after its serve starting LEAD_S after it: the serve is the
+    contact deep behind the first crossing since the previous window and the referee's go."""
+    lead = round(LEAD_S * fps)
+    ends = calibration.to_image(np.array([[-9.0, 0.0], [9.0, 0.0]]))[:, 0]
+    onsets = [w[0] * fps for w in whistle_times]
+    out: list[tuple[int, int]] = []
+    for start, end in rallies:
+        since = out[-1][1] + 1 if out else 0
+        go = [o for o in onsets if since <= o < start]
+        since = max(since, start - LATE_MAX_S * fps, go[-1] if go else start - LATE_NO_GO_S * fps)
+        for crossing in (c for c in crossings if since < c <= start + fps):
+            sent = [c for c in contacts if since <= c[0] < crossing and crossing - c[0] <= LATE_FLIGHT_S * fps]
+            if sent:
+                frame, x, y = max(sent)
+                if (x - net_x) / (ends[int(x > net_x)] - net_x) >= LATE_DEPTH and not on_floor(calibration, x, y, False):
+                    start = min(start, frame + lead)
+                    break
+        out.append((start, end))
+    return out
+
+
 def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[int, int]], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
     """Typed contacts of every rally; contacts outside the rallies are dropped."""
     out: list[Typed] = []
@@ -239,15 +269,26 @@ def mark_dead(typed: list[Typed], touchers: list[int | None], rallies: list[int 
     return typed, touchers
 
 
-def no_play(typed: list[Typed], rallies: list[int | None]) -> set[int]:
+def no_play(typed: list[Typed], rallies: list[int | None], windows: list[tuple[int, int]] | None = None, crossings: list[int] | None = None, fps: float = 0.0) -> set[int]:
     """The rallies whose contacts are IDLE_FLOORS floor contacts or more and no player touch: the
     next server bouncing the ball, a ball rolled back (first ASPOM match: the 2 such windows of
-    50:00-60:00, labelled no rally, and none other on the match); `rallies` holds each contact's."""
+    50:00-60:00, labelled no rally, and none other on the match); `rallies` holds each contact's.
+    With the windows, also those with no serve (first ASPOM match: 3 false windows; a rally's serve
+    lost to the track is `unseen_serves`'s) and those over NO_CROSSING_S with no crossing: a serve
+    into the net is over before that (at most 1.6 s, the 2 longer false)."""
     found: dict[int, list[str]] = {}
     for t, k in zip(typed, rallies):
         if k is not None:
             found.setdefault(k, []).append(t[3])
-    return {k for k, kinds in found.items() if kinds.count("floor") >= IDLE_FLOORS and set(kinds) <= {"floor", "net"}}
+    idle = {k for k, kinds in found.items() if kinds.count("floor") >= IDLE_FLOORS and set(kinds) <= {"floor", "net"}}
+    if windows is None:
+        return idle
+    lead = round(LEAD_S * fps)
+    for k, (start, end) in enumerate(windows):
+        crossed = any(start - lead <= c <= end for c in crossings or [])
+        if "serve" not in found.get(k, []) or (not crossed and (end - start) / fps >= NO_CROSSING_S):
+            idle.add(k)
+    return idle
 
 
 def player_under(ball: tuple[float, float], boxes: np.ndarray, reach: float) -> int | None:

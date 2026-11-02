@@ -231,8 +231,9 @@ def wrist_order(found: list[Candidate], wrists: dict[int, float | None]) -> list
 
 
 def unreached(typed: list[Typed], rows: list[Row], fps: float) -> set[int]:
-    """Frames of the contacts typed as touches with candidates, none within FAR of the ball."""
-    return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and c[0][0] > FAR}
+    """Frames of the contacts typed as touches with candidates, none within FAR of the ball; not a
+    serve's, whose server may stand out of the frame."""
+    return {t[0] for t, c in zip(typed, ranked(typed, rows, fps)) if c and c[0][0] > FAR and t[3] != "serve"}
 
 
 def gap_to_next(candidates: list[Candidate]) -> float | None:

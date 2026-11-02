@@ -66,7 +66,7 @@ def rally_windows(
     spare balls masked, pixel constants at the court's scale, the serves the players' positions
     (frame, court x, court y) show added, the windows opening on a contact inside the court
     dropped, then the serves after the referee's go (`rallies.whistled`) where no window is near;
-    each window opening shortly after its serve contact moved to it. The benchmarks score this."""
+    each window opening after its serve contact moved to it. The benchmarks score this."""
     track, scale = track.copy(), 1.0
     if calibration is not None:
         track[calibration.in_front(track, SPARE_Y)] = np.nan
@@ -80,7 +80,10 @@ def rally_windows(
     if positions is not None:
         alone = rallies.alone(windows, rallies.whistled(track, whistle_times, fps, calibration), gap, round(rallies.ALONE_MIN_S * fps))
         windows = sorted(windows + actions.served(alone, found, fps, calibration))
-    return actions.serve_starts(windows, found, crossings, fps, net_x, calibration, scale), found, crossings
+    windows = actions.serve_starts(windows, found, crossings, fps, net_x, calibration, scale)
+    if calibration is not None:
+        windows = actions.late_serves(windows, found, crossings, whistle_times, fps, net_x, calibration)
+    return windows, found, crossings
 
 
 def unseen_serves(
@@ -319,7 +322,7 @@ def main() -> None:
         timings["wrists"] = time.perf_counter() - start
         touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
         typed = dead
-    idle = actions.no_play(typed, [rally_of(t[0], windows, lead) for t in typed])
+    idle = actions.no_play(typed, [rally_of(t[0], windows, lead) for t in typed], windows, crossings, fps)
     if idle:
         keep = [k for k, t in enumerate(typed) if rally_of(t[0], windows, lead) not in idle]
         typed, touchers, gaps = [typed[k] for k in keep], [touchers[k] for k in keep], [gaps[k] for k in keep]
