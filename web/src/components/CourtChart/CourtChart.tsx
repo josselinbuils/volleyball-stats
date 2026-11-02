@@ -154,9 +154,7 @@ export function CourtChart() {
           )}
         </div>
 
-        <CardDescription>
-          {t(`captions.${view}`)} {t(left === null ? 'sidesMixed' : 'sidesSet')}
-        </CardDescription>
+        <CardDescription>{t(`captions.${view}`)}</CardDescription>
         <div className="relative mx-auto w-full max-w-4xl">
           <Court zones role="group" aria-label={t(`captions.${view}`)} ends={left === null ? undefined : [groupName(t, left), groupName(t, (3 - left) as Group)]}>
             {view === 'contacts' && <ContactDots shown={shown} describe={describe} onPlay={playFrom} />}
@@ -199,7 +197,6 @@ export function CourtChart() {
             ))}
           </Legend>
         )}
-        <p className="text-[13px] text-muted-foreground">{t(`notes.${view}`)}</p>
       </CardContent>
     </Card>
   );

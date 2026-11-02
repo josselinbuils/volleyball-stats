@@ -185,7 +185,7 @@ export function BroadcastControls({ voice, onVoice }: { voice: boolean; onVoice:
         )}
       </div>
       <p className="m-0 text-[13px] text-muted-foreground">
-        {t(match.ball3d ? 'broadcast.caption' : 'broadcast.captionEstimated')}
+        {t('broadcast.caption')}
         {match.voice && ` ${t('broadcast.voiceCredit')}`}
       </p>
     </div>

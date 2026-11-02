@@ -9,6 +9,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 
 - Speak English with the owner; the page and the review page open in French (fr first, then en, in
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
+- Interface text stays light (the owner's rule, 2 Nov): the fewest words a viewer needs, judged on all they see together, without
+  caveats about estimates or remarks on what the interface already shows. Write and shorten so by default, without asking.
 - Never publish, host or share anything without the owner. The hosted page has no password: it
   never carries real footage or player pictures (nor anything cut from them) without every
   player's consent; the names given in the review stay on it (the owner's choice). Footage may go

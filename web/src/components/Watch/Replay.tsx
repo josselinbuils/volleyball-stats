@@ -254,11 +254,7 @@ export function ReplayCaption({ className }: { className?: string }) {
           {t('ball')}
         </span>
       </Legend>
-      <p className="text-[13px] text-muted-foreground">
-        {players === 'none' && `${t('noPlayers')} `}
-        {players !== 'none' && `${t(hasNames ? 'numbersNoteNamed' : 'numbersNote')} `}
-        {t('replayNote')}
-      </p>
+      <p className="text-[13px] text-muted-foreground">{players === 'none' ? t('noPlayers') : t(hasNames ? 'numbersNoteNamed' : 'numbersNote')}</p>
     </div>
   );
 }

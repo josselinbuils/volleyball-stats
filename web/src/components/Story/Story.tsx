@@ -40,7 +40,7 @@ export function Story() {
         <CardDescription>{t('story.caption')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        {set === null && <p className="font-medium">{won === lost ? t('story.matchDraw', { won }) : t('story.match', { team: groupName(t, leader), won, lost })}</p>}
+        {set === null && <p className="font-medium">{won === lost ? t('story.matchDraw', { count: won }) : t('story.match', { team: groupName(t, leader), count: won, lost })}</p>}
         <Curve chapters={chapters} moments={numbered} />
         <div className="grid gap-6 lg:grid-cols-[repeat(auto-fit,minmax(18rem,1fr))]">
           {chapters.map((c) => (
