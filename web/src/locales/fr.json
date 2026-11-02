@@ -763,7 +763,7 @@
     "usualSpeed_other": "En général {{speed}} km/h sur {{count}} services mesurés",
     "reach": "Hauteur de frappe : environ {{height}} m",
     "reachOf_other": "Sur {{count}} attaques mesurées",
-    "measuresNote": "Estimations à partir d'une seule caméra. La vitesse est prise en plein vol : un radar à la frappe lirait sans doute plus.",
+    "measuresNote": "Estimations à partir d'une seule caméra. La vitesse est prise en plein vol.",
     "duos": "Les duos",
     "duo": "Passes de {{setter}} pour {{attacker}}",
     "summaryTime": "{{name}} : {{touches}} en {{time}} de jeu",

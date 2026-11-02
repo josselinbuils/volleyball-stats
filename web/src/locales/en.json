@@ -763,7 +763,7 @@
     "usualSpeed_other": "Usually {{speed}} km/h over {{count}} measured serves",
     "reach": "Hitting height: about {{height}} m",
     "reachOf_other": "From {{count}} measured attacks",
-    "measuresNote": "Estimates from a single camera. The speed is taken in mid-flight: a radar at the strike would probably read higher.",
+    "measuresNote": "Estimates from a single camera. The speed is taken in mid-flight.",
     "duos": "Duos",
     "duo": "Sets from {{setter}} for {{attacker}}",
     "summaryTime": "{{name}}: {{touches}} in {{time}} on court",
