@@ -27,7 +27,6 @@
   "noPlayers": "Les positions des joueurs ne sont pas disponibles pour ce match.",
   "leftTeam": "Équipe de gauche",
   "rightTeam": "Équipe de droite",
-  "ball": "Ballon",
   "cameraSide": "Côté caméra",
   "rally": "Échange {{n}}",
   "rallyLower": "échange {{n}}",

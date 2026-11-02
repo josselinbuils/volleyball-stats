@@ -224,7 +224,7 @@ function CourtTip({ x, y, text }: { x: number; y: number; text: string }) {
   );
 }
 
-/** The court replay's legend: the teams, the ball, and how to read the players and the ball. */
+/** The court replay's legend: the teams, and how to read the players. */
 export function ReplayCaption({ className }: { className?: string }) {
   const { t } = useTranslation();
   const players = usePlayers();
@@ -237,10 +237,6 @@ export function ReplayCaption({ className }: { className?: string }) {
             <span className="truncate">{hasTeams ? groupName(t, g) : t(g === 1 ? 'leftTeam' : 'rightTeam')}</span>
           </span>
         ))}
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full border-2 border-foreground" />
-          {t('ball')}
-        </span>
       </Legend>
       <p className="text-[13px] text-muted-foreground">{players === 'none' ? t('noPlayers') : t(hasNames ? 'numbersNoteNamed' : 'numbersNote')}</p>
     </div>
