@@ -143,12 +143,11 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      rallies end (in, out, fault).
   4. The review's rally answers and the 129 checked rallies as labels to drop false windows
      automatically (asked, not started).
-  5. A copy of the source video (see Backup): it has none, and the answers rest on its frames.
-  6. Node.js and library updates on the owner's services (offered by the owner, not done).
-  7. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
+  5. Node.js and library updates on the owner's services (offered by the owner, not done).
+  6. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
-  8. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+  7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
 
 ## Hosting
 
@@ -220,7 +219,7 @@ Backup: while the review runs, every 10 minutes if something changed (and `uv ru
 outputs/MATCH`), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
 and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
 files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
-is not in it (42 GB, 18 GB free there) and has no other copy yet.
+is not in it (42 GB, 18 GB free there): the owner backed the first match's up elsewhere (2 Nov).
 
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.
