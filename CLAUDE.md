@@ -73,8 +73,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   go through the top; the false touches they made are dropped (`attribution.FAR`) and no net crossing
   is lost (5, all under `contacts.MAX_GAP`), so carrying the flight across them waits for a match
   where it shows.
-- The code is ahead of the first match's outputs since 2 Nov: `docs/plan.md` has the scores on a copy (touches found 872 of 945, 863
-  of 909 real), which the owner's next "Apprendre de mes réponses" brings. The figures above are its last run's.
+- The first match's last "Apprendre de mes réponses", 2 Nov 10:17, brought the 2 Nov pipeline work (`docs/plan.md`): touches found 872
+  of 945, 863 of 909 real, types 778 of 872, named players 679 of 761, checked winners 117 of 128; the 1 Nov figures above are before it.
+  The hosted pages are behind it (last upload 1 Nov 22:03).
 - The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`): its review
   runs with `uv run python -m volleyball_stats.review outputs/first_match --video data/first_match.mp4
   --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review#questions`,

@@ -32,10 +32,9 @@ Last "Apprendre de mes réponses", 1 Nov 21:41, with `LIVE_SPEED` per second: to
 touches real 817/860 -> 835/883, types 86.7% both, named players 89.1% both, checked winners 114 -> 115, all 129 rallies
 still checked, same set scores. The hosted page is behind it by one floor contact (frame 186492).
 
-In the code since, 2 Nov, not yet in the first match's outputs: the owner's next "Apprendre de mes réponses" brings them. Run
-on a copy of the match, against the last run: touches found 844 -> 872 of 945, pipeline touches real 835/883 -> 863/909, types
-732/844 -> 778/872, named players 651/731 -> 678/761, answered touches 607/673 -> 610/668, checked winners 115 -> 117 of 128, added
-touches found 95 -> 131 of 198. All 129 checked rallies, their winners, running scores and named players came through, no
+In the code and the first match's outputs since 2 Nov (the owner's "Apprendre de mes réponses", 10:17), against the last run: touches
+found 844 -> 872 of 945, pipeline touches real 835/883 -> 863/909, types 732/844 -> 778/872, named players 651/731 -> 679/761, answered
+touches 607/673 -> 610/668, checked winners 115 -> 117 of 128, added touches found 95 -> 131 of 198. All 129 checked rallies, their winners, running scores and named players came through, no
 warning, sets 25-23, 25-12, 25-18; 3 rallies change by a floor or net contact, which the lock does not hold. F1 ±1 s is unchanged
 (26:00-36:00 0.90, 50:00-60:00 0.57); the school clips too, but serves 5/7 -> 6/7 on `side_holdout`, one more wrong pick of 38 and
 `side_long`'s score drift 1 -> 2 (a warm-up window moved). All tuned on this match: the second one is the test.
