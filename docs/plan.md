@@ -62,7 +62,7 @@ dig 75%, attack 52%, block 33%, serve 14%: hence the lunge, and a stock gesture 
 (pose on every player and frame, unreliable in 3D from one camera, and the owner's call on consent).
 
 The voice (`speech.py`, `voice.py`): the owner's pick by ear among Chatterbox, Piper, Kokoro and Kokoro variants, Kokoro's `ff_siwis` at 1.2 (their
-"E"); 19-22 characters a second against 15 for the ones judged flat. First match: 248 texts, 314 lines kept, 5.2 MB, 2 minutes on the M4. Whisper small
+"E"); 19-22 characters a second against 15 for the ones judged flat. Every named touch is called, in full or by the name, the most telling taking the room first (`speech.RANKS`), the silence around each clip trimmed (Kokoro leaves about half a second: "Manon" 1.07 s, 0.5 s trimmed). First match: 601 of the 689 touches to call are, 97 of 97 attacks, 189 of 198 sets, 75 of 128 digs, 1 of 12 blocks (they come right after an attack); 405 texts, 3 minutes on the M4. Whisper small
 reads it back at 0.60 of the words (it writes numbers as digits, so that understates it; very short lines are the weakest). Not done: Phonon 40M's French
 voices (CC BY-NC, gated: the owner's Hugging Face login), English audio (the browser's voice).
 

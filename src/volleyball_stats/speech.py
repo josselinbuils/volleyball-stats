@@ -9,9 +9,11 @@ import json
 from pathlib import Path
 
 TOUCHES = ("serve", "pass", "set", "attack", "relance", "block", "dig")
-# Every this many rallies the server is called, and from this many touches a rally is a long one.
-SERVE_EVERY = 3
+# From this many touches a rally is a long one.
 LONG_RALLY = 8
+# The server is called this long before the serve, a touch this long before it lands, at the earliest with the rally.
+SERVE_LEAD_S = 0.9
+CALL_LEAD_S = 0.05
 # Nothing runs over a line about to start by less than this.
 BREATH_S = 0.15
 # Set points and late ties: from this many points before the end of a set.
@@ -19,9 +21,16 @@ SET_AT, LAST_SET_AT, TIE_WITHIN = 25, 15, 5
 LAST_SET = 5
 UNITS = "zéro un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize".split()
 TENS = {20: "vingt", 30: "trente", 40: "quarante", 50: "cinquante"}
-SERVES = ("{name} au service.", "Service de {name}.", "C'est {name} qui sert.")
-ATTACKS = ("Attaque de {name} !", "{name} frappe !", "{name} à l'attaque !")
-DIGS = ("Belle défense de {name} !", "{name} sauve le ballon !")
+# What each touch is called, said in full when there is room before the next, else just the name.
+CALLS = {
+    "serve": ("{name} au service.", "Service de {name}.", "C'est {name} qui sert."),
+    "pass": ("Réception de {name}.", "{name} en réception."),
+    "set": ("Passe de {name}.", "{name} à la passe."),
+    "attack": ("Attaque de {name} !", "{name} frappe !", "{name} à l'attaque !"),
+    "dig": ("Défense de {name} !", "Belle défense de {name} !", "{name} sauve le ballon !"),
+    "relance": ("Relance de {name}.", "{name} remet en jeu."),
+    "block": ("Contre de {name} !", "{name} au contre !"),
+}
 POINTS = {
     "serve": ("Èsse de {name} !", "Èsse ! {name} ne laisse aucune chance !"),
     "attack": ("Attaque gagnante de {name} !", "Superbe frappe de {name} !", "{name} conclut !"),
@@ -38,6 +47,9 @@ FAULTS = {
     "relance": "La relance de {name} ne passe pas.",
     "fault": "Faute de jeu de {name}.",
 }
+# Which touches take the room first: the ball coming over, the serve, the save, then what builds the attack.
+RANKS = {"attack": 0, "block": 0, "serve": 2, "reaction": 3, "dig": 3, "set": 4, "pass": 4, "relance": 4}
+LATE_RANK = 1
 REPLAY = "Revoyons ce point au ralenti, à la place de {name}."
 
 
@@ -72,17 +84,23 @@ def _score_line(winner: int, score: list[int], team: str) -> str:
     return f"{team} revient, {number(mine)} à {number(theirs)}."
 
 
+def _scored(touches: list[dict]) -> dict | None:
+    """The touch that scored a rally: its last, or the one before a last touch of the other team that lost it."""
+    last = touches[-1] if touches else None
+    before = touches[-2] if len(touches) > 1 else None
+    if last and last["result"] == "point":
+        return last
+    return before if last and last["result"] == "error" and before and before["result"] == "point" and before.get("team") != last.get("team") else None
+
+
 def _end(rally: dict, k: int, contacts: list[dict], name, team, set_end: str | None) -> dict | None:
     if rally.get("redo"):
-        return {"t": rally["end"] - 0.2, "text": "Le point est à rejouer.", "strong": True}
+        return {"t": rally["end"] - 0.2, "text": "Le point est à rejouer.", "strong": True, "late": True}
     winner = rally.get("winner")
     moves = [c for c in contacts if c["type"] in TOUCHES or c["type"] == "fault"]
     if not winner or not moves:
         return None
-    touches = [c for c in moves if c["type"] != "fault"]
-    last = touches[-1] if touches else None
-    before = touches[-2] if len(touches) > 1 else None
-    scored = last if last and last["result"] == "point" else before if last and last["result"] == "error" and before and before["result"] == "point" and before.get("team") != last.get("team") else None
+    scored = _scored([c for c in moves if c["type"] != "fault"])
     final = moves[-1]
     t = max(final["t"] + 0.2, min(rally["end"], (scored or final)["t"] + 0.6))
     said = ""
@@ -93,14 +111,15 @@ def _end(rally: dict, k: int, contacts: list[dict], name, team, set_end: str | N
     elif final.get("team") != winner and final["result"] == "error" and final["type"] in FAULTS and name(final["person"]):
         said = FAULTS[final["type"]].format(name=name(final["person"]))
     if set_end:
-        return {"t": t, "text": of_name(f"{said} {set_end}".strip()), "strong": True}
+        return {"t": t, "text": of_name(f"{said} {set_end}".strip()), "strong": True, "late": True}
     score = rally.get("score")
     tail = _score_line(winner, score, team(winner)) if score else f"Point pour {team(winner)}."
-    return {"t": t, "text": of_name(f"{said} {tail}".strip()), "strong": True}
+    return {"t": t, "text": of_name(f"{said} {tail}".strip()), "strong": True, "late": True}
 
 
 def script(data: dict) -> list[dict]:
-    """The match's lines by time, each `t`, `text` and `strong`: said whatever comes before it, unlike the others."""
+    """The match's lines by time, each `t`, `text` and `strong`, said whatever comes before it; a touch's its `kind`, and `short`
+    what to say when there is no room for `text`."""
     if not data.get("teams"):
         return []
     people = data["people"]
@@ -121,23 +140,25 @@ def script(data: dict) -> list[dict]:
         if first:
             before = [0, 0]
         to = LAST_SET_AT if r["set"] == LAST_SET else SET_AT
-        serve = touches[0] if touches and touches[0]["type"] == "serve" else None
         start = r["start"] - 0.7
         if max(before) >= to - 1 and before[0] != before[1]:
             lines.append({"t": start, "text": f"Balle de set pour {team(1 if before[0] > before[1] else 2)} !", "strong": True})
         elif before[0] == before[1] and before[0] >= to - TIE_WITHIN:
             lines.append({"t": start, "text": f"Égalité, {number(before[0])} partout.", "strong": True})
-        elif serve and name(serve["person"]) and (first or k % SERVE_EVERY == 0):
-            said = SERVES[k % len(SERVES)].format(name=name(serve["person"]))
-            lines.append({"t": start, "text": of_name(f"Set {number(r['set'])}. {said}" if first else said), "strong": False})
-        # The last touches are the end's to tell.
-        for n, c in enumerate(touches[:-2]):
-            if c["type"] == "attack" and name(c["person"]):
-                lines.append({"t": c["t"] - 0.2, "text": of_name(ATTACKS[k % len(ATTACKS)].format(name=name(c["person"]))), "strong": False})
-            elif c["type"] == "dig" and name(c["person"]) and n > 0:
-                lines.append({"t": c["t"] + 0.1, "text": of_name(DIGS[k % len(DIGS)].format(name=name(c["person"]))), "strong": False})
+        scored = _scored(touches)
+        for n, c in enumerate(touches):
+            who = name(c["person"])
+            # The rally's end tells the touch that scored and a last touch lost.
+            if not who or c["type"] not in CALLS or c is scored or (n == len(touches) - 1 and c["result"] != "play"):
+                continue
+            ways = CALLS[c["type"]]
+            said = of_name(ways[(k + n) % len(ways)].format(name=who))
+            if c["type"] == "serve":
+                lines.append({"t": max(start, c["t"] - SERVE_LEAD_S), "text": f"Set {number(r['set'])}. {said}" if first else said, "short": who, "strong": False, "kind": "serve"})
+            else:
+                lines.append({"t": c["t"] - CALL_LEAD_S, "text": said, "short": who, "strong": False, "kind": c["type"]})
         if len(touches) >= LONG_RALLY:
-            lines.append({"t": touches[LONG_RALLY - 2]["t"], "text": "Quel échange !", "strong": True})
+            lines.append({"t": touches[LONG_RALLY - 2]["t"], "text": "Quel échange !", "strong": False, "kind": "reaction"})
         set_over = k + 1 == len(rallies) or rallies[k + 1]["set"] != r["set"]
         set_end = None
         winner = r.get("winner")
@@ -176,19 +197,37 @@ def clip_name(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16] + ".mp3"
 
 
+def placed(lines: list[dict], durations: dict[str, float], spoken: dict[str, str]) -> list[tuple[dict, str, str, float]]:
+    """The lines to say, by time, each with its text, file and seconds, the most telling first in the running (`RANKS`): each
+    in full where it fits between those already there, else in `short`, else not at all. A strong line is always said; a `late`
+    one, a rally's end, waits for what is being said."""
+    out: list[tuple[dict, str, str, float]] = []
+    taken: list[tuple[float, float]] = []
+
+    def rank(line: dict) -> float:
+        return LATE_RANK if line.get("late") else -1 if line["strong"] else RANKS.get(line.get("kind"), len(RANKS))
+
+    for line in sorted(lines, key=lambda x: (rank(x), x["t"])):
+        for text in filter(None, (line["text"], line.get("short"))):
+            clip = clip_name(spelled(text, spoken))
+            if clip not in durations:
+                continue
+            start = line["t"]
+            seconds = durations[clip] + BREATH_S
+            if line.get("late"):
+                for begin, stop in sorted(taken):
+                    if start < stop and start + seconds > begin:
+                        start = stop
+            if line["strong"] or all(start + seconds <= begin or start >= stop for begin, stop in taken):
+                out.append(({**line, "t": start}, text, clip, durations[clip]))
+                taken.append((start, start + seconds))
+                break
+    return sorted(out, key=lambda item: item[0]["t"])
+
+
 def fitted(lines: list[dict], durations: dict[str, float], spoken: dict[str, str]) -> list[list]:
-    """The lines with audio as flat [t, file, seconds]: a strong one always, another only if it ends before the next one
-    and starts after the one before."""
-    voiced = [(line, clip_name(spelled(line["text"], spoken))) for line in lines]
-    voiced = [(line, clip) for line, clip in voiced if clip in durations]
-    out: list[list] = []
-    for k, (line, clip) in enumerate(voiced):
-        seconds = durations[clip]
-        ahead = voiced[k + 1][0]["t"] if k + 1 < len(voiced) else float("inf")
-        follows = out[-1][0] + out[-1][2] if out else float("-inf")
-        if line["strong"] or (line["t"] >= follows and line["t"] + seconds + BREATH_S <= ahead):
-            out.append([round(line["t"], 2), clip, round(seconds, 2)])
-    return out
+    """The lines to say as flat [t, file, seconds]."""
+    return [[round(line["t"], 2), clip, round(seconds, 2)] for line, _, clip, seconds in placed(lines, durations, spoken)]
 
 
 def voice_index(match: Path, data: dict) -> dict | None:

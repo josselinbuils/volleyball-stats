@@ -14,6 +14,7 @@ import type { Score } from '@/components/Watch/helpers/score';
 // A recorded line starts within this long of its moment, and a move of the time over this is a jump.
 const STARTS_S = 0.5;
 const JUMP_S = 1;
+const LOADED_AHEAD = 3;
 
 const speaks = () => typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
 
@@ -33,6 +34,7 @@ export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: 
   const audio = useRef<HTMLAudioElement | null>(null);
   const playing = useRef<string | null>(null);
   const was = useRef(time);
+  const ahead = useRef<HTMLAudioElement[]>([]);
 
   useEffect(() => {
     if (voice && live) {
@@ -65,6 +67,15 @@ export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: 
       playing.current = key;
       audio.current.src = versioned(`voice/${file}`);
       audio.current.play().catch(() => {});
+      // The next lines come within a second or two: fetched ahead, they start on time.
+      if (line) {
+        const at = recorded.lines.indexOf(line);
+        ahead.current = recorded.lines.slice(at + 1, at + 1 + LOADED_AHEAD).map(([, next]) => {
+          const clip = new Audio(versioned(`voice/${next}`));
+          clip.preload = 'auto';
+          return clip;
+        });
+      }
     }
   }, [time, voice, live, recorded, replay, video]);
 

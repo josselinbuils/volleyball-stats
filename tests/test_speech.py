@@ -1,5 +1,8 @@
 import json
 
+import numpy as np
+
+from volleyball_stats.voice import MARGIN_S, RATE, trimmed
 from volleyball_stats.speech import clip_name, fitted, number, of_name, replay_lines, script, spelled, team_name, voice_index
 
 
@@ -61,7 +64,7 @@ class TestScript:
 
     def test_calls_the_set_and_its_server_at_its_start(self):
         found = script(match(self.two, [touch(0, 11, "serve", 2, 1)]))
-        assert found[0] == {"t": 9.3, "text": "Set un. Manon au service.", "strong": False}
+        assert found[0] == {"t": 10.1, "text": "Set un. Manon au service.", "short": "Manon", "strong": False, "kind": "serve"}
 
     def test_calls_set_points_and_late_ties_before_the_serve(self):
         rallies = [rally(10, [24, 22]), rally(40, [25, 22]), rally(70, [0, 0], set_number=2)]
@@ -89,6 +92,27 @@ class TestScript:
         assert replay_lines(match([], []))["Anthony"] == "Revoyons ce point au ralenti, à la place d'Anthony."
 
 
+class TestCalls:
+    two = [rally(10, [1, 0]), rally(40, [2, 0])]
+
+    def test_calls_every_named_touch_and_every_server(self):
+        contacts = [touch(0, 11, "serve", 3, 2), touch(0, 12, "pass", 1, 1), touch(0, 13, "set", 2, 1), touch(0, 14, "attack", 1, 1), touch(0, 15, "block", 3, 2), touch(0, 16, "dig", 2, 1), touch(0, 17, "relance", 1, 1), touch(0, 18, "attack", 2, 1, "point"), touch(1, 41, "serve", 3, 2), touch(1, 42, "pass", 1, 1)]
+        kinds = [line["kind"] for line in script(match(self.two, contacts)) if line.get("kind") not in (None, "reaction")]
+        assert kinds == ["serve", "pass", "set", "attack", "block", "dig", "relance", "serve", "pass"]
+
+    def test_leaves_the_end_to_tell_what_scored_or_lost_the_point(self):
+        contacts = [touch(0, 11, "attack", 3, 2, "point"), touch(0, 12, "dig", 2, 1, "error")]
+        assert not [line for line in script(match(self.two, contacts)) if line.get("kind")]
+
+    def test_stays_silent_on_a_touch_of_no_one_named(self):
+        assert not [line for line in script(match(self.two, [touch(0, 11, "set", 4, 1)])) if line.get("kind")]
+
+    def test_a_call_offers_the_name_alone(self):
+        line = next(line for line in script(match(self.two, [touch(0, 11, "serve", 3, 2), touch(0, 12, "set", 2, 1)])) if line.get("kind") == "set")
+        assert line["short"] == "Manon"
+        assert "Manon" in line["text"]
+
+
 class TestFitted:
     def line(self, t, text, strong=False):
         return {"t": t, "text": text, "strong": strong}
@@ -107,6 +131,37 @@ class TestFitted:
         lines = [self.line(1, "a", True), self.line(1.2, "b", True)]
         durations = {clip_name(x): 3.0 for x in "ab"}
         assert len(fitted(lines, durations, {})) == 2
+
+    def test_an_attack_takes_the_room_before_the_set_and_the_dig_after_it(self):
+        lines = [
+            {**self.line(1, "set"), "short": "s", "kind": "set"},
+            {**self.line(2, "attack"), "short": "a", "kind": "attack"},
+            {**self.line(2.5, "dig"), "short": "d", "kind": "dig"},
+        ]
+        durations = {clip_name("set"): 0.9, clip_name("s"): 0.4, clip_name("attack"): 1.0, clip_name("a"): 0.4, clip_name("dig"): 0.9, clip_name("d"): 0.4}
+        assert [row[1] for row in fitted(lines, durations, {})] == [clip_name("s"), clip_name("attack")]
+
+    def test_a_rally_s_end_waits_for_the_attack_being_called(self):
+        lines = [{**self.line(1, "attack"), "short": "a", "kind": "attack"}, {**self.line(1.5, "end", True), "late": True}]
+        durations = {clip_name("attack"): 1.0, clip_name("a"): 0.4, clip_name("end"): 2.0}
+        found = fitted(lines, durations, {})
+        assert [row[1] for row in found] == [clip_name("attack"), clip_name("end")]
+        assert found[1][0] >= found[0][0] + found[0][2]
+
+    def test_a_rally_s_end_is_always_said(self):
+        lines = [{**self.line(1, "end", True), "late": True}, {**self.line(1.2, "dig"), "kind": "dig"}]
+        durations = {clip_name("end"): 2.0, clip_name("dig"): 0.5}
+        assert [row[1] for row in fitted(lines, durations, {})] == [clip_name("end")]
+
+    def test_says_just_the_name_when_the_full_line_has_no_room(self):
+        lines = [{**self.line(1, "long"), "short": "n"}, self.line(2, "b", True)]
+        durations = {clip_name("long"): 3.0, clip_name("n"): 0.5, clip_name("b"): 1.0}
+        assert [row[1] for row in fitted(lines, durations, {})] == [clip_name("n"), clip_name("b")]
+
+    def test_says_it_in_full_with_room(self):
+        lines = [{**self.line(1, "long"), "short": "n"}, self.line(9, "b", True)]
+        durations = {clip_name("long"): 3.0, clip_name("n"): 0.5, clip_name("b"): 1.0}
+        assert fitted(lines, durations, {})[0][1] == clip_name("long")
 
     def test_leaves_out_a_line_without_audio(self):
         assert fitted([self.line(1, "a", True)], {}, {}) == []
@@ -130,3 +185,17 @@ class TestVoiceIndex:
         data["rallies"][1]["winner"] = 2
         changed = voice_index(tmp_path, data)
         assert len(changed["lines"]) < len(full["lines"])
+
+
+class TestTrimmed:
+    def test_cuts_the_silence_at_both_ends_and_keeps_a_margin(self):
+        words = np.full(RATE, 0.5, dtype=np.float32)
+        audio = np.concatenate([np.zeros(RATE), words, np.zeros(RATE)])
+        assert abs(len(trimmed(audio)) - (RATE + 2 * MARGIN_S * RATE)) <= 2
+
+    def test_keeps_a_pause_between_words(self):
+        audio = np.concatenate([np.full(100, 0.5), np.zeros(RATE), np.full(100, 0.5)]).astype(np.float32)
+        assert len(trimmed(audio)) >= RATE + 200
+
+    def test_leaves_silence_alone(self):
+        assert len(trimmed(np.zeros(100))) == 100
