@@ -708,6 +708,7 @@
   },
   "followBall": "Zoom on the ball",
   "story": {
+    "film": "Watch the highlights film",
     "title": "The story of the match",
     "caption": "Who leads, and by how much, rally after rally. Click a moment or the curve to watch it again.",
     "ahead": "{{team}} ahead",

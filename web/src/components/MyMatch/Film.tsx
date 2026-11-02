@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Clapperboard, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { match, type Person } from '@/lib/match';
+import { match } from '@/lib/match';
 
-/** A player's film, on a page that has the video: its button among those around it, the film on a line of its own below them. */
-export function Film({ person }: { person: Person }) {
+/** The film `name` of the match, on a page that has the video: its button among those around it, the film on a line of its own below them. */
+export function Film({ name, label }: { name: string | undefined; label: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const src = person.name ? match.films?.[person.name] : undefined;
+  const src = name ? match.films?.[name] : undefined;
   if (!src) {
     return null;
   }
@@ -18,7 +18,7 @@ export function Film({ person }: { person: Person }) {
       {!open && (
         <Button variant="outline" onClick={() => setOpen(true)}>
           <Clapperboard aria-hidden />
-          {t('myMatch.film.watch')}
+          {label}
         </Button>
       )}
       {open && (

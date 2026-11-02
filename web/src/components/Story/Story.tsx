@@ -10,6 +10,7 @@ import { playerKey } from '@/helpers/players';
 import { usePlayer } from '@/lib/player';
 import { rallyClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
+import { Film } from '@/components/MyMatch/Film';
 import { Curve } from '@/components/Story/Curve';
 import { momentText } from '@/components/Story/helpers/momentText';
 import { story, type Moment } from '@/components/Story/helpers/story';
@@ -41,6 +42,11 @@ export function Story() {
       </CardHeader>
       <CardContent className="grid gap-4">
         {set === null && <p className="font-medium">{won === lost ? t('story.matchDraw', { count: won }) : t('story.match', { team: groupName(t, leader), count: won, lost })}</p>}
+        {match.films?.['*'] && (
+          <div className="flex flex-wrap gap-2">
+            <Film name="*" label={t('story.film')} />
+          </div>
+        )}
         <Curve chapters={chapters} moments={numbered} />
         <div className="grid gap-6 lg:grid-cols-[repeat(auto-fit,minmax(18rem,1fr))]">
           {chapters.map((c) => (

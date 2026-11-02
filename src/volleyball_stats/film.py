@@ -2,9 +2,9 @@
 
     uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT_JSON [--names NAME,NAME]
 
-The moments are a player's fastest serve and best points, each played then replayed slowly. `build` makes only the films whose
-`plan` changed (FILMS/manifest.json); the ball's search is kept whatever changes. Real footage: a film stays behind the hosted
-page's password (web.write_site puts them only beside a page with the video).
+The moments are a player's fastest serve and best points, each played then replayed slowly; the match has its own film of about a
+minute (HIGHLIGHTS). `build` makes only the films whose `plan` changed (FILMS/manifest.json); the ball's search is kept whatever
+changes. Real footage: a film stays behind the hosted page's password (web.write_site puts them only beside a page with the video).
 """
 
 import argparse
@@ -44,12 +44,19 @@ RED, GOLD, WHITE, INK, GREY = (19, 6, 227), (40, 200, 255), (255, 255, 255), (22
 FONTS = Path("/System/Library/Fonts/Supplemental")
 
 # The film's shape.
-MOMENTS, LEAST_MOMENTS = 4, 2
+MOMENTS, LEAST_MOMENTS = 5, 2
+# At most this many of a kind of touch while there is anything else to show: the same action again looks like a repeat.
+SAME_KIND = 2
 INTRO_S, OUTRO_S = 2.6, 4.5
 LEAD_S, AFTER_S, AFTER_POINT_S, AFTER_FLIGHT_S = 3.5, 1.0, 1.6, 0.5
 REPLAY_BEFORE_S, REPLAY_AFTER_S, REPLAY_SPEED = 1.0, 0.8, 0.5
 # The replay slows into a freeze on the touch.
 REPLAY_PRE, FREEZE = 1.75, 0.6
+# The match's film, under this name among the players'.
+HIGHLIGHTS = "*"
+HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS, LONGEST_S = 65.0, 8, 3, 18.0
+# A clip starts this long before its rally, the server getting ready, and runs on to its end, up to END_S after the touch.
+BEFORE_RALLY_S, END_S = 1.5, 4.0
 # How a point is a moment (the page's `highlights`).
 LONG_RALLY, LATE = 7, 20
 KINDS = ("setWon", "longRally", "lateTie", "ace", "block")
@@ -158,12 +165,35 @@ def moments_of(rallies: list[dict], key: set[int], mine: list[dict]) -> list[dic
         *sorted((c for c in played if c.get("result") != "point"), key=lambda c: -touches_in(c)),
     ]
     seen = {fastest["rally"]} if fastest else set()
+    kinds = [fastest["type"]] if fastest else []
     best = []
-    for c in candidates:
-        if len(seen) < MOMENTS and c["rally"] not in seen:
-            seen.add(c["rally"])
-            best.append(c)
-    return [*([fastest] if fastest else []), *reversed(best)]
+    for limit in (SAME_KIND, MOMENTS):
+        for c in candidates:
+            if len(seen) < MOMENTS and c["rally"] not in seen and kinds.count(c["type"]) < limit:
+                seen.add(c["rally"])
+                kinds.append(c["type"])
+                best.append(c)
+    # The candidates come best first, whichever round took them.
+    best.sort(key=lambda c: next(k for k, q in enumerate(candidates) if q is c))
+    return varied([*([fastest] if fastest else []), *reversed(best)])
+
+
+def varied(moments: list[dict]) -> list[dict]:
+    """`moments` with no kind of touch twice in a row where another order avoids it, the first and the last, the best, in place."""
+    out = list(moments)
+    for k in range(1, len(out) - 1):
+        if out[k]["type"] == out[k - 1]["type"]:
+            other = next((j for j in range(k + 1, len(out) - 1) if out[j]["type"] != out[k - 1]["type"]), None)
+            if other is not None:
+                out[k], out[other] = out[other], out[k]
+    # The one before the last, too, from what comes earlier.
+    if len(out) >= 4 and out[-2]["type"] == out[-1]["type"]:
+        for j in range(1, len(out) - 2):
+            neighbours = [out[j - 1]["type"]] + ([out[j + 1]["type"]] if j + 1 < len(out) - 2 else [])
+            if out[j]["type"] != out[-1]["type"] and out[-2]["type"] not in neighbours and out[j]["type"] != out[-3]["type"]:
+                out[j], out[-2] = out[-2], out[j]
+                break
+    return out
 
 
 def shots_of(moments: list[dict], rallies: list[dict]) -> tuple[list[dict], float]:
@@ -183,7 +213,9 @@ def shots_of(moments: list[dict], rallies: list[dict]) -> tuple[list[dict], floa
         start = max(rally["start"], c["t"] - LEAD_S)
         end = following["t"] + AFTER_FLIGHT_S if c["type"] == "serve" and following else c["t"] + (AFTER_POINT_S if c.get("result") == "point" else AFTER_S)
         add("live", end - start, start, 1, c)
-        add("replay", (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED, c["t"] - REPLAY_BEFORE_S, REPLAY_SPEED, c)
+        # Replayed only where it adds something: the first when its speed was measured, and the last, the best.
+        if c is moments[-1] or (c is moments[0] and c.get("speed") is not None):
+            add("replay", (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED, c["t"] - REPLAY_BEFORE_S, REPLAY_SPEED, c)
     add("outro", OUTRO_S, moments[-1]["t"], 1, moments[-1])
     return shots, at
 
@@ -210,8 +242,135 @@ def lines_of(shots: list[dict], voice: dict | None, name: str) -> list[dict]:
                     free = at + length
         elif shot["kind"] == "replay" and voice["replay"].get(name) and shot["start"] >= free:
             out.append({"at": shot["start"], "file": voice["replay"][name]})
+        elif shot["kind"] == "replay" and voice["replay"].get(shot.get("who", {}).get("name")) and shot["start"] >= free:
+            out.append({"at": shot["start"], "file": voice["replay"][shot["who"]["name"]]})
+            free = shot["start"] + shot["length"]
             free = shot["start"] + shot["length"]
     return out
+
+
+def who_of(person: int, people: dict) -> dict:
+    """Who a touch shows, across their tracking numbers."""
+    q = people[str(person)]
+    persons = sorted(int(p) for p, o in people.items() if o.get("name") == q["name"] and o.get("team") == q["team"] and o.get("number") is not None)
+    return {"name": q["name"], "team": q["team"], "persons": persons or [person], "jersey": next((people[str(p)]["jersey"] for p in persons if people[str(p)].get("jersey") is not None), None)}
+
+
+def rally_touch(rally: dict, people: dict) -> dict | None:
+    """The named touch a rally is shown for: the one that scored, else its winner's last, else its last; never a fault, a film names no one for one."""
+    named = lambda c: people.get(str(c.get("person")), {}).get("name")  # noqa: E731
+    scored = scoring_touch(rally)
+    if scored and named(scored):
+        return scored
+    touches = [c for c in rally["contacts"] if is_touch(c) and named(c) and c.get("result") != "error"]
+    return next((c for c in reversed(touches) if c["g"] == rally.get("winner")), touches[-1] if touches else None)
+
+
+def highlight_moments(page: dict) -> list[tuple[dict, dict]]:
+    """The match's best rallies, in match order, as (touch, its clip's start and end, replayed or not): the longest and the match
+    point always, then set points, late ties, long rallies, aces and blocks, both teams, every set and many players shown."""
+    rallies, people = page["rallies"], page.get("people") or {}
+    before = scores_before(rallies)
+    played = [r for r in rallies if r.get("winner") and rally_touch(r, people)]
+    if len(played) < HIGHLIGHTS_LEAST:
+        return []
+    count = lambda r: sum(is_touch(c) for c in r["contacts"])  # noqa: E731
+    longest = max(played, key=lambda r: (count(r), r["end"] - r["start"]))
+    last = played[-1]
+
+    def worth(r: dict) -> float:
+        c, score, was, n = rally_touch(r, people), r.get("score") or [0, 0], before[r["i"]], count(r)
+        following = rallies[r["i"] + 1]["set"] if r["i"] + 1 < len(rallies) else None
+        scored = c is scoring_touch(r)
+        late = max(score) >= LATE and abs(score[0] - score[1]) <= 1 and abs(was[0] - was[1]) <= 1
+        return (3.0 if following != r["set"] else 0) + (3.0 if late else 0) + (0.4 * n if n >= 5 else 0) + (2 + (c.get("speed") or 0) / 40 if scored and c["type"] == "serve" else 0) + (2.0 if scored and c["type"] == "block" else 0) + (1.5 if (c.get("reach") or 0) >= 3.2 else 0)
+
+    def clip(r: dict) -> tuple[float, float]:
+        t = rally_touch(r, people)["t"]
+        return max(r["start"] - BEFORE_RALLY_S, t - (LONGEST_S if r is longest else LEAD_S)), max(t + AFTER_POINT_S, min(r["end"] + 0.3, t + END_S))
+
+    replay_s = (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED
+    room = HIGHLIGHTS_S - INTRO_S - OUTRO_S - HIGHLIGHTS_REPLAYS * replay_s
+    chosen = [longest] if longest is last else [longest, last]
+    room -= sum(clip(r)[1] - clip(r)[0] for r in chosen)
+    while True:
+        def adjusted(r: dict) -> float:
+            c = rally_touch(r, people)
+            shown = [rally_touch(q, people) for q in chosen]
+            name = people[str(c["person"])]["name"]
+            teams = [sum(q["g"] == g for q in shown) for g in (1, 2)]
+            return worth(r) - 1.5 * sum(people[str(q["person"])]["name"] == name for q in shown) - 1.0 * sum(q["type"] == c["type"] for q in shown) + (1.5 if teams[c["g"] - 1] < teams[2 - c["g"]] else 0) + (1.5 if r["set"] not in {q["set"] for q in chosen} else 0)
+
+        left = [r for r in played if r not in chosen and clip(r)[1] - clip(r)[0] <= room]
+        if not left:
+            break
+        best = max(left, key=adjusted)
+        chosen.append(best)
+        room -= clip(best)[1] - clip(best)[0]
+    replayed = {last["i"], *sorted((r["i"] for r in chosen if r is not last), key=lambda k: -worth(rallies[k]))[: HIGHLIGHTS_REPLAYS - 1]}
+    return [(rally_touch(r, people), {"start": clip(r)[0], "end": clip(r)[1], "replayed": r["i"] in replayed}) for r in sorted(chosen, key=lambda r: r["start"])]
+
+
+def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
+    """What the match's film shows."""
+    rallies, contacts, people = page["rallies"], page["contacts"], page.get("people") or {}
+    moments = highlight_moments(page)
+    if not moments:
+        return None
+    shots, at = [], 0.0
+
+    def add(kind: str, length: float, start: float, speed: float, c: dict) -> None:
+        nonlocal at
+        shots.append({"kind": kind, "start": at, "length": length, "from": start, "speed": speed, "contact": c["i"], "rally": c["rally"], "who": who_of(c["person"], people)})
+        at += length
+
+    add("intro", INTRO_S, moments[0][0]["t"] - LEAD_S, 1, moments[0][0])
+    for c, span in moments:
+        add("live", span["end"] - span["start"], span["start"], 1, c)
+        if span["replayed"]:
+            add("replay", (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED, c["t"] - REPLAY_BEFORE_S, REPLAY_SPEED, c)
+    add("outro", OUTRO_S, moments[-1][0]["t"], 1, moments[-1][0])
+    before = scores_before(rallies)
+    used = sorted({s["rally"] for s in shots})
+    fast = max((c for c in contacts if c.get("speed") is not None and people.get(str(c.get("person")), {}).get("name")), key=lambda c: c["speed"], default=None)
+    sets = page.get("scores") or [f"{r['score'][0]}-{r['score'][1]}" for k, r in enumerate(rallies) if r.get("score") and (k + 1 == len(rallies) or rallies[k + 1]["set"] != r["set"])]
+    won = [int(a) > int(b) for a, b in (x.split("-") for x in sets)]
+    film = {
+        "version": VERSION,
+        "stamp": stamp,
+        "kind": "highlights",
+        "name": HIGHLIGHTS,
+        "team": None,
+        "persons": [],
+        "jersey": None,
+        "teams": [t.get("name") for t in page.get("teams") or []],
+        "colours": [t.get("colour") for t in page.get("teams") or []],
+        "date": page.get("date"),
+        "length": at,
+        "shots": shots,
+        "lines": lines_of(shots, voice_index(site), HIGHLIGHTS),
+        "touches": 0,
+        "points": 0,
+        "fastest": fast["speed"] if fast else 0,
+        "fastestName": people[str(fast["person"])]["name"] if fast else None,
+        "sets": sets,
+        "won": [sum(won), len(won) - sum(won)],
+        "longest": max((sum(is_touch(c) for c in r["contacts"]) for r in rallies), default=0),
+        "rallies": {
+            str(k): {
+                "start": rallies[k]["start"],
+                "end": rallies[k]["end"],
+                "set": rallies[k]["set"],
+                "before": before[k],
+                "score": rallies[k].get("score"),
+                "touches": [[c["i"], c["t"], c["type"], c.get("person"), c.get("result"), c.get("speed"), c.get("reach"), c.get("x"), c.get("y")] for c in rallies[k]["contacts"]],
+            }
+            for k in used
+        },
+    }
+    film["hash"] = hashlib.sha256(json.dumps(film, sort_keys=True).encode()).hexdigest()[:12]
+    film["file"] = "resume.mp4"
+    return film
 
 
 def file_name(name: str, team: int) -> str:
@@ -267,6 +426,9 @@ def plan(page: dict, site: Path, stamp: str = "") -> dict[str, dict]:
         film["hash"] = hashlib.sha256(json.dumps(film, sort_keys=True).encode()).hexdigest()[:12]
         film["file"] = file_name(name, first["team"])
         out[name] = film
+    match_film = highlight_film(page, site, stamp)
+    if match_film:
+        out[HIGHLIGHTS] = match_film
     return out
 
 
@@ -809,8 +971,15 @@ class Maker:
                 out[there] = self.tracks[person][there]
         return out
 
+    def who(self, shot: dict) -> dict:
+        """Whom a shot shows: the film's player, or in the match's film the touch's."""
+        return shot.get("who") or {key: self.film[key] for key in ("name", "team", "persons", "jersey")}
+
     def follow_body(self, shot: dict) -> None:
         """The body the shot follows: the named player, unless their track is not where a server stands."""
+        who = self.who(shot)
+        self.named = self.track(who["persons"])
+        self.named_known = np.flatnonzero(np.isfinite(self.named[:, 0]))
         self.hero, self.known = self.named, self.named_known
         c = self.contact(shot)
         if c["type"] != "serve":
@@ -818,7 +987,7 @@ class Maker:
         k = round(c["t"] / self.step_s)
         here = lambda places: tuple(places[k]) if k < len(places) and np.isfinite(places[k, 0]) else None  # noqa: E731
         people = self.page["people"]
-        team = {p: here(t) for p, t in self.tracks.items() if people.get(str(p), {}).get("team") == self.film["team"] and p not in self.film["persons"] and here(t)}
+        team = {p: here(t) for p, t in self.tracks.items() if people.get(str(p), {}).get("team") == who["team"] and p not in who["persons"] and here(t)}
         other = serving_body(here(self.named), team)
         if other is not None:
             self.hero = self.tracks[other]
@@ -836,13 +1005,11 @@ class Maker:
         """The film of `film` (`plan`) in the file `out`, H.264 with its sound."""
         self.film = film
         self.name = film["name"]
-        self.named = self.track(film["persons"])
-        self.named_known = np.flatnonzero(np.isfinite(self.named[:, 0]))
         self.ball = film_path(self.page, film, self.detected, self.found, self.places, self.cal)
         self.rng = np.random.default_rng(7)
         self.cuts = [s["start"] for s in film["shots"][1:]]
         self.masks: dict[tuple, np.ndarray | None] = {}
-        self.below = " · ".join(x for x in (film["teams"][film["team"] - 1] if film["teams"] else None, self.long_date(film["date"])) if x).upper()
+        self.below = " · ".join(x for x in (film["teams"][film["team"] - 1] if film["teams"] and film["team"] else None, self.long_date(film["date"])) if x).upper()
         silent = out.with_suffix(".video.mp4")
         encoder = subprocess.Popen(
             ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{WIDTH}x{HEIGHT}", "-r", str(int(FPS)), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "29", "-g", "50", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(silent)],
@@ -1160,6 +1327,11 @@ class Maker:
             label, value, unit = "VITESSE", str(int(round(c["speed"] * count))), "KM/H"
         elif c.get("reach"):
             label, value, unit = "HAUTEUR DE FRAPPE", f"{c['reach'] * count:.2f}".replace(".", ","), "M"
+        elif self.film.get("kind") == "highlights":
+            touches = sum(q[2] in TOUCHES for q in self.film["rallies"][str(shot["rally"])]["touches"])
+            if touches < LONG_RALLY:
+                return
+            label, value, unit = "ÉCHANGE", str(int(round(touches * count))), "TOUCHES"
         elif c.get("result") == "point":
             rank = sum(1 for q in self.page["contacts"] if q.get("person") in self.film["persons"] and q.get("result") == "point" and q["t"] <= c["t"])
             label, value, unit = "POINT", str(int(round(rank * count))), f"SUR {self.film['points']}"
@@ -1174,12 +1346,19 @@ class Maker:
             cv2.rectangle(g, (x + 30, y + 150), (x + 300, y + 158), (70, 70, 70), -1)
             cv2.rectangle(g, (x + 30, y + 150), (x + 30 + int(270 * count * min(1, c["speed"] / 110)), y + 158), GOLD, -1)
 
+    def point_at(self, shot: dict) -> float | None:
+        """When a shot's point is won: at its touch, or in the match's film at the end of a rally another touch ended."""
+        c = self.contact(shot)
+        if c.get("result") == "point":
+            return c["t"]
+        return self.film["rallies"][str(shot["rally"])]["end"] if self.film.get("kind") == "highlights" else None
+
     def tower(self, g: np.ndarray, shot: dict, tau: float, moment: float) -> None:
         """The score, as a timing tower, moving as a point lands."""
         rally = self.film["rallies"][str(shot["rally"])]
         before, after = rally["before"], rally["score"] or rally["before"]
-        c = self.contact(shot)
-        landed = shot["kind"] == "live" and c.get("result") == "point" and moment - c["t"] > 0.35
+        at = self.point_at(shot)
+        landed = shot["kind"] == "live" and at is not None and moment - at > 0.35
         shown = after if landed else before
         off = int((1 - out_back(tau / 0.3)) * -520)
         teams = self.film["teams"] or ["", ""]
@@ -1195,7 +1374,8 @@ class Maker:
 
     def caption(self, g: np.ndarray, shot: dict, tau: float) -> None:
         off, top = int((1 - out_back((tau - 0.05) / 0.35)) * -760), HEIGHT - 232
-        c, jersey = self.contact(shot), self.film["jersey"]
+        who = self.who(shot)
+        c, jersey = self.contact(shot), who["jersey"]
         if jersey is not None:
             slant(g, 30 + off, top, 104, 118, RED)
             write(g, str(jersey), 86 + off, top + 86, 70, self.din, center=True)
@@ -1204,7 +1384,7 @@ class Maker:
             slant(g, 30 + off, top, 16, 118, RED)
             x = 50
         slant(g, x + off, top, WIDTH - x - 60, 118, INK, 0.88)
-        write(g, self.name.upper(), x + 26 + off, top + 58, 48, self.italic, widest=WIDTH - x - 110)
+        write(g, who["name"].upper(), x + 26 + off, top + 58, 48, self.italic, widest=WIDTH - x - 110)
         action = self.words["actions"].get(c["type"], {}).get(c.get("result"), c["type"])
         write(g, action.upper(), x + 24 + off, top + 98, 28, self.cond, GOLD, widest=WIDTH - x - 110)
         if shot["kind"] == "replay":
@@ -1219,10 +1399,10 @@ class Maker:
 
     def banner(self, g: np.ndarray, shot: dict, moment: float) -> None:
         """A won point."""
-        c = self.contact(shot)
-        age = moment - c["t"] - 0.35
-        if shot["kind"] != "live" or c.get("result") != "point" or age < 0:
+        at = self.point_at(shot)
+        if shot["kind"] != "live" or at is None or moment - at < 0.35:
             return
+        age = moment - at - 0.35
         left = int(30 - float(ease(1.0, 1.2, age)) * 560)
         slant(g, left, HEIGHT - 310, int(400 * out_back(age / 0.22)), 66, GOLD, 1.0, 16)
         if age > 0.14:
@@ -1240,10 +1420,12 @@ class Maker:
     def title_card(self, g: np.ndarray, tau: float) -> None:
         g[:] = (g * 0.42).astype(np.uint8)
         off, off2 = int((1 - out_back((tau - 0.1) / 0.4)) * -760), int((1 - out_back((tau - 0.35) / 0.4)) * 760)
+        match_film = self.film.get("kind") == "highlights"
         of = "d'" if re.match(r"[aeiouyhàâäéèêëîïôöùûü]", self.name, re.I) else "de"
         slant(g, 20 + off, 520, 680, 150, RED, 1.0, 30)
-        write(g, f"LE FILM {of}".upper(), 50 + off, 505, 40, self.cond)
-        write(g, self.name.upper(), WIDTH // 2 + off, 634, 112, self.italic, widest=620, center=True)
+        write(g, "LE RÉSUMÉ DU MATCH" if match_film else f"LE FILM {of}".upper(), 50 + off, 505, 40, self.cond)
+        title = " - ".join(self.film["teams"]) if match_film else self.name
+        write(g, title.upper(), WIDTH // 2 + off, 634, 112, self.italic, widest=620, center=True)
         slant(g, 60 + off2, 680, 620, 50, INK, 1.0, 16)
         write(g, self.below, WIDTH // 2 + off2, 716, 28, self.cond, widest=580, center=True)
 
@@ -1251,18 +1433,26 @@ class Maker:
         g[:] = (g * 0.28).astype(np.uint8)
         off = int((1 - out_back(tau / 0.35)) * -760)
         slant(g, 20 + off, 300, 680, 130, RED, 1.0, 30)
-        write(g, self.name.upper(), WIDTH // 2 + off, 398, 96, self.italic, widest=620, center=True)
         film = self.film
-        rows = [("POINTS", film["points"], ""), ("BALLONS TOUCHÉS", film["touches"], "")]
-        if film["fastest"]:
-            rows.append(("SERVICE LE PLUS RAPIDE", film["fastest"], " KM/H"))
+        if film.get("kind") == "highlights":
+            title = f"{film['teams'][0]}  {film['won'][0]}-{film['won'][1]}  {film['teams'][1]}"
+            rows = [("SETS", None, "   ".join(film["sets"])), ("ÉCHANGE LE PLUS LONG", film["longest"], " TOUCHES")]
+            if film["fastest"]:
+                rows.append(("SERVICE LE PLUS RAPIDE", film["fastest"], f" KM/H · {film['fastestName'].upper()}"))
+        else:
+            title = self.name
+            rows = [("POINTS", film["points"], ""), ("BALLONS TOUCHÉS", film["touches"], "")]
+            if film["fastest"]:
+                rows.append(("SERVICE LE PLUS RAPIDE", film["fastest"], " KM/H"))
+        write(g, title.upper(), WIDTH // 2 + off, 398, 96, self.italic, widest=620, center=True)
         for k, (label, value, unit) in enumerate(rows):
             begin = 0.35 + k * 0.3
             shift, y, count = int((1 - out_back((tau - begin) / 0.3)) * 760), 470 + k * 140, float(ease(begin, begin + 0.7, tau))
             slant(g, 40 + shift, y, 640, 122, INK, 0.92)
             slant(g, 40 + shift, y, 8, 122, GOLD)
             write(g, label, 72 + shift, y + 42, 26, self.cond, GREY, widest=560)
-            write(g, f"{int(round(value * count))}{unit}", 70 + shift, y + 106, 62, self.din, GOLD if count >= 1 else WHITE)
+            shown = unit if value is None else f"{int(round(value * count))}{unit}"
+            write(g, shown, 70 + shift, y + 106, 62, self.din, GOLD if count >= 1 else WHITE, widest=590)
         write(g, self.below, WIDTH // 2, HEIGHT - 120, 28, self.cond, (210, 210, 210), widest=620, center=True)
 
     def sound(self) -> np.ndarray:

@@ -38,10 +38,42 @@ class TestMoments:
         fault = contact(0, 10.0, "attack", 1, result="error")
         assert film.moments_of([rally(0, [fault], [0, 1], 2)], {1}, [fault]) == []
 
+    def test_mixes_the_kinds_of_touch_while_there_is_anything_else_to_show(self):
+        serves = [contact(k, 10.0 * k, "serve", 1, result="point", rally=k) for k in range(5)]
+        others = [contact(5, 50.0, "dig", 1, rally=5), contact(6, 60.0, "pass", 1, rally=6)]
+        mine = [*serves, *others]
+        rallies = [rally(k, [c], [k, 0]) for k, c in enumerate(mine)]
+
+        found = film.moments_of(rallies, {1}, mine)
+
+        assert len(found) == film.MOMENTS
+        assert sum(c["type"] == "serve" for c in found) <= film.SAME_KIND + 1
+        assert {"dig", "pass"} <= {c["type"] for c in found}
+
+    def test_shows_a_kind_again_when_the_player_has_nothing_else(self):
+        serves = [contact(k, 10.0 * k, "serve", 1, rally=k) for k in range(5)]
+        assert len(film.moments_of([rally(k, [c], [0, k + 1], 2) for k, c in enumerate(serves)], {1}, serves)) == film.MOMENTS
+
+    def test_keeps_the_same_kind_apart_where_it_can_the_best_last(self):
+        kinds = ["serve", "attack", "attack", "block", "attack"]
+        found = film.varied([{"type": k, "n": n} for n, k in enumerate(kinds)])
+        assert [c["type"] for c in found] == ["serve", "attack", "block", "attack", "attack"]
+        assert found[-1]["n"] == 4
+
+    def test_moves_a_repeat_away_from_the_best_last(self):
+        found = film.varied([{"type": k} for k in ["serve", "block", "dig", "attack", "attack"]])
+        assert all(a["type"] != b["type"] for a, b in zip(found, found[1:]))
+
+    def test_replays_only_the_measured_first_and_the_best_last(self):
+        cs = [contact(0, 10.0, "serve", 1, speed=50), contact(1, 30.0, "dig", 1, rally=1), contact(2, 50.0, "attack", 1, result="point", rally=2)]
+        shots, _ = film.shots_of(cs, [rally(k, [c], [k, 0], start=c["t"] - 2) for k, c in enumerate(cs)])
+        assert [s["contact"] for s in shots if s["kind"] == "replay"] == [0, 2]
+
     def test_shots_are_a_title_each_moment_played_then_replayed_and_an_end(self):
         c = contact(0, 10.0, "attack", 1, result="point")
         shots, length = film.shots_of([c], [rally(0, [c], [1, 0], start=5.0)])
         assert [s["kind"] for s in shots] == ["intro", "live", "replay", "outro"]
+        assert shots[2]["from"] == pytest.approx(10.0 - film.REPLAY_BEFORE_S)
         assert shots[1]["from"] == pytest.approx(6.5)
         assert shots[1]["length"] == pytest.approx(film.LEAD_S + film.AFTER_POINT_S)
         assert length == pytest.approx(sum(s["length"] for s in shots))
@@ -88,6 +120,61 @@ class TestPlan:
         assert film.status(tmp_path) == {"total": 1, "stale": 0}
         page["people"]["1"]["jersey"] = 9
         assert film.status(tmp_path) == {"total": 1, "stale": 1}
+
+
+class TestHighlights:
+    @staticmethod
+    def page():
+        people = {str(p): {"team": 1 + p % 2, "number": p, "name": f"P{p}", "jersey": p} for p in range(1, 7)}
+        rallies, contacts = [], []
+        scores = [0, 0]
+        for k in range(30):
+            number = 1 if k < 15 else 2
+            if k == 15:
+                scores = [0, 0]
+            winner = 1 + k % 2
+            scores[winner - 1] += 1
+            person = 1 + k % 6
+            team = 1 + person % 2
+            count = 12 if k == 7 else 1
+            touches = []
+            for n in range(count):
+                touches.append({"i": len(contacts), "t": 100.0 * k + n, "f": (100 * k + n) * 50, "type": "set" if n < count - 1 else "attack", "person": person, "g": team, "team": team, "result": "point" if n == count - 1 and team == winner else "play", "rally": k})
+                contacts.append(touches[-1])
+            rallies.append({"i": k, "contacts": touches, "score": list(scores), "winner": winner, "set": number, "start": 100.0 * k - 1, "end": 100.0 * k + count})
+        return {"rallies": rallies, "contacts": contacts, "people": people, "teams": [{"name": "A"}, {"name": "B"}], "scores": ["8-7", "8-7"], "positions": {"step": 5}, "date": "2026-10-29"}
+
+    def test_keeps_the_longest_rally_and_the_match_point_in_match_order_within_its_length(self, tmp_path):
+        film_ = film.highlight_film(self.page(), tmp_path, "")
+        lives = [s for s in film_["shots"] if s["kind"] == "live"]
+
+        assert 7 in [s["rally"] for s in lives] and lives[-1]["rally"] == 29
+        assert [s["rally"] for s in lives] == sorted(s["rally"] for s in lives)
+        assert film_["length"] <= film.HIGHLIGHTS_S + 0.01
+        assert sum(s["kind"] == "replay" for s in film_["shots"]) == film.HIGHLIGHTS_REPLAYS
+        assert (film_["longest"], film_["won"]) == (12, [2, 0])
+
+    def test_shows_every_set_both_teams_and_each_touch_s_own_player(self, tmp_path):
+        film_ = film.highlight_film(self.page(), tmp_path, "")
+        lives = [s for s in film_["shots"] if s["kind"] == "live"]
+
+        assert {film_["rallies"][str(s["rally"])]["set"] for s in lives} == {1, 2}
+        assert {s["who"]["team"] for s in lives} == {1, 2}
+        assert all(s["who"]["name"] == f"P{TestHighlights.page()['contacts'][s['contact']]['person']}" for s in lives)
+
+    def test_names_no_one_for_a_fault(self):
+        winner_touch = contact(0, 10.0, "set", 1)
+        fault = contact(1, 11.0, "attack", 1, result="error")
+        people = {"1": {"name": "Ana"}}
+        assert film.rally_touch(rally(0, [winner_touch, fault], [1, 0]), people) is winner_touch
+
+    def test_a_too_short_match_has_no_film(self, tmp_path):
+        assert film.highlight_film(TestPlan.page(), tmp_path, "") is None
+
+    def test_the_longest_rally_shows_its_end_when_too_long(self):
+        page = self.page()
+        [(_, span)] = [m for m in film.highlight_moments(page) if m[0]["rally"] == 7]
+        assert span["end"] - span["start"] <= film.LONGEST_S + film.END_S
 
 
 class TestServingBody:

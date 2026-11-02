@@ -102,7 +102,7 @@ odd and even correlate 0.75 over 10 players, and it follows their own heights at
 Left open: along a serve's flight the ball shows almost no slowing (-0.06 m/s2) where drag should show, unexplained; a radar, then the second match, should settle both.
 
 "Ton film": a player's vertical film cut from the real video like a broadcast, about 6 MB for 38 s, made ahead of time by the review's button (`film.py`, `outputs/MATCH/films/`), only those whose `plan` changed; never during an apply. It goes only beside a page with the video, so hosted only behind the password. The moments are those the 3D film had (removed, 2 Nov: git history). The ball: searched again around the first pass at up to 4 times the detail (`film_ball.json`, kept), what stays still dropped, the longest chain a ball could follow, flights split where its velocity changes; a touch's recorded frame can be some frames off. Frames are cut by their real times (`frame_times.npy`). On Olivier's 4 live moments the path is on the ball on every 4th frame checked. At a serve a named track inside the court follows the teammate behind the line (one moment on the first match); elsewhere a track slip still shows: a ball's 3D place is too often off to correct it by (13 of 72 moments would change, most wrongly).
-Idea left (the owner, 2 Nov): a match highlights film of about 1 minute, the same way, from the most impressive points and the longest rally.
+The match's own film (`film.HIGHLIGHTS`, about a minute, on the same button): the longest rally's end and the match point, then set points, late ties, long rallies, aces and blocks, across the sets, both teams and many players, in match order; a touch at fault is never the one named.
 
 ## Page: players' movements (2 Nov)
 
