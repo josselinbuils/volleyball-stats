@@ -1,6 +1,5 @@
 /** A clock standing in for the video when the page holds none: the video's controls and playlists
- * drive it the same way, and the court's top view follows its time. `element` is what it scrolls to
- * and puts full screen. */
+ * drive it the same way, and the court's top view follows its time. `element` is what it scrolls to. */
 export class Clock extends EventTarget {
   #time = 0;
   #paused = true;
@@ -42,10 +41,6 @@ export class Clock extends EventTarget {
   set playbackRate(rate: number) {
     this.#rate = rate;
     this.dispatchEvent(new Event('ratechange'));
-  }
-
-  get parentElement(): HTMLElement {
-    return this.element;
   }
 
   play(): Promise<void> {

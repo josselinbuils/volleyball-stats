@@ -636,8 +636,15 @@
       "mvpWhy": "MVP du match : le meilleur bilan par minute de jeu, points marqués moins fautes, de tous les joueurs des deux équipes qui ont joué au moins la moitié du temps du plus présent. {{points}} points marqués (attaques, aces, contres) pour {{faults}} fautes en {{time}} de jeu : +{{balance}}."
     }
   },
+  "layout": {
+    "views": "Vues affichées",
+    "move": "Déplacer : {{view}}",
+    "zoom": "Agrandir",
+    "restore": "Réduire",
+    "resize": "Redimensionner",
+    "swap": "Inverser"
+  },
   "scene3d": {
-    "label": "Vue du terrain",
     "2d": "2D",
     "3d": "3D",
     "loading": "Chargement de la vue 3D…",

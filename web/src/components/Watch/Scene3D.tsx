@@ -108,7 +108,7 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
   }, [state, status, dark]);
 
   return (
-    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40 [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full [:fullscreen_&]:rounded-none">
+    <div className="relative size-full overflow-hidden bg-muted/40">
       <div
         ref={box}
         className="absolute inset-0 touch-none [&>canvas]:block [&>canvas]:size-full"
@@ -119,7 +119,7 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
       {overlay}
       {status === 'ready' && badge && (
         <p
-          className="absolute top-2 right-2 m-0 [:fullscreen_&]:top-auto [:fullscreen_&]:bottom-2 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground"
+          className="absolute top-2 right-2 m-0 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground"
           title={t(match.ball3d ? 'scene3d.noteFound' : 'scene3d.note')}
         >
           {t(match.ball3d ? 'scene3d.badgeFound' : 'scene3d.badge')}

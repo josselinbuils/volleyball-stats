@@ -36,6 +36,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   `npm run build` in `web/` and commit the build with it. It makes the page, `scene3d.js` (three.js)
   that the page loads only when the 3D view is shown, and in `matches_site/` the list of the hosted
   matches (`matches.html`, `src/matches.tsx`).
+- The page's video, 2D, 3D and TV views share one area (`Watch/Stage.tsx`, sizes in `Watch/helpers/layout.ts`): shown or hidden from the controls, resized and swapped by the bars between them, each title dragged onto another view; the page and full screen keep a layout each (`watch-layout` in the browser). A hidden video still plays: it sets the page's time.
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
 

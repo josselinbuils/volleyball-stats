@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement, type ReactNode, type RefObject } from 'react';
 import { Focus, Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -12,8 +12,21 @@ import { span as allowed } from '@/components/Watch/helpers/span';
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
 
-/** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
-export function VideoControls({ light = false, follow, onFollow }: { light?: boolean; follow?: boolean; onFollow?: () => void }) {
+/** The video's controls, its timeline limited to the set the page shows; `light` on a light background,
+ * `stage` what goes full screen, `children` beside the full screen button. */
+export function VideoControls({
+  light = false,
+  stage,
+  follow,
+  onFollow,
+  children,
+}: {
+  light?: boolean;
+  stage: RefObject<HTMLElement | null>;
+  follow?: boolean;
+  onFollow?: () => void;
+  children?: ReactNode;
+}) {
   const { t } = useTranslation();
   const { video, loop, setLoop } = usePlayer();
   const { set, rallies } = useSet();
@@ -77,13 +90,13 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   }, [video, span]);
 
   // iPhones put only a video full screen, not the court's replay.
-  const fullscreen = !!video?.parentElement?.requestFullscreen || (video !== null && 'webkitEnterFullscreen' in video);
+  const fullscreen = !!document.documentElement.requestFullscreen || (video !== null && 'webkitEnterFullscreen' in video);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
-    } else if (video?.parentElement?.requestFullscreen) {
+    } else if (stage.current?.requestFullscreen) {
       // A phone turns to landscape, the court's shape, until full screen ends; iPhones cannot lock it.
-      video.parentElement
+      stage.current
         .requestFullscreen()
         .then(() => {
           if (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600) {
@@ -115,7 +128,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
 
   return (
     // On a phone the timeline takes its own row above the buttons. Over the video zoomed on the ball, which runs past its box.
-    <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'relative z-10 bg-black text-white')}>
+    <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'bg-muted text-foreground' : 'relative z-10 bg-black text-white')}>
       <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')} full={state.full}>
         <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
           {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
@@ -176,6 +189,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
           </button>
         </Tip>
       )}
+      {children}
       {fullscreen && (
         <Tip label={t(state.full ? 'exitFullscreen' : 'fullscreen')} full={state.full}>
           <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>

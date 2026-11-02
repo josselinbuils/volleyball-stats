@@ -31,7 +31,7 @@ interface Report {
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 /** A viewer reporting what is wrong in the moment shown, from a button over the top right corner of the
- * video, else (`inline`) in the court replay's title bar: one tap sends the moment (the clip playing,
+ * video, else (`inline`) in the box beside the score: one tap sends the moment (the clip playing,
  * else the rally the video is on), then "Préciser" opens a dialog to say what is wrong and comment,
  * sent as the same report to `match.feedback`, to correct the analysis later. */
 export function Feedback({ inline = false }: { inline?: boolean }) {
@@ -100,7 +100,7 @@ export function Feedback({ inline = false }: { inline?: boolean }) {
     ? 'inline-flex h-8 items-center gap-1.5 rounded-md border bg-card px-2.5 text-xs font-medium shadow-xs outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
     : 'inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm outline-none hover:bg-black/75 focus-visible:ring-3 focus-visible:ring-white/60';
   return (
-    <div className={cn('flex items-center gap-1.5', inline ? 'relative shrink-0' : 'absolute top-2 right-2 z-10')}>
+    <div className={cn('flex items-center gap-1.5', inline ? 'relative shrink-0' : 'absolute top-2 right-2 z-10 max-w-[calc(100%-1rem)] flex-wrap justify-end')}>
       <button type="button" title={t('feedback.open')} disabled={state === 'sending'} onClick={flag} className={look}>
         {state === 'sent' ? <Check aria-hidden className={inline ? 'size-3.5' : 'size-4'} /> : <Flag aria-hidden className={inline ? 'size-3.5' : 'size-4'} />}
         <span role="status">{t(state === 'sent' ? 'feedback.thanksShort' : state === 'sending' ? 'feedback.sending' : state === 'failed' ? 'feedback.retry' : 'feedback.button')}</span>

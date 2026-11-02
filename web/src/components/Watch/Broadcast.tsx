@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Play, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,9 @@ const JUMP_S = 1;
 const LOADED_AHEAD = 3;
 
 const speaks = () => typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+
+/** Whether the TV view has a voice here: the match's recorded one or the browser's. */
+export const canSpeak = () => !!match.voice || speaks();
 
 /** What the TV view shows over the picture: the score, the replay's tag and the commentary. */
 export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: number; rally: number | null; replay: ReplayMoment | null; score: Score | null; voice: boolean }) {
@@ -170,7 +173,6 @@ export function BroadcastControls({ voice, onVoice }: { voice: boolean; onVoice:
   const { rallies } = useSet();
   const chosen = useMemo(() => replays(allRallies), []);
   const clips = useMemo(() => broadcastClips(rallies, chosen, match.duration), [rallies, chosen]);
-  const [canSpeak] = useState(() => match.voice || speaks());
   return (
     <div className="mt-3 grid gap-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -178,7 +180,7 @@ export function BroadcastControls({ voice, onVoice }: { voice: boolean; onVoice:
           <Play aria-hidden />
           {t('broadcast.watch')}
         </Button>
-        {canSpeak && (
+        {canSpeak() && (
           <Button size="sm" variant="outline" aria-pressed={voice} onClick={() => onVoice(!voice)}>
             {voice ? <Volume2 aria-hidden /> : <VolumeX aria-hidden />}
             {t(voice ? 'broadcast.voiceOn' : 'broadcast.voiceOff')}

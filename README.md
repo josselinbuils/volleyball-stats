@@ -383,7 +383,7 @@ the longest rally.
 
 ### Mode TV
 
-The view's "TV" switch films the match like a broadcast, in a 3D model of the first match's gym, with no footage, so the
+The "TV" view films the match like a broadcast, in a 3D model of the first match's gym, with no footage, so the
 whole match can be public without anyone's consent. "Regarder le match" plays every rally of the set shown, one after another.
 
 - **Ball:** each flight is an arc under gravity between two touches, each touch placed in 3D where the path best matches

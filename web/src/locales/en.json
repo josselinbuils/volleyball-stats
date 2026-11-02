@@ -636,8 +636,15 @@
       "mvpWhy": "Match MVP: the best balance per minute played, points won minus faults, of every player of both teams on the court at least half as long as the longest. {{points}} points won (attacks, aces, blocks) for {{faults}} faults in {{time}} played: +{{balance}}."
     }
   },
+  "layout": {
+    "views": "Views shown",
+    "move": "Move: {{view}}",
+    "zoom": "Enlarge",
+    "restore": "Back",
+    "resize": "Resize",
+    "swap": "Swap"
+  },
   "scene3d": {
-    "label": "Court view",
     "2d": "2D",
     "3d": "3D",
     "loading": "Loading the 3D view…",
