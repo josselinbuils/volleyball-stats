@@ -778,18 +778,7 @@
     "duoAttacks_one": "{{count}} attaque",
     "duoAttacks_other": "{{count}} attaques",
     "duoWon_one": "{{count}} gagnante",
-    "duoWon_other": "{{count}} gagnantes",
-    "film": {
-      "create": "Créer mon film",
-      "preparing": "Préparation du film…",
-      "recording": "Encore {{left}} s. Gardez cette page ouverte.",
-      "failed": "Le film n'a pas pu être créé.",
-      "stopped": "Film interrompu : gardez la page ouverte.",
-      "save": "Enregistrer le film",
-      "again": "Recommencer",
-      "titleAbove": "Le film {{of}}",
-      "serveSpeed": "Service à {{speed}} km/h"
-    }
+    "duoWon_other": "{{count}} gagnantes"
   },
   "trophies": {
     "title": "Les trophées",

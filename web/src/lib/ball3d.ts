@@ -9,7 +9,6 @@ declare global {
   }
 }
 
-const WAIT_MS = 20000;
 let places: Map<number, Point3> | null = null;
 let started = false;
 const listeners = new Set<() => void>();
@@ -35,23 +34,6 @@ export function loadBall3d() {
     started = false;
   };
   document.head.append(script);
-}
-
-/** The touches' 3D places once loaded, null if the match has none or they don't come. */
-export function ball3dLoaded(): Promise<Map<number, Point3> | null> {
-  loadBall3d();
-  if (places || !match.ball3d) {
-    return Promise.resolve(places);
-  }
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), WAIT_MS);
-    const done = () => {
-      clearTimeout(timer);
-      listeners.delete(done);
-      resolve(places);
-    };
-    listeners.add(done);
-  });
 }
 
 /** The touches' 3D places by index in the contacts, null until loaded. */

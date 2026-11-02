@@ -101,9 +101,7 @@ contact frames +-2 move one attack 0.17 m (0.33 at 90%) and a player's median at
 odd and even correlate 0.75 over 10 players, and it follows their own heights at 0.71, 0.86 m above the head. The scale: heads on court 1.79 m, gravity found 9.4-10.4 m/s2.
 Left open: along a serve's flight the ball shows almost no slowing (-0.06 m/s2) where drag should show, unexplained; a radar, then the second match, should settle both.
 
-"Ton film" (`web/src/components/MyMatch/Film.tsx`, `helpers/film.ts`): a vertical film of under 45 s of a player's match in the page's 3D, 720x1280, made in
-the viewer's browser and leaving it only if they save it: a title, up to 4 moments each played then replayed slowly, an end. It records live with `MediaRecorder`, so it takes the film's length,
-the page must stay open, a slow device drops frames. Checked in headless Chrome only (10 frames a second on its software 3D): not yet on a phone.
+"Ton film": decided on 2 Nov, a player's vertical film cut from the real video, broadcast style, built ahead of time behind the password (no footage on the public page). The 3D version made in the browser is removed (git: `web/src/components/MyMatch/helpers/film.ts` holds how it picks the moments, before this removal). The prototype, in `outputs/film-prototype/` (not committed, real names), makes Olivier's: about 6 MB for 38 s. Its ball: searched again around the first pass at up to 4 times the detail, what stays still dropped, the longest chain a ball could follow, flights split where its velocity changes; a touch's recorded frame can be some frames off.
 
 ## Page: players' movements (2 Nov)
 

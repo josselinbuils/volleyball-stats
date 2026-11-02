@@ -13,7 +13,6 @@ declare global {
   }
 }
 
-const WAIT_MS = 20000;
 let recorded: Recorded | null = null;
 let started = false;
 const listeners = new Set<() => void>();
@@ -34,23 +33,6 @@ export function loadVoice() {
     started = false;
   };
   document.head.append(script);
-}
-
-/** The commentary's audio once loaded, null if the match has none or it doesn't come. */
-export function voiceLoaded(): Promise<Recorded | null> {
-  loadVoice();
-  if (recorded || !match.voice) {
-    return Promise.resolve(recorded);
-  }
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), WAIT_MS);
-    const done = () => {
-      clearTimeout(timer);
-      listeners.delete(done);
-      resolve(recorded);
-    };
-    listeners.add(done);
-  });
 }
 
 export function useRecorded(): Recorded | null {

@@ -51,7 +51,6 @@ export function filesAt(time: number, seconds: number, files: number): number[] 
   return [file, ...(time - file * seconds >= seconds - AHEAD_S ? [file + 1] : [])].filter((n) => n >= 0 && n < files);
 }
 
-const WAIT_MS = 20000;
 const positions = match.positions;
 /** `none` when the match has no player positions. */
 type State = Players | 'none';
@@ -99,29 +98,6 @@ export function positionsPending(time: number): boolean {
   }
   const sample = Math.round((time * match.fps) / positions.step);
   return sample < positions.every * positions.files && state.samples[sample] === undefined;
-}
-
-/** The positions once those at each of `times` have arrived, or after a wait for those that don't come. */
-export function playersLoaded(times: number[]): Promise<State> {
-  times.forEach(loadPlayersAt);
-  const pending = () => times.some(positionsPending);
-  if (!pending()) {
-    return Promise.resolve(state);
-  }
-  return new Promise((resolve) => {
-    const done = () => {
-      clearTimeout(timer);
-      listeners.delete(check);
-      resolve(state);
-    };
-    const check = () => {
-      if (!pending()) {
-        done();
-      }
-    };
-    const timer = setTimeout(done, WAIT_MS);
-    listeners.add(check);
-  });
 }
 
 export function usePlayers(): State {
