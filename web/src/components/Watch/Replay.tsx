@@ -11,9 +11,9 @@ import { playerKey, playersAt } from '@/helpers/players';
 import { useBall3d } from '@/lib/ball3d';
 import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
-import { ballAt, hasTapedFeet, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
-import { ball3dAt, trail3dAt } from '@/components/Watch/helpers/flight';
-import { ballBeforeServe, bodyOf, posesAt, SPEED_S } from '@/components/Watch/helpers/pose';
+import { ballAt, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+import { sceneAt } from '@/components/Watch/helpers/sceneAt';
+import { bodyOf, posesAt, SPEED_S } from '@/components/Watch/helpers/pose';
 import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
 import { BroadcastControls, BroadcastOverlay } from '@/components/Watch/Broadcast';
 import { Feedback } from '@/components/Watch/Feedback';
@@ -137,32 +137,20 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
           <Scene3D
             badge={!tv}
             overlay={tv ? <BroadcastOverlay time={time} rally={playing?.i ?? null} replay={replay} score={score} voice={voice} /> : null}
-            state={{
-              players: dots.map(({ person, x, y }) => {
-                const pose = poses?.get(person);
-                return {
-                  key: person,
-                  x: x + (pose?.shift.x ?? 0),
-                  y: y + (pose?.shift.y ?? 0),
-                  jump: pose?.jump ?? 0,
-                  pose,
-                  team: match.people[person]?.team ?? 1,
-                  label: playerMark(person) ?? '',
-                  tip: person === hover ? (tip ?? undefined) : undefined,
-                  taped: hasTapedFeet(match.people[person]?.name),
-                };
-              }),
-              ball: rally ? ballBeforeServe(rally, moment, server, places, ball3dAt(rally.contacts, moment, places)) : null,
-              trail: rally ? trail3dAt(rally.contacts, moment, places) : [],
-              rings: touches.flatMap(({ touch, f }) => {
-                const at = dots.find((d) => d.person === touch.person) ?? (touch.x !== null && touch.y !== null ? { x: touch.x, y: touch.y } : null);
-                return at ? [{ x: at.x, y: at.y, f }] : [];
-              }),
+            state={sceneAt({
+              dots,
+              poses,
+              rally,
+              moment,
+              touches,
               landings,
+              server,
+              places,
               board: score && { teams: [groupName(t, 1), groupName(t, 2)], score: score.score, set: t('set', { n: score.set }) },
               camera,
               hidden: followed?.person ?? null,
-            }}
+              tipOf: (person) => (person === hover ? (tip ?? undefined) : undefined),
+            })}
             onHover={setHover}
           />
         )}

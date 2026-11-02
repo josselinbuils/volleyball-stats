@@ -7,7 +7,7 @@ import type { Scene, SceneState } from '@/scene3d/scene';
 let loading: Promise<void> | null = null;
 
 /** scene3d.js, beside the page, loaded once on the first 3D view. */
-function load(): Promise<void> {
+export function loadScene(): Promise<void> {
   loading ??= new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = versioned('scene3d.js');
@@ -53,6 +53,19 @@ function rgb(color: string): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+/** The page's colours for the scene: read when asked, its theme can change. */
+export function sceneColors(): SceneState['colors'] {
+  const css = getComputedStyle(document.documentElement);
+  const get = (name: string) => rgb(css.getPropertyValue(`--${name}`).trim());
+  return {
+    team: [get('team1'), get('team2')],
+    teamText: [get('team1-text'), get('team2-text')],
+    floor: get('muted'),
+    foreground: get('foreground'),
+    primary: get('primary'),
+  };
+}
+
 /** The 3D scene of the court at the moment `state` describes, turned with the pointer; `onHover`
  * hears of the player under the pointer, null when none or while turning. */
 export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit<SceneState, 'colors'>; onHover: (key: number | null) => void; badge?: boolean; overlay?: ReactNode }) {
@@ -71,7 +84,7 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
   useEffect(() => {
     let gone = false;
     loadBall3d();
-    load()
+    loadScene()
       .then(() => {
         if (!gone && box.current && window.VolleyScene) {
           scene.current = window.VolleyScene.mount(box.current, match.brand?.sponsors ?? []);
@@ -91,18 +104,7 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
     if (status !== 'ready' || !scene.current) {
       return;
     }
-    const css = getComputedStyle(document.documentElement);
-    const get = (name: string) => rgb(css.getPropertyValue(`--${name}`).trim());
-    scene.current.update({
-      ...state,
-      colors: {
-        team: [get('team1'), get('team2')],
-        teamText: [get('team1-text'), get('team2-text')],
-        floor: get('muted'),
-        foreground: get('foreground'),
-        primary: get('primary'),
-      },
-    });
+    scene.current.update({ ...state, colors: sceneColors() });
   }, [state, status, dark]);
 
   return (

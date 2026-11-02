@@ -39,6 +39,9 @@ export interface SceneState {
 
 export interface Scene {
   update: (state: SceneState) => void;
+  /** Draws now, for a caller reading the canvas in the same task. */
+  render: () => void;
+  canvas: HTMLCanvasElement;
   /** The key of the player at a point of the page, if any. */
   pick: (clientX: number, clientY: number) => number | null;
   dispose: () => void;
@@ -183,9 +186,9 @@ function tag(text: string, background: string, color: string): THREE.Sprite {
 
 /** The scene in `element`: a court, its net, the players and the ball, turned with the pointer;
  * it draws only when something changes. */
-export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
+export function mount(element: HTMLElement, sponsors: Sponsor[] = [], { pixelRatio, manual = false, tipPx = TIP_PX }: { pixelRatio?: number; manual?: boolean; tipPx?: number } = {}): Scene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(pixelRatio ?? Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   element.append(renderer.domElement);
@@ -466,7 +469,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     }
   };
   const request = () => {
-    frame ||= requestAnimationFrame(draw);
+    if (!manual) {
+      frame ||= requestAnimationFrame(draw);
+    }
   };
   let moving = false;
   // The TV director holds the camera: the view the pointer left comes back after.
@@ -499,6 +504,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   resize();
 
   return {
+    canvas: renderer.domElement,
+    render: () => renderer.render(scene, camera),
     update(state) {
       const { colors } = state;
       hall.frame.visible = !!state.camera;
@@ -563,7 +570,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       if (tipped?.tip) {
         tip ??= { text: tipped.tip, sprite: tag(tipped.tip, colors.foreground, colors.floor) };
         // Unattenuated sprites are sized as at 1 m from the camera.
-        const height = (TIP_PX / Math.max(1, renderer.domElement.clientHeight)) * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        const height = (tipPx / Math.max(1, renderer.domElement.clientHeight)) * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
         tip.sprite.scale.set(height * tip.sprite.userData.aspect, height, 1);
         tip.sprite.position.copy(at(tipped.x, tipped.y, tipped.jump + 2.4));
         scene.add(tip.sprite);

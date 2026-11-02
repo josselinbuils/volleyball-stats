@@ -11,6 +11,7 @@ import { groupName, match, playerLabel, playerMark, teamColor, type Contact, typ
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { cardPicture, SHIELD } from '@/components/Stats/helpers/cardPicture';
+import { fileName, saveFile } from '@/components/MyMatch/helpers/saveFile';
 import type { Best } from '@/components/Stats/helpers/best';
 import type { Stat } from '@/components/Stats/helpers/stats';
 import { GOLD_CSS, Mvp } from '@/components/Stats/Mvp';
@@ -77,23 +78,7 @@ export function PlayerCard({ row: r, g, mvp }: CardProps) {
   };
   // The clipboard takes the picture still being drawn, within the click.
   const copy = () => void navigator.clipboard.write([new ClipboardItem({ 'image/png': new Promise<Blob>((resolve) => picture(resolve)) })]).catch(() => {});
-  const save = (blob: Blob) => {
-    const name = cardName(t, r.key)
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-');
-    const file = new File([blob], `carte-${name}.png`, { type: 'image/png' });
-    if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
-      void navigator.share({ files: [file] }).catch(() => {});
-      return;
-    }
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(file);
-    link.download = file.name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-  };
+  const save = (blob: Blob) => saveFile(new File([blob], `carte-${fileName(cardName(t, r.key))}.png`, { type: 'image/png' }));
   return (
     <div className="grid gap-2">
       <ContextMenu>

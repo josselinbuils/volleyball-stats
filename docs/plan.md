@@ -101,6 +101,10 @@ contact frames +-2 move one attack 0.17 m (0.33 at 90%) and a player's median at
 odd and even correlate 0.75 over 10 players, and it follows their own heights at 0.71, 0.86 m above the head. The scale: heads on court 1.79 m, gravity found 9.4-10.4 m/s2.
 Left open: along a serve's flight the ball shows almost no slowing (-0.06 m/s2) where drag should show, unexplained; a radar, then the second match, should settle both.
 
+"Ton film" (`web/src/components/MyMatch/Film.tsx`, `helpers/film.ts`): a vertical film of under 45 s of a player's match in the page's 3D, 720x1280, made in
+the viewer's browser and leaving it only if they save it: a title, up to 4 moments each played then replayed slowly, an end. It records live with `MediaRecorder`, so it takes the film's length,
+the page must stay open, a slow device drops frames. Checked in headless Chrome only (10 frames a second on its software 3D): not yet on a phone.
+
 ## Page: lighter (1 Nov)
 
 The players' positions are one file a minute (`positions/N.js`, 13 KB compressed), loaded as the replay reaches

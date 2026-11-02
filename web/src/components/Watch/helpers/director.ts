@@ -101,7 +101,7 @@ export function broadcastClips(rallies: Rally[], chosen: Map<number, Contact>, d
   });
 }
 
-function smoothBall(contacts: Contact[], time: number, places: Places): Point3 | null {
+export function smoothBall(contacts: Contact[], time: number, places: Places): Point3 | null {
   const sum = { x: 0, y: 0, h: 0 };
   let n = 0;
   for (let k = -SMOOTH_STEPS; k <= SMOOTH_STEPS; k++) {

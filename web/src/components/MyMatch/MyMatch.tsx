@@ -19,6 +19,7 @@ import { strengths, toWorkOn } from '@/components/Stats/helpers/strengths';
 import { lines, type Stat } from '@/components/Stats/helpers/stats';
 import { InsightChip } from '@/components/Stats/StatsTable';
 import { highlights, measures, tops } from '@/components/MyMatch/helpers/myMatch';
+import { Film } from '@/components/MyMatch/Film';
 import { PlayerCard, type CardRow } from '@/components/MyMatch/PlayerCard';
 
 // What a player can lead their team in.
@@ -142,6 +143,7 @@ function Player({ player }: { player: string }) {
             <Replay picked={line.stats.touches} title={title} label={t('myMatch.replayAll', { count: line.stats.touches.length })} primary />
             {line.stats.points.length > 0 && <Replay picked={line.stats.points} title={title} label={t('myMatch.replayPoints', { count: line.stats.points.length })} />}
           </div>
+          <Film key={player} person={line.id} group={g} />
           {(leads.length > 0 || chips.length > 0) && (
             <div className="flex flex-wrap gap-1">
               {leads.map((stat) => (

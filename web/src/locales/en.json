@@ -774,7 +774,18 @@
     "duoAttacks_one": "{{count}} attack",
     "duoAttacks_other": "{{count}} attacks",
     "duoWon_one": "{{count}} won",
-    "duoWon_other": "{{count}} won"
+    "duoWon_other": "{{count}} won",
+    "film": {
+      "create": "Make my film",
+      "preparing": "Preparing the film…",
+      "recording": "{{left}} s left. Keep this page open.",
+      "failed": "The film could not be made.",
+      "stopped": "Film stopped: keep the page open.",
+      "save": "Save the film",
+      "again": "Start again",
+      "titleAbove": "The film of",
+      "serveSpeed": "Serve at {{speed}} km/h"
+    }
   },
   "trophies": {
     "title": "The trophies",
