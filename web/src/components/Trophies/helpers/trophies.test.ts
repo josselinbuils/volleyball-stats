@@ -59,4 +59,12 @@ describe('trophies', () => {
     expect(found.find((x) => x.kind === 'serveRun')).toMatchObject({ people: [1], n: 3, rallies: [0, 1, 2] });
     expect(found.find((x) => x.kind === 'longest')).toMatchObject({ n: 3, rally: rallies[1] });
   });
+
+  it('gives the fastest serve, once enough are measured', () => {
+    const served = (rally: number, person: number, speed?: number) => ({ ...touch(rally, 'serve', person), speed });
+    const few = [served(0, 1, 60), served(1, 3, 40), served(2, 3, 41), served(3, 3), served(4, 3)];
+    expect(played(few).find((x) => x.kind === 'fastServe')).toBeUndefined();
+    const enough = [served(0, 1, 60), served(1, 3, 40), served(2, 3, 41), served(3, 3, 42), served(4, 2, 45)];
+    expect(played(enough).find((x) => x.kind === 'fastServe')).toMatchObject({ people: [1], n: 60, contacts: [enough[0]] });
+  });
 });

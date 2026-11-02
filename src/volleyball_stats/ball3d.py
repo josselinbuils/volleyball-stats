@@ -6,6 +6,7 @@ ball track, the touches' floor positions and a typical height for each action, s
 """
 
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 
@@ -28,6 +29,14 @@ ROBUST_4K = 15.0
 ROUNDS = 8
 # Past these the fit is wrong: the action's height and the feet stay.
 HIGHEST_M, FARTHEST_X, FARTHEST_Y = 6.0, 14.0, 9.0
+# A serve's speed is read in mid-flight: the contacts' frames are a flight's least sure part and the strike is often
+# hidden. `benchmarks/ball3d/measures.py` scores these limits. No radar checked them: one would say how far a mid-flight
+# speed stands from a speed at the strike.
+SERVE_TRIM_S, SERVE_SHORTEST_S, SERVE_SEEN, SERVE_LEAST_SEEN = 0.2, 0.4, 0.6, 12
+SERVE_AWAY_X, SERVE_FARTHEST_Y, SERVE_SHORTEST_M, SERVE_WORST_4K = 3.0, 7.0, 3.0, 12.0
+AFTER_SERVE = {"pass", "dig", "relance", "set", "attack", "block"}
+# One attack's height swings with its contact's frame: the page only shows a player's median over several.
+ATTACK_LOWEST_M, ATTACK_HIGHEST_M, ATTACK_AROUND_S, ATTACK_SEEN = 1.8, 3.8, 0.3, 0.65
 
 
 def projection(calibration: Calibration) -> np.ndarray | None:
@@ -144,7 +153,7 @@ def read_sightings(path: Path, calibration: Calibration, frames: list[tuple[int,
         return {}
     wanted = np.zeros(max(last for _, last in frames) + 2, bool)
     for first, last in frames:
-        wanted[first : last + 1] = True
+        wanted[max(first, 0) : last + 1] = True
     found, pixels = [], []
     with open(path) as f:
         next(f)
@@ -179,28 +188,89 @@ def flight_places(typed: list[tuple], windows: list[tuple[int, int]], lead: int,
     return out
 
 
-def touch_places(contacts: list[dict], ball: Path, calibration: Calibration, fps: float) -> list[float]:
-    """Each touch's 3D place as flat [index in `contacts`, x, y, height, ...], in metres to the centimetre; none without
-    a camera or the ball track. A rally needs two touches."""
+class Fitted(NamedTuple):
+    """Each rally's touches (index in the contacts, contact) in frame order and their places, with what fitted them."""
+
+    P: np.ndarray | None
+    sightings: dict[int, np.ndarray]
+    width: int
+    rallies: list[tuple[list[tuple[int, dict]], np.ndarray]]
+
+
+def fit_touches(contacts: list[dict], ball: Path, calibration: Calibration, fps: float) -> Fitted:
+    """The rallies of `contacts` fitted; none without a camera or the ball track. A rally needs two touches."""
     P = projection(calibration)
+    width = calibration.size[0] if calibration.size else 3840
     if P is None or not ball.exists():
-        return []
+        return Fitted(P, {}, width, [])
     by_rally: dict[int, list[tuple[int, dict]]] = {}
     for i, c in enumerate(contacts):
         if c["type"] != "fault" and c.get("f") is not None:
             by_rally.setdefault(c["rally"], []).append((i, c))
-    spans = [(min(c["f"] for _, c in cs), max(c["f"] for _, c in cs)) for cs in by_rally.values()]
+    margin = round(ATTACK_AROUND_S * fps)
+    spans = [(min(c["f"] for _, c in cs) - margin, max(c["f"] for _, c in cs) + margin) for cs in by_rally.values()]
     sightings = read_sightings(ball, calibration, spans)
-    width = calibration.size[0] if calibration.size else 3840
-    out: list[float] = []
+    rallies = []
     for touches in by_rally.values():
         touches = sorted(touches, key=lambda item: item[1]["f"])
-        if len(touches) < 2:
-            continue
-        places, _ = fit_rally([c for _, c in touches], sightings, P, fps, width)
+        if len(touches) >= 2:
+            rallies.append((touches, fit_rally([c for _, c in touches], sightings, P, fps, width)[0]))
+    return Fitted(P, sightings, width, rallies)
+
+
+def touch_places(fitted: Fitted) -> list[float]:
+    """Each touch's 3D place as flat [index in the contacts, x, y, height, ...], in metres to the centimetre."""
+    out: list[float] = []
+    for touches, places in fitted.rallies:
         for (i, c), (x, y, h) in zip(touches, places):
             if h > HIGHEST_M or abs(x) > FARTHEST_X or abs(y) > FARTHEST_Y:
                 continue
             h = BALL_R if c["type"] == "floor" else max(BALL_R, h)
             out += [i, round(float(x), 2), round(float(y), 2), round(float(h), 2)]
     return out
+
+
+def serve_speed(serve: dict, after: dict, sightings: dict[int, np.ndarray], P: np.ndarray, fps: float, width: int = 3840) -> float | None:
+    """A serve's mean speed over the middle of its flight to the touch `after`, in km/h; None if that flight is too
+    short, too little seen or out of place."""
+    trim = round(SERVE_TRIM_S * fps)
+    first, last = serve["f"] + trim, after["f"] - trim
+    flight = (last - first) / fps
+    if after["type"] not in AFTER_SERVE or not SERVE_SHORTEST_S <= flight <= LONGEST_S or serve["x"] is None or after["x"] is None:
+        return None
+    seen = {f: sightings[f] for f in range(first, last + 1) if f in sightings}
+    if len(seen) < max(SERVE_LEAST_SEEN, SERVE_SEEN * (last - first)):
+        return None
+    # The feet say where the flight starts and ends: the ball has left them by these frames.
+    share = trim / (after["f"] - serve["f"])
+    dx, dy = after["x"] - serve["x"], after["y"] - serve["y"]
+    ends = [
+        {"f": first, "type": "flight", "x": serve["x"] + share * dx, "y": serve["y"] + share * dy},
+        {"f": last, "type": "flight", "x": after["x"] - share * dx, "y": after["y"] - share * dy},
+    ]
+    (a, b), errors = fit_rally(ends, seen, P, fps, width)
+    far = np.hypot(*(b[:2] - a[:2]))
+    if far < SERVE_SHORTEST_M or a[0] * b[0] >= 0 or abs(a[0]) < SERVE_AWAY_X or max(abs(a[1]), abs(b[1])) > SERVE_FARTHEST_Y or np.median(errors) > SERVE_WORST_4K * width / 3840:
+        return None
+    return float(far / flight * 3.6)
+
+
+def attack_height(attack: dict, place: np.ndarray, sightings: dict[int, np.ndarray], fps: float) -> float | None:
+    """An attack's fitted height (`place`), None if out of reach or its ball little seen around the contact."""
+    around = round(ATTACK_AROUND_S * fps)
+    seen = sum(f in sightings for f in range(attack["f"] - around, attack["f"] + around + 1))
+    return float(place[2]) if ATTACK_LOWEST_M <= place[2] <= ATTACK_HIGHEST_M and seen >= ATTACK_SEEN * (2 * around + 1) else None
+
+
+def measure(fitted: Fitted, fps: float) -> None:
+    """Writes on the contacts each serve's `speed` in km/h and each attack's `reach` in metres, where they hold up."""
+    for touches, places in fitted.rallies:
+        for k, (_, c) in enumerate(touches):
+            if c["type"] == "serve" and k + 1 < len(touches):
+                speed = serve_speed(c, touches[k + 1][1], fitted.sightings, fitted.P, fps, fitted.width)
+                if speed is not None:
+                    c["speed"] = round(speed)
+            elif c["type"] == "attack":
+                reach = attack_height(c, places[k], fitted.sightings, fps)
+                if reach is not None:
+                    c["reach"] = round(reach, 2)

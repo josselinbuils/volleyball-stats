@@ -758,6 +758,12 @@
     "serveRun_one": "Au service : {{count}} point d'affilée, de {{from}} à {{to}}",
     "serveRun_other": "Au service : {{count}} points d'affilée, de {{from}} à {{to}}",
     "serveRunTitle": "Série au service, {{name}}",
+    "measures": "Mes mesures",
+    "fastestServe": "Service le plus rapide : {{speed}} km/h",
+    "usualSpeed_other": "En général {{speed}} km/h sur {{count}} services mesurés",
+    "reach": "Hauteur de frappe : environ {{height}} m",
+    "reachOf_other": "Sur {{count}} attaques mesurées",
+    "measuresNote": "Estimations à partir d'une seule caméra. La vitesse est prise en plein vol : un radar à la frappe lirait sans doute plus.",
     "duos": "Les duos",
     "duo": "Passes de {{setter}} pour {{attacker}}",
     "summaryTime": "{{name}} : {{touches}} en {{time}} de jeu",
@@ -790,6 +796,7 @@
       "sets": "Le Chef d'orchestre",
       "perfect": "Le Roc",
       "serveRun": "Le Métronome",
+      "fastServe": "Le Missile",
       "duo": "Le Duo",
       "longest": "Le Marathon"
     },
@@ -810,6 +817,7 @@
       "perfect_other": "{{count}} réceptions parfaites",
       "serveRun_one": "{{count}} point d'affilée au service",
       "serveRun_other": "{{count}} points d'affilée au service",
+      "fastServe": "Service le plus rapide : {{speed}} km/h",
       "duo_one": "{{count}} attaque gagnante sur {{of}}",
       "duo_other": "{{count}} attaques gagnantes sur {{of}}",
       "longest": "L'échange le plus long : {{n}} touches en {{seconds}}"

@@ -9,6 +9,30 @@ const LONG_RALLY = 7;
 const LATE = 20;
 // A team's best count of a stat is told from this many.
 const TOP_FROM = 3;
+// A player's usual serve speed is told from this many serves, their attack height from this many attacks.
+const USUAL_SPEED_FROM = 3;
+const REACH_FROM = 5;
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/** What a player's serves and attacks measure: their fastest serve, their usual speed, their usual attack height to the
+ * decimetre and the attacks it rests on. Each only from enough tries. */
+export function measures(serves: Contact[], attacks: Contact[]) {
+  const timed = serves.filter((c) => c.speed !== undefined);
+  const reached = attacks.filter((c) => c.reach !== undefined);
+  const speeds = timed.map((c) => c.speed as number);
+  return {
+    fastest: timed.length ? timed[speeds.indexOf(Math.max(...speeds))] : null,
+    timed: timed.length,
+    speed: timed.length >= USUAL_SPEED_FROM ? Math.round(median(speeds)) : null,
+    reach: reached.length >= REACH_FROM ? Math.round(median(reached.map((c) => c.reach as number)) * 10) / 10 : null,
+    reached,
+  };
+}
 
 /** A point of `key`'s worth retelling, `score` after it theirs first. */
 export interface Highlight {

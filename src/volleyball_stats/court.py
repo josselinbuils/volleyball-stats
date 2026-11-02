@@ -105,7 +105,8 @@ def zone(x: float, y: float) -> int:
 def undistort(points: np.ndarray, lens: Lens) -> np.ndarray:
     """Distorted pixels to pinhole pixels of the same intrinsics."""
     k, d = np.array(lens["K"], float), np.array(lens["D"], float)
-    src = np.asarray(points, float).reshape(-1, 1, 2)
+    # A copy: OpenCV reads a slice of a wider array as if it were contiguous.
+    src = np.array(points, float).reshape(-1, 1, 2)
     if lens["model"] == "fisheye":
         return cv2.fisheye.undistortPoints(src, k, d, P=k).reshape(-1, 2)
     return cv2.undistortPoints(src, k, d, P=k).reshape(-1, 2)

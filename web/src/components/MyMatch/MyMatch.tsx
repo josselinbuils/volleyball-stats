@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SetBadge } from '@/components/SetBadge';
-import { clock } from '@/lib/format';
+import { clock, useFormat } from '@/lib/format';
 import { contacts as allContacts, GROUPS, groupName, hasTeams, match, playerLabel, rallies as allRallies, type Contact, type Group } from '@/lib/match';
 import { remember, remembered } from '@/lib/me';
 import { playerKey } from '@/helpers/players';
@@ -18,7 +18,7 @@ import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { strengths, toWorkOn } from '@/components/Stats/helpers/strengths';
 import { lines, type Stat } from '@/components/Stats/helpers/stats';
 import { InsightChip } from '@/components/Stats/StatsTable';
-import { highlights, tops } from '@/components/MyMatch/helpers/myMatch';
+import { highlights, measures, tops } from '@/components/MyMatch/helpers/myMatch';
 import { PlayerCard, type CardRow } from '@/components/MyMatch/PlayerCard';
 
 // What a player can lead their team in.
@@ -97,6 +97,7 @@ function Player({ player }: { player: string }) {
   const { t } = useTranslation();
   const { set, contacts, rallies } = useSet();
   const g = Number(player.split(':')[0]) as Group;
+  const f = useFormat();
   const best = useMemo(bestPlayer, []);
   const found = useMemo(() => lines(contacts, match.people, g), [contacts, g]);
   const line = found.find((l): l is (typeof found)[number] & { id: number } => typeof l.id === 'number' && playerKey(l.id, match.people) === player);
@@ -123,6 +124,8 @@ function Player({ player }: { player: string }) {
     .filter(Boolean)
     .join(', ');
   const main = MAIN.map((stat) => ({ stat, n: line.stats[stat].length })).sort((a, b) => b.n - a.n)[0];
+  const measured = measures(line.stats.serves, line.stats.attacks);
+  const fastest = measured.fastest;
 
   return (
     <div className="grid gap-6 md:grid-cols-[15rem_minmax(0,1fr)]">
@@ -150,6 +153,23 @@ function Player({ player }: { player: string }) {
             </div>
           )}
         </div>
+        {(fastest || measured.reach !== null) && (
+          <Section title={t('myMatch.measures')}>
+            {fastest && (
+              <Row title={(tr) => tr('myMatch.fastestServe', { speed: fastest.speed })} clips={contactClips([fastest], match.duration)}>
+                <b className="font-semibold">{t('myMatch.fastestServe', { speed: fastest.speed })}</b>
+                {measured.speed !== null && <span className="block text-xs text-muted-foreground">{t('myMatch.usualSpeed', { speed: measured.speed, count: measured.timed })}</span>}
+              </Row>
+            )}
+            {measured.reach !== null && (
+              <Row title={(tr) => tr('myMatch.reach', { height: f.dec(measured.reach as number) })} clips={contactClips(measured.reached, match.duration)}>
+                <b className="font-semibold">{t('myMatch.reach', { height: f.dec(measured.reach) })}</b>
+                <span className="block text-xs text-muted-foreground">{t('myMatch.reachOf', { count: measured.reached.length })}</span>
+              </Row>
+            )}
+            <li className="px-1.5 text-xs text-muted-foreground">{t('myMatch.measuresNote')}</li>
+          </Section>
+        )}
         {(moments.length > 0 || run) && (
           <Section title={t('myMatch.moments')}>
             {run && (

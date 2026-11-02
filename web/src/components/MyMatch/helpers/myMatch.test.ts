@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Group, Person, Rally } from '@/lib/match';
-import { highlights, tops } from '@/components/MyMatch/helpers/myMatch';
+import { highlights, measures, tops } from '@/components/MyMatch/helpers/myMatch';
 
 describe('myMatch', () => {
   const people: Record<string, Person> = {
@@ -57,6 +57,30 @@ describe('myMatch', () => {
 
     it('needs 3, and to lead', () => {
       expect(tops(count(2, 3), [count(1, 4)], ['digs', 'aces'])).toEqual([]);
+    });
+  });
+
+  describe('measures', () => {
+    const served = (...speeds: (number | undefined)[]) => speeds.map((speed, k) => ({ ...touch(k, 'serve', 1), speed }));
+    const hit = (...reaches: (number | undefined)[]) => reaches.map((reach, k) => ({ ...touch(k, 'attack', 1), reach }));
+
+    it('finds the fastest serve and the usual speed, leaving out the serves not measured', () => {
+      const found = measures(served(40, undefined, 62, 50), []);
+      expect(found.fastest?.speed).toBe(62);
+      expect(found).toMatchObject({ timed: 3, speed: 50 });
+    });
+
+    it('tells no usual speed from under 3 serves, but still the fastest', () => {
+      expect(measures(served(40, 50), [])).toMatchObject({ speed: null, timed: 2, fastest: { speed: 50 } });
+    });
+
+    it('has nothing without a measure', () => {
+      expect(measures(served(undefined), hit(undefined))).toMatchObject({ fastest: null, speed: null, reach: null });
+    });
+
+    it('tells an attack height from 5 attacks only, to the decimetre, a wild one not moving it', () => {
+      expect(measures([], hit(2.7, 2.7, 2.7, 2.7)).reach).toBeNull();
+      expect(measures([], hit(2.68, 2.72, 2.74, 2.7, 3.8)).reach).toBe(2.7);
     });
   });
 });

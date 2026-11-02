@@ -16,11 +16,14 @@ const COUNTED: { stat: Stat; least: number }[] = [
 ];
 const SERVE_RUN_FROM = 3;
 const DUO_FROM = 3;
+// A fastest serve means little among fewer serves measured.
+const FAST_SERVE_FROM = 5;
 
 /** A trophy: `people` its winners (a tie shares it), `contacts` or `rallies` the moments it replays. */
 export type Trophy =
   | { kind: Stat; people: number[]; n: number; contacts: Contact[] }
   | { kind: 'serveRun'; people: number[]; n: number; rallies: number[] }
+  | { kind: 'fastServe'; people: number[]; n: number; contacts: Contact[] }
   | { kind: 'duo'; setter: number; attacker: number; n: number; of: number; contacts: Contact[] }
   | { kind: 'longest'; rally: Rally; n: number; seconds: number };
 
@@ -35,6 +38,12 @@ export function trophies(found: Line[], contacts: Contact[], rallies: Rally[], p
       const won = players.filter((l) => l.stats[stat].length === n);
       out.push({ kind: stat, people: won.map((l) => l.id), n, contacts: won.flatMap((l) => l.stats[stat]).sort((a, b) => a.t - b.t) });
     }
+  }
+  const timed = players.flatMap((l) => l.stats.serves.filter((c) => c.speed !== undefined).map((serve) => ({ person: l.id, serve })));
+  if (timed.length >= FAST_SERVE_FROM) {
+    const n = Math.max(...timed.map((x) => x.serve.speed as number));
+    const won = timed.filter((x) => x.serve.speed === n);
+    out.push({ kind: 'fastServe', people: [...new Set(won.map((x) => x.person))], n, contacts: won.map((x) => x.serve) });
   }
   const runs = players.flatMap((l) => {
     const key = playerKey(l.id, people);

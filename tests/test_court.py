@@ -61,6 +61,12 @@ class TestLens:
         assert np.allclose(undistort(distort(pixels, lens), lens), pixels, atol=0.1)
         assert not np.allclose(distort(pixels, lens)[0], pixels[0], atol=1.0)
 
+    @pytest.mark.parametrize("lens", [{"model": "fisheye", "K": K, "D": [-0.05, 0.01, 0.0, 0.0]}, {"model": "standard", "K": K, "D": [-0.05, 0.01, 0.0, 0.0]}])
+    def test_undistort_takes_a_slice_of_a_wider_array(self, lens):
+        wider = np.array([[100.0, 80.0, 9.0], [640.0, 360.0, 9.0], [1200.0, 700.0, 9.0]])
+
+        assert np.allclose(undistort(wider[:, :2], lens), undistort(wider[:, :2].copy(), lens))
+
     def test_calibration_with_a_lens_round_trips_and_saves(self, tmp_path):
         lens = {"model": "fisheye", "K": self.K, "D": [-0.05, 0.01, 0.0, 0.0]}
         calibration = Calibration(np.array([[60.0, -20.0, 640.0], [5.0, 30.0, 400.0], [0.0, 0.03, 1.0]]), lens, 0.5)

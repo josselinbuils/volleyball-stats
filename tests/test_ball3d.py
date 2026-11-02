@@ -1,7 +1,7 @@
 import numpy as np
 
-from volleyball_stats.ball3d import G, camera_place, fit_rally, project, projection, touch_places
-from volleyball_stats.court import Calibration
+from volleyball_stats.ball3d import G, attack_height, camera_place, fit_rally, fit_touches, measure, project, projection, serve_speed, touch_places
+from volleyball_stats.court import Calibration, distort
 
 
 def camera(height: float = 3.9, back: float = 12.0, focal: float = 1500.0) -> np.ndarray:
@@ -107,7 +107,7 @@ class TestTouchPlaces:
 
     def test_none_without_the_ball_track(self, tmp_path):
         c = Calibration(np.eye(3), lens={"K": np.eye(3).tolist(), "D": [0, 0, 0, 0], "model": "fisheye"})
-        assert touch_places([], tmp_path / "ball.csv", c, 50.0) == []
+        assert touch_places(fit_touches([], tmp_path / "ball.csv", c, 50.0)) == []
 
     def test_leaves_out_faults_and_lone_touches(self, tmp_path):
         ball = tmp_path / "ball.csv"
@@ -121,6 +121,56 @@ class TestTouchPlaces:
             {"f": 60, "type": "floor", "x": 5.0, "y": 1.0, "rally": 0},
             {"f": 500, "type": "serve", "x": 9.0, "y": 0.0, "rally": 1},
         ]
-        flat = touch_places(contacts, ball, c, 50.0)
+        flat = touch_places(fit_touches(contacts, ball, c, 50.0))
         assert flat[0::4] == [0, 2]
         assert flat[3] == 2.7 and flat[7] == 0.11
+
+
+class TestMeasures:
+    FPS = 50.0
+    SERVE = {"f": 0, "type": "serve", "x": -9.0, "y": 1.0}
+    RECEPTION = {"f": 60, "type": "pass", "x": 6.0, "y": -1.0}
+
+    def flight(self, every: int = 1) -> dict[int, np.ndarray]:
+        at = path([(-9.0, 1.0, 2.4), (6.0, -1.0, 1.0)], [0, 60], self.FPS)
+        return {f: project(camera(), place[None])[0] for f, place in at.items() if f % every == 0}
+
+    def test_a_serve_s_speed_is_its_flight_s(self):
+        distance = np.hypot(15.0, 2.0)
+        speed = serve_speed(self.SERVE, self.RECEPTION, self.flight(), camera(), self.FPS)
+        assert abs(speed - distance / 1.2 * 3.6) < 1
+
+    def test_a_serve_s_speed_needs_its_contacts_no_better_than_near(self):
+        late = {**self.SERVE, "f": 4}
+        speed = serve_speed(late, self.RECEPTION, self.flight(), camera(), self.FPS)
+        assert abs(speed - np.hypot(15.0, 2.0) / 1.2 * 3.6) < 3
+
+    def test_no_speed_for_a_flight_little_seen(self):
+        assert serve_speed(self.SERVE, self.RECEPTION, self.flight(every=6), camera(), self.FPS) is None
+
+    def test_no_speed_for_a_serve_into_the_net(self):
+        assert serve_speed(self.SERVE, {**self.RECEPTION, "type": "net"}, self.flight(), camera(), self.FPS) is None
+
+    def test_no_speed_for_a_ball_that_stays_on_its_side(self):
+        at = path([(-9.0, 1.0, 2.4), (-3.5, 1.0, 1.0)], [0, 60], self.FPS)
+        seen = {f: project(camera(), place[None])[0] for f, place in at.items()}
+        assert serve_speed(self.SERVE, {**self.RECEPTION, "x": -3.5}, seen, camera(), self.FPS) is None
+
+    def test_an_attack_s_height_needs_its_ball_seen_and_in_reach(self):
+        attack = {"f": 100, "type": "attack"}
+        seen = dict.fromkeys(range(85, 116), np.zeros(2))
+        assert attack_height(attack, np.array([1.0, 0.0, 2.7]), seen, self.FPS) == 2.7
+        assert attack_height(attack, np.array([1.0, 0.0, 5.0]), seen, self.FPS) is None
+        assert attack_height(attack, np.array([1.0, 0.0, 2.7]), {}, self.FPS) is None
+
+    def test_measure_writes_them_on_the_contacts(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        H = camera()[:, [0, 1, 3]]
+        lens = {"K": [[1500, 0, 1920], [0, 1500, 1080], [0, 0, 1]], "D": [0, 0, 0, 0], "model": "fisheye"}
+        seen = self.flight()
+        rows = [f"{f},1,{x:.2f},{y:.2f}" for f, (x, y) in zip(seen, distort(np.array(list(seen.values())), lens))]
+        ball.write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n")
+        contacts = [{**self.SERVE, "rally": 0}, {**self.RECEPTION, "rally": 0}]
+        measure(fit_touches(contacts, ball, Calibration(H / H[2, 2], lens=lens), self.FPS), self.FPS)
+        assert abs(contacts[0]["speed"] - 45) <= 1
+        assert "speed" not in contacts[1]

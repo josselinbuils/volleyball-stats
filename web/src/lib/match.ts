@@ -38,6 +38,10 @@ export interface Contact {
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */
   receiver?: number | null;
+  /** A serve's speed in mid-flight, in km/h, where its flight is well seen. */
+  speed?: number;
+  /** An attack's height in metres, where it is well seen: a single one is rough, a player's median holds up. */
+  reach?: number;
 }
 
 /** A rally, `left` the team on the left of the net, `flipped` when the teams play on the other ends

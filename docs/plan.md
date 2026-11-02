@@ -94,6 +94,14 @@ Tried and removed (owner's call, not useful enough; code in `3377048`): the scor
 From them: lineups from the positions, smoothed over 2 rallies each side, gave the first match 4 and 3 sixes whose
 scores add up to the given sets; on clips with unreviewed names 4 and 7 sixes for 15 rallies.
 
+Serve speed and attack height (`ball3d.measure`, `benchmarks/ball3d/measures.py`, first match, no radar or tape measure): a serve's
+speed is read over its mid-flight, 0.2 s in from each contact, the raw flight's 122 km/h from a late contact gone: 90 of 123 serves, median
+42 km/h, most 61; contact frames +-5 move it 0.6% (2.3% at 90%), a third fewer sightings 0.3%, the feet 1 m in depth 1.6%; a player's odd and
+even serves correlate 0.85 over 9 players. An attack's height is the fit's, kept between 1.8 and 3.8 m with its ball seen: 89 of 156, median 2.66 m,
+contact frames +-2 move one attack 0.17 m (0.33 at 90%) and a player's median at most 0.16, so the page only gives that median, from 5 attacks, to the decimetre:
+odd and even correlate 0.75 over 10 players, and it follows their own heights at 0.71, 0.86 m above the head. The scale: heads on court 1.79 m, gravity found 9.4-10.4 m/s2.
+Left open: along a serve's flight the ball shows almost no slowing (-0.06 m/s2) where drag should show, unexplained; a radar, then the second match, should settle both.
+
 ## Page: lighter (1 Nov)
 
 The players' positions are one file a minute (`positions/N.js`, 13 KB compressed), loaded as the replay reaches
