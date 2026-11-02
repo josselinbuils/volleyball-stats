@@ -98,6 +98,15 @@ class TestShare:
 
 
 class TestHost:
+    def test_finds_a_video_outside_the_password_s_folder(self, tmp_path):
+        (tmp_path / "m" / "video" / "films").mkdir(parents=True)
+        (tmp_path / "m" / "video" / "match.mp4").write_bytes(b"")
+        (tmp_path / "m" / "video" / "films" / "1-ana.mp4").write_bytes(b"")
+        assert matches.unguarded_videos(tmp_path) == []
+        (tmp_path / "m" / "films").mkdir()
+        (tmp_path / "m" / "films" / "1-ana.mp4").write_bytes(b"")
+        assert [p.name for p in matches.unguarded_videos(tmp_path)] == ["1-ana.mp4"]
+
     def test_stops_before_any_build_when_a_video_copy_is_missing(self, tmp_path, monkeypatch):
         built = []
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append(args))

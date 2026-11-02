@@ -299,6 +299,20 @@ class TestBallSize:
         assert all(p[0] < 2000 for p in path.values()) and 130 in path
 
 
+class TestCamera:
+    def test_moves_ahead_of_a_ball_about_to_leave_the_picture(self):
+        n = 200
+        ball = np.r_[np.zeros(100), np.linspace(0, 1000, 100)]
+        moved = film.keep_in_view(np.zeros(n), ball, np.full(n, 200.0), np.ones(n, bool))
+        assert np.abs(ball - moved).max() < 230
+        assert moved[:50].max() < 1
+
+    def test_ignores_what_it_does_not_know_of_the_ball(self):
+        n = 100
+        moved = film.keep_in_view(np.zeros(n), np.full(n, 5000.0), np.full(n, 200.0), np.zeros(n, bool))
+        assert np.abs(moved).max() == 0
+
+
 class TestFrames:
     def test_joins_the_frames_close_enough_to_read_through(self):
         assert film.ranges([1, 2, 3, 8, 30, 31]) == [(1, 8), (30, 31)]

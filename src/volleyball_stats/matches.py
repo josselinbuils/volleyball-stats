@@ -259,6 +259,11 @@ def protected(url: str) -> bool:
     return False
 
 
+def unguarded_videos(site: Path) -> list[Path]:
+    """The site's videos outside a match's video/ folder, the only one the password guards."""
+    return [p for p in site.rglob("*.mp4") if "video" not in p.relative_to(site).parts[:-1]]
+
+
 def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> None:
     """The match's hosted pages rebuilt in `config`'s site folder (publish.json): the public one
     with no footage nor pictures, its copy with both in video/ (the `light`, `av1` and `small` copies),
@@ -277,6 +282,13 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
     named = {m["name"]: m["path"] for m in build(site, theme, config["url"])}[match.name]
     if not protected(f"{config['url'].rstrip('/')}/{named}video/"):
         raise RuntimeError(f"{config['url']}{named}video/ opens without the password: not uploaded")
+    # Real footage, the players' films with it, only behind the password.
+    outside = unguarded_videos(site)
+    if outside:
+        raise RuntimeError(f"videos outside a password's folder: {', '.join(p.name for p in outside)}: not uploaded")
+    films = sorted((site / named / "video" / "films").glob("*.mp4"))
+    if films and not protected(f"{config['url'].rstrip('/')}/{named}video/films/{films[0].name}"):
+        raise RuntimeError(f"{films[0].name} opens without the password: not uploaded")
     subprocess.run(["rsync", "-rt", "--delete", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
 
 

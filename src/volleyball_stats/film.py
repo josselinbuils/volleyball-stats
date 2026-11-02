@@ -30,7 +30,7 @@ FILMS = "films"
 MANIFEST = "manifest.json"
 BALL_CACHE, TIMES_CACHE = "film_ball.json", "frame_times.npy"
 # Bumped when films must be made again whatever their data.
-VERSION = 3
+VERSION = 4
 SEG_S, SEG_M = Path("models/yolo11s-seg.pt"), Path("models/yolo11m-seg.pt")
 LOCALE = Path(__file__).resolve().parents[2] / "web/src/locales/fr.json"
 # Films made at once.
@@ -59,6 +59,9 @@ HIGHLIGHTS, HIGHLIGHTS_WIDE = "*", "*wide"
 HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS, LONGEST_S = 65.0, 8, 3, 18.0
 # A clip starts this long before its rally, the server getting ready, and runs on to its end, up to END_S after the touch.
 BEFORE_RALLY_S, END_S = 1.5, 4.0
+# The camera on a live shot follows the ball, on the player only this long around their touch; it widens for a ball this many seconds
+# of flight across, and keeps the ball within this share of the picture's half.
+ON_PLAYER_BEFORE_S, ON_PLAYER_AFTER_S, FLIGHT_IN_VIEW_S, BALL_IN_VIEW = 1.0, 0.5, 0.8, 0.8
 # How a point is a moment (the page's `highlights`).
 LONG_RALLY, LATE = 7, 20
 KINDS = ("setWon", "longRally", "lateTie", "ace", "block")
@@ -1027,6 +1030,15 @@ def handheld(n: int, amount: float, rng: np.random.Generator) -> np.ndarray:
     return amount * sum(w * np.sin(2 * np.pi * hz * t + rng.uniform(0, 6.28)) for hz, w in ((0.17, 1), (0.31, 0.7), (0.53, 0.4), (0.97, 0.2)))
 
 
+def keep_in_view(centre: np.ndarray, ball: np.ndarray, half: np.ndarray, known: np.ndarray) -> np.ndarray:
+    """The camera's `centre` moved, smoothly and ahead of time, so that the `ball`, where `known`, stays within `half` of it."""
+    out = centre.copy()
+    for _ in range(4):
+        gap = np.where(known, ball - out, 0.0)
+        out = out + gauss(np.sign(gap) * np.maximum(np.abs(gap) - half, 0.0), FPS * 0.1)
+    return out
+
+
 def font(name: str, fallback: str = "sans") -> cv2.FontFace:
     """The Mac's font, else OpenCV's own."""
     return cv2.FontFace(str(FONTS / name) if (FONTS / name).exists() else fallback)
@@ -1246,13 +1258,20 @@ class Maker:
         room = np.sign(net - feet[:, 0])
         if kind == "live":
             if self.contact(shot)["type"] == "serve":
-                on = 1 - ease(t + 0.05, t + 0.7, ms)
+                on = 1 - ease(t + 0.05, t + 0.5, ms)
                 tall = 7.6 * ppm + (1800 - 7.6 * ppm) * ease(t, t + 1.1, ms)
             else:
                 tight = 8.4 * ppm
                 wide = np.clip(np.percentile(np.abs(feet[:, 0] - bx), 80) * 1.3 / ASPECT, 1500, 1950)
-                on = ease(t - 1.8, t - 0.5, ms) * (1 - 0.35 * ease(t + 0.2, t + 1.2, ms))
-                tall = wide + (tight - wide) * ease(t - 2.2, t - 0.15, ms) + 0.2 * tight * ease(t + 0.1, t + 1.6, ms)
+                on = ease(t - ON_PLAYER_BEFORE_S, t - 0.25, ms) * (1 - ease(t + 0.1, t + ON_PLAYER_AFTER_S, ms))
+                tall = wide + (tight - wide) * ease(t - 2.2, t - 0.15, ms) + (wide - tight) * ease(t + 0.1, t + 0.9, ms)
+            # Wide enough for where the ball is flying.
+            flight = np.hypot(np.gradient(bx), np.gradient(by)) * FPS
+            tall = np.maximum(tall, np.minimum(SOURCE_H, gauss(flight, FPS * 0.2) * FLIGHT_IN_VIEW_S / ASPECT) * (1 - on))
+            # Wide enough for both the player and the ball at their touch.
+            both = np.maximum(np.abs(bx - feet[:, 0]) * 1.5 / ASPECT, np.abs(by - heads) * 1.5)
+            near_touch = np.exp(-(((ms - t) / 0.6) ** 2))
+            tall = np.maximum(tall, np.minimum(SOURCE_H, both) * near_touch)
         elif kind == "replay":
             on = np.ones(n)
             tall = 6.8 * ppm - 1.4 * ppm * ease(0, REPLAY_PRE, tau) - 0.9 * ppm * ease(REPLAY_PRE, REPLAY_PRE + FREEZE, tau) + 1.5 * ppm * ease(REPLAY_PRE + FREEZE, shot["length"], tau)
@@ -1269,8 +1288,10 @@ class Maker:
             tx = tx + 0.35 * near * np.clip(bx - tx, -0.3 * wide_px, 0.3 * wide_px)
             ty = ty + 0.35 * near * np.clip(by - ty, -0.3 * tall, 0.3 * tall)
         if kind in ("live", "replay"):
-            tx = np.clip(tx, feet[:, 0] - 0.3 * wide_px, feet[:, 0] + 0.3 * wide_px)
-            ty = np.clip(ty, feet[:, 1] - 0.32 * tall, feet[:, 1] + 0.22 * tall)
+            # Near the player only as long as the shot is on them.
+            free = 1e4 * (1 - on)
+            tx = np.clip(tx, feet[:, 0] - 0.3 * wide_px - free, feet[:, 0] + 0.3 * wide_px + free)
+            ty = np.clip(ty, feet[:, 1] - 0.32 * tall - free, feet[:, 1] + 0.22 * tall + free)
         slack_x, slack_y = (0.13, 0.08) if kind == "live" else (0.05, 0.03)
         cx = gauss(holds(tx, float(np.median(slack_x * wide_px))), FPS * (0.42 if kind == "live" else 0.3))
         cy = gauss(holds(ty, float(np.median(slack_y * tall))), FPS * (0.5 if kind == "live" else 0.3))
@@ -1279,6 +1300,13 @@ class Maker:
         if kind == "live" and n > 4:
             lag = int(0.07 * FPS)
             cx, cy = np.r_[np.full(lag, cx[0]), cx[:-lag]], np.r_[np.full(lag, cy[0]), cy[:-lag]]
+        if kind == "live":
+            # The player comes first while the shot is on them.
+            watched = have & (on < 0.5)
+            cx = keep_in_view(cx, bx, BALL_IN_VIEW * tall * ASPECT / 2, watched)
+            cy = keep_in_view(cy, by, BALL_IN_VIEW * tall / 2, watched)
+            cx = keep_in_view(cx, feet[:, 0], BALL_IN_VIEW * tall * ASPECT / 2, on >= 0.5)
+            cy = keep_in_view(cy, feet[:, 1] - 0.5 * ppm, BALL_IN_VIEW * tall / 2, on >= 0.5)
         # Upright, as far as it costs no picture: a corner's full correction would push the player out of the video.
         leans = np.array([self.lean(a, b) for a, b in zip(cx[::10], cy[::10])])
         roll = gauss(np.clip(np.interp(np.arange(n), np.arange(n)[::10], -leans), -np.radians(7), np.radians(7)), FPS * 0.4) + np.radians(handheld(n, 0.07, self.rng))
