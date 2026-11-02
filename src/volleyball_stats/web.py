@@ -62,8 +62,12 @@ LOGO_QUALITY = 90
 # The seconds of players' positions in one file the page loads, and how long a player missing from a few samples
 # stays where they were last seen (the page's `playersAt`).
 POSITIONS_S, HOLD_S = 300, 0.5
-# How finely the page's files place a player: never over 3 cm off, nearly half the size of 1 cm (`docs/plan.md`).
-POSITION_CM = 5
+# How the page's players move (`natural_motion`, on the first match: moves over 7 m/s 3.1% to 0.02%, the named player to the ball
+# at their touch 0.88 to 0.81 m): over OUTLIER_M from the median of OUTLIER_S either side is noise, a hole up to FILL_S at under
+# FILL_M_S is filled, then a Gaussian of SMOOTH_S.
+OUTLIER_M, OUTLIER_S, FILL_S, FILL_M_S, SMOOTH_S = 0.5, 0.5, 5.0, 7.0, 0.2
+# How finely the page's files place a player, fine enough for a walk to stay even between samples (`docs/plan.md`).
+POSITION_CM = 2
 # The touches that lose a serve, an attack or a block coming at them: not a serve, nor an attack of their own.
 LOSING_TOUCHES = ("pass", "set", "relance", "block", "dig")
 # The cards' pictures: in the pieces of a player the review shows and the user left unmarked (sure
@@ -819,6 +823,42 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     return {"fps": fps, "samples": samples}
 
 
+def natural_motion(samples: list[list[float]], seconds: float) -> list[list[float]]:
+    """The samples the page moves players with, `seconds` apart, each person's places as `player_samples` gives them without
+    the tracker's noise: far off those around them (a box cut short, the feet of a jump), then filled across a short
+    hole they could have walked, then smoothed, looking both ways so nothing lags."""
+    tracks: dict[int, dict[int, tuple[float, float]]] = {}
+    for k, flat in enumerate(samples):
+        for person, x, y in zip(flat[0::3], flat[1::3], flat[2::3]):
+            tracks.setdefault(person, {})[k] = (x, y)
+    half = round(OUTLIER_S / seconds)
+    reach = round(3 * SMOOTH_S / seconds)
+    weights = np.exp(-0.5 * (np.arange(-reach, reach + 1) * seconds / SMOOTH_S) ** 2)
+    out: list[list[float]] = [[] for _ in samples]
+    for person, places in tracks.items():
+        first = min(places)
+        span = np.full((max(places) - first + 1, 2), np.nan)
+        for k, place in places.items():
+            span[k - first] = place
+        known = np.flatnonzero(np.isfinite(span[:, 0]))
+        padded = np.pad(span, ((half, half), (0, 0)), constant_values=np.nan)
+        around = np.lib.stride_tricks.sliding_window_view(padded[:, 0], 2 * half + 1), np.lib.stride_tricks.sliding_window_view(padded[:, 1], 2 * half + 1)
+        off = np.maximum(*(np.abs(span[known, axis] - np.nanmedian(around[axis][known], axis=1)) for axis in (0, 1))) > OUTLIER_M
+        span[known[off]] = np.nan
+        known = np.flatnonzero(np.isfinite(span[:, 0]))
+        for a, b in zip(known, known[1:]):
+            hole = (b - a) * seconds
+            if b - a > 1 and hole <= FILL_S and np.hypot(*(span[b] - span[a])) / hole <= FILL_M_S:
+                span[a + 1 : b] = span[a] + (span[b] - span[a]) * ((np.arange(a + 1, b) - a)[:, None] / (b - a))
+        there = np.isfinite(span[:, 0])
+        spread = lambda values: np.convolve(values, weights)[reach : reach + len(span)]  # noqa: E731
+        share = spread(there.astype(float))
+        smooth = np.stack([spread(np.nan_to_num(span[:, axis])) / np.maximum(share, 1e-9) for axis in (0, 1)], 1)
+        for k in np.flatnonzero(there):
+            out[first + k] += [person, round(float(smooth[k, 0]), 2), round(float(smooth[k, 1]), 2)]
+    return out
+
+
 def position_files(players: dict, fps: float) -> list[str]:
     """`positions/N.js`'s contents, each POSITIONS_S of the players' positions the page loads as it plays them
     (`unpackFile`): its samples' count, then per person the runs of samples they are away and there, in turn, and their
@@ -909,7 +949,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
     shutil.rmtree(site / "positions", ignore_errors=True)
-    positions = position_files(players, data["fps"]) if players else []
+    positions = position_files({**players, "samples": natural_motion(players["samples"], players["step"] / data["fps"])}, data["fps"]) if players else []
     if positions:
         (site / "positions").mkdir()
         for n, content in enumerate(positions):

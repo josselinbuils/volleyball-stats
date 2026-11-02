@@ -4,13 +4,29 @@ import { initials, playerKey, playerMarks, playersAt } from '@/helpers/players';
 describe('playersAt', () => {
   const players = { step: 3, samples: [[], [4, 1, 2], [4, 3, 4, 9, 5, 6]] };
 
-  it('takes the nearest sample as player and court feet', () => {
+  it('takes the sample at its time, and the nearest for a player only in one of those around it', () => {
     // Sample 2 is frame 6, 0.2 s at 30 fps.
-    expect(playersAt(players, 30, 0.19)).toEqual([
+    expect(playersAt(players, 30, 0.2)).toEqual([
       { person: 4, x: 3, y: 4 },
       { person: 9, x: 5, y: 6 },
     ]);
     expect(playersAt(players, 30, 0.1)).toEqual([{ person: 4, x: 1, y: 2 }]);
+    expect(playersAt(players, 30, 0.19).find((d) => d.person === 9)).toEqual({ person: 9, x: 5, y: 6 });
+  });
+
+  it('moves a player between samples, at an even speed', () => {
+    const running = {
+      step: 3,
+      samples: [
+        [4, 0, 0],
+        [4, 1, 2],
+        [4, 2, 4],
+        [4, 3, 6],
+      ],
+    };
+    const [dot] = playersAt(running, 30, 0.15);
+    expect(dot.x).toBeCloseTo(1.5);
+    expect(dot.y).toBeCloseTo(3);
   });
 
   it('keeps a player missing from the last samples at their last place for half a second', () => {

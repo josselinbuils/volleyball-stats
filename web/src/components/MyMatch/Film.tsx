@@ -275,33 +275,36 @@ export function Film({ person, group }: { person: number; group: Group }) {
   };
 
   const busy = state.step === 'preparing' || state.step === 'recording';
+  // Its button stands among those around it, what it then shows on a line of its own below them.
   return (
-    <div className="grid justify-items-start gap-2">
+    <>
       {state.step !== 'ready' && !busy && (
         <Button variant="outline" onClick={() => void make()}>
           <Clapperboard aria-hidden />
           {t('myMatch.film.create')}
         </Button>
       )}
-      {(state.step === 'failed' || state.step === 'stopped') && <p className="text-sm text-muted-foreground">{t(`myMatch.film.${state.step}`)}</p>}
-      {busy && <p className="text-sm text-muted-foreground">{state.step === 'recording' ? t('myMatch.film.recording', { left: state.left }) : t('myMatch.film.preparing')}</p>}
-      <div ref={stage} aria-hidden className={STAGE} style={{ width: FILM_WIDTH, height: FILM_HEIGHT }} />
-      <canvas ref={preview} width={FILM_WIDTH} height={FILM_HEIGHT} className={state.step === 'recording' ? 'w-56 rounded-lg bg-black' : 'hidden'} />
-      {state.step === 'ready' && (
-        <>
-          <video src={state.url} controls playsInline className="w-56 rounded-lg bg-black" />
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => saveFile(state.file)}>
-              <Download aria-hidden />
-              {t('myMatch.film.save')}
-            </Button>
-            <Button variant="outline" onClick={() => void make()}>
-              <RotateCcw aria-hidden />
-              {t('myMatch.film.again')}
-            </Button>
-          </div>
-        </>
-      )}
-    </div>
+      <div className={state.step === 'idle' ? 'contents' : 'grid w-full justify-items-start gap-2'}>
+        {(state.step === 'failed' || state.step === 'stopped') && <p className="text-sm text-muted-foreground">{t(`myMatch.film.${state.step}`)}</p>}
+        {busy && <p className="text-sm text-muted-foreground">{state.step === 'recording' ? t('myMatch.film.recording', { left: state.left }) : t('myMatch.film.preparing')}</p>}
+        <div ref={stage} aria-hidden className={STAGE} style={{ width: FILM_WIDTH, height: FILM_HEIGHT }} />
+        <canvas ref={preview} width={FILM_WIDTH} height={FILM_HEIGHT} className={state.step === 'recording' ? 'w-56 rounded-lg bg-black' : 'hidden'} />
+        {state.step === 'ready' && (
+          <>
+            <video src={state.url} controls playsInline className="w-56 rounded-lg bg-black" />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => saveFile(state.file)}>
+                <Download aria-hidden />
+                {t('myMatch.film.save')}
+              </Button>
+              <Button variant="outline" onClick={() => void make()}>
+                <RotateCcw aria-hidden />
+                {t('myMatch.film.again')}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }

@@ -105,9 +105,13 @@ Left open: along a serve's flight the ball shows almost no slowing (-0.06 m/s2) 
 the viewer's browser and leaving it only if they save it: a title, up to 4 moments each played then replayed slowly, an end. It records live with `MediaRecorder`, so it takes the film's length,
 the page must stay open, a slow device drops frames. Checked in headless Chrome only (10 frames a second on its software 3D): not yet on a phone.
 
+## Page: players' movements (2 Nov)
+
+The page showed each 0.1 s sample as it was: a jump every 0.1 s, 3.1% of moves in rallies over 7 m/s (depth mostly: a box's foot), players blinking in holes over 0.5 s. Now `web.natural_motion` at build (outliers, holes, a Gaussian of 0.2 s, for the positions' files only: stats stay on the tracking), the page's `playersAt` between samples, in both views, and bodies turning over 0.12 s (`benchmarks/players/motion.py`).
+
 ## Page: lighter (2 Nov, positions)
 
-The first match's 67 position files, gzip: JSON per sample 821 KB, 12.3 a file; per person in columns 732; at 5 cm 450 (6.7 a file; 2.8 cm off at most, speeds unchanged), now in use.
+The first match's 67 position files, gzip: JSON per sample 821 KB, 12.3 a file; per person in columns 732; at 5 cm 450 (6.7 a file; 2.8 cm off at most, speeds unchanged).
 Left aside: binary at 5 cm 373, which needs `fetch` and so no longer opens from `file://` (in base64 437); 10 cm 346, 7 cm off.
 Files of 5 minutes (from 1): 34 KB each, 460 to 428 KB in all, the whole match in rallies 5 waits instead of 21, a wait barely longer (the request's time weighs more than the size: 76 ms for 13.6 KB, 104 for 29.7).
 

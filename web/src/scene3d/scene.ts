@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Sponsor } from '@/lib/match';
 import { addHall, at, painted } from '@/scene3d/hall';
+import { turnedTo } from '@/scene3d/turn';
 
 /** A point of the scene in court metres: x along the court (net at 0), y across it (towards the
  * camera positive), h above the floor. */
@@ -503,11 +504,15 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], { pixelRat
   observer.observe(element);
   resize();
 
+  let updated = 0;
   return {
     canvas: renderer.domElement,
     render: () => renderer.render(scene, camera),
     update(state) {
       const { colors } = state;
+      const now = performance.now();
+      const elapsed = (now - updated) / 1000;
+      updated = now;
       hall.frame.visible = !!state.camera;
       if (state.camera) {
         directed ??= { position: camera.position.clone(), target: controls.target.clone() };
@@ -541,7 +546,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], { pixelRat
         // Facing the ball, else the net.
         const [tx, ty] = state.ball ? [state.ball.x, state.ball.y] : [0, p.y];
         if (Math.hypot(tx - p.x, ty - p.y) > 0.3) {
-          body.group.rotation.y = Math.atan2(tx - p.x, ty - p.y);
+          const facing = Math.atan2(tx - p.x, ty - p.y);
+          body.group.rotation.y = body.group.visible ? turnedTo(body.group.rotation.y, facing, elapsed) : facing;
         }
         body.shadow.position.copy(at(p.x, p.y, 0.006));
         body.group.visible = p.key !== state.hidden;

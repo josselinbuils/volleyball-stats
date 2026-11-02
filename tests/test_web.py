@@ -654,7 +654,7 @@ class TestWriteSite:
         version = (site / "index.html").read_text().split('src="data.js?v=')[1].split('"')[0]
         assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":2500,"files":1,"cm":5}},"contacts":[],"v":"{version}"}};\n'
+        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":2500,"files":1,"cm":2}},"contacts":[],"v":"{version}"}};\n'
         assert (site / "positions" / "0.js").read_text() == "window.MATCH_POSITIONS(0,[1,[]]);\n"
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
@@ -770,6 +770,7 @@ class TestPositionFiles:
 
         # At 25 fps a sample a second: three to a file of 3 s.
         web.POSITIONS_S, kept = 3, web.POSITIONS_S
+        web.POSITION_CM, kept_cm = 5, web.POSITION_CM
         try:
             assert web.position_files(players, 25.0) == [
                 "window.MATCH_POSITIONS(0,[3,[[1,[0,2],[-116,0],[66,0]],[2,[0,1],[31],[-1]]]]);\n",
@@ -777,6 +778,42 @@ class TestPositionFiles:
             ]
         finally:
             web.POSITIONS_S = kept
+            web.POSITION_CM = kept_cm
+
+
+class TestNaturalMotion:
+    @staticmethod
+    def track(places):
+        return [[] if place is None else [1, *place] for place in places]
+
+    @staticmethod
+    def places(samples):
+        return [flat[1:3] if flat else None for flat in samples]
+
+    def test_leaves_a_steady_run_where_it_is(self):
+        run = [(k * 0.3, 2.0) for k in range(40)]
+        found = self.places(web.natural_motion(self.track(run), 0.1))
+        # The ends lean inward: the middle stays on the line.
+        for k in range(10, 30):
+            assert found[k] == pytest.approx(run[k], abs=0.01)
+
+    def test_drops_a_place_far_from_those_around_it(self):
+        places = [(1.0, 2.0)] * 21
+        places[10] = (1.0, 5.0)
+        found = self.places(web.natural_motion(self.track(places), 0.1))
+        assert found[10] == pytest.approx((1.0, 2.0), abs=0.01)
+
+    def test_fills_a_hole_they_could_have_walked_only(self):
+        walked = [(0.0, 0.0)] * 5 + [None] * 10 + [(3.0, 0.0)] * 5
+        assert all(place is not None for place in self.places(web.natural_motion(self.track(walked), 0.1)))
+        too_fast = [(0.0, 0.0)] * 5 + [None] * 10 + [(9.0, 0.0)] * 5
+        assert self.places(web.natural_motion(self.track(too_fast), 0.1))[10] is None
+        too_long = [(0.0, 0.0)] * 5 + [None] * 60 + [(1.0, 0.0)] * 5
+        assert self.places(web.natural_motion(self.track(too_long), 0.1))[30] is None
+
+    def test_keeps_a_track_shorter_than_its_smoothing_at_its_places(self):
+        found = web.natural_motion([[], [7, 2.0, 3.0], [7, 2.0, 3.0], []], 0.1)
+        assert found == [[], [7, 2.0, 3.0], [7, 2.0, 3.0], []]
 
 
 class TestWithLandings:
