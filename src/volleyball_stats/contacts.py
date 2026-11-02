@@ -28,6 +28,10 @@ MARGIN = 30
 MAX_GAP = 1.0
 # Ball speed in px/frame under which a frame does not vote for gravity.
 MOVING = 3
+# A gap in the track from HIDDEN_MIN_S to HIDDEN_MAX_S can hide a contact (`hidden_contacts`), the
+# flights on each side of it fitted on 3 or more of their nearest HIDDEN_POINTS frames, a flight
+# fitted worse than HIDDEN_RMS pixels being none, the two meeting within HIDDEN_MISS pixels.
+HIDDEN_MIN_S, HIDDEN_MAX_S, HIDDEN_POINTS, HIDDEN_RMS, HIDDEN_MISS = 0.1, 1.5, 8, 6, 60
 # The pixel constants are for the school match's court (rallies.COURT_PX long); `scale` is a video's
 # court length over it.
 
@@ -108,6 +112,49 @@ def detect_contacts(track: np.ndarray, fps: float, threshold: float = THRESHOLD,
     return [(t, round(filled[t, 0]), round(filled[t, 1])) for t in peaks(change, threshold * scale / fps, round(gap * fps))]
 
 
+def flight(frames: np.ndarray, points: np.ndarray, g: float) -> tuple[float, np.ndarray, np.ndarray, float]:
+    """A flight fitted under gravity `g`: its mean frame, position and velocity there, and the rms of its residuals."""
+    center = float(frames.mean())
+    t = frames - center
+    level = points - np.stack([0 * t, g * t**2 / 2], axis=1)
+    line = np.stack([np.ones_like(t), t], axis=1)
+    fit = np.linalg.lstsq(line, level, rcond=None)[0]
+    return center, fit[0], fit[1], float(np.sqrt(((line @ fit - level) ** 2).sum(axis=1).mean()))
+
+
+def hidden_contacts(track: np.ndarray, fps: float, threshold: float = THRESHOLD, scale: float = 1.0) -> list[Contact]:
+    """Contacts in the track's gaps, where the ball is often lost at the hands: the flights before
+    and after a gap taken to where they come closest, a contact if the velocity changes there by
+    over `threshold`, gravity removed; (frame, x, y) where they meet."""
+    window = max(2, round(WINDOW * fps))
+    g = gravity(track, window, MOVING * scale)
+    seen = np.flatnonzero(~np.isnan(track[:, 0]))
+    points = round(HIDDEN_POINTS * fps / 50)
+    found = []
+    for a, b in zip(seen, seen[1:]):
+        if not HIDDEN_MIN_S * fps <= b - a - 1 <= HIDDEN_MAX_S * fps:
+            continue
+        before, after = seen[(seen <= a) & (seen > a - 2 * points)][-points:], seen[(seen >= b) & (seen < b + 2 * points)][:points]
+        if len(before) < 3 or len(after) < 3:
+            continue
+        (t0, p0, v0, rms0), (t1, p1, v1, rms1) = flight(before.astype(float), track[before], g), flight(after.astype(float), track[after], g)
+        if max(rms0, rms1) > HIDDEN_RMS * scale:
+            continue
+        frames = np.arange(a, b + 1, dtype=float)
+
+        def along(t: float, p: np.ndarray, v: np.ndarray) -> np.ndarray:
+            return p + (frames - t)[:, None] * v + np.stack([0 * frames, g * (frames - t) ** 2 / 2], axis=1)
+
+        path0, path1 = along(t0, p0, v0), along(t1, p1, v1)
+        apart = np.hypot(*(path1 - path0).T)
+        k = int(apart.argmin())
+        change = np.hypot(*(v1 - v0 + [0, g * (t0 - t1)]))
+        if apart[k] <= HIDDEN_MISS * scale and change >= threshold * scale / fps:
+            x, y = (path0[k] + path1[k]) / 2
+            found.append((int(frames[k]), round(x), round(y)))
+    return found
+
+
 def detect_crossings(track: np.ndarray, net_x: float, fps: float, margin: float = MARGIN) -> list[int]:
     """Frames where the ball passes the net, interpolated between visible frames."""
     crossings: list[int] = []
@@ -129,7 +176,11 @@ def detect_crossings(track: np.ndarray, net_x: float, fps: float, margin: float 
 
 def detect(track: np.ndarray, fps: float, net_x: float, scale: float = 1.0) -> tuple[list[Contact], list[int]]:
     """Contacts as (frame, x, y) and net crossing frames of a track with NaN where not visible."""
-    return detect_contacts(track, fps, scale=scale), detect_crossings(track, net_x, fps, MARGIN * scale)
+    found = detect_contacts(track, fps, scale=scale)
+    gap = round(GAP * fps)
+    seen = np.array([c[0] for c in found], dtype=int)
+    hidden = [c for c in hidden_contacts(track, fps, scale=scale) if not np.any(np.abs(seen - c[0]) <= gap)]
+    return sorted(found + hidden), detect_crossings(track, net_x, fps, MARGIN * scale)
 
 
 def main() -> None:

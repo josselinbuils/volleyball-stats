@@ -1,6 +1,6 @@
 import numpy as np
 
-from volleyball_stats.contacts import detect, detect_contacts, detect_crossings, gravity, peaks
+from volleyball_stats.contacts import detect, detect_contacts, detect_crossings, gravity, hidden_contacts, peaks
 
 FPS = 30.0
 G = 0.6
@@ -98,3 +98,27 @@ class TestDetect:
 
     def test_finds_nothing_without_a_visible_ball(self):
         assert detect(np.full((100, 2), np.nan), FPS, 612) == ([], [])
+
+
+class TestHiddenContacts:
+    @staticmethod
+    def hole(turn: bool) -> np.ndarray:
+        """A ball moving at 10 px/frame hidden over frames 40-60, turned back at frame 50 if `turn`."""
+        x = np.array([100.0 + 10 * min(t, 50) + (-10 if turn else 10) * max(t - 50, 0) for t in range(100)])
+        track = np.stack([x, np.full(100, 300.0)], axis=1)
+        track[40:61] = np.nan
+        return track
+
+    def test_finds_a_contact_where_the_flights_meet(self):
+        ((frame, x, y),) = hidden_contacts(self.hole(True), 50.0, threshold=100)
+
+        assert abs(frame - 50) <= 1 and abs(x - 600) <= 10 and y == 300
+
+    def test_a_flight_straight_through_a_gap_hides_none(self):
+        assert hidden_contacts(self.hole(False), 50.0, threshold=100) == []
+
+    def test_flights_too_far_apart_are_none(self):
+        track = self.hole(True)
+        track[61:, 1] += 500
+
+        assert hidden_contacts(track, 50.0, threshold=100) == []
