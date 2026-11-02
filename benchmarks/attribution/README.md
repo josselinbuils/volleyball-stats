@@ -296,12 +296,12 @@ tells apart players in line with the camera. Alone it is far weaker than the pic
 touches against 648), yet right on 24 of the 44 picks wrong. Held out set by set on those touches: 640 -> 652.
 Retrained on the answers (`ranker.py MATCH:VIDEO:COURT`, needed for the places; school clips without it), rule
 against learned: 207/209, 229/237, 171/177 of 235, 264, 191. On a copy of the match, named players on the
-checked rallies 651/731 -> 677/761, answered touches 607/673 -> 609/668.
+checked rallies 651/731 -> 678/761, answered touches 607/673 -> 610/668.
 
 **Tried and dropped (2 Nov).** Touch answers as identity pins, where the answered player is on no candidate
 (next_steps' idea), half the answers given and half held out: 608 -> 507 of 673, the wrong pieces' pins pull
 whole identities over. Of the 78 wrong named players then: 42 wrong picks, 24 no track holding the player, 12
-the player seen elsewhere.
+the player seen elsewhere. Every track cut between the rallies it spans, re-identified: 678 -> 679 of 761 for 15 min more.
 
 ## Tried and dropped
 

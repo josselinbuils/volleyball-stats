@@ -1,4 +1,4 @@
-# Plan in progress (1 Nov)
+# Plan in progress (2 Nov)
 
 ## Touches
 
@@ -32,10 +32,31 @@ Last "Apprendre de mes réponses", 1 Nov 21:41, with `LIVE_SPEED` per second: to
 touches real 817/860 -> 835/883, types 86.7% both, named players 89.1% both, checked winners 114 -> 115, all 129 rallies
 still checked, same set scores. The hosted page is behind it by one floor contact (frame 186492).
 
+In the code since, 2 Nov, not yet in the first match's outputs: the owner's next "Apprendre de mes réponses" brings them. Run
+on a copy of the match, against the last run: touches found 844 -> 872 of 945, pipeline touches real 835/883 -> 863/909, types
+732/844 -> 778/872, named players 651/731 -> 678/761, answered touches 607/673 -> 610/668, checked winners 115 -> 117 of 128, added
+touches found 95 -> 131 of 198. All 129 checked rallies, their winners, running scores and named players came through, no
+warning, sets 25-23, 25-12, 25-18; 3 rallies change by a floor or net contact, which the lock does not hold. F1 ±1 s is unchanged
+(26:00-36:00 0.90, 50:00-60:00 0.57); the school clips too, but serves 5/7 -> 6/7 on `side_holdout`, one more wrong pick of 38 and
+`side_long`'s score drift 1 -> 2 (a warm-up window moved). All tuned on this match: the second one is the test.
+
+- Contacts hidden in the ball track's gaps (`contacts.hidden_contacts`), the benchmark's README.
+- Late serves and windows that are no rally (`actions.late_serves`, `no_play`): rally starts 123 -> 126 of 129, windows 135 -> 130.
+- A touch at the nearest player's feet is a bounce (`attribution.FEET`): 7 false, no real one.
+- The ball's 3D place in the learned attribution (`ball3d.flight_places`, `ranker.py`), and attack or relance from its flight
+  (`actions.by_flight`, calibrated footage only): 137 -> 144 of 169, each set held out.
+- `web.with_added`: an older added touch near a row found at a frame the review gave no longer loses that touch.
+
+Tried and dropped, 2 Nov (numbers in the benchmarks' READMEs): a learned filter on contacts below the threshold (F1 0.89 against
+0.895), carrying a rally past its window (7 real touches for 16-29 false), a shorter `contacts.GAP` for blocks (0.16 s: 3 more
+blocks right, 21 more false), a set sent over typed attack (13 fixed, 10 broken: the owner calls many sets), the 3D height for
+touches typed floor (real floors fit up to 2 m), touch answers as identity pins (608 -> 507 of 673 held out), tracks cut between
+rallies (678 -> 679 of 761, 15 min more). 30 settings searched one at a time, sets 1-2 apart from set 3: a plateau, nothing changed.
+
 Next:
 
-1. The 23 touches outside windows and the 7 removed after detection, then the 48 false ones.
-2. The 71 with no contact: filtering the extra detections better, or the ball model fine-tuned on the RTX 5080.
+1. The 73 touches still missed: mostly the ball model, fine-tuned on the RTX 5080.
+2. The 46 false ones; ends with no whistle on 50:00-60:00, which the settings cannot reach; the merged attack and block.
 
 Tried and dropped: see `benchmarks/rallies/README.md`.
 

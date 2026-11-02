@@ -74,7 +74,8 @@ settings sit on a plateau (`HIDDEN_RMS` 4-9, `HIDDEN_MISS` 40-90, `HIDDEN_MAX_S`
 
 **Tried and dropped (2 Nov):** a logit on every candidate down to 0.3-0.5 of the threshold (strength,
 ball seen, speeds in and out, height, net, nearest player), cross-validated: at best F1 0.89 against 0.895
-for the threshold and `attribution.FAR` alone.
+for the threshold and `attribution.FAR` alone. A shorter `GAP` to split an attack from its block: 0.16 s
+finds 3 more blocks right for 21 more false touches, under 0.14 s false touches climb fast.
 
 A net crossing is a sign change of x − 612 between consecutive visible frames under 1 s apart,
 counted once the ball gets 30 px past the net, so a ball played at the net does not cross back

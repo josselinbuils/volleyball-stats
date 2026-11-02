@@ -97,6 +97,9 @@ and checked rallies, on the RTX 5080).
 
 ## Left, by value
 
+Since 2 Nov (`docs/plan.md`): 2 (the 3D ball path in the learned attribution), 4 (sets sent over: tried, the owner calls many
+sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are settled.
+
 1. **Identity behind wrong touches.** 9 of the 135 answered players are among no candidate: tracks
    with no identity (3), and long tracks chopped into many pieces whose identities jump (track 275:
    pieces of identities 2, 14, 4, 11, 16 over 14162-23115; both serves 21875 and 31080 land on a

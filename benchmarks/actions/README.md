@@ -226,3 +226,11 @@ uv run python benchmarks/actions/relance.py \
 - Sides assume a camera in the net plane; quality grades, set types and attack zones are not typed.
 - 19 rallies, one match, one camera, one annotator; the tuning clips set the constants, and the
   held-out clip's 2 blocks and 1 net are too few to measure those rules.
+
+## Attack or relance from the flight (2 Nov)
+
+`actions.by_flight`, on calibrated footage with a lens, after the pose rule: an attack leaves from 2.1 m or higher, rising at under
+6 m/s until the next contact (`ball3d.flight_places`, no player's feet in it); else a relance; a contact with no such flight
+keeps the pose rule's type. On the first match's checked rallies, 169 attacks and relances: pose 137, thresholds set on the other
+two sets 144 (149 at their best on all; a logit on height, speed and rise 150 over 5 folds). All types: 764 -> 777 of 871.
+
