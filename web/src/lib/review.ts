@@ -47,7 +47,7 @@ export interface Question {
   crops: string[];
   choices: Choice[];
   /** Viewers' reports on a rally (`report`): what each reported, the rally's touches and its winner. */
-  reports?: { kind: string | null; shown: string | null; comment: string; time: number }[];
+  reports?: { kind: string | null; shown: string | null; comment: string; time: number; received?: string | null }[];
   /** A report's rally, by the key the answers name it by. */
   rally?: number | null;
   touches?: ReportTouch[];

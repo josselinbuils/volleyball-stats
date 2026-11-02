@@ -366,6 +366,7 @@
     "reportGo": "Watch this moment",
     "reportHandled": "Handled",
     "reportHandledNote": "Marks this report as handled and saves the corrections as they stand.",
+    "reportReceived": "received {{when}}",
     "autoReport": "Automatic check",
     "validateRally": "Validate rally {{n}}",
     "rallyChecked": "Rally checked",
@@ -678,7 +679,6 @@
         "afterPoint": "An action follows a point in the same rally",
         "gap": "Long pause between two touches",
         "serverOrder": "Server out of rotation order",
-        "serverPlace": "Server not behind their line",
         "sameJersey": "Two players with the same jersey",
         "missedPoint": "Ball in play outside the rallies: a missed point?"
       }

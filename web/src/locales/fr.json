@@ -366,6 +366,7 @@
     "reportGo": "Revoir ce moment",
     "reportHandled": "Traité",
     "reportHandledNote": "Marque ce signalement comme traité et enregistre les corrections en cours.",
+    "reportReceived": "reçu le {{when}}",
     "autoReport": "Vérification automatique",
     "validateRally": "Valider l'échange {{n}}",
     "rallyChecked": "Échange vérifié",
@@ -678,7 +679,6 @@
         "afterPoint": "Une action suit un point dans le même échange",
         "gap": "Longue pause entre deux touches",
         "serverOrder": "Serveur hors de l'ordre de rotation",
-        "serverPlace": "Serveur pas derrière sa ligne",
         "sameJersey": "Deux joueurs avec le même maillot",
         "missedPoint": "Ballon en jeu hors des échanges : un point manqué ?"
       }

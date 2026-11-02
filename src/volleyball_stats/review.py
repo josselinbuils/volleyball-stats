@@ -617,8 +617,6 @@ def reports(match: Path) -> list[dict]:
 
 # Over this long between two touches, in seconds, one is often missing (first match, before the review: 10 of 14 hid one).
 GAP_S = 2.5
-# A server stands 9 m or more from the net: under this, tracking error aside, they are not the one serving.
-SERVER_FROM_NET_M = 8.0
 # A team's six players serve in turn: under this many turns apart, it is not the same player's turn.
 ROTATION = 6
 
@@ -662,7 +660,7 @@ def unusual(page: dict) -> list[dict]:
     touch after a fault or a point (either ends the rally), served by the team that lost the set's point
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order
-    (`rotation_slips`) or inside the court (`stood`), and, on the first rally either plays, two players of a team with one jersey.
+    (`rotation_slips`), and, on the first rally either plays, two players of a team with one jersey.
     A playing fault ("fault") is no touch of the ball in the order of touches; one ends the rally as a fault does. The same rally
     and reason keep the same id: one handled is not asked again. `shown` names who it is about."""
     out = []
@@ -716,11 +714,9 @@ def unusual(page: dict) -> list[dict]:
             why.append("gap")
         if k in slips:
             why.append("serverOrder")
-        if serves and serves[0].get("stood") is not None and serves[0]["stood"] < SERVER_FROM_NET_M:
-            why.append("serverPlace")
         for reason in why:
             said = f"auto:{reason}:{r['start']}" + (f":{score}" if reason == "scoreOff" else "")
-            about = {"shown": name(serves[0])} if reason in ("serverOrder", "serverPlace") and name(serves[0]) else {}
+            about = {"shown": name(serves[0])} if reason == "serverOrder" and name(serves[0]) else {}
             out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["start"], "kind": f"auto.{reason}", "comment": None, **about})
     wearing: dict[tuple[int, int], set[int]] = defaultdict(set)
     for p, q in people.items():
@@ -806,7 +802,7 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
         "kind": "report", "team": 1, "identity": None, "impact": 0, "seconds": round(rally["end"] - rally["start"], 1), "contacts": len(touches),
         "set": rally.get("set"), "time": round(rally["start"], 2), "crops": [], "choices": [],
         "clip": {"start": round(rally["start"], 2), "end": round(rally["end"], 2), "around": RALLY_AROUND_S, "boxes": []},
-        "reports": [{"kind": report.get("kind"), "shown": report.get("shown"), "comment": report.get("comment") or "", "time": round(at, 2)}],
+        "reports": [{"kind": report.get("kind"), "shown": report.get("shown"), "comment": report.get("comment") or "", "time": round(at, 2), "received": report.get("received")}],
         "touches": touches, "winner": rally.get("winner"),
     }
     key = rally.get("key", round(rally["start"] * fps)) if k is not None else None

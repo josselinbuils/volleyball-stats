@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, Maximize, Minimize, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { clock } from '@/lib/format';
+import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { match, rallies, type Group } from '@/lib/match';
 import type { Named, Question, ReportChanges } from '@/lib/review';
@@ -48,6 +48,7 @@ export function MatchTab({
   onHandled: (report: Question, changes: ReportChanges) => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const f = useFormat();
   const clipTime = useRef(0);
   const [now, setNow] = useState(0);
   const [seek, setSeek] = useState<{ time: number; n: number; play?: boolean }>();
@@ -163,6 +164,7 @@ export function MatchTab({
                           <span className="font-medium">{t(`feedback.kinds.${r.kind}`, { defaultValue: r.kind ?? '' })}</span>
                           {r.shown && <span className="text-muted-foreground">{` · ${r.shown}`}</span>}
                           {r.comment && <span>{` · « ${r.comment} »`}</span>}
+                          {r.received && <span className="text-muted-foreground">{` · ${t('review.reportReceived', { when: f.when(r.received) })}`}</span>}
                         </p>
                       ))}
                     </div>

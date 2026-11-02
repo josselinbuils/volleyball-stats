@@ -197,6 +197,11 @@ class TestReports:
         del page["rallies"][0]["wrongCall"]
         assert "auto.server" in [r["kind"] for r in unusual(page)]
 
+    def test_a_report_question_says_when_the_report_came(self):
+        page = {"rallies": [{"key": 50, "start": 1.0, "end": 5.0, "set": 1, "winner": 1}], "contacts": []}
+        question, _ = report_question({"time": 2.0, "kind": "flag", "received": "2026-11-01T12:21:00+00:00"}, page, 50.0)
+        assert question["reports"][0]["received"] == "2026-11-01T12:21:00+00:00"
+
     def test_a_long_pause_between_two_touches_is_reported(self):
         def touch(t, kind):
             return {"t": t, "type": kind, "team": 1, "side": "left", "rally": 0, "result": "play"}
@@ -205,12 +210,6 @@ class TestReports:
         assert unusual(page) == []
         page["contacts"][-1]["t"] = 3.6
         assert [r["kind"] for r in unusual(page)] == ["auto.gap"]
-
-    def test_a_server_inside_the_court_is_reported_with_their_name(self):
-        page = {"people": {"1": {"team": 1, "name": "Ana"}}, "rallies": [{"start": 0.0, "end": 1.0, "set": 1}], "contacts": [{"t": 0.0, "type": "serve", "team": 1, "side": "left", "rally": 0, "result": "error", "person": 1, "stood": 8.0}]}
-        assert unusual(page) == []
-        page["contacts"][0]["stood"] = 7.9
-        assert [(r["kind"], r["shown"]) for r in unusual(page)] == [("auto.serverPlace", "Ana")]
 
     def test_two_named_players_of_a_team_with_one_jersey_are_reported_once(self):
         people = {"1": {"team": 1, "jersey": 10, "name": "Ana"}, "2": {"team": 1, "jersey": 10, "name": "Zoé"}, "3": {"team": 2, "jersey": 10, "name": "Léa"}, "4": {"team": 1, "jersey": 7, "name": "Ana"}}

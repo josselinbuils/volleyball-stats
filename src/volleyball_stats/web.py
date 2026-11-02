@@ -932,16 +932,6 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
     return out
 
 
-def with_server_places(contacts: list[dict], players: dict, fps: float) -> list[dict]:
-    """`contacts` with, on each serve, how far from the net its player stood along the court then, in metres (`stood`): the review checks it."""
-    back = round(HOLD_S * fps / players["step"])
-    out = []
-    for c in contacts:
-        place = places_at(players, c["t"], fps, back).get(c.get("person")) if c["type"] == "serve" else None
-        out.append({**c, "stood": round(abs(place[0]), 1)} if place else c)
-    return out
-
-
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None) -> None:
     """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, the commentary's `voice` (`speech.voice_index`) and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
@@ -969,7 +959,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         for n, content in enumerate(positions):
             (site / "positions" / f"{n}.js").write_text(content)
         data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions), "cm": POSITION_CM}
-        data["contacts"] = with_server_places(with_landings(data.get("contacts", []), players, data["fps"]), players, data["fps"])
+        data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
     if ball_js:
