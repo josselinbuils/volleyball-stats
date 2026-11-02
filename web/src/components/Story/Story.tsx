@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
 import { setScores, setsWon } from '@/components/Header/helpers/score';
@@ -69,15 +68,12 @@ export function Story() {
 function MomentRow({ moment: m, number }: { moment: Moment; number: number }) {
   const { t } = useTranslation();
   const f = useFormat();
-  const { playlist, play } = usePlayer();
-  const key = `story:${m.kind}:${m.rallies[0]}`;
-  const on = playlist?.key === key;
+  const { play } = usePlayer();
   const text = momentText(t, m, f.secs);
   return (
     <li>
       <button
         type="button"
-        aria-pressed={on}
         title={t('story.replay')}
         onClick={() =>
           play(
@@ -86,14 +82,9 @@ function MomentRow({ moment: m, number }: { moment: Moment; number: number }) {
               allRallies.filter((r) => m.rallies.includes(r.i)),
               match.duration,
             ),
-            0,
-            key,
           )
         }
-        className={cn(
-          'group flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
-          on && 'bg-primary/8 hover:bg-primary/12',
-        )}
+        className="group flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span aria-hidden className="inline-grid size-5 shrink-0 place-items-center rounded-full bg-foreground text-xs font-semibold text-background tabular-nums">
           {number}

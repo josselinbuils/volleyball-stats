@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SetBadge } from '@/components/SetBadge';
@@ -68,39 +67,33 @@ export function Coach() {
           <Section title={t('coach.things.title')} caption={t('coach.things.caption', { team: groupName(t, picked), count: lost.lost })}>
             <ol className="m-0 grid list-none gap-2 p-0 lg:grid-cols-3">
               {lost.found.map((thing, k) => (
-                <ThingRow key={thing.cause} id={`coach:thing:${picked}:${thing.cause}:${rallies.length}`} thing={thing} rank={k + 1} g={picked} />
+                <ThingRow key={thing.cause} thing={thing} rank={k + 1} g={picked} />
               ))}
             </ol>
           </Section>
         )}
-        {setting.length > 0 && <Setters setters={setting} g={picked} rallies={rallies.length} />}
+        {setting.length > 0 && <Setters setters={setting} />}
       </CardContent>
     </Card>
   );
 }
 
-function ThingRow({ id, thing, rank, g }: { id: string; thing: Thing; rank: number; g: Group }) {
+function ThingRow({ thing, rank, g }: { thing: Thing; rank: number; g: Group }) {
   const { t } = useTranslation();
-  const { playlist, play } = usePlayer();
+  const { play } = usePlayer();
   const title = (tr: TFunction) => tr(`coach.things.names.${thing.cause}`);
   return (
     <li>
       <button
         type="button"
-        aria-pressed={playlist?.key === id}
         title={t('watchN', { count: thing.n })}
         onClick={() =>
           play(
             title,
             contactClips(thing.contacts, match.duration).map(({ player: _, name: __, ...clip }) => clip),
-            0,
-            id,
           )
         }
-        className={cn(
-          'flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
-          playlist?.key === id && 'bg-primary/8 hover:bg-primary/12',
-        )}
+        className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span aria-hidden className="inline-grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-sm font-semibold text-background tabular-nums">
           {rank}

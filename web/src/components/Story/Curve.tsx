@@ -157,8 +157,6 @@ export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Mom
                         allRallies.filter((r) => moment.rallies.includes(r.i)),
                         match.duration,
                       ),
-                      0,
-                      `story:${moment.kind}:${moment.rallies[0]}`,
                     )
                   }
                   className="absolute inline-grid size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-foreground text-xs font-semibold text-background ring-2 ring-card outline-none focus-visible:ring-3 focus-visible:ring-ring/60"

@@ -114,18 +114,8 @@ export function Header() {
                         <Swatch color={teamColor(g)} ring={teamRing(g)} />
                         <span className="truncate">{groupName(t, g)}</span>
                       </span>
-                      <CountButton
-                        id={`split:${set}:${g}:direct`}
-                        title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g) })}
-                        picked={split.direct}
-                        className="h-7 justify-self-center text-sm"
-                      />
-                      <CountButton
-                        id={`split:${set}:${g}:faults`}
-                        title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g) })}
-                        picked={split.faults}
-                        className="h-7 justify-self-center text-sm"
-                      />
+                      <CountButton title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g) })} picked={split.direct} className="h-7 justify-self-center text-sm" />
+                      <CountButton title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g) })} picked={split.faults} className="h-7 justify-self-center text-sm" />
                     </Fragment>
                   );
                 })}

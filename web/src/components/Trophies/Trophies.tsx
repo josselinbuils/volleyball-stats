@@ -54,7 +54,7 @@ function clips(trophy: Trophy): Clip[] {
 /** The match's awards, for what players did well, each replaying its moments. */
 export function Trophies() {
   const { t } = useTranslation();
-  const { set, contacts, rallies } = useSet();
+  const { contacts, rallies } = useSet();
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
   const won = useMemo(
     () =>
@@ -85,7 +85,7 @@ export function Trophies() {
       <CardContent>
         <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-2 p-0">
           {won.map((trophy) => (
-            <Award key={trophy.kind} id={`trophy:${set}:${trophy.kind}`} trophy={trophy} />
+            <Award key={trophy.kind} trophy={trophy} />
           ))}
         </ul>
       </CardContent>
@@ -93,7 +93,7 @@ export function Trophies() {
   );
 }
 
-function Award({ id, trophy }: { id: string; trophy: Trophy }) {
+function Award({ trophy }: { trophy: Trophy }) {
   const { t } = useTranslation();
   const f = useFormat();
   const { play } = usePlayer();
@@ -109,7 +109,7 @@ function Award({ id, trophy }: { id: string; trophy: Trophy }) {
       <button
         type="button"
         title={t('watchN', { count: clips(trophy).length })}
-        onClick={() => play((tr) => [tr(`trophies.names.${trophy.kind}`), winners(tr, trophy)].filter(Boolean).join(', '), clips(trophy), 0, id)}
+        onClick={() => play((tr) => [tr(`trophies.names.${trophy.kind}`), winners(tr, trophy)].filter(Boolean).join(', '), clips(trophy))}
         className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span aria-hidden className="inline-grid size-9 shrink-0 place-items-center rounded-full text-[#3a2a00] shadow-sm" style={{ background: GOLD_CSS }}>

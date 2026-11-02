@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Play, Trophy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -128,7 +127,7 @@ function Player({ player }: { player: string }) {
   return (
     <div className="grid gap-6 md:grid-cols-[15rem_minmax(0,1fr)]">
       <div className="max-md:mx-auto max-md:w-full max-md:max-w-64">
-        <PlayerCard id={`mine:${set}:${line.id}`} row={row} g={g} mvp={best?.key === player ? best : undefined} />
+        <PlayerCard row={row} g={g} mvp={best?.key === player ? best : undefined} />
       </div>
       <div className="grid content-start gap-6">
         <div className="grid gap-3">
@@ -137,18 +136,16 @@ function Player({ player }: { player: string }) {
             {main.n > 0 && ` ${t(`myMatch.mostly.${main.stat}`, { count: main.n })}`}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Replay id={`mine:all:${set}:${player}`} picked={line.stats.touches} title={title} label={t('myMatch.replayAll', { count: line.stats.touches.length })} primary />
-            {line.stats.points.length > 0 && (
-              <Replay id={`mine:points:${set}:${player}`} picked={line.stats.points} title={title} label={t('myMatch.replayPoints', { count: line.stats.points.length })} />
-            )}
+            <Replay picked={line.stats.touches} title={title} label={t('myMatch.replayAll', { count: line.stats.touches.length })} primary />
+            {line.stats.points.length > 0 && <Replay picked={line.stats.points} title={title} label={t('myMatch.replayPoints', { count: line.stats.points.length })} />}
           </div>
           {(leads.length > 0 || chips.length > 0) && (
             <div className="flex flex-wrap gap-1">
               {leads.map((stat) => (
-                <Lead key={stat} id={`mine:top:${stat}:${set}:${player}`} stat={stat} picked={line.stats[stat]} title={title} />
+                <Lead key={stat} stat={stat} picked={line.stats[stat]} title={title} />
               ))}
               {chips.map((i) => (
-                <InsightChip key={i.key} id={`mine:${set}:${player}:${i.key}`} insight={i} who={title} />
+                <InsightChip key={i.key} insight={i} who={title} />
               ))}
             </div>
           )}
@@ -157,7 +154,6 @@ function Player({ player }: { player: string }) {
           <Section title={t('myMatch.moments')}>
             {run && (
               <Row
-                id={`mine:run:${set}:${player}`}
                 title={(tr) => tr('myMatch.serveRunTitle', { name: title(tr) })}
                 clips={rallyClips(
                   allRallies.filter((r) => run.rallies.includes(r.i)),
@@ -168,7 +164,7 @@ function Player({ player }: { player: string }) {
               </Row>
             )}
             {moments.map((m) => (
-              <Row key={m.contact.i} id={`mine:moment:${m.contact.i}`} title={title} clips={contactClips([m.contact], match.duration)}>
+              <Row key={m.contact.i} title={title} clips={contactClips([m.contact], match.duration)}>
                 <b className="font-semibold">{t(`myMatch.highlight.${m.kind}`)}</b>
                 <span className="block text-xs text-muted-foreground">
                   {t(m.kind === 'longRally' ? 'myMatch.highlightLong' : 'myMatch.highlightDetail', {
@@ -192,12 +188,7 @@ function Player({ player }: { player: string }) {
               ]
                 .filter((x) => x.attacks.length > 0)
                 .map((x) => (
-                  <Row
-                    key={x.id}
-                    id={`mine:duo:${set}:${player}:${x.id}`}
-                    title={(tr) => tr('myMatch.duo', { setter: x.setter(tr), attacker: x.attacker(tr) })}
-                    clips={contactClips(x.attacks, match.duration)}
-                  >
+                  <Row key={x.id} title={(tr) => tr('myMatch.duo', { setter: x.setter(tr), attacker: x.attacker(tr) })} clips={contactClips(x.attacks, match.duration)}>
                     {t('myMatch.duo', { setter: x.setter(t), attacker: x.attacker(t) })}
                     <span className="block text-xs text-muted-foreground">{`${t('myMatch.duoAttacks', { count: x.attacks.length })}, ${t('myMatch.duoWon', { count: x.attacks.filter((c) => c.result === 'point').length })}`}</span>
                   </Row>
@@ -219,22 +210,17 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** A line that plays its clips, highlighted while they play. */
-function Row({ id, title, clips, children }: { id: string; title: (t: TFunction) => string; clips: Clip[]; children: ReactNode }) {
+/** A line that plays its clips. */
+function Row({ title, clips, children }: { title: (t: TFunction) => string; clips: Clip[]; children: ReactNode }) {
   const { t } = useTranslation();
-  const { playlist, play } = usePlayer();
-  const on = playlist?.key === id;
+  const { play } = usePlayer();
   return (
     <li>
       <button
         type="button"
-        aria-pressed={on}
         title={t('story.replay')}
-        onClick={() => play(title, clips, 0, id)}
-        className={cn(
-          'flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
-          on && 'bg-primary/8 hover:bg-primary/12',
-        )}
+        onClick={() => play(title, clips)}
+        className="flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span className="min-w-0 flex-1">{children}</span>
         <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
@@ -243,10 +229,10 @@ function Row({ id, title, clips, children }: { id: string; title: (t: TFunction)
   );
 }
 
-function Replay({ id, picked, title, label, primary }: { id: string; picked: Contact[]; title: (t: TFunction) => string; label: string; primary?: boolean }) {
-  const { playlist, play } = usePlayer();
+function Replay({ picked, title, label, primary }: { picked: Contact[]; title: (t: TFunction) => string; label: string; primary?: boolean }) {
+  const { play } = usePlayer();
   return (
-    <Button variant={primary ? 'default' : 'outline'} aria-pressed={playlist?.key === id} onClick={() => play(title, contactClips(picked, match.duration), 0, id)}>
+    <Button variant={primary ? 'default' : 'outline'} onClick={() => play(title, contactClips(picked, match.duration))}>
       <Play aria-hidden />
       {label}
     </Button>
@@ -254,21 +240,16 @@ function Replay({ id, picked, title, label, primary }: { id: string; picked: Con
 }
 
 /** What a player leads their team in, playing those touches. */
-function Lead({ id, stat, picked, title }: { id: string; stat: Stat; picked: Contact[]; title: (t: TFunction) => string }) {
+function Lead({ stat, picked, title }: { stat: Stat; picked: Contact[]; title: (t: TFunction) => string }) {
   const { t } = useTranslation();
-  const { playlist, play } = usePlayer();
-  const on = playlist?.key === id;
+  const { play } = usePlayer();
   const name = (tr: TFunction) => tr('myMatch.topsTitle', { stat: tr(`stats.names.${stat}`), name: title(tr) });
   return (
     <button
       type="button"
-      aria-pressed={on}
       title={`${t('myMatch.tops')} · ${t('watchN', { count: picked.length })}`}
-      onClick={() => play(name, contactClips(picked, match.duration), 0, id)}
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-emerald-900 outline-none hover:bg-emerald-200 focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900',
-        on && 'ring-2 ring-primary',
-      )}
+      onClick={() => play(name, contactClips(picked, match.duration))}
+      className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-emerald-900 outline-none hover:bg-emerald-200 focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
     >
       <Trophy aria-hidden className="size-3" />
       {`${t(`stats.names.${stat}`)} · ${picked.length}`}

@@ -86,7 +86,7 @@ export function PlayersTable() {
             ))}
           </ToggleGroup>
         </div>
-        <StatsTable id={`players:${set}:${group}`} first={t('players.player')} rows={rows} columns={COLUMNS} insights={withPlayers} />
+        <StatsTable first={t('players.player')} rows={rows} columns={COLUMNS} insights={withPlayers} />
         <p className="text-[13px] text-muted-foreground">{`${t('stats.noteTitles')} ${t('stats.noteVideo')}`}</p>
       </CardContent>
     </Card>

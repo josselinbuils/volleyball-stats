@@ -28,31 +28,28 @@ const SHIELD_CSS = `polygon(${SHIELD.map(([x, y]) => `${x}% ${y}%`).join(', ')})
 
 export type CardRow = Row & { key: number };
 interface CardProps {
-  id: string;
   row: CardRow;
   g: Group;
   mvp?: Best;
 }
 
 /** A count that plays its touches, in the card's own style; 0 for none. */
-function Play({ id, stat, row, className }: { id: string; stat: Stat; row: CardRow; className?: string }) {
+function Play({ stat, row, className }: { stat: Stat; row: CardRow; className?: string }) {
   const { t } = useTranslation();
   const f = useFormat();
-  const { playlist, play } = usePlayer();
+  const { play } = usePlayer();
   const picked: Contact[] = row.stats[stat];
   const title = (tr: TFunction) => `${tr(`stats.names.${stat}`)}, ${row.title(tr)}`;
   if (!picked.length) {
     return <span className={cn('opacity-60', className)}>0</span>;
   }
-  const on = playlist?.key === `${id}:${stat}`;
   return (
     <button
       type="button"
-      aria-pressed={on}
       aria-label={`${f.num(picked.length)} · ${title(t)} · ${t('watchN', { count: picked.length })}`}
       title={t('watchN', { count: picked.length })}
-      className={cn('rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-current/50', on && 'underline', className)}
-      onClick={() => play(title, contactClips(picked, match.duration), 0, `${id}:${stat}`)}
+      className={cn('rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-current/50', className)}
+      onClick={() => play(title, contactClips(picked, match.duration))}
     >
       {f.num(picked.length)}
     </button>
@@ -66,7 +63,7 @@ function cardName(t: TFunction, person: number): string {
 
 /** A player's collection card, shaped like a FIFA card, with their picture, number, name and counts, each
  * count playing its moments, the MVP's marked. */
-export function PlayerCard({ id, row: r, g, mvp }: CardProps) {
+export function PlayerCard({ row: r, g, mvp }: CardProps) {
   const { t } = useTranslation();
   const photo = match.people[r.key]?.photo;
   // Its menu (right click, a long press on phones) saves the card as a picture, or copies it; a phone
@@ -161,12 +158,12 @@ export function PlayerCard({ id, row: r, g, mvp }: CardProps) {
                   <div key={stat} data-rule={k % 3 > 0 ? 'left' : undefined} className={cn('flex min-w-0 flex-col-reverse items-center', k % 3 > 0 && 'border-l border-current/30')}>
                     <dt className="max-w-full truncate px-0.5 text-[9.5px] font-semibold tracking-tight uppercase">{t(`stats.names.${stat}`)}</dt>
                     <dd className="m-0 text-xl leading-tight font-black tabular-nums">
-                      <Play id={id} stat={stat} row={r} />
+                      <Play stat={stat} row={r} />
                     </dd>
                   </div>
                 ))}
               </dl>
-              <Totals id={id} row={r} className="relative pb-[13%] text-xs font-semibold" />
+              <Totals row={r} className="relative pb-[13%] text-xs font-semibold" />
             </div>
           </article>
         </ContextMenuTrigger>
@@ -192,13 +189,13 @@ export function PlayerCard({ id, row: r, g, mvp }: CardProps) {
 }
 
 /** "3 points · 1 faute", each playing its moments. */
-function Totals({ id, row, className }: { id: string; row: CardRow; className?: string }) {
+function Totals({ row, className }: { row: CardRow; className?: string }) {
   const { t } = useTranslation();
   return (
     <span className={cn('flex justify-center gap-3', className)}>
       {(['points', 'faults'] as const).map((stat) => (
         <span key={stat}>
-          <Play id={id} stat={stat} row={row} className="font-black" /> {t(`players.cards.${stat}`, { count: row.stats[stat].length })}
+          <Play stat={stat} row={row} className="font-black" /> {t(`players.cards.${stat}`, { count: row.stats[stat].length })}
         </span>
       ))}
     </span>

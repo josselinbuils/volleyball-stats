@@ -1,8 +1,7 @@
 import { Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { cn } from '@/lib/utils';
-import { color, match, playerLabel, type Group } from '@/lib/match';
+import { color, match, playerLabel } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { Section } from '@/components/Coach/Section';
@@ -13,7 +12,7 @@ import type { Setter } from '@/components/Coach/helpers/coach';
 const once = (s: Setter) => s.attackers.filter((a) => a.attacks.length === 1);
 
 /** Each setter and who attacks after their sets, each row replaying them: who gets the ball, no player's fault. */
-export function Setters({ setters, g, rallies }: { setters: Setter[]; g: Group; rallies: number }) {
+export function Setters({ setters }: { setters: Setter[] }) {
   const { t } = useTranslation();
   const most = Math.max(...setters.flatMap((s) => s.attackers.map((a) => a.attacks.length)));
   return (
@@ -34,7 +33,6 @@ export function Setters({ setters, g, rallies }: { setters: Setter[]; g: Group; 
                 .map((a) => (
                   <Row
                     key={a.person}
-                    id={`coach:duo:${g}:${s.person}:${a.person}:${rallies}`}
                     label={playerLabel(t, a.person) ?? ''}
                     title={(tr) => tr('coach.setters.playing', { setter: playerLabel(tr, s.person), attacker: playerLabel(tr, a.person) })}
                     attacks={a.attacks}
@@ -43,7 +41,6 @@ export function Setters({ setters, g, rallies }: { setters: Setter[]; g: Group; 
                 ))}
               {once(s).length > 1 && (
                 <Row
-                  id={`coach:duo:${g}:${s.person}:others:${rallies}`}
                   label={t('coach.setters.others', { count: once(s).length })}
                   title={(tr) => tr('coach.setters.playingOthers', { setter: playerLabel(tr, s.person) })}
                   attacks={once(s).flatMap((a) => a.attacks)}
@@ -58,24 +55,19 @@ export function Setters({ setters, g, rallies }: { setters: Setter[]; g: Group; 
   );
 }
 
-function Row({ id, label, title, attacks, most }: { id: string; label: string; title: (t: TFunction) => string; attacks: Contact[]; most: number }) {
+function Row({ label, title, attacks, most }: { label: string; title: (t: TFunction) => string; attacks: Contact[]; most: number }) {
   const { t } = useTranslation();
-  const { playlist, play } = usePlayer();
+  const { play } = usePlayer();
   const kills = attacks.filter((c) => c.result === 'point').length;
   const detail = [t('coach.setters.attacks', { count: attacks.length }), ...(kills ? [t('coach.setters.kills', { count: kills })] : [])].join(', ');
-  const on = playlist?.key === id;
   return (
     <li>
       <button
         type="button"
-        aria-pressed={on}
         title={detail}
         aria-label={`${label}, ${detail}`}
-        onClick={() => play(title, contactClips(attacks, match.duration), 0, id)}
-        className={cn(
-          'grid w-full grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
-          on && 'bg-primary/8 hover:bg-primary/12',
-        )}
+        onClick={() => play(title, contactClips(attacks, match.duration))}
+        className="grid w-full grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span className="truncate">{label}</span>
         <span aria-hidden className="flex h-2 overflow-hidden rounded-full bg-muted">

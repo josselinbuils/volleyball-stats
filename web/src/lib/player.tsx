@@ -7,18 +7,16 @@ import { PAD, rallyAt, type Clip } from '@/lib/playlist';
 /** What plays the moments: the video, or the clock replaying the court when the page has none. */
 export type Media = HTMLVideoElement | Clock;
 
-/** Clips played one after another, each stopping at its end. `key` names the control that started
- * it, to highlight it. */
+/** Clips played one after another, each stopping at its end. */
 export interface Playlist {
   title: (t: TFunction) => string;
   clips: Clip[];
   at: number;
-  key?: string;
 }
 
 interface Player {
   playlist: Playlist | null;
-  play: (title: Playlist['title'], clips: Clip[], at?: number, key?: string) => void;
+  play: (title: Playlist['title'], clips: Clip[], at?: number) => void;
   go: (at: number) => void;
   /** Leaves the playlist and pauses the video. */
   stop: () => void;
@@ -90,11 +88,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const play = useCallback<Player['play']>(
-    (title, clips, at = 0, key) => {
+    (title, clips, at = 0) => {
       if (!clips.length) {
         return;
       }
-      update({ title, clips, at, key });
+      update({ title, clips, at });
       const box = video?.getBoundingClientRect();
       if (video && box && (box.top < 0 || box.bottom > innerHeight)) {
         const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;

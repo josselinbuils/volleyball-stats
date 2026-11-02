@@ -165,16 +165,15 @@ export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: 
 /** Under the TV view: watching the match shown from the start, and the voice. */
 export function BroadcastControls({ voice, onVoice }: { voice: boolean; onVoice: (on: boolean) => void }) {
   const { t } = useTranslation();
-  const { play, playlist } = usePlayer();
-  const { rallies, set } = useSet();
+  const { play } = usePlayer();
+  const { rallies } = useSet();
   const chosen = useMemo(() => replays(allRallies), []);
   const clips = useMemo(() => broadcastClips(rallies, chosen, match.duration), [rallies, chosen]);
-  const id = `broadcast:${set}`;
   const [canSpeak] = useState(() => match.voice || speaks());
   return (
     <div className="mt-3 grid gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" aria-pressed={playlist?.key === id} disabled={!clips.length} onClick={() => play((tr) => tr('broadcast.watching'), clips, 0, id)}>
+        <Button size="sm" disabled={!clips.length} onClick={() => play((tr) => tr('broadcast.watching'), clips)}>
           <Play aria-hidden />
           {t('broadcast.watch')}
         </Button>
