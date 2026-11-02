@@ -380,7 +380,7 @@ def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, lon
             continue
         after = typed[k + 1][0]
         seconds = (after - frame) / fps
-        if frame in places and after in places and seconds <= longest:
+        if frame in places and after in places and 0 < seconds <= longest:
             rise = (places[after][2] - places[frame][2] + gravity * seconds**2 / 2) / seconds
             out[k] = (frame, x, y, "attack" if places[frame][2] >= ATTACK_M and rise <= RISE_MS else "relance", side)
     return out

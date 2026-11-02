@@ -288,6 +288,11 @@ class TestByFlight:
     def test_no_flight_known_stays(self):
         assert by_flight(self.typed("attack"), {}, self.FPS)[0][3] == "attack"
 
+    def test_two_contacts_on_one_frame_are_no_flight(self):
+        typed = [(0, 0, 0, "attack", "left"), (0, 0, 0, "dig", "right")]
+
+        assert by_flight(typed, {0: np.array([1.0, 0.0, 1.0])}, self.FPS)[0][3] == "attack"
+
     def test_other_touches_stay(self):
         places = {0: np.array([1.0, 0.0, 1.0]), 50: np.array([-5.0, 0.0, 1.0])}
 
