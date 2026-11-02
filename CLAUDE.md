@@ -210,7 +210,9 @@ uv run python -m volleyball_stats.feedback outputs/feedback.log
 ssh -i ~/.ssh/id_ed25519_ovh root@<OVH IP> ': > /home/ubuntu/docker/volleyball-stats/feedback/feedback.log'
 ```
 
-Test the report endpoint without writing to that log (it holds viewers' reports).
+Test the report endpoint without writing to that log (it holds viewers' reports): a GET writes an empty line too, which `feedback.read` skips.
+
+Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bot` list (search engines, AI scrapers, SEO tools; link previews stay) and sends `X-Robots-Tag: noindex` on all, the pages carry the same meta tag. A bot lying about its name gets through; the domain's `robots.txt` has no rule, Cloudflare's bot settings are the owner's. A change of a mounted config from `git pull` needs `docker compose up -d --force-recreate --no-deps volleyballstats`: the running container keeps the old file.
 
 Backup: while the review runs, every 10 minutes if something changed (and `uv run python -m volleyball_stats.backup
 outputs/MATCH`), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
