@@ -792,7 +792,7 @@ class TestNaturalMotion:
 
     def test_leaves_a_steady_run_where_it_is(self):
         run = [(k * 0.3, 2.0) for k in range(40)]
-        found = self.places(web.natural_motion(self.track(run), 0.1))
+        found = self.places(web.natural_motion(self.track(run), 0.1, {}))
         # The ends lean inward: the middle stays on the line.
         for k in range(10, 30):
             assert found[k] == pytest.approx(run[k], abs=0.01)
@@ -800,19 +800,31 @@ class TestNaturalMotion:
     def test_drops_a_place_far_from_those_around_it(self):
         places = [(1.0, 2.0)] * 21
         places[10] = (1.0, 5.0)
-        found = self.places(web.natural_motion(self.track(places), 0.1))
+        found = self.places(web.natural_motion(self.track(places), 0.1, {}))
         assert found[10] == pytest.approx((1.0, 2.0), abs=0.01)
 
     def test_fills_a_hole_they_could_have_walked_only(self):
         walked = [(0.0, 0.0)] * 5 + [None] * 10 + [(3.0, 0.0)] * 5
-        assert all(place is not None for place in self.places(web.natural_motion(self.track(walked), 0.1)))
+        assert all(place is not None for place in self.places(web.natural_motion(self.track(walked), 0.1, {})))
         too_fast = [(0.0, 0.0)] * 5 + [None] * 10 + [(9.0, 0.0)] * 5
-        assert self.places(web.natural_motion(self.track(too_fast), 0.1))[10] is None
+        assert self.places(web.natural_motion(self.track(too_fast), 0.1, {}))[10] is None
         too_long = [(0.0, 0.0)] * 5 + [None] * 60 + [(1.0, 0.0)] * 5
-        assert self.places(web.natural_motion(self.track(too_long), 0.1))[30] is None
+        assert self.places(web.natural_motion(self.track(too_long), 0.1, {}))[30] is None
+
+    def test_leaves_a_hole_open_when_the_team_already_has_six_there(self):
+        # Five teammates stand all along, and a sixth comes only during the hole of person 1.
+        others = [[p, float(p), 0.0] for p in range(2, 7)]
+        samples = [[1, 0.0, 0.0, *sum(others, [])] if k < 5 or k >= 15 else [*sum(others, []), *([7, 8.0, 8.0] if 8 <= k < 12 else [])] for k in range(20)]
+        teams = {p: 1 for p in range(1, 8)}
+
+        found = web.natural_motion(samples, 0.1, teams)
+        assert 1 not in found[10][0::3]
+        # Without that sixth, the hole fills.
+        alone = [[flat[i] for i in range(len(flat)) if flat[i - i % 3] != 7] for flat in samples]
+        assert 1 in web.natural_motion(alone, 0.1, teams)[10][0::3]
 
     def test_keeps_a_track_shorter_than_its_smoothing_at_its_places(self):
-        found = web.natural_motion([[], [7, 2.0, 3.0], [7, 2.0, 3.0], []], 0.1)
+        found = web.natural_motion([[], [7, 2.0, 3.0], [7, 2.0, 3.0], []], 0.1, {})
         assert found == [[], [7, 2.0, 3.0], [7, 2.0, 3.0], []]
 
 

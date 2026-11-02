@@ -107,7 +107,7 @@ the page must stay open, a slow device drops frames. Checked in headless Chrome 
 
 ## Page: players' movements (2 Nov)
 
-The page showed each 0.1 s sample as it was: a jump every 0.1 s, 3.1% of moves in rallies over 7 m/s (depth mostly: a box's foot), players blinking in holes over 0.5 s. Now `web.natural_motion` at build (outliers, holes, a Gaussian of 0.2 s, for the positions' files only: stats stay on the tracking), the page's `playersAt` between samples, in both views, and bodies turning over 0.12 s (`benchmarks/players/motion.py`).
+The page showed each 0.1 s sample as it was: a jump every 0.1 s, 3.1% of moves in rallies over 7 m/s (depth mostly: a box's foot), players blinking in holes over 0.5 s. Now `web.natural_motion` at build (outliers, holes while the team has under 6 there, a Gaussian of 0.2 s, for the positions' files only: stats stay on the tracking; filling every hole doubled moments over 12 players, from 14% to 26%), the page's `playersAt` between samples, in both views, and bodies turning over 0.12 s (`benchmarks/players/motion.py`).
 
 ## Page: lighter (2 Nov, positions)
 

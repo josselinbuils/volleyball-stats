@@ -62,10 +62,9 @@ LOGO_QUALITY = 90
 # The seconds of players' positions in one file the page loads, and how long a player missing from a few samples
 # stays where they were last seen (the page's `playersAt`).
 POSITIONS_S, HOLD_S = 300, 0.5
-# How the page's players move (`natural_motion`, on the first match: moves over 7 m/s 3.1% to 0.02%, the named player to the ball
-# at their touch 0.88 to 0.81 m): over OUTLIER_M from the median of OUTLIER_S either side is noise, a hole up to FILL_S at under
-# FILL_M_S is filled, then a Gaussian of SMOOTH_S.
-OUTLIER_M, OUTLIER_S, FILL_S, FILL_M_S, SMOOTH_S = 0.5, 0.5, 5.0, 7.0, 0.2
+# How the page's players move (`natural_motion`, `benchmarks/players/motion.py`): over OUTLIER_M from the median of OUTLIER_S
+# either side is noise, a hole up to FILL_S at under FILL_M_S is filled while the team has under TEAM_ON_COURT, then a Gaussian of SMOOTH_S.
+OUTLIER_M, OUTLIER_S, FILL_S, FILL_M_S, SMOOTH_S, TEAM_ON_COURT = 0.5, 0.5, 5.0, 7.0, 0.2, 6
 # How finely the page's files place a player, fine enough for a walk to stay even between samples (`docs/plan.md`).
 POSITION_CM = 2
 # The touches that lose a serve, an attack or a block coming at them: not a serve, nor an attack of their own.
@@ -823,10 +822,11 @@ def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
     return {"fps": fps, "samples": samples}
 
 
-def natural_motion(samples: list[list[float]], seconds: float) -> list[list[float]]:
+def natural_motion(samples: list[list[float]], seconds: float, teams: dict[int, int]) -> list[list[float]]:
     """The samples the page moves players with, `seconds` apart, each person's places as `player_samples` gives them without
     the tracker's noise: far off those around them (a box cut short, the feet of a jump), then filled across a short
-    hole they could have walked, then smoothed, looking both ways so nothing lags."""
+    hole they could have walked while their team (`teams`, by person) has under TEAM_ON_COURT there, the players seen longest
+    first, else another track holds that body and it would show twice; then smoothed, looking both ways so nothing lags."""
     tracks: dict[int, dict[int, tuple[float, float]]] = {}
     for k, flat in enumerate(samples):
         for person, x, y in zip(flat[0::3], flat[1::3], flat[2::3]):
@@ -834,7 +834,8 @@ def natural_motion(samples: list[list[float]], seconds: float) -> list[list[floa
     half = round(OUTLIER_S / seconds)
     reach = round(3 * SMOOTH_S / seconds)
     weights = np.exp(-0.5 * (np.arange(-reach, reach + 1) * seconds / SMOOTH_S) ** 2)
-    out: list[list[float]] = [[] for _ in samples]
+    spans: dict[int, tuple[int, np.ndarray]] = {}
+    standing: dict[int, np.ndarray] = {team: np.zeros(len(samples), int) for team in set(teams.values())}
     for person, places in tracks.items():
         first = min(places)
         span = np.full((max(places) - first + 1, 2), np.nan)
@@ -842,14 +843,27 @@ def natural_motion(samples: list[list[float]], seconds: float) -> list[list[floa
             span[k - first] = place
         known = np.flatnonzero(np.isfinite(span[:, 0]))
         padded = np.pad(span, ((half, half), (0, 0)), constant_values=np.nan)
-        around = np.lib.stride_tricks.sliding_window_view(padded[:, 0], 2 * half + 1), np.lib.stride_tricks.sliding_window_view(padded[:, 1], 2 * half + 1)
+        around = [np.lib.stride_tricks.sliding_window_view(padded[:, axis], 2 * half + 1) for axis in (0, 1)]
         off = np.maximum(*(np.abs(span[known, axis] - np.nanmedian(around[axis][known], axis=1)) for axis in (0, 1))) > OUTLIER_M
         span[known[off]] = np.nan
+        spans[person] = first, span
+        if person in teams:
+            standing[teams[person]][first + np.flatnonzero(np.isfinite(span[:, 0]))] += 1
+    for person in sorted(spans, key=lambda person: -len(tracks[person])):
+        first, span = spans[person]
+        count = standing.get(teams.get(person))
         known = np.flatnonzero(np.isfinite(span[:, 0]))
         for a, b in zip(known, known[1:]):
             hole = (b - a) * seconds
-            if b - a > 1 and hole <= FILL_S and np.hypot(*(span[b] - span[a])) / hole <= FILL_M_S:
-                span[a + 1 : b] = span[a] + (span[b] - span[a]) * ((np.arange(a + 1, b) - a)[:, None] / (b - a))
+            if b - a < 2 or hole > FILL_S or np.hypot(*(span[b] - span[a])) / hole > FILL_M_S:
+                continue
+            if count is not None:
+                if (count[first + a + 1 : first + b] >= TEAM_ON_COURT).any():
+                    continue
+                count[first + a + 1 : first + b] += 1
+            span[a + 1 : b] = span[a] + (span[b] - span[a]) * ((np.arange(a + 1, b) - a)[:, None] / (b - a))
+    out: list[list[float]] = [[] for _ in samples]
+    for person, (first, span) in spans.items():
         there = np.isfinite(span[:, 0])
         spread = lambda values: np.convolve(values, weights)[reach : reach + len(span)]  # noqa: E731
         share = spread(there.astype(float))
@@ -949,7 +963,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
     shutil.rmtree(site / "positions", ignore_errors=True)
-    positions = position_files({**players, "samples": natural_motion(players["samples"], players["step"] / data["fps"])}, data["fps"]) if players else []
+    positions = position_files({**players, "samples": natural_motion(players["samples"], players["step"] / data["fps"], {int(person): q["team"] for person, q in (data.get("people") or {}).items()})}, data["fps"]) if players else []
     if positions:
         (site / "positions").mkdir()
         for n, content in enumerate(positions):
