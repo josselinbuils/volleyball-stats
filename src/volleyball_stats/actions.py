@@ -229,13 +229,18 @@ def late_serves(
         since = out[-1][1] + 1 if out else 0
         go = [o for o in onsets if since <= o < start]
         since = max(since, start - LATE_MAX_S * fps, go[-1] if go else start - LATE_NO_GO_S * fps)
-        for crossing in (c for c in crossings if since < c <= start + fps):
+
+        def serve_before(crossing: int) -> int | None:
             sent = [c for c in contacts if since <= c[0] < crossing and crossing - c[0] <= LATE_FLIGHT_S * fps]
-            if sent:
-                frame, x, y = max(sent)
-                if (x - net_x) / (ends[int(x > net_x)] - net_x) >= LATE_DEPTH and not on_floor(calibration, x, y, False):
-                    start = min(start, frame + lead)
-                    break
+            if not sent:
+                return None
+            frame, x, y = max(sent)
+            return frame if (x - net_x) / (ends[int(x > net_x)] - net_x) >= LATE_DEPTH and not on_floor(calibration, x, y, False) else None
+
+        serves = [f for f in (serve_before(c) for c in crossings if since < c <= start + fps) if f is not None]
+        # A window already opening on a serve stays: an earlier one is a ball thrown over the net.
+        if serves and not any(f >= start - lead for f in serves):
+            start = serves[0] + lead
         out.append((start, end))
     return out
 
