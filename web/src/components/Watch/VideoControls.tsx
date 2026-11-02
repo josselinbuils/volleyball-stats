@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement, type ReactNode, type RefObject } from 'react';
-import { Focus, Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
+import { Check, EllipsisVertical, Focus, Maximize, Mic, MicOff, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
@@ -13,19 +14,22 @@ import { span as allowed } from '@/components/Watch/helpers/span';
 const SKIP = 10;
 
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background,
- * `stage` what goes full screen, `children` beside the full screen button. */
+ * `stage` what goes full screen, `views` the choice of views, `true` when it stands in the menu,
+ * `voice` the TV view's commentary where nothing else offers it. */
 export function VideoControls({
   light = false,
   stage,
   follow,
   onFollow,
-  children,
+  views,
+  voice,
 }: {
   light?: boolean;
   stage: RefObject<HTMLElement | null>;
   follow?: boolean;
   onFollow?: () => void;
-  children?: ReactNode;
+  views?: (inMenu: boolean) => ReactNode;
+  voice?: { on: boolean; toggle: () => void };
 }) {
   const { t } = useTranslation();
   const { video, loop, setLoop } = usePlayer();
@@ -110,14 +114,14 @@ export function VideoControls({
     }
   };
   const button = cn(
-    'inline-flex size-9 max-sm:size-8 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-3 [&_svg]:size-5',
+    'inline-flex size-9 @max-2xl:size-8 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-3 [&_svg]:size-5',
     light ? 'hover:bg-foreground/10 focus-visible:ring-ring/50' : 'hover:bg-white/15 focus-visible:ring-white/70',
   );
   const skip = (by: number) => video && seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + by)));
   // A circular arrow with the seconds inside it, as video players draw it.
   const skipButton = (by: number) => (
     <Tip label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} full={state.full}>
-      <button type="button" className={cn(button, 'relative', by < 0 && 'max-sm:ml-auto')} aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
+      <button type="button" className={cn(button, 'relative', by < 0 && '@max-2xl:ml-auto')} aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
         {by < 0 ? <RotateCcw aria-hidden className="size-6!" /> : <RotateCw aria-hidden className="size-6!" />}
         <span aria-hidden className="absolute inset-0 grid place-items-center pt-px text-[8px] font-bold">
           {SKIP}
@@ -126,77 +130,102 @@ export function VideoControls({
     </Tip>
   );
 
+  const options: { key: string; Icon: LucideIcon; label: string; short: string; pressed?: boolean; toggle: () => void }[] = [
+    { key: 'slow', Icon: Snail, label: t('slowVideo'), short: t('videoMenu.slow'), pressed: state.slow, toggle: () => video && (video.playbackRate = state.slow ? 1 : 0.5) },
+    { key: 'loop', Icon: Repeat1, label: t('loopVideo'), short: t('videoMenu.loop'), pressed: loop, toggle: () => setLoop(!loop) },
+  ];
+  if (onFollow) {
+    options.push({ key: 'follow', Icon: Focus, label: t('followBall'), short: t('followBall'), pressed: follow, toggle: onFollow });
+  }
+  if (voice) {
+    const label = t(voice.on ? 'broadcast.voiceOn' : 'broadcast.voiceOff');
+    options.push({ key: 'voice', Icon: voice.on ? Mic : MicOff, label, short: label, pressed: voice.on, toggle: voice.toggle });
+  }
+  // The court's replay has no sound.
+  if (match.video) {
+    const label = t(state.muted ? 'unmuteVideo' : 'muteVideo');
+    options.push({ key: 'sound', Icon: state.muted ? VolumeX : Volume2, label, short: label, toggle: () => video && (video.muted = !video.muted) });
+  }
+
   return (
-    // On a phone the timeline takes its own row above the buttons. Over the video zoomed on the ball, which runs past its box.
-    <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'bg-muted text-foreground' : 'relative z-10 bg-black text-white')}>
-      <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')} full={state.full}>
-        <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
-          {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
-        </button>
-      </Tip>
-      <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>
-        {clock(time)}
-      </span>
-      <input
-        type="range"
-        min={span.start}
-        max={span.end}
-        step={0.1}
-        value={time}
-        onChange={(e) => {
-          if (video) {
-            seek(video, Number(e.target.value));
-          }
-        }}
-        aria-label={t('seekVideo')}
-        aria-valuetext={clock(time)}
-        className="h-9 min-w-0 flex-1 cursor-pointer accent-(--primary) max-sm:order-first max-sm:h-7 max-sm:basis-full"
-      />
-      {/* A phone's row has no room for it: the timeline shows where the video is. */}
-      <span className={cn('shrink-0 px-1 text-sm tabular-nums max-sm:hidden', light ? 'text-muted-foreground' : 'text-white/75')} aria-hidden>
-        {clock(span.end)}
-      </span>
-      {skipButton(-SKIP)}
-      {skipButton(SKIP)}
-      <Tip label={t('slowVideo')} full={state.full}>
-        <button
-          type="button"
-          className={cn(button, state.slow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
-          aria-pressed={state.slow}
-          aria-label={t('slowVideo')}
-          onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}
-        >
-          <Snail aria-hidden />
-        </button>
-      </Tip>
-      <Tip label={t('loopVideo')} full={state.full}>
-        <button type="button" className={cn(button, loop && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={loop} aria-label={t('loopVideo')} onClick={() => setLoop(!loop)}>
-          <Repeat1 aria-hidden />
-        </button>
-      </Tip>
-      {onFollow && (
-        <Tip label={t('followBall')} full={state.full}>
-          <button type="button" className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={follow} aria-label={t('followBall')} onClick={onFollow}>
-            <Focus aria-hidden />
+    // Laid out by the bar's own width: when narrow the timeline takes its own row above the buttons, the secondary ones in a menu.
+    <div className="@container">
+      {/* Over the video zoomed on the ball, which runs past its box. */}
+      <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'bg-muted text-foreground' : 'relative z-10 bg-black text-white')}>
+        <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')} full={state.full}>
+          <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
+            {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
           </button>
         </Tip>
-      )}
-      {/* The court's replay has no sound. */}
-      {match.video && (
-        <Tip label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} full={state.full}>
-          <button type="button" className={button} aria-label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
-            {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
-          </button>
-        </Tip>
-      )}
-      {children}
-      {fullscreen && (
-        <Tip label={t(state.full ? 'exitFullscreen' : 'fullscreen')} full={state.full}>
-          <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
-            {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
-          </button>
-        </Tip>
-      )}
+        <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>
+          {clock(time)}
+        </span>
+        <input
+          type="range"
+          min={span.start}
+          max={span.end}
+          step={0.1}
+          value={time}
+          onChange={(e) => {
+            if (video) {
+              seek(video, Number(e.target.value));
+            }
+          }}
+          aria-label={t('seekVideo')}
+          aria-valuetext={clock(time)}
+          className="h-9 min-w-0 flex-1 cursor-pointer accent-(--primary) @max-2xl:order-first @max-2xl:h-7 @max-2xl:basis-full"
+        />
+        {/* A narrow row has no room for it: the timeline shows where the video is. */}
+        <span className={cn('shrink-0 px-1 text-sm tabular-nums @max-2xl:hidden', light ? 'text-muted-foreground' : 'text-white/75')} aria-hidden>
+          {clock(span.end)}
+        </span>
+        {skipButton(-SKIP)}
+        {skipButton(SKIP)}
+        {options.map(({ key, Icon, label, pressed, toggle }) => (
+          <Tip key={key} label={label} full={state.full}>
+            <button type="button" className={cn(button, '@max-2xl:hidden', pressed && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={pressed} aria-label={label} onClick={toggle}>
+              <Icon aria-hidden />
+            </button>
+          </Tip>
+        ))}
+        {views && <div className="@max-2xl:hidden">{views(false)}</div>}
+        {/* Centred, it stays on screen when adding a view pushes the bar off it; tapping beside it only closes it. */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <button type="button" className={cn(button, 'relative @2xl:hidden')} aria-label={t('videoMenu.label')}>
+              <EllipsisVertical aria-hidden />
+              {options.some((option) => option.pressed) && <span aria-hidden className="absolute top-1 right-1 size-2 rounded-full bg-primary" />}
+            </button>
+          </DialogTrigger>
+          <DialogContent showCloseButton={false} aria-describedby={undefined} className="max-w-56 gap-1 p-2 sm:max-w-56" container={state.full ? document.fullscreenElement : undefined}>
+            <DialogTitle className="sr-only">{t('videoMenu.label')}</DialogTitle>
+            {views && <div className="p-1">{views(true)}</div>}
+            {options.map(({ key, Icon, short, pressed, toggle }) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={pressed}
+                className={cn(
+                  'flex h-10 items-center gap-3 rounded-md px-3 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-5',
+                  pressed && 'bg-muted font-medium',
+                )}
+                onClick={toggle}
+              >
+                <Icon aria-hidden />
+                <span className="min-w-0 flex-1 text-left">{short}</span>
+                {pressed && <Check aria-hidden className="text-primary" />}
+              </button>
+            ))}
+          </DialogContent>
+        </Dialog>
+        {fullscreen && (
+          <Tip label={t(state.full ? 'exitFullscreen' : 'fullscreen')} full={state.full}>
+            <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
+              {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+            </button>
+          </Tip>
+        )}
+      </div>
     </div>
   );
 }

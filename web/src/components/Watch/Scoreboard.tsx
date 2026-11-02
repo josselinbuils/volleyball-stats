@@ -3,10 +3,11 @@ import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
 import { GROUPS, groupName, match, rallies, teamColor, teamRing } from '@/lib/match';
 import { useVideoTime } from '@/lib/player';
+import { Feedback } from '@/components/Watch/Feedback';
 import { scoreAt } from '@/components/Watch/helpers/score';
 
-/** The set and its score at the video's time, above the video. */
-export function Scoreboard() {
+/** The set and its score at the video's time, above the views; with the report button when `report`. */
+export function Scoreboard({ report }: { report: boolean }) {
   const { t } = useTranslation();
   const f = useFormat();
   const now = scoreAt(
@@ -15,7 +16,11 @@ export function Scoreboard() {
     match.scores,
   );
   if (!now) {
-    return null;
+    return report ? (
+      <div className="flex justify-end">
+        <Feedback inline />
+      </div>
+    ) : null;
   }
   const [a, b] = GROUPS.map((g) => groupName(t, g));
   return (
@@ -33,6 +38,7 @@ export function Scoreboard() {
       <span className="shrink-0 text-xs text-muted-foreground" title={now.final ? undefined : t('scoreHint')}>
         {t(now.final ? 'scoreFinal' : 'scoreEstimated')}
       </span>
+      {report && <Feedback inline />}
     </div>
   );
 }

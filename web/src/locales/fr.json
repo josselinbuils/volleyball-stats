@@ -30,8 +30,6 @@
   "cameraSide": "Côté caméra",
   "rally": "Échange {{n}}",
   "rallyLower": "échange {{n}}",
-  "betweenRallies": "Entre deux échanges",
-  "lastTouch": "dernière touche : {{type}}, {{who}}",
   "rallies": "Échanges",
   "watchRally": "Revoir cet échange, puis les suivants",
   "noRallies": "Aucun échange n'a été trouvé dans cette vidéo.",
@@ -636,12 +634,14 @@
       "mvpWhy": "MVP du match : le meilleur bilan par minute de jeu, points marqués moins fautes, de tous les joueurs des deux équipes qui ont joué au moins la moitié du temps du plus présent. {{points}} points marqués (attaques, aces, contres) pour {{faults}} fautes en {{time}} de jeu : +{{balance}}."
     }
   },
+  "videoMenu": {
+    "label": "Options",
+    "slow": "Ralenti",
+    "loop": "En boucle"
+  },
   "layout": {
     "views": "Vues affichées",
-    "move": "Déplacer : {{view}}",
-    "zoom": "Agrandir",
-    "restore": "Réduire",
-    "resize": "Redimensionner",
+    "line": "Glisser pour redimensionner, cliquer pour inverser",
     "swap": "Inverser"
   },
   "scene3d": {

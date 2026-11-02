@@ -10,12 +10,11 @@ import { playerKey, playersAt } from '@/helpers/players';
 import { useBall3d } from '@/lib/ball3d';
 import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
-import { ballAt, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+import { ballAt, landingsAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 import { sceneAt } from '@/components/Watch/helpers/sceneAt';
 import { bodyOf, posesAt, SPEED_S } from '@/components/Watch/helpers/pose';
 import { Scene3D } from '@/components/Watch/Scene3D';
 import { BroadcastOverlay } from '@/components/Watch/Broadcast';
-import { Feedback } from '@/components/Watch/Feedback';
 import { idleCamera, rallyCamera, replayAt, replayCamera, replays } from '@/components/Watch/helpers/director';
 import { scoreAt } from '@/components/Watch/helpers/score';
 
@@ -59,27 +58,6 @@ function useMoment(tv: boolean) {
     landings: rally ? landingsAt(rally.contacts, moment) : [],
     dots: typeof players === 'object' ? playersAt(players, match.fps, moment) : [],
   };
-}
-
-/** The rally the video is on and its last touch, in a box beside the score; with the report button when `report`. */
-export function NowLine({ report }: { report: boolean }) {
-  const { t } = useTranslation();
-  const time = useVideoTime((now) => now);
-  const playing = rallyAt(rallies, time);
-  const last = playing && lastTouch(playing.contacts, time);
-  let now = playing ? t('rally', { n: playing.i + 1 }) : t('betweenRallies');
-  if (last) {
-    const who = [groupName(t, last.g), playerLabel(t, last.person)].filter(Boolean).join(', ');
-    now += ` · ${t('lastTouch', { type: t(`types.${last.type}`).toLowerCase(), who })}`;
-  }
-  return (
-    <div className="flex h-11 items-center gap-2 rounded-lg bg-muted px-3 text-sm leading-5 font-semibold">
-      <p className="m-0 line-clamp-2 min-w-0 flex-1" aria-live="off" title={now}>
-        {now}
-      </p>
-      {report && <Feedback inline />}
-    </div>
-  );
 }
 
 /** The court seen from above, players and ball following the video. */

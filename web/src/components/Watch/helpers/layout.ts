@@ -2,13 +2,12 @@ export const VIEWS = ['video', '2d', '3d', 'tv'] as const;
 export type View = (typeof VIEWS)[number];
 
 /** The views shown, in place order. `x` is the left column's share of the width, `y` the top row's of
- * the height, `flip` puts the tall view of three on the right, `before` is what a zoom on one view left. */
+ * the height, `flip` puts the tall view of three on the right. */
 export interface Layout {
   order: View[];
   x: number;
   y: number;
   flip: boolean;
-  before: View[] | null;
 }
 
 export interface Rect {
@@ -18,20 +17,26 @@ export interface Rect {
   height: number;
 }
 
-/** A bar between views: `ratio` is what it changes, `axis` the screen axis it moves along, `at` its place on
- * that axis, `start` and `length` its span on the other, `button` where its swap button sits in that span. */
+/** A line between views: `ratio` is what it changes, `axis` the screen axis it moves along, `at` its place on
+ * that axis, `start` and `length` its span on the other. */
 export interface Divider {
   ratio: 'x' | 'y';
   axis: 'x' | 'y';
   at: number;
   start: number;
   length: number;
-  button: number;
+}
+
+/** A line between two stacked views, at `at` from the top, swapping them. */
+export interface SwapLine {
+  at: number;
+  between: [View, View];
 }
 
 export interface Placed {
   rects: Partial<Record<View, Rect>>;
   dividers: Divider[];
+  swaps: SwapLine[];
   height: number;
 }
 
@@ -39,11 +44,11 @@ export interface Placed {
 export const GAP = 4;
 const MIN_RATIO = 0.2;
 const FIRST_SHARE = 0.6;
-const ASPECT: Record<View, number> = { video: 16 / 9, '2d': 1.75, '3d': 1.6, tv: 1.6 };
+const ASPECT: Record<View, number> = { video: 16 / 9, '2d': 1.75, '3d': 16 / 9, tv: 16 / 9 };
 
 export const clampRatio = (ratio: number) => Math.min(1 - MIN_RATIO, Math.max(MIN_RATIO, ratio));
 
-export const defaultLayout = (order: View[]): Layout => ({ order, x: FIRST_SHARE, y: 0.5, flip: false, before: null });
+export const defaultLayout = (order: View[]): Layout => ({ order, x: FIRST_SHARE, y: 0.5, flip: false });
 
 function columns({ order, flip }: Layout): View[][] {
   const [a, b, c, d] = order;
@@ -83,27 +88,33 @@ export function arrange(layout: Layout, width: number, height: number, vertical 
   });
   const dividers: Divider[] = [];
   if (cols.length > 1) {
-    dividers.push({ ratio: 'x', axis: vertical ? 'y' : 'x', at: long * layout.x, start: 0, length: cross, button: n > 2 ? (cross * layout.y) / 2 : cross / 2 });
+    dividers.push({ ratio: 'x', axis: vertical ? 'y' : 'x', at: long * layout.x, start: 0, length: cross });
   }
   if (n > 2) {
     const tall = n === 3 ? cols.findIndex((col) => col.length === 2) : null;
     const start = tall === 1 ? long * layout.x : 0;
     const length = tall === null ? long : tall === 0 ? long * layout.x : long * (1 - layout.x);
-    dividers.push({ ratio: 'y', axis: vertical ? 'x' : 'y', at: cross * layout.y, start, length, button: n === 4 ? (long * layout.x) / 2 : length / 2 });
+    dividers.push({ ratio: 'y', axis: vertical ? 'x' : 'y', at: cross * layout.y, start, length });
   }
-  return { rects, dividers, height };
+  return { rects, dividers, swaps: [], height };
 }
 
-/** One view under another, each at its own shape: a phone's layout. */
+/** One view under another, each at its own shape: a phone's layout. A taller view would only gain black
+ * bands, its width being the limit: the lines between them swap, they do not resize. */
 export function stacked(order: View[], width: number): Placed {
   const rects: Placed['rects'] = {};
+  const swaps: SwapLine[] = [];
   let top = 0;
   order.forEach((view, k) => {
     const height = width / ASPECT[view];
     rects[view] = { left: 0, top, width, height };
-    top += height + (k < order.length - 1 ? GAP : 0);
+    top += height;
+    if (k < order.length - 1) {
+      swaps.push({ at: top + GAP / 2, between: [view, order[k + 1]] });
+      top += GAP;
+    }
   });
-  return { rects, dividers: [], height: top };
+  return { rects, dividers: [], swaps, height: top };
 }
 
 /** The height showing each view whole in its column, at most `cap`. */
@@ -133,14 +144,9 @@ function balanced(layout: Layout): Layout {
 /** Shows or hides `view`, the sizes starting over; the last one shown stays. */
 export function toggled(layout: Layout, view: View): Layout {
   if (!layout.order.includes(view)) {
-    return balanced({ ...layout, order: [...layout.order, view], before: null });
+    return balanced({ ...layout, order: [...layout.order, view] });
   }
-  return layout.order.length < 2 ? layout : balanced({ ...layout, order: layout.order.filter((v) => v !== view), before: null });
-}
-
-/** `view` alone, or back to what a zoom left. */
-export function zoomed(layout: Layout, view: View): Layout {
-  return layout.before ? { ...layout, order: layout.before, before: null } : { ...layout, order: [view], before: layout.order };
+  return layout.order.length < 2 ? layout : balanced({ ...layout, order: layout.order.filter((v) => v !== view) });
 }
 
 /** `a` and `b` trade places; two views keep their sizes, more trade them with their places. */
@@ -172,6 +178,5 @@ export function parsed(stored: unknown, available: readonly View[]): Layout | nu
     return null;
   }
   const ratio = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? clampRatio(v) : 0.5);
-  const before = Array.isArray(value.before) ? keep(value.before) : [];
-  return { order: order.slice(0, VIEWS.length), x: ratio(value.x), y: ratio(value.y), flip: value.flip === true, before: before.length ? before : null };
+  return { order: order.slice(0, VIEWS.length), x: ratio(value.x), y: ratio(value.y), flip: value.flip === true };
 }
