@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '@/lib/match';
-import { ballAt, landingsAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+import { ballAt, hasTapedFeet, landingsAt, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+
+describe('hasTapedFeet', () => {
+  it('knows Théo however the name is typed', () => {
+    expect(['Théo', 'Theo', 'théo', ' THEO '].every(hasTapedFeet)).toBe(true);
+  });
+
+  it('leaves everyone else alone', () => {
+    expect(['Théodore', 'Mathéo', '', null, undefined].some(hasTapedFeet)).toBe(false);
+  });
+});
 
 describe('ballAt', () => {
   const touch = (t: number, x: number | null, y: number | null) => ({ t, x, y }) as Contact;

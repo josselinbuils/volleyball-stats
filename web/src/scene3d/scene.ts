@@ -22,8 +22,8 @@ export interface FigurePose {
 
 /** What the scene shows at a moment. Colours are CSS colours. */
 export interface SceneState {
-  /** `tip` names the player under the pointer, shown above them. */
-  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string; tip?: string; pose?: FigurePose }[];
+  /** `tip` names the player under the pointer, shown above them; `taped`: adhesive tape on their feet. */
+  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string; tip?: string; pose?: FigurePose; taped?: boolean }[];
   ball: Point3 | null;
   trail: Point3[];
   rings: { x: number; y: number; f: number }[];
@@ -290,18 +290,22 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   // soft shadow and their number above them; made as they first show.
   const shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false });
   const disc = new THREE.CircleGeometry(1, 24);
-  const bodies = new Map<number, { group: THREE.Group; shadow: THREE.Mesh; label: string; team: number }>();
+  const bodies = new Map<number, { group: THREE.Group; shadow: THREE.Mesh; label: string; team: number; taped: boolean }>();
   const teamMaterials = [solid(), solid()];
   const shortsMaterials = [solid(), solid()];
   const skin = solid(SKIN);
   const white = solid(0xf2f2f2);
   const pads = solid(0x222222);
+  const tape = solid(0x8f959c);
   const eye = solid(0x1c1410);
   const hairs = HAIRS.map((color) => solid(color));
   // The figures' shapes, shared by all of them.
   const shapes = {
     shoe: new THREE.BoxGeometry(0.12, 0.08, 0.23),
     sock: new THREE.CylinderGeometry(0.06, 0.055, 0.22, 10),
+    tapeBand: new THREE.BoxGeometry(0.136, 0.09, 0.05),
+    tapeAnkle: new THREE.CylinderGeometry(0.067, 0.065, 0.06, 10),
+    tapeEnd: new THREE.BoxGeometry(0.05, 0.006, 0.17),
     thigh: new THREE.CylinderGeometry(0.066, 0.06, 0.22, 10),
     kneePad: new THREE.CylinderGeometry(0.075, 0.075, 0.1, 10),
     sleeve: new THREE.CapsuleGeometry(0.075, 0.1, 4, 10),
@@ -318,7 +322,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   // The shirt numbers and badges, one per team and label, shared by the figures showing them.
   const looks = new Map<string, { numbers: THREE.MeshBasicMaterial; badge: THREE.Sprite }>();
   /** A figure in `shirt` and `shorts`, jointed at the hips and shoulders (`userData.limbs`, its right side first). */
-  const figure = (hair: number, shirt: THREE.Material, shorts: THREE.Material) => {
+  const figure = (hair: number, shirt: THREE.Material, shorts: THREE.Material, taped = false) => {
     const group = new THREE.Group();
     const part = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
       const mesh = new THREE.Mesh(geometry, material);
@@ -338,6 +342,13 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       legs.push(leg);
       part(leg, shapes.shoe, white, 0, 0.04 - HIP, 0.03);
       part(leg, shapes.sock, white, 0, 0.19 - HIP);
+      if (taped) {
+        // Wound in a hurry, an end trailing behind the heel.
+        part(leg, shapes.tapeBand, tape, 0, 0.04 - HIP, 0.09).rotation.y = side * 0.15;
+        part(leg, shapes.tapeBand, tape, 0, 0.04 - HIP, -0.03).rotation.y = side * -0.12;
+        part(leg, shapes.tapeAnkle, tape, 0, 0.12 - HIP);
+        part(leg, shapes.tapeEnd, tape, side * 0.02, 0.006 - HIP, -0.16).rotation.y = side * 0.25;
+      }
       part(leg, shapes.thigh, skin, 0, 0.39 - HIP);
       part(leg, shapes.kneePad, pads, 0, 0.4 - HIP);
       const arm = new THREE.Group();
@@ -385,15 +396,15 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   castShadows(stand);
   castShadows(referee);
   scene.add(stand, referee);
-  const player = (key: number, team: number, label: string, colors: SceneState['colors']) => {
+  const player = (key: number, team: number, label: string, taped: boolean, colors: SceneState['colors']) => {
     const known = bodies.get(key);
-    if (known && known.label === label && known.team === team) {
+    if (known && known.label === label && known.team === team && known.taped === taped) {
       return known;
     }
     if (known) {
       scene.remove(known.group, known.shadow);
     }
-    const group = figure(key, teamMaterials[team - 1], shortsMaterials[team - 1]);
+    const group = figure(key, teamMaterials[team - 1], shortsMaterials[team - 1], taped);
     const id = `${team}:${label}`;
     let look = looks.get(id);
     if (!look) {
@@ -417,7 +428,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     ground.rotation.x = -Math.PI / 2;
     ground.scale.setScalar(0.32);
     scene.add(group, ground);
-    const made = { group, shadow: ground, label, team };
+    const made = { group, shadow: ground, label, team, taped };
     bodies.set(key, made);
     return made;
   };
@@ -515,7 +526,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       landingMaterial.color.set(colors.primary);
       const seen = new Set<number>();
       for (const p of state.players) {
-        const body = player(p.key, p.team, p.label, colors);
+        const body = player(p.key, p.team, p.label, !!p.taped, colors);
         body.group.position.copy(at(p.x, p.y, p.jump));
         if (p.pose) {
           posed(body.group, p.pose);

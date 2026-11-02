@@ -2,6 +2,11 @@ import type { Contact } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
 import { PAD } from '@/lib/playlist';
 
+/** The player whose 3D figure has adhesive tape on its feet: any spelling of Théo. */
+export function hasTapedFeet(name: string | null | undefined): boolean {
+  return name?.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase() === 'theo';
+}
+
 /** The ball between the placed touches of a rally, straight from one to the next; at the first
  * touch before it, at the last one after. */
 export function ballAt(contacts: Contact[], time: number): { x: number; y: number } | null {

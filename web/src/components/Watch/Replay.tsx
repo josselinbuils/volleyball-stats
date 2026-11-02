@@ -11,7 +11,7 @@ import { playerKey, playersAt } from '@/helpers/players';
 import { useBall3d } from '@/lib/ball3d';
 import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
-import { ballAt, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
+import { ballAt, hasTapedFeet, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
 import { ball3dAt, trail3dAt } from '@/components/Watch/helpers/flight';
 import { ballBeforeServe, bodyOf, posesAt, SPEED_S } from '@/components/Watch/helpers/pose';
 import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
@@ -149,6 +149,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
                   team: match.people[person]?.team ?? 1,
                   label: playerMark(person) ?? '',
                   tip: person === hover ? (tip ?? undefined) : undefined,
+                  taped: hasTapedFeet(match.people[person]?.name),
                 };
               }),
               ball: rally ? ballBeforeServe(rally, moment, server, places, ball3dAt(rally.contacts, moment, places)) : null,
