@@ -12,6 +12,7 @@ and uploads the site, as the review does after each change when the match folder
 import argparse
 import gzip
 import hashlib
+import html
 import json
 import os
 import re
@@ -21,6 +22,9 @@ import unicodedata
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+import cv2
+import numpy as np
 
 from volleyball_stats import web
 from volleyball_stats.web import BRANDING, brand
@@ -35,10 +39,24 @@ PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
 COMPRESSED, COMPRESS_FROM = (".js", ".css", ".html", ".json", ".svg"), 1024
 
 
+# A shared link's picture: the size messaging apps show large.
+CARD_W, CARD_H = 1200, 630
+PREVIEW = "preview.png"
+MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre")
+# The clubs' Arial where the system has it: OpenCV's own font slashes its zeros, a score's "0" then reads "Ø".
+CARD_FONT = Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf")
+SHARED_TAGS = re.compile(r"[ \t]*<meta (?:property=\"og:|name=\"twitter:)[^>]*>\n?")
+
+
+def page_of(folder: Path) -> dict:
+    """The data.js of the match page in `folder`."""
+    text = (folder / "data.js").read_text()
+    return json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
+
+
 def listed(folder: Path) -> dict:
     """What the list shows of the match page in `folder`, from its data.js."""
-    text = (folder / "data.js").read_text()
-    data = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
+    data = page_of(folder)
     return {
         "path": f"{folder.name}/",
         "name": data["name"],
@@ -61,9 +79,120 @@ def address(match: dict) -> str:
     return slug(" ".join([match["date"] or match["name"], " vs ".join(t["name"] for t in match["teams"] or [] if t["name"])]))
 
 
-def build(site: Path, theme: str = "aspom") -> list[dict]:
-    """SITE/index.html and matches.js listing SITE/*/'s match pages, the site's text files
-    compressed (`compress`); returns them."""
+def set_scores(data: dict) -> list[tuple[int, int]]:
+    """Each set's final points, team 1's first: as given, else from its last rally."""
+    if data.get("scores"):
+        return [(int(a), int(b)) for a, b in (score.split("-") for score in data["scores"])]
+    last = {r["set"]: r["score"] for r in data["rallies"] if r.get("score")}
+    return [tuple(last[number]) for number in sorted(last)]
+
+
+def french_date(date: str | None) -> str | None:
+    """"2026-10-29" -> "29 octobre 2026"."""
+    if not date:
+        return None
+    year, month, day = date.split("-")
+    return f"{int(day)} {MONTHS[int(month) - 1]} {year}"
+
+
+def _bgr(colour: str | None, fallback: tuple[int, int, int]) -> tuple[int, int, int]:
+    return (int(colour[5:7], 16), int(colour[3:5], 16), int(colour[1:3], 16)) if colour else fallback
+
+
+def _write(card: np.ndarray, text: str, middle: int, baseline: int, size: int, weight: int, colour: tuple[int, int, int], widest: int) -> None:
+    """`text` centred on `middle`, smaller if it would be wider than `widest`."""
+    face = cv2.FontFace(str(CARD_FONT) if CARD_FONT.exists() else "sans")
+    wide = lambda at: cv2.putText(np.zeros((1, 1, 3), np.uint8), text, (0, 0), (0, 0, 0), face, at, weight)[0][0]  # noqa: E731
+    size = min(size, int(size * widest / max(wide(size), 1)))
+    cv2.putText(card, text, (middle - wide(size) // 2, baseline), colour, face, size, weight)
+
+
+def _logo(card: np.ndarray, logo: Path | None, middle: int, top: int, tall: int) -> None:
+    """The club's logo over the card, its height `tall`."""
+    picture = cv2.imread(str(logo), cv2.IMREAD_UNCHANGED) if logo and logo.exists() else None
+    if picture is None:
+        return
+    picture = cv2.resize(picture, (round(picture.shape[1] * tall / picture.shape[0]), tall), interpolation=cv2.INTER_AREA)
+    alpha = picture[:, :, 3:] / 255 if picture.shape[2] == 4 else np.ones((*picture.shape[:2], 1))
+    left = middle - picture.shape[1] // 2
+    under = card[top : top + tall, left : left + picture.shape[1]]
+    under[:] = (picture[:, :, :3] * alpha + under * (1 - alpha)).astype(np.uint8)
+
+
+def match_card(data: dict, logo: Path | None) -> np.ndarray:
+    """The picture of a match's shared link: its teams' colours and names, sets won, sets' points and date. No footage, no player."""
+    card = np.zeros((CARD_H, CARD_W, 3), np.uint8)
+    teams = data.get("teams") or [{}, {}]
+    scores = set_scores(data)
+    middle = CARD_W // 2
+    for k, team in enumerate(teams[:2]):
+        colour = _bgr(team.get("colour"), (70, 70, 70))
+        card[:, k * middle : (k + 1) * middle] = colour
+        ink = (20, 20, 20) if 0.114 * colour[0] + 0.587 * colour[1] + 0.299 * colour[2] > 170 else (255, 255, 255)
+        _write(card, team.get("name") or f"Équipe {k + 1}", middle // 2 + k * middle, 120, 64, 700, ink, 500)
+        if scores:
+            won = sum((a > b) == (k == 0) for a, b in scores)
+            _write(card, str(won), middle // 2 + k * middle, 345, 190, 800, ink, 300)
+    # The band of the sets' points.
+    card[440:] = (card[440:] * 0.25).astype(np.uint8)
+    _write(card, "   ".join(f"{a}-{b}" for a, b in scores), middle, 520, 52, 700, (255, 255, 255), 1100)
+    if data.get("date"):
+        _write(card, french_date(data["date"]), middle, 585, 34, 500, (215, 215, 215), 1100)
+    if logo:
+        cv2.circle(card, (middle, 270), 92, (18, 18, 18), -1, cv2.LINE_AA)
+        _logo(card, logo, middle, 205, 130)
+    return card
+
+
+def list_card(heading: str, name: str | None, logo: Path | None) -> np.ndarray:
+    """The picture of the list's shared link."""
+    card = np.full((CARD_H, CARD_W, 3), 18, np.uint8)
+    _logo(card, logo, CARD_W // 2, 110, 220)
+    _write(card, heading, CARD_W // 2, 440, 84, 700, (255, 255, 255), 1100)
+    if name:
+        _write(card, name, CARD_W // 2, 515, 40, 500, (200, 200, 200), 1100)
+    return card
+
+
+def _save_if_changed(path: Path, content: bytes) -> None:
+    """Keeps a file's date when its content stays: an upload skips it."""
+    if not path.exists() or path.read_bytes() != content:
+        path.write_bytes(content)
+
+
+def share(folder: Path, url: str, title: str, description: str, card: np.ndarray, site_name: str | None) -> None:
+    """`folder`'s page tagged for link previews at its `url`, with `card` as PREVIEW: messaging apps read these without running the page."""
+    png = cv2.imencode(".png", card, [cv2.IMWRITE_PNG_COMPRESSION, 9])[1].tobytes()
+    _save_if_changed(folder / PREVIEW, png)
+    image = f"{url}{PREVIEW}?v={hashlib.sha256(png).hexdigest()[:10]}"
+    tags = {"og:type": "website", "og:url": url, "og:title": title, "og:description": description, "og:image": image, "og:image:width": CARD_W, "og:image:height": CARD_H, "og:image:type": "image/png", "og:locale": "fr_FR"}
+    if site_name:
+        tags["og:site_name"] = site_name
+    lines = [f'    <meta property="{key}" content="{html.escape(str(value))}" />\n' for key, value in tags.items()] + ['    <meta name="twitter:card" content="summary_large_image" />\n']
+    index = folder / "index.html"
+    page = SHARED_TAGS.sub("", index.read_text())
+    page = re.sub(r"<title>.*?</title>", lambda _: f"<title>{html.escape(title, quote=False)}</title>", page, count=1)
+    page = re.sub(r'(<meta name="description" content=")[^"]*', lambda m: m.group(1) + html.escape(description), page, count=1)
+    _save_if_changed(index, re.sub(r"[ \t]*</head>", lambda _: "".join(lines) + "  </head>", page, count=1).encode())
+
+
+def share_match(folder: Path, url: str) -> None:
+    """Link previews for the match page in `folder`, whose address is `url`."""
+    data = page_of(folder)
+    names = [t["name"] for t in data.get("teams") or [] if t.get("name")]
+    scores = set_scores(data)
+    won = sum(a > b for a, b in scores), sum(b > a for a, b in scores)
+    title = " - ".join(names) or data.get("title") or data["name"]
+    title += f" · {won[0]}-{won[1]}" if scores else ""
+    description = " · ".join(filter(None, [", ".join(f"{a}-{b}" for a, b in scores), french_date(data.get("date")), "Statistiques et replay du match"]))
+    club = data.get("brand") or {}
+    logo = folder / club["logo"] if club.get("logo") else None
+    share(folder, url, title, description, match_card(data, logo), club.get("name"))
+
+
+def build(site: Path, theme: str = "aspom", url: str | None = None) -> list[dict]:
+    """SITE/index.html and matches.js listing SITE/*/'s match pages, tagged for link previews at `url`, the
+    list's address, when given (`share`), the site's text files compressed (`compress`); returns them."""
     for data in sorted(site.glob("*/data.js")):
         found = address(listed(data.parent))
         # No address from its date and teams (a video named "_.mp4"), or a RESERVED one: it keeps its folder.
@@ -87,6 +216,13 @@ def build(site: Path, theme: str = "aspom") -> list[dict]:
     (site / "matches.js").write_text(f"window.MATCHES = {text};\n")
     index = site / "index.html"
     index.write_text(index.read_text().replace('src="matches.js"', f'src="matches.js?v={v}"'))
+    if url:
+        root = f"{url.rstrip('/')}/"
+        for match in matches:
+            share_match(site / match["path"], f"{root}{match['path']}")
+        name = club["name"] if club else None
+        logo = site / club["logo"] if club and club.get("logo") else None
+        share(site, root, f"Matchs · {name}" if name else "Matchs", "Les matchs de volley et leurs statistiques.", list_card("Matchs", name, logo), name)
     compress(site)
     return matches
 
@@ -138,7 +274,7 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
         raise RuntimeError(f"video copies not found: {', '.join(missing)}")
     web.publish(match, video, court, theme, copy, folder / "video")
     web.publish(match, video, court, theme, {"footage": "none", "club": config.get("club", 1), "pictures": False, "link": "video/", "feedback": FEEDBACK}, folder)
-    named = {m["name"]: m["path"] for m in build(site, theme)}[match.name]
+    named = {m["name"]: m["path"] for m in build(site, theme, config["url"])}[match.name]
     if not protected(f"{config['url'].rstrip('/')}/{named}video/"):
         raise RuntimeError(f"{config['url']}{named}video/ opens without the password: not uploaded")
     subprocess.run(["rsync", "-rt", "--delete", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
@@ -149,8 +285,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="List the match pages of a site folder on its index page.")
     parser.add_argument("site", type=Path, help="Folder holding one match page per subfolder")
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
+    parser.add_argument("--url", help="The list's address, to tag the pages for link previews")
     args = parser.parse_args()
-    matches = build(args.site, args.theme)
+    matches = build(args.site, args.theme, args.url)
     print(f"{len(matches)} matches: {', '.join(m['path'] for m in matches)} -> {args.site / 'index.html'}")
 
 

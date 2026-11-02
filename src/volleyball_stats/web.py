@@ -61,7 +61,7 @@ LOGO_PX, PHOTO_PX, PHOTO_RATIO = 128, 480, 0.75
 LOGO_QUALITY = 90
 # The seconds of players' positions in one file the page loads, and how long a player missing from a few samples
 # stays where they were last seen (the page's `playersAt`).
-POSITIONS_S, HOLD_S = 60, 0.5
+POSITIONS_S, HOLD_S = 300, 0.5
 # How finely the page's files place a player: never over 3 cm off, nearly half the size of 1 cm (`docs/plan.md`).
 POSITION_CM = 5
 # The touches that lose a serve, an attack or a block coming at them: not a serve, nor an attack of their own.

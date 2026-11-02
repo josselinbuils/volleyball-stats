@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { CountButton } from '@/components/CountButton';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
-import { clock, useFormat } from '@/lib/format';
+import { clock, ofName, useFormat } from '@/lib/format';
 import { GROUPS, groupName, hasTeams, match, rallies as allRallies, teamColor, teamRing } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
 import { useSet } from '@/lib/sets';
@@ -114,8 +114,16 @@ export function Header() {
                         <Swatch color={teamColor(g)} ring={teamRing(g)} />
                         <span className="truncate">{groupName(t, g)}</span>
                       </span>
-                      <CountButton title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g) })} picked={split.direct} className="h-7 justify-self-center text-sm" />
-                      <CountButton title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g) })} picked={split.faults} className="h-7 justify-self-center text-sm" />
+                      <CountButton
+                        title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g), ofTeam: ofName(groupName(tr, g)) })}
+                        picked={split.direct}
+                        className="h-7 justify-self-center text-sm"
+                      />
+                      <CountButton
+                        title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g), ofTeam: ofName(groupName(tr, g)) })}
+                        picked={split.faults}
+                        className="h-7 justify-self-center text-sm"
+                      />
                     </Fragment>
                   );
                 })}

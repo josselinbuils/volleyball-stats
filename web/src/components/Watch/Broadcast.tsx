@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { ofName } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { groupName, match, playerLabel, rallies as allRallies, sets, versioned } from '@/lib/match';
 import { lineStarting, loadVoice, useRecorded } from '@/lib/voice';
@@ -26,7 +27,7 @@ export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: 
   const said = useMemo(() => commentary(allRallies, names, sets.length), [names]);
   const line = replay ? null : rally === null ? null : lineAt(said.get(rally), time);
   const who = replay && playerLabel(t, replay.contact.person);
-  const text = replay ? (who ? t('broadcast.replayOf', { name: who }) : t('broadcast.replay')) : line && t(`broadcast.lines.${line.key}`, line.vars);
+  const text = replay ? (who ? t('broadcast.replayOf', { name: who, ofName: ofName(who) }) : t('broadcast.replay')) : line && t(`broadcast.lines.${line.key}`, line.vars);
   const spoken = useRef<string | null>(null);
   // The match's recorded French voice where there is one, else the browser's.
   const live = match.voice && i18n.language === 'fr';

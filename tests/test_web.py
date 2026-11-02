@@ -654,7 +654,7 @@ class TestWriteSite:
         version = (site / "index.html").read_text().split('src="data.js?v=')[1].split('"')[0]
         assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":500,"files":1,"cm":5}},"contacts":[],"v":"{version}"}};\n'
+        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":2500,"files":1,"cm":5}},"contacts":[],"v":"{version}"}};\n'
         assert (site / "positions" / "0.js").read_text() == "window.MATCH_POSITIONS(0,[1,[]]);\n"
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)

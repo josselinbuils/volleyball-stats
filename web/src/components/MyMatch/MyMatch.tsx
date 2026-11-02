@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SetBadge } from '@/components/SetBadge';
-import { clock, useFormat } from '@/lib/format';
+import { clock, ofName, useFormat } from '@/lib/format';
 import { contacts as allContacts, GROUPS, groupName, hasTeams, match, playerLabel, rallies as allRallies, type Contact, type Group } from '@/lib/match';
 import { remember, remembered } from '@/lib/me';
 import { playerKey } from '@/helpers/players';
@@ -210,8 +210,8 @@ function Player({ player }: { player: string }) {
               ]
                 .filter((x) => x.attacks.length > 0)
                 .map((x) => (
-                  <Row key={x.id} title={(tr) => tr('myMatch.duo', { setter: x.setter(tr), attacker: x.attacker(tr) })} clips={contactClips(x.attacks, match.duration)}>
-                    {t('myMatch.duo', { setter: x.setter(t), attacker: x.attacker(t) })}
+                  <Row key={x.id} title={(tr) => tr('myMatch.duo', { setter: x.setter(tr), ofSetter: ofName(x.setter(tr)), attacker: x.attacker(tr) })} clips={contactClips(x.attacks, match.duration)}>
+                    {t('myMatch.duo', { setter: x.setter(t), ofSetter: ofName(x.setter(t)), attacker: x.attacker(t) })}
                     <span className="block text-xs text-muted-foreground">{`${t('myMatch.duoAttacks', { count: x.attacks.length })}, ${t('myMatch.duoWon', { count: x.attacks.filter((c) => c.result === 'point').length })}`}</span>
                   </Row>
                 ));

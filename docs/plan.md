@@ -109,6 +109,7 @@ the page must stay open, a slow device drops frames. Checked in headless Chrome 
 
 The first match's 67 position files, gzip: JSON per sample 821 KB, 12.3 a file; per person in columns 732; at 5 cm 450 (6.7 a file; 2.8 cm off at most, speeds unchanged), now in use.
 Left aside: binary at 5 cm 373, which needs `fetch` and so no longer opens from `file://` (in base64 437); 10 cm 346, 7 cm off.
+Files of 5 minutes (from 1): 34 KB each, 460 to 428 KB in all, the whole match in rallies 5 waits instead of 21, a wait barely longer (the request's time weighs more than the size: 76 ms for 13.6 KB, 104 for 29.7).
 
 ## Page: lighter (1 Nov)
 

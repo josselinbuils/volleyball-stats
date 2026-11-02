@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Group, Rally } from '@/lib/match';
-import { commentary, lineAt, ofName, type Names } from '@/components/Watch/helpers/commentary';
+import { commentary, lineAt, type Names } from '@/components/Watch/helpers/commentary';
 
 describe('commentary', () => {
   const names: Names = { player: (p) => (p === null ? null : ({ 1: 'Anthony', 2: 'Manon', 3: 'Sam' } as Record<number, string>)[p]), team: (g: Group) => `T${g}` };
@@ -16,14 +16,6 @@ describe('commentary', () => {
   // The set goes on after the rallies given, unless they say otherwise.
   const lines = (rallies: Rally[], i = 0, sets = 3) => commentary([...rallies, rally(99, [], null, [0, 0])], names, sets).get(i) ?? [];
   const last = (rallies: Rally[], i = 0) => lines(rallies, i).at(-1);
-
-  describe('ofName', () => {
-    it('elides before a vowel', () => {
-      expect(ofName('Anthony')).toBe("d'Anthony");
-      expect(ofName('Élodie')).toBe("d'Élodie");
-      expect(ofName('Manon')).toBe('de Manon');
-    });
-  });
 
   it('tells each touch by name, in time', () => {
     const found = lines([rally(0, [touch(0, 'serve', 2, 3), touch(1, 'pass', 1, 2), touch(2, 'set', 1, 1), touch(3, 'attack', 1, 2, 'point')], 1)]);

@@ -1,3 +1,4 @@
+import { ofName } from '@/lib/format';
 import type { Contact, Group, Rally } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
 import { scoresBefore, scoringTouch } from '@/helpers/plays';
@@ -25,11 +26,6 @@ const WAYS: Record<string, number> = { serve: 3, pass: 2, set: 2, attack: 3, dig
 const FAULTS = ['serve', 'attack', 'pass', 'set', 'dig', 'block', 'relance', 'fault'];
 const SET_AT = 25;
 const LAST_SET_AT = 15;
-
-/** "de Manon", "d'Anthony": the French wording around a name. */
-export function ofName(name: string): string {
-  return /^[aeiouyhàâäéèêëîïôöùûü]/i.test(name) ? `d'${name}` : `de ${name}`;
-}
 
 function vars(extra: Record<string, string | number>): Record<string, string | number> {
   const out = { ...extra };

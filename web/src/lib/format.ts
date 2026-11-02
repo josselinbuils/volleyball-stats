@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+/** "de Manon", "d'Anthony": the French wording around a name. */
+export function ofName(name: string): string {
+  return /^[aeiouyhàâäéèêëîïôöùûü]/i.test(name) ? `d'${name}` : `de ${name}`;
+}
+
 /** m:ss, or h:mm:ss past an hour. */
 export function clock(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));

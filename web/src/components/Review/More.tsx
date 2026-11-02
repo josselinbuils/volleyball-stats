@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Images, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { ofName } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { lookAlikes, pieceKey, post, type Found, type Named, type Saved } from '@/lib/review';
 
@@ -64,15 +65,15 @@ export function More({ player, label, onSaved, onError }: { player: Named; label
         }}
       >
         <Images aria-hidden />
-        {t('review.more', { name: label })}
+        {t('review.more', { name: label, ofName: ofName(label) })}
       </Button>
       <dialog
         ref={dialog}
-        aria-label={t('review.more', { name: label })}
+        aria-label={t('review.more', { name: label, ofName: ofName(label) })}
         className="m-auto max-h-[calc(100dvh-2rem)] w-[min(64rem,calc(100vw-2rem))] rounded-lg border bg-card p-0 text-card-foreground backdrop:bg-black/60"
       >
         <div className="grid gap-4 p-4">
-          <h2 className="m-0 text-lg font-semibold">{t('review.more', { name: label })}</h2>
+          <h2 className="m-0 text-lg font-semibold">{t('review.more', { name: label, ofName: ofName(label) })}</h2>
           <p className="m-0 text-sm text-muted-foreground">{t('review.moreHint', { name: label })}</p>
           {pieces === null ? (
             <p className="m-0 text-sm">{t('review.moreLoading')}</p>

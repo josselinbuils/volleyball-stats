@@ -2,6 +2,7 @@ import gzip
 import json
 from pathlib import Path
 
+import cv2
 import pytest
 
 from volleyball_stats import matches
@@ -64,6 +65,38 @@ class TestBuild:
         assert (tmp_path / "one" / "data.js").exists() and (tmp_path / "two" / "data.js").exists()
 
 
+class TestShare:
+    def page(self, folder, **extra):
+        folder.mkdir(parents=True)
+        (folder / "index.html").write_text('<html><head><meta name="description" content="old" /><title>Match</title></head></html>')
+        data = {"name": "m", "date": "2026-10-29", "teams": [{"name": "A & B", "colour": "#151515"}, {"name": "C", "colour": "#ff0000"}], "scores": ["25-23", "12-25", "25-18"], "rallies": [], **extra}
+        (folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+
+    def test_a_match_says_its_teams_score_and_picture_at_its_address_again_after_a_rebuild(self, tmp_path):
+        self.page(tmp_path / "m")
+        matches.share_match(tmp_path / "m", "https://x.dev/volleyball/m/")
+        first = (tmp_path / "m" / "index.html").read_text()
+        matches.share_match(tmp_path / "m", "https://x.dev/volleyball/m/")
+
+        assert (tmp_path / "m" / "index.html").read_text() == first
+        assert first.count('property="og:title"') == 1
+        assert "<title>A &amp; B - C · 2-1</title>" in first
+        assert 'content="25-23, 12-25, 25-18 · 29 octobre 2026 · Statistiques et replay du match"' in first
+        assert 'content="https://x.dev/volleyball/m/preview.png?v=' in first
+        assert cv2.imread(str(tmp_path / "m" / "preview.png")).shape == (630, 1200, 3)
+
+    def test_the_sets_come_from_the_last_rallies_when_no_score_is_given(self, tmp_path):
+        assert matches.set_scores({"rallies": [{"set": 1, "score": [1, 0]}, {"set": 1, "score": [25, 20]}, {"set": 2, "score": [3, 25]}]}) == [(25, 20), (3, 25)]
+
+    def test_the_site_is_tagged_only_with_an_address(self, tmp_path):
+        self.page(tmp_path / "m")
+        build(tmp_path)
+        assert "og:title" not in (next(tmp_path.glob("*/data.js")).parent / "index.html").read_text()
+        build(tmp_path, url="https://x.dev/volleyball")
+        assert 'content="https://x.dev/volleyball/2026-10-29-a-b-vs-c/"' in (next(tmp_path.glob("*/data.js")).parent / "index.html").read_text()
+        assert 'content="https://x.dev/volleyball/preview.png?v=' in (tmp_path / "index.html").read_text()
+
+
 class TestHost:
     def test_stops_before_any_build_when_a_video_copy_is_missing(self, tmp_path, monkeypatch):
         built = []
@@ -78,7 +111,7 @@ class TestHost:
     def test_rebuilds_both_pages_and_uploads_only_a_copy_the_password_guards(self, tmp_path, monkeypatch):
         built, ran = [], []
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[5])) or ({}, {}))
-        monkeypatch.setattr(matches, "build", lambda site, theme: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
+        monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
         config = {"site": str(tmp_path), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "~/.ssh/key"}
         args = (Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", config)

@@ -172,7 +172,7 @@ copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`
 
 ```bash
 uv run python -m volleyball_stats.web outputs/first_match --video data/first_match.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH
-uv run python -m volleyball_stats.matches outputs/hosted
+uv run python -m volleyball_stats.matches outputs/hosted --url https://josselinbuils.dev/volleyball/
 rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
 ```
 
@@ -211,6 +211,8 @@ ssh -i ~/.ssh/id_ed25519_ovh root@<OVH IP> ': > /home/ubuntu/docker/volleyball-s
 ```
 
 Test the report endpoint without writing to that log (it holds viewers' reports): a GET writes an empty line too, which `feedback.read` skips.
+
+Link previews: `matches.build` with a `url` tags the list and each match page (`og:*`) with a `preview.png` drawn there from teams, colours, score and date: never footage or a player.
 
 Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bot` list (search engines, AI scrapers, SEO tools; link previews stay) and sends `X-Robots-Tag: noindex` on all, the pages carry the same meta tag. A bot lying about its name gets through; the domain's `robots.txt` has no rule, Cloudflare's bot settings are the owner's. A change of a mounted config from `git pull` needs `docker compose up -d --force-recreate --no-deps volleyballstats`: the running container keeps the old file.
 
