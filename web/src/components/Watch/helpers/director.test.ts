@@ -37,16 +37,24 @@ describe('director', () => {
   });
 
   describe('replayAt', () => {
-    const rallies = apart(1);
+    const rallies = apart(2);
     const chosen = replays(rallies);
+    const from = 45 + 5.5;
 
-    it('runs slowly after the rally, around the touch', () => {
-      expect(replayAt(rallies, chosen, 5.9)).toBeNull();
-      const at = replayAt(rallies, chosen, 6);
-      expect(at?.time).toBeCloseTo(3 - 1.8);
+    it('waits for the score to be told, longer at a set end', () => {
+      const first = [rally(0, 0, kill(0)), rally(1, 40, kill(40))];
+      expect(replayAt(first, replays(first), 5 + 4.1)).toBeNull();
+      expect(replayAt(first, replays(first), 5 + 4.2)?.rally.i).toBe(0);
+      expect(replayAt(rallies, chosen, from - 0.1)).toBeNull();
+      expect(replayAt(rallies, chosen, from)?.rally.i).toBe(1);
+    });
+
+    it('runs slowly around the touch', () => {
+      const at = replayAt(rallies, chosen, from);
+      expect(at?.time).toBeCloseTo(43 - 1.8);
       expect(at?.f).toBe(0);
-      expect(replayAt(rallies, chosen, 6 + REPLAY_S / 2)?.time).toBeCloseTo(3 - 1.8 + 1.4);
-      expect(replayAt(rallies, chosen, 6 + REPLAY_S)).toBeNull();
+      expect(replayAt(rallies, chosen, from + REPLAY_S / 2)?.time).toBeCloseTo(43 - 1.8 + 1.4);
+      expect(replayAt(rallies, chosen, from + REPLAY_S)).toBeNull();
     });
   });
 
@@ -54,10 +62,14 @@ describe('director', () => {
     it('plays a rally through its replay', () => {
       const rallies = apart(2);
       const clips = broadcastClips(rallies, replays(rallies), 1000);
-      expect(clips[0]).toMatchObject({ start: 0, end: 6 + REPLAY_S, rally: 0 });
-      // The last of a set has its replay too; a rally without one ends soon after.
+      expect(clips[0]).toMatchObject({ start: 0, end: 5 + 4.2 + REPLAY_S, rally: 0 });
+    });
+
+    it('holds a rally without a replay until its score is told, longer at a set end', () => {
+      const rallies = apart(2);
       const none = broadcastClips(rallies, new Map(), 1000);
-      expect(none[1]).toMatchObject({ start: 39, end: 47.5 });
+      expect(none[0]).toMatchObject({ start: 0, end: 9.2 });
+      expect(none[1]).toMatchObject({ start: 39, end: 50.5 });
     });
 
     it('stays within the video', () => {

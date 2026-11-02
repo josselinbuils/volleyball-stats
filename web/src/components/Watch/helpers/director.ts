@@ -19,8 +19,10 @@ export interface ReplayMoment {
   f: number;
 }
 
-// A replay starts this long after its rally and shows the touch from BEFORE to AFTER, slowed down.
-const REPLAY_AFTER_S = 1;
+// After a rally the score is told: nothing cuts in for this long, a set's end being a longer sentence.
+const TOLD_S = 4.2;
+const SET_TOLD_S = 5.5;
+// A replay shows the touch from BEFORE to AFTER, slowed down.
 const BEFORE_S = 1.8;
 const AFTER_S = 1;
 const SLOW = 0.4;
@@ -28,8 +30,6 @@ export const REPLAY_S = (BEFORE_S + AFTER_S) / SLOW;
 // Worth a replay at any time: from this many touches in the rally. Otherwise a winning attack, no more often than this.
 const LONG_RALLY = 6;
 const SPACING = 4;
-// A clip of a rally ends this long after it without a replay.
-const AFTER_RALLY_S = 2.5;
 // The camera follows the ball averaged over this many seconds each side, in this many samples each side: it glides.
 const SMOOTH_S = 0.5;
 const SMOOTH_STEPS = 3;
@@ -56,7 +56,7 @@ export function replays(rallies: Rally[]): Map<number, Contact> {
   rallies.forEach((r, k) => {
     const c = scoringTouch(r);
     const next = rallies[k + 1];
-    if (!c || r.redo || r.wrongCall || r.winner !== c.g || !['serve', 'attack', 'block'].includes(c.type) || (next && next.start - r.end < REPLAY_AFTER_S + REPLAY_S + 1)) {
+    if (!c || r.redo || r.wrongCall || r.winner !== c.g || !['serve', 'attack', 'block'].includes(c.type) || (next && next.start - r.end < told(r, next) + REPLAY_S + 1)) {
       return;
     }
     const touches = r.contacts.filter(isTouch).length;
@@ -69,10 +69,15 @@ export function replays(rallies: Rally[]): Map<number, Contact> {
   return out;
 }
 
+/** How long after a rally its score is being told, `next` the rally after it. */
+function told(rally: Rally, next: Rally | undefined): number {
+  return next?.set === rally.set ? TOLD_S : SET_TOLD_S;
+}
+
 /** The replay showing at `time`, if any. */
 export function replayAt(rallies: Rally[], chosen: Map<number, Contact>, time: number): ReplayMoment | null {
-  for (const r of rallies) {
-    const from = r.end + REPLAY_AFTER_S;
+  for (const [k, r] of rallies.entries()) {
+    const from = r.end + told(r, rallies[k + 1]);
     const contact = chosen.get(r.i);
     if (contact && time >= from && time < from + REPLAY_S) {
       return { rally: r, contact, time: contact.t - BEFORE_S + (time - from) * SLOW, f: (time - from) / REPLAY_S };
@@ -81,18 +86,19 @@ export function replayAt(rallies: Rally[], chosen: Map<number, Contact>, time: n
   return null;
 }
 
-/** When a replay's rally starts it, for the commentary. */
-export const replayStart = (rally: Rally) => rally.end + REPLAY_AFTER_S;
-
-/** Each of `rallies` to watch one after another: from just before its serve to the end of its replay when it has one. */
+/** Each of `rallies` to watch one after another: from just before its serve to the end of its replay when it has one, else to
+ * the end of its score being told. */
 export function broadcastClips(rallies: Rally[], chosen: Map<number, Contact>, duration: number): Clip[] {
-  return rallies.map((r) => ({
-    start: Math.max(0, r.start - 1),
-    end: Math.min(duration, chosen.has(r.i) ? replayStart(r) + REPLAY_S : r.end + AFTER_RALLY_S),
-    rally: r.i,
-    time: r.start,
-    length: r.end - r.start,
-  }));
+  return rallies.map((r, k) => {
+    const after = told(r, rallies[k + 1]);
+    return {
+      start: Math.max(0, r.start - 1),
+      end: Math.min(duration, r.end + after + (chosen.has(r.i) ? REPLAY_S : 0)),
+      rally: r.i,
+      time: r.start,
+      length: r.end - r.start,
+    };
+  });
 }
 
 function smoothBall(contacts: Contact[], time: number, places: Places): Point3 | null {
