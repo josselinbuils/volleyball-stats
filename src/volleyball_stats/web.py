@@ -1274,6 +1274,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
     # In their kit: a top like the one they play in, their moments in play among the candidates (all
     # the closest may be in a hoodie); and looking like the pictures the user confirmed (a piece's
     # track may switch to someone else).
+    facing_card: dict[int, list] = {}
     for key, found in moments.items():
         kit = np.median([scores[name(*m)][5] for m in kits[key]], axis=0)
         found = list(dict.fromkeys(found + [m for m in kits[key] if room(m[1])]))
@@ -1281,6 +1282,10 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
         seen = np.array([vectors[name(*m)] for m in confirmed[key]])
         likeness = {m: float(np.median(seen @ vectors[name(*m)])) for m in found}
         moments[key] = [m for m in found if likeness[m] >= max(likeness.values()) - LIKE]
+        # The card's own pictures facing the camera, offered first: the closest moments are often from behind.
+        facing_card[key] = sorted({m for m in confirmed[key] if scores[name(*m)][0] > FACED}, key=lambda m: -scores[name(*m)][0])
+        fitting_card = [m for m in facing_card[key] if room(m[1]) and np.linalg.norm(np.subtract(scores[name(*m)][5], kit)) <= KIT]
+        moments[key] = list(dict.fromkeys(moments[key] + fitting_card))
     # The moments the user picked, by the player's name, else on their card while it still holds that moment.
     path = match / PHOTO_PICKED
     taken = json.loads(path.read_text()) if path.exists() else {}
@@ -1305,7 +1310,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
 
         ranked = sorted(found, key=score, reverse=True)
         frame, box = own.get(key, ranked[0])
-        offered[f"{people[key]['team']}:{people[key]['number']}"] = [{"frame": f, "box": list(b)} for f, b in dict.fromkeys([(frame, box), *ranked[: PHOTO_CHOICES - 1]])]
+        offered[f"{people[key]['team']}:{people[key]['number']}"] = [{"frame": f, "box": list(b)} for f, b in list(dict.fromkeys([(frame, box), *facing_card[key], *ranked]))[:PHOTO_CHOICES]]
         chosen.setdefault(frame, []).append((key, box))
         picked[key] = (frame, box, scores[name(frame, box)][4])
     files.write_text(match / PHOTO_CANDIDATES, json.dumps(offered))
