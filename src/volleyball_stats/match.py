@@ -12,6 +12,8 @@ player for the whole match (identities.csv, identity.py).
 
 import argparse
 import csv
+import os
+import subprocess
 import sys
 import time
 from collections import Counter
@@ -32,6 +34,8 @@ SPARE_Y = 5.5
 # Seconds from a window's start within which a serve the players' positions show is its serve
 # (`unseen_serves`): 0.4-1.0 s after the contact on the first ASPOM match.
 UNSEEN_SERVE_S = 1.0
+# Tracking is refused above this load per core: other work slowed the second match's run 2.6 times.
+BUSY_LOAD = 0.5
 # The line starting each step's output: a caller reading it (the review's progress) knows which runs.
 STAGE = "::stage "
 
@@ -206,6 +210,23 @@ def report(
     return "\n".join(lines) + "\n"
 
 
+def slow_run_reasons(nice: int, load: float, cores: int) -> list[str]:
+    """Why tracking, hours long, would crawl on this machine."""
+    reasons = []
+    if nice > 0:
+        reasons.append(f"Low priority (nice {nice}): in zsh, `setopt no_bg_nice` before starting in the background.")
+    if load > BUSY_LOAD * cores:
+        reasons.append(f"Busy machine: load {load:.1f} on {cores} cores.")
+    return reasons
+
+
+def busiest(count: int = 5) -> list[str]:
+    """The processes using the most CPU, as "12.3% name"."""
+    lines = subprocess.run(["ps", "-Ao", "pcpu=,comm="], capture_output=True, text=True).stdout.splitlines()
+    rows = [line.split(None, 1) for line in lines if len(line.split(None, 1)) == 2]
+    return [f"{cpu}% {Path(name).name}" for cpu, name in sorted(rows, key=lambda r: -float(r[0].replace(",", ".")))[:count]]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the pipeline on a match video.")
     parser.add_argument("video", type=Path)
@@ -233,6 +254,7 @@ def main() -> None:
     parser.add_argument("--scores", help="Final score of each set, team 1 first, comma separated (25-21,23-25), empty for an unknown one. Default: the ones in teams.json, else asked on a terminal")
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2, when known: the identities to find")
     parser.add_argument("--force", action="store_true", help="Track the ball and players again even if tracks exist")
+    parser.add_argument("--anyway", action="store_true", help="Track even at a low priority or on a busy machine")
     args = parser.parse_args()
     day = teams.parse_date(args.date) if args.date else None
     if args.date and day is None:
@@ -267,6 +289,9 @@ def main() -> None:
     new_ball = args.force or not track_path.exists()
     new_players = args.players and (args.force or not players_path.exists())
     if new_ball or new_players:
+        reasons = slow_run_reasons(os.nice(0), os.getloadavg()[0], os.cpu_count() or 1)
+        if reasons and not args.anyway:
+            parser.error(" ".join(reasons) + " Using the most CPU: " + ", ".join(busiest()) + ". --anyway to track all the same.")
         stage("tracking")
         start = time.perf_counter()
         track(args.video, calibration, fps, track_path if new_ball else None, players_path if new_players else None)

@@ -1,7 +1,23 @@
 from pathlib import Path
 
-from volleyball_stats.match import in_rallies, report, unseen_serves
+from volleyball_stats.match import busiest, in_rallies, report, slow_run_reasons, unseen_serves
 from volleyball_stats.players import Row
+
+
+class TestSlowRunReasons:
+    def test_none_at_normal_priority_on_a_quiet_machine(self):
+        assert slow_run_reasons(0, 6.0, 12) == []
+
+    def test_names_a_low_priority_and_a_busy_machine(self):
+        low, busy = slow_run_reasons(5, 28.0, 12)
+
+        assert "nice 5" in low and "no_bg_nice" in low
+        assert "28.0" in busy
+
+    def test_lists_the_busiest_processes_first(self):
+        shares = [float(line.split("%")[0].replace(",", ".")) for line in busiest(3)]
+
+        assert len(shares) == 3 and shares == sorted(shares, reverse=True)
 
 
 class TestUnseenServes:
