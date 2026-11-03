@@ -168,8 +168,13 @@ court's line samples on a line of the frame (±2 px) at the best roll and shift.
 - Every other court is refused. What decides is the share of stored landmarks that snap again
   (needed 75%; matches 100%, refusals at most 2/7). The line-sample share alone does not separate
   courts (busy floors with many lines reach 0.83, a zoomed match 0.76), so it is only a floor
-  (`MATCH_FOUND` 0.6). The fit residual is not used: without a lens model the club's is 9-14 px
-  for the right court, so it says little.
+  (`MATCH_FOUND` 0.6). The fit residual alone says little: without a lens model the club's is 9-14 px
+  for the right court. So it is only compared with the stored court's (`MATCH_WORSE`, `MATCH_ERROR`).
+- A snap over `MATCH_REACH` from where the camera's move puts its landmark is another line. On the
+  second ASPOM match, against corners adjusted by eye on its empty court, the court was 30.7 px off (median;
+  one false snap, RMS 17 px), and is 6.6 px off (max 8.7, RMS 1.1) without it. The other rows above are unchanged.
+  What is left is not the search's step (a finer one gives 7.0) and a similarity cannot follow a moved
+  camera's perspective: `auto` writes the lines on the frame, to check by eye.
 - A court where few landmarks snap is matched on few points: `side_club` rests on 3, so 3 chance
   snaps on another court would pass, and one where none snap (`aspom_begles`, its lines next to
   other floor markings) on the line-sample share alone. Calibrating with the lens JSON and in light without glare

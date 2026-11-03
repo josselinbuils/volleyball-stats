@@ -86,6 +86,12 @@ ROLL = 3
 # most of its refined landmarks are found again. Set on benchmarks/court.
 MATCH_FOUND = 0.6
 MATCH_LANDMARKS = 0.75
+# Pixels at 720p: a landmark snapped further than this from where the camera's move puts it is another line (second ASPOM
+# match: a false snap at 27). A fit's error may reach MATCH_WORSE times the stored court's plus MATCH_ERROR: without a lens
+# a good one is already 9-14 px on the club's, while that false snap took 1.1 px to 17 at 4K.
+MATCH_REACH = 10.0
+MATCH_WORSE = 3.0
+MATCH_ERROR = 1.0
 
 Lens = dict
 Points = dict[str, tuple[float, float]]
@@ -308,14 +314,15 @@ def snap_line(response: np.ndarray, path: np.ndarray, lens: Lens | None, scale: 
     return (p, d, image_points[inliers]) if inliers.sum() >= MIN_SHARE * len(path) else None
 
 
-def refine(image: np.ndarray, guesses: Points, lens: Lens | None = None, colour=None) -> tuple[Points, np.ndarray, np.ndarray]:
+def refine(image: np.ndarray, guesses: Points, lens: Lens | None = None, colour=None, reach: float = BANDS[0]) -> tuple[Points, np.ndarray, np.ndarray]:
     """Snap rough landmark guesses to the painted lines of `image`.
 
     Each line landmark becomes the intersection of straight fits to its two lines, traced within
     WINDOW px of the guess along the court lines projected through the guesses' homography and
     shifted onto the guess. The lines are told apart from the floor's other lines by their colour,
     learnt near the guesses unless given. Returns the refined landmarks (those whose two lines were
-    found), the lines' unit BGR contrast and the image points found on the lines.
+    found, within `reach` of their guess, at 720p), the lines' unit BGR contrast and the image points
+    found on the lines.
     """
     scale = image.shape[0] / 720
     height, width = image.shape[:2]
@@ -367,16 +374,16 @@ def refine(image: np.ndarray, guesses: Points, lens: Lens | None = None, colour=
             (p, d), (q, e) = [line[:2] for line in lines]
             point = p + np.linalg.solve(np.c_[d, -e], q - p)[0] * d
             point = distort(point, lens)[0] if lens else point
-            if np.linalg.norm(point - guesses[name]) <= BANDS[0] * scale:
+            if np.linalg.norm(point - guesses[name]) <= reach * scale:
                 refined[name] = (float(point[0]), float(point[1]))
     return refined, colour, np.concatenate(on_lines)
 
 
-def calibrate(image: np.ndarray, clicks: Points, lens: Lens | None = None, colour=None) -> Calibration:
+def calibrate(image: np.ndarray, clicks: Points, lens: Lens | None = None, colour=None, reach: float = BANDS[0]) -> Calibration:
     """Refine rough clicks on `image` and fit the court: on the snapped landmarks alone when there are
     5 (4 fit exactly, whatever their error), else by least squares on them and the other clicks
     (RANSAC picks bad subsets of ±20 px clicks). The calibration keeps both."""
-    points, colour, on_lines = refine(image, clicks, lens, colour)
+    points, colour, on_lines = refine(image, clicks, lens, colour, reach)
     calibration = fit(points, lens) if len(points) >= 5 else fit({**clicks, **points}, lens, ransac=False)
     calibration.clicks = {n: [float(v) for v in p] for n, p in clicks.items()}
     calibration.points = {n: list(p) for n, p in points.items()}
@@ -421,9 +428,19 @@ def match(image: np.ndarray, court: Calibration) -> tuple[Calibration | None, fl
         moved, _ = cv2.estimateAffinePartial2D(np.float32([court.points[n] for n in common]), np.float32([points[n] for n in common]))
         if moved is not None:
             seeds = {n: tuple(moved @ [*p, 1.0]) for n, p in stored.items()}
-    calibration = calibrate(image, seeds, court.lens, court.colour)
-    accepted = found >= MATCH_FOUND and len(calibration.points) >= MATCH_LANDMARKS * len(court.points)
+    calibration = calibrate(image, seeds, court.lens, court.colour, MATCH_REACH)
+    accepted = found >= MATCH_FOUND and len(calibration.points) >= MATCH_LANDMARKS * len(court.points) and calibration.error <= MATCH_WORSE * court.error + MATCH_ERROR * scale
     return calibration, found, accepted
+
+
+def overlay(image: np.ndarray, calibration: Calibration) -> np.ndarray:
+    """`image` with the court's lines as `calibration` sees them, to check it by eye."""
+    out = image.copy()
+    for line in LINES:
+        for a, b in zip(line, line[1:]):
+            path = calibration.to_image(np.linspace(LANDMARKS[a], LANDMARKS[b], 40))
+            cv2.polylines(out, [path.astype(np.int32)], False, (0, 255, 255), max(1, image.shape[0] // 1080), cv2.LINE_AA)
+    return out
 
 
 class Clicks:
@@ -633,7 +650,9 @@ def main() -> None:
             raise SystemExit(f"No stored court matches {args.video}: run `click` then `fit`.")
         out = args.out or Path("outputs/court") / f"{args.video.stem}.json"
         best.save(out)
-        print(out)
+        check = out.with_suffix(".jpg")
+        cv2.imwrite(str(check), overlay(image, best))
+        print(f"{out}\nCheck the lines on {check}")
     else:
         frame = read_frame(args.video, args.frame)
         origin, step = (0, 0), 50

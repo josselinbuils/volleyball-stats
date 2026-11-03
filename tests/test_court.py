@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import pytest
 
-from volleyball_stats.court import LANDMARKS, LINES, UNSNAPPED, Calibration, Clicks, calibrate, distort, draw_grid, fit, magnifier, match, refine, undistort
+from volleyball_stats.court import LANDMARKS, LINES, UNSNAPPED, Calibration, Clicks, calibrate, distort, draw_grid, fit, magnifier, match, overlay, refine, undistort
 
 
 class TestFit:
@@ -140,6 +140,32 @@ class TestSnapping:
         other = cv2.warpPerspective(image, cv2.getPerspectiveTransform(np.float32([[0, 0], [1280, 0], [0, 720], [1280, 720]]), np.float32([[300, 100], [980, 100], [0, 720], [1280, 720]])), (1280, 720))
         assert not match(other, court)[2]
         assert not match(np.full_like(image, 128), court)[2]
+
+    def test_a_snap_beyond_the_reach_keeps_the_click(self):
+        image, truth = self.image()
+        clicks = self.clicks(truth)
+
+        calibration = calibrate(image, clicks, reach=0.0)
+
+        assert calibration.points == {}
+        assert calibrate(image, clicks).points != {}
+
+    def test_refuses_a_court_whose_fit_is_too_far_off(self, monkeypatch):
+        image, truth = self.image()
+        court = calibrate(image, self.clicks(truth))
+        off = calibrate(image, self.clicks(truth))
+        off.error = 3.5
+        monkeypatch.setattr("volleyball_stats.court.calibrate", lambda *_: off)
+
+        assert not match(image, court)[2]
+
+    def test_draws_the_court_for_checking(self):
+        image, truth = self.image()
+        calibration = calibrate(image, self.clicks(truth))
+
+        drawn = overlay(image, calibration)
+
+        assert drawn.shape == image.shape and np.any(drawn != image)
 
 
 class TestClicks:

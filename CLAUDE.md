@@ -153,10 +153,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
   7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  8. Remind the owner (asked, 3 Nov): `court auto` accepts a bad fit. A stored court with no snapped landmarks (`aspom_begles`) makes
-     `MATCH_LANDMARKS` require none, and the error is not checked: on the second match it said "match" with one false snap, RMS 17 px.
-     Reject a fit that large. `outputs/court/second_match.json` was fitted from auto's shifted clicks instead, nudged by eye.
-  9. Asked by the owner (3 Nov), once the second match's run ends: a folder per match in `data/` and `outputs/` holding all of that match's files (court,
+  8. Asked by the owner (3 Nov), once the second match's run ends: a folder per match in `data/` and `outputs/` holding all of that match's files (court,
      hosted copies); rename both matches to their hosted names (first check the name in the page data and the viewers' reports); then the backups to match.
 
 ## Hosting
