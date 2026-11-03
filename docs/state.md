@@ -28,8 +28,7 @@ The pipeline's weak spots and what is left to do, most useful first.
    the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
    players a team rotate in).
 7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-8. Once the second match's run ends: `rename` it (`outputs/second_match`, its court moves inside). `data/`'s and `outputs/`'s other folders are test clips and
-   benchmarks.
+8. `data/`'s and `outputs/`'s folders other than the two matches' are test clips and benchmarks.
 9. The owner's plan, nothing started, not before the second match is reviewed and its quality known: a helper they trust,
    then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
    useful alone; then the VPS's system upgraded (2 vCPU, 3.7 GB, 18 GB free, Ubuntu 20.04), a login per person and the review on it, with
