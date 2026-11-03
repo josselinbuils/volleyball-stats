@@ -7,7 +7,7 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
-import { boxAt, panView, viewAt, zoomView, type View } from '@/components/Review/helpers/box';
+import { boxAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
 const AROUND = 0.5;
@@ -21,8 +21,6 @@ const FREE_STEP_S = 10;
 /** A press on the video held this long plays it at HOLD_RATE until released. */
 const HOLD_MS = 250;
 const HOLD_RATE = 0.25;
-/** How much a pinch's wheel step (Ctrl + wheel, as browsers send a trackpad pinch) zooms. */
-const PINCH_SPEED = 0.01;
 /** Each zoom button's step, towards the middle of the view. */
 const ZOOM_STEP = 1.5;
 /** A press moving this far drags the zoomed view: no click, no slowing down. */
@@ -199,7 +197,7 @@ export function ClipVideo({
   const view = pinched ?? (zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height });
   const shown = useRef(view);
   shown.current = view;
-  // A trackpad pinch (Ctrl + wheel; Safari's gesture events) zooms where the fingers are, two
+  // A trackpad pinch (sent as Ctrl + wheel; Safari's gesture events), or ⌘ or Ctrl + the wheel, zooms where the pointer is, two
   // fingers then move the zoomed view; the page neither zooms nor scrolls meanwhile.
   useEffect(() => {
     const el = frame.current;
@@ -212,9 +210,9 @@ export function ClipVideo({
     };
     const wheel = (event: WheelEvent) => {
       const [fx, fy, r] = at(event.clientX, event.clientY);
-      if (event.ctrlKey) {
+      if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
-        setPinched(zoomView(shown.current, fx, fy, Math.exp(-event.deltaY * PINCH_SPEED), width, height));
+        setPinched(zoomView(shown.current, fx, fy, wheelZoom(event.deltaY, event.deltaMode), width, height));
       } else if (shown.current.w < width) {
         event.preventDefault();
         const v = shown.current;

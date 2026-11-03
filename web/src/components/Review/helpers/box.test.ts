@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxAt, MAX_ZOOM, panView, viewAt, zoomView } from '@/components/Review/helpers/box';
+import { boxAt, MAX_ZOOM, panView, viewAt, zoomView, wheelZoom } from '@/components/Review/helpers/box';
 
 describe('boxAt', () => {
   const clip = {
@@ -69,5 +69,17 @@ describe('panView', () => {
   it('moves the view inside the frame', () => {
     expect(panView({ x: 100, y: 100, w: 800, h: 450 }, 50, -500, 1600, 900)).toEqual({ x: 150, y: 0, w: 800, h: 450 });
     expect(panView({ x: 700, y: 100, w: 800, h: 450 }, 500, 0, 1600, 900).x).toBe(800);
+  });
+});
+
+describe('wheelZoom', () => {
+  it('follows a pinch and holds a mouse notch to a small step', () => {
+    expect(wheelZoom(-10, 0)).toBeCloseTo(Math.exp(0.1));
+    expect(wheelZoom(-120, 0)).toBeCloseTo(Math.exp(0.3));
+    expect(wheelZoom(120, 0)).toBeCloseTo(Math.exp(-0.3));
+  });
+
+  it('counts lines as pixels', () => {
+    expect(wheelZoom(-3, 1)).toBeCloseTo(Math.exp(0.3));
   });
 });

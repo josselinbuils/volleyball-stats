@@ -39,11 +39,20 @@ export type View = { x: number; y: number; w: number; h: number };
 
 /** The most a pinch zooms the video in. */
 export const MAX_ZOOM = 6;
+const WHEEL_SPEED = 0.01;
+const WHEEL_MAX_DELTA = 30;
+const WHEEL_LINE_PX = 33;
 
 /** `view` (the part of the `width` × `height` frame shown) moved by (`dx`, `dy`) frame pixels, kept
  * inside the frame. */
 export function panView(view: View, dx: number, dy: number, width: number, height: number): View {
   return { ...view, x: Math.min(width - view.w, Math.max(0, view.x + dx)), y: Math.min(height - view.h, Math.max(0, view.y + dy)) };
+}
+
+/** The zoom of one wheel event: a pinch's small deltas as they are, a mouse notch (100 or more, or lines) held to WHEEL_MAX_DELTA. */
+export function wheelZoom(deltaY: number, deltaMode: number): number {
+  const pixels = deltaMode === 1 ? deltaY * WHEEL_LINE_PX : deltaY;
+  return Math.exp(-Math.max(-WHEEL_MAX_DELTA, Math.min(WHEEL_MAX_DELTA, pixels)) * WHEEL_SPEED);
 }
 
 /** `view` zoomed by `factor` around the point at fractions (`fx`, `fy`) of it, which stays put; null
