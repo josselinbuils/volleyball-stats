@@ -9,7 +9,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 
 - Speak English with the owner; the page and the review page open in French (fr first, then en, in
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
-- Interface text stays light (the owner's rule, 2 Nov): the fewest words a viewer needs, judged on all they see together, without
+- Interface text stays light (the owner's rule): the fewest words a viewer needs, judged on all they see together, without
   caveats about estimates or remarks on what the interface already shows. Write and shorten so by default, without asking.
 - Never publish, host or share anything without the owner. The hosted page has no password: it
   never carries real footage or player pictures (nor anything cut from them) without every
@@ -21,7 +21,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - No new Python dependency without asking (no scipy: numpy and what is installed).
 - The review server binds 127.0.0.1 only. `outputs/` (gitignored) holds names of real people
   (`player_names.json`, `roster.json`): never commit it.
-- "Le coin du coach" advises the team: it never names a player for a fault or a weak number (the owner's rule, 1 Nov).
+- "Le coin du coach" advises the team: it never names a player for a fault or a weak number (the owner's rule).
 - Benchmark-driven: change a step, run its benchmark, report the numbers before and after.
 - A review question about who touched the ball always offers every player of both teams: the
   touch's team is often wrong. The answer takes the picked player's team.
@@ -66,56 +66,31 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 
 ## State and next steps
 
-- Weak spots: touches and rally ends. On the first match's 129 checked rallies (`learn`, 1 Nov 21:41)
-  the pipeline finds 844 of the 945 touches and 835 of its 883 are real. Of the 101 missed, 71 have no
-  contact in the ball track, 23 are detected outside a window (a rally cut early or started late), 7
-  are removed after detection. Rallies on two labelled 10 minutes of that match (`benchmarks/rallies`):
-  pipeline F1 ±1 s 0.90 on the span the 31 Oct `served` fixes were tuned on, 0.57 on the other (a 30 s
-  rally missed whose server stood out of view); a third of the school match's held-out rallies
-  missed. How a rally ends (in, out, fault) is the least reliable measure, attribution is right 76-87%
-  of the time on the labelled clips (pose on the wrists since 1 Nov; 607 of the 673 touches answered on
-  the first match; held out, the learned order 628 of 702, the rule 615)
-  (its doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le
-  ballon ?"; `benchmarks/attribution/answers.py` scores the picks on those answers),
-  identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame
-  (high serves and sets, the owner noticed): on the first match 47 of the ~950 track gaps in rallies
-  go through the top; the false touches they made are dropped (`attribution.FAR`) and no net crossing
-  is lost (5, all under `contacts.MAX_GAP`), so carrying the flight across them waits for a match
-  where it shows.
-- The first match's last "Apprendre de mes réponses", 2 Nov 10:17, brought the 2 Nov pipeline work (`docs/plan.md`): touches found 872
-  of 945, 863 of 909 real, types 778 of 872, named players 679 of 761, checked winners 117 of 128; the 1 Nov figures above are before it.
-- The first match (`data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4`, 4K, court `outputs/courts/aspom_begles.json`): its review
-  runs with `uv run python -m volleyball_stats.review outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4
-  --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review#questions`,
-  `/review#match`); each apply rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner
-  wants (`outputs/2026-10-29-aspom-1-vs-aspom-2/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
-  Before stopping the review (a restart is needed for a server or page change), check that
-  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. Its review is finished
-  (1 Nov 22:03): 129 rallies, all checked, sets ending 25-23, 25-12, 25-18 as given, no warning, no
-  answer waiting, the viewers' reports handled.
-  `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers that disagreed (merged).
-  Last rerun: the owner's "Apprendre de mes réponses", finished 1 Nov 21:41 (3 min on the M4 with the poses
-  cached, 40 min without them; `outputs/2026-10-29-aspom-1-vs-aspom-2/before-rerun/`); it moves the answers onto
-  the new windows itself (`learn.rerun`, `rekey`), and the rallies checked came through it unchanged.
-  The review's progress names each step and the pipeline's stage, with the time left from each one's
-  last duration (`outputs/MATCH/review_timings.json`).
-  `uv run python -m volleyball_stats.learn outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court
-  outputs/courts/aspom_begles.json` scores every step on the answers and the checked rallies, against
-  its last run (`learn.json`).
+- Weak spots: touches and rally ends. On the first match: touches found 872 of 945, 863 of 909 real, types 778 of 872, named players 679 of 761,
+  checked winners 117 of 128. Rallies on its two labelled 10 minutes (`benchmarks/rallies`): pipeline F1 ±1 s 0.90 on the span the `served` fixes were
+  tuned on, 0.57 on the other; a third of the school match's held-out rallies missed. How a rally ends (in, out, fault) is the least reliable measure.
+  Attribution is right 76-87% of the time on the labelled clips (held out on the first match's answers, the learned order 628 of 702, the rule 615): its
+  doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le ballon ?"; `benchmarks/attribution/answers.py` scores the
+  picks. Identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame (high serves and sets): the false touches
+  that makes are dropped (`attribution.FAR`) and no net crossing is lost (`contacts.MAX_GAP`); carrying the flight across waits for a match where it shows.
+- A match's review: `uv run python -m volleyball_stats.review outputs/MATCH` (http://127.0.0.1:8765, `/review#questions`, `/review#match`). Each apply
+  rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner wants (`outputs/MATCH/publish.json`); "Apprendre de mes réponses"
+  retrains the learned attribution and reruns the pipeline (`learn --rerun`: 3 min on the M4 with the poses cached, 40 without), moving the answers onto
+  the new windows itself (`learn.rerun`, `rekey`). Before stopping the review (a restart is needed for a server or page change), check that
+  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two
+  answers that disagreed (merged). The review's progress names each step and the pipeline's stage, with the time left from each one's last duration
+  (`outputs/MATCH/review_timings.json`). `uv run python -m volleyball_stats.learn outputs/MATCH --video VIDEO --court COURT` scores every step on the
+  answers and the checked rallies, against its last run (`learn.json`).
   Stats: a serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that
-  touch staying the other team's fault (the owner's rule, 1 Nov: labelled so, both count; a serve's is an ace); an attack
+  touch staying the other team's fault (the owner's rule: labelled so, both count; a serve's is an ace); an attack
   blocked for a point is a fault (`web.credited`). The viewers' "Signaler" reports (see Hosting) are the main source of
-  corrections: fetch them, record the clear
-  ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
+  corrections: fetch them, record the clear ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
   the rest (no comment, unsure) to the review's Match tab, which lists each rally reported; then score and fix
   the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.
   The review also asks every touch its page credits to no named player (a player on court under
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
-- `docs/next_steps.md`: what the 1 Nov answers changed in the pipeline and what is left, with the
-  numbers; the plan for learning from the review (`learn`).
-- The review's Match tab (`#match`) holds the reports, no longer questions. The video plays the match freely,
-  over a zoomable bar of every rally, touch and report.
-  questions. The video plays the match freely, over a zoomable bar of every rally, touch and report.
+- `docs/next_steps.md`: what is left in the pipeline, with the numbers; the plan for learning from the review (`learn`).
+- The review's Match tab (`#match`) holds the reports. The video plays the match freely, over a zoomable bar of every rally, touch and report.
   Beside it, the touches around the video: correct, add (a serve before a rally starts it, and the
   touches added after it are that rally's), remove, end a rally (`end` answers), join two rallies (`join` answers), start a rally
   at a moment (`split` answers: one missed, or the second of two taken for one; `web.rally_table`).
@@ -139,10 +114,10 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   winner is the other team. Nothing trains on how rallies end yet: such training reads these answers. The rally's "Commentaire": the owner's note, in the review only
   (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field.
 - Open, most useful first:
-  1. `docs/plan.md`: the touches left, the page ideas left, the 3D ball and TV mode's limits. A second match, filmed by the owner (2 Nov).
+  1. `docs/plan.md`: the touches left, the page ideas left, the 3D ball and TV mode's limits. A second match.
   2. That second match, held out whole: everything is tuned on the first. Retrain the ranker and
      re-sweep `identity.SHARPEN` after its review.
-  3. Rally ends and winners (checked winners 114 of 128): `rallies.whistled` as a fallback is in (held
+  3. Rally ends and winners: `rallies.whistled` as a fallback is in (held
      out found R 1.00, F1 ±1 s 0.57). Left on 50:00-60:00: two false windows (server bouncing the ball,
      a ball rolled back), ends cut by another court's whistle (-4.1 s) or the ball out of sight (-3.0,
      -2.3, and -10 s for 58:55), a rally joined to its dead-ball tail by the 8 s rule (+10 s); then how
@@ -154,9 +129,9 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
   7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  8. Once the second match's run ends: `rename` it (`outputs/second_match`, its court moves inside). The first is done (3 Nov); `data/`'s and `outputs/`'s
-     other folders are test clips and benchmarks.
-  9. The owner's plan (3 Nov), nothing started, not before the second match is reviewed and its quality known: a helper they trust,
+  8. Once the second match's run ends: `rename` it (`outputs/second_match`, its court moves inside). `data/`'s and `outputs/`'s other folders are test clips and
+     benchmarks.
+  9. The owner's plan, nothing started, not before the second match is reviewed and its quality known: a helper they trust,
      then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
      useful alone; then the VPS's system upgraded (2 vCPU, 3.7 GB, 18 GB free, Ubuntu 20.04), a login per person and the review on it, with
      the slow steps on the workers, a process per open match (`review.switch` restarts the only server) and crops prepared from the 4K.
@@ -170,8 +145,7 @@ https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DA
 (the first match at `/volleyball/2026-10-29-aspom-1-vs-aspom-2/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
 `volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo: changes go through a PR
 there, assigned to the owner), the site in `volleyball-stats/site`, the `/volleyball` route in
-`reverse-proxy/Caddyfile` (Caddy since 31 Oct; the Node proxy pegged the CPU gzipping `players.js`: PR
-josselinbuils/docker#2, rollback `/root/rollback-proxy.sh`). `/usr/local/bin/vbs-monitor.sh` logs the CPU every
+`reverse-proxy/Caddyfile` (rollback `/root/rollback-proxy.sh`). `/usr/local/bin/vbs-monitor.sh` logs the CPU every
 minute to `/var/log/vbs-monitor/` with a snapshot when busy; `matches.build` writes `.gz` copies nginx sends as
 they are (`gzip_static`). SSH is key-only, but for root with a password from the Docker networks: the
 build manager (`josselinbuils/build-manager`, on a push to master of blog or portfolio) logs in so and
@@ -208,7 +182,7 @@ to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Cont
 no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
 video. The copies keep their source's date, so an upload skips an unchanged video.
 
-The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films" makes those whose `plan` changed, never an apply; only behind the page's password (the owner's rule, 2 Nov): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/MATCH/films/`, outside the backup.
+The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films" makes those whose `plan` changed, never an apply; only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/MATCH/films/`, outside the backup.
 
 The commentary's voice: `uv run --group voice python -m volleyball_stats.voice outputs/MATCH` after a page's build makes the missing audio in
 `outputs/MATCH/voice/`, the next build takes it (a line no longer true of the match is left out), so after a review's changes run it, then upload.
@@ -236,7 +210,7 @@ Backup: while the review runs, every 10 minutes if something changed (and `uv ru
 outputs/MATCH`), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
 and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
 files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
-is not in it (42 GB, 18 GB free there): the owner backed the first match's up elsewhere (2 Nov).
+is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.
