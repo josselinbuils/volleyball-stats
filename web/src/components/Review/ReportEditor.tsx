@@ -7,7 +7,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
-import type { Named, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
+import { review, type Named, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
 import { TimeoutRow } from '@/components/Review/TimeoutRow';
@@ -50,6 +50,7 @@ const touches = contacts
  * the winner or to replay, no play, end and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
  * such; saving sends them all, with the new ones. */
 export function ReportEditor({
+  onEnd,
   reports,
   players,
   nameOf,
@@ -70,6 +71,8 @@ export function ReportEditor({
   timeouts,
   onTimeout,
 }: {
+  /** The end of the match given, or taken away for an empty one. */
+  onEnd: (time: string) => void;
   /** The moments viewers reported: their touches are flagged. */
   reports: { time: number }[];
   players: Named[];
@@ -405,6 +408,25 @@ export function ReportEditor({
               <Hand aria-hidden />
               {t('review.timeoutAdd', { time: clock(now) })}
             </Button>
+            <Button
+              variant="outline"
+              className="flex-1 bg-card"
+              onClick={() => {
+                const time = clock(timeOf());
+                if (window.confirm(t('review.matchEndAsk', { time }))) {
+                  onEnd(time);
+                }
+              }}
+            >
+              <CircleStop aria-hidden />
+              {t('review.matchEndAt', { time: clock(now) })}
+            </Button>
+            {review?.matchEnd && (
+              <Button variant="outline" className="flex-1 bg-card" onClick={() => onEnd('')}>
+                <Undo2 aria-hidden />
+                {t('review.matchEndRemove', { time: review.matchEnd })}
+              </Button>
+            )}
           </div>
           <ol
             ref={list}

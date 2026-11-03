@@ -90,6 +90,8 @@ LIKE, PHOTO_VECTORS = 0.08, "photo_vectors.npz"
 # team:identity for the review to offer; the one the user picked instead, by name, in
 # MATCH/PHOTO_PICKED.
 PHOTO_CHOICES, PHOTO_CANDIDATES, PHOTO_PICKED = 8, "photo_candidates.json", "photo_choices.json"
+# Raise it when what `photos` keeps of a moment's scores changes.
+SCORES_FORMAT = 1
 # The moments framed so far, by frame and box.
 PHOTO_KEPT = "photo_moments"
 FACING, SHARP, CROWD, OTHER, SIZE, PHOTO_SCORES = 3.0, 2.0, 0.5, 0.3, 2.0, "photo_scores.json"
@@ -1166,6 +1168,17 @@ def looks(pictures: list[tuple[np.ndarray, tuple]]) -> list[tuple[float, float, 
     return out
 
 
+def scores_stamp(video: Path) -> str:
+    """What the pictures' scores and appearances depend on: the video, the dependencies, the two
+    models and the code computing them, not the rest of this module: a new score costs minutes.
+    SCORES_FORMAT stands for `scored`, inside `photos`."""
+    from volleyball_stats.actions import POSE_MODEL
+    from volleyball_stats.identity import REID, describe, load_reid
+    from volleyball_stats.review import CROP_MARGIN
+
+    return files.cache_stamp(video, [POSE_MODEL, REID], f"{SCORES_FORMAT}:{CROP_MARGIN}:" + files.code_text(looks, framed, describe, load_reid))
+
+
 def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}) -> dict[int, tuple]:
     """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: their
     best moment (PHOTO_PICKS), framed; returns each pictured player's (frame, box, head)."""
@@ -1221,13 +1234,18 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
                 moments[key] = fitting[:PHOTO_PICKS] or sorted(found, key=lambda m: m[1][1] - m[1][3])[:1]
                 spare[key] = fitting[PHOTO_PICKS : PHOTO_PICKS + PHOTO_MORE]
                 kits[key] = sorted(playing_in, key=lambda m: m[1][1] - m[1][3])[:KIT_SAMPLES] or moments[key][:KIT_SAMPLES]
+    # The scores and the appearances are kept under what makes them; another stamp's start again.
+    # The appearances are written first, so scores under a stamp mean appearances under it too.
+    stamp = scores_stamp(video)
     path = match / PHOTO_SCORES
-    scores = json.loads(path.read_text()) if path.exists() else {}
+    saved = json.loads(path.read_text()) if path.exists() else {}
+    current = saved.get("stamp") == stamp
+    scores = saved["scores"] if current else {}
     name = lambda frame, box: f"{frame}:{','.join(map(str, box))}"  # noqa: E731
 
     vectors_path = match / PHOTO_VECTORS
     vectors: dict[str, np.ndarray] = {}
-    if vectors_path.exists():
+    if current and vectors_path.exists():
         with np.load(vectors_path) as found:
             vectors = dict(zip(found["names"].tolist(), found["vectors"].astype(np.float32)))
     reid: list = []
@@ -1261,7 +1279,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
                 left, top, scale = pictures[key][2]
                 # The head back in the frame's pixels.
                 scores[key] = [facing, whole, sharp, others, head and [top + head[0] / scale, left + head[1] / scale, top + head[2] / scale], kit]
-            files.write_text(path, json.dumps(scores))
+            files.write_text(path, json.dumps({"stamp": stamp, "scores": scores}))
 
     scored(moments)
     scored(kits)

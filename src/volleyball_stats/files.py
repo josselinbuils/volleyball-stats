@@ -6,10 +6,12 @@ that matters.
 """
 
 import hashlib
+import inspect
 import json
 import os
 import threading
-from collections.abc import Iterable, Iterator
+import types
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import IO
@@ -66,3 +68,33 @@ def cache_stamp(video: Path | None, sources: Iterable[Path], extra: str = "") ->
         if path.exists():
             digest.update(path.read_bytes())
     return digest.hexdigest()[:16]
+
+
+def code_text(*functions: Callable) -> str:
+    """The source of `functions` and of this package's functions and classes they use, in turn, with
+    the values of the constants they read: what a stamp needs to see them change, and nothing else
+    of their modules. What they import inside their body counts only if given as well."""
+    seen: set = set()
+    parts: set[str] = set()
+
+    def visit(function: Callable) -> None:
+        if function in seen:
+            return
+        seen.add(function)
+        parts.add(inspect.getsource(function))
+        codes = [function.__code__]
+        while codes:
+            code = codes.pop()
+            codes += [c for c in code.co_consts if isinstance(c, types.CodeType)]
+            for name in code.co_names:
+                value = function.__globals__.get(name)
+                if isinstance(value, (bool, int, float, str, tuple, Path)):
+                    parts.add(f"{name}={value}")
+                elif inspect.isclass(value) and value.__module__.startswith("volleyball_stats"):
+                    parts.add(inspect.getsource(value))
+                elif inspect.isfunction(value) and value.__module__.startswith("volleyball_stats"):
+                    visit(value)
+
+    for function in functions:
+        visit(function)
+    return "\n".join(sorted(parts))

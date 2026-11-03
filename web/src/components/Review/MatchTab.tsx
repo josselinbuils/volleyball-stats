@@ -10,7 +10,6 @@ import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/l
 import type { NameOf } from '@/components/Review/helpers/players';
 import { REPORT_LEAD_S } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
-import { MatchEnd } from '@/components/Review/MatchEnd';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
 
@@ -90,7 +89,6 @@ export function MatchTab({
   return (
     <Card>
       <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6 pt-6">
-        <MatchEnd now={now} onSave={onEnd} />
         <div
           ref={block}
           className={cn(
@@ -124,6 +122,7 @@ export function MatchTab({
           </div>
           <ReportEditor
             key={round}
+            onEnd={onEnd}
             onWarnings={(keys) => setWarned(new Set(keys))}
             reports={seen}
             players={players}
