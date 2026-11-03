@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits, matchFinished } from '@/components/Review/helpers/report';
 
 describe('rallyAt', () => {
   const rallies = [
@@ -122,5 +122,17 @@ describe('runningScores', () => {
 
     expect(scores).toEqual([[1, 0], null, [1, 1], [1, 1], [0, 1]]);
     expect(offGiven([1, 1, 1, 1, 2], scores, ['1-1', '1-0', null])).toEqual(new Map([[4, '1-0']]));
+  });
+});
+
+describe('matchFinished', () => {
+  it('needs every rally checked and no report open', () => {
+    expect(matchFinished([1, 2], [2, 1, 9], 0)).toBe(true);
+    expect(matchFinished([1, 2], [1], 0)).toBe(false);
+    expect(matchFinished([1, 2], [1, 2], 1)).toBe(false);
+  });
+
+  it('is not finished without rallies', () => {
+    expect(matchFinished([], [], 0)).toBe(false);
   });
 });

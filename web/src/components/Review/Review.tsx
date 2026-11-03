@@ -7,7 +7,7 @@ import { BrandBar } from '@/components/BrandBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
-import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
+import { groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import { allMarked, post, type Conflict, type Hosted, type LearnRun, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
@@ -18,6 +18,7 @@ import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 import { MatchTab } from '@/components/Review/MatchTab';
 import { Progress } from '@/components/Review/Progress';
+import { matchFinished } from '@/components/Review/helpers/report';
 import { ReviewHeader } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
 
@@ -318,7 +319,21 @@ export function Review({
             </p>
           </div>
         )}
-        {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} />}
+        {players.length > 0 && (
+          <ReviewTabs
+            tab={tab}
+            show={show}
+            named={named}
+            players={players.length}
+            questions={open.length}
+            reports={reports.length}
+            matchDone={matchFinished(
+              rallies.map((r) => r.key ?? Math.round(r.start * match.fps)),
+              checked,
+              reports.length,
+            )}
+          />
+        )}
         <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={players} nameOf={nameOf} />
         {error && (

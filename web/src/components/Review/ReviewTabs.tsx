@@ -5,12 +5,28 @@ import { cn } from '@/lib/utils';
 type Tab = 'questions' | 'names' | 'match' | 'progress';
 
 /** The review's steps, each saying only what is left to do. */
-export function ReviewTabs({ tab, show, named, players, questions, reports }: { tab: Tab; show: (tab: Tab) => void; named: number; players: number; questions: number; reports: number }) {
+export function ReviewTabs({
+  tab,
+  show,
+  named,
+  players,
+  questions,
+  reports,
+  matchDone,
+}: {
+  tab: Tab;
+  show: (tab: Tab) => void;
+  named: number;
+  players: number;
+  questions: number;
+  reports: number;
+  matchDone: boolean;
+}) {
   const { t } = useTranslation();
   const tabs: { id: Tab; label: string; left?: number | string; done?: boolean }[] = [
     { id: 'names', label: t('review.tabNames'), left: named < players ? `${named}/${players}` : undefined, done: named === players },
-    { id: 'questions', label: t('review.tabQuestions'), left: questions || undefined },
-    { id: 'match', label: t('review.tabMatch'), left: reports || undefined },
+    { id: 'questions', label: t('review.tabQuestions'), left: questions || undefined, done: !questions },
+    { id: 'match', label: t('review.tabMatch'), left: reports || undefined, done: matchDone },
     { id: 'progress', label: t('review.tabProgress') },
   ];
   return (

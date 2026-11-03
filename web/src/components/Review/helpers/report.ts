@@ -154,3 +154,9 @@ export function rallyOf(rallies: Pick<Rally, 'start' | 'end'>[], time: number, t
   const next = rallies.findIndex((r) => r.start > time);
   return inside < 0 && type === 'serve' && next >= 0 ? next : rallyAt(rallies, time);
 }
+
+/** Whether the match tab has nothing left: every rally of `keys` is checked, no report open. */
+export function matchFinished(keys: number[], checked: number[], reports: number): boolean {
+  const done = new Set(checked);
+  return reports === 0 && keys.length > 0 && keys.every((key) => done.has(key));
+}
