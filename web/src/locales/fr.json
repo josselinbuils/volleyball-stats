@@ -295,6 +295,7 @@
     "reportNoTouches": "Aucune touche reconnue dans cet échange.",
     "reportWinner": "Gagnant de l'échange",
     "reportComment": "Commentaire",
+    "reportCommentAdd": "Ajouter un commentaire",
     "reportCommentHelp": "Une note pour vous, jamais mise en ligne.",
     "reportRedo": "À rejouer",
     "reportWrongCall": "Erreur d'arbitrage",

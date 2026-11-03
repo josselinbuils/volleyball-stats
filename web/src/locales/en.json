@@ -295,6 +295,7 @@
     "reportNoTouches": "No touch found in this rally.",
     "reportWinner": "Rally won by",
     "reportComment": "Comment",
+    "reportCommentAdd": "Add a comment",
     "reportCommentHelp": "A note for you, never put online.",
     "reportRedo": "To replay",
     "reportWrongCall": "Referee's error",
