@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ZoomIn, ZoomOut } from 'lucide-react';
+import { Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { boxAt, panView, viewAt, zoomView, type View } from '@/components/Review/helpers/box';
@@ -22,6 +23,12 @@ const HOLD_MS = 250;
 const HOLD_RATE = 0.25;
 /** How much a pinch's wheel step (Ctrl + wheel, as browsers send a trackpad pinch) zooms. */
 const PINCH_SPEED = 0.01;
+/** Each zoom button's step, towards the middle of the view. */
+const ZOOM_STEP = 1.5;
+/** A press moving this far drags the zoomed view: no click, no slowing down. */
+const DRAG_PX = 4;
+/** Whether the match's sound is off, kept in this browser. */
+const MUTED_KEY = 'review.muted';
 /** Where the caption stands (its top centre, fractions of the video), as the user dragged it, kept
  * in this browser; centred above the court until then. */
 const CAPTION_KEY = 'review.captionAt';
@@ -36,9 +43,17 @@ function savedCaption(): { x: number; y: number } {
   }
 }
 
+function savedMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour.
+ * `free`: the match plays on from the clip with its sound, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour.
  * `extra`: at the right end of the speeds' line. */
 export function ClipVideo({
   clip,
@@ -83,6 +98,8 @@ export function ClipVideo({
   const swallowClick = useRef(false);
   // The part of the frame a pinch zoomed on, null for the automatic view.
   const [pinched, setPinched] = useState<View | null>(null);
+  const [muted, setMuted] = useState(() => !free || savedMuted());
+  const grab = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [captionAt, setCaptionAt] = useState(savedCaption);
   const captionDrag = useRef<{ x: number; y: number; from: { x: number; y: number } } | null>(null);
@@ -237,7 +254,11 @@ export function ClipVideo({
       void (v.paused ? v.play().catch(() => {}) : v.pause());
     }
   };
-  const press = () => {
+  const press = (event: PointerEvent) => {
+    grab.current = { x: event.clientX, y: event.clientY, moved: false };
+    if (shown.current.w < width) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
     holdTimer.current = window.setTimeout(() => {
       const v = video.current;
       if (v) {
@@ -247,7 +268,7 @@ export function ClipVideo({
       }
     }, HOLD_MS);
   };
-  const release = () => {
+  const endHold = () => {
     window.clearTimeout(holdTimer.current);
     if (held.current) {
       held.current = false;
@@ -257,6 +278,40 @@ export function ClipVideo({
       }
     }
   };
+  const release = () => {
+    grab.current = null;
+    endHold();
+  };
+  const drag = (event: PointerEvent) => {
+    const from = grab.current;
+    const r = frame.current?.getBoundingClientRect();
+    const v = shown.current;
+    if (!from || !r?.width || v.w >= width) {
+      return;
+    }
+    const dx = event.clientX - from.x;
+    const dy = event.clientY - from.y;
+    if (!from.moved && Math.hypot(dx, dy) < DRAG_PX) {
+      return;
+    }
+    if (!from.moved) {
+      endHold();
+      from.moved = true;
+      swallowClick.current = true;
+    }
+    from.x = event.clientX;
+    from.y = event.clientY;
+    setPinched(panView(v, (-dx * v.w) / r.width, (-dy * v.h) / r.height, width, height));
+  };
+  const zoomBy = (factor: number) => setPinched(zoomView(view, 0.5, 0.5, factor, width, height));
+  const toggleMuted = () => {
+    setMuted(!muted);
+    try {
+      localStorage.setItem(MUTED_KEY, muted ? '0' : '1');
+    } catch {
+      // Kept for this page only.
+    }
+  };
   return (
     <div className="grid gap-2">
       <div ref={frame} className="relative aspect-video overflow-hidden rounded-lg bg-black">
@@ -264,16 +319,17 @@ export function ClipVideo({
           <video
             ref={video}
             src={match.video ?? undefined}
-            muted
+            muted={muted}
             playsInline
             controls={!own}
             onClick={own ? toggle : undefined}
             onPointerDown={press}
+            onPointerMove={drag}
             onPointerUp={release}
             onPointerCancel={release}
             onPointerLeave={release}
             aria-label={t('review.video')}
-            className="block size-full select-none"
+            className={cn('block size-full select-none', view.w < width && 'cursor-grab touch-none')}
           />
           <svg viewBox={`0 0 ${width} ${height}`} aria-hidden className="pointer-events-none absolute inset-0 size-full">
             {box && (
@@ -371,6 +427,16 @@ export function ClipVideo({
             ))}
           </div>
         )}
+        {free && (
+          <div className="flex gap-1">
+            <Button variant="outline" size="icon-sm" className="bg-card" title={t('review.pinchNote')} aria-label={t('review.zoomMore')} onClick={() => zoomBy(ZOOM_STEP)}>
+              <ZoomIn aria-hidden />
+            </Button>
+            <Button variant="outline" size="icon-sm" className="bg-card" title={t('review.pinchNote')} aria-label={t('review.zoomLess')} disabled={!pinched} onClick={() => zoomBy(1 / ZOOM_STEP)}>
+              <ZoomOut aria-hidden />
+            </Button>
+          </div>
+        )}
         {pinched && (
           <Button variant="outline" size="sm" className="bg-card" title={t('review.pinchNote')} onClick={() => setPinched(null)}>
             <ZoomOut aria-hidden />
@@ -390,6 +456,18 @@ export function ClipVideo({
           >
             {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
             {t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
+          </Button>
+        )}
+        {free && (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="bg-card"
+            title={t(muted ? 'review.soundOn' : 'review.soundOff')}
+            aria-label={t(muted ? 'review.soundOn' : 'review.soundOff')}
+            onClick={toggleMuted}
+          >
+            {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
           </Button>
         )}
         <div role="group" aria-label={t('review.speed')} className="flex gap-1">
