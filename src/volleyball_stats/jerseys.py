@@ -15,7 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import files, identity
+from volleyball_stats import decode, files, identity
 from volleyball_stats.attribution import read_players
 
 FILE = "jerseys.csv"
@@ -64,7 +64,7 @@ def read(match: Path, video: Path) -> list[tuple[int, int, int]]:
             for i in np.linspace(0, len(frames) - 1, min(READS, len(frames))).astype(int):
                 wanted.setdefault(frames[i], []).append((k, s.track))
     readings: dict[int, list[tuple[int, int, int]]] = {}
-    for frame, image in identity.frames_at(video, wanted):
+    for frame, image in decode.frames_at(video, wanted):
         for k, track in wanted[frame]:
             n = number(reader(torso(image, boxes[frame, track]))[0])
             if n is not None:

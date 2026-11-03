@@ -31,7 +31,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import files
+from volleyball_stats import decode, files
 from volleyball_stats.players import Row
 
 SAMPLES = 8
@@ -51,8 +51,6 @@ SWAP_SHARE = 0.6
 # shorts) under which the teams look alike. On side_setend, white against navy is 84-121 apart; one
 # kit on either half 12 (white) and 43 apart (navy: small far players take the floor's colour).
 KIT_GAP = 60.0
-# Frames to the next sampled frame beyond which the reader seeks instead of decoding through.
-SEEK = 150
 # Seconds between two rallies from which a change of ends is a set break; in a deciding set the
 # teams change ends at 8 points within a minute.
 SET_BREAK_S = 90.0
@@ -104,18 +102,7 @@ def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[i
     looks: dict[int, list[np.ndarray]] = {}
     crops: dict[int, np.ndarray] = {}
     tallest: dict[int, int] = {}
-    cap, position = cv2.VideoCapture(str(video)), 0
-    for frame in sorted(wanted):
-        if frame - position > SEEK:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-            position = frame
-        while position < frame:
-            cap.grab()
-            position += 1
-        ok, image = cap.read()
-        position += 1
-        if not ok:
-            break
+    for frame, image in decode.frames_at(video, wanted):
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         for r in wanted[frame]:
             top, bottom = part(lab, r.box), part(lab, r.box, SHORTS)
@@ -127,7 +114,6 @@ def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[i
                     tallest[r.track] = y2 - y1
                     cut = image[max(0, y1) : y2, max(0, x1) : x2]
                     crops[r.track] = cv2.resize(cut, (max(1, round(cut.shape[1] * CROP_PX / cut.shape[0])), CROP_PX), interpolation=cv2.INTER_AREA) if cut.size else cut
-    cap.release()
     return {track: np.median(c, axis=0) for track, c in looks.items()}, crops
 
 

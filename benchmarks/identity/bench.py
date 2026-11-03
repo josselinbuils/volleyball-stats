@@ -26,7 +26,7 @@ import cv2
 import numpy as np
 from ultralytics.utils.ops import linear_sum_assignment
 
-from volleyball_stats import identity
+from volleyball_stats import decode, identity
 from volleyball_stats.attribution import read_players
 from volleyball_stats.players import Row
 
@@ -100,7 +100,7 @@ def colour_embed(video: Path, rows: list[Row], segments: list, cover: dict, cach
         for f in identity.picks(s, cover):
             wanted.setdefault(f, []).append(k)
     found: list[tuple[int, np.ndarray]] = []
-    for frame, image in identity.frames_at(video, wanted):
+    for frame, image in decode.frames_at(video, wanted):
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(float)
         for k in wanted[frame]:
             x1, y1, x2, y2 = (round(v) for v in boxes[frame, segments[k].track])

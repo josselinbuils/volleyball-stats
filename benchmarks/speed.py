@@ -5,7 +5,7 @@ Python), and as they ran before (OpenCV frames at full size, one decoding pass p
 
     uv run python benchmarks/speed.py VIDEO [--seconds 60]
 
-Results on the M4 Pro (MPS, ffmpeg decoding on the CPU), 2 min of side_holdout upscaled to 4K
+Results on the M4 Pro (MPS, ffmpeg then decoding on the CPU), 2 min of side_holdout upscaled to 4K
 50 fps HEVC at 100 Mb/s like the DJI Osmo Action 3's, 20 s timed, other work running (±10%):
 
 | step | fps | 2-hour match |
@@ -20,8 +20,12 @@ Results on the M4 Pro (MPS, ffmpeg decoding on the CPU), 2 min of side_holdout u
 The models set the pace on MPS: the pass saved is a decode the CPU runs beside them. On a 720p
 video the outputs are byte for byte the old ones (same pixels, same frames).
 
-The teams and identity steps each decode the video once more with OpenCV, at full size for their
-crops: about the "decode, OpenCV" line each, plus identity's re-identification model.
+The real footage decodes slower than this copy; `decode.py` has its numbers. Tracking it, 60 s:
+12.6 fps with ffmpeg on the CPU, 12.6 on VideoToolbox (same tracks); 10.0 and 10.4 with every core
+kept busy.
+
+The teams and identity steps each decode the video once more at full size for their crops, frames
+counted by ffmpeg, on top of identity's re-identification model.
 """
 
 import argparse
@@ -51,7 +55,7 @@ def main() -> None:
     count = min(total, round(args.seconds * fps))
     device = ball.default_device()
     gpu = torch.cuda.get_device_name() if device == "cuda" else device
-    decoder = "NVDEC" if decode.cuda(args.video) else "CPU"
+    decoder = {"cuda": "NVDEC", "videotoolbox": "VideoToolbox"}.get(next(iter(decode.hardware(args.video)[1:]), ""), "CPU")
     print(f"{args.video.name}: {width}x{height} at {fps:.2f} fps, {total / fps / 60:.1f} min; models on {gpu}, ffmpeg decodes on the {decoder}\n")
     print("| step | fps | 2-hour match |\n| --- | --- | --- |")
 

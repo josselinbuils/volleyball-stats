@@ -1160,7 +1160,7 @@ def looks(pictures: list[tuple[np.ndarray, tuple]]) -> list[tuple[float, float, 
 def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}) -> dict[int, tuple]:
     """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: their
     best moment (PHOTO_PICKS), framed; returns each pictured player's (frame, box, head)."""
-    from volleyball_stats.identity import frames_at
+    from volleyball_stats.decode import frames_at
     from volleyball_stats.review import ALONE, IDENTITY_CROPS, Questions, load_log, piece_key
 
     if not teams or not (match / "identity_candidates.json").exists():

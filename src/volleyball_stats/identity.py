@@ -37,10 +37,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import files
+from volleyball_stats import decode, files
 from volleyball_stats.court import zone
 from volleyball_stats.players import Row
-from volleyball_stats.teams import SEEK, side_group
+from volleyball_stats.teams import side_group
 
 REID = Path("models/osnet_ain_x1_0_msmt17.pth")
 REID_GDRIVE_ID = "1SigwBE6mPdqiJMqhuIY4aqC7--5CsMal"
@@ -166,25 +166,6 @@ def picks(segment: Segment, cover: dict[Key, float]) -> list[int]:
     return sorted({frames[i] for i in np.linspace(0, len(frames) - 1, min(CROPS, len(frames))).astype(int)})
 
 
-def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndarray]]:
-    """The video's frames at the `wanted` indices in order, decoded through short gaps, seeking over
-    long ones."""
-    cap, position = cv2.VideoCapture(str(video)), 0
-    for frame in sorted(set(wanted)):
-        if frame - position > SEEK:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-            position = frame
-        while position < frame:
-            cap.grab()
-            position += 1
-        ok, image = cap.read()
-        position += 1
-        if not ok:
-            break
-        yield frame, image
-    cap.release()
-
-
 def load_reid(device: str, path: Path = REID):
     import torch
 
@@ -227,12 +208,8 @@ def describe(crops: list[np.ndarray], model, device: str, batch: int = 64) -> np
 def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key, float], cache: Path | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Unit embedding of each segment, the mean of its `picks` boxes', and the number of boxes it
     averages; read from `cache` for the segments it holds (same track, frames and first box), else
-    computed and the cache rewritten.
-
-    ponytail: a second decoding pass over the video, by OpenCV on the CPU at full size for the crops:
-    on 4K footage 60% of the frames are picked and all decoded, 37 s for 2 min on the M4 Pro.
-    ffmpeg's GPU decoding (decode.py) would need the picked frames selected before the pipe, 4K
-    frames being 25 MB each.
+    computed and the cache rewritten: a decoding pass over the video at full size for the crops, 56%
+    of the frames picked on 4K footage.
     """
     # Boxes of the segments' first frames, the cache's keys; those of the picked frames on a miss.
     firsts = {(s.start, s.track) for s in segments}
@@ -263,7 +240,7 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
                 np.add.at(counts, np.array(owners[:n]), 1)
                 del crops[:n], owners[:n]
 
-        for frame, image in frames_at(video, wanted):
+        for frame, image in decode.frames_at(video, wanted):
             for k in wanted[frame]:
                 x1, y1, x2, y2 = (round(v) for v in boxes[frame, segments[k].track])
                 crop = image[max(0, y1) : max(y2, y1 + 2), max(0, x1) : max(x2, x1 + 2)]

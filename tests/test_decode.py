@@ -2,8 +2,9 @@ import subprocess
 
 import cv2
 import numpy as np
+import pytest
 
-from volleyball_stats.decode import frames, scaled
+from volleyball_stats.decode import SEEK, frames, frames_at, scaled
 
 
 class TestScaled:
@@ -47,3 +48,42 @@ class TestFrames:
         assert next(decoded).shape == (24, 32, 3)
         decoded.close()
         assert started[-1].poll() is not None
+
+    def expected(self, path):
+        cap = cv2.VideoCapture(str(path))
+        found = []
+        while (read := cap.read())[0]:
+            found.append(read[1])
+        return found
+
+    def test_frames_at_gives_opencvs_pixels_at_the_wanted_frames_in_order(self, tmp_path):
+        path = self.video(tmp_path)
+        expected = self.expected(path)
+
+        found = list(frames_at(path, [7, 2, 3, 7]))
+
+        assert [index for index, _ in found] == [2, 3, 7]
+        assert all(np.array_equal(image, expected[index]) for index, image in found)
+
+    def test_frames_at_stops_ffmpeg_after_the_last_wanted_frame(self, tmp_path, monkeypatch):
+        started, popen = [], subprocess.Popen
+        monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: started.append(popen(*args, **kwargs)) or started[-1])
+
+        assert [index for index, _ in frames_at(self.video(tmp_path, 300), [1, 2])] == [1, 2]
+        assert started[-1].poll() is not None
+
+    def test_frames_at_seeks_with_opencv_when_it_would_skip_most_of_the_video(self, tmp_path, monkeypatch):
+        path = self.video(tmp_path, SEEK + 20)
+        expected = self.expected(path)
+        monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: pytest.fail("ffmpeg decoded through the gap"))
+
+        found = list(frames_at(path, [SEEK + 10]))
+
+        assert [index for index, _ in found] == [SEEK + 10]
+        assert np.array_equal(found[0][1], expected[SEEK + 10])
+
+    def test_frames_at_past_the_end_stops_at_the_last_frame(self, tmp_path):
+        assert [index for index, _ in frames_at(self.video(tmp_path), [1, 40])] == [1]
+
+    def test_frames_at_wanting_nothing_gives_nothing(self, tmp_path):
+        assert list(frames_at(tmp_path / "none.mp4", [])) == []
