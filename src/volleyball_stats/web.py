@@ -1432,11 +1432,11 @@ def review_page(match: Path, video: Path, court: Path, theme: str = "aspom", pic
 
 
 def kept_photos(people: dict[int, dict], site: Path) -> None:
-    """`people` with the pictures the page at `site` shows of the same (team, number)."""
+    """`people` with the pictures the page at `site` shows of the same (team, number), if still there."""
     from volleyball_stats.review import page_data
 
     shown = page_data(site)
-    known = {(p.get("team"), p.get("number")): p["photo"] for p in (shown or {}).get("people", {}).values() if p.get("photo")}
+    known = {(p.get("team"), p.get("number")): p["photo"] for p in (shown or {}).get("people", {}).values() if p.get("photo") and (site / p["photo"].split("?")[0]).exists()}
     for person in people.values():
         if (person["team"], person["number"]) in known:
             person["photo"] = known[person["team"], person["number"]]

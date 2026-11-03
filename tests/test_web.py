@@ -894,3 +894,16 @@ class TestWithLandings:
         samples = [[1, 1.0, 1.0], [], [], [], [], [], [2, 2.0, 2.0]]
         found = web.with_landings([self.contact("attack", result="point"), self.contact("floor", t=0.6)], {"step": 1, "samples": samples}, 10.0)
         assert found[1]["around"] == [2, 2.0, 2.0]
+
+
+class TestKeptPhotos:
+    def test_keeps_a_players_picture_unless_its_file_is_gone(self, tmp_path):
+        people = {"0": {"team": 1, "number": 3, "photo": "players/0.webp?v=a"}, "1": {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}}
+        (tmp_path / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people})};\n")
+        (tmp_path / "players").mkdir()
+        (tmp_path / "players" / "0.webp").write_bytes(b"x")
+        built = {5: {"team": 1, "number": 3}, 6: {"team": 2, "number": 4}, 7: {"team": 2, "number": 9}}
+
+        web.kept_photos(built, tmp_path)
+
+        assert built == {5: {"team": 1, "number": 3, "photo": "players/0.webp?v=a"}, 6: {"team": 2, "number": 4}, 7: {"team": 2, "number": 9}}
