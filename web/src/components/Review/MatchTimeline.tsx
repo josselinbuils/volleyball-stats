@@ -19,7 +19,7 @@ const HEIGHT = 64;
 /** The whole match on one bar under the video: each rally a band, its winner's colour along its
  * bottom, orange with a warning, else green once checked, the sets parted; buttons go to the rally
  * to check (a warning, or not checked) before or after the video; each touch a tick in its team's colour (grey once removed), the viewers'
- * reports as red flags, the automatic ones as grey flags, the corrections saved and not applied as dots, the timeouts as dashed bands. A click moves the video there.
+ * reports as red flags, the automatic ones as grey flags, the corrections saved and not applied as dots, the timeouts as grey dashed bands. A click moves the video there.
  * It zooms (buttons, or ctrl/⌘ and the wheel or a pinch, around the pointer) and scrolls sideways,
  * following the video unless just scrolled. */
 export function MatchTimeline({
@@ -41,7 +41,7 @@ export function MatchTimeline({
   warned: Set<number>;
   /** The owner's notes on the rallies, by their key: a mark above each. */
   comments: Record<number, string>;
-  /** Each a dashed band, in its team's colour once picked. */
+  /** Each a grey dashed band. */
   timeouts: Timeout[];
   onSeek: (time: number) => void;
 }) {
@@ -195,9 +195,9 @@ export function MatchTimeline({
                 y={14}
                 width={Math.max(3, ((o.end - o.start) / match.fps) * scale)}
                 height={26}
-                fill={o.team ? teamColor(o.team) : 'none'}
-                fillOpacity={0.35}
-                stroke={o.team ? teamEdge(o.team) : 'var(--muted-foreground)'}
+                fill="var(--muted-foreground)"
+                fillOpacity={0.2}
+                stroke="var(--muted-foreground)"
                 strokeDasharray="3 2"
               >
                 <title>{`${t('review.timeout')} · ${clock(o.start / match.fps)}${o.team ? ` · ${groupName(t, o.team)}` : ''}`}</title>
