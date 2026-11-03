@@ -331,6 +331,7 @@
     "isRally": "Yes, a rally",
     "rallyNote": "A rally runs from the serve to the end of the point; the warm-up, a ball sent back to the server or a timeout are none.",
     "hosted": "Online page updated at {{at}}",
+    "hostedDay": "Online page updated on {{day}} at {{at}}",
     "backupFailed": "The backup on the server failed at {{at}}: next try in 10 minutes.",
     "hostedFailed": "The online page could not be updated at {{at}}: try again later.",
     "back": "Back {{s}} s",

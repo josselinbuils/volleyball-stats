@@ -31,6 +31,7 @@ import time
 import webbrowser
 from collections import Counter, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -73,6 +74,8 @@ SPOT_CHECKS = 20
 # A rally window asked about is played whole with RALLY_AROUND_S on both sides, unzoomed.
 RALLY_AROUND_S = 1.0
 ROSTER = Path("outputs/roster.json")
+# Beside a match's outputs: when its hosted page was last uploaded, and what it then showed (`page_stamp`).
+HOSTED = "hosted.json"
 # What the identities were last computed from (`state`), to tell what an apply would change.
 APPLIED = "identity_applied.json"
 # Undo takes back the UNDOS latest of the CHANGES whole, then drops the last answer. Request bodies
@@ -1408,6 +1411,28 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
     return (max(0, first), min(last, size - 1)) if first < size else None
 
 
+def page_stamp(match: Path) -> str:
+    """What the hosted page would show: the review's page data and the page's code."""
+    digest = hashlib.sha256()
+    for path in (match / "review" / "data.js", matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"):
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:16]
+
+
+def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
+    """Where the hosted page stands from `saved`, the last upload's HOSTED: behind unless it carried this `stamp`; `day` when
+    it was not `today`."""
+    if not saved:
+        return {"at": None, "day": None, "error": None, "behind": True}
+    at = datetime.fromisoformat(saved["at"])
+    return {"at": at.strftime("%H:%M"), "day": None if at.date() == today else at.date().isoformat(), "error": None, "behind": saved["stamp"] != stamp}
+
+
+def read_hosted(match: Path) -> dict:
+    path = match / HOSTED
+    return hosted_state(json.loads(path.read_text()) if path.exists() else None, page_stamp(match), date.today())
+
+
 def match_list(out: Path) -> list[dict]:
     """The matches of `out` that have a SOURCE, newest first, as the hosted list shows them, by their folder's name; `ready` once
     their pipeline has ended and their files are there."""
@@ -1592,9 +1617,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # (TIMINGS) to outlive a restart, first guessed from the first ASPOM match.
     progress: dict = {}
     took = {**TOOK, **(json.loads((match / TIMINGS).read_text()) if (match / TIMINGS).exists() else {})}
-    # The last hosting (publish.json): when, why it failed, and whether a change came since; the
+    # The last hosting (publish.json): when, why it failed, and whether the page has changed since; the
     # page says it. The user puts the pages online ("/host"), an apply does not.
-    hosted: dict = {"at": None, "error": None, "behind": True}
+    hosted: dict = read_hosted(match)
     filmed: dict = {"error": None}
     # The last fetch of the viewers' reports from the hosting: when, and how many for this match.
     fetched_log: dict = {}
@@ -1620,10 +1645,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     def hosting() -> None:
         try:
             matches.host(match, video, court, theme, json.loads((match / matches.PUBLISH).read_text()))
-            hosted.update(at=time.strftime("%H:%M"), error=None, behind=False)
+            files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match)}) + "\n")
+            hosted.update(read_hosted(match))
         except Exception as error:  # noqa: BLE001
             # The answers stay applied: only the hosted page is behind.
-            hosted.update(at=time.strftime("%H:%M"), error=str(error) or type(error).__name__)
+            hosted.update(at=time.strftime("%H:%M"), day=None, error=str(error) or type(error).__name__)
 
     def filming() -> None:
         try:
@@ -1634,13 +1660,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             filmed["error"] = str(error) or type(error).__name__
 
     def pages() -> list:
-        """The steps rebuilding the review's page and the published one with its own choices; the
-        hosted ones are then behind."""
+        """The steps rebuilding the review's page and the published one with its own choices."""
         def own() -> None:
             web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback")
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
-            hosted["behind"] = True
+            hosted["behind"] = read_hosted(match)["behind"]
 
         steps = [("review", own)]
         if (match / "page.json").exists():

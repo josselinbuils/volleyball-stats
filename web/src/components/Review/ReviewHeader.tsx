@@ -95,6 +95,7 @@ export function ReviewHeader({
   onFailed: () => void;
 }) {
   const { t } = useTranslation();
+  const f = useFormat();
   const toApply = pending.changed || pending.names;
   const running = busy === 'rerun' ? t('review.rerunning') : busy === 'reports' ? t('review.fetching') : busy === 'films' ? t('review.filmsMaking') : null;
   return (
@@ -194,7 +195,13 @@ export function ReviewHeader({
           <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')} title={hosted.error ?? undefined}>
             <Dot />
             {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
-            {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : hosted.behind ? t('review.hostedLate') : t('review.hosted', { at: hosted.at })}
+            {hosted.error
+              ? t('review.hostedFailed', { at: hosted.at })
+              : hosted.behind
+                ? t('review.hostedLate')
+                : hosted.day
+                  ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at })
+                  : t('review.hosted', { at: hosted.at })}
 
             {(hosted.behind || hosted.error) && (
               <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => run('host')}>

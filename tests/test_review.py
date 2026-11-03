@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from types import SimpleNamespace
 
 import numpy as np
@@ -6,7 +7,24 @@ import pytest
 
 from volleyball_stats.identity import read_names
 from volleyball_stats import files
-from volleyball_stats.review import APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
+from volleyball_stats.review import hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
+
+
+class TestHostedState:
+    today = date(2026, 11, 3)
+
+    def test_behind_without_an_upload(self):
+        assert hosted_state(None, "x", self.today) == {"at": None, "day": None, "error": None, "behind": True}
+
+    def test_up_to_date_while_the_page_is_what_was_uploaded(self):
+        state = hosted_state({"at": "2026-11-03T00:51:12", "stamp": "x"}, "x", self.today)
+
+        assert (state["at"], state["day"], state["behind"]) == ("00:51", None, False)
+
+    def test_behind_once_the_page_changed_and_says_another_day(self):
+        state = hosted_state({"at": "2026-11-02T22:03:00", "stamp": "x"}, "y", self.today)
+
+        assert (state["at"], state["day"], state["behind"]) == ("22:03", "2026-11-02", True)
 
 
 class TestMatchList:

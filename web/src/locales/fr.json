@@ -331,6 +331,7 @@
     "isRally": "Oui, un échange",
     "rallyNote": "Un échange va du service à la fin du point ; l'échauffement, une balle renvoyée au serveur ou un temps mort n'en sont pas.",
     "hosted": "Page en ligne mise à jour à {{at}}",
+    "hostedDay": "Page en ligne mise à jour le {{day}} à {{at}}",
     "backupFailed": "La sauvegarde sur le serveur a échoué à {{at}} : nouvel essai dans 10 minutes.",
     "hostedFailed": "La page en ligne n'a pas pu être mise à jour à {{at}} : réessayez plus tard.",
     "back": "Reculer de {{s}} s",

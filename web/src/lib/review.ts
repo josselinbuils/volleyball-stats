@@ -168,7 +168,7 @@ interface ReviewData {
 
 export type LearnRun = { time: string; commit: string; scores: Record<string, [number, number]> };
 
-export type Hosted = { at: string | null; error: string | null; behind: boolean };
+export type Hosted = { at: string | null; day?: string | null; error: string | null; behind: boolean };
 
 declare global {
   interface Window {
