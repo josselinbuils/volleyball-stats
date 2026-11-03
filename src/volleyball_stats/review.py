@@ -83,7 +83,7 @@ UNDOS, MAX_BODY = 100, 1 << 20
 # Where the review's copy of the match page keeps the reports of what is wrong in a moment.
 FEEDBACK = "feedback.log"
 BACKUP_EVERY_S = 600
-CHANGES = ("/answer", "/odd", "/more", "/repin", "/forget", "/cut")
+CHANGES = ("/answer", "/odd", "/more", "/repin", "/forget", "/cut", "/separate")
 
 
 def with_review(html: str) -> str:
@@ -297,10 +297,9 @@ class Questions:
         who = identity.lookup(self.table, ref["track"], ref["frame"])
         return pinned or (named.get(who) or {}).get("name") or (f"#{who[1]}" if who else "?")
 
-    def conflicts(self, log: list[dict], names: list[dict]) -> list[dict]:
-        """The identities of the last run holding two names or more, each with the answers that
-        chain the names' pieces through "same" links: most likely a piece showing two people. A
-        piece answer comes with its clip and pictures, marked pictures with theirs."""
+    def joining(self, log: list[dict], names: list[dict]) -> tuple[dict, dict, dict]:
+        """The "same" links between pieces ({piece: [(piece, answer id or None for a name)]}), each
+        name's pieces and the names each identity holds."""
         pins: dict[str, list] = defaultdict(list)
         held: dict[tuple[int, int], set[str]] = defaultdict(set)
         for n in names:
@@ -319,6 +318,33 @@ class Questions:
             for other in segments[1:]:
                 links[segments[0]].append((other, None))
                 links[other].append((segments[0], None))
+        return links, pins, held
+
+    def separated(self, log: list[dict], names: list[dict], team: int, number: int) -> list[dict]:
+        """`log` without what joins the names of identity `number`: the piece a "more" answer took
+        for that player, now said not to be them, and any other answer whole."""
+        while True:
+            links, pins, held = self.joining(log, names)
+            first, *rest = sorted(held[team, number]) or [None]
+            steps = path(links, set(pins[first]), {s for n in rest for s in pins[n]})
+            edge = next(((a[0], b[0], b[1]) for a, b in zip(steps, steps[1:]) if b[1]), None)
+            if edge is None:
+                return log
+            one, other, answer_id = edge
+            entry = next(e for e in log if e["id"] == answer_id)
+            if entry.get("choice") != "more":
+                log = [e for e in log if e["id"] != answer_id]
+                continue
+            group_ = next(g for g in entry["same"] if {one, other} <= {self.segment_of(r) for r in g})
+            gone = [r for r in group_[1:] if self.segment_of(r) in (one, other)]
+            kept = {**entry, "same": [[r for r in g if r not in gone] for g in entry["same"]], "different": entry.get("different", []) + [[group_[0], r] for r in gone]}
+            log = [kept if e is entry else e for e in log]
+
+    def conflicts(self, log: list[dict], names: list[dict]) -> list[dict]:
+        """The identities of the last run holding two names or more, each with the answers that
+        chain the names' pieces through "same" links: most likely a piece showing two people. A
+        piece answer comes with its clip and pictures, marked pictures with theirs."""
+        links, pins, held = self.joining(log, names)
         by_id = {e["id"]: e for e in log}
         named = identity.named(self.table, names)
         out = []
@@ -338,8 +364,8 @@ class Questions:
                     shown = self.moments(track, a, b, log, names, named, answer_id)
                     # The player the answer joined the piece to: the other member of its "same" group.
                     piece = {"track": track, "frame": (a + b) // 2}
-                    pins = [r for g in by_id[answer_id].get("same", []) for r in g if not (r["track"] == track and a <= r["frame"] <= b)]
-                    claim = self.claim(pins[0], named, names) if pins else None
+                    others = [r for g in by_id[answer_id].get("same", []) for r in g if not (r["track"] == track and a <= r["frame"] <= b)]
+                    claim = self.claim(others[0], named, names) if others else None
                     answers.append({
                         "id": answer_id, "kind": "piece", "clip": self.clip(track, a, b), "crops": crops, "moments": shown, "claim": claim,
                         "strip": self.strip(track, a, b), "piece": piece,
@@ -2026,6 +2052,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     ]
                 elif self.path == "/forget":
                     log = [e for e in log if e["id"] != body["id"]]
+                elif self.path == "/separate":
+                    log = questions.separated(log, identity.read_names(match), body["team"], body["identity"])
                 elif self.path == "/cut":
                     # A piece answer in a conflict, cut where the person changes, in place of the answer.
                     track, start = (int(v) for v in str(body["id"]).split(":")[1:3])

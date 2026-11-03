@@ -9,6 +9,7 @@ import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
+import { unnamedFirst } from '@/components/Review/helpers/players';
 import { TeamEditor } from '@/components/Review/TeamEditor';
 
 interface Given {
@@ -34,7 +35,8 @@ function focusCard(from: Element | null, step: number) {
 }
 const fold = (name: string) => name.trim().toLocaleLowerCase();
 
-/** The players of both teams to name, longest on court first; each name is saved as it is typed,
+/** The players of both teams to name, those without a name when the page loaded first, then longest
+ * on court first; each name is saved as it is typed,
  * `onNamed` given the names and numbers saved by `team:identity`, `onSaved` what the server tells
  * after each name or picture saved. */
 export function Names({
@@ -101,7 +103,7 @@ export function Names({
   return (
     <div className="grid gap-6">
       {GROUPS.map((g) => {
-        const mine = players.filter((p) => p.team === g);
+        const mine = unnamedFirst(players.filter((p) => p.team === g));
         if (!mine.length) {
           return null;
         }

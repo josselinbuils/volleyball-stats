@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { AlertTriangle, Scissors, Trash2 } from 'lucide-react';
+import { AlertTriangle, Scissors, Split, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +9,24 @@ import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { clock } from '@/lib/format';
 
-/** The players holding two names after the last apply, each with the answers joining them: a piece
- * to cut where the person changes, or answers to forget. Each action reloads the page. */
-export function Conflicts({ conflicts, width, height, players, nameOf }: { conflicts: Conflict[]; width: number; height: number; players: Named[]; nameOf: NameOf }) {
+/** The players holding two names after the last apply, to split (`onSplit`), each with the answers
+ * joining them: a piece to cut where the person changes, or answers to forget. Each action reloads
+ * the page. */
+export function Conflicts({
+  conflicts,
+  width,
+  height,
+  players,
+  nameOf,
+  onSplit,
+}: {
+  conflicts: Conflict[];
+  width: number;
+  height: number;
+  players: Named[];
+  nameOf: NameOf;
+  onSplit: (conflict: Conflict) => void;
+}) {
   const { t, i18n } = useTranslation();
   const list = new Intl.ListFormat(i18n.language, { type: 'conjunction' });
   return conflicts.map((c) => (
@@ -23,7 +38,11 @@ export function Conflicts({ conflicts, width, height, players, nameOf }: { confl
             {t('review.conflict', { names: list.format(c.names) })}
           </h2>
         </CardTitle>
-        <CardDescription>{t(c.answers.length ? 'review.conflictNote' : 'review.conflictApply')}</CardDescription>
+        {c.answers.length > 0 && <CardDescription>{t('review.conflictNote')}</CardDescription>}
+        <Button variant="outline" className="justify-self-start bg-card" onClick={() => onSplit(c)}>
+          <Split aria-hidden />
+          {t('review.split')}
+        </Button>
       </CardHeader>
       {(c.answers.length > 0 || c.pinned.length > 0) && (
         <CardContent className="grid gap-6">

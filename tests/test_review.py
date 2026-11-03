@@ -835,6 +835,35 @@ class TestChain:
         assert chain(links, {"L"}, {"Z"}) == []
 
 
+class TestSeparated:
+    anthony, josselin, good = {"track": 1, "frame": 5}, {"track": 2, "frame": 5}, {"track": 3, "frame": 5}
+    names = [{"ref": anthony, "name": "Anthony"}, {"ref": josselin, "name": "Josselin"}]
+
+    @staticmethod
+    def questions():
+        questions = Questions.__new__(Questions)
+        questions.table = [(track, 0, 10, 2, 17) for track in (1, 2, 3)]
+        return questions
+
+    def test_takes_only_the_piece_a_more_answer_got_wrong(self):
+        log = [{"id": "more:2:11:1", "choice": "more", "same": [[self.anthony, self.good, self.josselin]], "different": []}]
+
+        assert self.questions().separated(log, self.names, 2, 17) == [
+            {"id": "more:2:11:1", "choice": "more", "same": [[self.anthony, self.good]], "different": [[self.anthony, self.josselin]]}
+        ]
+
+    def test_forgets_any_other_answer_whole_and_keeps_the_rest(self):
+        joining = {"id": "piece:3:0", "choice": "same", "same": [[self.anthony, self.good], [self.good, self.josselin]]}
+        other = {"id": "pin", "choice": "pinned"}
+
+        assert self.questions().separated([joining, other], self.names, 2, 17) == [other]
+
+    def test_leaves_answers_joining_nobody(self):
+        log = [{"id": "more:2:11:1", "choice": "more", "same": [[self.anthony, self.good]]}]
+
+        assert self.questions().separated(log, self.names, 2, 17) == log
+
+
 class TestNameMerges:
     josselin, laeticia, piece = {"track": 1, "frame": 10}, {"track": 2, "frame": 20}, {"track": 3, "frame": 30}
     names = [{"ref": josselin, "name": "Josselin"}, {"ref": laeticia, "name": "Laeticia"}]

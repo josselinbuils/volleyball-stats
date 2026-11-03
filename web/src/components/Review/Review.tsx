@@ -276,6 +276,15 @@ export function Review({
     }
   };
 
+  const split = async ({ team, identity }: Conflict) => {
+    try {
+      await post('separate', { team, identity });
+      await reload('apply');
+    } catch {
+      setError(true);
+    }
+  };
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
@@ -352,7 +361,7 @@ export function Review({
           />
         )}
         <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
-        <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} />
+        <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}
@@ -488,7 +497,7 @@ export function Review({
                           onError={() => setError(true)}
                         />
                         <p className="m-0 text-sm font-medium">
-                          {nameOf(question.team, c.identity) ? t('review.namedPlayer', { name: nameOf(question.team, c.identity), n: c.identity }) : t('player', { n: c.identity })}
+                          {nameOf(question.team, c.identity) ?? t('player', { n: c.identity })}
                         </p>
                       </div>
                     ))}

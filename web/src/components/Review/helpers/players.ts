@@ -46,6 +46,11 @@ export function pictureOf(p: Named, nameOf: NameOf, people: { team: number | nul
   return people.find((x) => x.team === p.team && x.number === p.identity)?.photo ?? p.crops[0];
 }
 
+/** The players without a name first, keeping their order. */
+export function unnamedFirst(players: Named[]): Named[] {
+  return [...players.filter((p) => !p.name), ...players.filter((p) => p.name)];
+}
+
 /** A player's jersey number: the one given, on them or a namesake, else the one read. */
 export function jerseyOf(p: Named, players: Named[], nameOf: NameOf): number | null {
   const same = players.filter((o) => o === p || sameName(o, p, nameOf));

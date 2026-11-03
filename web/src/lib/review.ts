@@ -236,7 +236,7 @@ export function onServerBusy(listener: () => void): () => void {
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
 export async function post(
-  path: 'answer' | 'comment' | 'timeout' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
+  path: 'answer' | 'comment' | 'timeout' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'separate' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
   body: object = {},
 ): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));

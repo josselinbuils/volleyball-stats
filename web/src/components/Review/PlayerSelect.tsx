@@ -60,7 +60,7 @@ export function PlayerSelect({
             key: `${p.team}:${p.identity}`,
             picture: pictureOf(p, nameOf, Object.values(match.people)),
             jersey,
-            label: `${jersey === null ? '' : `#${jersey} `}${name ? t('review.namedPlayer', { name, n: p.identity }) : t('player', { n: p.identity })} · ${groupName(t, g)}`,
+            label: `${jersey === null ? '' : `#${jersey} `}${name ?? t('player', { n: p.identity })} · ${groupName(t, g)}`,
           };
         }),
     ),

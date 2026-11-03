@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { marked, type Named } from '@/lib/review';
-import { jerseyOf, matching, pictureOf, playerOptions, sameName } from '@/components/Review/helpers/players';
+import { jerseyOf, matching, pictureOf, playerOptions, sameName, unnamedFirst } from '@/components/Review/helpers/players';
 
 // review.ts reads window.REVIEW on import.
 vi.hoisted(() => {
@@ -72,6 +72,13 @@ describe('players', () => {
     expect(matching(entries, ' 5').map((e) => e.key)).toEqual(['2:5', '1:5']);
     expect(matching(entries, 'joueur 5 · aspom 02').map((e) => e.key)).toEqual(['2:5']);
     expect(matching(entries, '')).toHaveLength(3);
+  });
+
+  it('puts the players without a name first, keeping their order', () => {
+    const [a, b, c] = players;
+    const sorted = unnamedFirst([{ ...a, name: 'Paul' }, b, { ...c, name: 'Léa' }, player(7, 70)]);
+
+    expect(sorted.map((p) => p.identity)).toEqual([12, 7, 3, 5]);
   });
 
   it('lists first the player wearing a typed number', () => {
