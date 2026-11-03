@@ -10,6 +10,7 @@ from volleyball_stats.identity import (
     covers,
     group,
     hold,
+    answered_teams,
     ended_cuts,
     finder,
     jersey_links,
@@ -199,6 +200,16 @@ class TestAnswers:
         rows = [SimpleNamespace(track=1, frame=50), SimpleNamespace(track=1, frame=150), SimpleNamespace(track=2, frame=50)]
 
         assert ended_cuts(rows, 100) == {1: [99]}
+
+    def test_a_piece_answered_on_the_other_team_links_to_its_number_there(self):
+        segments = [Segment(1, [5], [(0.0, 0.0)], team=2), Segment(2, [5000], [(0.0, 0.0)], team=1), Segment(3, [9000], [(0.0, 0.0)], team=1)]
+        jerseys = {(5, 1): 25, (5000, 2): 25, (9000, 3): 25}
+
+        assert jersey_links(segments, jerseys)[0] == [[1, 2]]
+        answered_teams(segments, [[0, 1]])
+
+        assert [s.team for s in segments] == [2, 2, 1]
+        assert jersey_links(segments, jerseys)[0] == [[0, 1]]
 
     def test_an_answer_moves_the_piece_given_and_not_its_whole_number(self):
         jerseys = {(5, 1): 12, (25, 1): 12, (5, 2): 7}

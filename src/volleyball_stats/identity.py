@@ -492,6 +492,13 @@ def against_answers(numbers: dict[int, int], answered: Iterable[list[int]]) -> s
     return out
 
 
+def answered_teams(segments: list[Segment], same: Iterable[list[int]]) -> None:
+    """Each segment of a "same" group on the team of the group's first."""
+    for group_ in same:
+        for k in group_:
+            segments[k].team = segments[group_[0]].team
+
+
 def jersey_links(segments: list[Segment], jerseys: dict[Key, int], answered: Iterable[list[int]] = ()) -> tuple[list[list[int]], list[list[list[int]]]]:
     """"same" groups of segment indices and "different" pairs of such groups, from jersey numbers
     read on (frame, track) boxes: per team, two numbers are two players, and one number one player
@@ -745,6 +752,8 @@ def identify(
             segments[k].team = moved["team"]
     same = [[k for ref in group for k in resolve(ref, segments, before)] for group in answers.get("same", [])]
     different = [[resolve(ref, segments, before) for ref in group] for group in answers.get("different", [])]
+    # An answer's team first: the numbers read link each piece within the team it gives.
+    answered_teams(segments, same)
     if jerseys:
         read_same, read_different = jersey_links(segments, jerseys, same)
         same, different = same + read_same, different + read_different
