@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import { Focus, Maximize, Minimize, Pause, Play, Repeat1, RotateCcw, RotateCw, Snail, Volume2, VolumeX } from 'lucide-react';
+import { Focus, Maximize, Minimize, Pause, Play, Repeat1, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SkipIcon } from '@/components/SkipIcon';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
@@ -101,14 +102,10 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
     light ? 'hover:bg-foreground/10 focus-visible:ring-ring/50' : 'hover:bg-white/15 focus-visible:ring-white/70',
   );
   const skip = (by: number) => video && seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + by)));
-  // A circular arrow with the seconds inside it, as video players draw it.
   const skipButton = (by: number) => (
     <Tip label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} full={state.full}>
       <button type="button" className={cn(button, 'relative', by < 0 && 'max-sm:ml-auto')} aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
-        {by < 0 ? <RotateCcw aria-hidden className="size-6!" /> : <RotateCw aria-hidden className="size-6!" />}
-        <span aria-hidden className="absolute inset-0 grid place-items-center pt-px text-[8px] font-bold">
-          {SKIP}
-        </span>
+        <SkipIcon seconds={by} />
       </button>
     </Tip>
   );

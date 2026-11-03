@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type Re
 import { useTranslation } from 'react-i18next';
 import { Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SkipIcon } from '@/components/SkipIcon';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -415,12 +416,13 @@ export function ClipVideo({
               <Button
                 key={step}
                 variant="outline"
-                size="sm"
-                className="bg-card tabular-nums"
+                size="icon-sm"
+                className="relative bg-card"
+                title={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}
                 aria-label={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}
                 onClick={() => moveTo(time + step)}
               >
-                {step < 0 ? `−${FREE_STEP_S} s` : `+${FREE_STEP_S} s`}
+                <SkipIcon seconds={step} />
               </Button>
             ))}
           </div>
