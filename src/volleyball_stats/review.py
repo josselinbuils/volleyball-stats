@@ -1702,7 +1702,9 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
 
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
     site = match / "review"
-    web.review_page(match, video, court, theme)
+    # Open at once: the pictures follow (`afterwards`), minutes if their scores are out of date.
+    web.review_page(match, video, court, theme, pictures=False)
+    (match / STALE_PHOTOS).touch()
     cap = cv2.VideoCapture(str(video))
     fps, width, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cap.release()
@@ -2060,7 +2062,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         self.send(json.dumps({"renamed": new}).encode(), "application/json")
                         switch(reopening(new, match.parent, theme, port, roster), threading.Lock())
                         return None
-                    run_steps(pages())
+                    run_steps(pages(pictures=False))
+                    later.set()
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/name":
                     jersey = body.get("jersey")
