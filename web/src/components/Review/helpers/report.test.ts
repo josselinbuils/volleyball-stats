@@ -1,5 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits, matchFinished } from '@/components/Review/helpers/report';
+import { changedSince, freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits, matchFinished } from '@/components/Review/helpers/report';
+
+describe('changedSince', () => {
+  const saved = {
+    touches: [{ frame: 10, player: '1:4', type: 'pass' }],
+    added: [{ frame: 20, team: 1 as const, type: 'set', result: 'play' }],
+    rallies: [{ start: 100, winner: 1 as const }],
+    splits: [200],
+  };
+
+  it('finds nothing when the corrections are those saved, whatever their fields order', () => {
+    expect(changedSince({ ...saved, touches: [{ type: 'pass', frame: 10, player: '1:4' }] }, saved)).toEqual({ frames: [], starts: [] });
+  });
+
+  it('finds nothing with no correction at all', () => {
+    expect(changedSince({ touches: [] }, {})).toEqual({ frames: [], starts: [] });
+  });
+
+  it('finds a touch changed, added or taken back', () => {
+    expect(changedSince({ ...saved, touches: [{ frame: 10, player: '1:5', type: 'pass' }] }, saved).frames).toEqual([10]);
+    expect(changedSince({ ...saved, touches: [...saved.touches, { frame: 30, type: 'set' }] }, saved).frames).toEqual([30]);
+    expect(changedSince({ ...saved, touches: [] }, saved).frames).toEqual([10]);
+    expect(changedSince({ touches: saved.touches, rallies: saved.rallies, splits: saved.splits }, saved).frames).toEqual([20]);
+  });
+
+  it('finds a rally changed or started, its fix or its start taken back', () => {
+    expect(changedSince({ ...saved, rallies: [{ start: 100, winner: 2 }] }, saved).starts).toEqual([100]);
+    expect(changedSince({ ...saved, rallies: undefined }, saved).starts).toEqual([100]);
+    expect(changedSince({ ...saved, splits: [200, 300] }, saved).starts).toEqual([300]);
+    expect(changedSince({ ...saved, splits: [] }, saved).starts).toEqual([200]);
+  });
+});
 
 describe('timeoutsAfter', () => {
   const rallies = [{ start: 10 }, { start: 30 }];

@@ -12,7 +12,7 @@ import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
 import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { freeFrame, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { changedSince, freeFrame, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
@@ -82,8 +82,8 @@ export function ReportEditor({
   onPlay: (time: number) => void;
   /** Stops the video at a moment. */
   onPause: (time: number) => void;
-  /** Saves the corrections, the rally the video is in (by its key) checked with them. */
-  onSave: (changes: ReportChanges, rally: number) => void;
+  /** Saves the corrections, a rally (by its key) checked with them; `onward`: the video goes to the next rally. */
+  onSave: (changes: ReportChanges, rally: number, onward: boolean) => void;
   /** The rallies checked with no report open since, by their key: shown green. */
   green: Set<number>;
   /** The rallies checked, by their key, a report open on them or not. */
@@ -206,6 +206,9 @@ export function ReportEditor({
     ...(splits.length ? { splits } : {}),
   };
   const json = JSON.stringify(changes);
+  // The rallies with corrections not saved yet: one checked has to be saved again.
+  const since = changedSince(changes, saved);
+  const unsaved = new Set([...since.starts, ...since.frames.map((frame) => shown[allRows.find((row) => row.frame === frame)?.rally ?? rallyAt(shown, frame / match.fps)]?.key)]);
   useEffect(() => {
     onChanges?.(changes);
   }, [json]);
@@ -415,39 +418,71 @@ export function ReportEditor({
             {first === 0 && timeoutRows(-1)}
             {Array.from({ length: last - first + 1 }, (_, n) => first + n).flatMap((k) => [
               <li key={`r${k}`} data-key={`r${k}`} className={cn('sticky top-0 z-10 rounded-md bg-card', k === here && 'text-primary')}>
-                <button
-                  type="button"
-                  title={t('review.reportRallyPlay')}
-                  onClick={() => onPlay(shown[k].start)}
+                <div
                   className={cn(
-                    'flex w-full items-center gap-1.5 rounded-md border bg-muted px-2 py-1 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50',
+                    'flex items-center overflow-hidden rounded-md border bg-muted',
                     // A warning outweighs the check: the rally needs another look.
                     rallyProblems(k).length > 0 || off.has(k)
-                      ? 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900'
+                      ? 'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200'
                       : green.has(keyOf(k)) && 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
                     k === here && 'border-primary',
-                    fixOf(k)?.play === false && 'line-through',
                   )}
                 >
-                  <Play aria-hidden className="size-3.5 shrink-0 fill-current" />
-                  <span className="truncate">{rallyLabel(k)}</span>
-                  {green.has(keyOf(k)) && <CircleCheck aria-label={t('review.rallyChecked')} className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />}
-                  {rallyProblems(k).length > 0 && (
-                    <span role="img" title={describe([...new Set(rallyProblems(k))])} aria-label={describe([...new Set(rallyProblems(k))])} className="shrink-0">
-                      <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
-                    </span>
+                  <button
+                    type="button"
+                    title={t('review.reportRallyPlay')}
+                    onClick={() => onPlay(shown[k].start)}
+                    className={cn(
+                      'flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
+                      (rallyProblems(k).length > 0 || off.has(k)) && 'hover:bg-amber-200 dark:hover:bg-amber-900',
+                      fixOf(k)?.play === false && 'line-through',
+                    )}
+                  >
+                    <Play aria-hidden className="size-3.5 shrink-0 fill-current" />
+                    <span className="truncate">{rallyLabel(k)}</span>
+                    {green.has(keyOf(k)) && <CircleCheck aria-label={t('review.rallyChecked')} className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />}
+                    {rallyProblems(k).length > 0 && (
+                      <span role="img" title={describe([...new Set(rallyProblems(k))])} aria-label={describe([...new Set(rallyProblems(k))])} className="shrink-0">
+                        <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
+                      </span>
+                    )}
+                    {comments[keyOf(k)] && (
+                      <span role="img" title={comments[keyOf(k)]} aria-label={comments[keyOf(k)]} className="shrink-0">
+                        <MessageSquareText aria-hidden className="size-3.5 text-sky-600 dark:text-sky-400" />
+                      </span>
+                    )}
+                    {savedStarts.has(keyOf(k)) && (
+                      <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
+                        <PenLine aria-hidden className="size-3.5" />
+                      </span>
+                    )}
+                  </button>
+                  {checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="mr-1 shrink-0 bg-card text-foreground"
+                      title={t('review.uncheckRally', { n: k + 1 })}
+                      aria-label={t('review.uncheckRally', { n: k + 1 })}
+                      onClick={() => onUncheck(keyOf(k))}
+                    >
+                      <CircleOff aria-hidden />
+                      {t('review.uncheck')}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="mr-1 shrink-0 bg-card text-foreground"
+                      title={t('review.validateRally', { n: k + 1 })}
+                      aria-label={t('review.validateRally', { n: k + 1 })}
+                      onClick={() => onSave(changes, keyOf(k), k === here)}
+                    >
+                      <Check aria-hidden />
+                      {t('review.validate')}
+                    </Button>
                   )}
-                  {comments[keyOf(k)] && (
-                    <span role="img" title={comments[keyOf(k)]} aria-label={comments[keyOf(k)]} className="shrink-0">
-                      <MessageSquareText aria-hidden className="size-3.5 text-sky-600 dark:text-sky-400" />
-                    </span>
-                  )}
-                  {savedStarts.has(keyOf(k)) && (
-                    <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
-                      <PenLine aria-hidden className="size-3.5" />
-                    </span>
-                  )}
-                </button>
+                </div>
               </li>,
               ...(found.get(k)?.rally.length
                 ? [
@@ -602,18 +637,6 @@ export function ReportEditor({
               ...timeoutRows(k),
             ])}
           </ol>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button className="h-auto min-h-9 flex-1 whitespace-normal" disabled={!rally} onClick={() => onSave(changes, keyOf(here))}>
-              <Check aria-hidden />
-              {t(rally && checked.has(keyOf(here)) ? 'review.updateRally' : 'review.validateRally', { n: here + 1 })}
-            </Button>
-            {rally && checked.has(keyOf(here)) && (
-              <Button variant="outline" className="h-auto min-h-9 flex-1 whitespace-normal bg-card" onClick={() => onUncheck(keyOf(here))}>
-                <CircleOff aria-hidden />
-                {t('review.uncheckRally', { n: here + 1 })}
-              </Button>
-            )}
-          </div>
         </div>
       </div>
       {rally && (

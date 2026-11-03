@@ -1,4 +1,28 @@
 import type { Group, Rally } from '@/lib/match';
+import type { ReportChanges } from '@/lib/review';
+
+/** Same fields with the same values, whatever their order. */
+const sameFix = (a: object | undefined, b: object | undefined) => {
+  const sorted = (x: object | undefined) => JSON.stringify(Object.entries(x ?? {}).sort(([k], [l]) => k.localeCompare(l)));
+  return sorted(a) === sorted(b);
+};
+/** The keys whose entry differs between two lists, each keyed by `key`. */
+const differing = <T extends object>(now: T[] = [], then: T[] = [], key: (x: T) => number) => {
+  const before = new Map(then.map((x) => [key(x), x]));
+  const after = new Map(now.map((x) => [key(x), x]));
+  return [...new Set([...before.keys(), ...after.keys()])].filter((k) => !sameFix(before.get(k), after.get(k)));
+};
+
+/** What the corrections as they stand change from those saved: the touches, by their frame, and
+ * the rallies, by their start. */
+export function changedSince(changes: ReportChanges, saved: Partial<ReportChanges>): { frames: number[]; starts: number[] } {
+  const splitsNow = changes.splits ?? [];
+  const splitsThen = saved.splits ?? [];
+  return {
+    frames: [...differing(changes.touches, saved.touches, (x) => x.frame), ...differing(changes.added, saved.added, (x) => x.frame)],
+    starts: [...differing(changes.rallies, saved.rallies, (x) => x.start), ...splitsNow.filter((f) => !splitsThen.includes(f)), ...splitsThen.filter((f) => !splitsNow.includes(f))],
+  };
+}
 
 /** Each rally's score in its set (team 1, team 2) after it, counted from the rallies' winners;
  * null for one that counts for nothing (`skip`: no play, or joined to the one before). */
