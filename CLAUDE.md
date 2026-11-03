@@ -157,6 +157,13 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
   8. Asked by the owner (3 Nov), once the second match's run ends: a folder per match in `data/` and `outputs/` holding all of that match's files (court,
      hosted copies); rename both matches to their hosted names (first check the name in the page data and the viewers' reports); then the backups to match.
+  9. The owner's plan (3 Nov), nothing started, not before the second match is reviewed and its quality known: a helper they trust,
+     then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
+     useful alone; then the VPS's system upgraded (2 vCPU, 3.7 GB, 18 GB free, Ubuntu 20.04), a login per person and the review on it, with
+     the slow steps on the workers, a process per open match (`review.switch` restarts the only server) and crops prepared from the 4K.
+     About 1-2 weeks, about EUR 0-1 a month. Other people adding matches is decided later: uploads, court setup in the browser, clubs kept
+     apart, workers sandboxed, consent and GDPR (advice first; the hosting rules above would change on purpose). In between, a club sends a video
+     and the owner processes it. Rejected for now: rented GPUs for everything (EUR 25-45 a month, rough, from third-party prices).
 
 ## Hosting
 
