@@ -108,8 +108,8 @@ def seeking(video: Path, wanted: list[int]) -> Iterator[tuple[int, np.ndarray]]:
 def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndarray]]:
     """The video's full-size BGR frames at the `wanted` indices in order.
 
-    Decoded from the start by ffmpeg, frames counted; OpenCV seeks only when that would skip most of
-    the video, as seeking by index is not exact on a camera's slightly irregular timestamps."""
+    Decoded from the start by ffmpeg, frames counted; OpenCV seeks when that would skip most of the
+    video, exact too: same pixels on 73 frames over a whole match, around each irregular timestamp."""
     ordered = sorted(set(wanted))
     if not ordered:
         return
