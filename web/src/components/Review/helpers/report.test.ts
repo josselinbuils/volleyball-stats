@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits, matchFinished } from '@/components/Review/helpers/report';
+import { freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits, matchFinished } from '@/components/Review/helpers/report';
+
+describe('timeoutsAfter', () => {
+  const rallies = [{ start: 10 }, { start: 30 }];
+  const timeouts = [{ start: 50 }, { start: 250 }, { start: 500 }];
+
+  it('lists each timeout after the last rally started before it', () => {
+    expect(timeoutsAfter(rallies, timeouts, -1, 10)).toEqual([{ start: 50 }]);
+    expect(timeoutsAfter(rallies, timeouts, 0, 10)).toEqual([{ start: 250 }]);
+    expect(timeoutsAfter(rallies, timeouts, 1, 10)).toEqual([{ start: 500 }]);
+  });
+});
 
 describe('rallyAt', () => {
   const rallies = [

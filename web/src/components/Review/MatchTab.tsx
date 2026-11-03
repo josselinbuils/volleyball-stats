@@ -12,7 +12,6 @@ import { REPORT_LEAD_S } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
-import { Timeouts } from '@/components/Review/Timeouts';
 
 /** The whole match to correct: its video, the bar of its rallies, touches and the viewers' reports
  * under it, the touches around where it stands beside it; under them the reports left to handle,
@@ -147,8 +146,9 @@ export function MatchTab({
             saved={saved}
             comments={comments}
             onComment={onComment}
+            timeouts={timeouts}
+            onTimeout={onTimeout}
           />
-          <Timeouts timeouts={timeouts} now={now} onGo={(time) => go(time, true)} onChange={onTimeout} />
           <section className="grid gap-2 lg:col-span-2" aria-labelledby="reports-title">
             <h3 id="reports-title" className="text-base font-semibold">
               {t('review.reportsTitle', { count: reports.length })}

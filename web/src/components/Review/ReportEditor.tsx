@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleCheck, CircleOff, CircleStop, Flag, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -7,11 +7,12 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
-import type { Named, ReportChanges } from '@/lib/review';
+import type { Named, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
+import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { freeFrame, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { freeFrame, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
@@ -66,6 +67,8 @@ export function ReportEditor({
   saved,
   comments,
   onComment,
+  timeouts,
+  onTimeout,
 }: {
   /** The moments viewers reported: their touches are flagged. */
   reports: { time: number }[];
@@ -96,6 +99,8 @@ export function ReportEditor({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
+  timeouts: Timeout[];
+  onTimeout: (change: TimeoutChange) => void;
 }) {
   const { t } = useTranslation();
   const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
@@ -252,7 +257,9 @@ export function ReportEditor({
     onCaption?.(inHere && caption ? { team: inHere.team, text: caption } : null);
   }, [caption, inHere?.team]);
   useEffect(() => () => onCaption?.(null), []);
-  const current = inHere ? `t${inHere.frame}` : `r${here}`;
+  const isCurrent = (o: Timeout) => o.start / match.fps <= now && now < o.end / match.fps;
+  const inTimeout = timeouts.find(isCurrent);
+  const current = inTimeout ? `o${inTimeout.start}` : inHere ? `t${inHere.frame}` : `r${here}`;
   const centre = (key: string) => {
     const box = list.current;
     const item = box?.querySelector<HTMLElement>(`[data-key="${key}"]`);
@@ -373,6 +380,9 @@ export function ReportEditor({
     onWarnings?.(warned);
   }, [warnedJson]);
 
+  const timeoutRows = (k: number) =>
+    timeoutsAfter(shown, timeouts, k, match.fps).map((o) => <TimeoutRow key={`o${o.start}`} timeout={o} current={isCurrent(o)} onPlay={onPlay} onChange={onTimeout} />);
+
   return (
     <>
       {/* Beside the video and the rally's section under it; in full screen, the window's height: the
@@ -388,6 +398,10 @@ export function ReportEditor({
               <SquarePlus aria-hidden />
               {t('review.reportStart', { time: clock(now) })}
             </Button>
+            <Button variant="outline" className="flex-1 bg-card" disabled={!!inTimeout} onClick={() => onTimeout({ frame: frameOf(timeOf()) })}>
+              <Hand aria-hidden />
+              {t('review.timeoutAdd', { time: clock(now) })}
+            </Button>
           </div>
           <ol
             ref={list}
@@ -398,6 +412,7 @@ export function ReportEditor({
             onFocus={(event) => setEditing(event.target.matches('input, select'))}
             onBlur={() => setEditing(false)}
           >
+            {first === 0 && timeoutRows(-1)}
             {Array.from({ length: last - first + 1 }, (_, n) => first + n).flatMap((k) => [
               <li key={`r${k}`} data-key={`r${k}`} className={cn('sticky top-0 z-10 rounded-md bg-card', k === here && 'text-primary')}>
                 <button
@@ -584,6 +599,7 @@ export function ReportEditor({
                     </li>,
                   ]
                 : []),
+              ...timeoutRows(k),
             ])}
           </ol>
           <div className="flex shrink-0 flex-wrap gap-2">

@@ -200,7 +200,7 @@ export function MatchTimeline({
                 stroke={o.team ? teamEdge(o.team) : 'var(--muted-foreground)'}
                 strokeDasharray="3 2"
               >
-                <title>{`${t('review.timeoutsTitle')} · ${clock(o.start / match.fps)}${o.team ? ` · ${groupName(t, o.team)}` : ''}`}</title>
+                <title>{`${t('review.timeout')} · ${clock(o.start / match.fps)}${o.team ? ` · ${groupName(t, o.team)}` : ''}`}</title>
               </rect>
             ))}
             {rallies.map((r) => (

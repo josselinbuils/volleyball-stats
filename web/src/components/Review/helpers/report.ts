@@ -88,6 +88,11 @@ export function rallyAt(rallies: Pick<Rally, 'start' | 'end'>[], time: number): 
   return Math.max(0, before);
 }
 
+/** The timeouts listed after rally `k`, by the last rally started before each; -1: before the first rally. */
+export function timeoutsAfter<T extends { start: number }>(rallies: Pick<Rally, 'start'>[], timeouts: T[], k: number, fps: number): T[] {
+  return timeouts.filter((o) => rallies.findLastIndex((r) => r.start <= o.start / fps) === k);
+}
+
 /** `rallies` each starting at a serve `added` before it, as the server files them: the touches added
  * after such a serve are that rally's; each lasting to the last touch added to it. */
 export function withAdded<R extends Pick<Rally, 'start' | 'end'>>(rallies: R[], added: { time: number; type: string }[]): R[] {

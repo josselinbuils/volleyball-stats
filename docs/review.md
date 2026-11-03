@@ -20,7 +20,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   `web.BRIEF_S` of a set is a tracking slip): the page should show no unidentified player.
 - The review opens without a match on the list of the matches (`review.match_list`, those with a `source.json`); opening one replaces the server's process (`review.switch`).
 - A match is named by its date and teams (`rename.target_name`): changing a team's name in the review renames its folders, video and backups, and restarts the server (`rename.py`); the old name stays an alias (`source.json`) for reports and viewers' choices. The hosted page follows on its next upload, with a redirect from its old address (`matches.write_redirects`).
-- Timeouts (`timeouts.py`): found from the empty court or a long gap in a set (`timeouts.csv`), shown as dashed bands on the Match tab's bar and listed under it: pick the team, remove one, add one at the video's moment (`timeouts.json`, in frames: a rerun keeps them). In the review only, on no page yet.
+- Timeouts (`timeouts.py`): found from the empty court or a long gap in a set (`timeouts.csv`), shown as dashed bands on the Match tab's bar and in its list between the rallies: pick the team, remove one, add one at the video's moment (`timeouts.json`, in frames: a rerun keeps them). In the review only, on no page yet.
 - The review's Match tab (`#match`) holds the reports. The video plays the match freely, over a zoomable bar of every rally, touch and report.
   Beside it, the touches around the video: correct, add (a serve before a rally starts it, and the
   touches added after it are that rally's), remove, end a rally (`end` answers), join two rallies (`join` answers), start a rally
