@@ -269,8 +269,13 @@ over, and the report gives the estimated score's drift from them.
 ### 3. Review and name the players
 
 ```bash
-uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--squad N[,N]] [--roster PATH]
+uv run python -m volleyball_stats.review                 # opens on the list of the matches
+uv run python -m volleyball_stats.review outputs/VIDEO   # opens on this match
 ```
+
+The list shows the matches `match --players` has run on (`outputs/VIDEO/source.json` holds their video and court), one still
+being processed greyed out; "Changer de match" goes back to it from a review. Choosing another match restarts the server on it,
+which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved.
 
 `review` opens, on this machine only, on the **"Noms" tab** (below), then asks about the players the
 identity step is least sure of, most at stake first. Each question shows the player outlined on a

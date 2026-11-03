@@ -5,7 +5,59 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats.review import APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names
+from volleyball_stats import files
+from volleyball_stats.review import APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
+
+
+class TestMatchList:
+    @staticmethod
+    def folder(out, name, date, finished=True):
+        (out / name).mkdir(parents=True)
+        video, court = out / f"{name}.mp4", out / f"{name}.json"
+        video.touch()
+        court.touch()
+        files.write_source(out / name, video, court)
+        (out / name / "teams.json").write_text(json.dumps({"date": date, "teams": [{"name": "A", "colour": None}, {"name": "B", "colour": None}], "scores": ["25-20", None]}))
+        if finished:
+            (out / name / "report.md").touch()
+
+    def test_lists_the_matches_with_a_source_newest_first_and_which_are_finished(self, tmp_path):
+        self.folder(tmp_path, "old", "2026-10-29")
+        self.folder(tmp_path, "new", "2026-11-02", finished=False)
+        (tmp_path / "bench").mkdir()
+
+        listed = match_list(tmp_path)
+
+        assert [(m["path"], m["ready"]) for m in listed] == [("new", False), ("old", True)]
+        assert listed[0]["sets"] == 1 and listed[0]["rallies"] == 0
+
+    def test_a_match_whose_video_is_gone_is_not_ready(self, tmp_path):
+        self.folder(tmp_path, "m", "2026-10-29")
+        (tmp_path / "m.mp4").unlink()
+
+        assert not match_list(tmp_path)[0]["ready"]
+
+    def test_opens_only_a_finished_match_of_the_list(self, tmp_path):
+        self.folder(tmp_path, "done", "2026-10-29")
+        self.folder(tmp_path, "running", "2026-11-02", finished=False)
+
+        command = reopening("done", tmp_path, "aspom", 8765, tmp_path / "roster.json")
+
+        assert str(tmp_path / "done") in command and "--no-browser" in command
+        for name in ("running", "nothing", "../done"):
+            with pytest.raises(LookupError):
+                reopening(name, tmp_path, "aspom", 8765, tmp_path / "roster.json")
+
+    def test_the_page_lists_them_for_the_review_and_serves_only_its_own_files(self, tmp_path):
+        self.folder(tmp_path, "m", "2026-10-29")
+
+        html, kind = list_page("/matches/", tmp_path, "none")
+
+        assert b"matches.js" in html and kind.startswith("text/html")
+        body, _ = list_page("/matches/matches.js", tmp_path, "none")
+        assert b'"review": true' in body and b'"path": "m"' in body
+        assert list_page("/matches/../../secret", tmp_path, "none") is None
+        assert list_page("/matches/nothing.js", tmp_path, "none") is None
 
 
 class TestConstraints:

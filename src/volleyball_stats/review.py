@@ -20,9 +20,12 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import queue
 import re
+import shutil
 import subprocess
+import sys
 import threading
 import time
 import webbrowser
@@ -1405,6 +1408,121 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
     return (max(0, first), min(last, size - 1)) if first < size else None
 
 
+def match_list(out: Path) -> list[dict]:
+    """The matches of `out` that have a SOURCE, newest first, as the hosted list shows them, by their folder's name; `ready` once
+    their pipeline has ended and their files are there."""
+    found = []
+    for source in out.glob(f"*/{files.SOURCE}"):
+        folder, given = source.parent, json.loads(source.read_text())
+        if (folder / "review" / "data.js").exists():
+            item = matches.listed(folder / "review")
+        else:
+            saved = json.loads((folder / "teams.json").read_text()) if (folder / "teams.json").exists() else {}
+            scores = saved.get("scores") or []
+            item = {"name": folder.name, "date": saved.get("date"), "title": saved.get("title"), "teams": saved.get("teams"), "scores": scores, "sets": sum(map(bool, scores)), "rallies": 0}
+        item["path"] = folder.name
+        item["ready"] = all(p.exists() for p in (folder / "report.md", Path(given["video"]), Path(given["court"])))
+        found.append(item)
+    return sorted(found, key=lambda m: (m["date"] or "", m["path"]), reverse=True)
+
+
+def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
+    """The response to `path` under /matches/, the hosted list's page for the matches of `out`; None when there is no such file."""
+    site = out / ".review_matches"
+    if path == "/matches/":
+        shutil.rmtree(site, ignore_errors=True)
+        shutil.copytree(matches.TEMPLATE, site)
+        club = matches.brand(theme, site)
+        if club:
+            club.pop("sponsors")
+        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': match_list(out), 'brand': club, 'review': True}, ensure_ascii=False)};\n")
+        return (site / "matches.html").read_bytes(), "text/html; charset=utf-8"
+    parts = Path(unquote(path).removeprefix("/matches/")).parts
+    file = site.joinpath(*parts)
+    if ".." in parts or not file.is_file():
+        return None
+    kinds = {".js": "text/javascript", ".css": "text/css", ".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml"}
+    return file.read_bytes(), kinds.get(file.suffix.lower(), "application/octet-stream")
+
+
+def reopening(name: str, out: Path, theme: str, port: int, roster: Path) -> list[str]:
+    """The command opening the review on the match `name`, one of `match_list`'s ready ones; LookupError otherwise."""
+    if not any(m["path"] == name and m["ready"] for m in match_list(out)):
+        raise LookupError(name)
+    return [sys.executable, "-m", "volleyball_stats.review", str(out / name), "--outputs", str(out), "--theme", theme, "--port", str(port), "--roster", str(roster), "--no-browser"]
+
+
+def switch(command: list[str], lock: threading.Lock) -> None:
+    """Replaces this server by `command`, once the response on its way has left and no answer is being saved."""
+
+    def replace() -> None:
+        time.sleep(0.2)
+        lock.acquire()
+        os.execv(command[0], command)
+
+    threading.Thread(target=replace, daemon=True).start()
+
+
+def same_site(headers, port: int) -> bool:
+    """Whether a request comes from this server's own pages."""
+    host = headers.get("Host", "")
+    return (
+        host in (f"127.0.0.1:{port}", f"localhost:{port}")
+        and headers.get("Origin") in (None, f"http://{host}")
+        and headers.get("Sec-Fetch-Site") in (None, "same-origin", "none")
+    )
+
+
+def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) -> None:
+    """Only the list of the matches, until one is opened."""
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *_) -> None:
+            pass
+
+        def send(self, body: bytes, kind: str, status: int = 200) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", kind)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:
+            url = urlparse(self.path)
+            if not same_site(self.headers, port):
+                return self.send(b"", "text/plain", 403)
+            if url.path == "/current":
+                return self.send(b'{"name":null}', "application/json")
+            if url.path == "/":
+                self.send_response(302)
+                self.send_header("Location", "/matches/")
+                self.end_headers()
+                return
+            page = list_page(url.path, out, theme) if url.path.startswith("/matches/") else None
+            self.send(*(page or (b"Not found", "text/plain", 404)))
+
+        def do_POST(self) -> None:
+            if not same_site(self.headers, port) or self.path != "/open" or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                return self.send(b"", "text/plain", 403)
+            try:
+                command = reopening(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))["name"], out, theme, port, roster)
+            except (LookupError, TypeError, ValueError):
+                return self.send(b'{"error":"no such match"}', "application/json", 400)
+            self.send(b"{}", "application/json")
+            switch(command, threading.Lock())
+
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    url = f"http://127.0.0.1:{port}/matches/"
+    print(f"Review: {url} (Ctrl+C to stop)", flush=True)
+    if browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
     # Its own page, with the video and every picture: the published one stays as it was built.
     site = match / "review"
@@ -1602,12 +1720,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             """Whether a request comes from the review itself: binding 127.0.0.1 keeps other machines
             out, not another site open in the same browser (its requests name another Origin or a
             cross-site Sec-Fetch-Site) nor one rebinding its domain to 127.0.0.1 (another Host)."""
-            host = self.headers.get("Host", "")
-            return (
-                host in (f"127.0.0.1:{port}", f"localhost:{port}")
-                and self.headers.get("Origin") in (None, f"http://{host}")
-                and self.headers.get("Sec-Fetch-Site") in (None, "same-origin", "none")
-            )
+            return same_site(self.headers, port)
 
         def do_GET(self) -> None:
             self.answer(self.get)
@@ -1626,6 +1739,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if not self.ours():
                 return self.send(b"", "text/plain", 403)
             url = urlparse(self.path)
+            if url.path == "/current":
+                return self.send(json.dumps({"name": match.name}).encode(), "application/json")
+            if url.path.startswith("/matches/"):
+                page = list_page(url.path, match.parent, theme)
+                return self.send(*page) if page else self.send(b"Not found", "text/plain", 404)
             if url.path == "/review.js":
                 with lock:
                     body = review_js()
@@ -1698,6 +1816,14 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     f.write(json.dumps({"received": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "report": raw.decode()}, ensure_ascii=False) + "\n")
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
+            if self.path == "/open":
+                if progress:
+                    return self.send(b'{"error":"busy"}', "application/json", 409)
+                command = reopening(body["name"], match.parent, theme, port, roster)
+                self.send(b"{}", "application/json")
+                if body["name"] != match.name:
+                    switch(command, lock)
+                return None
             undone, undo_applied = None, False
             with lock:
                 log = load_log(answers)
@@ -1900,16 +2026,26 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Review the doubtful player identities on the video, in the browser.")
-    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO), run with --players")
-    parser.add_argument("--video", type=Path, required=True)
-    parser.add_argument("--court", type=Path, required=True, help="Court calibration JSON the match was run with")
+    parser.add_argument("match", type=Path, nargs="?", help="The match's outputs directory (outputs/VIDEO), run with --players. Default: the list of the matches")
+    parser.add_argument("--outputs", type=Path, default=Path("outputs"), help="Where the list of the matches looks")
+    parser.add_argument("--video", type=Path, help="Default: the match's source.json")
+    parser.add_argument("--court", type=Path, help="Court calibration JSON the match was run with. Default: the match's source.json")
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2")
     parser.add_argument("--theme", default="aspom", help="Club theme of the match page (web.py)")
     parser.add_argument("--roster", type=Path, default=ROSTER, help=f"The club's named players across matches (default: {ROSTER})")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true", help="Do not open the page in the browser")
     args = parser.parse_args()
-    serve(args.match, args.video, args.court, args.squad, args.theme, args.port, not args.no_browser, args.roster)
+    if args.match is None:
+        return serve_list(args.outputs, args.theme, args.port, not args.no_browser, args.roster)
+    source = args.match / files.SOURCE
+    given = json.loads(source.read_text()) if source.exists() else {}
+    video, court = args.video or given.get("video"), args.court or given.get("court")
+    if not video or not court:
+        parser.error(f"--video and --court: {source} does not say them")
+    squad = args.squad or (identity.parse_squad(given["squad"]) if given.get("squad") else None)
+    files.write_source(args.match, video, court, squad)
+    serve(args.match, Path(video), Path(court), squad, args.theme, args.port, not args.no_browser, args.roster)
 
 
 if __name__ == "__main__":

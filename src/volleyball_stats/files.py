@@ -5,12 +5,16 @@ ponytail: no fsync, a power cut may still lose the last write; fsync the file an
 that matters.
 """
 
+import json
 import os
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import IO
+
+# Beside a match's outputs: what they were made from.
+SOURCE = "source.json"
 
 
 @contextmanager
@@ -35,3 +39,9 @@ def write_text(path: Path, text: str) -> None:
 def write_bytes(path: Path, data: bytes) -> None:
     with replacing(path, "wb") as f:
         f.write(data)
+
+
+def write_source(match: Path, video: Path, court: Path, squad: tuple[int, int] | None = None) -> None:
+    """What `match` was made from, in its SOURCE: the review opens it from that."""
+    given = {"video": str(video), "court": str(court), "squad": f"{squad[0]},{squad[1]}" if squad else None}
+    write_text(match / SOURCE, json.dumps(given, indent=1) + "\n")

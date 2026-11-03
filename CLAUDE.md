@@ -39,6 +39,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
 - A new match starts with `import_match` (README): `data/MATCH/MATCH.mp4` and `outputs/MATCH/`, named like its hosted page, everything of a match in those two folders.
+- The review opens without a match on the list of the matches (`review.match_list`, those with a `source.json`); opening one replaces the server's process (`review.switch`).
 - `match` refuses to track at a low priority or on a busy machine (`slow_run_reasons`, `--anyway`): tell the owner what it lists, stopping their work
   (Docker, Kili sandboxes) is their call. To correct a running job: `sudo renice 0 -p PID...` in their own terminal (`renice -n 0` changes nothing on
   macOS). A run can't survive a restart: tracking writes nothing until it ends. Idle, the M4 tracks 4K at 2.87 MB/s (6 h for 84 min); progress is the

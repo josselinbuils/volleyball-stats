@@ -174,6 +174,7 @@
     "intro": "Tracking is unsure about these players: say who is outlined in yellow. The questions that matter most come first.",
     "matchIntro": "The whole match, to correct its actions. Click the bar to go to a moment: it shows each rally, each touch and, in red, each report. Correct the touches on the right, then “Validate rally”; nothing changes on the page before “Apply”.",
     "matchPage": "See the match page",
+    "otherMatch": "Change match",
     "undo": "Undo the last answer",
     "changePhoto": "Change their card's picture",
     "currentPhoto": "Their card's current picture",
@@ -652,6 +653,10 @@
     "title": "Matches",
     "intro": "Each match's stats. Pick a match to see its report.",
     "none": "No matches yet.",
+    "pick": "Choose the match to work on.",
+    "opening": "Opening…",
+    "openFailed": "Could not open it: try again.",
+    "processing": "Being processed",
     "setsN_one": "{{count, number}} set",
     "setsN_other": "{{count, number}} sets"
   },

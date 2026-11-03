@@ -264,6 +264,8 @@ def main() -> None:
 
     out = args.out / args.video.stem
     out.mkdir(parents=True, exist_ok=True)
+    if args.players and args.court:
+        files.write_source(out, args.video, args.court, args.squad)
     sets = args.sets and args.sets.split(",")
     try:
         starts = teams.known_starts(out / "teams.json", sets)

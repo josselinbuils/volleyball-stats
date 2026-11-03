@@ -294,6 +294,10 @@ export function Review({
               <a href="./" className="text-link underline underline-offset-2">
                 {t('review.matchPage')}
               </a>
+              {' · '}
+              <a href="/matches/" className="text-link underline underline-offset-2">
+                {t('review.otherMatch')}
+              </a>
             </p>
             {hosted && (
               <p className={cn('mt-0.5 text-sm', hosted.error ? 'text-destructive' : 'text-muted-foreground')} title={hosted.error ?? undefined}>
