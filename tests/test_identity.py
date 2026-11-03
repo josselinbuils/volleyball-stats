@@ -184,6 +184,13 @@ class TestAnswers:
 
         assert jersey_links(self.segments, jerseys) == ([[0, 1]], [[[2], [0, 1]]])
 
+    def test_an_answer_moves_the_piece_given_and_not_its_whole_number(self):
+        jerseys = {(5, 1): 12, (25, 1): 12, (5, 2): 7}
+
+        assert jersey_links(self.segments, jerseys, [[0, 1, 2]]) == ([[0, 1]], [])
+        assert jersey_links(self.segments, jerseys, [[0, 1], [1, 2]]) == ([[0, 1]], [])
+        assert jersey_links(self.segments, jerseys, [[0, 2]]) == ([], [])
+
 
     def test_names_join_the_same_name_whatever_the_case_and_part_two_names(self):
         names = [({"track": 1, "frame": 5}, "Julie"), ({"track": 1, "frame": 25}, "julie "), ({"track": 2, "frame": 5}, "Léa")]

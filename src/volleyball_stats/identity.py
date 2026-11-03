@@ -30,6 +30,7 @@ import argparse
 import csv
 import json
 from bisect import bisect_right
+from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -472,17 +473,43 @@ def previous_labels(segments: list[Segment], previous: dict[Key, tuple[int, int]
     return out
 
 
-def jersey_links(segments: list[Segment], jerseys: dict[Key, int]) -> tuple[list[list[int]], list[list[list[int]]]]:
+def against_answers(numbers: dict[int, int], answered: Iterable[list[int]]) -> set[int]:
+    """The segments whose number (`numbers`) is not the one most held among those the `answered`
+    "same" groups join them to, each joined group as one; all of them on a tie."""
+    joined: list[set[int]] = []
+    for group_ in answered:
+        merged = set(group_)
+        for other in [o for o in joined if o & merged]:
+            merged |= other
+            joined.remove(other)
+        joined.append(merged)
+    out: set[int] = set()
+    for members in joined:
+        counts = Counter(numbers[k] for k in members if k in numbers).most_common(2)
+        if len(counts) == 2:
+            keep = counts[0][0] if counts[0][1] > counts[1][1] else None
+            out |= {k for k in members if k in numbers and numbers[k] != keep}
+    return out
+
+
+def jersey_links(segments: list[Segment], jerseys: dict[Key, int], answered: Iterable[list[int]] = ()) -> tuple[list[list[int]], list[list[list[int]]]]:
     """"same" groups of segment indices and "different" pairs of such groups, from jersey numbers
     read on (frame, track) boxes: per team, two numbers are two players, and one number one player
     unless two of its segments are on court at once (two people wear it: one club kit for both
     teams, a spare shirt). On the first ASPOM match, joining every number merged two named players;
-    this keeps 281/389 held-out answers against 282 (benchmarks/identity/answers.py)."""
-    read: dict[tuple[int, int], list[int]] = {}
+    this keeps 281/389 held-out answers against 282 (benchmarks/identity/answers.py). A segment the
+    `answered` "same" groups give another number's player follows the answer alone: its own number
+    links it to nobody, or one answer would bring every segment of that number."""
+    numbers: dict[int, int] = {}
     for k, s in enumerate(segments):
-        numbers = {jerseys[f, s.track] for f in s.frames if (f, s.track) in jerseys}
-        if len(numbers) == 1:
-            read.setdefault((s.team, numbers.pop()), []).append(k)
+        found = {jerseys[f, s.track] for f in s.frames if (f, s.track) in jerseys}
+        if len(found) == 1:
+            numbers[k] = found.pop()
+    apart = against_answers(numbers, answered)
+    read: dict[tuple[int, int], list[int]] = {}
+    for k, number_ in numbers.items():
+        if k not in apart:
+            read.setdefault((segments[k].team, number_), []).append(k)
     same, different = links(read)
     worn_by_one = [g for g in same if not any(segments[a].track != segments[b].track and segments[a].start <= segments[b].end and segments[b].start <= segments[a].end for i, a in enumerate(g) for b in g[i + 1 :])]
     return worn_by_one, different
@@ -704,7 +731,7 @@ def identify(
     same = [[k for ref in group for k in resolve(ref, segments, before)] for group in answers.get("same", [])]
     different = [[resolve(ref, segments, before) for ref in group] for group in answers.get("different", [])]
     if jerseys:
-        read_same, read_different = jersey_links(segments, jerseys)
+        read_same, read_different = jersey_links(segments, jerseys, same)
         same, different = same + read_same, different + read_different
     if names:
         named_same, named_different = name_links(segments, names, before)

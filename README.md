@@ -315,6 +315,7 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   it. RapidOCR reads the torsos; a piece keeps a number read
   twice and never contradicted, and a number seen on two pieces at once (two people wear it) joins
   nobody.
+  A piece your answers give another number's player follows the answer alone.
 - **Apply** shows its steps on a progress bar; pictures are cut ahead and kept in
   `outputs/VIDEO/crops/`.
 - **A picture showing someone else**, in a question or in "Noms": click it, then say who it is if you

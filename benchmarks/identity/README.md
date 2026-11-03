@@ -68,6 +68,7 @@ time dropped (`jerseys.RARE`): 292/415 (70.4%); short pieces joining only a play
 `FAR` 0.7, else none: 295/415 (71.1%), 97% of the players' time numbered against 99%, the smallest
 player 178 s against 282 s; IDF1 0.895 / 0.818 against 0.895 / 0.806 on side_holdout / side_setend
 (precision 0.926 / 0.851 against 0.900 / 0.805). 0.6 keeps 71.3% but numbers 96% and loses IDF1.
+With 1022 answers and 43 names, a piece an answer gives another number's player leaving that number's links: 419/543 (77%) unchanged, and on 2 Nov's match one such answer no longer merges #25 into #38.
 With 149 answers, the named players' pins grouped first and each piece leaning to the name its card
 had (`STAY` 0.2): 298/428 (69.6%) against 293/428 (68.5%); naming a second card of a player joins
 the two, and 0.5% of the named time changes name across an apply against 5% (the school clips,
