@@ -437,7 +437,6 @@
     "zoomLess": "Zoom out",
     "soundOn": "Turn the sound on",
     "soundOff": "Turn the sound off",
-    "wholeView": "Whole view",
     "pinchNote": "Zoom with these buttons, ⌘ or Ctrl + wheel, or by pinching the trackpad; drag the video to move around, hold a click to slow it down.",
     "captionMove": "Drag to move; double-click to centre it again",
     "updateRally": "Update rally {{n}}",

@@ -435,12 +435,6 @@ export function ClipVideo({
             </Button>
           </div>
         )}
-        {pinched && (
-          <Button variant="outline" size="sm" className="bg-card" title={t('review.pinchNote')} onClick={() => setPinched(null)}>
-            <ZoomOut aria-hidden />
-            {t('review.wholeView')}
-          </Button>
-        )}
         {/* No outline, nothing to zoom on. */}
         {clip.boxes.length > 0 && (
           <Button
