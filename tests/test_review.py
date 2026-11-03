@@ -7,7 +7,7 @@ import pytest
 
 from volleyball_stats.identity import read_names
 from volleyball_stats import files
-from volleyball_stats.review import hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, retitle, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
+from volleyball_stats.review import hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
 
 
 class TestHostedState:
@@ -566,20 +566,40 @@ class TestNames:
 class TestRoster:
     a, b = np.array([1.0, 0.0]), np.array([0.0, 1.0])
 
-    def test_a_team_renamed_takes_its_players_of_that_match_with_it(self, tmp_path):
+    def named_match(self, outputs, name, teams, players):
+        """A match folder whose `players` {(team, identity): name} each hold their own track."""
+        folder = outputs / name
+        folder.mkdir(parents=True)
+        (folder / "teams.json").write_text(json.dumps({"teams": [{"name": t} for t in teams]}))
+        rows = [f"{k},0,10,{team},{number}" for k, (team, number) in enumerate(players)]
+        (folder / "identities.csv").write_text("\n".join(["track,start_frame,end_frame,team,identity", *rows]) + "\n")
+        write_names(folder, [{"ref": {"track": k, "frame": 5}, "name": n, "jersey": None} for k, n in enumerate(players.values())])
+        return folder
+
+    def test_players_follow_their_team_s_new_name_however_it_changed(self, tmp_path):
         path = tmp_path / "roster.json"
         remember(path, "m1", {(1, 1): {"name": "Julie", "jersey": 7}, (2, 1): {"name": "Léa", "jersey": None}}, {(1, 1): self.a, (2, 1): self.b}, ["ASPOM 02", "AVIA"])
         remember(path, "m2", {(1, 1): {"name": "Julie", "jersey": None}}, {(1, 1): self.b}, ["ASPOM 02", "AVIA"])
-        retitle(path, "m1", "ASPOM 02", "ASPOM 2")
+        self.named_match(tmp_path, "m1", ["ASPOM 2", "AVIA"], {(1, 1): "Julie", (2, 1): "Léa"})
+        follow_teams(path, tmp_path)
         found = {(p["team"], p["name"]): p for p in load_roster(path)}
+        # m2's folder is gone: what it gave stays.
         assert sorted(found) == [("ASPOM 02", "Julie"), ("ASPOM 2", "Julie"), ("AVIA", "Léa")]
         assert list(found["ASPOM 2", "Julie"]["vectors"]) == ["m1"] and found["ASPOM 2", "Julie"]["jersey"] == 7
-        assert list(found["ASPOM 02", "Julie"]["vectors"]) == ["m2"]
         # The rest of the team joins the player it now holds.
-        retitle(path, "m2", "ASPOM 02", "ASPOM 2")
+        self.named_match(tmp_path, "m2", ["ASPOM 2", "AVIA"], {(1, 1): "Julie"})
+        follow_teams(path, tmp_path)
         found = {(p["team"], p["name"]): p for p in load_roster(path)}
         assert sorted(found) == [("ASPOM 2", "Julie"), ("AVIA", "Léa")]
         assert sorted(found["ASPOM 2", "Julie"]["vectors"]) == ["m1", "m2"]
+
+    def test_a_name_in_both_teams_says_neither_and_a_roster_up_to_date_is_not_written(self, tmp_path):
+        path = tmp_path / "roster.json"
+        remember(path, "m1", {(1, 1): {"name": "Julie", "jersey": None}}, {(1, 1): self.a}, ["OLD", "AVIA"])
+        self.named_match(tmp_path, "m1", ["NEW", "AVIA"], {(1, 1): "Julie", (2, 1): "Julie"})
+        before = path.stat().st_mtime_ns
+        follow_teams(path, tmp_path)
+        assert [p["team"] for p in load_roster(path)] == ["OLD"] and path.stat().st_mtime_ns == before
 
     def test_remembers_the_named_players_and_suggests_those_who_look_most_alike(self, tmp_path):
         path = tmp_path / "roster.json"

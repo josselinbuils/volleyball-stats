@@ -1189,20 +1189,36 @@ def remember(path: Path, match: str, names: dict[tuple[int, int], dict], vectors
     files.write_text(path, json.dumps({"players": [p for p in roster if p["vectors"]]}, ensure_ascii=False) + "\n")
 
 
-def retitle(path: Path, match: str, old: str | None, new: str | None) -> None:
-    """The roster with `match`'s players of team `old` under team `new`, joined to the player of that
-    name it may hold there: their other matches stay with the team they were in."""
+def follow_teams(path: Path, outputs: Path) -> None:
+    """The roster with each player's vector of a match under the name that match's teams.json now
+    gives their team, however it changed (the review, a rename, by hand), joined to the player of
+    that name it may hold there. A name given in both teams of a match says neither: it stays."""
     roster = load_roster(path)
     by_key = {(p.get("team"), p["name"].casefold()): p for p in roster}
-    for player in list(roster):
-        if player.get("team") != old or match not in player["vectors"]:
+    changed = False
+    for name in sorted({m for p in roster for m in p["vectors"]}):
+        folder = outputs / name
+        if not (folder / "teams.json").exists() or not (folder / "identities.csv").exists():
             continue
-        moved = by_key.get((new, player["name"].casefold()))
-        if moved is None:
-            moved = by_key[new, player["name"].casefold()] = {**player, "team": new, "vectors": {}}
-            roster.append(moved)
-        moved["vectors"][match] = player["vectors"].pop(match)
-    if roster:
+        teams = [t.get("name") for t in json.loads((folder / "teams.json").read_text())["teams"]]
+        sides: dict[str, set[int]] = {}
+        for (team, _), given in identity.named(identity.read_identities(folder / "identities.csv"), identity.read_names(folder)).items():
+            if given.get("name"):
+                sides.setdefault(given["name"].strip().casefold(), set()).add(team)
+        for player in list(roster):
+            found = sides.get(player["name"].casefold(), set())
+            if name not in player["vectors"] or len(found) != 1:
+                continue
+            team = teams[next(iter(found)) - 1]
+            if team == player.get("team"):
+                continue
+            moved = by_key.get((team, player["name"].casefold()))
+            if moved is None:
+                moved = by_key[team, player["name"].casefold()] = {**player, "team": team, "vectors": {}}
+                roster.append(moved)
+            moved["vectors"][name] = player["vectors"].pop(name)
+            changed = True
+    if changed:
         files.write_text(path, json.dumps({"players": [p for p in roster if p["vectors"]]}, ensure_ascii=False) + "\n")
 
 
@@ -1724,6 +1740,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     def review_js() -> bytes:
         log = load_log(answers)
         found, _ = questions.build({entry["id"] for entry in log})
+        follow_teams(roster, match.parent)
         known, teams = load_roster(roster), team_names()
         players = questions.players(known, teams)
         # The roster's players of each team, for typing names: all of them for an unnamed team.
@@ -1880,9 +1897,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     run_steps(pages())
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/team":
-                    before = team_names()
                     set_team(match, int(body["team"]), body.get("name"), body.get("colour"))
-                    retitle(roster, match.name, before[int(body["team"]) - 1], team_names()[int(body["team"]) - 1])
                     # Its name follows its teams, the folders and the video with it: the server restarts on them.
                     new = rename.target_name(match)
                     if new and new != match.name and not progress and not (match.parent / new).exists():

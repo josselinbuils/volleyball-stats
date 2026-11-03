@@ -332,8 +332,8 @@ which the page then shows instead of the match number.
 - Names are saved at once to `player_names.json` and apply like answers: one name is one player, two
   names two, so naming two numbers alike joins them.
 - Applying also updates the roster (`--roster`, `outputs/roster.json` by default, outside the
-  repository since it names people): each named player's appearance over their last 5 matches. A team renamed takes its players of
-  that match with it.
+  repository since it names people): each named player's appearance over their last 5 matches. Its players follow a team's name
+  however it changes.
 - The next matches suggest names from it, to confirm with a click. On two clips of the same club,
   the right name came first for 7 of 12 players, and among the 3 shown for 9.
 - Answers and names refer to pieces of player tracks: tracking the players again (`--force`) drops
