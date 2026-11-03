@@ -122,9 +122,8 @@ export function ReviewHeader({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={t('review.more')} title={t('review.more')} disabled={busy !== null} className="relative">
+              <Button variant="ghost" size="icon" aria-label={t('review.more')} title={t('review.more')} disabled={busy !== null}>
                 <Ellipsis aria-hidden />
-                {films.stale > 0 && <span aria-hidden className="absolute top-1 right-1 size-2 rounded-full bg-primary" />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -142,7 +141,6 @@ export function ReviewHeader({
                 <DropdownMenuItem disabled={!films.stale} onSelect={() => run('films')}>
                   <Clapperboard aria-hidden />
                   {films.stale ? t('review.films', { count: films.stale }) : t('review.filmsDone')}
-                  {films.stale > 0 && <span aria-hidden className="ml-auto size-2 shrink-0 rounded-full bg-primary" />}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
