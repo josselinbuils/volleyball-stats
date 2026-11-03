@@ -218,7 +218,7 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     if (match / "review" / "data.js").exists():
         shutil.copy2(match / "review" / "data.js", before / "review-data.js")
     with subprocess.Popen(
-        [sys.executable, "-m", "volleyball_stats.match", str(video), "--court", str(court), "--players", "--out", str(match.parent)],
+        [sys.executable, "-m", "volleyball_stats.match", str(video), "--court", str(court), "--players", "--no-page", "--out", str(match.parent)],
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True, bufsize=1,
     ) as run:
         for line in run.stdout:

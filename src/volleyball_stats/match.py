@@ -7,7 +7,8 @@ reused when they exist unless --force. With the players, teams.json holds the te
 the match's date and title, the set starts and the sets' final scores: written on the first run
 (asked on a terminal), edited by hand if need be, reused on the next runs unless the flags override
 them. The players also give each rally's winner and the score (points.csv) and one identity per
-player for the whole match (identities.csv, identity.py).
+player for the whole match (identities.csv, identity.py). Last, the review's page and its pictures,
+for its first open to be quick (--no-page to leave them to the review).
 """
 
 import argparse
@@ -227,6 +228,16 @@ def busiest(count: int = 5) -> list[str]:
     return [f"{cpu}% {Path(name).name}" for cpu, name in sorted(rows, key=lambda r: -float(r[0].replace(",", ".")))[:count]]
 
 
+def review_page(out: Path, video: Path, court: Path) -> None:
+    """The review's page and its pictures made ahead, for its first open to be quick; the run stands without them."""
+    from volleyball_stats import web
+
+    try:
+        web.review_page(out, video, court)
+    except Exception as error:  # noqa: BLE001
+        print(f"The review will make its page when opened: {error}", file=sys.stderr)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the pipeline on a match video.")
     parser.add_argument("video", type=Path)
@@ -255,6 +266,7 @@ def main() -> None:
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2, when known: the identities to find")
     parser.add_argument("--force", action="store_true", help="Track the ball and players again even if tracks exist")
     parser.add_argument("--anyway", action="store_true", help="Track even at a low priority or on a busy machine")
+    parser.add_argument("--no-page", action="store_true", help="Leave the review's page to the review")
     args = parser.parse_args()
     day = teams.parse_date(args.date) if args.date else None
     if args.date and day is None:
@@ -409,6 +421,9 @@ def main() -> None:
     (out / "report.md").write_text(text)
     print(text, end="")
     print(out / "report.md")
+    if args.players and args.court and not args.no_page:
+        stage("page")
+        review_page(out, args.video, args.court)
 
 
 if __name__ == "__main__":

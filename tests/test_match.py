@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from volleyball_stats.match import busiest, in_rallies, report, slow_run_reasons, unseen_serves
+from volleyball_stats import web
+from volleyball_stats.match import busiest, in_rallies, report, review_page, slow_run_reasons, unseen_serves
 from volleyball_stats.players import Row
 
 
@@ -92,3 +93,23 @@ class TestReport:
     def test_heads_with_a_typed_title_or_the_video_name_without_teams(self):
         assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}, {}, ["A", "B"], [], [], "2026-11-02", "Finale").startswith("# Finale · 2 November 2026\n")
         assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}).startswith("# m\n")
+
+
+class TestReviewPage:
+    def test_makes_the_page_of_the_match(self, tmp_path, monkeypatch):
+        made = []
+        monkeypatch.setattr(web, "review_page", lambda *args: made.append(args))
+
+        review_page(tmp_path, tmp_path / "video.mp4", tmp_path / "court.json")
+
+        assert made == [(tmp_path, tmp_path / "video.mp4", tmp_path / "court.json")]
+
+    def test_a_failure_only_warns_the_run_is_kept(self, tmp_path, monkeypatch, capsys):
+        def fail(*args):
+            raise ValueError("no pictures")
+
+        monkeypatch.setattr(web, "review_page", fail)
+
+        review_page(tmp_path, tmp_path / "video.mp4", tmp_path / "court.json")
+
+        assert "no pictures" in capsys.readouterr().err

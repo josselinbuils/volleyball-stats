@@ -1364,6 +1364,11 @@ def build(
     return data
 
 
+def review_page(match: Path, video: Path, court: Path, theme: str = "aspom") -> dict:
+    """The review's own page in MATCH/review/, with the video and every picture: the published one stays as it was built."""
+    return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback")
+
+
 def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None) -> tuple[dict, dict]:
     """The page to publish, MATCH/site/ built with page.json's choices, those `given` (not None)
     replacing theirs and saved back, or `site` (to host) with only those `given`: no footage nor

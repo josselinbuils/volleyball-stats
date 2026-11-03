@@ -1549,9 +1549,8 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
 
 
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
-    # Its own page, with the video and every picture: the published one stays as it was built.
     site = match / "review"
-    web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback")
+    web.review_page(match, video, court, theme)
     cap = cv2.VideoCapture(str(video))
     fps, width, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cap.release()
@@ -1665,7 +1664,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     def pages() -> list:
         """The steps rebuilding the review's page and the published one with its own choices."""
         def own() -> None:
-            web.build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback")
+            web.review_page(match, video, court, theme)
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
             hosted["behind"] = read_hosted(match)["behind"]
