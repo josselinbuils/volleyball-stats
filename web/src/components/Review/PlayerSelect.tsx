@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { GROUPS, groupName, match, type Group } from '@/lib/match';
 import type { Named } from '@/lib/review';
+import { OptionList, useFieldPlace } from '@/components/Review/OptionList';
 import { jerseyOf, matching, pictureOf, playerOptions, type NameOf } from '@/components/Review/helpers/players';
 
 const FIELD =
@@ -70,26 +70,9 @@ export function PlayerSelect({
   const [text, setText] = useState(current);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const [place, setPlace] = useState<DOMRect | null>(null);
+  const place = useFieldPlace(field, open);
   useEffect(() => setText(current), [current]);
-  // The list sits over the page, under the field, and follows it when anything scrolls (focusing
-  // or typing scrolls the picture strip itself).
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const follow = () => setPlace(field.current?.getBoundingClientRect() ?? null);
-    follow();
-    window.addEventListener('scroll', follow, true);
-    window.addEventListener('resize', follow);
-    return () => {
-      window.removeEventListener('scroll', follow, true);
-      window.removeEventListener('resize', follow);
-    };
-  }, [open]);
-
   const found = matching(entries, text === current ? '' : text);
-  const pictured = found.some((e) => e.picture);
   // The picture stays while the field shows its player, not once typing starts.
   const picture = text === current ? chosen?.picture : undefined;
   const pick = (key: string) => {
@@ -157,44 +140,7 @@ export function PlayerSelect({
           className={cn(FIELD, picture && 'pl-8')}
         />
       </span>
-      {open &&
-        place &&
-        found.length > 0 &&
-        createPortal(
-          <ul
-            id={list}
-            role="listbox"
-            aria-label={label}
-            style={{ left: place.left, top: place.bottom + 4, minWidth: place.width }}
-            className="fixed z-50 m-0 max-h-80 w-max max-w-[90vw] list-none overflow-auto rounded-md border bg-popover p-1 text-[13px] text-popover-foreground shadow-md"
-          >
-            {found.map((e, k) => (
-              <li
-                key={e.key}
-                id={`${list}-${k}`}
-                role="option"
-                aria-selected={k === active}
-                // Before the field's blur, which would close the list.
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  pick(e.key);
-                }}
-                onMouseEnter={() => setActive(k)}
-                className={cn('flex cursor-pointer items-center gap-2 rounded px-2 py-1', k === active && 'bg-accent text-accent-foreground')}
-              >
-                {pictured &&
-                  (e.picture ? (
-                    <img src={e.picture} alt="" loading="lazy" className="size-8 shrink-0 rounded-sm bg-muted object-cover object-top" />
-                  ) : (
-                    <span aria-hidden className="size-8 shrink-0 rounded-sm bg-muted" />
-                  ))}
-                {e.label}
-              </li>
-            ))}
-          </ul>,
-          // In full screen, only the full-screen block shows.
-          document.fullscreenElement ?? document.body,
-        )}
+      {open && place && found.length > 0 && <OptionList id={list} label={label} place={place} options={found} active={active} onPick={pick} onActive={setActive} />}
     </>
   );
 }

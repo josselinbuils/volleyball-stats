@@ -9,7 +9,8 @@ import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
-import { offeredNames, unnamedFirst } from '@/components/Review/helpers/players';
+import { NameField } from '@/components/Review/NameField';
+import { offeredNames, plain, spelled, unnamedFirst } from '@/components/Review/helpers/players';
 import { TeamEditor } from '@/components/Review/TeamEditor';
 
 interface Given {
@@ -33,7 +34,6 @@ function focusCard(from: Element | null, step: number) {
     card.scrollIntoView({ block: 'nearest' });
   }
 }
-const fold = (name: string) => name.trim().toLocaleLowerCase();
 
 /** The players of both teams to name, those without a name when the page loaded first, then longest
  * on court first; each name is saved as it is typed,
@@ -97,7 +97,7 @@ export function Names({
       return;
     }
     try {
-      const moved = offered(p.team).some((o) => o.other && fold(o.name) === fold(value.name));
+      const moved = offered(p.team).some((o) => o.other && plain(o.name) === plain(value.name));
       const result = await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null, moved });
       const next = new Map(saved).set(key, value);
       setSaved(next);
@@ -132,11 +132,6 @@ export function Names({
                 <span className="text-sm font-normal text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
               </h2>
             )}
-            <datalist id={`roster-${g}`}>
-              {offered(g).map((r) => (
-                <option key={r.name} value={r.name} label={r.other ? groupName(t, (3 - g) as Group) : undefined} />
-              ))}
-            </datalist>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {mine.map((p) => (
                 <NameCard
@@ -145,8 +140,9 @@ export function Names({
                   g={g}
                   value={given.get(keyOf(p))!}
                   roster={offered(g)}
+                  otherTeam={groupName(t, (3 - g) as Group)}
                   saved={saved.get(keyOf(p))!}
-                  others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
+                  others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: plain(given.get(keyOf(o))!.name) }))}
                   onEdit={(value) => edit(p, value)}
                   onSave={(value) => void save(p, value)}
                   players={players}
@@ -168,6 +164,7 @@ function NameCard({
   g,
   value,
   roster,
+  otherTeam,
   saved,
   others,
   onEdit,
@@ -180,7 +177,8 @@ function NameCard({
   player: Named;
   g: Group;
   value: Given;
-  roster: Suggestion[];
+  roster: (Suggestion & { other: boolean })[];
+  otherTeam: string;
   saved: Given;
   others: { identity: number; name: string }[];
   onEdit: (value: Given) => void;
@@ -192,8 +190,8 @@ function NameCard({
 }) {
   const { t } = useTranslation();
   const taken = new Set(others.map((o) => o.name).filter(Boolean));
-  const twins = others.filter((o) => o.name && o.name === fold(value.name));
-  const suggestions = value.name.trim() ? [] : p.suggestions.filter((s) => !taken.has(fold(s.name)));
+  const twins = others.filter((o) => o.name && o.name === plain(value.name));
+  const suggestions = value.name.trim() ? [] : p.suggestions.filter((s) => !taken.has(plain(s.name)));
   const isSaved = (value.name.trim() || value.jersey) && saved.name.trim() === value.name.trim() && saved.jersey === value.jersey;
   // A suggestion brings its jersey number when none is typed.
   const pick = (s: Suggestion) => {
@@ -229,19 +227,23 @@ function NameCard({
       >
         <label htmlFor={`${id}-name`} className="grid flex-1 gap-1 text-sm font-medium">
           {t('review.name')}
-          <input
+          <NameField
             id={`${id}-name`}
-            data-name
+            label={t('review.name')}
             className={INPUT}
-            list={`roster-${g}`}
-            autoComplete="off"
             value={value.name}
-            onChange={(event) => {
-              // A name of the roster brings its jersey number when none is typed.
-              const known = roster.find((r) => fold(r.name) === fold(event.target.value));
-              onEdit({ name: event.target.value, jersey: value.jersey || (known?.jersey == null ? '' : String(known.jersey)) });
+            names={roster.map((r) => ({ name: r.name, hint: r.other ? otherTeam : undefined }))}
+            onChange={(name) => onEdit({ name, jersey: value.jersey })}
+            onPick={(name) => pick(roster.find((r) => r.name === name)!)}
+            // A name of the list, however it was typed, with its jersey number when none is typed.
+            onBlur={() => {
+              const known = spelled(roster, value.name);
+              if (known) {
+                pick(known);
+              } else {
+                onSave(value);
+              }
             }}
-            onBlur={() => onSave(value)}
           />
         </label>
         <label htmlFor={`${id}-jersey`} className="grid w-20 shrink-0 gap-1 text-sm font-medium">

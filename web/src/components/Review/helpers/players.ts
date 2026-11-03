@@ -52,14 +52,19 @@ export function offeredNames(roster: Suggestion[][], named: Suggestion[][], g: G
   const out = new Map<string, Suggestion & { other: boolean }>();
   const add = (list: Suggestion[], other: boolean) => {
     for (const s of list) {
-      if (!out.has(fold(s.name))) {
-        out.set(fold(s.name), { ...s, other });
+      if (!out.has(plain(s.name))) {
+        out.set(plain(s.name), { ...s, other });
       }
     }
   };
   add([...roster[g - 1], ...named[g - 1]], false);
   add([...roster[2 - g], ...named[2 - g]], true);
   return [...out.values()];
+}
+
+/** The offered name a typed text spells, whatever its accents and case. */
+export function spelled<T extends Suggestion>(names: T[], text: string): T | undefined {
+  return names.find((n) => plain(n.name) === plain(text));
 }
 
 /** The players without a name first, keeping their order. */
@@ -74,7 +79,7 @@ export function jerseyOf(p: Named, players: Named[], nameOf: NameOf): number | n
 }
 
 /** Folds a text for matching: no accents, no case, no outer spaces. */
-const plain = (text: string) =>
+export const plain = (text: string) =>
   text
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
