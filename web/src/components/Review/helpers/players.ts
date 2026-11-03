@@ -1,5 +1,5 @@
 import type { Group } from '@/lib/match';
-import { allMarked, type Named } from '@/lib/review';
+import { allMarked, type Named, type Suggestion } from '@/lib/review';
 
 type Who = { team: Group; identity: number };
 export type NameOf = (team: Group, identity: number) => string | null;
@@ -44,6 +44,22 @@ export function pictureOf(p: Named, nameOf: NameOf, people: { team: number | nul
     return undefined;
   }
   return people.find((x) => x.team === p.team && x.number === p.identity)?.photo ?? p.crops[0];
+}
+
+/** The names a card of team `g` offers: its team's roster, then the other team's, each once, `other`
+ * telling those of the other team. `named` holds the names given in this match, by team. */
+export function offeredNames(roster: Suggestion[][], named: Suggestion[][], g: Group): (Suggestion & { other: boolean })[] {
+  const out = new Map<string, Suggestion & { other: boolean }>();
+  const add = (list: Suggestion[], other: boolean) => {
+    for (const s of list) {
+      if (!out.has(fold(s.name))) {
+        out.set(fold(s.name), { ...s, other });
+      }
+    }
+  };
+  add([...roster[g - 1], ...named[g - 1]], false);
+  add([...roster[2 - g], ...named[2 - g]], true);
+  return [...out.values()];
 }
 
 /** The players without a name first, keeping their order. */

@@ -9,8 +9,10 @@ footage of MIN_HEIGHT pixels or more; alone:
 
 import argparse
 import csv
+import json
 import time
 from collections import Counter
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 import cv2
@@ -20,6 +22,8 @@ from volleyball_stats import decode, files, identity
 from volleyball_stats.attribution import read_players
 
 FILE = "jerseys.csv"
+# What the review's pictures read: {"frame:x1,y1,x2,y2": number or null}, kept for the next applies.
+PICTURES = "jersey_pictures.json"
 # Under this height, numbers are too small to read.
 MIN_HEIGHT = 1440
 # Boxes read per piece of track, pieces shorter than MIN_S skipped (a few frames of a crowd).
@@ -80,13 +84,37 @@ def write(path: Path, found: list[tuple[int, int, int]]) -> None:
         csv.writer(f).writerows([["frame", "track", "number"], *sorted(found)])
 
 
-def load(match: Path) -> dict[tuple[int, int], int] | None:
-    """jerseys.csv's numbers by (frame, track), but the RARE ones; None without the file."""
+def picture_key(frame: int, box: Iterable[int]) -> str:
+    return f"{frame}:{','.join(str(v) for v in box)}"
+
+
+def read_pictures(match: Path, pictures: Iterable[tuple[int, tuple[int, ...]]], image: Callable[[int, tuple[int, ...]], bytes | None]) -> None:
+    """PICTURES with the number read on each (frame, box) not read yet, `image` giving its JPEG."""
+    path = match / PICTURES
+    seen = json.loads(path.read_text()) if path.exists() else {}
+    new = [(f, b) for f, b in dict.fromkeys(pictures) if picture_key(f, b) not in seen]
+    if not new:
+        return
+    from rapidocr_onnxruntime import RapidOCR
+
+    reader = RapidOCR()
+    for frame, box in new:
+        raw = image(frame, box)
+        picture = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR) if raw else None
+        if picture is not None:
+            seen[picture_key(frame, box)] = number(reader(torso(picture, (0, 0, picture.shape[1], picture.shape[0])))[0])
+    files.write_text(path, json.dumps(seen) + "\n")
+
+
+def load(match: Path, rare: bool = False) -> dict[tuple[int, int], int] | None:
+    """jerseys.csv's numbers by (frame, track), but the RARE ones unless `rare`; None without the file."""
     path = match / FILE
     if not path.exists():
         return None
     with open(path) as f:
         read = {(int(r["frame"]), int(r["track"])): int(r["number"]) for r in csv.DictReader(f)}
+    if rare:
+        return read
     counts = Counter(read.values())
     return {k: n for k, n in read.items() if counts[n] >= RARE * len(read)}
 

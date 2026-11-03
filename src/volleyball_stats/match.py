@@ -344,6 +344,9 @@ def main() -> None:
     if starts:
         # The rallies before set 1 are the warm-up's.
         windows = [w for w in windows if w[0] >= starts[0] * fps]
+    end = teams.match_end(out)
+    if end is not None:
+        windows = [w for w in windows if w[0] < end * fps]
     timings["rallies and contacts"] = time.perf_counter() - start
 
     stage("actions")

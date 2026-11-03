@@ -10,6 +10,7 @@ import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/l
 import type { NameOf } from '@/components/Review/helpers/players';
 import { REPORT_LEAD_S } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
+import { MatchEnd } from '@/components/Review/MatchEnd';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
 
@@ -31,6 +32,7 @@ export function MatchTab({
   onSave,
   onUncheck,
   onHandled,
+  onEnd,
 }: {
   width: number;
   height: number;
@@ -50,6 +52,7 @@ export function MatchTab({
   onSave: (changes: ReportChanges, rally: number) => Promise<void>;
   onUncheck: (rally: number) => Promise<void>;
   onHandled: (report: Question, changes: ReportChanges) => Promise<void>;
+  onEnd: (time: string) => void;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -87,6 +90,7 @@ export function MatchTab({
   return (
     <Card>
       <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6 pt-6">
+        <MatchEnd now={now} onSave={onEnd} />
         <div
           ref={block}
           className={cn(

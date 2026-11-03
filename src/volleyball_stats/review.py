@@ -40,7 +40,7 @@ import numpy as np
 
 from volleyball_stats import attribution, backup, decode, feedback, film, files, identity, jerseys, matches, rename, timeouts, web
 from volleyball_stats.court import LENGTH, Calibration
-from volleyball_stats.teams import parse_colour
+from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
@@ -49,7 +49,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee")
+KINDS = ("same", "different", "not_player", "cut", "team", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -95,6 +95,7 @@ ROSTER_MATCHES, SUGGESTIONS = 5, 3
 # Readings of a number from which it is a player's: on the second match, 102-616 for the players' own,
 # 44 at most for a number on a player who has another.
 CARD_READINGS = 20
+PICTURE_READINGS = 2
 
 Ref = dict
 
@@ -130,7 +131,7 @@ class Questions:
         self.table = identity.read_identities(self.match / "identities.csv")
         self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
-        self.read = card_numbers(self.table, jerseys.load(self.match))
+        self.read = card_numbers(self.table, jerseys.load(self.match, rare=True))
         actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
         rallies, points = web.rally_table(self.match) if (self.match / "rallies.csv").exists() else ([], [])
         lead = round(web.LEAD_S * self.fps)
@@ -147,7 +148,7 @@ class Questions:
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
-        gone = web.no_rallies(self.match)
+        gone = web.no_rallies(self.match, self.fps)
         played = [(w, p.get("winner"), int(r["start_frame"])) for w, r, p in zip(windows, rallies, points) if int(r["start_frame"]) not in gone]
         self.aces = aces([r for r in actions if r["frame"] not in nothing], [w for w, _, _ in played], [p for _, p, _ in played])
         # Each ace's rally, by its key: an ace may be no play at all.
@@ -319,6 +320,41 @@ class Questions:
                 links[segments[0]].append((other, None))
                 links[other].append((segments[0], None))
         return links, pins, held
+
+    def card_pictures(self) -> dict[tuple[int, int], list[tuple[int, tuple[int, ...]]]]:
+        """The (frame, box) of the pictures the review shows of each (team, identity): its card's,
+        and those offered for its card on the match page."""
+        offered = self.match / web.PHOTO_CANDIDATES
+        photos = json.loads(offered.read_text()) if offered.exists() else {}
+        out = {}
+        for team, number in sorted({(r[3], r[4]) for r in self.table if r[4]}):
+            shown = re.findall(r"crop\?f=(\d+)&b=([\d,-]+)", json.dumps(self.faces(team, number)["crops"]))
+            out[team, number] = [(int(f), tuple(int(v) for v in b.split(","))) for f, b in shown] + [(m["frame"], tuple(m["box"])) for m in photos.get(f"{team}:{number}", [])]
+        return out
+
+    def read_pictures(self, image) -> None:
+        """Reads the jersey numbers on the review's pictures, for the cards no track reading gives one."""
+        cards = self.card_pictures()
+        jerseys.read_pictures(self.match, [p for found in cards.values() for p in found], image)
+        path = self.match / jerseys.PICTURES
+        seen = json.loads(path.read_text()) if path.exists() else {}
+        counts = {card: Counter(n for f, b in dict.fromkeys(found) if (n := seen.get(jerseys.picture_key(f, b))) is not None) for card, found in cards.items()}
+        self.read = card_numbers(self.table, jerseys.load(self.match, rare=True), counts)
+
+    def past_end(self, until: int) -> dict[tuple[int, int, int], dict]:
+        """Each piece from frame `until` on (the end of the match) to the longest piece before it of
+        the same player, for their pins to move to: `reanchor`'s `moved`."""
+        moved = {}
+        for track, start, end, team, number in self.table:
+            keep = next((p for p in self.pieces(team, number) if p[2] < until), None) if start >= until and number else None
+            if keep:
+                moved[track, start, end] = {"track": keep[0], "frame": (keep[1] + keep[2]) // 2}
+        return moved
+
+    def to_other_team(self, team: int, number: int) -> dict:
+        """The answer giving identity `number`'s pieces the other team."""
+        pieces = self.pieces(team, number)
+        return {"id": f"team:{pieces[0][0]}:{pieces[0][1]}", "choice": "team", "team": [{"track": t, "frame": (a + b) // 2, "team": 3 - team} for t, a, b, _, _ in pieces], "applied": False}
 
     def separated(self, log: list[dict], names: list[dict], team: int, number: int) -> list[dict]:
         """`log` without what joins the names of identity `number`: the piece a "more" answer took
@@ -784,7 +820,7 @@ def missed_points(page: dict, ball: Path, calibration: Calibration) -> list[dict
         following = rallies[k + 1] if k + 1 < len(rallies) else None
         if given.get(r["set"]) and score and score != given[r["set"]] and (not following or following["set"] != r["set"]):
             earlier = [q["end"] for q in rallies[:k] if q["set"] != r["set"]]
-            off.append((max(earlier, default=0.0), following["start"] if following else page.get("duration", r["end"] + 600.0), score))
+            off.append((max(earlier, default=0.0), following["start"] if following else page.get("end") or page.get("duration", r["end"] + 600.0), score))
     if not off or not ball.exists():
         return []
     net, left, right = calibration.to_image(np.array([[0.0, 0.0], [-LENGTH / 2, 0.0], [LENGTH / 2, 0.0]]))[:, 0]
@@ -1181,9 +1217,11 @@ def load_roster(path: Path) -> list[dict]:
     return json.loads(path.read_text())["players"] if path.exists() else []
 
 
-def card_numbers(table: list[tuple[int, int, int, int, int]], read: dict[tuple[int, int], int] | None) -> dict[tuple[int, int], int]:
-    """The jersey number read on each (team, identity): each number on the identity with most of its
-    readings, CARD_READINGS or more, and on no other; one reading of several numbers takes its most read."""
+def card_numbers(table: list[tuple[int, int, int, int, int]], read: dict[tuple[int, int], int] | None, pictures: dict[tuple[int, int], Counter] | None = None) -> dict[tuple[int, int], int]:
+    """The jersey number read on each (team, identity): each number of a team on the identity with
+    most of its readings, CARD_READINGS or more, and on no other; one reading of several numbers
+    takes its most read. A card left without takes the number its `pictures` read most, on more than
+    the others together and PICTURE_READINGS or more, if its team's other cards don't wear it."""
     by_track: dict[int, list] = {}
     for r in table:
         by_track.setdefault(r[0], []).append(r)
@@ -1193,11 +1231,16 @@ def card_numbers(table: list[tuple[int, int, int, int, int]], read: dict[tuple[i
         if card:
             counts[card, number] += 1
     out: dict[tuple[int, int], int] = {}
-    taken: set[int] = set()
+    taken: set[tuple[int, int]] = set()
     for (card, number), count in counts.most_common():
-        if count >= CARD_READINGS and card not in out and number not in taken:
+        if count >= CARD_READINGS and card not in out and (card[0], number) not in taken:
             out[card] = number
-            taken.add(number)
+            taken.add((card[0], number))
+    for card, found in sorted((pictures or {}).items(), key=lambda c: -max(c[1].values(), default=0)):
+        (number, count), *_ = found.most_common(1) or [(None, 0)]
+        if card not in out and count >= PICTURE_READINGS and count > found.total() - count and (card[0], number) not in taken:
+            out[card] = number
+            taken.add((card[0], number))
     return out
 
 
@@ -1294,13 +1337,11 @@ def set_name(match: Path, questions: Questions, team: int, number: int, given: s
 
 def set_photo(match: Path, table: list, team: int, number: int, frame: int, box: list[int]) -> None:
     """web.PHOTO_PICKED with the card picture of identity `number` of `team` taken at `frame` in
-    `box`, by the player's name (it outlives the identities' numbers); ValueError for an unnamed one."""
+    `box`, by the player's name (it outlives the identities' numbers), else by their card."""
     who = (identity.named(table, identity.read_names(match)).get((team, number)) or {}).get("name")
-    if not who:
-        raise ValueError(f"player {team}:{number} has no name")
     path = match / web.PHOTO_PICKED
     taken = json.loads(path.read_text()) if path.exists() else {}
-    taken[who] = {"frame": int(frame), "box": [int(v) for v in box]}
+    taken[who or f"{team}:{number}"] = {"frame": int(frame), "box": [int(v) for v in box]}
     files.write_text(path, json.dumps(taken, indent=1, ensure_ascii=False) + "\n")
 
 
@@ -1313,6 +1354,20 @@ def set_team(match: Path, team: int, name: str | None, colour: str | None) -> No
     if team not in (1, 2) or (colour and read is None):
         raise ValueError(f"team {team}, colour {colour!r}")
     data["teams"][team - 1].update(name=(name or "").strip() or None, colour=read)
+    files.write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
+def set_end(match: Path, time: str | None) -> None:
+    """teams.json with the end of the match at `time` (m:ss or h:mm:ss), none for None or empty.
+    ValueError for anything else."""
+    path = match / "teams.json"
+    data = json.loads(path.read_text())
+    text = (time or "").strip()
+    if text:
+        seconds(text)
+        data["end"] = text
+    else:
+        data.pop("end", None)
     files.write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
@@ -1329,7 +1384,10 @@ def state(match: Path, log: list[dict]) -> dict:
     the jersey numbers, as JSON gives them back."""
     read = match / jerseys.FILE
     # The winners pinned change no identity nor the page.
-    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind not in ("pinned", "locked")}, "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
+    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind not in ("pinned", "locked")}, **({"end": match_end(match)} if match_end(match) is not None else {}), "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
+    # No "team" answer leaves the state of earlier applies as it was.
+    if not found["answers"]["team"]:
+        del found["answers"]["team"]
     return json.loads(json.dumps(found))
 
 
@@ -1421,7 +1479,7 @@ def unlocked(keys: list[int]) -> list[dict]:
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0,
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "numbers": 5.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0,
     "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0,
     "pipeline:identity": 20.0, "pipeline:answers": 60.0,
 }
@@ -1777,6 +1835,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         urls = re.findall(r"crop\?f=(\d+)&b=([\d,-]+)", json.dumps([found, questions.players([], team_names())]))
         with ThreadPoolExecutor(READERS) as pool:
             list(pool.map(lambda u: picture(int(u[0]), tuple(int(v) for v in u[1].split(","))), dict.fromkeys(urls)))
+        questions.read_pictures(picture)
 
     def team_names() -> list[str | None]:
         teams = web.read_teams(match)
@@ -1805,7 +1864,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
+        data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
             "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
             "fetched": fetched_log or None,
             "backup": backed or None,
@@ -1941,6 +2000,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     set_photo(match, questions.table, int(body["team"]), int(body["identity"]), int(body["frame"]), body["box"])
                     run_steps(pages())
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
+                if self.path == "/end":
+                    set_end(match, body.get("time"))
+                    end = match_end(match)
+                    if end is not None:
+                        log, moved_names = reanchor(log, identity.read_names(match), questions.past_end(round(end * questions.fps)), questions.segment_of)
+                        write_names(match, moved_names)
+                        save(answers, log)
+                    for change in history:
+                        change["names"] = None
+                    return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/team":
                     set_team(match, int(body["team"]), body.get("name"), body.get("colour"))
                     # Its name follows its teams, the folders and the video with it: the server restarts on them.
@@ -1961,6 +2030,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # Undo leaves the names as typed since.
                     for change in history:
                         change["names"] = None
+                    # A player of the other team: the card goes there, undone like an answer.
+                    if body.get("moved"):
+                        entry = questions.to_other_team(int(body["team"]), int(body["identity"]))
+                        history.append({"log": before, "names": None, "applied": False})
+                        del history[:-UNDOS]
+                        log = [*(e for e in log if e["id"] != entry["id"]), entry]
+                        save(answers, log)
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/comment":
                     comments = commented(read_comments(match), questions.page, log)
@@ -2116,7 +2192,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if rebuilt:
                     # The review's own page first: the questions ask what it leaves unidentified.
                     own, *published = pages()
-                    steps = [("players", lambda: identity.rerun(match, video, squad)), own, ("questions", questions.load)]
+                    steps = [("players", lambda: identity.rerun(match, video, squad)), own, ("questions", questions.load), ("numbers", lambda: questions.read_pictures(picture))]
                     if self.path == "/apply":
                         steps.append(("roster", lambda: remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())))
                     run_steps(steps + published)

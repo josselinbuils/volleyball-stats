@@ -39,7 +39,7 @@ from volleyball_stats.attribution import GAP_S, NO_PLAYER, box_at
 from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
 from volleyball_stats.identity import lookup, named, read_identities, read_names
 from volleyball_stats.points import landing
-from volleyball_stats.teams import parse_colour, parse_date, recording_date
+from volleyball_stats.teams import match_end, parse_colour, parse_date, recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
 BRANDING = Path("branding")
@@ -644,10 +644,13 @@ def rally_table(match: Path) -> tuple[list[dict], list[dict]]:
     return split_rallies(rows, scores, [a["frame"] for a in answers(match, "split")])
 
 
-def no_rallies(match: Path) -> set[int]:
-    """Start frames of the rally windows the review's answers say are no rally (no play)."""
+def no_rallies(match: Path, fps: float) -> set[int]:
+    """Start frames of the rally windows the review's answers say are no rally (no play), and of
+    those after the end of the match."""
     path = match / "identity_answers.json"
-    return {r["start"] for r in (json.loads(path.read_text()).get("rally", []) if path.exists() else []) if not r["play"]}
+    said = {r["start"] for r in (json.loads(path.read_text()).get("rally", []) if path.exists() else []) if not r["play"]}
+    end = match_end(match)
+    return said if end is None else said | {int(r["start_frame"]) for r in read_csv(match / "rallies.csv") if int(r["start_frame"]) >= end * fps}
 
 
 def merge_rallies(windows: list[tuple[int, int]], rows: list[dict], scores: list[dict], merged: set[int]) -> tuple[list, list, list]:
@@ -731,7 +734,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     said = touched(match, given)
     actions = [crossed(r, said.get(int(r["frame"]))) for r in actions if said.get(int(r["frame"]), ()) is not None and any(a - lead <= int(r["frame"]) <= b for a, b in windows)]
     # And the windows it says are no rally (warm-up, a ball thrown back).
-    windows, rally_rows, scores, actions = drop_rallies(windows, rally_rows, scores, actions, no_rallies(match), round(LEAD_S * fps))
+    windows, rally_rows, scores, actions = drop_rallies(windows, rally_rows, scores, actions, no_rallies(match, fps), round(LEAD_S * fps))
     # The player rows around the touches place them; all the rows feed the samples, read once.
     near = {f for row in actions for f in range(int(row["frame"]) - gap, int(row["frame"]) + gap + 1)}
     track_team = {int(r["track"]): int(r["team"]) for r in read_csv(match / "tracks.csv")} if with_teams else {}
@@ -788,6 +791,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "video": video.name,
         "fps": round(fps, 3),
         "duration": round(frame_count / fps, 2),
+        "end": match_end(match),
         "teams": teams and [{"name": t["name"], "colour": hand_edited(parse_colour, t["colour"], "a colour (#rrggbb or a name such as white, rouge, navy)") if t["colour"] else t["jersey"]} for t in teams["teams"]],
         "date": teams and (hand_edited(parse_date, teams["date"], "a date (dd/mm/yyyy or yyyy-mm-dd)") if teams.get("date") else recording_date(video)),
         "title": teams and teams.get("title"),
@@ -1271,10 +1275,17 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
         seen = np.array([vectors[name(*m)] for m in confirmed[key]])
         likeness = {m: float(np.median(seen @ vectors[name(*m)])) for m in found}
         moments[key] = [m for m in found if likeness[m] >= max(likeness.values()) - LIKE]
-    # The moments the user picked, by the player's name.
+    # The moments the user picked, by the player's name, else on their card while it still holds that moment.
     path = match / PHOTO_PICKED
     taken = json.loads(path.read_text()) if path.exists() else {}
-    own = {key: (taken[n]["frame"], tuple(taken[n]["box"])) for key in moments if (n := people[key].get("name")) in taken}
+
+    def pick_of(person: dict) -> dict | None:
+        if person.get("name") in taken:
+            return taken[person["name"]]
+        found = taken.get(f"{person['team']}:{person['number']}")
+        return found if found and any(a <= found["frame"] <= b for _, a, b, _, _ in questions.pieces(person["team"], person["number"])) else None
+
+    own = {key: (found["frame"], tuple(found["box"])) for key in moments if (found := pick_of(people[key]))}
     scored({key: [m] for key, m in own.items()})
     chosen: dict[int, list] = {}
     picked: dict[int, tuple] = {}

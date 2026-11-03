@@ -310,6 +310,18 @@ def known_starts(path: Path, sets: list[str] | None) -> list[float] | None:
     return [seconds(s) for s in starts] if starts else None
 
 
+def given_end(match: Path) -> str | None:
+    """The end of the match teams.json gives, as written; everything after it is left out."""
+    path = match / "teams.json"
+    return json.loads(path.read_text()).get("end") if path.exists() else None
+
+
+def match_end(match: Path) -> float | None:
+    """`given_end` in seconds."""
+    end = given_end(match)
+    return None if end is None else seconds(end)
+
+
 def set_numbers(windows: list[tuple[int, int]], starts: list[float], fps: float) -> list[int]:
     """Set (from 1) of each rally: the last set started at or before it."""
     return [max(1, sum(s <= start / fps for s in starts)) for start, _ in windows]
@@ -581,7 +593,7 @@ def settle(
         known = asked if scores is None else known
     if len(known) > len(starts):
         raise ValueError(f"{len(known)} set scores for {len(starts)} sets: give the set starts too")
-    data = {"teams": entries, "date": day, "title": title, "sets": starts, "scores": [*known, *[None] * (len(starts) - len(known))]}
+    data = {"teams": entries, "date": day, "title": title, "sets": starts, "scores": [*known, *[None] * (len(starts) - len(known))], **({"end": old["end"]} if old.get("end") else {})}
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return data
 

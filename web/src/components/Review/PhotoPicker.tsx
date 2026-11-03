@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { match } from '@/lib/match';
 import { post, review, type Named } from '@/lib/review';
 
-/** The player's card picture as the match page shows it, and the other moments to pick for it, once
- * named (a pick is kept by name); a pick rebuilds the pages, then the review reloads. */
-export function PhotoPicker({ player, named, onError }: { player: Named; named: boolean; onError: () => void }) {
+/** The player's card picture as the match page shows it, and the other moments to pick for it; a pick
+ * rebuilds the pages, then the review reloads. */
+export function PhotoPicker({ player, onError }: { player: Named; onError: () => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -33,7 +33,7 @@ export function PhotoPicker({ player, named, onError }: { player: Named; named: 
       <div className="flex items-end gap-3">
         {current && <img src={current} alt={t('review.currentPhoto')} className="h-24 w-18 rounded-md bg-muted object-cover object-top" />}
         {found.length > 0 && (
-          <Button variant="outline" size="sm" className="bg-card" disabled={!named || saving} title={named ? undefined : t('review.photoNeedsName')} onClick={() => setOpen((o) => !o)}>
+          <Button variant="outline" size="sm" className="bg-card" disabled={saving} onClick={() => setOpen((o) => !o)}>
             <ImageIcon aria-hidden />
             {saving ? t('review.saving') : t('review.changePhoto')}
           </Button>

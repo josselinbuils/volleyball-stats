@@ -133,6 +133,8 @@ export interface PhotoMoment {
 interface ReviewData {
   width: number;
   height: number;
+  /** The end of the match given, as written. */
+  matchEnd?: string | null;
   answered: number;
   /** Answers not applied yet; whether the answers (or the jersey numbers read), and the names, differ
    * from what the players were last computed from. */
@@ -236,7 +238,7 @@ export function onServerBusy(listener: () => void): () => void {
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
 export async function post(
-  path: 'answer' | 'comment' | 'timeout' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'separate' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
+  path: 'answer' | 'comment' | 'timeout' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'separate' | 'end' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
   body: object = {},
 ): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));

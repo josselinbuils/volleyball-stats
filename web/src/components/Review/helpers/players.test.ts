@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { marked, type Named } from '@/lib/review';
-import { jerseyOf, matching, pictureOf, playerOptions, sameName, unnamedFirst } from '@/components/Review/helpers/players';
+import { jerseyOf, matching, offeredNames, pictureOf, playerOptions, sameName, unnamedFirst } from '@/components/Review/helpers/players';
 
 // review.ts reads window.REVIEW on import.
 vi.hoisted(() => {
@@ -72,6 +72,18 @@ describe('players', () => {
     expect(matching(entries, ' 5').map((e) => e.key)).toEqual(['2:5', '1:5']);
     expect(matching(entries, 'joueur 5 · aspom 02').map((e) => e.key)).toEqual(['2:5']);
     expect(matching(entries, '')).toHaveLength(3);
+  });
+
+  it('offers its own team first, then the other, each name once', () => {
+    const anthony = { name: 'Anthony', jersey: 38 };
+    const lea = { name: 'Léa', jersey: null };
+    const given = { name: 'Paul', jersey: 3 };
+
+    expect(offeredNames([[lea], [anthony, { name: 'léa', jersey: 7 }]], [[], [given]], 1)).toEqual([
+      { ...lea, other: false },
+      { ...anthony, other: true },
+      { ...given, other: true },
+    ]);
   });
 
   it('puts the players without a name first, keeping their order', () => {

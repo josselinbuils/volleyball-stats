@@ -247,6 +247,7 @@ set break, as the rules say, and only then.
 | Title | The match's title | "Match NAME_1 vs NAME_2", translated on the page |
 | Set starts | `"m:ss"`, the first set 1's: the rallies before it (the warm-up) are left out | The detected set starts, the first `"0:00"` |
 | Final scores | `"25-21"`, team 1 first | Unknown |
+| `end` | `"m:ss"`, the end of the match ("Fin du match" in the review's Match tab): what follows is left out | The end of the video |
 
 The first run writes it, from the first source available:
 
@@ -312,7 +313,8 @@ For two numbers never on court together: 1 for the same person, 2 for two people
 - **Jersey numbers** (footage of 1440p or more) join the pieces read with one number and part two
   numbers: a step of `match`, about an hour on 4K, writes `jerseys.csv`, kept for the next runs and
   read by every apply. "Noms" fills the number read and suggests first the roster's player wearing
-  it. RapidOCR reads the torsos; a piece keeps a number read
+  it; a card without one takes what its pictures read (`jersey_pictures.json`).
+  Each team's numbers are its own. RapidOCR reads the torsos; a piece keeps a number read
   twice and never contradicted, and a number seen on two pieces at once (two people wear it) joins
   nobody.
   A piece your answers give another number's player follows the answer alone.
@@ -336,6 +338,7 @@ which the page then shows instead of the match number.
 - Applying also updates the roster (`--roster`, `outputs/roster.json` by default, outside the
   repository since it names people): each named player's appearance over their last 5 matches. Its players follow a team's name
   however it changes.
+- "Noms" offers both teams' names: one of the other team moves the card there on "Apply".
 - The next matches suggest names from it, to confirm with a click. On two clips of the same club,
   the right name came first for 7 of 12 players, and among the 3 shown for 9.
 - Answers and names refer to pieces of player tracks: tracking the players again (`--force`) drops

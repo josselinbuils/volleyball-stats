@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from datetime import date
 from types import SimpleNamespace
 
@@ -6,8 +7,9 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats import files
-from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
+from volleyball_stats import files, web
+from volleyball_stats.teams import match_end
+from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end
 
 
 class TestHostedState:
@@ -526,7 +528,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "referee": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "team": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "referee": [], "log": log}
 
 
 class TestRange:
@@ -576,9 +578,19 @@ class TestRoster:
     def test_a_number_read_goes_to_the_player_with_most_of_its_readings(self):
         table = [(1, 0, 100, 1, 4), (2, 0, 100, 2, 6), (3, 0, 100, 1, 9), (4, 0, 100, 2, 0)]
         read = {(f, 1): 8 for f in range(25)} | {(f, 2): 8 for f in range(40)} | {(f, 3): 3 for f in range(10)} | {(f, 4): 5 for f in range(30)}
-        # Card 2:6 holds most of the 8s, 1:4 none left; 1:9 has too few readings; a track without identity gives none.
-        assert card_numbers(table, read) == {(2, 6): 8}
+        # Each team's card holds its 8s; 1:9 has too few readings; a track without identity gives none.
+        assert card_numbers(table, read) == {(1, 4): 8, (2, 6): 8}
+        # Within a team, the card with most of them.
+        assert card_numbers([(1, 0, 100, 2, 4), *table[1:]], read) == {(2, 6): 8}
         assert card_numbers(table, None) == {}
+
+    def test_card_numbers_are_per_team_and_a_card_without_takes_its_pictures(self):
+        table = [(1, 0, 100, 1, 1), (2, 0, 100, 2, 1), (3, 0, 100, 2, 2), (4, 0, 100, 2, 3), (5, 0, 100, 2, 4)]
+        read = {(f, track): 38 for f in range(25) for track in (1, 2)}
+
+        assert card_numbers(table, read) == {(1, 1): 38, (2, 1): 38}
+        pictures = {(2, 2): Counter({7: 5, 30: 2}), (2, 3): Counter({38: 4}), (2, 4): Counter({9: 1})}
+        assert card_numbers(table, read, pictures) == {(1, 1): 38, (2, 1): 38, (2, 2): 7}
 
     def named_match(self, outputs, name, teams, players):
         """A match folder whose `players` {(team, identity): name} each hold their own track."""
@@ -835,6 +847,43 @@ class TestChain:
         assert chain(links, {"L"}, {"Z"}) == []
 
 
+class TestMatchEnd:
+    @staticmethod
+    def questions():
+        questions = Questions.__new__(Questions)
+        questions.table = [(1, 0, 10, 2, 5), (1, 20, 90, 2, 5), (2, 100, 900, 2, 5), (3, 100, 200, 2, 6), (4, 100, 200, 0, 0)]
+        return questions
+
+    def test_moves_the_pins_past_it_to_the_players_longest_piece_before_it(self):
+        assert self.questions().past_end(100) == {(2, 100, 900): {"track": 1, "frame": 55}}
+
+    def test_saves_it_and_takes_it_away(self, tmp_path):
+        files.write_text(tmp_path / "teams.json", json.dumps({"teams": []}))
+
+        set_end(tmp_path, "78:10")
+        assert match_end(tmp_path) == 4690.0
+        set_end(tmp_path, " ")
+        assert match_end(tmp_path) is None
+        with pytest.raises(ValueError):
+            set_end(tmp_path, "soon")
+
+    def test_rallies_after_it_are_no_rallies(self, tmp_path):
+        files.write_text(tmp_path / "teams.json", json.dumps({"teams": [], "end": "1:00"}))
+        files.write_text(tmp_path / "rallies.csv", "start_frame,end_frame\n100,200\n3000,3100\n")
+
+        assert web.no_rallies(tmp_path, 50.0) == {3000}
+
+
+class TestToOtherTeam:
+    def test_gives_each_piece_of_the_card_the_other_team(self):
+        questions = Questions.__new__(Questions)
+        questions.table = [(1, 0, 10, 1, 5), (2, 20, 90, 1, 5), (3, 0, 10, 1, 6)]
+
+        entry = questions.to_other_team(1, 5)
+
+        assert entry["team"] == [{"track": 2, "frame": 55, "team": 2}, {"track": 1, "frame": 5, "team": 2}]
+
+
 class TestSeparated:
     anthony, josselin, good = {"track": 1, "frame": 5}, {"track": 2, "frame": 5}, {"track": 3, "frame": 5}
     names = [{"ref": anthony, "name": "Anthony"}, {"ref": josselin, "name": "Josselin"}]
@@ -926,5 +975,8 @@ class TestSetPhoto:
         set_photo(tmp_path, table, 2, 5, 12, [1, 2, 3, 4])
 
         assert json.loads((tmp_path / "photo_choices.json").read_text()) == {"Maeva": {"frame": 12, "box": [1, 2, 3, 4]}}
-        with pytest.raises(ValueError):
-            set_photo(tmp_path, table, 2, 6, 12, [1, 2, 3, 4])
+
+    def test_keeps_it_on_the_card_of_a_player_without_a_name(self, tmp_path):
+        set_photo(tmp_path, [(1, 0, 30, 2, 5)], 2, 5, 12, [1, 2, 3, 4])
+
+        assert json.loads((tmp_path / "photo_choices.json").read_text()) == {"2:5": {"frame": 12, "box": [1, 2, 3, 4]}}

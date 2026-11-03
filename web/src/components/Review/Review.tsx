@@ -284,6 +284,14 @@ export function Review({
       setError(true);
     }
   };
+  const saveEnd = async (time: string) => {
+    try {
+      await post('end', { time });
+      await reload('apply');
+    } catch {
+      setError(true);
+    }
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -373,6 +381,7 @@ export function Review({
           <Names players={players} roster={roster} onNamed={setGiven} onSaved={onSaved} onError={() => setError(true)} />
         ) : tab === 'match' ? (
           <MatchTab
+            onEnd={(time) => void saveEnd(time)}
             width={width}
             height={height}
             players={current}

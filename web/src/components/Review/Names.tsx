@@ -9,7 +9,7 @@ import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
-import { unnamedFirst } from '@/components/Review/helpers/players';
+import { offeredNames, unnamedFirst } from '@/components/Review/helpers/players';
 import { TeamEditor } from '@/components/Review/TeamEditor';
 
 interface Given {
@@ -82,6 +82,14 @@ export function Names({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // The names given in this match, by team, for the cards of both.
+  const named = GROUPS.map((g) =>
+    players.flatMap((p) => {
+      const given = saved.get(keyOf(p));
+      return p.team === g && given?.name.trim() ? [{ name: given.name.trim(), jersey: Number(given.jersey) || null }] : [];
+    }),
+  );
+  const offered = (g: Group) => offeredNames(roster, named, g);
   const save = async (p: Named, value: Given) => {
     const key = keyOf(p);
     const before = saved.get(key);
@@ -89,7 +97,8 @@ export function Names({
       return;
     }
     try {
-      const result = await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null });
+      const moved = offered(p.team).some((o) => o.other && fold(o.name) === fold(value.name));
+      const result = await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null, moved });
       const next = new Map(saved).set(key, value);
       setSaved(next);
       onNamed(next);
@@ -124,8 +133,8 @@ export function Names({
               </h2>
             )}
             <datalist id={`roster-${g}`}>
-              {roster[g - 1].map((r) => (
-                <option key={r.name} value={r.name} />
+              {offered(g).map((r) => (
+                <option key={r.name} value={r.name} label={r.other ? groupName(t, (3 - g) as Group) : undefined} />
               ))}
             </datalist>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -135,7 +144,7 @@ export function Names({
                   player={p}
                   g={g}
                   value={given.get(keyOf(p))!}
-                  roster={roster[g - 1]}
+                  roster={offered(g)}
                   saved={saved.get(keyOf(p))!}
                   others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
                   onEdit={(value) => edit(p, value)}
@@ -198,7 +207,7 @@ function NameCard({
     <div data-card tabIndex={-1} className="grid content-start gap-2.5 rounded-lg border bg-card p-3 outline-none focus-within:ring-2 focus-within:ring-ring/60">
       <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
       <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
-      <PhotoPicker player={p} named={!!saved.name.trim()} onError={onError} />
+      <PhotoPicker player={p} onError={onError} />
       <p className="m-0 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t('player', { n: p.identity })}</span>
         <span>· {t('review.played', { time: clock(p.seconds) })}</span>

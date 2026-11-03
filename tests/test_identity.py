@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import (
@@ -9,6 +10,7 @@ from volleyball_stats.identity import (
     covers,
     group,
     hold,
+    ended_cuts,
     jersey_links,
     lookup,
     name_links,
@@ -183,6 +185,11 @@ class TestAnswers:
         jerseys = {(5, 1): 12, (25, 1): 12, (5, 2): 7}
 
         assert jersey_links(self.segments, jerseys) == ([[0, 1]], [[[2], [0, 1]]])
+
+    def test_the_end_of_the_match_cuts_the_tracks_still_there(self):
+        rows = [SimpleNamespace(track=1, frame=50), SimpleNamespace(track=1, frame=150), SimpleNamespace(track=2, frame=50)]
+
+        assert ended_cuts(rows, 100) == {1: [99]}
 
     def test_an_answer_moves_the_piece_given_and_not_its_whole_number(self):
         jerseys = {(5, 1): 12, (25, 1): 12, (5, 2): 7}

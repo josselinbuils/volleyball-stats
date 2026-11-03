@@ -41,7 +41,7 @@ import numpy as np
 from volleyball_stats import decode, files
 from volleyball_stats.court import zone
 from volleyball_stats.players import Row
-from volleyball_stats.teams import side_group
+from volleyball_stats.teams import match_end, side_group
 
 REID = Path("models/osnet_ain_x1_0_msmt17.pth")
 REID_GDRIVE_ID = "1SigwBE6mPdqiJMqhuIY4aqC7--5CsMal"
@@ -695,6 +695,11 @@ def hold(segments: list[Segment], windows: list[tuple[int, int]]) -> list[Segmen
     return parts
 
 
+def ended_cuts(rows: list[Row], until: int) -> dict[int, list[int]]:
+    """Where the tracks are cut for the end of the match, frame `until`."""
+    return {track: [until - 1] for track in {r.track for r in rows if r.frame >= until}}
+
+
 def identify(
     video: Path,
     rows: list[Row],
@@ -708,6 +713,7 @@ def identify(
     contacts: Iterable[Key] = (),
     jerseys: dict[Key, int] | None = None,
     names: list[tuple[dict, str]] | None = None,
+    until: int | None = None,
 ) -> tuple[list[Segment], dict]:
     """The segments of the players' tracks with their team, identity number (0 for none) and doubt,
     and the doubts' questions (`doubts`). `answers` (identity_answers.json, segments referred to as
@@ -716,18 +722,27 @@ def identify(
     run's (team, number) by (frame, track); `squad` the number of players of each team, when known;
     `contacts` the (frame, track) of the attributed contacts, for the questions' ranking; `jerseys`
     the jersey numbers read by (frame, track), as constraints (`jersey_links`), and `names` the
-    names the user gave, (ref, name), likewise (`name_links`)."""
+    names the user gave, (ref, name), likewise (`name_links`). Each "team" answer gives its piece
+    that team, whichever side it stands on, and from frame `until` (the end of the match) nothing is
+    anyone."""
     answers = answers or {}
     cover = covers(rows)
     cuts: dict[int, list[int]] = {}
     for c in answers.get("cut", []):
         cuts.setdefault(c["track"], []).append(c["frame"])
+    for track, frames in ended_cuts(rows, until).items() if until is not None else ():
+        cuts.setdefault(track, []).extend(frames)
     segments = split(rows, cover, cuts)
     before = previous_labels(segments, previous)
     dropped = {k for ref in answers.get("not_player", []) for k in resolve(ref, segments, before)}
+    if until is not None:
+        dropped |= {k for k, s in enumerate(segments) if s.start >= until}
     removed = [s for k, s in enumerate(segments) if k in dropped]
     segments, before = [s for k, s in enumerate(segments) if k not in dropped], [b for k, b in enumerate(before) if k not in dropped]
     segment_teams(segments, windows, left)
+    for moved in answers.get("team", []):
+        for k in resolve(moved, segments, before):
+            segments[k].team = moved["team"]
     same = [[k for ref in group for k in resolve(ref, segments, before)] for group in answers.get("same", [])]
     different = [[resolve(ref, segments, before) for ref in group] for group in answers.get("different", [])]
     if jerseys:
@@ -853,7 +868,8 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
                 previous.update(((f, track), (team, number_)) for f in frames.get(track, []) if start <= f <= end)
     from volleyball_stats import jerseys
 
-    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names)
+    end = match_end(match)
+    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names, until=None if end is None else round(end * fps))
     write_identities(path, segments)
     files.write_text(match / "identity_candidates.json", json.dumps(found, indent=1) + "\n")
     return read_identities(path)
