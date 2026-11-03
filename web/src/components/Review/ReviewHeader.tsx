@@ -197,7 +197,7 @@ export function ReviewHeader({
             {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : hosted.behind ? t('review.hostedLate') : t('review.hosted', { at: hosted.at })}
 
             {(hosted.behind || hosted.error) && (
-              <Button variant="outline" size="sm" className="bg-card" disabled={busy !== null} onClick={() => run('host')}>
+              <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => run('host')}>
                 <CloudUpload aria-hidden />
                 {busy === 'host' ? t('review.hosting') : t('review.host')}
               </Button>
