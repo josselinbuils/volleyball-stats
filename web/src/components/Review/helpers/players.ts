@@ -38,6 +38,14 @@ export function playerOptions(players: Named[], nameOf: NameOf, exclude: Who | u
   return { options, value: shown };
 }
 
+/** A named player's picture: the match page's one (`people`), else the first of their card. */
+export function pictureOf(p: Named, nameOf: NameOf, people: { team: number | null; number: number | null; photo?: string }[]): string | undefined {
+  if (!nameOf(p.team, p.identity)) {
+    return undefined;
+  }
+  return people.find((x) => x.team === p.team && x.number === p.identity)?.photo ?? p.crops[0];
+}
+
 /** Folds a text for matching: no accents, no case, no outer spaces. */
 const plain = (text: string) =>
   text

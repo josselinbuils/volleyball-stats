@@ -7,7 +7,7 @@ import pytest
 
 from volleyball_stats.identity import read_names
 from volleyball_stats import files
-from volleyball_stats.review import hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
+from volleyball_stats.review import hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, retitle, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
 
 
 class TestHostedState:
@@ -565,6 +565,21 @@ class TestNames:
 
 class TestRoster:
     a, b = np.array([1.0, 0.0]), np.array([0.0, 1.0])
+
+    def test_a_team_renamed_takes_its_players_of_that_match_with_it(self, tmp_path):
+        path = tmp_path / "roster.json"
+        remember(path, "m1", {(1, 1): {"name": "Julie", "jersey": 7}, (2, 1): {"name": "Léa", "jersey": None}}, {(1, 1): self.a, (2, 1): self.b}, ["ASPOM 02", "AVIA"])
+        remember(path, "m2", {(1, 1): {"name": "Julie", "jersey": None}}, {(1, 1): self.b}, ["ASPOM 02", "AVIA"])
+        retitle(path, "m1", "ASPOM 02", "ASPOM 2")
+        found = {(p["team"], p["name"]): p for p in load_roster(path)}
+        assert sorted(found) == [("ASPOM 02", "Julie"), ("ASPOM 2", "Julie"), ("AVIA", "Léa")]
+        assert list(found["ASPOM 2", "Julie"]["vectors"]) == ["m1"] and found["ASPOM 2", "Julie"]["jersey"] == 7
+        assert list(found["ASPOM 02", "Julie"]["vectors"]) == ["m2"]
+        # The rest of the team joins the player it now holds.
+        retitle(path, "m2", "ASPOM 02", "ASPOM 2")
+        found = {(p["team"], p["name"]): p for p in load_roster(path)}
+        assert sorted(found) == [("ASPOM 2", "Julie"), ("AVIA", "Léa")]
+        assert sorted(found["ASPOM 2", "Julie"]["vectors"]) == ["m1", "m2"]
 
     def test_remembers_the_named_players_and_suggests_those_who_look_most_alike(self, tmp_path):
         path = tmp_path / "roster.json"

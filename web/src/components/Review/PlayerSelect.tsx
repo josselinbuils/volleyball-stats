@@ -2,16 +2,17 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { GROUPS, groupName, type Group } from '@/lib/match';
+import { GROUPS, groupName, match, type Group } from '@/lib/match';
 import type { Named } from '@/lib/review';
-import { matching, playerOptions, type NameOf } from '@/components/Review/helpers/players';
+import { matching, pictureOf, playerOptions, type NameOf } from '@/components/Review/helpers/players';
 
-const FIELD = 'h-8 rounded-md border border-input bg-transparent px-1.5 text-[13px] shadow-xs outline-none dark:bg-input/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
+const FIELD =
+  'size-full min-w-0 rounded-md border border-input bg-transparent px-1.5 shadow-xs outline-none dark:bg-input/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 
 /** A field picking one of both teams' players as `playerOptions` gives them, by name (`nameOf`)
  * when they have one, or "not a player" if `notPlayer`: a list under it shows the players its text
  * matches, the first one highlighted; Enter or a click picks the highlighted one, the arrows move
- * it. `value` and `onChange` hold `team:identity`, 'not_player', or '' for `empty` (an emptied
+ * it. A named player shows their picture, in the list and in the field. `value` and `onChange` hold `team:identity`, 'not_player', or '' for `empty` (an emptied
  * field). */
 export function PlayerSelect({
   players,
@@ -47,18 +48,23 @@ export function PlayerSelect({
   const field = useRef<HTMLInputElement>(null);
   const { options, value: shown } = playerOptions(players, nameOf, exclude, value);
   // Numbers repeat across teams: each entry names its team.
-  const entries = [
+  const entries: { key: string; label: string; picture?: string }[] = [
     ...(notPlayer ? [{ key: 'not_player', label: t('review.notPlayer') }] : []),
     ...GROUPS.flatMap((g) =>
       options
         .filter((p) => p.team === g)
         .map((p) => {
           const name = nameOf(p.team, p.identity);
-          return { key: `${p.team}:${p.identity}`, label: `${name ? t('review.namedPlayer', { name, n: p.identity }) : t('player', { n: p.identity })} · ${groupName(t, g)}` };
+          return {
+            key: `${p.team}:${p.identity}`,
+            picture: pictureOf(p, nameOf, Object.values(match.people)),
+            label: `${name ? t('review.namedPlayer', { name, n: p.identity }) : t('player', { n: p.identity })} · ${groupName(t, g)}`,
+          };
         }),
     ),
   ];
-  const current = entries.find((e) => e.key === shown)?.label ?? '';
+  const chosen = entries.find((e) => e.key === shown);
+  const current = chosen?.label ?? '';
   const [text, setText] = useState(current);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -81,6 +87,9 @@ export function PlayerSelect({
   }, [open]);
 
   const found = matching(entries, text === current ? '' : text);
+  const pictured = found.some((e) => e.picture);
+  // The picture stays while the field shows its player, not once typing starts.
+  const picture = text === current ? chosen?.picture : undefined;
   const pick = (key: string) => {
     setOpen(false);
     setText(entries.find((e) => e.key === key)?.label ?? '');
@@ -92,57 +101,60 @@ export function PlayerSelect({
 
   return (
     <>
-      <input
-        ref={field}
-        role="combobox"
-        aria-expanded={open}
-        aria-controls={list}
-        aria-activedescendant={open && found[active] ? `${list}-${active}` : undefined}
-        aria-label={label}
-        placeholder={empty}
-        autoFocus={autoFocus}
-        value={text}
-        onFocus={(e) => {
-          // Typing replaces the player shown.
-          e.target.select();
-          setOpen(openOnFocus);
-        }}
-        onChange={(e) => {
-          setText(e.target.value);
-          setActive(0);
-          setOpen(true);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
+      <span className={cn('relative block h-8 text-[13px]', className)}>
+        {picture && <img src={picture} alt="" className="pointer-events-none absolute top-1/2 left-1 size-6 -translate-y-1/2 rounded-sm bg-muted object-cover object-top" />}
+        <input
+          ref={field}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={list}
+          aria-activedescendant={open && found[active] ? `${list}-${active}` : undefined}
+          aria-label={label}
+          placeholder={empty}
+          autoFocus={autoFocus}
+          value={text}
+          onFocus={(e) => {
+            // Typing replaces the player shown.
+            e.target.select();
+            setOpen(openOnFocus);
+          }}
+          onChange={(e) => {
+            setText(e.target.value);
+            setActive(0);
             setOpen(true);
-            setActive((k) => Math.max(0, Math.min(found.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1))));
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (!text.trim()) {
-              setOpen(false);
-              if (shown) {
-                onChange('');
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              setOpen(true);
+              setActive((k) => Math.max(0, Math.min(found.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1))));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (!text.trim()) {
+                setOpen(false);
+                if (shown) {
+                  onChange('');
+                }
+              } else if (found[active]) {
+                pick(found[active].key);
               }
-            } else if (found[active]) {
-              pick(found[active].key);
+            } else if (e.key === 'Escape') {
+              setText(current);
+              setOpen(false);
+              onDone?.();
             }
-          } else if (e.key === 'Escape') {
-            setText(current);
+          }}
+          onBlur={() => {
             setOpen(false);
-            onDone?.();
-          }
-        }}
-        onBlur={() => {
-          setOpen(false);
-          if (!text.trim() && shown) {
-            onChange('');
-          } else {
-            setText(current);
-          }
-        }}
-        className={cn(FIELD, className)}
-      />
+            if (!text.trim() && shown) {
+              onChange('');
+            } else {
+              setText(current);
+            }
+          }}
+          className={cn(FIELD, picture && 'pl-8')}
+        />
+      </span>
       {open &&
         place &&
         found.length > 0 &&
@@ -152,7 +164,7 @@ export function PlayerSelect({
             role="listbox"
             aria-label={label}
             style={{ left: place.left, top: place.bottom + 4, minWidth: place.width }}
-            className="fixed z-50 m-0 max-h-64 w-max max-w-[90vw] list-none overflow-auto rounded-md border bg-popover p-1 text-[13px] text-popover-foreground shadow-md"
+            className="fixed z-50 m-0 max-h-80 w-max max-w-[90vw] list-none overflow-auto rounded-md border bg-popover p-1 text-[13px] text-popover-foreground shadow-md"
           >
             {found.map((e, k) => (
               <li
@@ -166,8 +178,14 @@ export function PlayerSelect({
                   pick(e.key);
                 }}
                 onMouseEnter={() => setActive(k)}
-                className={cn('cursor-pointer rounded px-2 py-1', k === active && 'bg-accent text-accent-foreground')}
+                className={cn('flex cursor-pointer items-center gap-2 rounded px-2 py-1', k === active && 'bg-accent text-accent-foreground')}
               >
+                {pictured &&
+                  (e.picture ? (
+                    <img src={e.picture} alt="" loading="lazy" className="size-8 shrink-0 rounded-sm bg-muted object-cover object-top" />
+                  ) : (
+                    <span aria-hidden className="size-8 shrink-0 rounded-sm bg-muted" />
+                  ))}
                 {e.label}
               </li>
             ))}

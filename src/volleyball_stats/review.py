@@ -1189,6 +1189,23 @@ def remember(path: Path, match: str, names: dict[tuple[int, int], dict], vectors
     files.write_text(path, json.dumps({"players": [p for p in roster if p["vectors"]]}, ensure_ascii=False) + "\n")
 
 
+def retitle(path: Path, match: str, old: str | None, new: str | None) -> None:
+    """The roster with `match`'s players of team `old` under team `new`, joined to the player of that
+    name it may hold there: their other matches stay with the team they were in."""
+    roster = load_roster(path)
+    by_key = {(p.get("team"), p["name"].casefold()): p for p in roster}
+    for player in list(roster):
+        if player.get("team") != old or match not in player["vectors"]:
+            continue
+        moved = by_key.get((new, player["name"].casefold()))
+        if moved is None:
+            moved = by_key[new, player["name"].casefold()] = {**player, "team": new, "vectors": {}}
+            roster.append(moved)
+        moved["vectors"][match] = player["vectors"].pop(match)
+    if roster:
+        files.write_text(path, json.dumps({"players": [p for p in roster if p["vectors"]]}, ensure_ascii=False) + "\n")
+
+
 def set_name(match: Path, questions: Questions, team: int, number: int, given: str | None, jersey: int | None) -> None:
     """player_names.json with identity `number` of `team` named `given` and its `jersey` number:
     the entries giving it its name renamed in place, the first holding the number; both None removes
@@ -1863,7 +1880,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     run_steps(pages())
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/team":
+                    before = team_names()
                     set_team(match, int(body["team"]), body.get("name"), body.get("colour"))
+                    retitle(roster, match.name, before[int(body["team"]) - 1], team_names()[int(body["team"]) - 1])
                     # Its name follows its teams, the folders and the video with it: the server restarts on them.
                     new = rename.target_name(match)
                     if new and new != match.name and not progress and not (match.parent / new).exists():

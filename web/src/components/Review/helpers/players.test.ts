@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { marked, type Named } from '@/lib/review';
-import { matching, playerOptions, sameName } from '@/components/Review/helpers/players';
+import { matching, pictureOf, playerOptions, sameName } from '@/components/Review/helpers/players';
 
 // review.ts reads window.REVIEW on import.
 vi.hoisted(() => {
@@ -24,6 +24,18 @@ describe('players', () => {
   const nameOf = (_: number, identity: number) => names[identity] ?? null;
 
   afterEach(() => marked.clear());
+
+  it('gives a named player their first picture, and nothing to a player without a name', () => {
+    const named = { ...players[0], crops: ['crop-a', 'crop-b'] };
+    expect(pictureOf(named, nameOf, [])).toBe('crop-a');
+    expect(pictureOf({ ...named, identity: 9 }, nameOf, [])).toBeUndefined();
+  });
+
+  it("prefers the match page's picture", () => {
+    const named = { ...players[0], crops: ['crop-a'] };
+    expect(pictureOf(named, nameOf, [{ team: 1, number: 3, photo: 'photo' }])).toBe('photo');
+    expect(pictureOf(named, nameOf, [{ team: 2, number: 3, photo: 'photo' }])).toBe('crop-a');
+  });
 
   it('tells namesakes apart from players without a name', () => {
     expect(sameName(players[0], players[1], nameOf)).toBe(true);

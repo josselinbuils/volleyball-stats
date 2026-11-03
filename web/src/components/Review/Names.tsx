@@ -132,6 +132,7 @@ export function Names({
                   player={p}
                   g={g}
                   value={given.get(keyOf(p))!}
+                  roster={roster[g - 1]}
                   saved={saved.get(keyOf(p))!}
                   others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
                   onEdit={(value) => edit(p, value)}
@@ -154,6 +155,7 @@ function NameCard({
   player: p,
   g,
   value,
+  roster,
   saved,
   others,
   onEdit,
@@ -166,6 +168,7 @@ function NameCard({
   player: Named;
   g: Group;
   value: Given;
+  roster: Suggestion[];
   saved: Given;
   others: { identity: number; name: string }[];
   onEdit: (value: Given) => void;
@@ -221,7 +224,11 @@ function NameCard({
             list={`roster-${g}`}
             autoComplete="off"
             value={value.name}
-            onChange={(event) => onEdit({ ...value, name: event.target.value })}
+            onChange={(event) => {
+              // A name of the roster brings its jersey number when none is typed.
+              const known = roster.find((r) => fold(r.name) === fold(event.target.value));
+              onEdit({ name: event.target.value, jersey: value.jersey || (known?.jersey == null ? '' : String(known.jersey)) });
+            }}
             onBlur={() => onSave(value)}
           />
         </label>
