@@ -1,6 +1,6 @@
 """Generates the commentary's audio of a built match page, once for each text (`speech.py` says which).
 
-    uv run --group voice python -m volleyball_stats.voice outputs/first_match
+    uv run --group voice python -m volleyball_stats.voice outputs/2026-10-29-aspom-1-vs-aspom-2
 
 Kokoro's French voice ff_siwis (Apache 2.0; the voice is CC BY, from the SIWIS dataset), about 7 times faster than real
 time on the M4. Run it again after a review's changes: only the new lines are made. The next build of the page takes them.

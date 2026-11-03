@@ -2,7 +2,7 @@
 "action" answers with a `type`, the last one per frame): the review only sets the types it finds
 wrong, so this scores the pipeline on its hard cases.
 
-    uv run python benchmarks/actions/answers.py [outputs/first_match] [--verbose]
+    uv run python benchmarks/actions/answers.py [outputs/2026-10-29-aspom-1-vs-aspom-2] [--verbose]
 """
 
 import argparse
@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("match", type=Path, nargs="?", default=ROOT / "outputs/first_match")
+    parser.add_argument("match", type=Path, nargs="?", default=ROOT / "outputs/2026-10-29-aspom-1-vs-aspom-2")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     answers = json.loads((args.match / "identity_answers.json").read_text())

@@ -198,7 +198,7 @@ rallies come from `served`. `ground_truth/first_match_26_36.csv` labels the 21 r
 
 ```bash
 uv run --group bench python benchmarks/rallies/bench.py --no-motion \
-  "data/first_match.mp4:outputs/first_match/ball.csv:benchmarks/rallies/ground_truth/first_match_26_36.csv:outputs/first_match/players.csv:outputs/courts/aspom_begles.json@1560-2160"
+  "data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4:outputs/2026-10-29-aspom-1-vs-aspom-2/ball.csv:benchmarks/rallies/ground_truth/first_match_26_36.csv:outputs/2026-10-29-aspom-1-vs-aspom-2/players.csv:outputs/courts/aspom_begles.json@1560-2160"
 ```
 
 | pipeline | n | F1 ±1 s | F1 ±2 s | found P | found R |
@@ -280,7 +280,7 @@ contact inside a window, the contacts in windows that are no touch, the windows 
 with no window.
 
 ```bash
-uv run --group bench python benchmarks/rallies/checked.py outputs/first_match --video data/first_match.mp4 --court outputs/courts/aspom_begles.json
+uv run --group bench python benchmarks/rallies/checked.py outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json
 ```
 
 On the first match's 129 rallies and 944 touches (1 Nov), the ball speed saying a rally is still live

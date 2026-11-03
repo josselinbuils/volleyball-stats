@@ -85,22 +85,22 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 - The first match's last "Apprendre de mes réponses", 2 Nov 10:17, brought the 2 Nov pipeline work (`docs/plan.md`): touches found 872
   of 945, 863 of 909 real, types 778 of 872, named players 679 of 761, checked winners 117 of 128; the 1 Nov figures above are before it.
   The hosted pages carry it (last upload 2 Nov, about noon).
-- The first match (`data/first_match.mp4`, 4K, court `outputs/courts/aspom_begles.json`): its review
-  runs with `uv run python -m volleyball_stats.review outputs/first_match --video data/first_match.mp4
+- The first match (`data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4`, 4K, court `outputs/courts/aspom_begles.json`): its review
+  runs with `uv run python -m volleyball_stats.review outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4
   --court outputs/courts/aspom_begles.json` (http://127.0.0.1:8765, `/review#questions`,
   `/review#match`); each apply rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner
-  wants (`outputs/first_match/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
+  wants (`outputs/2026-10-29-aspom-1-vs-aspom-2/publish.json`); "Apprendre de mes réponses" retrains the learned attribution and reruns the pipeline (`learn --rerun`).
   Before stopping the review (a restart is needed for a server or page change), check that
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. Its review is finished
   (1 Nov 22:03): 129 rallies, all checked, sets ending 25-23, 25-12, 25-18 as given, no warning, no
   answer waiting, the viewers' reports handled (the hosted pages last uploaded 22:03).
   `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two answers that disagreed (merged).
   Last rerun: the owner's "Apprendre de mes réponses", finished 1 Nov 21:41 (3 min on the M4 with the poses
-  cached, 40 min without them; `outputs/first_match/before-rerun/`); it moves the answers onto
+  cached, 40 min without them; `outputs/2026-10-29-aspom-1-vs-aspom-2/before-rerun/`); it moves the answers onto
   the new windows itself (`learn.rerun`, `rekey`), and the rallies checked came through it unchanged.
   The review's progress names each step and the pipeline's stage, with the time left from each one's
   last duration (`outputs/MATCH/review_timings.json`).
-  `uv run python -m volleyball_stats.learn outputs/first_match --video data/first_match.mp4 --court
+  `uv run python -m volleyball_stats.learn outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court
   outputs/courts/aspom_begles.json` scores every step on the answers and the checked rallies, against
   its last run (`learn.json`).
   Stats: a serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that
@@ -155,8 +155,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
      the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
      players a team rotate in).
   7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-  8. Asked by the owner (3 Nov), once the second match's run ends: a folder per match in `data/` and `outputs/` holding all of that match's files (court,
-     hosted copies); rename both matches to their hosted names (first check the name in the page data and the viewers' reports); then the backups to match.
+  8. Once the second match's run ends: `rename` it (`outputs/second_match`, its court moves inside). The first is done (3 Nov); `data/`'s and `outputs/`'s
+     other folders are test clips and benchmarks.
   9. The owner's plan (3 Nov), nothing started, not before the second match is reviewed and its quality known: a helper they trust,
      then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
      useful alone; then the VPS's system upgraded (2 vCPU, 3.7 GB, 18 GB free, Ubuntu 20.04), a login per person and the review on it, with
@@ -168,7 +168,7 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
 ## Hosting
 
 https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE-TEAM-vs-TEAM/`
-(the first match at `/volleyball/2026-10-29-aspom-01-vs-aspom-02/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
+(the first match at `/volleyball/2026-10-29-aspom-1-vs-aspom-2/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
 `volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo: changes go through a PR
 there, assigned to the owner), the site in `volleyball-stats/site`, the `/volleyball` route in
 `reverse-proxy/Caddyfile` (Caddy since 31 Oct; the Node proxy pegged the CPU gzipping `players.js`: PR
@@ -182,11 +182,11 @@ unhashed ones load with the build's hash, card pictures with their own), images 
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
-`club`, `upload` as `root@<OVH IP>:…/site/`, `key`; the first match's video copies in `data/hosted_copies/`), the review's "Mettre en ligne" does all of it
+`club`, `upload` as `root@<OVH IP>:…/site/`, `key`; a match's video copies in its `data/MATCH/`), the review's "Mettre en ligne" does all of it
 (`matches.host`, refusing to upload a video copy that opens without the password) and says when:
 
 ```bash
-uv run python -m volleyball_stats.web outputs/first_match --video data/first_match.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH
+uv run python -m volleyball_stats.web outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH
 uv run python -m volleyball_stats.matches outputs/hosted --url https://josselinbuils.dev/volleyball/
 rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
 ```

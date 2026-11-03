@@ -2,7 +2,7 @@
 picture against typical heights, the heights each action gets, and each touch's floor position found with its feet
 hidden (a third of the touches at a time, so from the flights alone).
 
-    uv run python benchmarks/ball3d/bench.py outputs/first_match outputs/courts/aspom_begles.json
+    uv run python benchmarks/ball3d/bench.py outputs/2026-10-29-aspom-1-vs-aspom-2 outputs/courts/aspom_begles.json
 """
 
 import json

@@ -2,9 +2,9 @@
 results, the courts, the viewers' reports, the sponsors) on the hosting server, outside its website.
 Files unchanged since the copy before take no room. The video is too big for that server.
 
-    uv run python -m volleyball_stats.backup outputs/first_match
+    uv run python -m volleyball_stats.backup outputs/2026-10-29-aspom-1-vs-aspom-2
 
-Restore: rsync -rt -e "ssh -i KEY" root@HOST:/root/backups/volleyball-stats/DAY/first_match/ outputs/first_match/
+Restore: rsync -rt -e "ssh -i KEY" root@HOST:/root/backups/volleyball-stats/DAY/2026-10-29-aspom-1-vs-aspom-2/ outputs/2026-10-29-aspom-1-vs-aspom-2/
 """
 
 import argparse

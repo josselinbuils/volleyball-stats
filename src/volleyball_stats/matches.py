@@ -328,10 +328,17 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
 def main() -> None:
     themes = sorted(p.parent.name for p in BRANDING.glob("*/brand.json"))
     parser = argparse.ArgumentParser(description="List the match pages of a site folder on its index page.")
-    parser.add_argument("site", type=Path, help="Folder holding one match page per subfolder")
+    parser.add_argument("site", type=Path, nargs="?", help="Folder holding one match page per subfolder")
+    parser.add_argument("--host", type=Path, help="Build this match's hosted pages from its publish.json and upload them")
+    parser.add_argument("--video", type=Path)
+    parser.add_argument("--court", type=Path)
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
     parser.add_argument("--url", help="The list's address, to tag the pages for link previews")
     args = parser.parse_args()
+    if args.host:
+        return host(args.host, args.video, args.court, args.theme, json.loads((args.host / PUBLISH).read_text()))
+    if not args.site:
+        parser.error("site or --host")
     matches = build(args.site, args.theme, args.url)
     print(f"{len(matches)} matches: {', '.join(m['path'] for m in matches)} -> {args.site / 'index.html'}")
 

@@ -2,14 +2,14 @@
 
 A labelled match is the reference the benchmarks score the pipeline against. Label one per new
 setup (gym, camera, framing), not every match. This guide uses the first ASPOM match
-(`data/first_match.mp4`); change the names for another.
+(`data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4`); change the names for another.
 
 ## Video
 
 Upload a 1080p copy: it keeps the 4K file's frames, so a Kili frame number is the pipeline's.
 
 ```bash
-ffmpeg -hwaccel videotoolbox -i data/first_match.mp4 -vf scale=1920:-2 -fps_mode passthrough \
+ffmpeg -hwaccel videotoolbox -i data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 -vf scale=1920:-2 -fps_mode passthrough \
   -c:v h264_videotoolbox -b:v 12M -c:a aac -b:a 128k -movflags +faststart data/first_match_1080p.mp4
 ```
 
@@ -127,6 +127,6 @@ the benchmarks' ground truth, scaling boxes to the 4K frame:
 | Labels | Ground truth |
 | --- | --- |
 | SERVE, DEAD | `benchmarks/rallies/ground_truth/first_match.csv`, `benchmarks/points/ground_truth/first_match.csv` |
-| SERVE, DEAD + set starts in `outputs/first_match/teams.json` | `benchmarks/teams/ground_truth/first_match.csv` |
+| SERVE, DEAD + set starts in `outputs/2026-10-29-aspom-1-vs-aspom-2/teams.json` | `benchmarks/teams/ground_truth/first_match.csv` |
 | TOUCH, NET_TOUCH | `benchmarks/contacts/ground_truth/first_match.csv`, `benchmarks/attribution/ground_truth/first_match.csv` |
 | PLAYER | `benchmarks/identity/ground_truth/first_match.csv` (players as `ASPOM 01 #22`) |

@@ -1644,7 +1644,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
     def hosting() -> None:
         try:
-            matches.host(match, video, court, theme, json.loads((match / matches.PUBLISH).read_text()))
+            # In its own process, with the code as it now is, whenever this server started.
+            run = subprocess.run([sys.executable, "-m", "volleyball_stats.matches", "--host", str(match), "--video", str(video), "--court", str(court), "--theme", theme], capture_output=True, text=True)
+            if run.returncode:
+                raise RuntimeError((run.stderr.strip().splitlines() or [f"exit {run.returncode}"])[-1])
             files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match)}) + "\n")
             hosted.update(read_hosted(match))
         except Exception as error:  # noqa: BLE001
@@ -1865,11 +1868,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # Its name follows its teams, the folders and the video with it: the server restarts on them.
                     new = rename.target_name(match)
                     if new and new != match.name and not progress and not (match.parent / new).exists():
-                        target = rename.rename_match(match, new)
-                        try:
-                            backup.rename_copies(target, match.name)
-                        except Exception as error:  # noqa: BLE001
-                            print(f"The backups keep the old name: {error}", file=sys.stderr, flush=True)
+                        # In its own process, with the code as it now is, whenever this server started.
+                        run = subprocess.run([sys.executable, "-m", "volleyball_stats.rename", str(match), new, "--from-review"], capture_output=True, text=True)
+                        if run.returncode:
+                            raise ValueError(run.stderr.strip())
                         self.send(json.dumps({"renamed": new}).encode(), "application/json")
                         switch(reopening(new, match.parent, theme, port, roster), threading.Lock())
                         return None

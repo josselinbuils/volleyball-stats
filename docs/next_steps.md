@@ -1,6 +1,6 @@
 # Next steps from the review's answers (1 Nov)
 
-What the first match's answers (`outputs/first_match/identity_answers.json`: 277 touches, 71
+What the first match's answers (`outputs/2026-10-29-aspom-1-vs-aspom-2/identity_answers.json`: 277 touches, 71
 added, 34 rallies, 23 type fixes, 81 results) and the viewers' 18 reports taught the pipeline,
 what is in the code since, and what is left, with the numbers to start from.
 
@@ -16,7 +16,7 @@ what is in the code since, and what is left, with the numbers to start from.
 | match | a window with no serve gets the one the players' positions show (`match.unseen_serves`) | serves typed 108 → 131 of 137, labelled 43 of 43 within ±1 s, the owner's 6 added serves' players all matched | `side_holdout`: 2 serves added, both labelled |
 | match | windows with 2+ floors and no touch dropped (`actions.no_play`) | 2 of the 6 "no play" windows, no rally lost | 50:00-60:00 F1 ±1 s 0.57 → 0.59, P 0.88 → 0.95 |
 
-Scored with `benchmarks/attribution/answers.py outputs/first_match --rerank [--video data/first_match.mp4]`
+Scored with `benchmarks/attribution/answers.py outputs/2026-10-29-aspom-1-vs-aspom-2 --rerank [--video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4]`
 (the module's ranking run again on `actions.csv`'s contacts, the touch's player being its track's
 identity), `benchmarks/attribution/bench.py ... [--pose]`, `benchmarks/actions/bench.py`.
 

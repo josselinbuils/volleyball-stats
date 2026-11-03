@@ -52,7 +52,7 @@ sweeping `CROPS`, `CLEAR`, `HALF` or the crowd constants. About 1 minute per cli
 kept), the held-out "same" groups and "different" pairs checked (37 s on the first ASPOM match).
 
 ```bash
-uv run python benchmarks/identity/answers.py outputs/first_match --video data/first_match.mp4
+uv run python benchmarks/identity/answers.py outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4
 ```
 
 First ASPOM match, 143 answers and 37 names (one club, one kit for both teams): 181/329 held-out

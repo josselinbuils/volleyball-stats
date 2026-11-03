@@ -113,11 +113,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Rename a match, by default to the name its date and teams give.")
     parser.add_argument("match", type=Path)
     parser.add_argument("new", nargs="?", help="Default: its date and teams")
+    parser.add_argument("--from-review", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     new = args.new or target_name(args.match)
     if not new:
         parser.error(f"{args.match}: no date or a team without a name in teams.json")
-    if reviewing(args.match.name):
+    if not args.from_review and reviewing(args.match.name):
         parser.error(f"The review has {args.match.name} open: change it from there, or stop the review")
     try:
         target = rename_match(args.match, new)

@@ -9,7 +9,7 @@ match.
 Done: `LIVE_SPEED` per second (812 -> 829 touches in windows, `side_holdout` 0.75 -> 0.86).
 
 Running: WASB on frames t, t+2, t+4 over the whole match, into
-`outputs/first_match/experiments/ball_step2.csv` (frame, x, y, peak). `ball.csv` is untouched. The scripts
+`outputs/2026-10-29-aspom-1-vs-aspom-2/experiments/ball_step2.csv` (frame, x, y, peak). `ball.csv` is untouched. The scripts
 are in that folder: `pass2.py` (the pass), `track_exp.py` (the sample), `ev2.py` (its scoring).
 
 On 25 sampled rallies, touches found of 205 and contacts that are no touch:
