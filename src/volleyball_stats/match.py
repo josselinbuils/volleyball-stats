@@ -18,7 +18,7 @@ import subprocess
 import sys
 import time
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from itertools import repeat, tee
 from pathlib import Path
@@ -238,6 +238,18 @@ def review_page(out: Path, video: Path, court: Path) -> None:
         print(f"The review will make its page when opened: {error}", file=sys.stderr)
 
 
+def settled_teams(assign: Callable[[list[float] | None], teams.Teams], settle: Callable[[teams.Teams], dict], starts: list[float] | None) -> tuple[teams.Teams, dict]:
+    """The teams and what `settle` saves: when that gives other set starts than the `starts` known
+    before (typed, or saved during the run), the sides are found again with them."""
+    found = assign(starts)
+    settled = settle(found)
+    given = [teams.seconds(s) for s in settled["sets"]]
+    if given == starts:
+        return found, settled
+    found = assign(given)
+    return found, settle(found)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the pipeline on a match video.")
     parser.add_argument("video", type=Path)
@@ -374,15 +386,18 @@ def main() -> None:
     if args.players:
         stage("teams")
         start = time.perf_counter()
-        found_teams = teams.assign(args.video, rows, windows, fps, starts, out / "looks.npz")
-        timings["teams"] = time.perf_counter() - start
         try:
-            settled = teams.settle(
-                out / "teams.json", found_teams, windows, fps, args.teams, sys.stdin.isatty(), teams.recording_date(args.video), day, args.title,
-                sets, args.scores and args.scores.split(","),
+            found_teams, settled = settled_teams(
+                lambda known: teams.assign(args.video, rows, windows, fps, known, out / "looks.npz"),
+                lambda found: teams.settle(
+                    out / "teams.json", found, windows, fps, args.teams, sys.stdin.isatty(), teams.recording_date(args.video), day, args.title,
+                    sets, args.scores and args.scores.split(","),
+                ),
+                starts,
             )
         except ValueError as error:
             parser.error(str(error))
+        timings["teams"] = time.perf_counter() - start
         write_csv(out / "tracks.csv", ["track", "team"], sorted(found_teams.tracks.items()))
 
     if found_teams is None:

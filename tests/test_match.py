@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from volleyball_stats import web
-from volleyball_stats.match import busiest, in_rallies, report, review_page, slow_run_reasons, unseen_serves
+from volleyball_stats.match import busiest, in_rallies, report, review_page, settled_teams, slow_run_reasons, unseen_serves
 from volleyball_stats.players import Row
 
 
@@ -93,6 +93,33 @@ class TestReport:
     def test_heads_with_a_typed_title_or_the_video_name_without_teams(self):
         assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}, {}, ["A", "B"], [], [], "2026-11-02", "Finale").startswith("# Finale · 2 November 2026\n")
         assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}).startswith("# m\n")
+
+
+class TestSettledTeams:
+    def run(self, starts, sets):
+        assigned, settling = [], []
+
+        def assign(known):
+            assigned.append(known)
+            return f"sides {len(assigned)}"
+
+        def settle(found):
+            settling.append(found)
+            return {"sets": sets}
+
+        return settled_teams(assign, settle, starts), assigned, settling
+
+    def test_finds_the_sides_again_with_set_starts_given_during_the_run(self):
+        (found, settled), assigned, settling = self.run(None, ["0:00", "29:00"])
+
+        assert assigned == [None, [0.0, 1740.0]]
+        assert found == "sides 2" and settled == {"sets": ["0:00", "29:00"]}
+        assert settling == ["sides 1", "sides 2"]
+
+    def test_finds_them_once_when_the_set_starts_were_known(self):
+        (found, _), assigned, settling = self.run([0.0, 1740.0], ["0:00", "29:00"])
+
+        assert assigned == [[0.0, 1740.0]] and found == "sides 1" and settling == ["sides 1"]
 
 
 class TestReviewPage:
