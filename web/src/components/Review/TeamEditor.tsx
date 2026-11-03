@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { teams, type Group } from '@/lib/match';
+import { reachedMatch } from '@/lib/openMatch';
 import { post } from '@/lib/review';
 
 /** A team's name and colour, saved to teams.json; the pages are rebuilt with them, then reloaded. */
@@ -19,8 +20,12 @@ export function TeamEditor({ g, onError }: { g: Group; onError: () => void }) {
     event.preventDefault();
     setSaving(true);
     try {
-      await post('team', { team: g, name: name.trim() || null, colour });
-      location.reload();
+      const saved = await post('team', { team: g, name: name.trim() || null, colour });
+      if (saved.renamed) {
+        await reachedMatch(saved.renamed);
+      } else {
+        location.reload();
+      }
     } catch {
       setSaving(false);
       onError();

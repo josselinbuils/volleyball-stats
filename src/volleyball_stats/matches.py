@@ -26,12 +26,13 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import web
+from volleyball_stats import files, web
 from volleyball_stats.web import BRANDING, brand
 
 TEMPLATE = Path(__file__).with_name("matches_site")
 # The list's own folders, which no match folder may take.
 RESERVED = ("assets", "brand")
+REDIRECTS = "redirects.json"
 # Where a match folder says how to host it, and where hosted pages send the viewers' reports.
 PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
 # Text files from COMPRESS_FROM bytes get a gzip copy the host sends as it is (nginx gzip_static):
@@ -192,12 +193,18 @@ def share_match(folder: Path, url: str) -> None:
 
 def build(site: Path, theme: str = "aspom", url: str | None = None) -> list[dict]:
     """SITE/index.html and matches.js listing SITE/*/'s match pages, tagged for link previews at `url`, the
-    list's address, when given (`share`), the site's text files compressed (`compress`); returns them."""
+    list's address, when given (`share`), a page whose address changed still found at its old one (`write_redirects`), the site's
+    text files compressed (`compress`); returns them."""
+    path = site / REDIRECTS
+    redirects = json.loads(path.read_text()) if path.exists() else {}
     for data in sorted(site.glob("*/data.js")):
         found = address(listed(data.parent))
         # No address from its date and teams (a video named "_.mp4"), or a RESERVED one: it keeps its folder.
         named = site / found if found and found not in RESERVED else data.parent
         if named != data.parent:
+            # A folder named after its video has just been built: no link has its address yet.
+            if listed(data.parent)["name"] != data.parent.name:
+                redirects[data.parent.name] = named.name
             # ponytail: a new build replaces the folder of the same date and teams, two matches the
             # same day between the same teams would need a number after it.
             shutil.rmtree(named, ignore_errors=True)
@@ -223,8 +230,33 @@ def build(site: Path, theme: str = "aspom", url: str | None = None) -> list[dict
         name = club["name"] if club else None
         logo = site / club["logo"] if club and club.get("logo") else None
         share(site, root, f"Matchs · {name}" if name else "Matchs", "Les matchs de volley et leurs statistiques.", list_card("Matchs", name, logo), name)
+    write_redirects(site, redirects)
     compress(site)
     return matches
+
+
+def write_redirects(site: Path, redirects: dict[str, str]) -> None:
+    """SITE/REDIRECTS and a page at each old address, and its video/, going on to the address's latest one with what the link carries
+    (`?video=denied`, `#…`); an address a match uses again is no longer one."""
+    latest = {}
+    for old, new in redirects.items():
+        seen = {old}
+        while new in redirects and new not in seen:
+            seen.add(new)
+            new = redirects[new]
+        if old != new and not (site / old / "data.js").exists() and (site / new / "data.js").exists():
+            latest[old] = new
+    for old, new in latest.items():
+        page = (site / new / "index.html").read_text()
+        tags = "".join(re.findall(r'<meta property="og:[^>]*>\s*', page))
+        for folder, up in ((site / old, "../"), (site / old / "video", "../../")):
+            folder.mkdir(parents=True, exist_ok=True)
+            to = f"{up}{new}/{'video/' if up == '../../' else ''}"
+            (folder / "index.html").write_text(
+                f'''<!doctype html><html><head><meta charset="UTF-8" /><meta name="robots" content="noindex, nofollow, noarchive" />{tags}<meta http-equiv="refresh" content="0; url={to}" /><script>location.replace({json.dumps(to)} + location.search + location.hash);</script></head><body><a href="{to}">{html.escape(new)}</a></body></html>
+'''
+            )
+    files.write_text(site / REDIRECTS, json.dumps(latest, indent=1) + "\n")
 
 
 def compress(site: Path) -> None:
@@ -270,7 +302,8 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
     behind the host's password; the list; then the site uploaded by rsync to `upload` with the ssh
     `key`, once the copy at `url` turns a visitor without the password away. RuntimeError if not."""
     site = Path(config["site"]).expanduser()
-    folder = next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] == match.name), site / match.name)
+    known = {match.name, *files.aliases(match)}
+    folder = next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] in known), site / match.name)
     path = lambda key: config.get(key) and str(Path(config[key]).expanduser())  # noqa: E731
     copy = {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}
     # Before the build, which removes the copies of the video it finds in the site folder.

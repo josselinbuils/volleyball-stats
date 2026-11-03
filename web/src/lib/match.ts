@@ -138,6 +138,8 @@ interface Data {
   ball3d?: boolean;
   /** Whether voice/index.js holds the commentary's audio. */
   voice?: boolean;
+  /** The names the match had before. */
+  aliases?: string[];
   /** The players' films, by name, on a page with the video. */
   films?: Record<string, string>;
   /** The players' positions: a sample every `step` frames, `every` samples in each of `files` files; none without tracks. */
@@ -176,6 +178,7 @@ export const match = {
   ball3d: data.ball3d ?? false,
   voice: data.voice ?? false,
   films: data.films,
+  aliases: data.aliases,
   positions: data.positions ?? null,
   scores: data.scores ?? [],
   brand: data.brand ?? null,

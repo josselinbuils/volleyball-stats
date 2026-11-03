@@ -189,6 +189,9 @@ It joins the camera's chapters without re-encoding, cut at the times given in th
 `outputs/MATCH/` with `teams.json`. The first team is the one on the left at the first rally: check
 `outputs/MATCH/start.jpg`. The card is only read.
 
+Change a team's name in the review and the match follows: its folders, video and backups take the new name, and the next upload moves
+its hosted page, with a redirect from the old address. `uv run python -m volleyball_stats.rename outputs/MATCH [NEW_NAME]` does the same without the review.
+
 ### 1. Map the court
 
 ```bash

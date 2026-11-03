@@ -39,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, feedback, film, files, identity, jerseys, matches, web
+from volleyball_stats import attribution, backup, feedback, film, files, identity, jerseys, matches, rename, web
 from volleyball_stats.court import LENGTH, Calibration
 from volleyball_stats.teams import parse_colour
 
@@ -613,7 +613,7 @@ def reports(match: Path) -> list[dict]:
     found: dict[str, dict] = {}
     for log in sorted(match.parent.glob("feedback*.log")):
         for r in feedback.read(log):
-            if r.get("match") == match.name:
+            if r.get("match") in (match.name, *files.aliases(match)):
                 # A report sent with its `id` (a one-tap flag, then maybe its details) is one, whichever log holds what.
                 said = r["id"] if r.get("id") else [r.get("received"), r.get("time"), r.get("kind"), r.get("comment")]
                 key = hashlib.sha256(json.dumps(said).encode()).hexdigest()[:12]
@@ -1862,6 +1862,17 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/team":
                     set_team(match, int(body["team"]), body.get("name"), body.get("colour"))
+                    # Its name follows its teams, the folders and the video with it: the server restarts on them.
+                    new = rename.target_name(match)
+                    if new and new != match.name and not progress and not (match.parent / new).exists():
+                        target = rename.rename_match(match, new)
+                        try:
+                            backup.rename_copies(target, match.name)
+                        except Exception as error:  # noqa: BLE001
+                            print(f"The backups keep the old name: {error}", file=sys.stderr, flush=True)
+                        self.send(json.dumps({"renamed": new}).encode(), "application/json")
+                        switch(reopening(new, match.parent, theme, port, roster), threading.Lock())
+                        return None
                     run_steps(pages())
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/name":
@@ -1974,7 +1985,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     def fetched() -> None:
                         try:
                             got = feedback.fetch(match.parent, config["upload"], config["key"])
-                            fetched_log.update(at=time.strftime("%H:%M"), count=len([r for r in feedback.read(got) if r.get("match") == match.name]) if got else 0, error=None)
+                            fetched_log.update(at=time.strftime("%H:%M"), count=len([r for r in feedback.read(got) if r.get("match") in (match.name, *files.aliases(match))]) if got else 0, error=None)
                         except Exception as error:  # noqa: BLE001
                             fetched_log.update(at=time.strftime("%H:%M"), count=0, error=str(error) or type(error).__name__)
 

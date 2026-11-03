@@ -191,6 +191,8 @@ export interface Saved {
   undone?: string | null;
   /** The user declined an answer joining two players of different names: nothing saved. */
   cancelled?: boolean;
+  /** The match's new name, after a team's: the server is restarting on it. */
+  renamed?: string;
 }
 
 // The requests to the review server under way, by kind, for the page's indicator.

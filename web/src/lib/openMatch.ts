@@ -4,12 +4,17 @@ export async function openMatch(name: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`open: ${response.status}`);
   }
+  await reachedMatch(name);
+}
+
+/** Goes to the review of the match `name`, keeping the tab, once the server has restarted on it. */
+export async function reachedMatch(name: string): Promise<void> {
   const giveUp = Date.now() + 5 * 60_000;
   while (Date.now() < giveUp) {
     try {
       const current = (await (await fetch('/current')).json()) as { name: string | null };
       if (current.name === name) {
-        location.href = '/review';
+        location.href = `/review${location.hash}`;
         return;
       }
     } catch {

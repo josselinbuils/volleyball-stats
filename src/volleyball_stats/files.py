@@ -41,7 +41,13 @@ def write_bytes(path: Path, data: bytes) -> None:
         f.write(data)
 
 
+def aliases(match: Path) -> list[str]:
+    """The names `match` had before (rename.py), which viewers' reports and choices may still carry."""
+    path = match / SOURCE
+    return json.loads(path.read_text()).get("aliases", []) if path.exists() else []
+
+
 def write_source(match: Path, video: Path, court: Path, squad: tuple[int, int] | None = None) -> None:
     """What `match` was made from, in its SOURCE: the review opens it from that."""
-    given = {"video": str(video), "court": str(court), "squad": f"{squad[0]},{squad[1]}" if squad else None}
+    given = {"video": str(video), "court": str(court), "squad": f"{squad[0]},{squad[1]}" if squad else None, "aliases": aliases(match)}
     write_text(match / SOURCE, json.dumps(given, indent=1) + "\n")

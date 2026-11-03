@@ -785,6 +785,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     brief(found, actions, table, times, said, missed)
     data = {
         "name": video.stem,
+        "aliases": files.aliases(match),
         "video": video.name,
         "fps": round(fps, 3),
         "duration": round(frame_count / fps, 2),

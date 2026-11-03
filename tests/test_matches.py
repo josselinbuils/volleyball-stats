@@ -23,6 +23,54 @@ class TestBuild:
         assert 'src="matches.js?v=' in (tmp_path / "index.html").read_text()
         assert not (tmp_path / "matches.html").exists()
 
+    @staticmethod
+    def page(site, folder, name, teams):
+        (site / folder).mkdir(parents=True, exist_ok=True)
+        data = {"name": name, "date": "2026-11-02", "teams": [{"name": t} for t in teams], "rallies": [{"set": 1}]}
+        (site / folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+        (site / folder / "index.html").write_text('<meta property="og:title" content="M" /><p>page</p>')
+
+    def test_a_page_whose_address_changed_redirects_from_the_old_one_keeping_what_the_link_carries(self, tmp_path):
+        self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "B"])
+        self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "C"])
+
+        listed = build(tmp_path, "none")
+
+        assert [m["path"] for m in listed] == ["2026-11-02-a-vs-c/"]
+        page = (tmp_path / "2026-11-02-a-vs-b" / "index.html").read_text()
+        assert 'url=../2026-11-02-a-vs-c/"' in page and "location.search + location.hash" in page
+        assert 'property="og:title"' in page and "noindex" in page
+        assert 'url=../../2026-11-02-a-vs-c/video/"' in (tmp_path / "2026-11-02-a-vs-b" / "video" / "index.html").read_text()
+        assert json.loads((tmp_path / "redirects.json").read_text()) == {"2026-11-02-a-vs-b": "2026-11-02-a-vs-c"}
+
+    def test_a_page_built_for_the_first_time_leaves_no_redirect(self, tmp_path):
+        self.page(tmp_path, "m", "m", ["A", "B"])
+
+        build(tmp_path, "none")
+
+        assert not (tmp_path / "m").exists()
+        assert json.loads((tmp_path / "redirects.json").read_text()) == {}
+
+    def test_a_second_change_sends_the_oldest_address_straight_to_the_latest(self, tmp_path):
+        self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "C"])
+        build(tmp_path, "none")
+        self.page(tmp_path, "2026-11-02-a-vs-c", "m", ["A", "D"])
+
+        build(tmp_path, "none")
+
+        assert 'url=../2026-11-02-a-vs-d/"' in (tmp_path / "2026-11-02-a-vs-b" / "index.html").read_text()
+        assert 'url=../2026-11-02-a-vs-d/"' in (tmp_path / "2026-11-02-a-vs-c" / "index.html").read_text()
+
+    def test_a_match_taking_an_old_address_replaces_its_redirect(self, tmp_path):
+        self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "C"])
+        build(tmp_path, "none")
+        self.page(tmp_path, "2026-11-02-a-vs-b", "other", ["A", "B"])
+
+        listed = build(tmp_path, "none")
+
+        assert sorted(m["path"] for m in listed) == ["2026-11-02-a-vs-b/", "2026-11-02-a-vs-c/"]
+        assert json.loads((tmp_path / "redirects.json").read_text()) == {}
+
     def test_compresses_the_text_files_once_and_drops_the_copies_of_files_gone(self, tmp_path):
         (tmp_path / "m").mkdir()
         big, small = tmp_path / "m" / "players.js", tmp_path / "m" / "tiny.js"

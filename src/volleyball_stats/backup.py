@@ -12,6 +12,7 @@ import fnmatch
 import json
 import os
 import re
+import shlex
 import subprocess
 import time
 from pathlib import Path
@@ -88,6 +89,22 @@ def backup(match: Path, day: str | None = None, root: str = ROOT) -> None:
     old = stale(sorted({*days, day}))
     if old:
         remote("rm -rf " + " ".join(f"{root}/{d}" for d in old))
+
+
+def rename_copies(match: Path, old: str, root: str = ROOT) -> None:
+    """The copies of the match `old`, now `match`, under its new name, for the next copy to link to their files; none without a
+    publish.json, which backups need."""
+    path = match / matches.PUBLISH
+    if not path.exists():
+        return
+    config = json.loads(path.read_text())
+    ssh = ["ssh", "-i", str(Path(config["key"]).expanduser()), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", config["upload"].split(":")[0]]
+    subprocess.run([*ssh, rename_command(root, old, match.name)], check=True, capture_output=True, text=True, timeout=120)
+
+
+def rename_command(root: str, old: str, new: str) -> str:
+    """The shell command moving each dated copy's folder `old` to `new`."""
+    return f"for d in {shlex.quote(root)}/*/; do if [ -d \"$d\"{shlex.quote(old)} ] && [ ! -e \"$d\"{shlex.quote(new)} ]; then mv \"$d\"{shlex.quote(old)} \"$d\"{shlex.quote(new)}; fi; done"
 
 
 def main() -> None:
