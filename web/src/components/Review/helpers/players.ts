@@ -46,6 +46,12 @@ export function pictureOf(p: Named, nameOf: NameOf, people: { team: number | nul
   return people.find((x) => x.team === p.team && x.number === p.identity)?.photo ?? p.crops[0];
 }
 
+/** A player's jersey number: the one given, on them or a namesake, else the one read. */
+export function jerseyOf(p: Named, players: Named[], nameOf: NameOf): number | null {
+  const same = players.filter((o) => o === p || sameName(o, p, nameOf));
+  return p.jersey ?? same.find((o) => o.jersey !== null)?.jersey ?? p.read ?? same.find((o) => o.read !== null)?.read ?? null;
+}
+
 /** Folds a text for matching: no accents, no case, no outer spaces. */
 const plain = (text: string) =>
   text
@@ -54,10 +60,10 @@ const plain = (text: string) =>
     .trim()
     .toLocaleLowerCase();
 
-/** The entries whose label holds `text` (no accents, no case), the one it spells first; all of
- * them for no text. */
-export function matching<T extends { label: string }>(entries: T[], text: string): T[] {
+/** The entries whose label holds `text` (no accents, no case), the one it spells first, then those
+ * wearing it; all of them for no text. */
+export function matching<T extends { label: string; jersey?: number | null }>(entries: T[], text: string): T[] {
   const typed = plain(text);
-  const holding = entries.filter((e) => plain(e.label).includes(typed));
-  return [...holding.filter((e) => plain(e.label) === typed), ...holding.filter((e) => plain(e.label) !== typed)];
+  const rank = (e: T) => (plain(e.label) === typed ? 0 : e.jersey != null && String(e.jersey) === typed ? 1 : 2);
+  return entries.filter((e) => plain(e.label).includes(typed)).sort((a, b) => rank(a) - rank(b));
 }

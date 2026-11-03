@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { marked, type Named } from '@/lib/review';
-import { matching, pictureOf, playerOptions, sameName } from '@/components/Review/helpers/players';
+import { jerseyOf, matching, pictureOf, playerOptions, sameName } from '@/components/Review/helpers/players';
 
 // review.ts reads window.REVIEW on import.
 vi.hoisted(() => {
@@ -72,5 +72,25 @@ describe('players', () => {
     expect(matching(entries, ' 5').map((e) => e.key)).toEqual(['2:5', '1:5']);
     expect(matching(entries, 'joueur 5 · aspom 02').map((e) => e.key)).toEqual(['2:5']);
     expect(matching(entries, '')).toHaveLength(3);
+  });
+
+  it('lists first the player wearing a typed number', () => {
+    const entries = [
+      { key: '1:3', label: 'Joueur 3 · ASPOM 01', jersey: 38 },
+      { key: '1:5', label: '#3 Léa (joueur 5) · ASPOM 01', jersey: 3 },
+    ];
+
+    expect(matching(entries, '3').map((e) => e.key)).toEqual(['1:5', '1:3']);
+    expect(matching(entries, '38').map((e) => e.key)).toEqual([]);
+  });
+
+  it('takes the jersey number given, on the player or a namesake, before the one read', () => {
+    const [paul, namesake, lea] = players;
+
+    expect(jerseyOf({ ...lea, read: 8 }, players, nameOf)).toBe(8);
+    expect(jerseyOf({ ...lea, jersey: 9, read: 8 }, players, nameOf)).toBe(9);
+    expect(jerseyOf(paul, [paul, { ...namesake, jersey: 7 }, lea], nameOf)).toBe(7);
+    expect(jerseyOf({ ...paul, read: 8 }, [paul, { ...namesake, jersey: 7 }, lea], nameOf)).toBe(7);
+    expect(jerseyOf(paul, players, nameOf)).toBeNull();
   });
 });

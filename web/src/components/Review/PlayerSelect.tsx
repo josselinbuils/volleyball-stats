@@ -4,13 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { GROUPS, groupName, match, type Group } from '@/lib/match';
 import type { Named } from '@/lib/review';
-import { matching, pictureOf, playerOptions, type NameOf } from '@/components/Review/helpers/players';
+import { jerseyOf, matching, pictureOf, playerOptions, type NameOf } from '@/components/Review/helpers/players';
 
 const FIELD =
   'size-full min-w-0 rounded-md border border-input bg-transparent px-1.5 shadow-xs outline-none dark:bg-input/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 
 /** A field picking one of both teams' players as `playerOptions` gives them, by name (`nameOf`)
- * when they have one, or "not a player" if `notPlayer`: a list under it shows the players its text
+ * when they have one or jersey number, or "not a player" if `notPlayer`: a list under it shows the players its text
  * matches, the first one highlighted; Enter or a click picks the highlighted one, the arrows move
  * it. A named player shows their picture, in the list and in the field. `value` and `onChange` hold `team:identity`, 'not_player', or '' for `empty` (an emptied
  * field). */
@@ -48,17 +48,19 @@ export function PlayerSelect({
   const field = useRef<HTMLInputElement>(null);
   const { options, value: shown } = playerOptions(players, nameOf, exclude, value);
   // Numbers repeat across teams: each entry names its team.
-  const entries: { key: string; label: string; picture?: string }[] = [
+  const entries: { key: string; label: string; picture?: string; jersey?: number | null }[] = [
     ...(notPlayer ? [{ key: 'not_player', label: t('review.notPlayer') }] : []),
     ...GROUPS.flatMap((g) =>
       options
         .filter((p) => p.team === g)
         .map((p) => {
           const name = nameOf(p.team, p.identity);
+          const jersey = jerseyOf(p, players, nameOf);
           return {
             key: `${p.team}:${p.identity}`,
             picture: pictureOf(p, nameOf, Object.values(match.people)),
-            label: `${name ? t('review.namedPlayer', { name, n: p.identity }) : t('player', { n: p.identity })} · ${groupName(t, g)}`,
+            jersey,
+            label: `${jersey === null ? '' : `#${jersey} `}${name ? t('review.namedPlayer', { name, n: p.identity }) : t('player', { n: p.identity })} · ${groupName(t, g)}`,
           };
         }),
     ),

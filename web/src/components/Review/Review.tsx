@@ -119,6 +119,8 @@ export function Review({
   const [given, setGiven] = useState(() => new Map(players.map((p) => [`${p.team}:${p.identity}`, { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
   const named = [...given.values()].filter((g) => g.name.trim() || g.jersey).length;
   const nameOf = (team: Group, n: number) => given.get(`${team}:${n}`)?.name.trim() || null;
+  // The players with the jersey numbers saved since the page loaded.
+  const current = players.map((p) => ({ ...p, jersey: Number(given.get(`${p.team}:${p.identity}`)?.jersey) || null }));
   const clipTime = useRef(0);
   // The questions answered here, last on top, to bring back on undo.
   const [done, setDone] = useState<Question[]>([]);
@@ -350,7 +352,7 @@ export function Review({
           />
         )}
         <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
-        <Conflicts conflicts={conflicts} width={width} height={height} players={players} nameOf={nameOf} />
+        <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}
@@ -364,7 +366,7 @@ export function Review({
           <MatchTab
             width={width}
             height={height}
-            players={players}
+            players={current}
             nameOf={nameOf}
             saved={corrections}
             checked={checked}
@@ -410,7 +412,7 @@ export function Review({
                   <PlayerSelect
                     key={question.id}
                     // Both teams: the touch's team, or for an ace the side the ball lands on, is only a guess.
-                    players={players}
+                    players={current}
                     nameOf={nameOf}
                     value=""
                     empty={t('review.pickPlayer')}
@@ -480,7 +482,7 @@ export function Review({
                           crops={c.crops}
                           pieces={c.pieces}
                           owner={{ team: question.team, identity: c.identity }}
-                          players={players}
+                          players={current}
                           nameOf={nameOf}
                           onSaved={onSaved}
                           onError={() => setError(true)}
