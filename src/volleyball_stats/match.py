@@ -25,7 +25,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, players, points, rallies, ranker, teams
+from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, players, points, rallies, ranker, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -375,7 +375,7 @@ def main() -> None:
 
     if found_teams is None:
         # An earlier run's teams no longer fit these rallies; teams.json keeps what was typed for the next --players run.
-        for stale in ("points.csv", "tracks.csv"):
+        for stale in ("points.csv", "tracks.csv", timeouts.DETECTED):
             (out / stale).unlink(missing_ok=True)
         write_csv(out / "rallies.csv", ["start_frame", "end_frame"], windows)
         write_csv(out / "actions.csv", ["frame", "x", "y", "type", "side", "track"], [[*t, "" if k is None else k] for t, k in zip(typed, touchers)])
@@ -383,6 +383,7 @@ def main() -> None:
     else:
         sets = teams.set_numbers(windows, [teams.seconds(s) for s in settled["sets"]], fps)
         write_csv(out / "rallies.csv", ["start_frame", "end_frame", "left", "set"], [[*w, "" if g is None else g, s] for w, g, s in zip(windows, found_teams.left, sets)])
+        timeouts.detect(out, fps)
         contact_teams = teams.contact_teams(typed, windows, found_teams.left, round(actions.LEAD_S * fps))
         stage("identity")
         start = time.perf_counter()

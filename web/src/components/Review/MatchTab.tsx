@@ -6,12 +6,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { match, rallies, type Group } from '@/lib/match';
-import type { Named, Question, ReportChanges } from '@/lib/review';
+import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { REPORT_LEAD_S } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
+import { Timeouts } from '@/components/Review/Timeouts';
 
 /** The whole match to correct: its video, the bar of its rallies, touches and the viewers' reports
  * under it, the touches around where it stands beside it; under them the reports left to handle,
@@ -25,6 +26,8 @@ export function MatchTab({
   checked,
   comments,
   onComment,
+  timeouts,
+  onTimeout,
   reports,
   onSave,
   onUncheck,
@@ -41,6 +44,8 @@ export function MatchTab({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
+  timeouts: Timeout[];
+  onTimeout: (change: TimeoutChange) => void;
   /** The report questions left: each a rally's reports. */
   reports: Question[];
   onSave: (changes: ReportChanges, rally: number) => Promise<void>;
@@ -112,7 +117,7 @@ export function MatchTab({
                 )
               }
             />
-            <MatchTimeline now={now} saved={saved} reports={flags} green={green} warned={warned} comments={comments} onSeek={(time) => go(time)} />
+            <MatchTimeline now={now} saved={saved} reports={flags} green={green} warned={warned} comments={comments} timeouts={timeouts} onSeek={(time) => go(time)} />
           </div>
           <ReportEditor
             key={round}
@@ -143,6 +148,7 @@ export function MatchTab({
             comments={comments}
             onComment={onComment}
           />
+          <Timeouts timeouts={timeouts} now={now} onGo={(time) => go(time, true)} onChange={onTimeout} />
           <section className="grid gap-2 lg:col-span-2" aria-labelledby="reports-title">
             <h3 id="reports-title" className="text-base font-semibold">
               {t('review.reportsTitle', { count: reports.length })}

@@ -8,7 +8,7 @@ import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
-import { allMarked, post, type Conflict, type Hosted, type LearnRun, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
+import { allMarked, post, type Conflict, type Hosted, type LearnRun, type Named, type Question, type ReportChanges, type Saved, type Suggestion, type Timeout, type TimeoutChange } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
@@ -45,6 +45,7 @@ export function Review({
   corrections: savedCorrections,
   checked: savedChecked,
   comments: savedComments,
+  timeouts: savedTimeouts,
   questions: initial,
   players,
   roster,
@@ -64,6 +65,7 @@ export function Review({
   namesPending: boolean;
   corrections: Partial<ReportChanges>;
   comments: Record<number, string>;
+  timeouts: Timeout[];
   checked: number[];
   questions: Question[];
   players: Named[];
@@ -85,6 +87,7 @@ export function Review({
   const [corrections, setCorrections] = useState(savedCorrections);
   const [checked, setChecked] = useState(savedChecked);
   const [comments, setComments] = useState(savedComments);
+  const [timeouts, setTimeouts] = useState(savedTimeouts);
   const onSaved = (saved: Saved) => {
     if (saved.corrections !== undefined) {
       setCorrections(saved.corrections);
@@ -168,6 +171,18 @@ export function Review({
     } catch {
       setError(true);
       return false;
+    }
+  };
+
+  const saveTimeout = async (change: TimeoutChange) => {
+    try {
+      const saved = await post('timeout', change);
+      if (saved.timeouts) {
+        setTimeouts(saved.timeouts);
+      }
+      setError(false);
+    } catch {
+      setError(true);
     }
   };
 
@@ -355,6 +370,8 @@ export function Review({
             checked={checked}
             comments={comments}
             onComment={saveComment}
+            timeouts={timeouts}
+            onTimeout={(change) => void saveTimeout(change)}
             reports={reports}
             onSave={saveEdits}
             onUncheck={uncheck}

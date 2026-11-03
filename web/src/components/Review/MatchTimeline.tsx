@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { clock } from '@/lib/format';
 import { contacts, groupName, match, playerLabel, rallies, teamColor, teamEdge, type Group } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
-import type { ReportChanges } from '@/lib/review';
+import type { ReportChanges, Timeout } from '@/lib/review';
 import { tickStep, zoomed } from '@/components/Review/helpers/timeline';
 
 /** The closest zoom, in pixels a second: a touch a few pixels from the next. */
@@ -19,7 +19,7 @@ const HEIGHT = 64;
 /** The whole match on one bar under the video: each rally a band, its winner's colour along its
  * bottom, orange with a warning, else green once checked, the sets parted; buttons go to the rally
  * to check (a warning, or not checked) before or after the video; each touch a tick in its team's colour (grey once removed), the viewers'
- * reports as red flags, the automatic ones as grey flags, the corrections saved and not applied as dots. A click moves the video there.
+ * reports as red flags, the automatic ones as grey flags, the corrections saved and not applied as dots, the timeouts as dashed bands. A click moves the video there.
  * It zooms (buttons, or ctrl/⌘ and the wheel or a pinch, around the pointer) and scrolls sideways,
  * following the video unless just scrolled. */
 export function MatchTimeline({
@@ -29,6 +29,7 @@ export function MatchTimeline({
   green,
   warned,
   comments,
+  timeouts,
   onSeek,
 }: {
   now: number;
@@ -40,6 +41,8 @@ export function MatchTimeline({
   warned: Set<number>;
   /** The owner's notes on the rallies, by their key: a mark above each. */
   comments: Record<number, string>;
+  /** Each a dashed band, in its team's colour once picked. */
+  timeouts: Timeout[];
   onSeek: (time: number) => void;
 }) {
   const { t } = useTranslation();
@@ -185,6 +188,21 @@ export function MatchTimeline({
       <div ref={box} className="overflow-x-auto overscroll-x-contain rounded-md border bg-card" onScroll={() => (scrolled.current = Date.now())} onPointerDown={() => (scrolled.current = Date.now())}>
         {width > 0 && (
           <svg width={total} height={HEIGHT} className="block cursor-pointer select-none" onClick={seekTo} aria-label={t('review.timeline')}>
+            {timeouts.map((o) => (
+              <rect
+                key={o.start}
+                x={(o.start / match.fps) * scale}
+                y={14}
+                width={Math.max(3, ((o.end - o.start) / match.fps) * scale)}
+                height={26}
+                fill={o.team ? teamColor(o.team) : 'none'}
+                fillOpacity={0.35}
+                stroke={o.team ? teamEdge(o.team) : 'var(--muted-foreground)'}
+                strokeDasharray="3 2"
+              >
+                <title>{`${t('review.timeoutsTitle')} · ${clock(o.start / match.fps)}${o.team ? ` · ${groupName(t, o.team)}` : ''}`}</title>
+              </rect>
+            ))}
             {rallies.map((r) => (
               <g key={r.i}>
                 <rect

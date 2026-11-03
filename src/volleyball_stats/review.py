@@ -39,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, feedback, film, files, identity, jerseys, matches, rename, web
+from volleyball_stats import attribution, backup, feedback, film, files, identity, jerseys, matches, rename, timeouts, web
 from volleyball_stats.court import LENGTH, Calibration
 from volleyball_stats.teams import parse_colour
 
@@ -1727,7 +1727,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
+        data = {"width": width, "height": height, "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
             "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
             "fetched": fetched_log or None,
             "backup": backed or None,
@@ -1893,6 +1893,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         comments.pop(key, None)
                     write_comments(match, comments)
                     return self.send(b"{}", "application/json")
+                if self.path == "/timeout":
+                    return self.send(json.dumps({"timeouts": timeouts.answer(match, questions.fps, body)}).encode(), "application/json")
                 if self.path == "/answer":
                     _, refs = questions.build({entry["id"] for entry in log})
                     # Corrections saved from the match tab, about no question.

@@ -143,6 +143,7 @@ interface ReviewData {
   checked: number[];
   /** The owner's notes on the rallies, by their key: in the review only. */
   comments: Record<number, string>;
+  timeouts: Timeout[];
   questions: Question[];
   players: Named[];
   /** The roster's players of each team, for typing a name. */
@@ -180,6 +181,16 @@ export const review = window.REVIEW ?? null;
 
 /** What the review server tells after a request: the answers saved, those and the names not applied
  * yet, whether the identities and the pages were rebuilt, and the answer an undo removed. */
+/** A timeout, in frames; its team once the owner picked it. */
+export interface Timeout {
+  start: number;
+  end: number;
+  team: Group | null;
+}
+
+/** A timeout added at a frame, or one's team or removal. */
+export type TimeoutChange = { frame: number } | { start: number; end: number; team: Group | null } | { start: number; end: number; removed: true };
+
 export interface Saved {
   answered?: number;
   pending?: number;
@@ -193,6 +204,7 @@ export interface Saved {
   cancelled?: boolean;
   /** The match's new name, after a team's: the server is restarting on it. */
   renamed?: string;
+  timeouts?: Timeout[];
 }
 
 // The requests to the review server under way, by kind, for the page's indicator.
@@ -222,7 +234,7 @@ export function onServerBusy(listener: () => void): () => void {
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
 export async function post(
-  path: 'answer' | 'comment' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
+  path: 'answer' | 'comment' | 'timeout' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
   body: object = {},
 ): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
