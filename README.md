@@ -178,6 +178,17 @@ uv run python benchmarks/speed.py VIDEO          # projected processing time of 
 
 ## Process a match
 
+### Import a match
+
+```bash
+uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "NAME_1[:COLOUR],NAME_2[:COLOUR]" [--from TIME] [--to TIME] [--date DATE]
+```
+
+It joins the camera's chapters without re-encoding, cut at the times given in the joined video, into
+`data/MATCH/MATCH.mp4`, where `MATCH` is the name of the match's hosted page (date and teams), and starts
+`outputs/MATCH/` with `teams.json`. The first team is the one on the left at the first rally: check
+`outputs/MATCH/start.jpg`. The card is only read.
+
 ### 1. Map the court
 
 ```bash

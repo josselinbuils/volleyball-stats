@@ -38,6 +38,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   matches (`matches.html`, `src/matches.tsx`).
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
+- A new match starts with `import_match` (README): `data/MATCH/MATCH.mp4` and `outputs/MATCH/`, named like its hosted page, everything of a match in those two folders.
 - `match` refuses to track at a low priority or on a busy machine (`slow_run_reasons`, `--anyway`): tell the owner what it lists, stopping their work
   (Docker, Kili sandboxes) is their call. To correct a running job: `sudo renice 0 -p PID...` in their own terminal (`renice -n 0` changes nothing on
   macOS). A run can't survive a restart: tracking writes nothing until it ends. Idle, the M4 tracks 4K at 2.87 MB/s (6 h for 84 min); progress is the
@@ -155,6 +156,8 @@ the trackers' speed (`outputs/speed/side_holdout_4k.mp4` is a 4K test copy).
   8. Remind the owner (asked, 3 Nov): `court auto` accepts a bad fit. A stored court with no snapped landmarks (`aspom_begles`) makes
      `MATCH_LANDMARKS` require none, and the error is not checked: on the second match it said "match" with one false snap, RMS 17 px.
      Reject a fit that large. `outputs/court/second_match.json` was fitted from auto's shifted clicks instead, nudged by eye.
+  9. Asked by the owner (3 Nov), once the second match's run ends: a folder per match in `data/` and `outputs/` holding all of that match's files (court,
+     hosted copies); rename both matches to their hosted names (first check the name in the page data and the viewers' reports); then the backups to match.
 
 ## Hosting
 
