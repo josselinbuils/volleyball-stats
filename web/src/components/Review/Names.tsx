@@ -10,7 +10,7 @@ import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
 import { NameField } from '@/components/Review/NameField';
-import { offeredNames, plain, spelled, unnamedFirst } from '@/components/Review/helpers/players';
+import { offeredNames, unnamedFirst } from '@/components/Review/helpers/players';
 import { TeamEditor } from '@/components/Review/TeamEditor';
 
 interface Given {
@@ -22,6 +22,7 @@ const INPUT =
   'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 text-[15px] font-normal shadow-xs outline-none dark:bg-input/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 
 const keyOf = (p: Named) => `${p.team}:${p.identity}`;
+const fold = (name: string) => name.trim().toLocaleLowerCase();
 
 /** Focuses the card `step` cards away from the one holding `from` (the first without one), on its
  * first picture. */
@@ -97,7 +98,7 @@ export function Names({
       return;
     }
     try {
-      const moved = offered(p.team).some((o) => o.other && plain(o.name) === plain(value.name));
+      const moved = offered(p.team).some((o) => o.other && fold(o.name) === fold(value.name));
       const result = await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null, moved });
       const next = new Map(saved).set(key, value);
       setSaved(next);
@@ -142,7 +143,7 @@ export function Names({
                   roster={offered(g)}
                   otherTeam={groupName(t, (3 - g) as Group)}
                   saved={saved.get(keyOf(p))!}
-                  others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: plain(given.get(keyOf(o))!.name) }))}
+                  others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
                   onEdit={(value) => edit(p, value)}
                   onSave={(value) => void save(p, value)}
                   players={players}
@@ -190,8 +191,8 @@ function NameCard({
 }) {
   const { t } = useTranslation();
   const taken = new Set(others.map((o) => o.name).filter(Boolean));
-  const twins = others.filter((o) => o.name && o.name === plain(value.name));
-  const suggestions = value.name.trim() ? [] : p.suggestions.filter((s) => !taken.has(plain(s.name)));
+  const twins = others.filter((o) => o.name && o.name === fold(value.name));
+  const suggestions = value.name.trim() ? [] : p.suggestions.filter((s) => !taken.has(fold(s.name)));
   const isSaved = (value.name.trim() || value.jersey) && saved.name.trim() === value.name.trim() && saved.jersey === value.jersey;
   // A suggestion brings its jersey number when none is typed.
   const pick = (s: Suggestion) => {
@@ -235,14 +236,14 @@ function NameCard({
             names={roster.map((r) => ({ name: r.name, hint: r.other ? otherTeam : undefined }))}
             onChange={(name) => onEdit({ name, jersey: value.jersey })}
             onPick={(name) => pick(roster.find((r) => r.name === name)!)}
-            // A name of the list, however it was typed, with its jersey number when none is typed.
+            // The name stays as typed; one of the list brings its jersey number when none is typed.
             onBlur={() => {
-              const known = spelled(roster, value.name);
-              if (known) {
-                pick(known);
-              } else {
-                onSave(value);
+              const known = roster.find((r) => fold(r.name) === fold(value.name));
+              const next = { name: value.name, jersey: value.jersey || (known?.jersey == null ? '' : String(known.jersey)) };
+              if (next.jersey !== value.jersey) {
+                onEdit(next);
               }
+              onSave(next);
             }}
           />
         </label>

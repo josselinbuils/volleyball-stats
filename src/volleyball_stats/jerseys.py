@@ -22,7 +22,8 @@ from volleyball_stats import decode, files, identity
 from volleyball_stats.attribution import read_players
 
 FILE = "jerseys.csv"
-# What the review's pictures read: {"frame:x1,y1,x2,y2": number or null}, kept for the next applies.
+# What the review's pictures read, kept for the next applies under what it depends on:
+# {"stamp": files.cache_stamp, "read": {"frame:x1,y1,x2,y2": number or null}}.
 PICTURES = "jersey_pictures.json"
 # Under this height, numbers are too small to read.
 MIN_HEIGHT = 1440
@@ -88,10 +89,17 @@ def picture_key(frame: int, box: Iterable[int]) -> str:
     return f"{frame}:{','.join(str(v) for v in box)}"
 
 
-def read_pictures(match: Path, pictures: Iterable[tuple[int, tuple[int, ...]]], image: Callable[[int, tuple[int, ...]], bytes | None]) -> None:
-    """PICTURES with the number read on each (frame, box) not read yet, `image` giving its JPEG."""
+def pictures_read(match: Path, stamp: str) -> dict[str, int | None]:
+    """PICTURES' numbers by `picture_key`, none if they were read under another `stamp`."""
     path = match / PICTURES
-    seen = json.loads(path.read_text()) if path.exists() else {}
+    saved = json.loads(path.read_text()) if path.exists() else {}
+    return saved["read"] if saved.get("stamp") == stamp else {}
+
+
+def read_pictures(match: Path, pictures: Iterable[tuple[int, tuple[int, ...]]], image: Callable[[int, tuple[int, ...]], bytes | None], stamp: str) -> None:
+    """PICTURES with the number read on each (frame, box) not read yet under `stamp`, `image` giving its JPEG."""
+    path = match / PICTURES
+    seen = pictures_read(match, stamp)
     new = [(f, b) for f, b in dict.fromkeys(pictures) if picture_key(f, b) not in seen]
     if not new:
         return
@@ -103,7 +111,7 @@ def read_pictures(match: Path, pictures: Iterable[tuple[int, tuple[int, ...]]], 
         picture = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR) if raw else None
         if picture is not None:
             seen[picture_key(frame, box)] = number(reader(torso(picture, (0, 0, picture.shape[1], picture.shape[0])))[0])
-    files.write_text(path, json.dumps(seen) + "\n")
+    files.write_text(path, json.dumps({"stamp": stamp, "read": seen}) + "\n")
 
 
 def load(match: Path, rare: bool = False) -> dict[tuple[int, int], int] | None:

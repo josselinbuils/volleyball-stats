@@ -27,6 +27,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 import webbrowser
 from collections import Counter, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
@@ -95,6 +96,8 @@ ROSTER_MATCHES, SUGGESTIONS = 5, 3
 # Readings of a number from which it is a player's: on the second match, 102-616 for the players' own,
 # 44 at most for a number on a player who has another.
 CARD_READINGS = 20
+# Marks a review page waiting for its players' pictures, for after a restart.
+STALE_PHOTOS = "photos_stale"
 PICTURE_READINGS = 2
 
 Ref = dict
@@ -131,7 +134,7 @@ class Questions:
         self.table = identity.read_identities(self.match / "identities.csv")
         self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
-        self.read = card_numbers(self.table, jerseys.load(self.match, rare=True))
+        self.read = card_numbers(self.table, jerseys.load(self.match, rare=True), self.picture_counts())
         actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
         rallies, points = web.rally_table(self.match) if (self.match / "rallies.csv").exists() else ([], [])
         lead = round(web.LEAD_S * self.fps)
@@ -332,14 +335,21 @@ class Questions:
             out[team, number] = [(int(f), tuple(int(v) for v in b.split(","))) for f, b in shown] + [(m["frame"], tuple(m["box"])) for m in photos.get(f"{team}:{number}", [])]
         return out
 
+    def picture_stamp(self) -> str:
+        """What the numbers read on pictures depend on: the video, the reader and how pictures are cut."""
+        source = self.match / "source.json"
+        video = json.loads(source.read_text()).get("video") if source.exists() else None
+        return files.cache_stamp(Path(video) if video else None, [Path(jerseys.__file__)], f"{CROP_PX}:{CROP_MARGIN}")
+
+    def picture_counts(self) -> dict[tuple[int, int], Counter]:
+        """The numbers read so far on each (team, identity)'s pictures."""
+        seen = jerseys.pictures_read(self.match, self.picture_stamp())
+        return {card: Counter(n for f, b in dict.fromkeys(found) if (n := seen.get(jerseys.picture_key(f, b))) is not None) for card, found in self.card_pictures().items()}
+
     def read_pictures(self, image) -> None:
-        """Reads the jersey numbers on the review's pictures, for the cards no track reading gives one."""
-        cards = self.card_pictures()
-        jerseys.read_pictures(self.match, [p for found in cards.values() for p in found], image)
-        path = self.match / jerseys.PICTURES
-        seen = json.loads(path.read_text()) if path.exists() else {}
-        counts = {card: Counter(n for f, b in dict.fromkeys(found) if (n := seen.get(jerseys.picture_key(f, b))) is not None) for card, found in cards.items()}
-        self.read = card_numbers(self.table, jerseys.load(self.match, rare=True), counts)
+        """Reads the jersey numbers on the review's pictures not read yet, for the cards no track reading gives one."""
+        jerseys.read_pictures(self.match, [p for found in self.card_pictures().values() for p in found], image, self.picture_stamp())
+        self.read = card_numbers(self.table, jerseys.load(self.match, rare=True), self.picture_counts())
 
     def past_end(self, until: int) -> dict[tuple[int, int, int], dict]:
         """Each piece from frame `until` on (the end of the match) to the longest piece before it of
@@ -1479,7 +1489,7 @@ def unlocked(keys: list[int]) -> list[dict]:
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "numbers": 5.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0,
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0,
     "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0,
     "pipeline:identity": 20.0, "pipeline:answers": 60.0,
 }
@@ -1724,6 +1734,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # The answers and names before each change since the server started, for undo (see `undo`).
     history: list[dict] = []
     lock = threading.Lock()
+    later = threading.Event()
+    generation = [0]
+    stale_photos = match / STALE_PHOTOS
     # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.4 s.
     readers = threading.Semaphore(READERS)
     kept = match / "crops"
@@ -1797,10 +1810,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             # The films made are kept: the next press makes those left.
             filmed["error"] = str(error) or type(error).__name__
 
-    def pages() -> list:
-        """The steps rebuilding the review's page and the published one with its own choices."""
+    def pages(pictures: bool = True) -> list:
+        """The steps rebuilding the review's page, its pictures later (`afterwards`) unless `pictures`,
+        and the published one with its own choices."""
         def own() -> None:
-            web.review_page(match, video, court, theme)
+            web.review_page(match, video, court, theme, pictures)
+            generation[0] += 1
+            if pictures:
+                stale_photos.unlink(missing_ok=True)
+            else:
+                stale_photos.touch()
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
             hosted["behind"] = read_hosted(match)["behind"]
@@ -1809,6 +1828,25 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         if (match / "page.json").exists():
             steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
         return steps
+
+    def afterwards() -> None:
+        """What an apply leaves for later, one run at a time, once more when asked during one: the
+        players' pictures, kept on the page if no build came since, then the numbers they read."""
+        while True:
+            later.wait()
+            later.clear()
+            try:
+                built = generation[0]
+                if stale_photos.exists():
+                    people = web.refresh_photos(match, video, match / "review")
+                    with lock:
+                        if built == generation[0]:
+                            web.patch_people(match / "review", people)
+                            stale_photos.unlink(missing_ok=True)
+                            hosted["behind"] = read_hosted(match)["behind"]
+                questions.read_pictures(picture)
+            except Exception:
+                traceback.print_exc()
 
     def run_steps(steps: list) -> None:
         progress.update(steps=[name for name, _ in steps], started=time.time())
@@ -1835,7 +1873,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         urls = re.findall(r"crop\?f=(\d+)&b=([\d,-]+)", json.dumps([found, questions.players([], team_names())]))
         with ThreadPoolExecutor(READERS) as pool:
             list(pool.map(lambda u: picture(int(u[0]), tuple(int(v) for v in u[1].split(","))), dict.fromkeys(urls)))
-        questions.read_pictures(picture)
+        later.set()
 
     def team_names() -> list[str | None]:
         teams = web.read_teams(match)
@@ -2191,11 +2229,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 rebuilt = self.path == "/apply" or undo_applied
                 if rebuilt:
                     # The review's own page first: the questions ask what it leaves unidentified.
-                    own, *published = pages()
-                    steps = [("players", lambda: identity.rerun(match, video, squad)), own, ("questions", questions.load), ("numbers", lambda: questions.read_pictures(picture))]
+                    own, *published = pages(pictures=False)
+                    steps = [("players", lambda: identity.rerun(match, video, squad)), own, ("questions", questions.load)]
                     if self.path == "/apply":
                         steps.append(("roster", lambda: remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())))
                     run_steps(steps + published)
+                    later.set()
                     for entry in log:
                         entry["applied"] = True
                     for change in history:
@@ -2211,6 +2250,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/review"
     threading.Thread(target=warm, daemon=True).start()
+    threading.Thread(target=afterwards, daemon=True).start()
     if (match / matches.PUBLISH).exists():
         threading.Thread(target=backing, daemon=True).start()
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)

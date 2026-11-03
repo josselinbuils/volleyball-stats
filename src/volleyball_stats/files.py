@@ -5,10 +5,11 @@ ponytail: no fsync, a power cut may still lose the last write; fsync the file an
 that matters.
 """
 
+import hashlib
 import json
 import os
 import threading
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import IO
@@ -51,3 +52,17 @@ def write_source(match: Path, video: Path, court: Path, squad: tuple[int, int] |
     """What `match` was made from, in its SOURCE: the review opens it from that."""
     given = {"video": str(video), "court": str(court), "squad": f"{squad[0]},{squad[1]}" if squad else None, "aliases": aliases(match)}
     write_text(match / SOURCE, json.dumps(given, indent=1) + "\n")
+
+
+def cache_stamp(video: Path | None, sources: Iterable[Path], extra: str = "") -> str:
+    """What a result cut from `video` depends on: the video itself (size and date), the code making
+    it (`sources`, any change counts), the locked dependencies and `extra`. A cache under another
+    stamp is out of date."""
+    digest = hashlib.sha256(extra.encode())
+    if video is not None and video.exists():
+        found = video.stat()
+        digest.update(f"{found.st_size}:{found.st_mtime_ns}".encode())
+    for path in [*sources, Path(__file__).parents[2] / "uv.lock"]:
+        if path.exists():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:16]

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { marked, type Named } from '@/lib/review';
-import { jerseyOf, matching, offeredNames, pictureOf, playerOptions, sameName, spelled, unnamedFirst } from '@/components/Review/helpers/players';
+import { jerseyOf, matching, offeredNames, pictureOf, playerOptions, sameName, unnamedFirst } from '@/components/Review/helpers/players';
 
 // review.ts reads window.REVIEW on import.
 vi.hoisted(() => {
@@ -86,21 +86,11 @@ describe('players', () => {
     ]);
   });
 
-  it('finds the name a text spells without its accents', () => {
-    const names = [
-      { name: 'Laëtitia', jersey: 8 },
-      { name: 'Théo', jersey: 29 },
-    ];
+  it('proposes a name whatever the accents typed', () => {
+    const names = [{ label: 'Laëtitia' }, { label: 'Théo' }];
 
-    expect(spelled(names, ' laetitia')?.jersey).toBe(8);
-    expect(spelled(names, 'THEO')?.name).toBe('Théo');
-    expect(spelled(names, 'The')).toBeUndefined();
-    expect(
-      matching(
-        names.map((n) => ({ label: n.name })),
-        'laet',
-      ).map((e) => e.label),
-    ).toEqual(['Laëtitia']);
+    expect(matching(names, 'laet').map((e) => e.label)).toEqual(['Laëtitia']);
+    expect(matching(names, 'THEO').map((e) => e.label)).toEqual(['Théo']);
   });
 
   it('puts the players without a name first, keeping their order', () => {

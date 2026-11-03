@@ -320,6 +320,9 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   A piece your answers give another number's player follows the answer alone.
 - **Apply** shows its steps on a progress bar; pictures are cut ahead and kept in
   `outputs/VIDEO/crops/`.
+- **Apply** comes back without waiting for the players' pictures and the jersey numbers they read:
+  they follow in the background, each kept (`photo_moments/`, `jersey_pictures.json`) under a stamp of
+  the video, the code and the locked dependencies, so a change of any of them makes them again.
 - **A picture showing someone else**, in a question or in "Noms": click it, then say who it is if you
   know, or that it is not a player. On "Apply", that piece of track becomes that player (or someone
   else, or no one) and leaves the other pictures' player. A player whose pictures are all marked is

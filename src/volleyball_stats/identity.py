@@ -31,7 +31,7 @@ import csv
 import json
 from bisect import bisect_right
 from collections import Counter
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -827,6 +827,25 @@ def lookup(table: list[tuple[int, int, int, int, int]], track: int | None, frame
     return (team, identity) if identity else None
 
 
+def finder(table: list[tuple[int, int, int, int, int]]) -> Callable[[int | None, int], tuple[int, int] | None]:
+    """`lookup` on `table`, by bisection: for the rows of a whole match."""
+    pieces: dict[int | None, list] = {}
+    for r in sorted(table, key=lambda r: (r[0], r[1])):
+        pieces.setdefault(r[0], []).append(r)
+    starts = {track: [r[1] for r in rows] for track, rows in pieces.items()}
+
+    def find(track: int | None, frame: int) -> tuple[int, int] | None:
+        rows = pieces.get(track)
+        if not rows:
+            return None
+        k = bisect_right(starts[track], frame) - 1
+        if k < 0 or rows[k][2] < frame:
+            return lookup(rows, track, frame)
+        return (rows[k][3], rows[k][4]) if rows[k][4] else None
+
+    return find
+
+
 def read_names(match: Path) -> list[dict]:
     """player_names.json's entries: a player's `ref` (a piece of track, as answers refer to it), the
     `name` and `jersey` number the user gave them, either None."""
@@ -897,8 +916,9 @@ def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None) -> lis
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     rows = read_players(match / "players.csv")
     table = run(match, video, rows, windows, left, fps, squad, [(int(r["frame"]), int(r["track"])) for r in typed if r.get("track")])
+    find = finder(table)
     for r in typed:
-        found = lookup(table, int(r["track"]), int(r["frame"])) if r.get("track") else None
+        found = find(int(r["track"]), int(r["frame"])) if r.get("track") else None
         r["identity"] = "" if found is None or str(found[0]) != r.get("team") else found[1]
     with files.replacing(actions, newline="") as f:
         writer = csv.DictWriter(f, fieldnames=[*[k for k in typed[0] if k != "identity"], "identity"] if typed else ["identity"])

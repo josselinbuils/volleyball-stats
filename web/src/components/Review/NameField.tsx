@@ -2,8 +2,8 @@ import { useId, useRef, useState } from 'react';
 import { OptionList, useFieldPlace } from '@/components/Review/OptionList';
 import { matching } from '@/components/Review/helpers/players';
 
-/** A name's field: any text goes, and a list under it shows the `names` it matches, whatever the
- * accents; a click or Enter picks the highlighted one. */
+/** A name's field: what is typed stays as typed. A list under it proposes the `names` it matches,
+ * whatever the accents: only a click, or the arrows then Enter, picks one. */
 export function NameField({
   id,
   label,
@@ -54,7 +54,7 @@ export function NameField({
         onClick={() => setOpen(true)}
         onChange={(event) => {
           onChange(event.target.value);
-          setActive(event.target.value.trim() ? 0 : -1);
+          setActive(-1);
           setOpen(true);
         }}
         onKeyDown={(event) => {

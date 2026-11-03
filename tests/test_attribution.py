@@ -187,3 +187,25 @@ class TestByWrists:
         out = by_wrists(tmp_path / "none.mp4", [(10, 135, 250, "pass", "left")], [[(0.0, 0.0, 1), (0.0, 0.0, 2)]], rows, 50.0, cache)
 
         assert [c[2] for c in out[0]] == [2, 1]
+
+
+class TestReadPlayers:
+    HEADER = "frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n"
+
+    def test_reads_every_field_as_the_csv_reader_does(self, tmp_path):
+        path = tmp_path / "players.csv"
+        path.write_text(self.HEADER + "3,7,left,1.5,2.25,3,4,0.9,5,6,-1.2,3.4\n4,8,right,1,2,3,4,0.8,5,6,7.5,8\n")
+
+        rows = read_players(path)
+
+        assert rows == [
+            Row(3, 7, (1.5, 2.25, 3.0, 4.0), 0.9, (5.0, 6.0), (-1.2, 3.4), "left"),
+            Row(4, 8, (1.0, 2.0, 3.0, 4.0), 0.8, (5.0, 6.0), (7.5, 8.0), "right"),
+        ]
+        assert isinstance(rows[0].frame, int)
+
+    def test_a_file_without_rows_gives_none(self, tmp_path):
+        path = tmp_path / "players.csv"
+        path.write_text(self.HEADER)
+
+        assert read_players(path) == []
