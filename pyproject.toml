@@ -8,6 +8,7 @@ dependencies = [
     "gdown",
     "numpy",
     "opencv-python",
+    "rapidocr-onnxruntime>=1.4.4",
     "spandrel>=0.4.2",
     "torch",
     "ultralytics",
@@ -16,9 +17,6 @@ dependencies = [
 [dependency-groups]
 dev = ["pytest"]
 bench = ["onnxruntime", "pillow", "pyyaml"]
-jerseys = [
-    "rapidocr-onnxruntime>=1.4.4",
-]
 voice = [
     "espeakng-loader>=0.2.4",
     "kokoro>=0.9.4",

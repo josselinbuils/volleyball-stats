@@ -1,9 +1,10 @@
 """Jersey numbers read on the players' boxes of 4K footage, for the identity step: per piece of
 track, the torso of a few clear boxes is read by RapidOCR (PaddleOCR's models on onnxruntime), and
 a number kept when READINGS_AGREE readings or more agree and none disagrees: a wrong number would
-join two players for good. Written to jerseys.csv, which identity.run reads.
+join two players for good. Written to jerseys.csv, which identity.run reads. A step of match.py on
+footage of MIN_HEIGHT pixels or more; alone:
 
-    uv run --group jerseys python -m volleyball_stats.jerseys outputs/VIDEO --video VIDEO
+    uv run python -m volleyball_stats.jerseys outputs/VIDEO --video VIDEO
 """
 
 import argparse
@@ -19,6 +20,8 @@ from volleyball_stats import decode, files, identity
 from volleyball_stats.attribution import read_players
 
 FILE = "jerseys.csv"
+# Under this height, numbers are too small to read.
+MIN_HEIGHT = 1440
 # Boxes read per piece of track, pieces shorter than MIN_S skipped (a few frames of a crowd).
 READS, MIN_S = 4, 2.0
 # The number sits on the chest or the back: the box's rows between these shares of its height,

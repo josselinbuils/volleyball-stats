@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from volleyball_stats import web
-from volleyball_stats.match import busiest, in_rallies, report, review_page, settled_teams, slow_run_reasons, unseen_serves
+from volleyball_stats import decode, jerseys, web
+from volleyball_stats.match import busiest, in_rallies, read_jerseys, report, review_page, settled_teams, slow_run_reasons, unseen_serves
 from volleyball_stats.players import Row
 
 
@@ -93,6 +93,24 @@ class TestReport:
     def test_heads_with_a_typed_title_or_the_video_name_without_teams(self):
         assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}, {}, ["A", "B"], [], [], "2026-11-02", "Finale").startswith("# Finale · 2 November 2026\n")
         assert report(Path("m.mp4"), 30.0, 300, [], [], [], {}).startswith("# m\n")
+
+
+class TestReadJerseys:
+    def run(self, out, monkeypatch, height):
+        reads = []
+        monkeypatch.setattr(decode, "size", lambda video: (height * 16 // 9, height))
+        monkeypatch.setattr(jerseys, "read", lambda match, video: reads.append(match) or [(5, 1, 25)])
+        read_jerseys(out, out / "video.mp4")
+        return reads
+
+    def test_reads_sharp_footage_once(self, tmp_path, monkeypatch):
+        assert self.run(tmp_path, monkeypatch, 2160) == [tmp_path]
+        assert "25" in (tmp_path / jerseys.FILE).read_text()
+        assert self.run(tmp_path, monkeypatch, 2160) == []
+
+    def test_leaves_small_footage_alone(self, tmp_path, monkeypatch):
+        assert self.run(tmp_path, monkeypatch, 720) == []
+        assert not (tmp_path / jerseys.FILE).exists()
 
 
 class TestSettledTeams:

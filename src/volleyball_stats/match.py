@@ -26,7 +26,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, players, points, rallies, ranker, teams, timeouts
+from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, players, points, rallies, ranker, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -238,6 +238,12 @@ def review_page(out: Path, video: Path, court: Path) -> None:
         print(f"The review will make its page when opened: {error}", file=sys.stderr)
 
 
+def read_jerseys(out: Path, video: Path) -> None:
+    """jerseys.csv of the match on footage sharp enough for them, kept for the next runs."""
+    if not (out / jerseys.FILE).exists() and decode.size(video)[1] >= jerseys.MIN_HEIGHT:
+        jerseys.write(out / jerseys.FILE, jerseys.read(out, video))
+
+
 def settled_teams(assign: Callable[[list[float] | None], teams.Teams], settle: Callable[[teams.Teams], dict], starts: list[float] | None) -> tuple[teams.Teams, dict]:
     """The teams and what `settle` saves: when that gives other set starts than the `starts` known
     before (typed, or saved during the run), the sides are found again with them."""
@@ -324,7 +330,7 @@ def main() -> None:
         timings[" and ".join(name for name, new in (("ball", new_ball), ("players", new_players)) if new)] = time.perf_counter() - start
     if new_players:
         # New tracks: the identities and their embeddings start over.
-        for stale in ("identities.csv", "embeddings.npz", "looks.npz"):
+        for stale in ("identities.csv", "embeddings.npz", "looks.npz", jerseys.FILE):
             (out / stale).unlink(missing_ok=True)
         if (out / "identity_answers.json").exists():
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
@@ -412,6 +418,10 @@ def main() -> None:
         write_csv(out / "rallies.csv", ["start_frame", "end_frame", "left", "set"], [[*w, "" if g is None else g, s] for w, g, s in zip(windows, found_teams.left, sets)])
         timeouts.detect(out, fps)
         contact_teams = teams.contact_teams(typed, windows, found_teams.left, round(actions.LEAD_S * fps))
+        stage("jerseys")
+        start = time.perf_counter()
+        read_jerseys(out, args.video)
+        timings["jerseys"] = time.perf_counter() - start
         stage("identity")
         start = time.perf_counter()
         attributed = [(t[0], k) for t, k in zip(typed, touchers) if k is not None]

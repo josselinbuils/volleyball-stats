@@ -3290,6 +3290,7 @@ dependencies = [
     { name = "gdown" },
     { name = "numpy" },
     { name = "opencv-python" },
+    { name = "rapidocr-onnxruntime" },
     { name = "spandrel" },
     { name = "torch" },
     { name = "ultralytics" },
@@ -3304,9 +3305,6 @@ bench = [
 dev = [
     { name = "pytest" },
 ]
-jerseys = [
-    { name = "rapidocr-onnxruntime" },
-]
 voice = [
     { name = "espeakng-loader" },
     { name = "kokoro" },
@@ -3320,6 +3318,7 @@ requires-dist = [
     { name = "gdown" },
     { name = "numpy" },
     { name = "opencv-python" },
+    { name = "rapidocr-onnxruntime", specifier = ">=1.4.4" },
     { name = "spandrel", specifier = ">=0.4.2" },
     { name = "torch" },
     { name = "ultralytics" },
@@ -3332,7 +3331,6 @@ bench = [
     { name = "pyyaml" },
 ]
 dev = [{ name = "pytest" }]
-jerseys = [{ name = "rapidocr-onnxruntime", specifier = ">=1.4.4" }]
 voice = [
     { name = "espeakng-loader", specifier = ">=0.2.4" },
     { name = "kokoro", specifier = ">=0.9.4" },
