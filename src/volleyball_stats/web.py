@@ -488,15 +488,14 @@ def brand(name: str, site: Path) -> dict | None:
 
 def poster(video: Path, frame: int, path: Path) -> bool:
     """Writes `frame` as a POSTER_WIDTH pixels wide WebP; False when the video has no such frame."""
-    cap = cv2.VideoCapture(str(video))
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-    ok, image = cap.read()
-    cap.release()
-    if ok:
+    from volleyball_stats.decode import frame_at
+
+    image = frame_at(video, frame)
+    if image is not None:
         height, width = image.shape[:2]
         image = cv2.resize(image, (POSTER_WIDTH, round(height * POSTER_WIDTH / width)), interpolation=cv2.INTER_AREA)
         cv2.imwrite(str(path), image, [cv2.IMWRITE_WEBP_QUALITY, 65])
-    return ok
+    return image is not None
 
 
 def touched(match: Path, given: dict[tuple[int, int], dict], kind: str = "touch") -> dict[int, tuple[int, int] | None]:

@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import files
+from volleyball_stats import decode, files
 from volleyball_stats.actions import LATE_FLIGHT_S, POSE_MODEL, Typed
 from volleyball_stats.players import Row
 
@@ -191,14 +191,12 @@ def by_wrists(
     `learned` ranker (ranker.py), every touch's by its scores, the ball's 3D `places` by frame among
     them; YOLO pose on a crop around the ball, kept in `cache` (JSON, by frame and ball place) for
     the next runs. First ASPOM match: 97 -> 104 of the 135 touches answered."""
-    import cv2
-
     from volleyball_stats import ranker
 
     by_track, gap = tracks(rows), round(GAP_S * fps)
     feet = feet_on_court(rows) if places else {}
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
-    model, cap, out = None, None, []
+    model, out = None, []
     for (frame, x, y, kind, side), found in zip(typed, candidates):
         if len(found) < 2 or (learned is None and kind not in BELOW_HEAD):
             out.append(found)
@@ -208,8 +206,8 @@ def by_wrists(
             if model is None:
                 from ultralytics import YOLO
 
-                model, cap = YOLO(str(POSE_MODEL)), cv2.VideoCapture(str(video))
-            kept[key] = poses_at(model, cap, frame, x, y)
+                model = YOLO(str(POSE_MODEL))
+            kept[key] = poses_at(model, video, frame, x, y)
         poses = [[(tuple(b), np.array(k)) for b, k in f] for f in kept[key]]
         boxes = {c[2]: box_at(by_track[c[2]][1], frame, gap) for c in found}
         wrists = {c[2]: wrist_distance((x, y), boxes[c[2]], poses) for c in found}
@@ -223,24 +221,17 @@ def by_wrists(
             for k, c in enumerate(found)
         ])
         out.append([found[k] for k in np.argsort(-ranker.scores(learned, x_), kind="stable")])
-    if cap is not None:
-        cap.release()
+    if model is not None:
         if cache:
             files.write_text(cache, json.dumps(kept, separators=(",", ":")))
     return out
 
 
-def poses_at(model, cap, frame: int, x: int, y: int) -> list[list[tuple[list[float], list[list[float]]]]]:
+def poses_at(model, video: Path, frame: int, x: int, y: int) -> list[list[tuple[list[float], list[list[float]]]]]:
     """YOLO pose on a crop around the ball (`x`, `y`) in frames `frame` - 1 to + 1: each frame's
     boxes and 17 keypoints (x, y, confidence), in the frame's pixels."""
-    import cv2
-
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame - 1)
     poses = []
-    for _ in range(3):
-        ok, image = cap.read()
-        if not ok:
-            break
+    for _, image in decode.frames_at(video, range(max(0, frame - 1), frame + 2)):
         height, width = image.shape[:2]
         side = min(round(POSE_CROP * height), width, height)
         x0, y0 = min(max(0, x - side // 2), width - side), min(max(0, y - side // 2), height - side)

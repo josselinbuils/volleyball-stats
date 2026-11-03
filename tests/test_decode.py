@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 import pytest
 
-from volleyball_stats.decode import SEEK, frames, frames_at, scaled
+from volleyball_stats import decode
+from volleyball_stats.decode import SEEK, frame_at, frames, frames_at, scaled
 
 
 class TestScaled:
@@ -72,15 +73,26 @@ class TestFrames:
         assert [index for index, _ in frames_at(self.video(tmp_path, 300), [1, 2])] == [1, 2]
         assert started[-1].poll() is not None
 
-    def test_frames_at_seeks_with_opencv_when_it_would_skip_most_of_the_video(self, tmp_path, monkeypatch):
-        path = self.video(tmp_path, SEEK + 20)
+    def test_frames_at_gives_the_same_pixels_over_a_long_gap_by_timestamp(self, tmp_path):
+        path = self.video(tmp_path, SEEK + 40)
         expected = self.expected(path)
-        monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: pytest.fail("ffmpeg decoded through the gap"))
 
-        found = list(frames_at(path, [SEEK + 10]))
+        found = list(frames_at(path, [3, SEEK + 10, SEEK + 12]))
 
-        assert [index for index, _ in found] == [SEEK + 10]
-        assert np.array_equal(found[0][1], expected[SEEK + 10])
+        assert [index for index, _ in found] == [3, SEEK + 10, SEEK + 12]
+        assert all(np.array_equal(image, expected[index]) for index, image in found)
+
+    def test_frames_at_goes_by_each_frame_s_own_timestamp(self, tmp_path):
+        # A video whose frames do not fall on its average rate.
+        path = self.video(tmp_path, 40)
+        irregular = tmp_path / "irregular.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", "setpts='if(gte(N,20),PTS+0.4/TB,PTS)'", "-fps_mode", "passthrough", "-c:v", "libx264", "-crf", "0", str(irregular)], check=True)
+        assert decode.timestamps(irregular)[20] - decode.timestamps(irregular)[19] > 0.3
+        expected = self.expected(irregular)
+        assert np.array_equal(frame_at(irregular, 30), expected[30])
+
+    def test_frame_at_past_the_end_is_none(self, tmp_path):
+        assert frame_at(self.video(tmp_path), 40) is None
 
     def test_frames_at_past_the_end_stops_at_the_last_frame(self, tmp_path):
         assert [index for index, _ in frames_at(self.video(tmp_path), [1, 40])] == [1]

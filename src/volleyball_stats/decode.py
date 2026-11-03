@@ -4,13 +4,19 @@ yuv420p first, so that every decoder gives the same pixels as cv2.VideoCapture.
 
 On the real footage (4K HEVC, 100 Mb/s) on the M4 Pro, VideoToolbox decodes at 133 fps against 69 for
 ffmpeg on the CPU and 73 for OpenCV, and 84 against 50 and 51 with every core kept busy.
+
+A frame is reached by its timestamp, the camera's being slightly irregular. OpenCV's seek guesses it
+from the average frame rate: on the first ASPOM match it gives the frame before from frame 142115 on.
 """
 
 import functools
+import os
 import subprocess
 import sys
 import tempfile
+import threading
 from collections.abc import Iterable, Iterator
+from fractions import Fraction
 from pathlib import Path
 
 import cv2
@@ -18,7 +24,7 @@ import numpy as np
 
 # YOLO reads the players at 1280 px wide; WASB's 512x288 is resized from these frames.
 WIDTH = 1280
-# OpenCV seeks over gaps of more frames than this, rather than decoding through them.
+# ffmpeg restarts at a timestamp over gaps of more frames than this, rather than decoding through them.
 SEEK = 150
 
 
@@ -56,11 +62,42 @@ def hardware(video: Path) -> tuple[str, ...]:
     return ()
 
 
-def piped(video: Path, width: int, height: int, fresh: bool = True) -> Iterator[np.ndarray]:
-    """Every BGR frame of the video in order at this size; without `fresh` in one array, valid until the next frame."""
+@functools.cache
+def timestamps(video: Path) -> np.ndarray:
+    """Each frame's time in seconds from the video's start, as ffmpeg's -ss counts it: a camera's are
+    slightly irregular, so a frame's index alone does not say where it is. Kept on disk: listing them
+    reads the whole file."""
+    stat = video.stat()
+    kept = Path(tempfile.gettempdir()) / f"volleyball_stats_times_{stat.st_size}_{stat.st_mtime_ns}.npy"
+    if kept.exists():
+        return np.load(kept)
+
+    def probe(*args: str) -> str:
+        return subprocess.run(["ffprobe", "-v", "error", *args, str(video)], capture_output=True, text=True).stdout.strip()
+
+    base = probe("-select_streams", "v:0", "-show_entries", "stream=time_base", "-of", "csv=p=0")
+    # Not a video: it has no frame.
+    if not base:
+        return np.empty(0)
+    base = Fraction(base)
+    start = float(probe("-show_entries", "format=start_time", "-of", "csv=p=0"))
+    ticks = np.sort(np.array(probe("-select_streams", "v:0", "-show_entries", "packet=pts", "-of", "csv=p=0").replace(",", "").split(), dtype=np.int64))
+    found = ticks * float(base) - start
+    # Under another name first: several readers may list them at once.
+    partial = kept.with_name(f"{kept.stem}_{os.getpid()}_{threading.get_ident()}.npy")
+    np.save(partial, found)
+    partial.replace(kept)
+    return found
+
+
+def piped(video: Path, width: int, height: int, fresh: bool = True, first: int = 0, count: int | None = None) -> Iterator[np.ndarray]:
+    """The BGR frames of the video in order at this size, from index `first` (`count` of them, else to
+    the end); without `fresh` in one array, valid until the next frame."""
     flags = hardware(video)
+    # Half a frame early: ffmpeg drops what comes before the time asked, and no more.
+    seek = ("-ss", f"{timestamps(video)[first] - 0.01:.6f}") if first else ()
     command = [
-        "ffmpeg", "-v", "error", *flags, "-i", str(video), "-an", "-sn", "-dn",
+        "ffmpeg", "-v", "error", *flags, *seek, "-i", str(video), *(("-frames:v", str(count)) if count else ()), "-an", "-sn", "-dn",
         "-vf", f"{'format=yuv420p,' if flags else ''}scale={width}:{height}:in_color_matrix=bt601:flags=bicubic", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "bgr24", "-",
     ]
     with tempfile.TemporaryFile() as errors:
@@ -87,41 +124,33 @@ def frames(video: Path, width: int = WIDTH) -> Iterator[np.ndarray]:
     return piped(video, *scaled(*size(video), width))
 
 
-def seeking(video: Path, wanted: list[int]) -> Iterator[tuple[int, np.ndarray]]:
-    """The frames at the sorted `wanted` indices, OpenCV seeking over the long gaps."""
-    cap, position = cv2.VideoCapture(str(video)), 0
-    for frame in wanted:
-        if frame - position > SEEK:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-            position = frame
-        while position < frame:
-            cap.grab()
-            position += 1
-        ok, image = cap.read()
-        position += 1
-        if not ok:
-            break
-        yield frame, image
-    cap.release()
-
-
 def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndarray]]:
-    """The video's full-size BGR frames at the `wanted` indices in order.
-
-    Decoded from the start by ffmpeg, frames counted; OpenCV seeks when that would skip most of the
-    video, exact too: same pixels on 73 frames over a whole match, around each irregular timestamp."""
+    """The video's full-size BGR frames at the `wanted` indices in order, decoded straight through
+    close ones and restarting at a timestamp over gaps of more than SEEK frames."""
     ordered = sorted(set(wanted))
-    if not ordered:
-        return
-    gaps = np.diff([0, *ordered])
-    if 2 * gaps[gaps <= SEEK].sum() < ordered[-1]:
-        yield from seeking(video, ordered)
-        return
-    remaining = iter(ordered)
-    target = next(remaining)
-    for index, image in enumerate(piped(video, *size(video), fresh=False)):
-        if index == target:
-            yield index, image.copy()
-            target = next(remaining, None)
-            if target is None:
-                return
+    runs: list[list[int]] = []
+    for frame in ordered:
+        if runs and frame - runs[-1][-1] <= SEEK:
+            runs[-1].append(frame)
+        else:
+            runs.append([frame])
+    width, height = size(video)
+    for run in runs:
+        if run[0] >= len(timestamps(video)):
+            return
+        # A frame's copy: the caller may keep it, and the next frame overwrites this one.
+        kept = iter(run)
+        target = next(kept)
+        for index, image in enumerate(piped(video, width, height, False, run[0], run[-1] - run[0] + 1), run[0]):
+            if index == target:
+                yield index, image.copy()
+                target = next(kept, None)
+                if target is None:
+                    break
+        if target is not None:
+            return
+
+
+def frame_at(video: Path, index: int) -> np.ndarray | None:
+    """The video's full-size BGR frame at this index; None past its end."""
+    return next((image for _, image in frames_at(video, [index])), None)

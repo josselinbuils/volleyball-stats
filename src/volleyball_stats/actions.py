@@ -19,10 +19,9 @@ import csv
 import json
 from pathlib import Path
 
-import cv2
 import numpy as np
 
-from volleyball_stats import files
+from volleyball_stats import decode, files
 from volleyball_stats.court import Calibration
 
 # Relances (free balls): a third touch played without attacking, ball not above the player's head
@@ -330,8 +329,8 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
     if not attacks:
         return typed
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
-    model, cap, fresh = None, cv2.VideoCapture(str(video)), False
-    reach = UNDER_PX * cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 720
+    model, fresh = None, False
+    reach = UNDER_PX * decode.size(video)[1] / 720
 
     def boxes_at(frame: int) -> np.ndarray:
         nonlocal model, fresh
@@ -340,9 +339,8 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
                 from ultralytics import YOLO
 
                 model = YOLO(str(POSE_MODEL))
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-            ok, image = cap.read()
-            found = model.predict(image, imgsz=1280, conf=0.25, verbose=False)[0].boxes.xyxy.cpu().numpy() if ok else np.empty((0, 4))
+            image = decode.frame_at(video, frame)
+            found = model.predict(image, imgsz=1280, conf=0.25, verbose=False)[0].boxes.xyxy.cpu().numpy() if image is not None else np.empty((0, 4))
             kept[str(frame)], fresh = np.round(found, 1).tolist(), True
         return np.array(kept[str(frame)], dtype=float).reshape(-1, 4)
 
@@ -364,7 +362,6 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
         above, lift = relance_cues((x, y), box, feet)
         if above <= ABOVE and lift < LIFT:
             relances.add(frame)
-    cap.release()
     if cache and fresh:
         files.write_text(cache, json.dumps(kept, separators=(",", ":")))
     return [(f, x, y, "relance" if f in relances else kind, side) for f, x, y, kind, side in typed]

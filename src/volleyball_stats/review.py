@@ -21,7 +21,6 @@ import csv
 import hashlib
 import json
 import os
-import queue
 import re
 import shutil
 import subprocess
@@ -39,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, feedback, film, files, identity, jerseys, matches, rename, timeouts, web
+from volleyball_stats import attribution, backup, decode, feedback, film, files, identity, jerseys, matches, rename, timeouts, web
 from volleyball_stats.court import LENGTH, Calibration
 from volleyball_stats.teams import parse_colour
 
@@ -1641,23 +1640,17 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # The answers and names before each change since the server started, for undo (see `undo`).
     history: list[dict] = []
     lock = threading.Lock()
-    # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.35 s.
-    readers: queue.Queue = queue.Queue()
-    for _ in range(READERS):
-        readers.put(cv2.VideoCapture(str(video)))
+    # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.4 s.
+    readers = threading.Semaphore(READERS)
     kept = match / "crops"
 
     def picture(frame: int, box: tuple[int, int, int, int]) -> bytes:
         path = kept / f"{CROP_PX}_{frame}_{'_'.join(map(str, box))}.jpg"
         if path.exists():
             return path.read_bytes()
-        capture = readers.get()
-        try:
-            capture.set(cv2.CAP_PROP_POS_FRAMES, frame)
-            ok, image = capture.read()
-        finally:
-            readers.put(capture)
-        if not ok:
+        with readers:
+            image = decode.frame_at(video, frame)
+        if image is None:
             return b""
         x1, y1, x2, y2 = box
         mx, my = round((x2 - x1) * CROP_MARGIN), round((y2 - y1) * CROP_MARGIN)

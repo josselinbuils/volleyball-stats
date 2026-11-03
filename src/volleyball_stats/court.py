@@ -27,6 +27,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from volleyball_stats import decode
+
 LENGTH, WIDTH, ATTACK = 18.0, 9.0, 3.0
 # FIVB: 0.5-1 m outside the sidelines; measure the gym's.
 POST = 0.75
@@ -564,11 +566,8 @@ def click_landmarks(image: np.ndarray) -> Points:
 
 
 def read_frame(video: Path, index: int) -> np.ndarray:
-    cap = cv2.VideoCapture(str(video))
-    cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-    ok, frame = cap.read()
-    cap.release()
-    if not ok:
+    frame = decode.frame_at(video, index)
+    if frame is None:
         raise ValueError(f"Cannot read frame {index} of {video}")
     return frame
 
