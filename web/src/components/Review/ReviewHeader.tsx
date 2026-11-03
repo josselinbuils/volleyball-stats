@@ -142,6 +142,7 @@ export function ReviewHeader({
                 <DropdownMenuItem disabled={!films.stale} onSelect={() => run('films')}>
                   <Clapperboard aria-hidden />
                   {films.stale ? t('review.films', { count: films.stale }) : t('review.filmsDone')}
+                  {films.stale > 0 && <span aria-hidden className="ml-auto size-2 shrink-0 rounded-full bg-primary" />}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
