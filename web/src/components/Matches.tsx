@@ -6,6 +6,7 @@ import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { Swatch } from '@/components/Swatch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useFormat } from '@/lib/format';
+import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import type { Brand, Team } from '@/lib/match';
 
@@ -31,28 +32,6 @@ export interface MatchList {
   review?: boolean;
 }
 
-/** Asks the review server to open the match `name`, then goes to its review once the server has restarted on it. */
-async function openReview(name: string): Promise<void> {
-  const response = await fetch('/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-  if (!response.ok) {
-    throw new Error(`open: ${response.status}`);
-  }
-  const giveUp = Date.now() + 5 * 60_000;
-  while (Date.now() < giveUp) {
-    try {
-      const current = (await (await fetch('/current')).json()) as { name: string | null };
-      if (current.name === name) {
-        location.href = '/review';
-        return;
-      }
-    } catch {
-      // Not listening yet: the server is restarting.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  throw new Error('open: timed out');
-}
-
 /** The match pages, newest first, each a card linking to it. */
 export function Matches({ matches, brand, review = false }: MatchList) {
   const { t } = useTranslation();
@@ -62,7 +41,7 @@ export function Matches({ matches, brand, review = false }: MatchList) {
   const open = (name: string) => {
     setOpening(name);
     setFailed(false);
-    openReview(name).catch(() => {
+    openMatch(name).catch(() => {
       setOpening(null);
       setFailed(true);
     });

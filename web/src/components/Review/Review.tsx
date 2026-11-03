@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, Clapperboard, CirclePause, CloudDownload, CloudUpload, HelpCircle, PenLine, RefreshCw, Scissors, Undo2, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, HelpCircle, PenLine, Scissors, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { BrandBar } from '@/components/BrandBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, teamColor, teamRing, type Group } from '@/lib/match';
-import { cn } from '@/lib/utils';
 import { allMarked, post, type Conflict, type Hosted, type LearnRun, type Named, type Question, type ReportChanges, type Saved, type Suggestion } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
@@ -20,6 +18,8 @@ import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 import { MatchTab } from '@/components/Review/MatchTab';
 import { Progress } from '@/components/Review/Progress';
+import { ReviewHeader } from '@/components/Review/ReviewHeader';
+import { ReviewTabs } from '@/components/Review/ReviewTabs';
 
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
@@ -284,83 +284,19 @@ export function Review({
       <BrandBar brand={match.brand} />
       <Status notice={notice} />
       <main className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] gap-4 px-4 pt-6 pb-16 max-sm:pt-5">
-        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-1">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">{t('review.title')}</h1>
-            <p className="mt-1 text-sm text-muted-foreground" aria-live="polite">
-              {`${t('review.answers', { count: answered })} · ${t('review.left', { count: open.length })}`}
-              {' · '}
-              <a href="./" className="text-link underline underline-offset-2">
-                {t('review.matchPage')}
-              </a>
-              {' · '}
-              <a href="/matches/" className="text-link underline underline-offset-2">
-                {t('review.otherMatch')}
-              </a>
-            </p>
-            {hosted && (
-              <p className={cn('mt-0.5 text-sm', hosted.error ? 'text-destructive' : 'text-muted-foreground')} title={hosted.error ?? undefined}>
-                {hosted.error ? t('review.hostedFailed', { at: hosted.at }) : hosted.behind ? t('review.hostedBehind') : t('review.hosted', { at: hosted.at })}
-              </p>
-            )}
-            {filmsError && (
-              <p className="mt-0.5 text-sm text-destructive" title={filmsError}>
-                {t('review.filmsFailed')}
-              </p>
-            )}
-            {backup && (
-              <p className={cn('mt-0.5 text-sm', backup.error ? 'text-destructive' : 'text-muted-foreground')} title={backup.error ?? undefined}>
-                {t(backup.error ? 'review.backupFailed' : 'review.backedUp', { at: backup.at })}
-              </p>
-            )}
-            {fetched && (
-              <p className={cn('mt-0.5 text-sm', fetched.error ? 'text-destructive' : 'text-muted-foreground')} title={fetched.error ?? undefined}>
-                {fetched.error ? t('review.fetchFailed', { at: fetched.at }) : t('review.fetched', { count: fetched.count, at: fetched.at })}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="bg-card" disabled={!answered || busy !== null} onClick={() => void reload('undo')}>
-              <Undo2 aria-hidden />
-              {busy === 'undo' ? t('review.undoing') : t('review.undo')}
-            </Button>
-            <Button variant="outline" className="bg-card" disabled={busy !== null} title={t('review.rerunNote')} onClick={() => window.confirm(t('review.rerunConfirm')) && void reload('rerun')}>
-              <RefreshCw aria-hidden />
-              {busy === 'rerun' ? t('review.rerunning') : t('review.rerun')}
-            </Button>
-            {hosted && (
-              <Button variant="outline" className="bg-card" disabled={busy !== null} title={t('review.fetchNote')} onClick={() => void reload('reports')}>
-                <CloudDownload aria-hidden />
-                {busy === 'reports' ? t('review.fetching') : t('review.fetch')}
-              </Button>
-            )}
-            {films.total > 0 && (
-              <Button variant="outline" className="bg-card" disabled={!films.stale || busy !== null} onClick={() => void reload('films')}>
-                <Clapperboard aria-hidden />
-                {busy === 'films' ? t('review.filmsMaking') : films.stale ? t('review.films', { count: films.stale }) : t('review.filmsDone')}
-              </Button>
-            )}
-            {hosted && (
-              <Button variant="outline" className="bg-card" disabled={!hosted.behind || busy !== null} onClick={() => void reload('host')}>
-                <CloudUpload aria-hidden />
-                {busy === 'host' ? t('review.hosting') : t('review.host')}
-              </Button>
-            )}
-            <Button disabled={(!pending.changed && !pending.names) || busy !== null} onClick={() => void reload('apply')}>
-              <Check aria-hidden />
-              {busy === 'apply'
-                ? t('review.applying')
-                : pending.names
-                  ? t(pending.changed ? 'review.applyBoth' : 'review.applyNames')
-                  : !pending.changed
-                    ? t('review.applied')
-                    : pending.answers
-                      ? t('review.apply', { count: pending.answers })
-                      : t('review.applyChanges')}
-            </Button>
-          </div>
-        </header>
+        <ReviewHeader
+          title={title}
+          answered={answered}
+          hosted={hosted}
+          backup={backup}
+          fetched={fetched}
+          filmsError={filmsError}
+          films={films}
+          pending={pending}
+          busy={busy}
+          run={(action) => void reload(action)}
+          onFailed={() => setError(true)}
+        />
         {progress && (
           <div role="progressbar" aria-label={t('review.applying')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.fraction * 100)} className="grid gap-1 px-1">
             <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -382,34 +318,7 @@ export function Review({
             </p>
           </div>
         )}
-        {players.length > 0 && (
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            spacing={0}
-            value={tab}
-            onValueChange={(v) => {
-              if (v) {
-                show(v as Tab);
-              }
-            }}
-            aria-label={t('review.tabs')}
-            className="grid w-full grid-cols-2 items-stretch bg-card sm:flex sm:w-auto sm:justify-self-start"
-          >
-            <ToggleGroupItem value="names" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
-              {t('review.tabNames', { n: named, total: players.length })}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="questions" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
-              {t('review.tabQuestions', { count: open.length })}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="match" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
-              {t('review.tabMatch', { count: reports.length })}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="progress" className="h-9 flex-1 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground sm:flex-none">
-              {t('review.tabProgress')}
-            </ToggleGroupItem>
-          </ToggleGroup>
-        )}
+        {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} />}
         <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={players} nameOf={nameOf} />
         {error && (

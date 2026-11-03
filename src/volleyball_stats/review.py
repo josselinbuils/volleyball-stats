@@ -1741,6 +1741,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             url = urlparse(self.path)
             if url.path == "/current":
                 return self.send(json.dumps({"name": match.name}).encode(), "application/json")
+            if url.path == "/matches.json":
+                return self.send(json.dumps(match_list(match.parent)).encode(), "application/json")
             if url.path.startswith("/matches/"):
                 page = list_page(url.path, match.parent, theme)
                 return self.send(*page) if page else self.send(b"Not found", "text/plain", 404)
