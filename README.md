@@ -311,7 +311,8 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   name, Enter), N names the player.
 - **Jersey numbers** (footage of 1440p or more) join the pieces read with one number and part two
   numbers: a step of `match`, about an hour on 4K, writes `jerseys.csv`, kept for the next runs and
-  read by every apply. RapidOCR reads the torsos; a piece keeps a number read
+  read by every apply. "Noms" fills the number read and suggests first the roster's player wearing
+  it. RapidOCR reads the torsos; a piece keeps a number read
   twice and never contradicted, and a number seen on two pieces at once (two people wear it) joins
   nobody.
 - **Apply** shows its steps on a progress bar; pictures are cut ahead and kept in

@@ -93,6 +93,9 @@ def with_review(html: str) -> str:
     return re.sub(r'(<script defer [^>]*src="data\.js[^"]*"></script>)', r'\1<script defer src="review.js"></script>', html, count=1)
 # Matches of a player the roster keeps (the latest), and names suggested per identity.
 ROSTER_MATCHES, SUGGESTIONS = 5, 3
+# Readings of a number from which it is a player's: on the second match, 102-616 for the players' own,
+# 44 at most for a number on a player who has another.
+CARD_READINGS = 20
 
 Ref = dict
 
@@ -128,6 +131,7 @@ class Questions:
         self.table = identity.read_identities(self.match / "identities.csv")
         self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
+        self.read = card_numbers(self.table, jerseys.load(self.match))
         actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
         rallies, points = web.rally_table(self.match) if (self.match / "rallies.csv").exists() else ([], [])
         lead = round(web.LEAD_S * self.fps)
@@ -432,7 +436,8 @@ class Questions:
             out.append({
                 "team": team, "identity": number, "seconds": round(played, 1), "contacts": touches[team, number],
                 **self.faces(team, number), "name": given.get("name"), "jersey": given.get("jersey"),
-                "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1], self.together(team, number, names)),
+                "read": self.read.get((team, number)),
+                "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1], self.together(team, number, names), self.read.get((team, number))),
             })
         return out
 
@@ -1151,9 +1156,30 @@ def load_roster(path: Path) -> list[dict]:
     return json.loads(path.read_text())["players"] if path.exists() else []
 
 
-def suggest(vector: np.ndarray | None, roster: list[dict], team: str | None, unless: set[str] = frozenset()) -> list[dict]:
+def card_numbers(table: list[tuple[int, int, int, int, int]], read: dict[tuple[int, int], int] | None) -> dict[tuple[int, int], int]:
+    """The jersey number read on each (team, identity): each number on the identity with most of its
+    readings, CARD_READINGS or more, and on no other; one reading of several numbers takes its most read."""
+    by_track: dict[int, list] = {}
+    for r in table:
+        by_track.setdefault(r[0], []).append(r)
+    counts: Counter = Counter()
+    for (frame, track), number in (read or {}).items():
+        card = next(((team, n) for _, start, end, team, n in by_track.get(track, []) if start <= frame <= end and n), None)
+        if card:
+            counts[card, number] += 1
+    out: dict[tuple[int, int], int] = {}
+    taken: set[int] = set()
+    for (card, number), count in counts.most_common():
+        if count >= CARD_READINGS and card not in out and number not in taken:
+            out[card] = number
+            taken.add(number)
+    return out
+
+
+def suggest(vector: np.ndarray | None, roster: list[dict], team: str | None, unless: set[str] = frozenset(), number: int | None = None) -> list[dict]:
     """The names and jersey numbers of the roster's players of `team` (every player for an unnamed
-    team) who look most like `vector`, best first, but those in `unless`."""
+    team) who look most like `vector`, best first, but those in `unless`; those wearing the `number`
+    read on the player come before them."""
     if vector is None:
         return []
     scored = []
@@ -1162,7 +1188,7 @@ def suggest(vector: np.ndarray | None, roster: list[dict], team: str | None, unl
             continue
         mean = np.mean(list(player["vectors"].values()), axis=0)
         scored.append((float(mean @ vector) / max(float(np.linalg.norm(mean)), 1e-9), player))
-    return [{"name": p["name"], "jersey": p.get("jersey")} for _, p in sorted(scored, key=lambda sp: -sp[0])[:SUGGESTIONS]]
+    return [{"name": p["name"], "jersey": p.get("jersey")} for _, p in sorted(scored, key=lambda sp: (number is None or sp[1].get("jersey") != number, -sp[0]))[:SUGGESTIONS]]
 
 
 def remember(path: Path, match: str, names: dict[tuple[int, int], dict], vectors: dict[tuple[int, int], np.ndarray], teams: list[str | None]) -> None:

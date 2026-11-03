@@ -7,7 +7,7 @@ import pytest
 
 from volleyball_stats.identity import read_names
 from volleyball_stats import files
-from volleyball_stats.review import hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
+from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening
 
 
 class TestHostedState:
@@ -565,6 +565,20 @@ class TestNames:
 
 class TestRoster:
     a, b = np.array([1.0, 0.0]), np.array([0.0, 1.0])
+
+    def test_the_player_wearing_the_number_read_is_suggested_first(self, tmp_path):
+        path = tmp_path / "roster.json"
+        remember(path, "m1", {(1, 1): {"name": "Julie", "jersey": 7}, (1, 2): {"name": "Léa", "jersey": 25}}, {(1, 1): self.a, (1, 2): self.b}, ["ASPOM", None])
+        roster = load_roster(path)
+        assert [s["name"] for s in suggest(self.a, roster, "ASPOM")][0] == "Julie"
+        assert [s["name"] for s in suggest(self.a, roster, "ASPOM", number=25)][0] == "Léa"
+
+    def test_a_number_read_goes_to_the_player_with_most_of_its_readings(self):
+        table = [(1, 0, 100, 1, 4), (2, 0, 100, 2, 6), (3, 0, 100, 1, 9), (4, 0, 100, 2, 0)]
+        read = {(f, 1): 8 for f in range(25)} | {(f, 2): 8 for f in range(40)} | {(f, 3): 3 for f in range(10)} | {(f, 4): 5 for f in range(30)}
+        # Card 2:6 holds most of the 8s, 1:4 none left; 1:9 has too few readings; a track without identity gives none.
+        assert card_numbers(table, read) == {(2, 6): 8}
+        assert card_numbers(table, None) == {}
 
     def named_match(self, outputs, name, teams, players):
         """A match folder whose `players` {(team, identity): name} each hold their own track."""

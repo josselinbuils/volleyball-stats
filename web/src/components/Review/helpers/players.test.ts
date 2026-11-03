@@ -17,6 +17,7 @@ describe('players', () => {
     pieces: [{ track, frame: 0 }],
     name: null,
     jersey: null,
+    read: null,
     suggestions: [],
   });
   const players = [player(3, 30), player(12, 120), player(5, 50)];

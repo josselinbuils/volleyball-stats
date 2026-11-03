@@ -87,6 +87,8 @@ export interface Named {
   pieces: Piece[];
   name: string | null;
   jersey: number | null;
+  /** The jersey number read on the footage. */
+  read: number | null;
   suggestions: Suggestion[];
 }
 

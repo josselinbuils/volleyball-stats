@@ -51,8 +51,9 @@ export function Names({
   onError: () => void;
 }) {
   const { t } = useTranslation();
-  const [given, setGiven] = useState(() => new Map(players.map((p) => [keyOf(p), { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
-  const [saved, setSaved] = useState<Map<string, Given>>(() => new Map(given));
+  const [saved, setSaved] = useState<Map<string, Given>>(() => new Map(players.map((p) => [keyOf(p), { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
+  // The number read fills an empty field, saved with the player's name.
+  const [given, setGiven] = useState(() => new Map(players.map((p) => [keyOf(p), { name: p.name ?? '', jersey: String(p.jersey ?? p.read ?? '') }])));
   // The keyboard: arrows (or J/K) between cards and pictures, Space marks a picture, N names.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
