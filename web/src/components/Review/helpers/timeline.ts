@@ -20,6 +20,17 @@ export function railAt(rows: { at: number; top: number; bottom: number }[], now:
   return a.top + ((b.top - a.top) * (now - ats[next - 1])) / (ats[next] - ats[next - 1]);
 }
 
+/** How far the rows listed both `before` and `after` moved (their tops by key), 0 with none. */
+export function shiftOf(before: Map<string, number>, after: Map<string, number>): number {
+  for (const [key, top] of after) {
+    const was = before.get(key);
+    if (was !== undefined) {
+      return top - was;
+    }
+  }
+  return 0;
+}
+
 /** The steps between the time labels, in seconds. */
 const STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900];
 

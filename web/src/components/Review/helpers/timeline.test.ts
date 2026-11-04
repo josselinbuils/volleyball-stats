@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { railAt, tickStep, zoomed } from '@/components/Review/helpers/timeline';
+import { railAt, shiftOf, tickStep, zoomed } from '@/components/Review/helpers/timeline';
 
 describe('tickStep', () => {
   it('spaces the labels at least 64 px apart, the longest step past it', () => {
@@ -7,6 +7,28 @@ describe('tickStep', () => {
     expect(tickStep(1)).toBe(120);
     expect(tickStep(40)).toBe(2);
     expect(tickStep(0.01)).toBe(900);
+  });
+});
+
+describe('shiftOf', () => {
+  it('measures the move of the first row listed on both sides', () => {
+    const before = new Map([
+      ['r1', 0],
+      ['r2', 450],
+      ['t5', 490],
+    ]);
+
+    expect(
+      shiftOf(
+        before,
+        new Map([
+          ['r2', 0],
+          ['t5', 40],
+          ['r3', 90],
+        ]),
+      ),
+    ).toBe(-450);
+    expect(shiftOf(before, new Map([['r9', 0]]))).toBe(0);
   });
 });
 

@@ -7,7 +7,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
-import { railAt } from '@/components/Review/helpers/timeline';
+import { railAt, shiftOf } from '@/components/Review/helpers/timeline';
 import { review, type Named, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
@@ -286,6 +286,7 @@ export function ReportEditor({
   }, [current, editing]);
   // The rail along the list: how far the time has come, between rallies too, where no row is lit.
   const [rail, setRail] = useState({ at: 0, height: 0 });
+  const placed = useRef({ first, tops: new Map<string, number>() });
   useLayoutEffect(() => {
     const box = list.current;
     const gap = box ? parseFloat(getComputedStyle(box).rowGap) : 0;
@@ -294,7 +295,13 @@ export function ReportEditor({
       const next = e.nextElementSibling as HTMLElement | null;
       return next && e.classList.contains('sticky') ? topOf(next) - gap - e.offsetHeight : e.offsetTop;
     };
-    const rows = [...(box?.querySelectorAll<HTMLElement>('[data-at]') ?? [])].map((e) => ({ at: Number(e.dataset.at), top: topOf(e), bottom: topOf(e) + e.offsetHeight }));
+    const rows = [...(box?.querySelectorAll<HTMLElement>('[data-at]') ?? [])].map((e) => ({ key: e.dataset.key, at: Number(e.dataset.at), top: topOf(e), bottom: topOf(e) + e.offsetHeight }));
+    // Rallies leaving the list or joining it must not move the rows still there on screen.
+    const tops = new Map(rows.flatMap((r) => (r.key ? [[r.key, r.top] as const] : [])));
+    if (box && placed.current.first !== first) {
+      box.scrollTop += shiftOf(placed.current.tops, tops);
+    }
+    placed.current = { first, tops };
     const at = railAt(rows, now);
     const height = rows.at(-1)?.bottom ?? 0;
     setRail((r) => (Math.abs(r.at - at) < 1 && r.height === height ? r : { at, height }));
