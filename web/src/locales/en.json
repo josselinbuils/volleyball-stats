@@ -677,6 +677,30 @@
     "setsN_one": "{{count, number}} set",
     "setsN_other": "{{count, number}} sets"
   },
+  "season": {
+    "title": "The season",
+    "view": "Matches or season",
+    "record": "{{wins, number}} W · {{losses, number}} L",
+    "win": "W",
+    "loss": "L",
+    "draw": "D",
+    "versus": "against {{team}}",
+    "team": "Team",
+    "measure": "Measure",
+    "pickTeam": "Team",
+    "last": "Latest",
+    "change": "Change",
+    "measures": {
+      "points": "Points per set",
+      "serve": "Serve /5",
+      "reception": "Reception /5",
+      "attack": "Attack /5",
+      "dig": "Defence /5"
+    },
+    "loading": "Loading…",
+    "failed": "Could not load it.",
+    "retry": "Try again"
+  },
   "feedback": {
     "open": "Report a problem in this moment: one click is enough, details are optional",
     "what": "What is wrong?",

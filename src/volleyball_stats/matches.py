@@ -67,6 +67,7 @@ def listed(folder: Path) -> dict:
         "scores": data.get("scores"),
         "sets": len({r["set"] for r in data["rallies"]}),
         "rallies": len(data["rallies"]),
+        "v": data.get("v"),
     }
 
 

@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { BrandBar } from '@/components/BrandBar';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
+import { Season } from '@/components/Season/Season';
+import { seasonTeams } from '@/components/Season/helpers/season';
 import { Swatch } from '@/components/Swatch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useFormat } from '@/lib/format';
@@ -21,6 +24,8 @@ export interface ListedMatch {
   scores: (string | null)[] | null;
   sets: number;
   rallies: number;
+  /** The build's hash, in its data.js's URL. */
+  v?: string | null;
   /** In the review: whether its pipeline has ended, so that it can be opened. */
   ready?: boolean;
 }
@@ -38,6 +43,8 @@ export function Matches({ matches, brand, review = false }: MatchList) {
   const f = useFormat();
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [view, setView] = useState<'matches' | 'season'>('matches');
+  const hasSeason = seasonTeams(matches).length > 0;
   const open = (name: string) => {
     setOpening(name);
     setFailed(false);
@@ -58,7 +65,7 @@ export function Matches({ matches, brand, review = false }: MatchList) {
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
-            <p className="mt-1 text-muted-foreground">{t(review ? 'matches.pick' : 'matches.intro')}</p>
+            {view === 'matches' && <p className="mt-1 text-muted-foreground">{t(review ? 'matches.pick' : 'matches.intro')}</p>}
             {failed && (
               <p className="mt-1 text-sm text-destructive" role="alert">
                 {t('matches.openFailed')}
@@ -70,7 +77,30 @@ export function Matches({ matches, brand, review = false }: MatchList) {
             <LanguageSwitch />
           </div>
         </header>
-        {matches.length ? (
+        {hasSeason && (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={view}
+            onValueChange={(v) => {
+              if (v) {
+                setView(v as 'matches' | 'season');
+              }
+            }}
+            aria-label={t('season.view')}
+          >
+            <ToggleGroupItem value="matches" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+              {heading}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="season" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+              {t('season.title')}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
+        {view === 'season' ? (
+          <Season matches={matches} />
+        ) : matches.length ? (
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {matches.map((m) => {
               const names = m.teams?.map((team, k) => team.name ?? t('team', { n: k + 1 }));

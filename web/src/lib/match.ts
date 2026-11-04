@@ -114,7 +114,7 @@ export interface Brand {
 }
 
 /** The match as data.js writes it. */
-interface Data {
+export interface Data {
   name: string;
   /** The video's file, null when the page holds none. */
   video: string | null;

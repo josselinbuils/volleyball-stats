@@ -78,6 +78,12 @@ class TestMatchList:
         assert b'"review": true' in body and b'"path": "m"' in body
         assert list_page("/matches/../../secret", tmp_path, "none") is None
         assert list_page("/matches/nothing.js", tmp_path, "none") is None
+        assert list_page("/matches/../secret/data.js", tmp_path, "none") is None
+        assert list_page("/matches/m/data.js", tmp_path, "none") is None
+        (tmp_path / "m" / "review").mkdir()
+        (tmp_path / "m" / "review" / "data.js").write_text("window.MATCH = {};")
+        assert list_page("/matches/m/data.js", tmp_path, "none")[0] == b"window.MATCH = {};"
+        assert list_page("/matches/other/data.js", tmp_path, "none") is None
 
 
 class TestConstraints:

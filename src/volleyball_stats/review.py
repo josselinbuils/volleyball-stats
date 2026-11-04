@@ -1692,6 +1692,9 @@ def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
         return (site / "matches.html").read_bytes(), "text/html; charset=utf-8"
     parts = Path(unquote(path).removeprefix("/matches/")).parts
     file = site.joinpath(*parts)
+    # The season reads each match's data.
+    if len(parts) == 2 and parts[1] == "data.js" and (out / parts[0] / files.SOURCE).exists():
+        file = out / parts[0] / "review" / "data.js"
     if ".." in parts or not file.is_file():
         return None
     kinds = {".js": "text/javascript", ".css": "text/css", ".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml"}
