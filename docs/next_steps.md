@@ -157,3 +157,13 @@ attribution README's 720p rule) 101; a box distance standing in for unseen wrist
 starting at its serve rather than `LEAD_S` after it: 2 school rallies lost at ±1 s. Moving a window
 to a serve whose next contact is the server's own bounce (`BOUNCE_PX`): the real serve then typed
 "net" (`side_holdout` 17202).
+
+## Tried and dropped (4 Nov): servers fixed from the rotation
+
+The first match's reviewed servers follow each team's rotation of 6 strictly, every set. The pipeline's
+serve players were right 117 of 126. One server per turn (a team serving in a row), by majority: 117 → 115.
+The rotation order learnt per set and team (a decoding that allows missed and split turns): 117 → 115;
+with 10, 25 or 50 % of the serves answered as anchors, the unanswered ones 523 → 510, 449 → 446 and 317 → 318 over 5 draws.
+Two cycles a set leave the order weak, and the rally list's slips (missed rallies, a turn split by a false
+one) shift it. `auto.serverOrder` stays a flag: of its 14 on the pipeline's first match, 6 sit on a wrong
+server and 1 on a missed rally.
