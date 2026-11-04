@@ -71,9 +71,10 @@ export function MatchTab({
   const flags = reports.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
   // A viewer's report flags the touch they saw; an automatic one is about the rally.
   const seen = flags.filter((r) => !r.auto);
-  // Checked, and no report open on it since.
+  // Checked, with no report open on it nor corrections not saved since.
   const open = new Set(reports.map((q) => q.rally));
-  const green = new Set(checked.filter((k) => !open.has(k)));
+  const [unsaved, setUnsaved] = useState<Set<number>>(new Set());
+  const green = new Set(checked.filter((k) => !open.has(k) && !unsaved.has(k)));
   // The rallies with a warning as the editor finds them, by their key.
   const [warned, setWarned] = useState<Set<number>>(new Set());
   // The video, its bar, the editor and the reports fill the screen, the video as large as its height allows.
@@ -124,6 +125,7 @@ export function MatchTab({
             key={round}
             onEnd={onEnd}
             onWarnings={(keys) => setWarned(new Set(keys))}
+            onUnsaved={(keys) => setUnsaved(new Set(keys))}
             reports={seen}
             players={players}
             nameOf={nameOf}

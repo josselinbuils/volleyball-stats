@@ -72,6 +72,7 @@ export function ReportEditor({
   onCaption,
   onChanges,
   onWarnings,
+  onUnsaved,
   saved,
   comments,
   onComment,
@@ -94,7 +95,7 @@ export function ReportEditor({
   onPause: (time: number) => void;
   /** Saves the corrections, a rally (by its key) checked with them; `onward`: the video goes to the next rally. */
   onSave: (changes: ReportChanges, rally: number, onward: boolean) => void;
-  /** The rallies checked with no report open since, by their key: shown green. */
+  /** The rallies checked with no report open nor corrections not saved since, by their key: shown green. */
   green: Set<number>;
   /** The rallies checked, by their key, a report open on them or not. */
   checked: Set<number>;
@@ -103,6 +104,8 @@ export function ReportEditor({
   onChanges?: (changes: ReportChanges) => void;
   /** The rallies with a warning as they stand, by their key. */
   onWarnings?: (keys: number[]) => void;
+  /** The rallies with corrections not saved yet, by their key. */
+  onUnsaved?: (keys: number[]) => void;
   /** The touch the video is on in its rally, as it stands with the corrections: to show over the video. */
   onCaption?: (caption: { team: Group; text: string } | null) => void;
   saved: Partial<ReportChanges>;
@@ -222,6 +225,11 @@ export function ReportEditor({
   useEffect(() => {
     onChanges?.(changes);
   }, [json]);
+  const unsavedKeys = [...unsaved].filter((k) => k !== undefined);
+  const unsavedJson = JSON.stringify(unsavedKeys);
+  useEffect(() => {
+    onUnsaved?.(unsavedKeys);
+  }, [unsavedJson]);
 
   // The touch the video is on: the last one started, highlighted until 3 s after it; a removed one
   // gives way to the touch still there.
@@ -535,9 +543,9 @@ export function ReportEditor({
                     </Button>
                   ) : (
                     <Button
-                      variant="outline"
+                      variant={unsaved.has(keyOf(k)) ? 'default' : 'outline'}
                       size="xs"
-                      className="mr-1 shrink-0 bg-card text-foreground"
+                      className={cn('mr-1 shrink-0', !unsaved.has(keyOf(k)) && 'bg-card text-foreground')}
                       title={t('review.validateRally', { n: k + 1 })}
                       aria-label={t('review.validateRally', { n: k + 1 })}
                       onClick={() => onSave(changes, keyOf(k), k === here)}
