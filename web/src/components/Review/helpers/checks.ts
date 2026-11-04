@@ -138,7 +138,7 @@ function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k
     mark(end, 'endsOnSet');
   } else if (last.result === 'point' && last.type === 'serve') {
     mark(end, 'ace');
-  } else if (last.result === 'point' && ['pass', 'dig', 'relance'].includes(last.type)) {
+  } else if (last.result === 'point' && ['pass', 'dig'].includes(last.type)) {
     mark(end, 'pointOnTouch');
   }
 }

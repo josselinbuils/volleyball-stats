@@ -95,6 +95,7 @@ describe('problems', () => {
       const pass = c('pass', 2);
       expect(of([c('serve', 1), pass, c('set', 2)], true)[2]).toEqual(['endsOnSet']);
       expect(of([c('serve', 1), pass, c('dig', 2, '', 'point')], true)[2]).toEqual(['digLater', 'pointOnTouch']);
+      expect(of([c('serve', 1), pass, c('relance', 2, '', 'point')], true)).toEqual({});
       expect(of([c('serve', 1, '', 'point')], true)[0]).toEqual(['ace']);
       expect(of([c('serve', 1), pass, c('set', 2)])).toEqual({});
       expect(of([c('serve', 1), pass, c('set', 2), c('fault', 1, '', 'error')], true)).toEqual({});
