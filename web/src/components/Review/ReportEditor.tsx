@@ -785,9 +785,9 @@ export function ReportEditor({
                 {t('review.reportStartUndo')}
               </Button>
             )}
+            {/* Typing stops the video: it would carry on to another rally's note. */}
+            <RallyComment key={rally.key} text={comments[rally.key] ?? ''} onFocus={() => onPause(timeOf())} onSave={(text) => onComment(rally.key, text)} />
           </div>
-          {/* Typing stops the video: it would carry on to another rally's note. */}
-          <RallyComment key={rally.key} text={comments[rally.key] ?? ''} onFocus={() => onPause(timeOf())} onSave={(text) => onComment(rally.key, text)} />
         </div>
       )}
     </>

@@ -25,14 +25,14 @@ export function RallyComment({ text, onFocus, onSave }: { text: string; onFocus:
   useEffect(() => save, []);
   if (!draft.trim() && !adding) {
     return (
-      <Button variant="outline" size="sm" className="justify-self-start bg-card" onClick={() => setAdding(true)}>
+      <Button variant="outline" size="sm" className="bg-card" onClick={() => setAdding(true)}>
         <MessageSquareText aria-hidden />
         {t('review.reportCommentAdd')}
       </Button>
     );
   }
   return (
-    <label className="grid gap-1.5 text-sm">
+    <label className="grid w-full gap-1.5 text-sm">
       {t('review.reportComment')}
       <textarea
         rows={2}
