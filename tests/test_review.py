@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -313,22 +313,6 @@ class TestReports:
         # A team keeping the serve keeps its server; a new set starts again.
         assert rotation_slips(page((1, 1, 1), (1, 1, 1), (1, 1, 2))) == {2}
         assert rotation_slips(page((1, 1, 1), (2, 1, 1))) == set()
-
-    def test_a_set_off_its_score_lists_the_ball_in_play_outside_its_rallies(self, tmp_path):
-        calibration = SimpleNamespace(to_image=lambda points: np.array([[1000.0, 0.0], [0.0, 0.0], [1800.0, 0.0]]))
-        ball = tmp_path / "ball.csv"
-        rows = ["frame,visible,x,y"]
-        # A rally the pipeline missed from frame 200, fast and over the net; a ball rolling on one side from frame 500.
-        rows += [f"{f},1,{200 + (f - 200) * 25},0" for f in range(200, 260)]
-        rows += [f"{f},1,{200 + (f - 500)},0" for f in range(500, 900)]
-        ball.write_text("\n".join(rows))
-        page = {"fps": 50.0, "duration": 30.0, "scores": ["2-1"], "rallies": [{"start": 0.0, "end": 1.0, "set": 1, "score": [1, 1]}], "contacts": []}
-
-        found = missed_points(page, ball, calibration)
-
-        assert [(r["kind"], r["time"]) for r in found] == [("auto.missedPoint", 4.0)]
-        page["rallies"][0]["score"] = [2, 1]
-        assert missed_points(page, ball, calibration) == []
 
     def test_a_rally_to_replay_is_not_reported_for_having_no_winner(self):
         page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 5.0, "set": 1, "winner": None, "redo": True}], "contacts": [{"t": 0.1, "type": "serve", "team": 1, "side": "left", "rally": 0, "result": "play"}, {"t": 1.0, "type": "pass", "team": 2, "side": "right", "rally": 0, "result": "play"}]}

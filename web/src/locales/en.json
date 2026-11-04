@@ -735,7 +735,7 @@
         "gap": "Long pause between two touches",
         "serverOrder": "Server out of rotation order",
         "sameJersey": "Two players with the same jersey",
-        "missedPoint": "Ball in play outside the rallies: a missed point?"
+        "missedPoint": "More points on the board than rallies: a missed point?"
       }
     },
     "details": "Add details",

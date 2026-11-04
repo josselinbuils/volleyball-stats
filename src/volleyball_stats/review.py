@@ -40,7 +40,7 @@ import cv2
 import numpy as np
 
 from volleyball_stats import attribution, backup, decode, feedback, film, files, identity, jerseys, matches, rename, scoreboard, timeouts, web
-from volleyball_stats.court import LENGTH, Calibration
+from volleyball_stats.court import Calibration
 from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
@@ -146,8 +146,9 @@ class Questions:
         # Each rally's window by its key: a rally checked answers the questions about it.
         self.window_of = {int(r["start_frame"]): (a - lead, b) for (a, b), r in zip(windows, rallies)}
         self.page = page_data(self.match / "review")
-        missed = missed_points(self.page, self.match / "ball.csv", self.calibration) if self.page and self.calibration else []
-        board = board_off(self.page, scoreboard.load(self.match)) if self.page else []
+        texts = scoreboard.load(self.match)
+        missed = missed_points(self.page, texts) if self.page else []
+        board = board_off(self.page, texts) if self.page else []
         self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []) + missed + board, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
@@ -831,50 +832,26 @@ def unusual(page: dict) -> list[dict]:
     return out
 
 
-# A ball in play outside the rallies: over MISSED_S seconds, seen no closer to a rally than RALLY_ROOM_S, in runs with holes up to
-# RUN_HOLE_S, crossing the net and over this share of the court's length. A set shows the MISSED_SHOWN with the most moves over
-# HARD_M_S: of the first match's 129 rallies, each hidden in turn, they hold 86.
-MISSED_S, RALLY_ROOM_S, RUN_HOLE_S, MISSED_REACH, MISSED_SHOWN, HARD_M_S = 1.0, 2.0, 0.5, 0.3, 5, 10.0
-
-
-def missed_points(page: dict, ball: Path, calibration: Calibration) -> list[dict]:
-    """For each set ending off the final score given (`unusual`'s "scoreOff"), the moments the ball seems in play outside
-    its rallies, as reports: where the point missing may be. Their id holds the score: asked again once it moves."""
-    rallies, fps = page["rallies"], page["fps"]
-    given = dict(enumerate(page.get("scores") or [], 1))
-    off = []
-    for k, r in enumerate(rallies):
-        score = r.get("score") and f"{r['score'][0]}-{r['score'][1]}"
-        following = rallies[k + 1] if k + 1 < len(rallies) else None
-        if given.get(r["set"]) and score and score != given[r["set"]] and (not following or following["set"] != r["set"]):
-            earlier = [q["end"] for q in rallies[:k] if q["set"] != r["set"]]
-            off.append((max(earlier, default=0.0), following["start"] if following else page.get("end") or page.get("duration", r["end"] + 600.0), score))
-    if not off or not ball.exists():
-        return []
-    net, left, right = calibration.to_image(np.array([[0.0, 0.0], [-LENGTH / 2, 0.0], [LENGTH / 2, 0.0]]))[:, 0]
-    length = abs(right - left)
-    hard = HARD_M_S * length / LENGTH / fps
-    with open(ball) as f:
-        seen = [(int(row["frame"]), float(row["x"])) for row in csv.DictReader(f) if row["visible"] == "1"]
-    room = round(RALLY_ROOM_S * fps)
-    away = np.ones(max((frame for frame, _ in seen), default=0) + 1, bool)
-    for r in rallies:
-        away[max(0, round(r["start"] * fps) - room) : round(r["end"] * fps) + room + 1] = False
-    seen = [(frame, x) for frame, x in seen if away[frame]]
+def missed_points(page: dict, texts: dict[int, list[str]]) -> list[dict]:
+    """Where the score board (`scoreboard.load`'s texts) gains more points than rallies were played since its last reading, as
+    reports at the first of those rallies, kind "auto.missedPoint", `shown` the two readings. The next reading has to keep that
+    lead (a misread one goes) and it has to pass the one before last too (a board flipped late only catches up).
+    First match: none; each of its 129 rallies hidden in turn, 26 found (20 readings)."""
+    rallies = page["rallies"]
+    played = np.cumsum([not r.get("redo") for r in rallies])
+    found: dict[int, list] = defaultdict(list)
+    for k, (left, a, b, right) in scoreboard.boards(texts, [(r["start"], r["end"], r["set"]) for r in rallies], page["fps"]):
+        # Read in the next set, the board counts the set just ended: no score of this one to compare.
+        if a + b == rallies[k]["set"] - 1:
+            found[rallies[k]["set"]].append((k, left, right))
     out = []
-    for start, end, score in off:
-        kept = [(frame, x) for frame, x in seen if start * fps <= frame <= end * fps]
-        if not kept:
-            continue
-        frames, xs = zip(*kept)
-        cuts = np.flatnonzero(np.diff(frames) > RUN_HOLE_S * fps) + 1
-        found = []
-        for run, at in zip(np.split(np.array(frames), cuts), np.split(np.array(xs), cuts)):
-            if (run[-1] - run[0]) / fps >= MISSED_S and np.ptp(at) >= MISSED_REACH * length and np.diff(at > net).any():
-                found.append((int((np.abs(np.diff(at)) / np.diff(run) > hard).sum()), int(run[0])))
-        for _, frame in sorted(found, reverse=True)[:MISSED_SHOWN]:
-            said = f"auto:missedPoint:{frame}:{score}"
-            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": round(frame / fps, 2), "kind": "auto.missedPoint", "comment": None})
+    for number, readings in found.items():
+        lead = [left + right - played[k] for k, left, right in readings]
+        for i in range(1, len(readings) - 1):
+            if max(lead[max(0, i - 2) : i]) < lead[i] <= lead[i + 1]:
+                (k, a, b), (_, c, d) = readings[i - 1], readings[i]
+                said = f"auto:missedPoint:{number}:{a}-{b}:{c}-{d}"
+                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k + 1]["start"], "kind": "auto.missedPoint", "comment": None, "shown": f"{a}-{b} → {c}-{d}"})
     return out
 
 

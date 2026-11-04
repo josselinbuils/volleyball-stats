@@ -735,7 +735,7 @@
         "gap": "Longue pause entre deux touches",
         "serverOrder": "Serveur hors de l'ordre de rotation",
         "sameJersey": "Deux joueurs avec le même maillot",
-        "missedPoint": "Ballon en jeu hors des échanges : un point manqué ?"
+        "missedPoint": "Plus de points au tableau que d'échanges : un point manqué ?"
       }
     },
     "details": "Préciser",
