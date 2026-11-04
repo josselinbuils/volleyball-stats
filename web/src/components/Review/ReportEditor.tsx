@@ -45,8 +45,9 @@ const touches = contacts
     return { contact: c, frame: c.f ?? frameOf(c.t), player: p && p.number !== null ? `${p.team}:${p.number}` : '' };
   });
 
-// How far the rail moves before the list follows it, in pixels.
+// How often the list checks on the rail's dot, and how near its edges the dot may come, in pixels.
 const RAIL_FOLLOW_PX = 24;
+const RAIL_EDGE_PX = 64;
 
 /** The match's touches beside its video: those of the rallies around where the video stands, the
  * one it plays centred, to correct (player of either team, action, result), remove or add at the
@@ -289,11 +290,11 @@ export function ReportEditor({
     const height = rows.at(-1)?.bottom ?? 0;
     setRail((r) => (Math.abs(r.at - at) < 1 && r.height === height ? r : { at, height }));
   });
-  // Between rallies, no row to centre: the list follows the rail.
+  // Between rallies, no row is centred: the list follows the rail's dot when it nears an edge.
   const railStep = Math.round(rail.at / RAIL_FOLLOW_PX);
   useEffect(() => {
     const box = list.current;
-    if (box && !inHere && !inTimeout && !editing && Date.now() - scrolled.current > HOLD_MS) {
+    if (box && !editing && Date.now() - scrolled.current > HOLD_MS && (rail.at < box.scrollTop + RAIL_EDGE_PX || rail.at > box.scrollTop + box.clientHeight - RAIL_EDGE_PX)) {
       box.scrollTo({ top: rail.at - box.clientHeight / 2, behavior: 'smooth' });
     }
   }, [railStep]);
