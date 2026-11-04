@@ -316,68 +316,71 @@ export function ClipVideo({
     }
   };
   return (
-    <div className="grid gap-2">
-      <div ref={frame} className="relative aspect-video overflow-hidden rounded-lg bg-black">
-        <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${width / view.w}) translate(${(-100 * view.x) / width}%, ${(-100 * view.y) / height}%)` }}>
-          <video
-            ref={video}
-            src={match.video ?? undefined}
-            muted={muted}
-            playsInline
-            controls={!own}
-            onClick={own ? toggle : undefined}
-            onPlay={() => setPaused(false)}
-            onPause={() => setPaused(true)}
-            onPointerDown={press}
-            onPointerMove={drag}
-            onPointerUp={release}
-            onPointerCancel={release}
-            onPointerLeave={release}
-            aria-label={t('review.video')}
-            className={cn('block size-full select-none', view.w < width && 'cursor-grab touch-none')}
-          />
-          <svg viewBox={`0 0 ${width} ${height}`} aria-hidden className="pointer-events-none absolute inset-0 size-full">
-            {box && (
-              <rect
-                x={box[0] - 6}
-                y={box[1] - 6}
-                width={box[2] - box[0] + 12}
-                height={box[3] - box[1] + 12}
-                rx={6}
-                fill="none"
-                stroke="#ffd400"
-                strokeWidth={3}
-                vectorEffect="non-scaling-stroke"
-                className="drop-shadow-[0_0_3px_rgba(0,0,0,0.9)]"
-              />
-            )}
-          </svg>
+    <div className="grid min-h-0 gap-2 lg:[:fullscreen_&]:grid-rows-[minmax(0,1fr)_auto_auto]">
+      {/* In full screen, the room the rest leaves: the video fits it whole. */}
+      <div className="lg:[:fullscreen_&]:@container-size">
+        <div ref={frame} className="relative aspect-video overflow-hidden rounded-lg bg-black lg:[:fullscreen_&]:mx-auto lg:[:fullscreen_&]:w-[min(100cqw,100cqh*16/9)]">
+          <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${width / view.w}) translate(${(-100 * view.x) / width}%, ${(-100 * view.y) / height}%)` }}>
+            <video
+              ref={video}
+              src={match.video ?? undefined}
+              muted={muted}
+              playsInline
+              controls={!own}
+              onClick={own ? toggle : undefined}
+              onPlay={() => setPaused(false)}
+              onPause={() => setPaused(true)}
+              onPointerDown={press}
+              onPointerMove={drag}
+              onPointerUp={release}
+              onPointerCancel={release}
+              onPointerLeave={release}
+              aria-label={t('review.video')}
+              className={cn('block size-full select-none', view.w < width && 'cursor-grab touch-none')}
+            />
+            <svg viewBox={`0 0 ${width} ${height}`} aria-hidden className="pointer-events-none absolute inset-0 size-full">
+              {box && (
+                <rect
+                  x={box[0] - 6}
+                  y={box[1] - 6}
+                  width={box[2] - box[0] + 12}
+                  height={box[3] - box[1] + 12}
+                  rx={6}
+                  fill="none"
+                  stroke="#ffd400"
+                  strokeWidth={3}
+                  vectorEffect="non-scaling-stroke"
+                  className="drop-shadow-[0_0_3px_rgba(0,0,0,0.9)]"
+                />
+              )}
+            </svg>
+          </div>
+          {caption && (
+            <span
+              title={t('review.captionMove')}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt };
+              }}
+              onPointerMove={dragCaption}
+              onPointerUp={dropCaption}
+              onPointerCancel={dropCaption}
+              onDoubleClick={() => {
+                setCaptionAt(CAPTION_AT);
+                try {
+                  localStorage.removeItem(CAPTION_KEY);
+                } catch {
+                  // Kept for this page only.
+                }
+              }}
+              style={{ left: `${captionAt.x * 100}%`, top: `${captionAt.y * 100}%` }}
+              className="absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
+            >
+              <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
+              <span className="truncate">{caption.text}</span>
+            </span>
+          )}
         </div>
-        {caption && (
-          <span
-            title={t('review.captionMove')}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId);
-              captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt };
-            }}
-            onPointerMove={dragCaption}
-            onPointerUp={dropCaption}
-            onPointerCancel={dropCaption}
-            onDoubleClick={() => {
-              setCaptionAt(CAPTION_AT);
-              try {
-                localStorage.removeItem(CAPTION_KEY);
-              } catch {
-                // Kept for this page only.
-              }
-            }}
-            style={{ left: `${captionAt.x * 100}%`, top: `${captionAt.y * 100}%` }}
-            className="absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
-          >
-            <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
-            <span className="truncate">{caption.text}</span>
-          </span>
-        )}
       </div>
       <div
         ref={bar}

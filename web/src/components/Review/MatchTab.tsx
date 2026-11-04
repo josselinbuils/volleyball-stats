@@ -78,7 +78,7 @@ export function MatchTab({
   const warned = new Set(warnings.map((w) => w.rally));
   // The automatic reports the editor's warnings do not already show.
   const unwarned = reports.filter((q) => q.rally == null || !warned.has(q.rally)).flatMap((q) => (q.reports ?? []).filter((r) => r.kind?.startsWith('auto.')));
-  // The video, its bar, the editor and the reports fill the screen, the video as large as its height allows.
+  // The video, its bar and the editor fill the screen, the video as large as what is under it leaves room for.
   const block = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   useEffect(() => {
@@ -95,10 +95,10 @@ export function MatchTab({
           ref={block}
           className={cn(
             'grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]',
-            full && 'h-screen overflow-y-auto overscroll-contain bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]',
+            full && 'h-screen overflow-y-auto overscroll-contain bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:grid-rows-[minmax(0,1fr)_auto]',
           )}
         >
-          <div className={cn('grid min-w-0 gap-4', full && 'mx-auto w-full max-w-[calc((100vh-11rem)*16/9)]')}>
+          <div className={cn('grid min-w-0 gap-4', full && 'max-lg:mx-auto max-lg:w-full max-lg:max-w-[calc((100vh-11rem)*16/9)] lg:h-full lg:grid-rows-[minmax(0,1fr)_auto] lg:self-stretch')}>
             <ClipVideo
               clip={clip}
               width={width}
