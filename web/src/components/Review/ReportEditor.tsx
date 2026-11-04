@@ -543,9 +543,9 @@ export function ReportEditor({
                     </Button>
                   ) : (
                     <Button
-                      variant={unsaved.has(keyOf(k)) ? 'default' : 'outline'}
+                      variant="outline"
                       size="xs"
-                      className={cn('mr-1 shrink-0', !unsaved.has(keyOf(k)) && 'bg-card text-foreground')}
+                      className="mr-1 shrink-0 bg-card text-foreground"
                       title={t('review.validateRally', { n: k + 1 })}
                       aria-label={t('review.validateRally', { n: k + 1 })}
                       onClick={() => onSave(changes, keyOf(k), k === here)}
