@@ -461,14 +461,22 @@ def manifest(match: Path) -> dict:
     return json.loads(path.read_text()) if path.exists() else {}
 
 
+def kind_of(name: str) -> str:
+    """A film's kind: the match's highlights or a player's."""
+    return "highlights" if name == HIGHLIGHTS else "players"
+
+
 def status(match: Path) -> dict:
-    """How many films the match should have and how many of them are missing or out of date."""
+    """By kind, how many films the match should have and how many of them are missing or out of date."""
+    out = {"players": {"total": 0, "stale": 0}, "highlights": {"total": 0, "stale": 0}}
     page = read_page(match / "review")
     if not page or not page.get("positions"):
-        return {"total": 0, "stale": 0}
-    films = plan(page, match / "review", tracking_stamp(match))
+        return out
     made = manifest(match)
-    return {"total": len(films), "stale": sum(made.get(name, {}).get("hash") != film["hash"] or not (match / FILMS / film["file"]).exists() for name, film in films.items())}
+    for name, film in plan(page, match / "review", tracking_stamp(match)).items():
+        out[kind_of(name)]["total"] += 1
+        out[kind_of(name)]["stale"] += made.get(name, {}).get("hash") != film["hash"] or not (match / FILMS / film["file"]).exists()
+    return out
 
 
 # The ball's path.
@@ -1688,15 +1696,15 @@ def children(match: Path, video: Path, court: Path) -> list[str]:
     return [sys.executable, "-m", "volleyball_stats.film", str(match), "--video", str(video), "--court", str(court)]
 
 
-def build(match: Path, video: Path, court: Path, staged: Callable[[str | None], None] = lambda _: None, names: list[str] | None = None) -> list[str]:
-    """Makes the films missing or out of date, or those `names`, each in its own process so that the review stays free, the ball's
-    search first; a film made is kept even if a later one fails. Returns those made."""
+def build(match: Path, video: Path, court: Path, staged: Callable[[str | None], None] = lambda _: None, names: list[str] | None = None, kind: str | None = None) -> list[str]:
+    """Makes the films missing or out of date, or those `names`, of `kind` alone if given, each in its own process so that the review
+    stays free, the ball's search first; a film made is kept even if a later one fails. Returns those made."""
     page = read_page(match / "review")
     films = plan(page, match / "review", tracking_stamp(match)) if page else {}
     made = manifest(match)
     folder = match / FILMS
     folder.mkdir(exist_ok=True)
-    todo = [n for n, f in films.items() if (n in names if names else made.get(n, {}).get("hash") != f["hash"] or not (folder / f["file"]).exists())]
+    todo = [n for n, f in films.items() if kind in (None, kind_of(n)) and (n in names if names else made.get(n, {}).get("hash") != f["hash"] or not (folder / f["file"]).exists())]
     if not todo:
         return []
     staged("filmsBall")

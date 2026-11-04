@@ -109,18 +109,19 @@ class TestPlan:
         assert film.plan(self.page(), tmp_path, "another tracking")["Élodie"]["hash"] != first
 
     def test_says_how_many_films_are_missing_or_out_of_date(self, tmp_path, monkeypatch):
-        assert film.status(tmp_path) == {"total": 0, "stale": 0}
+        none = {"total": 0, "stale": 0}
+        assert film.status(tmp_path) == {"players": none, "highlights": none}
         page = self.page()
         (tmp_path / "review").mkdir()
         monkeypatch.setattr(film, "read_page", lambda _: page)
-        assert film.status(tmp_path) == {"total": 1, "stale": 1}
+        assert film.status(tmp_path) == {"players": {"total": 1, "stale": 1}, "highlights": none}
         planned = film.plan(page, tmp_path / "review", film.tracking_stamp(tmp_path))["Élodie"]
         (tmp_path / "films").mkdir()
         (tmp_path / "films" / planned["file"]).write_bytes(b"film")
         (tmp_path / "films" / "manifest.json").write_text(json.dumps({"Élodie": {"hash": planned["hash"], "file": planned["file"]}}))
-        assert film.status(tmp_path) == {"total": 1, "stale": 0}
+        assert film.status(tmp_path) == {"players": {"total": 1, "stale": 0}, "highlights": none}
         page["people"]["1"]["jersey"] = 9
-        assert film.status(tmp_path) == {"total": 1, "stale": 1}
+        assert film.status(tmp_path) == {"players": {"total": 1, "stale": 1}, "highlights": none}
 
 
 class TestHighlights:
@@ -196,6 +197,15 @@ class TestServingBody:
 
 
 class TestBuild:
+    def test_makes_only_the_kind_asked(self, tmp_path, monkeypatch):
+        planned = {name: {"hash": name, "file": f"{name}.mp4"} for name in ("Élodie", film.HIGHLIGHTS)}
+        monkeypatch.setattr(film, "read_page", lambda _: {"rallies": []})
+        monkeypatch.setattr(film, "plan", lambda *_: planned)
+        monkeypatch.setattr(film.subprocess, "run", lambda command, check: None)
+        assert film.build(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", kind="highlights") == [film.HIGHLIGHTS]
+        assert list(film.manifest(tmp_path)) == [film.HIGHLIGHTS]
+        assert film.build(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", kind="players") == ["Élodie"]
+
     def test_makes_only_the_films_that_changed_and_keeps_those_made_when_one_fails(self, tmp_path, monkeypatch):
         page = TestPlan.page()
         page["people"]["2"].update(name="Other")

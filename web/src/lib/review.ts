@@ -160,8 +160,7 @@ interface ReviewData {
   photos?: Record<string, PhotoMoment[]>;
   /** The hosted pages (when the match is hosted): their last update's time (none yet since the server started), why it failed, whether a change came since. */
   hosted?: Hosted | null;
-  /** The players' films: how many there should be, how many are missing or out of date. */
-  films?: { total: number; stale: number };
+  films?: FilmCounts;
   filmsError?: string | null;
   /** The analysis runs' scores on the answers (learn.json): each measure's right and total. */
   learning?: LearnRun[];
@@ -178,6 +177,9 @@ export type LearnRun = { time: string; commit: string; match?: string; scores: S
 
 /** This match's last run and the results it replaced, on the same answers. */
 export type Comparison = { before: Scores; after: Scores };
+
+/** By kind of film: how many there should be, how many are missing or out of date. */
+export type FilmCounts = Record<'players' | 'highlights', { total: number; stale: number }>;
 
 export type Hosted = { at: string | null; day?: string | null; error: string | null; behind: boolean };
 
@@ -270,6 +272,7 @@ export async function post(
     | 'host'
     | 'reports'
     | 'films'
+    | 'highlights'
     | 'cut'
     | 'separate'
     | 'end'

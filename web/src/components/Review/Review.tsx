@@ -14,6 +14,7 @@ import {
   allMarked,
   post,
   type Conflict,
+  type FilmCounts,
   type Hosted,
   type Comparison,
   type LearnRun,
@@ -95,7 +96,7 @@ export function Review({
   comparison?: Comparison | null;
   fetched?: { at: string; count: number; error: string | null } | null;
   backup?: { at: string; error: string | null } | null;
-  films?: { total: number; stale: number };
+  films?: FilmCounts;
   filmsError?: string | null;
 }) {
   const { t, i18n } = useTranslation();
@@ -122,8 +123,8 @@ export function Review({
       setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
     }
   };
-  const films = savedFilms ?? { total: 0, stale: 0 };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'reports' | 'films' | null>(null);
+  const films = savedFilms ?? { players: { total: 0, stale: 0 }, highlights: { total: 0, stale: 0 } };
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -272,7 +273,7 @@ export function Review({
    * spent and left, and whether it takes longer than last time. */
   const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
   const minutes = (s: number) => (s < 60 ? t('review.lessThanMinute') : t('review.minutes', { count: Math.round(s / 60) }));
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films') => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights') => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {

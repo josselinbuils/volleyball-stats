@@ -43,7 +43,7 @@ to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Cont
 no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
 video. The copies keep their source's date, so an upload skips an unchanged video.
 
-The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films" makes those whose `plan` changed, never an apply; only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/MATCH/films/`, outside the backup.
+The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films de joueurs" and "Créer les highlights" each make those of their kind whose `plan` changed, never an apply; only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/MATCH/films/`, outside the backup.
 
 The commentary's voice: `uv run --group voice python -m volleyball_stats.voice outputs/MATCH` after a page's build makes the missing audio in
 `outputs/MATCH/voice/`, the next build takes it (a line no longer true of the match is left out), so after a review's changes run it, then upload.

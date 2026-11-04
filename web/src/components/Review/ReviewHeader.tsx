@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ChevronDown, Clapperboard, CloudDownload, CloudUpload, Ellipsis, ExternalLink, RefreshCw, Undo2 } from 'lucide-react';
+import { Check, ChevronDown, Clapperboard, CloudDownload, CloudUpload, Ellipsis, ExternalLink, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -7,9 +7,9 @@ import { useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
-import type { Hosted } from '@/lib/review';
+import type { FilmCounts, Hosted } from '@/lib/review';
 
-type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films';
+type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
 
 /** Between two items of the status line, which wraps on a phone. */
@@ -88,7 +88,7 @@ export function ReviewHeader({
   backup?: { at: string; error: string | null } | null;
   fetched?: { at: string; count: number; error: string | null } | null;
   filmsError?: string | null;
-  films: { total: number; stale: number };
+  films: FilmCounts;
   pending: { answers: number; changed: boolean; names: boolean };
   busy: Action | null;
   run: (action: Action) => void;
@@ -97,7 +97,8 @@ export function ReviewHeader({
   const { t } = useTranslation();
   const f = useFormat();
   const toApply = pending.changed || pending.names;
-  const running = busy === 'rerun' ? t('review.rerunning') : busy === 'reports' ? t('review.fetching') : busy === 'films' ? t('review.filmsMaking') : null;
+  const running =
+    busy === 'rerun' ? t('review.rerunning') : busy === 'reports' ? t('review.fetching') : busy === 'films' ? t('review.filmsMaking') : busy === 'highlights' ? t('review.highlightsMaking') : null;
   return (
     <header className="grid gap-1.5 px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -137,10 +138,16 @@ export function ReviewHeader({
                   {t('review.fetch')}
                 </DropdownMenuItem>
               )}
-              {films.total > 0 && (
-                <DropdownMenuItem disabled={!films.stale} onSelect={() => run('films')}>
+              {films.players.total > 0 && (
+                <DropdownMenuItem disabled={!films.players.stale} onSelect={() => run('films')}>
                   <Clapperboard aria-hidden />
-                  {films.stale ? t('review.films', { count: films.stale }) : t('review.filmsDone')}
+                  {films.players.stale ? t('review.films', { count: films.players.stale }) : t('review.filmsDone')}
+                </DropdownMenuItem>
+              )}
+              {films.highlights.total > 0 && (
+                <DropdownMenuItem disabled={!films.highlights.stale} onSelect={() => run('highlights')}>
+                  <Sparkles aria-hidden />
+                  {films.highlights.stale ? t('review.highlights') : t('review.highlightsDone')}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

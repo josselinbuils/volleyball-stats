@@ -1595,7 +1595,7 @@ def unlocked(keys: list[int]) -> list[dict]:
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0,
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0, "highlights": 300.0,
     "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
     "pipeline:identity": 20.0, "pipeline:answers": 60.0,
 }
@@ -1635,7 +1635,7 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
     before the flag were), whether the answers or the jersey numbers, and the names, differ from
     what the identities were computed from (APPLIED); the reports' `corrections` the review's
     page does not show yet (`shown`: the answers it was built with), the rallies `checked` and the
-    players' `films` to make."""
+    `films` to make, players' and highlights."""
     computed = match / APPLIED
     now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
     return {
@@ -1915,9 +1915,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             # The answers stay applied: only the hosted page is behind.
             hosted.update(at=time.strftime("%H:%M"), day=None, error=str(error) or type(error).__name__)
 
-    def filming() -> None:
+    def filming(kind: str) -> None:
         try:
-            film.build(match, video, court, staged)
+            film.build(match, video, court, staged, kind=kind)
             filmed["error"] = None
         except Exception as error:  # noqa: BLE001
             # The films made are kept: the next press makes those left.
@@ -2330,9 +2330,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 elif self.path == "/host" and (match / matches.PUBLISH).exists():
                     run_steps([("hosting", hosting)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
-                elif self.path == "/films":
+                elif self.path in ("/films", "/highlights"):
                     # The page then shows them, the hosted one on its next upload.
-                    run_steps([("films", filming), *pages()])
+                    step, kind = ("highlights", "highlights") if self.path == "/highlights" else ("films", "players")
+                    run_steps([(step, lambda: filming(kind)), *pages()])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/rerun":
                     from volleyball_stats import learn
