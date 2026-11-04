@@ -455,6 +455,7 @@
     "exitFullScreen": "Exit full screen",
     "zoomMore": "Zoom in",
     "zoomLess": "Zoom out",
+    "autoZoom": "Auto zoom",
     "playVideo": "Play",
     "pauseVideo": "Pause",
     "soundOn": "Turn the sound on",

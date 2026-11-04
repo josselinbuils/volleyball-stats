@@ -31,7 +31,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, files
+from volleyball_stats import decode, files, framing
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -1425,6 +1425,8 @@ def build(
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
     ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
+    if blurred is not None and (match / "players.csv").exists():
+        data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER])
     write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data), match / "films")
     return data
 

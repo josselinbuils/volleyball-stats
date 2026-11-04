@@ -1,3 +1,4 @@
+import type { MatchView } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 
 /** The clip's box nearest to `time`, none outside the clip. */
@@ -36,6 +37,12 @@ export function viewAt(clip: Clip, time: number, width: number, height: number):
 }
 
 export type View = { x: number; y: number; w: number; h: number };
+
+/** The automatic zoom's part of the `width` × `height` frame at `time`: the last of `views` started by then. */
+export function autoView(views: MatchView[], time: number, width: number, height: number): View {
+  const [, x, y, w] = views.findLast((v) => v[0] <= time) ?? views[0];
+  return { x: x * width, y: y * height, w: w * width, h: w * height };
+}
 
 /** The most a pinch zooms the video in. */
 export const MAX_ZOOM = 6;

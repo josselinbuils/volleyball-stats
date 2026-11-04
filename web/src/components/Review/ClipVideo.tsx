@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pause, Play, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { Pause, Play, Scan, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SkipIcon } from '@/components/SkipIcon';
 import { Swatch } from '@/components/Swatch';
@@ -8,7 +8,7 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
-import { boxAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
+import { autoView, boxAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
 const AROUND = 0.5;
@@ -28,6 +28,8 @@ const ZOOM_STEP = 1.5;
 const DRAG_PX = 4;
 /** Whether the match's sound is off, kept in this browser. */
 const MUTED_KEY = 'review.muted';
+/** Whether the automatic zoom is on, kept in this browser. */
+const AUTO_KEY = 'review.autoZoom';
 /** Where the caption stands (its top centre, fractions of the video), as the user dragged it, kept
  * in this browser; centred above the court until then. */
 const CAPTION_KEY = 'review.captionAt';
@@ -42,17 +44,25 @@ function savedCaption(): { x: number; y: number } {
   }
 }
 
-function savedMuted(): boolean {
+function savedFlag(key: string): boolean {
   try {
-    return localStorage.getItem(MUTED_KEY) === '1';
+    return localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
 }
 
+function saveFlag(key: string, on: boolean) {
+  try {
+    localStorage.setItem(key, on ? '1' : '0');
+  } catch {
+    // Kept for this page only.
+  }
+}
+
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip with its sound, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour.
+ * `free`: the match plays on from the clip with its sound, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand leaves the automatic zoom.
  * `extra`: at the right end of the speeds' line. */
 export function ClipVideo({
   clip,
@@ -98,7 +108,15 @@ export function ClipVideo({
   const swallowClick = useRef(false);
   // The part of the frame a pinch zoomed on, null for the automatic view.
   const [pinched, setPinched] = useState<View | null>(null);
-  const [muted, setMuted] = useState(() => !free || savedMuted());
+  const [muted, setMuted] = useState(() => !free || savedFlag(MUTED_KEY));
+  const views = free && match.views.length ? match.views : null;
+  const [auto, setAuto] = useState(() => savedFlag(AUTO_KEY));
+  const zoomedByHand = useRef(false);
+  zoomedByHand.current = pinched !== null;
+  const zoomByHand = (next: View | null) => {
+    setAuto(false);
+    setPinched(next);
+  };
   const grab = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [captionAt, setCaptionAt] = useState(savedCaption);
@@ -196,7 +214,7 @@ export function ClipVideo({
     }
   };
   const keys: Record<string, (step: number) => number> = { ArrowLeft: (step) => time - step, ArrowRight: (step) => time + step, Home: () => from, End: () => to };
-  const view = pinched ?? (zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height });
+  const view = pinched ?? (views && auto ? autoView(views, time, width, height) : zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height });
   const shown = useRef(view);
   shown.current = view;
   // A trackpad pinch (sent as Ctrl + wheel; Safari's gesture events), or ⌘ or Ctrl + the wheel, zooms where the pointer is, two
@@ -214,11 +232,11 @@ export function ClipVideo({
       const [fx, fy, r] = at(event.clientX, event.clientY);
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
-        setPinched(zoomView(shown.current, fx, fy, wheelZoom(event.deltaY, event.deltaMode), width, height));
-      } else if (shown.current.w < width) {
+        zoomByHand(zoomView(shown.current, fx, fy, wheelZoom(event.deltaY, event.deltaMode), width, height));
+      } else if (zoomedByHand.current) {
         event.preventDefault();
         const v = shown.current;
-        setPinched(panView(v, (event.deltaX * v.w) / r.width, (event.deltaY * v.h) / r.height, width, height));
+        zoomByHand(panView(v, (event.deltaX * v.w) / r.width, (event.deltaY * v.h) / r.height, width, height));
       }
     };
     let last = 1;
@@ -226,7 +244,7 @@ export function ClipVideo({
       event.preventDefault();
       const [fx, fy] = at(event.clientX ?? 0, event.clientY ?? 0);
       const scale = event.scale ?? 1;
-      setPinched(zoomView(shown.current, fx, fy, scale / last, width, height));
+      zoomByHand(zoomView(shown.current, fx, fy, scale / last, width, height));
       last = scale;
     };
     const start = (event: Event) => {
@@ -304,23 +322,27 @@ export function ClipVideo({
     }
     from.x = event.clientX;
     from.y = event.clientY;
-    setPinched(panView(v, (-dx * v.w) / r.width, (-dy * v.h) / r.height, width, height));
+    zoomByHand(panView(v, (-dx * v.w) / r.width, (-dy * v.h) / r.height, width, height));
   };
-  const zoomBy = (factor: number) => setPinched(zoomView(view, 0.5, 0.5, factor, width, height));
+  const zoomBy = (factor: number) => zoomByHand(zoomView(view, 0.5, 0.5, factor, width, height));
+  const toggleAuto = () => {
+    saveFlag(AUTO_KEY, !auto);
+    setPinched(null);
+    setAuto(!auto);
+  };
   const toggleMuted = () => {
     setMuted(!muted);
-    try {
-      localStorage.setItem(MUTED_KEY, muted ? '0' : '1');
-    } catch {
-      // Kept for this page only.
-    }
+    saveFlag(MUTED_KEY, !muted);
   };
   return (
     <div className="grid min-h-0 gap-2 lg:[:fullscreen_&]:grid-rows-[minmax(0,1fr)_auto_auto]">
       {/* In full screen, the room the rest leaves: the video fits it whole. */}
       <div className="lg:[:fullscreen_&]:@container-size">
         <div ref={frame} className="relative aspect-video overflow-hidden rounded-lg bg-black lg:[:fullscreen_&]:mx-auto lg:[:fullscreen_&]:w-[min(100cqw,100cqh*16/9)]">
-          <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${width / view.w}) translate(${(-100 * view.x) / width}%, ${(-100 * view.y) / height}%)` }}>
+          <div
+            className={cn('absolute inset-0 origin-top-left', free && !pinched && 'transition-transform duration-700 ease-in-out motion-reduce:transition-none')}
+            style={{ transform: `scale(${width / view.w}) translate(${(-100 * view.x) / width}%, ${(-100 * view.y) / height}%)` }}
+          >
             <video
               ref={video}
               src={match.video ?? undefined}
@@ -451,10 +473,24 @@ export function ClipVideo({
             <Button variant="outline" size="icon-sm" className="bg-card" title={t('review.pinchNote')} aria-label={t('review.zoomMore')} onClick={() => zoomBy(ZOOM_STEP)}>
               <ZoomIn aria-hidden />
             </Button>
-            <Button variant="outline" size="icon-sm" className="bg-card" title={t('review.pinchNote')} aria-label={t('review.zoomLess')} disabled={!pinched} onClick={() => zoomBy(1 / ZOOM_STEP)}>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="bg-card"
+              title={t('review.pinchNote')}
+              aria-label={t('review.zoomLess')}
+              disabled={view.w >= width}
+              onClick={() => zoomBy(1 / ZOOM_STEP)}
+            >
               <ZoomOut aria-hidden />
             </Button>
           </div>
+        )}
+        {views && (
+          <Button variant={auto ? 'default' : 'outline'} size="sm" className={auto ? undefined : 'bg-card'} aria-pressed={auto} onClick={toggleAuto}>
+            <Scan aria-hidden />
+            {t('review.autoZoom')}
+          </Button>
         )}
         {/* No outline, nothing to zoom on. */}
         {clip.boxes.length > 0 && (

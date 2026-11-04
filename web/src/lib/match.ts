@@ -47,6 +47,9 @@ export interface Contact {
   reach?: number;
 }
 
+/** From this time, the part of the picture to show: [time, x, y, width], its height the same fraction of the picture. */
+export type MatchView = [number, number, number, number];
+
 /** A rally, `left` the team on the left of the net, `flipped` when the teams play on the other ends
  * than at the first rally, `winner` its estimated winner and `score` the estimated score of its set
  * after it (team 1, team 2), null without teams. */
@@ -137,6 +140,8 @@ export interface Data {
   contacts: Omit<Contact, 'i' | 'g' | 'player' | 'name'>[];
   zones: ZoneCell[];
   people: Record<string, Person>;
+  /** The automatic zoom's views, on a page with the video. */
+  views?: MatchView[];
   /** Whether ball3d.js holds the touches' 3D places. */
   ball3d?: boolean;
   /** Whether voice/index.js holds the commentary's audio. */
@@ -183,6 +188,7 @@ export const match = {
   films: data.films,
   aliases: data.aliases,
   positions: data.positions ?? null,
+  views: data.views ?? [],
   scores: data.scores ?? [],
   brand: data.brand ?? null,
   date: data.date ?? null,

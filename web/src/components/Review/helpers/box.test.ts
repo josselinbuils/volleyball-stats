@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { boxAt, MAX_ZOOM, panView, viewAt, zoomView, wheelZoom } from '@/components/Review/helpers/box';
+import { autoView, boxAt, MAX_ZOOM, panView, viewAt, zoomView, wheelZoom } from '@/components/Review/helpers/box';
+
+describe('autoView', () => {
+  const views: [number, number, number, number][] = [
+    [5, 0.1, 0.2, 0.5],
+    [10, 0, 0, 1],
+  ];
+
+  it('holds a view until the next one starts', () => {
+    expect(autoView(views, 9.9, 100, 50)).toEqual({ x: 10, y: 10, w: 50, h: 25 });
+    expect(autoView(views, 10, 100, 50)).toEqual({ x: 0, y: 0, w: 100, h: 50 });
+  });
+
+  it('shows the first one before it starts', () => {
+    expect(autoView(views, 1, 100, 50)).toEqual({ x: 10, y: 10, w: 50, h: 25 });
+  });
+});
 
 describe('boxAt', () => {
   const clip = {
