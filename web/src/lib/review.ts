@@ -171,7 +171,7 @@ interface ReviewData {
   backup?: { at: string; error: string | null } | null;
 }
 
-export type LearnRun = { time: string; commit: string; scores: Record<string, [number, number]> };
+export type LearnRun = { time: string; commit: string; match?: string; scores: Record<string, [number, number]> };
 
 export type Hosted = { at: string | null; day?: string | null; error: string | null; behind: boolean };
 

@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict
+from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -997,6 +997,31 @@ class TestPieceConflict:
         names = [*self.names, {"ref": {"track": 3, "frame": 1}, "name": "Cleo"}]
 
         assert piece_conflict([], self.entry, self.piece, names, self.segment_of)[1] == []
+
+
+class TestPooledRuns:
+    @staticmethod
+    def write(outputs, name, runs):
+        (outputs / name).mkdir()
+        (outputs / name / "learn.json").write_text(json.dumps([{"time": t, "commit": c, "scores": s} for t, c, s in runs]))
+
+    def test_each_run_counts_every_match_at_its_latest_run_then(self, tmp_path):
+        self.write(tmp_path, "a", [("2026-11-01 10:00", "a1", {"who": [1, 2]}), ("2026-11-03 10:00", "a2", {"who": [8, 10]})])
+        self.write(tmp_path, "b", [("2026-11-02 10:00", "b1", {"who": [3, 4], "types": [1, 1]})])
+
+        runs = pooled_runs(tmp_path)
+
+        assert [r["commit"] for r in runs] == ["a1", "b1", "a2"]
+        assert [r["match"] for r in runs] == ["a", "b", "a"]
+        assert [r["scores"]["who"] for r in runs] == [[1, 2], [4, 6], [11, 14]]
+        assert runs[-1]["scores"]["types"] == [1, 1]
+        assert "types" not in runs[0]["scores"]
+
+    def test_only_the_matches_with_runs_count(self, tmp_path):
+        (tmp_path / "no-run").mkdir()
+        (tmp_path / "file.txt").write_text("")
+
+        assert pooled_runs(tmp_path) == []
 
 
 class TestSupersede:

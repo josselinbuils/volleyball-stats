@@ -404,6 +404,7 @@
     "tabProgress": "Progress",
     "progressIntro": "What your answers taught the analysis, measured at each \"Learn from my answers\".",
     "progress": {
+      "matches": "All matches counted: {{count}}.",
       "none": "No measure yet: \"Learn from my answers\" makes one.",
       "runs_one": "{{count}} analysis measured, the last on {{last}} (version {{commit}}).",
       "runs_other": "{{count}} analyses measured, the last on {{last}} (version {{commit}}).",

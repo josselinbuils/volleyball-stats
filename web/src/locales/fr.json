@@ -404,6 +404,7 @@
     "tabProgress": "Progrès",
     "progressIntro": "Ce que vos réponses ont appris à l'analyse, mesuré à chaque « Apprendre de mes réponses ».",
     "progress": {
+      "matches": "Tous les matchs comptés : {{count}}.",
       "none": "Pas encore de mesure : « Apprendre de mes réponses » en fait une.",
       "runs_one": "{{count}} analyse mesurée, la dernière le {{last}} (version {{commit}}).",
       "runs_other": "{{count}} analyses mesurées, la dernière le {{last}} (version {{commit}}).",

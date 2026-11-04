@@ -50,8 +50,9 @@ const W = 240;
 const H = 56;
 const PAD = 6;
 
-/** Each step's share right on the review's answers over the analysis runs (learn.json): the last
- * run, its change since the one before and a curve of every run, then a table of all of them. */
+/** Each step's share right on the answers of all the matches over the analysis runs (learn.json, each
+ * counting every match so far): the last run, its change since the one before and a curve of every
+ * run, then a table of all of them. */
 export function Progress({ runs }: { runs: LearnRun[] }) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
@@ -64,11 +65,13 @@ export function Progress({ runs }: { runs: LearnRun[] }) {
   }
   const last = runs[runs.length - 1];
   const checked = last.scores['checked: rallies']?.[0];
+  const matches = new Set(runs.map((r) => r.match)).size;
   return (
     <div className="grid gap-6">
       <p className="m-0 px-1 text-sm text-muted-foreground">
         {t('review.progress.runs', { count: runs.length, last: when(last), commit: last.commit })}
         {checked ? ` ${t('review.progress.checked', { count: checked })}` : ''}
+        {matches > 1 ? ` ${t('review.progress.matches', { count: matches })}` : ''}
       </p>
       {GROUPS.map(([group, measures]) => {
         const shown = measures.filter(([key]) => runs.some((r) => r.scores[key]?.[1]));

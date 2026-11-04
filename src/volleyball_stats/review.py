@@ -666,6 +666,26 @@ def rally_answer(rally: dict, choice: str) -> dict:
     return {"rally": [{**rally, "play": choice == "rally"}]} if choice in ("rally", "not_play") else {}
 
 
+def pooled_runs(outputs: Path) -> list[dict]:
+    """The analysis runs (learn.json) of all the matches in `outputs`, in time order, each scored on
+    every match measured so far, at its latest run then: progress since the beginning, a match joining
+    it adding its answers rather than starting a new curve."""
+    runs = []
+    for path in sorted(outputs.glob("*/learn.json")):
+        runs += [(run["time"], path.parent.name, run) for run in json.loads(path.read_text())]
+    latest: dict[str, dict] = {}
+    out = []
+    for _, name, run in sorted(runs, key=lambda r: r[:2]):
+        latest[name] = run["scores"]
+        scores: dict[str, list[int]] = {}
+        for found in latest.values():
+            for key, (right, total) in found.items():
+                sums = scores.setdefault(key, [0, 0])
+                sums[0], sums[1] = sums[0] + right, sums[1] + total
+        out.append({"time": run["time"], "commit": run["commit"], "match": name, "scores": scores})
+    return out
+
+
 def page_data(site: Path) -> dict | None:
     """The data.js of the page at `site`, None without one."""
     path = site / "data.js"
@@ -1935,7 +1955,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
         data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
-            "learning": json.loads((match / "learn.json").read_text()) if (match / "learn.json").exists() else [],
+            "learning": pooled_runs(match.parent),
             "fetched": fetched_log or None,
             "backup": backed or None,
             "filmsError": filmed["error"],
