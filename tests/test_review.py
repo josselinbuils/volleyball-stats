@@ -968,46 +968,6 @@ class TestLetGo:
         assert name_merges([*let_go([], self.piece, self.segment_of), answer], names, self.segment_of) == {frozenset({"Anna", "Cleo"})}
 
 
-class TestLetGo:
-    anna, ben, piece, other = {"track": 1, "frame": 5}, {"track": 2, "frame": 5}, {"track": 3, "frame": 5}, {"track": 4, "frame": 5}
-    names = [{"ref": anna, "name": "Anna"}, {"ref": ben, "name": "Ben"}]
-
-    @staticmethod
-    def segment_of(ref):
-        return ref["track"]
-
-    def marks(self):
-        return mark_odd([], [{"track": 3, "frame": 7}, self.other], [{"track": 9, "frame": 1}], [self.ben, self.ben])
-
-    def test_a_new_answer_on_a_marked_piece_joins_nobody_and_keeps_the_other_marks(self):
-        answer = {"id": "piece:3:0", "same": [[self.anna, self.piece]]}
-        log = self.marks()
-        assert name_merges([*log, answer], self.names, self.segment_of) == {frozenset({"Anna", "Ben"})}
-
-        kept = let_go(log, self.piece, self.segment_of)
-
-        assert name_merges([*kept, answer], self.names, self.segment_of) == set()
-        assert kept[0]["odd"] == [self.other] and kept[0]["to"] == [self.ben]
-        assert kept[0]["same"] == [[self.ben, self.other]]
-        assert all(self.segment_of(a) != 3 for pair in kept[0]["different"] for a in pair)
-
-    def test_a_mark_alone_goes_with_its_piece(self):
-        log = mark_odd([], [{"track": 3, "frame": 7}], [{"track": 9, "frame": 1}], [self.ben])
-
-        assert let_go(log, self.piece, self.segment_of) == []
-
-    def test_another_answer_lets_go_of_the_piece_only(self):
-        log = [{"id": "more:1", "choice": "more", "same": [[self.ben, self.piece, self.other]]}, {"id": "more:2", "choice": "more", "same": [[self.ben, self.piece]]}]
-
-        assert let_go(log, self.piece, self.segment_of) == [{"id": "more:1", "choice": "more", "same": [[self.ben, self.other]]}, {"id": "more:2", "choice": "more", "same": []}]
-
-    def test_a_name_pinned_on_the_piece_still_warns(self):
-        names = [*self.names, {"ref": {"track": 3, "frame": 1}, "name": "Cleo"}]
-        answer = {"id": "piece:3:0", "same": [[self.anna, self.piece]]}
-
-        assert name_merges([*let_go([], self.piece, self.segment_of), answer], names, self.segment_of) == {frozenset({"Anna", "Cleo"})}
-
-
 class TestPieceConflict:
     anna, ben, piece = {"track": 1, "frame": 5}, {"track": 2, "frame": 5}, {"track": 3, "frame": 5}
     names = [{"ref": anna, "name": "Anna"}, {"ref": ben, "name": "Ben"}]

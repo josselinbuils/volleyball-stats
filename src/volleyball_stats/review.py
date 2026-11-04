@@ -1122,24 +1122,6 @@ def let_go(log: list[dict], piece: Ref, segment_of) -> list[dict]:
     return supersede(out, [piece], "", lambda _: True, segment_of)
 
 
-def let_go(log: list[dict], piece: Ref, segment_of) -> list[dict]:
-    """`log` without what its answers said of `piece`, about to be answered again: the latest judgment
-    wins, and two answers on one piece never join two players. Its marks go, the answers joining it
-    to a player let go of it; the rest of each answer stays."""
-    own = segment_of(piece)
-    out = []
-    for entry in log:
-        if entry.get("choice") == "odd" and any(segment_of(o) == own for o in entry["odd"]):
-            kept = [(o, t) for o, t in zip(entry["odd"], entry.get("to") or [None] * len(entry["odd"])) if segment_of(o) != own]
-            if not kept:
-                continue
-            # Answers saved before "rest" was kept hold it in their pairs.
-            others = entry.get("rest") or list({piece_key(r): r for _, r in entry["different"]}.values())
-            entry = {**odd_entry(entry["id"], [o for o, _ in kept], others, [t for _, t in kept]), **({"applied": entry["applied"]} if "applied" in entry else {})}
-        out.append(entry)
-    return supersede(out, [piece], "", lambda _: True, segment_of)
-
-
 def piece_conflict(log: list[dict], entry: dict, piece: Ref, names: list[dict], segment_of) -> tuple[list[dict], list[str]]:
     """`log` without what it says of `piece` (`let_go`), and the names `entry`, an answer about it,
     would join because of that: none if it joins nobody, or still would without those answers (a
@@ -2179,9 +2161,6 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                             cut = questions.cut(c["track"], c["start_frame"], c["end_frame"], float(body["at"]))
                             if cut is None:
                                 return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
-                        # Said to be a player: this answer replaces what earlier ones said of the piece.
-                        if player or choice.isdigit():
-                            log = let_go(log, refs[body["id"]]["piece"], questions.segment_of)
                         entry = {"id": body["id"], "choice": choice, **constraints(choice, refs[body["id"]], player, cut), "applied": False}
                         # Said to be a player when earlier answers say another: the user settles it.
                         if player or choice.isdigit():
