@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { match, rallies, type Group } from '@/lib/match';
 import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { REPORT_LEAD_S } from '@/components/Review/helpers/report';
+import { openingTime, REPORT_LEAD_S } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
@@ -59,11 +59,13 @@ export function MatchTab({
   const [now, setNow] = useState(0);
   const [seek, setSeek] = useState<{ time: number; n: number; play?: boolean }>();
   const [caption, setCaption] = useState<{ team: Group; text: string } | null>(null);
-  // The video starts at the first report, else at the first rally.
   const [clip] = useState(() => {
-    const at = Math.max(0, (reports[0]?.reports?.[0]?.time ?? rallies[0]?.start ?? 0) - REPORT_LEAD_S);
+    const at = openingTime(rallies, checked, reports, match.fps);
     return { start: at, end: at, around: 0, boxes: [] };
   });
+  // During the video's lead-in to where it opened, the list already shows that rally.
+  const opened = clip.start + REPORT_LEAD_S;
+  const listNow = now >= clip.start && now < opened ? opened : now;
   // The editor starts again from the corrections saved, after each save.
   const [round, setRound] = useState(0);
   const listPlace = useRef({ top: 0, scrolled: 0 });
@@ -143,7 +145,7 @@ export function MatchTab({
             reports={seen}
             players={players}
             nameOf={nameOf}
-            now={now}
+            now={listNow}
             timeOf={() => clipTime.current}
             onPlay={(at) => go(at - REPORT_LEAD_S, true)}
             onPause={(at) => go(at, false)}

@@ -5,6 +5,7 @@ import {
   freeFrame,
   nextTouch,
   offGiven,
+  openingTime,
   pieceOf,
   rallyAt,
   rallyOf,
@@ -14,6 +15,32 @@ import {
   withSplits,
   matchFinished,
 } from '@/components/Review/helpers/report';
+
+describe('openingTime', () => {
+  const rallies = [{ key: 100, start: 10 }, { start: 20 }, { key: 300, start: 30 }];
+  const reports = [{ reports: [{ time: 25 }] }];
+
+  it('opens before the first rally not checked, whatever the reports', () => {
+    expect(openingTime(rallies, [100], [{ reports: [{ time: 30 }] }], 50)).toBe(18);
+  });
+
+  it('takes the key of a rally without one from its start', () => {
+    expect(openingTime(rallies, [100, 1000], reports, 50)).toBe(28);
+  });
+
+  it('opens on the first report once all are checked', () => {
+    expect(openingTime(rallies, [100, 1000, 300], reports, 50)).toBe(23);
+  });
+
+  it('opens on the first rally with all checked and no report', () => {
+    expect(openingTime(rallies, [100, 1000, 300], [], 50)).toBe(8);
+  });
+
+  it('never opens before the video', () => {
+    expect(openingTime([{ start: 1 }], [], [], 50)).toBe(0);
+    expect(openingTime([], [], [], 50)).toBe(0);
+  });
+});
 
 describe('changedSince', () => {
   const saved = {

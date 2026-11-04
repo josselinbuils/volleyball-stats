@@ -105,6 +105,13 @@ export function freeFrame(taken: number[], frame: number): number {
 /** A report's video starts this long before the reported moment, and a touch's replay before the touch. */
 export const REPORT_LEAD_S = 2;
 
+/** Where the Match tab's video opens: REPORT_LEAD_S before the first of `rallies` not `checked` (keys), else the first report, else the first rally. */
+export function openingTime(rallies: Pick<Rally, 'key' | 'start'>[], checked: number[], reports: { reports?: { time: number }[] }[], fps: number): number {
+  const done = new Set(checked);
+  const rally = rallies.find((r) => !done.has(r.key ?? Math.round(r.start * fps)));
+  return Math.max(0, (rally?.start ?? reports[0]?.reports?.[0]?.time ?? rallies[0]?.start ?? 0) - REPORT_LEAD_S);
+}
+
 /** A touch counts in its rally from this long before its start, as on the page (actions.LEAD_S). */
 export const LEAD_S = 0.33;
 
