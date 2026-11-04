@@ -39,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, decode, feedback, film, files, identity, jerseys, matches, rename, timeouts, web
+from volleyball_stats import attribution, backup, decode, feedback, film, files, identity, jerseys, matches, rename, scoreboard, timeouts, web
 from volleyball_stats.court import LENGTH, Calibration
 from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
@@ -147,7 +147,8 @@ class Questions:
         self.window_of = {int(r["start_frame"]): (a - lead, b) for (a, b), r in zip(windows, rallies)}
         self.page = page_data(self.match / "review")
         missed = missed_points(self.page, self.match / "ball.csv", self.calibration) if self.page and self.calibration else []
-        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []) + missed, key=lambda r: r.get("time") or 0)
+        board = board_off(self.page, scoreboard.load(self.match)) if self.page else []
+        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []) + missed + board, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -880,6 +881,31 @@ def missed_points(page: dict, ball: Path, calibration: Calibration) -> list[dict
     return out
 
 
+def board_off(page: dict, texts: dict[int, list[str]]) -> list[dict]:
+    """The rallies after which the running score parts from the score board's (`scoreboard.load`'s
+    texts), as reports at their start, kind "auto.boardOff", `shown` the board's score: where the two
+    first differ, or differ otherwise than before, and still do at the next reading (a board flipped
+    late differs once). The board's left side is the team it fits best, set by set."""
+    rallies = page["rallies"]
+    found: dict[int, list] = defaultdict(list)
+    for k, (left, a, b, right) in scoreboard.boards(texts, [(r["start"], r["end"], r["set"]) for r in rallies], page["fps"]):
+        # Read in the next set, the board counts the set just ended: no score of this one to compare.
+        if rallies[k].get("score") and a + b == rallies[k]["set"] - 1:
+            found[rallies[k]["set"]].append((k, (left, right), tuple(rallies[k]["score"])))
+    out = []
+    for number, readings in found.items():
+        flip = sum(b == s for _, b, s in readings) < sum(b[::-1] == s for _, b, s in readings)
+        boards = [b[::-1] if flip else b for _, b, _ in readings]
+        offs = [(s[0] - b[0], s[1] - b[1]) for b, (_, _, s) in zip(boards, readings)]
+        last = (0, 0)
+        for i, ((k, _, _), board, off) in enumerate(zip(readings, boards, offs)):
+            if off != last and i + 1 < len(offs) and offs[i + 1] == off:
+                said = f"auto:boardOff:{number}:{board[0]}-{board[1]}"
+                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k]["start"], "kind": "auto.boardOff", "comment": None, "shown": f"{board[0]}-{board[1]}"})
+                last = off
+    return out
+
+
 def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
     """A viewer's `report` as a question on the rally of `page` (its data.js) it is about, by the time
     of the touch replayed then (`clip`) or of the report: what was reported (`reports`, more joined
@@ -1540,11 +1566,11 @@ def unlocked(keys: list[int]) -> list[dict]:
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
     "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0,
-    "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0,
+    "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
     "pipeline:identity": 20.0, "pipeline:answers": 60.0,
 }
 # The pipeline's stages in order (match.stage): "tracking" only when the trackers run again.
-STAGES = ("tracking", "rallies", "actions", "wrists", "teams", "jerseys", "identity", "answers")
+STAGES = ("tracking", "rallies", "actions", "wrists", "teams", "jerseys", "scoreboard", "identity", "answers")
 TIMINGS = "review_timings.json"
 
 

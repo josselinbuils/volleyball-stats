@@ -178,3 +178,11 @@ Contacts searched again with a lower threshold inside stretches of over `GAP_S` 
 on the first match the 14 stretches hold 13 of the 72 touches the pipeline misses; at the threshold
 ×1.0 4 found for 5 false, ×0.6 6 for 8, ×0.3 6 for 20; on the second, at ×0.6 1 for 3 false. The ball's
 track alone cannot tell them: the players at the ball would have to.
+
+## The score board (4 Nov)
+
+`scoreboard.py` reads the scorer's flip board near the camera before each serve; `review.board_off` reports
+the rally after which the running score parts from it for two readings in a row. First match (board mostly
+out of view): 21 readings for 129 rallies, 19 equal to the reviewed score, no report. Second match: 82
+readings for 144 rallies, 16 equal to the page's score (its 3 sets end off the given score), 7 reports;
+its last readings per set match the given scores. About 6 min on the M4 the first time, nothing on a rerun.

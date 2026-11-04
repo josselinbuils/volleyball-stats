@@ -363,6 +363,7 @@
       "wrists": "who touched (wrists)",
       "teams": "teams",
       "jerseys": "jersey numbers",
+      "scoreboard": "scoreboard",
       "identity": "players",
       "answers": "moving your answers and scoring"
     },
@@ -701,6 +702,7 @@
         "server": "Served by the team that lost the point before",
         "noWinner": "Winner unknown",
         "scoreOff": "Set's final score off the one given",
+        "boardOff": "Score off the scoreboard",
         "passWithoutServe": "A reception not right after a serve",
         "serveNotReceived": "A serve followed by something other than a reception",
         "afterFault": "An action follows a fault in the same rally",

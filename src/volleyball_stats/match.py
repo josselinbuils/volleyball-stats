@@ -26,7 +26,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, players, points, rallies, ranker, teams, timeouts
+from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, players, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -425,6 +425,10 @@ def main() -> None:
         start = time.perf_counter()
         read_jerseys(out, args.video)
         timings["jerseys"] = time.perf_counter() - start
+        stage("scoreboard")
+        start = time.perf_counter()
+        scoreboard.run(out, args.video)
+        timings["scoreboard"] = time.perf_counter() - start
         stage("identity")
         start = time.perf_counter()
         attributed = [(t[0], k) for t, k in zip(typed, touchers) if k is not None]
