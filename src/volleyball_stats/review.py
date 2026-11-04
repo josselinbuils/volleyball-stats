@@ -2066,6 +2066,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             self.send_header("Content-Type", kinds.get(path.suffix.lower(), "application/octet-stream"))
             self.send_header("Accept-Ranges", "bytes")
             self.send_header("Content-Length", str(last - first + 1))
+            # An apply rewrites the page's data under the same names.
+            if path.suffix.lower() == ".js":
+                self.send_header("Cache-Control", "no-cache")
             if span:
                 self.send_header("Content-Range", f"bytes {first}-{last}/{size}")
             self.end_headers()
