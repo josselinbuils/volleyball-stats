@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { compared } from '@/components/Review/helpers/comparison';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFormat } from '@/lib/format';
 import type { Comparison, LearnRun } from '@/lib/review';
 import { cn } from '@/lib/utils';
@@ -95,35 +96,73 @@ export function Progress({ runs, comparison }: { runs: LearnRun[]; comparison: C
           })}
           <section className="grid gap-3">
             <h2 className="m-0 px-1 text-base font-semibold">{t('review.progress.table')}</h2>
-            <div className="overflow-x-auto rounded-lg border bg-card px-4 py-3">
-              <table className="w-full text-sm tabular-nums">
-                <thead>
-                  <tr className="text-left text-muted-foreground">
-                    <th className="py-1 pr-4 font-normal">{t('review.progress.measureColumn')}</th>
-                    {runs.map((r, k) => (
-                      <th key={k} className="py-1 pr-4 font-normal whitespace-nowrap">
-                        {when(r)} <span className="text-xs">{r.commit}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {GROUPS.flatMap(([, measures]) => measures).map(([key, label]) => (
-                    <tr key={key} className="border-t">
-                      <td className="py-1 pr-4">{t(`review.progress.measure.${label}`)}</td>
-                      {runs.map((r, k) => (
-                        <td key={k} className="py-1 pr-4 whitespace-nowrap">
-                          {r.scores[key]?.[1] ? `${r.scores[key][0]}/${r.scores[key][1]}` : '–'}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <MeasureTable runs={runs} when={when} />
           </section>
         </div>
       </details>
+    </div>
+  );
+}
+
+/** Every measure of every run, newest first and by step: the share right, the counts under it. */
+function MeasureTable({ runs, when }: { runs: LearnRun[]; when: (run: LearnRun) => string }) {
+  const { t } = useTranslation();
+  const f = useFormat();
+  const newest = [...runs].reverse();
+  const edge = (k: number) => cn(k === newest.length - 1 && 'pr-4');
+  return (
+    <div className="overflow-hidden rounded-lg border bg-card">
+      <Table className="tabular-nums">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="sticky left-0 z-10 bg-card pl-4 font-normal text-muted-foreground">{t('review.progress.measureColumn')}</TableHead>
+            {newest.map((r, k) => (
+              <TableHead key={k} className={cn('h-auto py-2 text-right', k > 0 && 'font-normal text-muted-foreground', edge(k))}>
+                {when(r)}
+                <span className="block text-xs font-normal text-muted-foreground">{r.commit}</span>
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {GROUPS.map(([group, measures]) => {
+            const shown = measures.filter(([key]) => runs.some((r) => r.scores[key]?.[1]));
+            return (
+              shown.length > 0 && (
+                <Fragment key={group}>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableCell colSpan={newest.length + 1} className="pl-4 font-medium">
+                      <span className="sticky left-4">{t(`review.progress.group.${group}`)}</span>
+                    </TableCell>
+                  </TableRow>
+                  {shown.map(([key, label]) => (
+                    <TableRow key={key} className="hover:bg-transparent">
+                      <TableCell className="sticky left-0 z-10 max-w-40 min-w-36 bg-card pl-4 whitespace-normal sm:max-w-none sm:whitespace-nowrap">{t(`review.progress.measure.${label}`)}</TableCell>
+                      {newest.map((r, k) => {
+                        const score = r.scores[key];
+                        return (
+                          <TableCell key={k} className={cn('text-right', edge(k))}>
+                            {score?.[1] ? (
+                              <>
+                                <span className={cn(k === 0 ? 'font-semibold' : 'text-muted-foreground')}>{f.pct(score[0] / score[1])}</span>
+                                <span className="block text-xs text-muted-foreground">
+                                  {score[0]}/{score[1]}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">–</span>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </Fragment>
+              )
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
