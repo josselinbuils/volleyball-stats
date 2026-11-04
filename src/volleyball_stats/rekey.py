@@ -79,19 +79,25 @@ def moved(log: list[dict], before: list[Window], after: list[Window], lead: int)
 
 
 def renamed_reports(before: dict, after: dict) -> dict[str, str]:
-    """The automatic reports' keys of page `before` (its data.js MATCH) to those of page `after`:
-    the same reason on the rally it overlaps most."""
+    """The automatic reports' keys of page `before` (its data.js MATCH) to those of page `after`
+    (`web.match_data`'s): the same reason on the rally it overlaps most."""
     def windows(page: dict) -> list[Window]:
         return [(round(r["start"] * 100), round(r["end"] * 100)) for r in page["rallies"]]
 
+    def rally_at(page: dict) -> dict[float, int]:
+        """A report sits at its rally's start or end."""
+        return {t: k for k, r in enumerate(page["rallies"]) for t in (r["start"], r["end"])}
+
+    # `unusual` reads a page as data.js holds it: people by str, where `match_data` has int.
+    after = {**after, "people": {str(p): q for p, q in (after.get("people") or {}).items()}}
     to = overlaps(windows(before), windows(after), 0)
-    starts_before = {r["start"]: k for k, r in enumerate(before["rallies"])}
-    new = {(r["kind"], r["time"]): r["key"] for r in review.unusual(after)}
+    at_before, at_after = rally_at(before), rally_at(after)
+    new = {(r["kind"], at_after[r["time"]]): r["key"] for r in review.unusual(after)}
     out = {}
     for r in review.unusual(before):
-        k = to.get(starts_before[r["time"]])
-        if k is not None and (r["kind"], after["rallies"][k]["start"]) in new:
-            out[r["key"]] = new[(r["kind"], after["rallies"][k]["start"])]
+        k = to.get(at_before[r["time"]])
+        if k is not None and (r["kind"], k) in new:
+            out[r["key"]] = new[(r["kind"], k)]
     return out
 
 

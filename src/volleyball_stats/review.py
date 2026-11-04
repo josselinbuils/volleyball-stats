@@ -1993,6 +1993,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             try:
                 handle()
             except (LookupError, TypeError, ValueError, AttributeError, StopIteration) as error:
+                traceback.print_exc()
                 self.send(json.dumps({"error": repr(error)}).encode(), "application/json", 400)
 
         def get(self) -> None:

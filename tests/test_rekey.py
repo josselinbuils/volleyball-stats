@@ -1,3 +1,4 @@
+from volleyball_stats import review
 from volleyball_stats.rekey import moved, moved_comments, overlaps, renamed_reports, with_reports
 
 
@@ -55,6 +56,20 @@ class TestReports:
         keys = renamed_reports(page(10.0), page(9.5))
         assert len(keys) == 1
         assert list(keys) != list(keys.values())
+
+    def test_a_report_at_the_rally_s_end_is_renamed(self):
+        page = lambda start: {"rallies": [{"start": start, "end": 20.0, "set": 1}], "contacts": [], "teams": [{"name": "A"}, {"name": "B"}]}  # noqa: E731
+        before, after = review.unusual(page(10.0)), review.unusual(page(9.5))
+        assert "auto.noWinner" in [r["kind"] for r in before]
+        assert renamed_reports(page(10.0), page(9.5)) == {b["key"]: a["key"] for b, a in zip(before, after)}
+
+    def test_people_of_a_page_just_built(self):
+        rallies = [{"start": 0.0, "end": 1.0, "set": 1}]
+        contact = {"t": 0.1, "type": "serve", "team": 1, "side": "left", "rally": 0, "result": "error", "person": 0}
+        people = {0: {"team": 1, "jersey": 10, "name": "Ana"}, 1: {"team": 1, "jersey": 10, "name": "Zoé"}}
+        built = {"people": people, "rallies": rallies, "contacts": [contact]}
+        read = {**built, "people": {str(p): q for p, q in people.items()}}
+        assert renamed_reports(read, built)
 
     def test_ids(self):
         assert with_reports([{"id": "report:a+b"}, {"id": "touch:1"}], {"a": "c"}) == [{"id": "report:c+b"}, {"id": "touch:1"}]
