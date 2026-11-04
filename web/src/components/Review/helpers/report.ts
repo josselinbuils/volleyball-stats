@@ -1,5 +1,6 @@
 import type { Group, Rally } from '@/lib/match';
 import type { ReportChanges } from '@/lib/review';
+import { HOLD_S } from '@/components/Review/helpers/box';
 
 /** Same fields with the same values, whatever their order. */
 const sameFix = (a: object | undefined, b: object | undefined) => {
@@ -110,6 +111,17 @@ export function openingTime(rallies: Pick<Rally, 'key' | 'start'>[], checked: nu
   const done = new Set(checked);
   const rally = rallies.find((r) => !done.has(r.key ?? Math.round(r.start * fps)));
   return Math.max(0, (rally?.start ?? reports[0]?.reports?.[0]?.time ?? rallies[0]?.start ?? 0) - REPORT_LEAD_S);
+}
+
+/** The next of `touches` (by time) when first in its rally and the rally before is over at `time`, as the automatic zoom's serve view: nothing else to name by then. */
+export function comingFirstTouch<T extends { time: number; rally: number }>(touches: T[], rallies: Pick<Rally, 'end'>[], time: number, lead: number): T | undefined {
+  const next = touches.findIndex((touch) => touch.time - lead > time);
+  const touch = touches[next];
+  if (!touch || touches[next - 1]?.rally === touch.rally) {
+    return undefined;
+  }
+  const before = rallies[touch.rally - 1];
+  return before && time < before.end + HOLD_S ? undefined : touch;
 }
 
 /** A touch counts in its rally from this long before its start, as on the page (actions.LEAD_S). */

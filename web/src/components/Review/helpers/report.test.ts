@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aboutEnd,
   changedSince,
+  comingFirstTouch,
   freeFrame,
   nextTouch,
   offGiven,
@@ -15,6 +16,32 @@ import {
   withSplits,
   matchFinished,
 } from '@/components/Review/helpers/report';
+
+describe('comingFirstTouch', () => {
+  const rallies = [{ end: 10 }, { end: 30 }];
+  const touches = [
+    { time: 5, rally: 0 },
+    { time: 8, rally: 0 },
+    { time: 25, rally: 1 },
+    { time: 27, rally: 1 },
+  ];
+
+  it('names the first rally from the start of the match', () => {
+    expect(comingFirstTouch(touches, rallies, 0, 0.2)).toBe(touches[0]);
+  });
+
+  it('waits for the rally before to be over', () => {
+    expect(comingFirstTouch(touches, rallies, 10.9, 0.2)).toBeUndefined();
+    expect(comingFirstTouch(touches, rallies, 11, 0.2)).toBe(touches[2]);
+    expect(comingFirstTouch(touches, rallies, 24, 0.2)).toBe(touches[2]);
+  });
+
+  it('leaves the rest of a rally alone', () => {
+    expect(comingFirstTouch(touches, rallies, 6, 0.2)).toBeUndefined();
+    expect(comingFirstTouch(touches, rallies, 26, 0.2)).toBeUndefined();
+    expect(comingFirstTouch(touches, rallies, 28, 0.2)).toBeUndefined();
+  });
+});
 
 describe('openingTime', () => {
   const rallies = [{ key: 100, start: 10 }, { start: 20 }, { key: 300, start: 30 }];

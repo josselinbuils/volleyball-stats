@@ -45,7 +45,7 @@ export function autoView(views: MatchView[], time: number, width: number, height
 }
 
 /** Seconds the automatic zoom keeps a rally's view after its end, as framing.py's HOLD_S. */
-const HOLD_S = 1;
+export const HOLD_S = 1;
 
 /** The rally `time` belongs to, for the automatic zoom: the first of `rallies` not over by then, the wait before a serve being its rally's; -1 after the last. */
 export function exchangeAt(rallies: { end: number }[], time: number): number {

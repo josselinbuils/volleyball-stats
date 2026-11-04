@@ -17,6 +17,7 @@ import type { NameOf } from '@/components/Review/helpers/players';
 import {
   aboutEnd,
   changedSince,
+  comingFirstTouch,
   freeFrame,
   LEAD_S,
   NEXT_TOUCH_S,
@@ -299,10 +300,17 @@ export function ReportEditor({
     const [team, n] = player.split(':').map(Number);
     return player ? (nameOf(team as Group, n) ?? t('player', { n })) : t('players.rest');
   };
-  const caption = inHere && (inHere.removed ? `${t(`types.${inHere.type}`)} · ${t('review.reportRemoved')}` : `${t(`actions.${inHere.type}.${inHere.result}`)} · ${who(inHere.player)}`);
+  const coming = comingFirstTouch(
+    allRows.filter((row) => !row.removed),
+    shown,
+    now,
+    TOUCH_LEAD_S,
+  );
+  const named = coming && !fixOf(coming.rally - 1)?.join ? coming : inHere;
+  const caption = named && (named.removed ? `${t(`types.${named.type}`)} · ${t('review.reportRemoved')}` : `${t(`actions.${named.type}.${named.result}`)} · ${who(named.player)}`);
   useEffect(() => {
-    onCaption?.(inHere && caption ? { team: inHere.team, text: caption } : null);
-  }, [caption, inHere?.team]);
+    onCaption?.(named && caption ? { team: named.team, text: caption } : null);
+  }, [caption, named?.team]);
   useEffect(() => () => onCaption?.(null), []);
   const isCurrent = (o: Timeout) => o.start / match.fps <= now && now < o.end / match.fps;
   const inTimeout = timeouts.find(isCurrent);
