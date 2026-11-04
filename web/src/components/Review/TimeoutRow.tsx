@@ -7,24 +7,33 @@ import { cn } from '@/lib/utils';
 import { GROUPS, groupName, match, teamColor, teamRing } from '@/lib/match';
 import type { Timeout, TimeoutChange } from '@/lib/review';
 
-/** A timeout among the rallies: its team to pick, removed if it is none. */
+/** A timeout among the rallies: its team to pick, its bounds to move to the video's moment, removed if it is none. */
 export function TimeoutRow({
   timeout,
   current,
+  now,
   onPlay,
   onChange,
 }: {
   timeout: Timeout;
   /** The video is in it. */
   current: boolean;
+  /** The video's moment, in seconds. */
+  now: number;
   onPlay: (time: number) => void;
   onChange: (change: TimeoutChange) => void;
 }) {
   const { t } = useTranslation();
   const { start, end, team } = timeout;
   const time = start / match.fps;
+  const endTime = end / match.fps;
+  const frame = Math.round(now * match.fps);
   return (
-    <li data-key={`o${start}`} data-at={start / match.fps} className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border border-dashed bg-card p-1.5 transition-colors', current && 'border-muted-foreground bg-muted')}>
+    <li
+      data-key={`o${start}`}
+      data-at={start / match.fps}
+      className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border border-dashed bg-card p-1.5 transition-colors', current && 'border-muted-foreground bg-muted')}
+    >
       <div className="flex items-center gap-1.5">
         <button
           type="button"
@@ -34,7 +43,7 @@ export function TimeoutRow({
           className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <Play aria-hidden className="size-3.5 fill-current" />
-          {clock(time)}
+          {clock(time)} – {clock(endTime)}
         </button>
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{t('review.timeout')}</span>
         <Button variant="ghost" size="icon-sm" title={t('review.timeoutRemove')} aria-label={t('review.timeoutRemove')} onClick={() => onChange({ start, end, removed: true })}>
@@ -55,6 +64,14 @@ export function TimeoutRow({
             {groupName(t, g)}
           </Button>
         ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <Button variant="outline" size="sm" className="flex-1 bg-card" disabled={frame >= end} onClick={() => onChange({ start: frame, end, team })}>
+          {t('review.timeoutStart', { time: clock(now) })}
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1 bg-card" disabled={frame <= start} onClick={() => onChange({ start, end: frame, team })}>
+          {t('review.timeoutEnd', { time: clock(now) })}
+        </Button>
       </div>
     </li>
   );

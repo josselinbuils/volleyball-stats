@@ -381,6 +381,8 @@
     "timeout": "Temps mort",
     "timeoutAdd": "Temps mort à {{time}}",
     "timeoutRemove": "Pas un temps mort",
+    "timeoutStart": "Début à {{time}}",
+    "timeoutEnd": "Fin à {{time}}",
     "reportGo": "Revoir ce moment",
     "reportHandled": "Traité",
     "reportHandledNote": "Marque ce signalement comme traité et enregistre les corrections en cours.",

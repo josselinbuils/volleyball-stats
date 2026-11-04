@@ -63,6 +63,13 @@ class TestAnswer:
         assert [t["start"] for t in timeouts.answer(tmp_path, 10.0, {"start": 300, "end": 400, "removed": True})] == [100]
         assert [t["start"] for t in timeouts.shown(tmp_path, 10.0)] == [100]
 
+    def test_moving_a_bound_replaces_the_timeout_and_what_was_detected(self, tmp_path):
+        (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n100,500\n")
+        timeouts.answer(tmp_path, 10.0, {"start": 100, "end": 500, "team": 2})
+        timeouts.answer(tmp_path, 10.0, {"start": 200, "end": 500, "team": 2})
+        assert timeouts.answer(tmp_path, 10.0, {"start": 200, "end": 450, "team": 2}) == [{"start": 200, "end": 450, "team": 2}]
+        assert timeouts.shown(tmp_path, 10.0) == [{"start": 200, "end": 450, "team": 2}]
+
     def test_adding_takes_back_a_removal(self, tmp_path):
         (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n")
         (tmp_path / "rallies.csv").write_text("start_frame,end_frame,left,set\n0,100,1,1\n500,600,1,1\n")

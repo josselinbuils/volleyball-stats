@@ -381,6 +381,8 @@
     "timeout": "Timeout",
     "timeoutAdd": "Timeout at {{time}}",
     "timeoutRemove": "Not a timeout",
+    "timeoutStart": "Start at {{time}}",
+    "timeoutEnd": "End at {{time}}",
     "reportGo": "Watch this moment",
     "reportHandled": "Handled",
     "reportHandledNote": "Marks this report as handled and saves the corrections as they stand.",

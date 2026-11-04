@@ -117,7 +117,7 @@ def added(frame: int, rallies: list[tuple[int, int, int]], fps: float) -> dict:
 
 
 def answer(match: Path, fps: float, body: dict) -> list[dict]:
-    """Records a correction from the review (`frame`: one added; else `start`, `end` with a `team` or `removed`) and returns the timeouts to show."""
+    """Records a correction from the review (`frame`: one added; else `start`, `end` with a `team` or `removed`, in place of those they overlap: moving a bound overlaps the one moved) and returns the timeouts to show."""
     if "frame" in body:
         rallies = read_rallies(match / "rallies.csv") if (match / "rallies.csv").exists() else []
         new = added(int(body["frame"]), rallies, fps)

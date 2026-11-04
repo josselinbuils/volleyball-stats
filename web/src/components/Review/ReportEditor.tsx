@@ -514,7 +514,7 @@ export function ReportEditor({
   const reportsAtEnd = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && aboutEnd(q)));
   const reportsAfter = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) < 0 && shown.findLastIndex((r) => r.start <= (q.reports?.[0]?.time ?? q.clip.start)) === k));
   const timeoutRows = (k: number) =>
-    timeoutsAfter(shown, timeouts, k, match.fps).map((o) => <TimeoutRow key={`o${o.start}`} timeout={o} current={isCurrent(o)} onPlay={onPlay} onChange={onTimeout} />);
+    timeoutsAfter(shown, timeouts, k, match.fps).map((o) => <TimeoutRow key={`o${o.start}`} timeout={o} current={isCurrent(o)} now={now} onPlay={onPlay} onChange={onTimeout} />);
 
   return (
     <>

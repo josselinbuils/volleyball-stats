@@ -200,7 +200,7 @@ export interface Timeout {
   team: Group | null;
 }
 
-/** A timeout added at a frame, or one's team or removal. */
+/** A timeout added at a frame, or one's team, bounds or removal. */
 export type TimeoutChange = { frame: number } | { start: number; end: number; team: Group | null } | { start: number; end: number; removed: true };
 
 export interface Saved {
