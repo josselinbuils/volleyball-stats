@@ -883,9 +883,9 @@ def missed_points(page: dict, ball: Path, calibration: Calibration) -> list[dict
 
 def board_off(page: dict, texts: dict[int, list[str]]) -> list[dict]:
     """The rallies after which the running score parts from the score board's (`scoreboard.load`'s
-    texts), as reports at their start, kind "auto.boardOff", `shown` the board's score: where the two
-    first differ, or differ otherwise than before, and still do at the next reading (a board flipped
-    late differs once). The board's left side is the team it fits best, set by set."""
+    texts), as reports at their start, kind "auto.boardOff", `shown` the running score after the rally
+    ≠ the board's: where the two first differ, or differ otherwise than before, and still do at the
+    next reading (a board flipped late differs once). The board's left side is the team it fits best, set by set."""
     rallies = page["rallies"]
     found: dict[int, list] = defaultdict(list)
     for k, (left, a, b, right) in scoreboard.boards(texts, [(r["start"], r["end"], r["set"]) for r in rallies], page["fps"]):
@@ -898,10 +898,10 @@ def board_off(page: dict, texts: dict[int, list[str]]) -> list[dict]:
         boards = [b[::-1] if flip else b for _, b, _ in readings]
         offs = [(s[0] - b[0], s[1] - b[1]) for b, (_, _, s) in zip(boards, readings)]
         last = (0, 0)
-        for i, ((k, _, _), board, off) in enumerate(zip(readings, boards, offs)):
+        for i, ((k, _, score), board, off) in enumerate(zip(readings, boards, offs)):
             if off != last and i + 1 < len(offs) and offs[i + 1] == off:
                 said = f"auto:boardOff:{number}:{board[0]}-{board[1]}"
-                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k]["start"], "kind": "auto.boardOff", "comment": None, "shown": f"{board[0]}-{board[1]}"})
+                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k]["start"], "kind": "auto.boardOff", "comment": None, "shown": f"{score[0]}-{score[1]} ≠ {board[0]}-{board[1]}"})
                 last = off
     return out
 

@@ -41,7 +41,7 @@ class TestBoardOff:
         page = self.page([[1, 0], [2, 0], [2, 1], [3, 1], [3, 2]])
         # The board never counted the third rally's point.
         texts = self.texts(page, ["1000", "2000", "2000", "3000", "3001"])
-        assert [(r["time"], r["shown"]) for r in board_off(page, texts)] == [(20.0, "2-0")]
+        assert [(r["time"], r["shown"]) for r in board_off(page, texts)] == [(20.0, "2-1 ≠ 2-0")]
 
     def test_a_board_flipped_late_is_no_report(self):
         page = self.page([[1, 0], [2, 0], [3, 0]])

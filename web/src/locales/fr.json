@@ -702,7 +702,7 @@
         "server": "Servi par l'équipe qui a perdu le point d'avant",
         "noWinner": "Gagnant inconnu",
         "scoreOff": "Score de fin de set différent du score donné",
-        "boardOff": "Score différent du tableau",
+        "boardOff": "Score après l'échange différent du tableau",
         "passWithoutServe": "Une réception sans service juste avant",
         "serveNotReceived": "Un service suivi d'autre chose qu'une réception",
         "afterFault": "Une action suit une faute dans le même échange",

@@ -320,7 +320,7 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   A piece your answers give another number's player follows the answer alone.
 - **The score board** the scorer flips near the camera is read before each serve (RapidOCR, a step of
   `match`, `scoreboard.csv`, kept for the next runs): the review reports the rally after which the
-  running score parts from it ("Score différent du tableau", `review.board_off`).
+  running score parts from it ("Score après l'échange différent du tableau", `review.board_off`).
 - **Apply** shows its steps on a progress bar; pictures are cut ahead and kept in
   `outputs/VIDEO/crops/`.
 - **Apply** comes back without waiting for the players' pictures and the jersey numbers they read:
