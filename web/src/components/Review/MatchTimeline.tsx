@@ -19,7 +19,7 @@ const HEIGHT = 64;
 /** The whole match on one bar under the video: each rally a band, its winner's colour along its
  * bottom, orange with a warning, else green once checked, the sets parted; buttons go to the rally
  * to check (a warning, or not checked) before or after the video; each touch a tick in its team's colour (grey once removed), the viewers'
- * reports as red flags, the warnings as orange ones, the corrections saved and not applied as dots, the timeouts as grey dashed bands. A click moves the video there.
+ * reports and the warnings as red flags, the corrections saved and not applied as dots, the timeouts as grey dashed bands. A click moves the video there.
  * It zooms (buttons, or ctrl/⌘ and the wheel or a pinch, around the pointer) and scrolls sideways,
  * following the video unless just scrolled. */
 export function MatchTimeline({
@@ -269,10 +269,10 @@ export function MatchTimeline({
                 : [],
             )}
             {warnings.map((w, k) => (
-              <Flag key={k} x={w.time * scale} className="text-orange-500 dark:text-orange-400" />
+              <Flag key={k} x={w.time * scale} />
             ))}
             {reports.map((r, k) => (
-              <Flag key={k} x={r.time * scale} className="text-red-600 dark:text-red-500" />
+              <Flag key={k} x={r.time * scale} />
             ))}
             {Array.from({ length: Math.floor(match.duration / step) + 1 }, (_, k) => k * step).map((time) => (
               <g key={time}>
@@ -290,9 +290,9 @@ export function MatchTimeline({
   );
 }
 
-function Flag({ x, className }: { x: number; className: string }) {
+function Flag({ x }: { x: number }) {
   return (
-    <g className={className}>
+    <g className="text-red-600 dark:text-red-500">
       <line x1={x} x2={x} y1={2} y2={40} stroke="currentColor" strokeWidth={1.5} />
       <path d={`M ${x} 2 l 7 3 l -7 3 z`} fill="currentColor" />
     </g>
