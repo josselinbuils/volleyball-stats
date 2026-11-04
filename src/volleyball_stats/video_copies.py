@@ -41,7 +41,7 @@ def command(video: Path, keys: list[str], flags: tuple[str, ...] = ()) -> list[s
     outputs = []
     for k, key in enumerate(keys):
         outputs += ["-map", f"[v{k}]", "-map", "0:a:0?", *COPIES[key][2], *KEYFRAMES, "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(part(paths(video)[key]))]
-    return ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-stats", "-y", *flags, "-i", str(video), "-filter_complex", f"[0:v]fps=25,format=yuv420p,split={len(keys)}{''.join(labels)};{scaled}", *outputs]
+    return ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-y", *flags, "-i", str(video), "-filter_complex", f"[0:v]fps=25,format=yuv420p,split={len(keys)}{''.join(labels)};{scaled}", *outputs]
 
 
 def duration(path: Path) -> float:
@@ -50,14 +50,16 @@ def duration(path: Path) -> float:
 
 
 def make(video: Path) -> dict[str, Path]:
-    """The copies of `video`, making those missing; RuntimeError if one comes out cut short."""
+    """The copies of `video`, making those missing; RuntimeError if ffmpeg fails or one comes out cut short."""
     made = paths(video)
     missing = [key for key, path in made.items() if not path.exists()]
     if not missing:
         return made
     parts = [part(made[key]) for key in missing]
     try:
-        subprocess.run(command(video, missing, decode.hardware(video)), check=True)
+        run = subprocess.run(command(video, missing, decode.hardware(video)), capture_output=True, text=True)
+        if run.returncode:
+            raise RuntimeError((run.stderr.strip().splitlines() or [f"ffmpeg: exit {run.returncode}"])[-1])
         expected = duration(video)
         for path in parts:
             if abs(duration(path) - expected) > TOLERANCE_S:

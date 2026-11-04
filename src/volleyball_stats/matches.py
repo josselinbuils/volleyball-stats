@@ -16,6 +16,7 @@ import html
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import unicodedata
@@ -35,6 +36,7 @@ RESERVED = ("assets", "brand")
 REDIRECTS = "redirects.json"
 # Where a match folder says how to host it, and where hosted pages send the viewers' reports.
 PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
+VIDEO_SALT = "volleyball:"
 # Text files from COMPRESS_FROM bytes get a gzip copy the host sends as it is (nginx gzip_static):
 # compressing players.js (5.7 MB) per request cost the first match's host over a second of CPU.
 COMPRESSED, COMPRESS_FROM = (".js", ".css", ".html", ".json", ".svg"), 1024
@@ -316,38 +318,105 @@ def ensure_publish(match: Path, video: Path, theme: str) -> None:
     if target.exists() or not others or not imported(match, video):
         return
     other = json.loads(others[-1].read_text())
-    copies = {key: str(path.resolve()) for key, path in video_copies.paths(video).items()}
-    config = {**{key: other[key] for key in ("site", "url", "upload", "key")}, **copies, "club": club_team(match, theme)}
+    config = {**{key: other[key] for key in ("site", "url", "upload", "key")}, "club": club_team(match, theme)}
     files.write_text(target, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
 
 
+def fingerprint(password: str) -> str:
+    """What the page's cookie holds for `password` (VideoChoice.tsx) and the server lists."""
+    return hashlib.sha256(f"{VIDEO_SALT}{password}".encode()).hexdigest()
+
+
+def update_publish(match: Path, **changes) -> dict:
+    path = match / PUBLISH
+    config = {**json.loads(path.read_text()), **changes}
+    files.write_text(path, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+    return config
+
+
+def choose(match: Path, video: bool, password: str | None = None) -> dict:
+    """The first upload's choice: with the video behind `password`, of which only the fingerprint is
+    kept, or without it. ValueError for the video without a password."""
+    if not video:
+        return update_publish(match, video=False)
+    if not password or not password.strip():
+        raise ValueError("the video needs a password")
+    return update_publish(match, video=True, videoKey=fingerprint(password))
+
+
+def copies_missing(config: dict) -> bool:
+    return any(not config.get(key) or not Path(config[key]).expanduser().exists() for key in video_copies.COPIES)
+
+
+def add_copies(match: Path, video: Path) -> dict:
+    """The video's copies made if missing, then listed: rename refuses a listed copy that is gone."""
+    return update_publish(match, **{key: str(path.resolve()) for key, path in video_copies.make(video).items()})
+
+
+def key_command(service: Path, folder: str, key: str) -> str:
+    """The server's shell command making `key` the one that opens the video of `folder`. The list is
+    written in place, being mounted in the container by its inode."""
+    keys, compose = service / "video_key.conf", shlex.quote(str(service.parent))
+    listed = shlex.quote(f'"{folder}:')
+    line = shlex.quote(f'"{folder}:{key}" 1;')
+    return f"cd {compose} && conf={shlex.quote(str(keys))} && kept=$(grep -vF {listed} \"$conf\"); printf '%s\\n' \"$kept\" {line} | grep . > \"$conf.new\" && cat \"$conf.new\" > \"$conf\" && rm \"$conf.new\" && docker compose exec -T volleyballstats sh -c 'nginx -t -q && nginx -s reload'"
+
+
+def install_key(config: dict, folder: str) -> None:
+    host_name, path = config["upload"].split(":", 1)
+    ssh = ["ssh", "-i", str(Path(config["key"]).expanduser()), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host_name]
+    subprocess.run([*ssh, key_command(Path(path).parent, folder, config["videoKey"])], check=True, capture_output=True, timeout=60)
+
+
+def opens(url: str, key: str) -> bool:
+    """Whether `url` opens to the cookie holding `key`."""
+    try:
+        request = urllib.request.Request(url, method="HEAD", headers={"Cookie": f"video_key={key}"})
+        return urllib.request.build_opener(_Stay).open(request, timeout=20).status == 200
+    except urllib.error.URLError:
+        return False
+
+
 def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> None:
-    """The match's hosted pages rebuilt in `config`'s site folder (publish.json): the public one
-    with no footage nor pictures, its copy with both in video/ (the `light`, `av1` and `small` copies),
-    behind the host's password; the list; then the site uploaded by rsync to `upload` with the ssh
-    `key`, once the copy at `url` turns a visitor without the password away. RuntimeError if not."""
+    """The match's hosted pages rebuilt in `config`'s site folder (publish.json) and the site uploaded by rsync to
+    `upload` with the ssh `key`: the public page, no footage nor pictures. With `video`, also its copy with both in video/
+    (the `light`, `av1` and `small` copies), once the copy at `url` turns a visitor without the password away, the
+    password opening it after. RuntimeError if not, or with no `video` chosen."""
+    if "video" not in config:
+        raise RuntimeError("with or without the video: not chosen")
     site = Path(config["site"]).expanduser()
     known = {match.name, *files.aliases(match)}
     folder = next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] in known), site / match.name)
-    path = lambda key: config.get(key) and str(Path(config[key]).expanduser())  # noqa: E731
-    copy = {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}
-    # Before the build, which removes the copies of the video it finds in the site folder.
-    missing = [copy[key] for key in ("light", "av1", "small") if copy[key] and not Path(copy[key]).exists()]
-    if missing:
-        raise RuntimeError(f"video copies not found: {', '.join(missing)}")
-    web.publish(match, video, court, theme, copy, folder / "video")
-    web.publish(match, video, court, theme, {"footage": "none", "club": config.get("club", 1), "pictures": False, "link": "video/", "feedback": FEEDBACK}, folder)
+    with_video = config["video"]
+    if with_video:
+        # Before the build, which removes the copies of the video it finds in the site folder. Without
+        # them the build would take the source, tens of GB.
+        if copies_missing(config):
+            raise RuntimeError(f"video copies not found: {', '.join(k for k in video_copies.COPIES if not config.get(k) or not Path(config[k]).expanduser().exists())}")
+        if not config.get("videoKey"):
+            raise RuntimeError("the video has no password")
+        path = lambda key: str(Path(config[key]).expanduser())  # noqa: E731
+        web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}, folder / "video")
+    else:
+        shutil.rmtree(folder / "video", ignore_errors=True)
+    public = {"footage": "none", "club": config.get("club", 1), "pictures": False, "feedback": FEEDBACK, **({"link": "video/"} if with_video else {})}
+    web.publish(match, video, court, theme, public, folder)
     named = {m["name"]: m["path"] for m in build(site, theme, config["url"])}[match.name]
-    if not protected(f"{config['url'].rstrip('/')}/{named}video/"):
-        raise RuntimeError(f"{config['url']}{named}video/ opens without the password: not uploaded")
+    page = f"{config['url'].rstrip('/')}/{named}video/"
+    if with_video:
+        if not protected(page):
+            raise RuntimeError(f"{page} opens without the password: not uploaded")
+        install_key(config, named.rstrip("/"))
     # Real footage, the players' films with it, only behind the password.
     outside = unguarded_videos(site)
     if outside:
         raise RuntimeError(f"videos outside a password's folder: {', '.join(p.name for p in outside)}: not uploaded")
     films = sorted((site / named / "video" / "films").glob("*.mp4"))
-    if films and not protected(f"{config['url'].rstrip('/')}/{named}video/films/{films[0].name}"):
+    if films and not protected(f"{page}films/{films[0].name}"):
         raise RuntimeError(f"{films[0].name} opens without the password: not uploaded")
     subprocess.run(["rsync", "-rt", "--delete", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
+    if with_video and not opens(page, config["videoKey"]):
+        raise RuntimeError(f"{page} does not open with its password")
 
 
 def main() -> None:

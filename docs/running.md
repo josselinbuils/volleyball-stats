@@ -8,7 +8,7 @@
   macOS). A run can't survive a restart: tracking writes nothing until it ends. Idle, the M4 tracks 4K at 2.87 MB/s (6 h for 84 min); progress is the
   `ffmpeg` read offset (`lsof -o`) over the file's size.
 
-- `match` ends by making the review's page and pictures, for its first open to be quick, then an imported match's video copies for hosting (`video_copies.py`); a failure there only warns. The review's reruns pass `--no-page`, which skips both.
+- `match` ends by making the review's page and pictures, for its first open to be quick; a failure there only warns. The review's reruns pass `--no-page`.
 
 ## Checking the page on the short clips
 

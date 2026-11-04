@@ -1,5 +1,8 @@
 import gzip
+import hashlib
 import json
+import os
+import subprocess
 from pathlib import Path
 
 import cv2
@@ -158,29 +161,89 @@ class TestHost:
     def test_stops_before_any_build_when_a_video_copy_is_missing(self, tmp_path, monkeypatch):
         built = []
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append(args))
-        config = {"site": str(tmp_path), "url": "https://example.org/", "upload": "host:/site/", "key": "key", "light": str(tmp_path / "gone.mp4")}
+        config = {"site": str(tmp_path), "url": "https://example.org/", "upload": "host:/site/", "key": "key", "video": True, "videoKey": "abc", "light": str(tmp_path / "gone.mp4")}
 
-        with pytest.raises(RuntimeError, match="gone.mp4"):
+        with pytest.raises(RuntimeError, match="light"):
             matches.host(Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", config)
 
         assert built == []
 
-    def test_rebuilds_both_pages_and_uploads_only_a_copy_the_password_guards(self, tmp_path, monkeypatch):
+    @staticmethod
+    def hosting(tmp_path, monkeypatch, **config):
         built, ran = [], []
-        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[5])) or ({}, {}))
+        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
-        config = {"site": str(tmp_path), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "~/.ssh/key"}
-        args = (Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", config)
+        monkeypatch.setattr(matches, "opens", lambda url, key: True)
+        site = tmp_path / "site"
+        site.mkdir()
+        full = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/srv/service/site/", "key": "~/.ssh/key", **config}
+        return (Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", full), built, ran, site
+
+    @staticmethod
+    def copies(tmp_path):
+        made = {key: tmp_path / f"{key}.mp4" for key in ("light", "av1", "small")}
+        for path in made.values():
+            path.write_bytes(b"")
+        return {key: str(path) for key, path in made.items()}
+
+    def test_with_the_video_uploads_only_a_copy_the_password_guards_with_its_key_first(self, tmp_path, monkeypatch):
+        args, built, ran, site = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **self.copies(tmp_path))
 
         monkeypatch.setattr(matches, "protected", lambda url: False)
         with pytest.raises(RuntimeError):
             matches.host(*args)
 
-        assert built == [("full", tmp_path / "first" / "video"), ("none", tmp_path / "first")] and ran == []
+        assert built == [("full", None, site / "first" / "video"), ("none", "video/", site / "first")] and ran == []
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
-        assert ran[0][:3] == ["rsync", "-rt", "--delete"] and ran[0][-2:] == [f"{tmp_path}/", "host:/site/"]
+        assert ran[0][0] == "ssh" and '"2026-10-29-a-vs-b:abc" 1;' in ran[0][-1]
+        assert ran[1][:3] == ["rsync", "-rt", "--delete"] and ran[1][-2:] == [f"{site}/", "host:/srv/service/site/"]
+
+    def test_says_so_when_its_password_does_not_open_it(self, tmp_path, monkeypatch):
+        args, _, _, _ = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **self.copies(tmp_path))
+        monkeypatch.setattr(matches, "protected", lambda url: True)
+        monkeypatch.setattr(matches, "opens", lambda url, key: False)
+
+        with pytest.raises(RuntimeError, match="does not open"):
+            matches.host(*args)
+
+    def test_without_the_video_only_the_public_page_goes_up_with_no_key_nor_old_copy(self, tmp_path, monkeypatch):
+        args, built, ran, site = self.hosting(tmp_path, monkeypatch, video=False)
+        old = site / "first" / "video"
+        old.mkdir(parents=True)
+
+        matches.host(*args)
+
+        assert built == [("none", None, site / "first")] and not old.exists()
+        assert [command[0] for command in ran] == ["rsync"]
+
+    def test_refuses_without_a_choice(self, tmp_path, monkeypatch):
+        args, built, ran, _ = self.hosting(tmp_path, monkeypatch)
+
+        with pytest.raises(RuntimeError, match="not chosen"):
+            matches.host(*args)
+
+        assert built == [] and ran == []
+
+    @pytest.mark.parametrize("missing", ["light", "av1", "small"])
+    def test_never_falls_back_on_the_source_when_a_copy_was_never_made(self, tmp_path, monkeypatch, missing):
+        copies = self.copies(tmp_path)
+        del copies[missing]
+        args, built, _, _ = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **copies)
+
+        with pytest.raises(RuntimeError, match=missing):
+            matches.host(*args)
+
+        assert built == []
+
+    def test_refuses_the_video_without_a_key(self, tmp_path, monkeypatch):
+        args, built, _, _ = self.hosting(tmp_path, monkeypatch, video=True, **self.copies(tmp_path))
+
+        with pytest.raises(RuntimeError, match="no password"):
+            matches.host(*args)
+
+        assert built == []
 
 
 class TestEnsurePublish:
@@ -206,7 +269,7 @@ class TestEnsurePublish:
         config = json.loads((match / matches.PUBLISH).read_text())
         assert (config["site"], config["url"], config["upload"], config["key"]) == ("outputs/hosted", "https://example.org/", "host:/site/", "key")
         assert config["club"] == 2
-        assert config["light"].endswith("2026-11-02-avia-1-vs-aspom-2_1080p.mp4")
+        assert "light" not in config and "video" not in config
 
     def test_keeps_an_existing_config(self, tmp_path):
         self.hosted(tmp_path)
@@ -239,3 +302,76 @@ class TestClubTeam:
         (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": n} for n in names]}))
 
         assert matches.club_team(tmp_path, "aspom") == expected
+
+
+class TestChoose:
+    @staticmethod
+    def match(tmp_path):
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"url": "https://example.org/"}))
+        return tmp_path
+
+    def test_keeps_only_the_passwords_fingerprint_as_the_page_makes_it(self, tmp_path):
+        match = self.match(tmp_path)
+
+        matches.choose(match, True, "secret")
+
+        saved = (match / matches.PUBLISH).read_text()
+        assert "secret" not in saved
+        assert json.loads(saved) == {"url": "https://example.org/", "video": True, "videoKey": hashlib.sha256(b"volleyball:secret").hexdigest()}
+
+    def test_without_the_video_needs_no_password(self, tmp_path):
+        assert matches.choose(self.match(tmp_path), False) == {"url": "https://example.org/", "video": False}
+
+    @pytest.mark.parametrize("password", [None, "", "   "])
+    def test_the_video_needs_a_password(self, tmp_path, password):
+        match = self.match(tmp_path)
+
+        with pytest.raises(ValueError):
+            matches.choose(match, True, password)
+
+        assert "video" not in json.loads((match / matches.PUBLISH).read_text())
+
+
+class TestAddCopies:
+    def test_lists_them_once_made(self, tmp_path, monkeypatch):
+        (tmp_path / matches.PUBLISH).write_text("{}")
+        made = {key: tmp_path / f"{key}.mp4" for key in ("light", "av1", "small")}
+        monkeypatch.setattr(matches.video_copies, "make", lambda video: made)
+
+        config = matches.add_copies(tmp_path, Path("m.mp4"))
+
+        assert config == {key: str(path.resolve()) for key, path in made.items()}
+
+
+class TestKeyCommand:
+    @staticmethod
+    def run(tmp_path, folder, key):
+        service = tmp_path / "docker" / "volleyball-stats"
+        bin_ = tmp_path / "bin"
+        bin_.mkdir(exist_ok=True)
+        fake = bin_ / "docker"
+        fake.write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/docker.log\n')
+        fake.chmod(0o755)
+        subprocess.run(["sh", "-c", matches.key_command(service, folder, key)], check=True, env={**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"})
+        return service / "video_key.conf"
+
+    def test_gives_the_folder_its_key_in_place_leaving_the_others_then_reloads(self, tmp_path):
+        service = tmp_path / "docker" / "volleyball-stats"
+        service.mkdir(parents=True)
+        keys = service / "video_key.conf"
+        keys.write_text('"old-match:111" 1;\n"m:222" 1;\n')
+        inode = keys.stat().st_ino
+
+        self.run(tmp_path, "m", "333")
+
+        assert keys.read_text() == '"old-match:111" 1;\n"m:333" 1;\n'
+        assert keys.stat().st_ino == inode
+        assert sorted(p.name for p in service.iterdir()) == ["video_key.conf"]
+        assert "nginx -t -q && nginx -s reload" in (tmp_path / "docker.log").read_text()
+
+    def test_starts_an_empty_list(self, tmp_path):
+        service = tmp_path / "docker" / "volleyball-stats"
+        service.mkdir(parents=True)
+        (service / "video_key.conf").write_text("")
+
+        assert self.run(tmp_path, "m", "333").read_text() == '"m:333" 1;\n'

@@ -273,7 +273,7 @@ export function Review({
    * spent and left, and whether it takes longer than last time. */
   const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
   const minutes = (s: number) => (s < 60 ? t('review.lessThanMinute') : t('review.minutes', { count: Math.round(s / 60) }));
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights') => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights', body: object = {}) => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {
@@ -296,7 +296,7 @@ export function Review({
       }
     }, 400);
     try {
-      const saved = await post(path);
+      const saved = await post(path, body);
       window.clearInterval(poll);
       // An answer not applied yet comes back without rebuilding anything.
       const last = done[done.length - 1];
@@ -371,7 +371,7 @@ export function Review({
           films={films}
           pending={pending}
           busy={busy}
-          run={(action) => void reload(action)}
+          run={(action, body) => void reload(action, body)}
           onFailed={() => setError(true)}
         />
         {progress && (

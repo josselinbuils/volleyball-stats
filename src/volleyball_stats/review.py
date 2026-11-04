@@ -1595,7 +1595,7 @@ def unlocked(keys: list[int]) -> list[dict]:
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "films": 2400.0, "highlights": 300.0,
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "copies": 3300.0, "films": 2400.0, "highlights": 300.0,
     "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
     "pipeline:identity": 20.0, "pipeline:answers": 60.0,
 }
@@ -2021,7 +2021,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
+        data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
             "learning": pooled_runs(match.parent),
             "comparison": last_comparison(match),
             "fetched": fetched_log or None,
@@ -2329,7 +2329,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     run_steps([("reports", fetched), ("questions", questions.load)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None, "fetched": fetched_log}).encode(), "application/json")
                 elif self.path == "/host" and (match / matches.PUBLISH).exists():
-                    run_steps([("hosting", hosting)])
+                    config = json.loads((match / matches.PUBLISH).read_text())
+                    if "video" not in config:
+                        config = matches.choose(match, bool(body["video"]), body.get("password"))
+                    # Hours of encoding only for a match that goes online with its video.
+                    copies = [("copies", lambda: matches.add_copies(match, video))] if config["video"] and matches.copies_missing(config) else []
+                    run_steps([*copies, ("hosting", hosting)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path in ("/films", "/highlights"):
                     # The page then shows them, the hosted one on its next upload.

@@ -181,7 +181,7 @@ export type Comparison = { before: Scores; after: Scores };
 /** By kind of film: how many there should be, how many are missing or out of date. */
 export type FilmCounts = Record<'players' | 'highlights', { total: number; stale: number }>;
 
-export type Hosted = { at: string | null; day?: string | null; error: string | null; behind: boolean };
+export type Hosted = { chosen?: boolean; at: string | null; day?: string | null; error: string | null; behind: boolean };
 
 declare global {
   interface Window {

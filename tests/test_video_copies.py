@@ -32,10 +32,10 @@ class TestVideoCopies:
         video = tmp_path / "m.mp4"
         video_copies.paths(video)["light"].write_bytes(b"")
         ran = []
-        monkeypatch.setattr(video_copies.subprocess, "run", lambda command, **kwargs: ran.append(command) or (_ for _ in ()).throw(subprocess.CalledProcessError(1, "ffmpeg")))
+        monkeypatch.setattr(video_copies.subprocess, "run", lambda command, **kwargs: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
         monkeypatch.setattr(video_copies.decode, "hardware", lambda path: ())
 
-        with pytest.raises(subprocess.CalledProcessError):
+        with pytest.raises(RuntimeError, match="no encoder"):
             video_copies.make(video)
 
         written = [arg for arg in ran[0] if arg.endswith(".part.mp4")]

@@ -211,6 +211,7 @@
       "roster": "Updating the players' roster…",
       "review": "Rebuilding this page…",
       "page": "Rebuilding the match page…",
+      "copies": "Encoding the video",
       "hosting": "Updating the online page…",
       "films": "Making the player films",
       "highlights": "Making the highlights"
@@ -411,6 +412,9 @@
     "filmsFailed": "Some films could not be made: try again.",
     "host": "Put online",
     "hosting": "Putting online…",
+    "hostPassword": "Video password",
+    "hostWithVideo": "With the video",
+    "hostWithoutVideo": "Without the video",
     "tabProgress": "Progress",
     "progressIntro": "What your answers taught the analysis, measured at each \"Learn from my answers\".",
     "progress": {

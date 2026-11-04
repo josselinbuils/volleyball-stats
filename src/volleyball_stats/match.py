@@ -26,7 +26,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, players, points, rallies, ranker, scoreboard, teams, timeouts, video_copies
+from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, players, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -238,16 +238,6 @@ def review_page(out: Path, video: Path, court: Path) -> None:
         web.review_page(out, video, court)
     except Exception as error:  # noqa: BLE001
         print(f"The review will make its page when opened: {error}", file=sys.stderr)
-
-
-def hosted_copies(out: Path, video: Path) -> None:
-    """The video's lighter copies for the hosted page, for an imported match; the run stands without them."""
-    if video.parent.name != video.stem or video.stem != out.name:
-        return
-    try:
-        video_copies.make(video)
-    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-        print(f"Video copies not made, run volleyball_stats.video_copies: {error}", file=sys.stderr)
 
 
 def read_jerseys(out: Path, video: Path) -> None:
@@ -468,8 +458,6 @@ def main() -> None:
     if args.players and args.court and not args.no_page:
         stage("page")
         review_page(out, args.video, args.court)
-        stage("copies")
-        hosted_copies(out, args.video)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import type { FilmCounts, Hosted } from '@/lib/review';
+import { HostChoice } from '@/components/Review/HostChoice';
 
 type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
@@ -91,11 +92,12 @@ export function ReviewHeader({
   films: FilmCounts;
   pending: { answers: number; changed: boolean; names: boolean };
   busy: Action | null;
-  run: (action: Action) => void;
+  run: (action: Action, body?: object) => void;
   onFailed: () => void;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
+  const [choosing, setChoosing] = useState(false);
   const toApply = pending.changed || pending.names;
   const running =
     busy === 'rerun' ? t('review.rerunning') : busy === 'reports' ? t('review.fetching') : busy === 'films' ? t('review.filmsMaking') : busy === 'highlights' ? t('review.highlightsMaking') : null;
@@ -210,7 +212,7 @@ export function ReviewHeader({
                   : t('review.hosted', { at: hosted.at })}
 
             {(hosted.behind || hosted.error) && (
-              <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => run('host')}>
+              <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
                 <CloudUpload aria-hidden />
                 {busy === 'host' ? t('review.hosting') : t('review.host')}
               </Button>
@@ -218,6 +220,15 @@ export function ReviewHeader({
           </span>
         )}
       </div>
+      {choosing && (
+        <HostChoice
+          onChoose={(body) => {
+            setChoosing(false);
+            run('host', body);
+          }}
+          onCancel={() => setChoosing(false)}
+        />
+      )}
     </header>
   );
 }

@@ -16,10 +16,11 @@ unhashed ones load with the build's hash, card pictures with their own), images 
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
-`club`, `upload` as `root@<OVH IP>:…/site/`, `key`; a match's video copies in its `data/MATCH/`), the review's "Mettre en ligne" does all of it
+`club`, `upload` as `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its `data/MATCH/`), the review's "Mettre en ligne" does all of it
 (`matches.host`, refusing to upload a video copy that opens without the password) and says when. The review writes an imported match's
-`publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). `match` ends by making the copies
-(`video_copies.py`, or `uv run python -m volleyball_stats.video_copies VIDEO`). By hand:
+`publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). The first "Mettre en ligne" asks: with the video and
+a password, or without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Only the password's fingerprint is kept. Nothing is encoded before that choice:
+with the video, its copies are made then (`video_copies.py`). By hand:
 
 ```bash
 uv run python -m volleyball_stats.web outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH
@@ -38,9 +39,9 @@ with `--video-page video/`, whose dialog asks the password), `--small-video` for
 1080p copy in full screen, zoomed on the ball or over 1600 screen pixels wide, the video carrying on
 where it stood. A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21
 frames to decode a jump instead of 131 with `-g 250`, for +30% size in H.264, +60% in AV1. The
-service's nginx serves every `/volleyball/*/video/` file only with the cookie `video_key`, the
-SHA-256 of `volleyball:` and the password, listed in `volleyball-stats/video_key.conf` as
-`"<sha256>" 1;` (mounted in the container, `nginx -s reload` after a change); otherwise it redirects
+service's nginx serves a `/volleyball/FOLDER/video/` file only with the cookie `video_key`, the
+SHA-256 of `volleyball:` and that match's password, listed in `volleyball-stats/video_key.conf` as
+`"FOLDER:<sha256>" 1;` (mounted in the container: written in place, then `nginx -s reload`, as `matches.host` does); otherwise it redirects
 to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Control: private,
 no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
 video. The copies keep their source's date, so an upload skips an unchanged video.

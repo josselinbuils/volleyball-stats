@@ -211,6 +211,7 @@
       "roster": "Mise à jour du répertoire des joueurs…",
       "review": "Reconstruction de cette page…",
       "page": "Reconstruction de la page du match…",
+      "copies": "Encodage de la vidéo",
       "hosting": "Mise à jour de la page en ligne…",
       "films": "Création des films des joueurs",
       "highlights": "Création des highlights"
@@ -411,6 +412,9 @@
     "filmsFailed": "Des films n'ont pas pu être créés : réessayez.",
     "host": "Mettre en ligne",
     "hosting": "Mise en ligne…",
+    "hostPassword": "Mot de passe de la vidéo",
+    "hostWithVideo": "Avec la vidéo",
+    "hostWithoutVideo": "Sans la vidéo",
     "tabProgress": "Progrès",
     "progressIntro": "Ce que vos réponses ont appris à l'analyse, mesuré à chaque « Apprendre de mes réponses ».",
     "progress": {
