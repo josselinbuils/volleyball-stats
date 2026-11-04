@@ -158,7 +158,9 @@ starting at its serve rather than `LEAD_S` after it: 2 school rallies lost at ±
 to a serve whose next contact is the server's own bounce (`BOUNCE_PX`): the real serve then typed
 "net" (`side_holdout` 17202).
 
-## Tried and dropped (4 Nov): servers fixed from the rotation
+## Tried and dropped (4 Nov): fixes from the automatic reports
+
+Servers fixed from the rotation (`auto.serverOrder`).
 
 The first match's reviewed servers follow each team's rotation of 6 strictly, every set. The pipeline's
 serve players were right 117 of 126. One server per turn (a team serving in a row), by majority: 117 → 115.
@@ -167,3 +169,12 @@ with 10, 25 or 50 % of the serves answered as anchors, the unanswered ones 523 �
 Two cycles a set leave the order weak, and the rally list's slips (missed rallies, a turn split by a false
 one) shift it. `auto.serverOrder` stays a flag: of its 14 on the pipeline's first match, 6 sit on a wrong
 server and 1 on a missed rally.
+
+The less sure touch of one player twice in a row (`auto.samePlayer`) given to the next candidate of
+another player: right 8 → 3 of 11 on the first match, 6 → 6 of 19 answered on the second; on ties
+(gap 0) +3 -1 and +1 -1. The second's pairs are often a third player's (7 of 19). It stays a review question.
+
+Contacts searched again with a lower threshold inside stretches of over `GAP_S` between touches (`auto.gap`):
+on the first match the 14 stretches hold 13 of the 72 touches the pipeline misses; at the threshold
+×1.0 4 found for 5 false, ×0.6 6 for 8, ×0.3 6 for 20; on the second, at ×0.6 1 for 3 false. The ball's
+track alone cannot tell them: the players at the ball would have to.
