@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ export function ReportEditor({
   onComment,
   timeouts,
   onTimeout,
+  place,
 }: {
   /** The end of the match given, or taken away for an empty one. */
   onEnd: (time: string) => void;
@@ -119,6 +120,8 @@ export function ReportEditor({
   onComment: (rally: number, text: string) => Promise<boolean>;
   timeouts: Timeout[];
   onTimeout: (change: TimeoutChange) => void;
+  /** Where the list stands and when the user last scrolled it: a save starts the editor again. */
+  place: RefObject<{ top: number; scrolled: number }>;
 }) {
   const { t } = useTranslation();
   const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
@@ -268,7 +271,11 @@ export function ReportEditor({
   // being filled or shortly after the user scrolled it.
   const list = useRef<HTMLOListElement>(null);
   const [editing, setEditing] = useState(false);
-  const scrolled = useRef(0);
+  useLayoutEffect(() => {
+    if (list.current) {
+      list.current.scrollTop = place.current.top;
+    }
+  }, []);
   const inHere = started && started.rally === here ? started : undefined;
   const who = (player: string) => {
     const [team, n] = player.split(':').map(Number);
@@ -291,7 +298,7 @@ export function ReportEditor({
     return item;
   };
   useEffect(() => {
-    if (!editing && Date.now() - scrolled.current > HOLD_MS) {
+    if (!editing && Date.now() - place.current.scrolled > HOLD_MS) {
       centre(current);
     }
     // `first`: keeping the rows in place when the rallies around change stops the scroll under way.
@@ -316,7 +323,8 @@ export function ReportEditor({
   const railStep = Math.round(rail.at / RAIL_FOLLOW_PX);
   useEffect(() => {
     const box = list.current;
-    if (box && !editing && Date.now() - scrolled.current > HOLD_MS && (rail.at < box.scrollTop + RAIL_EDGE_PX || rail.at > box.scrollTop + box.clientHeight - RAIL_EDGE_PX)) {
+    // No height yet: the rail is not measured.
+    if (box && rail.height && !editing && Date.now() - place.current.scrolled > HOLD_MS && (rail.at < box.scrollTop + RAIL_EDGE_PX || rail.at > box.scrollTop + box.clientHeight - RAIL_EDGE_PX)) {
       box.scrollTo({ top: rail.at - box.clientHeight / 2, behavior: 'smooth' });
     }
   }, [railStep]);
@@ -480,8 +488,9 @@ export function ReportEditor({
             ref={list}
             aria-label={t('review.reportTouches')}
             className="relative grid min-h-0 flex-1 auto-rows-max grid-cols-[minmax(0,1fr)] gap-1.5 overflow-y-auto overscroll-contain pr-1 pl-4"
-            onWheel={() => (scrolled.current = Date.now())}
-            onTouchMove={() => (scrolled.current = Date.now())}
+            onScroll={(e) => (place.current.top = e.currentTarget.scrollTop)}
+            onWheel={() => (place.current.scrolled = Date.now())}
+            onTouchMove={() => (place.current.scrolled = Date.now())}
             onFocus={(event) => setEditing(event.target.matches('input, select'))}
             onBlur={() => setEditing(false)}
           >

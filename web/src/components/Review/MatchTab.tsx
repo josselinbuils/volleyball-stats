@@ -64,6 +64,7 @@ export function MatchTab({
   });
   // The editor starts again from the corrections saved, after each save.
   const [round, setRound] = useState(0);
+  const listPlace = useRef({ top: 0, scrolled: 0 });
   const go = (time: number, play?: boolean) => setSeek((s) => ({ time: Math.max(0, time), n: (s?.n ?? 0) + 1, play }));
   const flags = reports.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
   // A viewer's report flags the touch they saw; an automatic one is about the rally.
@@ -120,6 +121,7 @@ export function MatchTab({
           </div>
           <ReportEditor
             key={round}
+            place={listPlace}
             onEnd={onEnd}
             onWarnings={(keys) => setWarned(new Set(keys))}
             onUnsaved={(keys) => setUnsaved(new Set(keys))}
