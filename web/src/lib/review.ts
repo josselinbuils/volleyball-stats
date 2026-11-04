@@ -206,6 +206,8 @@ export interface Saved {
   undone?: string | null;
   /** The user declined an answer joining two players of different names: nothing saved. */
   cancelled?: boolean;
+  /** The names an answer would join because earlier answers say another player of its piece: nothing saved. */
+  conflict?: string[];
   /** The match's new name, after a team's: the server is restarting on it. */
   renamed?: string;
   timeouts?: Timeout[];
@@ -244,7 +246,10 @@ export async function post(
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   // An answer joining two players of different names: saved only once the user confirms.
   if (response.status === 409) {
-    const { merges } = (await response.json()) as { merges: string[][] };
+    const { merges, conflict } = (await response.json()) as { merges: string[][]; conflict?: string[] };
+    if (conflict) {
+      return { conflict };
+    }
     const list = new Intl.ListFormat(i18n.language, { type: 'conjunction' });
     if (window.confirm(i18n.t('review.mergeWarn', { names: merges.map((m) => list.format(m)).join(' ; ') }))) {
       return post(path, { ...body, force: true });

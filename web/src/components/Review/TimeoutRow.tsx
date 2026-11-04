@@ -24,7 +24,7 @@ export function TimeoutRow({
   const { start, end, team } = timeout;
   const time = start / match.fps;
   return (
-    <li data-key={`o${start}`} className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border border-dashed bg-card p-1.5 transition-colors', current && 'border-muted-foreground bg-muted')}>
+    <li data-key={`o${start}`} data-at={start / match.fps} className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border border-dashed bg-card p-1.5 transition-colors', current && 'border-muted-foreground bg-muted')}>
       <div className="flex items-center gap-1.5">
         <button
           type="button"

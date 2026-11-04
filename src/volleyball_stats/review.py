@@ -1104,6 +1104,54 @@ def supersede(log: list[dict], odd: list[Ref], keep: str, belongs, segment_of) -
     return out
 
 
+def let_go(log: list[dict], piece: Ref, segment_of) -> list[dict]:
+    """`log` without what its answers said of `piece`, about to be answered again: the latest judgment
+    wins, and two answers on one piece never join two players. Its marks go, the answers joining it
+    to a player let go of it; the rest of each answer stays."""
+    own = segment_of(piece)
+    out = []
+    for entry in log:
+        if entry.get("choice") == "odd" and any(segment_of(o) == own for o in entry["odd"]):
+            kept = [(o, t) for o, t in zip(entry["odd"], entry.get("to") or [None] * len(entry["odd"])) if segment_of(o) != own]
+            if not kept:
+                continue
+            # Answers saved before "rest" was kept hold it in their pairs.
+            others = entry.get("rest") or list({piece_key(r): r for _, r in entry["different"]}.values())
+            entry = {**odd_entry(entry["id"], [o for o, _ in kept], others, [t for _, t in kept]), **({"applied": entry["applied"]} if "applied" in entry else {})}
+        out.append(entry)
+    return supersede(out, [piece], "", lambda _: True, segment_of)
+
+
+def let_go(log: list[dict], piece: Ref, segment_of) -> list[dict]:
+    """`log` without what its answers said of `piece`, about to be answered again: the latest judgment
+    wins, and two answers on one piece never join two players. Its marks go, the answers joining it
+    to a player let go of it; the rest of each answer stays."""
+    own = segment_of(piece)
+    out = []
+    for entry in log:
+        if entry.get("choice") == "odd" and any(segment_of(o) == own for o in entry["odd"]):
+            kept = [(o, t) for o, t in zip(entry["odd"], entry.get("to") or [None] * len(entry["odd"])) if segment_of(o) != own]
+            if not kept:
+                continue
+            # Answers saved before "rest" was kept hold it in their pairs.
+            others = entry.get("rest") or list({piece_key(r): r for _, r in entry["different"]}.values())
+            entry = {**odd_entry(entry["id"], [o for o, _ in kept], others, [t for _, t in kept]), **({"applied": entry["applied"]} if "applied" in entry else {})}
+        out.append(entry)
+    return supersede(out, [piece], "", lambda _: True, segment_of)
+
+
+def piece_conflict(log: list[dict], entry: dict, piece: Ref, names: list[dict], segment_of) -> tuple[list[dict], list[str]]:
+    """`log` without what it says of `piece` (`let_go`), and the names `entry`, an answer about it,
+    would join because of that: none if it joins nobody, or still would without those answers (a
+    name is given on the piece itself: a real merge)."""
+    freed = let_go(log, piece, segment_of)
+    known = name_merges(log, names, segment_of)
+    joined = name_merges([*log, entry], names, segment_of) - known
+    if not joined or name_merges([*freed, entry], names, segment_of) - known:
+        return freed, []
+    return freed, sorted({name for group in joined for name in group})
+
+
 def name_merges(log: list[dict], names: list[dict], segment_of) -> set[frozenset[str]]:
     """The sets of different names the answers' "same" links join into one player, each name's pins
     being one player: what an apply would merge whatever the looks."""
@@ -2131,7 +2179,19 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                             cut = questions.cut(c["track"], c["start_frame"], c["end_frame"], float(body["at"]))
                             if cut is None:
                                 return self.send(b'{"error":"cut at the edge of the piece"}', "application/json", 400)
-                        log.append({"id": body["id"], "choice": choice, **constraints(choice, refs[body["id"]], player, cut), "applied": False})
+                        # Said to be a player: this answer replaces what earlier ones said of the piece.
+                        if player or choice.isdigit():
+                            log = let_go(log, refs[body["id"]]["piece"], questions.segment_of)
+                        entry = {"id": body["id"], "choice": choice, **constraints(choice, refs[body["id"]], player, cut), "applied": False}
+                        # Said to be a player when earlier answers say another: the user settles it.
+                        if player or choice.isdigit():
+                            names = identity.read_names(match)
+                            freed, earlier = piece_conflict(log, entry, refs[body["id"]]["piece"], names, questions.segment_of)
+                            if earlier and not body.get("replace") and not body.get("force"):
+                                return self.send(json.dumps({"conflict": earlier}).encode(), "application/json", 409)
+                            if earlier and body.get("replace"):
+                                log = freed
+                        log.append(entry)
                 elif self.path == "/odd":
                     refs = [[{"track": int(r["track"]), "frame": int(r["frame"])} for r in body[k]] for k in ("odd", "rest")]
                     to = [t if t == "not_player" else t and questions.ref(int(t["team"]), int(t["identity"])) for t in body.get("to") or [None] * len(refs[0])]

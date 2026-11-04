@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
+import { railAt } from '@/components/Review/helpers/timeline';
 import { review, type Named, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
@@ -43,6 +44,9 @@ const touches = contacts
     const p = c.person === null ? undefined : match.people[c.person];
     return { contact: c, frame: c.f ?? frameOf(c.t), player: p && p.number !== null ? `${p.team}:${p.number}` : '' };
   });
+
+// How far the rail moves before the list follows it, in pixels.
+const RAIL_FOLLOW_PX = 24;
 
 /** The match's touches beside its video: those of the rallies around where the video stands, the
  * one it plays centred, to correct (player of either team, action, result), remove or add at the
@@ -277,6 +281,22 @@ export function ReportEditor({
       centre(current);
     }
   }, [current, editing]);
+  // The rail along the list: how far the time has come, between rallies too, where no row is lit.
+  const [rail, setRail] = useState({ at: 0, height: 0 });
+  useLayoutEffect(() => {
+    const rows = [...(list.current?.querySelectorAll<HTMLElement>('[data-at]') ?? [])].map((e) => ({ at: Number(e.dataset.at), top: e.offsetTop, bottom: e.offsetTop + e.offsetHeight }));
+    const at = railAt(rows, now);
+    const height = rows.at(-1)?.bottom ?? 0;
+    setRail((r) => (Math.abs(r.at - at) < 1 && r.height === height ? r : { at, height }));
+  });
+  // Between rallies, no row to centre: the list follows the rail.
+  const railStep = Math.round(rail.at / RAIL_FOLLOW_PX);
+  useEffect(() => {
+    const box = list.current;
+    if (box && !inHere && !inTimeout && !editing && Date.now() - scrolled.current > HOLD_MS) {
+      box.scrollTo({ top: rail.at - box.clientHeight / 2, behavior: 'smooth' });
+    }
+  }, [railStep]);
   // A touch just added: in view, its player field ready to type in.
   const [fresh, setFresh] = useState<{ key: string }>();
   useEffect(() => {
@@ -431,12 +451,16 @@ export function ReportEditor({
           <ol
             ref={list}
             aria-label={t('review.reportTouches')}
-            className="relative grid min-h-0 flex-1 auto-rows-max grid-cols-[minmax(0,1fr)] gap-1.5 overflow-y-auto overscroll-contain pr-1"
+            className="relative grid min-h-0 flex-1 auto-rows-max grid-cols-[minmax(0,1fr)] gap-1.5 overflow-y-auto overscroll-contain pr-1 pl-4"
             onWheel={() => (scrolled.current = Date.now())}
             onTouchMove={() => (scrolled.current = Date.now())}
             onFocus={(event) => setEditing(event.target.matches('input, select'))}
             onBlur={() => setEditing(false)}
           >
+            <li aria-hidden className="pointer-events-none absolute top-0 left-1 w-0.5 rounded-full bg-border" style={{ height: rail.height }}>
+              <div className="w-full rounded-full bg-primary" style={{ height: rail.at }} />
+              <div className="absolute left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-card" style={{ top: rail.at }} />
+            </li>
             {first === 0 && timeoutRows(-1)}
             {Array.from({ length: last - first + 1 }, (_, n) => first + n).flatMap((k) => [
               <li key={`r${k}`} data-key={`r${k}`} className={cn('sticky top-0 z-10 rounded-md bg-card', k === here && 'text-primary')}>
@@ -534,6 +558,7 @@ export function ReportEditor({
                     <li
                       key={`t${row.frame}`}
                       data-key={`t${row.frame}`}
+                      data-at={row.frame / match.fps}
                       className={cn(
                         'grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border bg-card p-1.5 transition-colors',
                         row.frame === playing && 'border-primary bg-primary/10',
@@ -630,6 +655,7 @@ export function ReportEditor({
                 ? [
                     <li
                       key={`s${k}`}
+                      data-at={shown[k].end}
                       className={cn(
                         'my-1 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 rounded-md border-2 border-foreground/25 bg-secondary px-3 py-1.5 text-sm shadow-sm',
                         off.has(k) && 'border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200',

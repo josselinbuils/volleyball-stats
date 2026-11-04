@@ -13,6 +13,7 @@ import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
 import { Conflicts } from '@/components/Review/Conflicts';
+import { PieceConflict } from '@/components/Review/PieceConflict';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
@@ -198,6 +199,8 @@ export function Review({
     }
   };
 
+  // An answer on a piece earlier answers give to another player, to settle.
+  const [conflict, setConflict] = useState<{ names: string[]; choice: string; extra: object } | null>(null);
   const answer = useCallback(
     async (choice: string, extra: object = {}) => {
       if (!question) {
@@ -212,6 +215,10 @@ export function Review({
       try {
         const saved = await post('answer', { id: question.id, choice, ...extra, ...(choice === 'cut' ? { at } : {}) });
         if (saved.cancelled) {
+          return;
+        }
+        if (saved.conflict) {
+          setConflict({ names: saved.conflict, choice, extra });
           return;
         }
         if (choice === 'cut') {
@@ -296,7 +303,7 @@ export function Review({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
-      if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || tab !== 'questions' || typing) {
+      if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || conflict || tab !== 'questions' || typing) {
         return;
       }
       const key = { piece: KEYS, merge: MERGE_KEYS, touch: TOUCH_KEYS, rally: RALLY_KEYS, report: REPORT_KEYS }[question.kind][event.key.toLowerCase()];
@@ -308,7 +315,7 @@ export function Review({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [question, answer, busy, tab]);
+  }, [question, answer, busy, conflict, tab]);
 
   const title = matchTitle(t) ?? match.name;
   useEffect(() => {
@@ -374,6 +381,22 @@ export function Review({
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}
           </p>
+        )}
+        {conflict && question && (
+          <PieceConflict
+            names={conflict.names}
+            chosen={conflict.choice.startsWith('player:') ? nameOf(Number(conflict.choice.split(':')[1]) as Group, Number(conflict.choice.split(':')[2])) : nameOf(question.team, question.choices[Number(conflict.choice)]?.identity)}
+            cutAt={clipTime.current}
+            onReplace={() => {
+              setConflict(null);
+              void answer(conflict.choice, { ...conflict.extra, replace: true });
+            }}
+            onCut={() => {
+              setConflict(null);
+              void answer('cut');
+            }}
+            onCancel={() => setConflict(null)}
+          />
         )}
         {tab === 'progress' ? (
           <Progress runs={learning} />

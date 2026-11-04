@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end
+from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, missed_points, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict
 
 
 class TestHostedState:
@@ -926,6 +926,117 @@ class TestNameMerges:
 
         assert name_merges(log, self.names, self.segment_of) == {frozenset({"Josselin", "Laeticia"})}
         assert name_merges(log[:1], self.names, self.segment_of) == set()
+
+
+class TestLetGo:
+    anna, ben, piece, other = {"track": 1, "frame": 5}, {"track": 2, "frame": 5}, {"track": 3, "frame": 5}, {"track": 4, "frame": 5}
+    names = [{"ref": anna, "name": "Anna"}, {"ref": ben, "name": "Ben"}]
+
+    @staticmethod
+    def segment_of(ref):
+        return ref["track"]
+
+    def marks(self):
+        return mark_odd([], [{"track": 3, "frame": 7}, self.other], [{"track": 9, "frame": 1}], [self.ben, self.ben])
+
+    def test_a_new_answer_on_a_marked_piece_joins_nobody_and_keeps_the_other_marks(self):
+        answer = {"id": "piece:3:0", "same": [[self.anna, self.piece]]}
+        log = self.marks()
+        assert name_merges([*log, answer], self.names, self.segment_of) == {frozenset({"Anna", "Ben"})}
+
+        kept = let_go(log, self.piece, self.segment_of)
+
+        assert name_merges([*kept, answer], self.names, self.segment_of) == set()
+        assert kept[0]["odd"] == [self.other] and kept[0]["to"] == [self.ben]
+        assert kept[0]["same"] == [[self.ben, self.other]]
+        assert all(self.segment_of(a) != 3 for pair in kept[0]["different"] for a in pair)
+
+    def test_a_mark_alone_goes_with_its_piece(self):
+        log = mark_odd([], [{"track": 3, "frame": 7}], [{"track": 9, "frame": 1}], [self.ben])
+
+        assert let_go(log, self.piece, self.segment_of) == []
+
+    def test_another_answer_lets_go_of_the_piece_only(self):
+        log = [{"id": "more:1", "choice": "more", "same": [[self.ben, self.piece, self.other]]}, {"id": "more:2", "choice": "more", "same": [[self.ben, self.piece]]}]
+
+        assert let_go(log, self.piece, self.segment_of) == [{"id": "more:1", "choice": "more", "same": [[self.ben, self.other]]}, {"id": "more:2", "choice": "more", "same": []}]
+
+    def test_a_name_pinned_on_the_piece_still_warns(self):
+        names = [*self.names, {"ref": {"track": 3, "frame": 1}, "name": "Cleo"}]
+        answer = {"id": "piece:3:0", "same": [[self.anna, self.piece]]}
+
+        assert name_merges([*let_go([], self.piece, self.segment_of), answer], names, self.segment_of) == {frozenset({"Anna", "Cleo"})}
+
+
+class TestLetGo:
+    anna, ben, piece, other = {"track": 1, "frame": 5}, {"track": 2, "frame": 5}, {"track": 3, "frame": 5}, {"track": 4, "frame": 5}
+    names = [{"ref": anna, "name": "Anna"}, {"ref": ben, "name": "Ben"}]
+
+    @staticmethod
+    def segment_of(ref):
+        return ref["track"]
+
+    def marks(self):
+        return mark_odd([], [{"track": 3, "frame": 7}, self.other], [{"track": 9, "frame": 1}], [self.ben, self.ben])
+
+    def test_a_new_answer_on_a_marked_piece_joins_nobody_and_keeps_the_other_marks(self):
+        answer = {"id": "piece:3:0", "same": [[self.anna, self.piece]]}
+        log = self.marks()
+        assert name_merges([*log, answer], self.names, self.segment_of) == {frozenset({"Anna", "Ben"})}
+
+        kept = let_go(log, self.piece, self.segment_of)
+
+        assert name_merges([*kept, answer], self.names, self.segment_of) == set()
+        assert kept[0]["odd"] == [self.other] and kept[0]["to"] == [self.ben]
+        assert kept[0]["same"] == [[self.ben, self.other]]
+        assert all(self.segment_of(a) != 3 for pair in kept[0]["different"] for a in pair)
+
+    def test_a_mark_alone_goes_with_its_piece(self):
+        log = mark_odd([], [{"track": 3, "frame": 7}], [{"track": 9, "frame": 1}], [self.ben])
+
+        assert let_go(log, self.piece, self.segment_of) == []
+
+    def test_another_answer_lets_go_of_the_piece_only(self):
+        log = [{"id": "more:1", "choice": "more", "same": [[self.ben, self.piece, self.other]]}, {"id": "more:2", "choice": "more", "same": [[self.ben, self.piece]]}]
+
+        assert let_go(log, self.piece, self.segment_of) == [{"id": "more:1", "choice": "more", "same": [[self.ben, self.other]]}, {"id": "more:2", "choice": "more", "same": []}]
+
+    def test_a_name_pinned_on_the_piece_still_warns(self):
+        names = [*self.names, {"ref": {"track": 3, "frame": 1}, "name": "Cleo"}]
+        answer = {"id": "piece:3:0", "same": [[self.anna, self.piece]]}
+
+        assert name_merges([*let_go([], self.piece, self.segment_of), answer], names, self.segment_of) == {frozenset({"Anna", "Cleo"})}
+
+
+class TestPieceConflict:
+    anna, ben, piece = {"track": 1, "frame": 5}, {"track": 2, "frame": 5}, {"track": 3, "frame": 5}
+    names = [{"ref": anna, "name": "Anna"}, {"ref": ben, "name": "Ben"}]
+    entry = {"id": "piece:3:0", "same": [[anna, piece]]}
+
+    @staticmethod
+    def segment_of(ref):
+        return ref["track"]
+
+    def test_names_both_players_of_a_piece_marked_as_the_other(self):
+        log = mark_odd([], [{"track": 3, "frame": 7}], [{"track": 9, "frame": 1}], [self.ben])
+
+        freed, earlier = piece_conflict(log, self.entry, self.piece, self.names, self.segment_of)
+
+        assert earlier == ["Anna", "Ben"]
+        assert freed == []
+
+    def test_no_conflict_on_a_piece_nobody_said_anything_about(self):
+        assert piece_conflict([], self.entry, self.piece, self.names, self.segment_of)[1] == []
+
+    def test_no_conflict_with_the_same_player(self):
+        log = mark_odd([], [{"track": 3, "frame": 7}], [{"track": 9, "frame": 1}], [self.anna])
+
+        assert piece_conflict(log, self.entry, self.piece, self.names, self.segment_of)[1] == []
+
+    def test_a_name_given_on_the_piece_is_a_real_merge_not_a_conflict_to_settle(self):
+        names = [*self.names, {"ref": {"track": 3, "frame": 1}, "name": "Cleo"}]
+
+        assert piece_conflict([], self.entry, self.piece, names, self.segment_of)[1] == []
 
 
 class TestSupersede:
