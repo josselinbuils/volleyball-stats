@@ -14,7 +14,22 @@ import { RallyComment } from '@/components/Review/RallyComment';
 import { ReportRow } from '@/components/Review/ReportRow';
 import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { changedSince, freeFrame, LEAD_S, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
+import {
+  aboutEnd,
+  changedSince,
+  freeFrame,
+  LEAD_S,
+  NEXT_TOUCH_S,
+  nextTouch,
+  offGiven,
+  pieceOf,
+  rallyAt,
+  rallyOf,
+  runningScores,
+  timeoutsAfter,
+  withAdded,
+  withSplits,
+} from '@/components/Review/helpers/report';
 import { problems, warningTimes, type Problem } from '@/components/Review/helpers/checks';
 import { labelled } from '@/helpers/contacts';
 
@@ -430,7 +445,7 @@ export function ReportEditor({
     scores,
     match.scores,
   );
-  const warnings = shown.flatMap((r, k) => warningTimes(found.get(k), mineOf(k), r.start, off.has(k)).map((time) => ({ rally: r.key, time })));
+  const warnings = shown.flatMap((r, k) => warningTimes(found.get(k), mineOf(k), r.start, r.end, off.has(k)).map((time) => ({ rally: r.key, time })));
   const warningsJson = JSON.stringify(warnings);
   useEffect(() => {
     onWarnings?.(warnings);
@@ -439,7 +454,20 @@ export function ReportEditor({
   // The reports under their rally's header; those in no rally between the rallies, as the timeouts.
   const reportRows = (list: Question[]) => list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} />);
   const rallyOfReport = (q: Question) => shown.findIndex((r) => r.key === q.rally);
-  const reportsIn = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) === k));
+  // What is wrong with a rally as a whole: no touch above its touches, no winner below them.
+  const rallyWarning = (k: number, place: 'start' | 'end') => {
+    const list = (found.get(k)?.rally ?? []).filter((p) => (p === 'noWinner') === (place === 'end'));
+    return list.length
+      ? [
+          <li key={`p${k}${place}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">
+            <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+            {describe(list)}
+          </li>,
+        ]
+      : [];
+  };
+  const reportsIn = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) === k && !aboutEnd(q)));
+  const reportsAtEnd = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) === k && aboutEnd(q)));
   const reportsAfter = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) < 0 && shown.findLastIndex((r) => r.start <= (q.reports?.[0]?.time ?? q.clip.start)) === k));
   const timeoutRows = (k: number) =>
     timeoutsAfter(shown, timeouts, k, match.fps).map((o) => <TimeoutRow key={`o${o.start}`} timeout={o} current={isCurrent(o)} onPlay={onPlay} onChange={onTimeout} />);
@@ -570,14 +598,7 @@ export function ReportEditor({
                   )}
                 </div>
               </li>,
-              ...(found.get(k)?.rally.length
-                ? [
-                    <li key={`p${k}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">
-                      <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
-                      {describe(found.get(k)!.rally)}
-                    </li>,
-                  ]
-                : []),
+              ...rallyWarning(k, 'start'),
               ...reportsIn(k),
               ...rows
                 .filter((row) => row.rally === k)
@@ -691,6 +712,8 @@ export function ReportEditor({
                     </li>
                   );
                 }),
+              ...rallyWarning(k, 'end'),
+              ...reportsAtEnd(k),
               // The score once the rally is over, between it and the next one.
               ...(scores[k]
                 ? [

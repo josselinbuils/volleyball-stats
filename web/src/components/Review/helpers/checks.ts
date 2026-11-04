@@ -14,10 +14,10 @@ export interface Checked {
   time?: number;
 }
 
-/** Where a rally's warnings sit on the match bar, in seconds: on each touch showing one, at `start` for one about the whole rally. */
-export function warningTimes(found: { rally: Problem[]; touch: Map<number, Problem[]> } | undefined, touches: { time: number }[], start: number, off: boolean): number[] {
+/** Where a rally's warnings sit on the match bar, in seconds: on each touch showing one, at its `start` for no touch, at its `end` for how it ended. */
+export function warningTimes(found: { rally: Problem[]; touch: Map<number, Problem[]> } | undefined, touches: { time: number }[], start: number, end: number, off: boolean): number[] {
   const times = [...(found?.touch.keys() ?? [])].map((k) => touches[k].time);
-  return [...new Set(off || found?.rally.length ? [start, ...times] : times)];
+  return [...new Set([...(found?.rally.includes('empty') ? [start] : []), ...times, ...(off || found?.rally.includes('noWinner') ? [end] : [])])];
 }
 
 /** The problems of a rally's touches (in order, the removed ones left out; a playing fault is no touch

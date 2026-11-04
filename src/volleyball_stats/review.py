@@ -758,7 +758,7 @@ def rotation_slips(page: dict) -> set[int]:
 
 def unusual(page: dict) -> list[dict]:
     """The rallies of the review's `page` (its data.js) that do not look like one, as reports at
-    their start, `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
+    their start (no winner and a set's final score: their end), `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
     touch after a fault or a point (either ends the rally), served by the team that lost the set's point
@@ -818,7 +818,7 @@ def unusual(page: dict) -> list[dict]:
         for reason in why:
             said = f"auto:{reason}:{r['start']}" + (f":{score}" if reason == "scoreOff" else "")
             about = {"shown": name(serves[0])} if reason == "serverOrder" and name(serves[0]) else {}
-            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["start"], "kind": f"auto.{reason}", "comment": None, **about})
+            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["end"] if reason in ("noWinner", "scoreOff") else r["start"], "kind": f"auto.{reason}", "comment": None, **about})
     wearing: dict[tuple[int, int], set[int]] = defaultdict(set)
     for p, q in people.items():
         if q.get("jersey") is not None and q.get("name"):
@@ -834,8 +834,9 @@ def unusual(page: dict) -> list[dict]:
 
 def missed_points(page: dict, texts: dict[int, list[str]]) -> list[dict]:
     """Where the score board (`scoreboard.load`'s texts) gains more points than rallies were played since its last reading, as
-    reports at the first of those rallies, kind "auto.missedPoint", `shown` the two readings. The next reading has to keep that
-    lead (a misread one goes) and it has to pass the one before last too (a board flipped late only catches up).
+    reports at the end of the last of those rallies, kind "auto.missedPoint", `shown` the two readings and those rallies' numbers
+    when several. A rally to replay gives no point but may explain one. The next reading has to keep that lead (a misread one
+    goes) and it has to pass the one before last too (a board flipped late only catches up).
     First match: none; each of its 129 rallies hidden in turn, 26 found (20 readings)."""
     rallies = page["rallies"]
     played = np.cumsum([not r.get("redo") for r in rallies])
@@ -848,16 +849,17 @@ def missed_points(page: dict, texts: dict[int, list[str]]) -> list[dict]:
     for number, readings in found.items():
         lead = [left + right - played[k] for k, left, right in readings]
         for i in range(1, len(readings) - 1):
-            if max(lead[max(0, i - 2) : i]) < lead[i] <= lead[i + 1]:
-                (k, a, b), (_, c, d) = readings[i - 1], readings[i]
+            (j, a, b), (k, c, d) = readings[i - 1], readings[i]
+            if max(lead[max(0, i - 2) : i]) < lead[i] <= lead[i + 1] and c + d - a - b > k - j:
                 said = f"auto:missedPoint:{number}:{a}-{b}:{c}-{d}"
-                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k + 1]["start"], "kind": "auto.missedPoint", "comment": None, "shown": f"{a}-{b} → {c}-{d}"})
+                span = f" ({j + 2}–{k + 1})" if k - j > 1 else ""
+                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k]["end"], "kind": "auto.missedPoint", "comment": None, "shown": f"{a}-{b} → {c}-{d}{span}"})
     return out
 
 
 def board_off(page: dict, texts: dict[int, list[str]]) -> list[dict]:
     """The rallies after which the running score parts from the score board's (`scoreboard.load`'s
-    texts), as reports at their start, kind "auto.boardOff", `shown` the running score after the rally
+    texts), as reports at their end, kind "auto.boardOff", `shown` the running score after the rally
     ≠ the board's: where the two first differ, or differ otherwise than before, and still do at the
     next reading (a board flipped late differs once). The board's left side is the team it fits best, set by set."""
     rallies = page["rallies"]
@@ -875,7 +877,7 @@ def board_off(page: dict, texts: dict[int, list[str]]) -> list[dict]:
         for i, ((k, _, score), board, off) in enumerate(zip(readings, boards, offs)):
             if off != last and i + 1 < len(offs) and offs[i + 1] == off:
                 said = f"auto:boardOff:{number}:{board[0]}-{board[1]}"
-                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k]["start"], "kind": "auto.boardOff", "comment": None, "shown": f"{score[0]}-{score[1]} ≠ {board[0]}-{board[1]}"})
+                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k]["end"], "kind": "auto.boardOff", "comment": None, "shown": f"{score[0]}-{score[1]} ≠ {board[0]}-{board[1]}"})
                 last = off
     return out
 

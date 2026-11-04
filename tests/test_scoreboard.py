@@ -41,7 +41,7 @@ class TestBoardOff:
         page = self.page([[1, 0], [2, 0], [2, 1], [3, 1], [3, 2]])
         # The board never counted the third rally's point.
         texts = self.texts(page, ["1000", "2000", "2000", "3000", "3001"])
-        assert [(r["time"], r["shown"]) for r in board_off(page, texts)] == [(20.0, "2-1 ≠ 2-0")]
+        assert [(r["time"], r["shown"]) for r in board_off(page, texts)] == [(25.0, "2-1 ≠ 2-0")]
 
     def test_a_board_flipped_late_is_no_report(self):
         page = self.page([[1, 0], [2, 0], [3, 0]])
@@ -51,20 +51,24 @@ class TestBoardOff:
     def test_a_board_gaining_more_points_than_rallies_is_a_missed_point(self):
         page = self.page([[1, 0], [2, 0], [3, 0], [4, 0], [5, 0]])
         texts = self.texts(page, ["1000", "2000", "4000", "5000", "6000"])
-        assert [(r["kind"], r["time"], r["shown"]) for r in missed_points(page, texts)] == [("auto.missedPoint", 20.0, "2-0 → 4-0")]
+        assert [(r["kind"], r["time"], r["shown"]) for r in missed_points(page, texts)] == [("auto.missedPoint", 25.0, "2-0 → 4-0")]
+
+    def test_a_missed_point_over_several_rallies_names_them(self):
+        page = self.page([[1, 0], [2, 0], [3, 0], [4, 0], [5, 0]])
+        texts = self.texts(page, ["1000", "2000", "?", "5000", "6000"])
+        assert [(r["time"], r["shown"]) for r in missed_points(page, texts)] == [(35.0, "2-0 → 5-0 (3–4)")]
 
     def test_a_board_flipped_late_or_keeping_up_is_no_missed_point(self):
         page = self.page([[1, 0], [2, 0], [3, 0], [4, 0]])
         assert missed_points(page, self.texts(page, ["1000", "1000", "3000", "4000"])) == []
         assert missed_points(page, self.texts(page, ["1000", "2000", "3000", "4000"])) == []
 
-    def test_a_rally_to_replay_gives_the_board_no_point(self):
+    def test_a_rally_to_replay_may_give_the_board_a_point_or_none(self):
         page = self.page([[1, 0], [1, 0], [2, 0], [3, 0]])
         page["rallies"][1]["redo"] = True
         assert missed_points(page, self.texts(page, ["1000", "1000", "2000", "3000"])) == []
-        page["rallies"][1].pop("redo")
-        page["rallies"][2]["redo"] = True
-        assert [r["shown"] for r in missed_points(page, self.texts(page, ["1000", "2000", "3000", "4000"]))] == ["2-0 → 3-0"]
+        assert missed_points(page, self.texts(page, ["1000", "2000", "3000", "4000"])) == []
+        assert [r["shown"] for r in missed_points(page, self.texts(page, ["1000", "3000", "4000", "5000"]))] == ["1-0 → 3-0"]
 
     def test_fits_the_board_turned_round(self):
         page = self.page([[1, 0], [1, 1], [2, 1]])

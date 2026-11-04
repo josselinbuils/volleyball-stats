@@ -1,33 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { problems, warningTimes, type Checked } from '@/components/Review/helpers/checks';
+import { problems, warningTimes, type Checked, type Problem } from '@/components/Review/helpers/checks';
 
 describe('warningTimes', () => {
   const touches = [{ time: 10 }, { time: 12 }, { time: 15 }];
+  const gap: Problem[] = ['gap'];
 
   it('flags each touch with a problem', () => {
-    expect(
-      warningTimes(
-        {
-          rally: [],
-          touch: new Map([
-            [1, ['gap']],
-            [2, ['afterPoint']],
-          ]),
-        },
-        touches,
-        9,
-        false,
-      ),
-    ).toEqual([12, 15]);
+    const touch = new Map<number, Problem[]>([
+      [1, gap],
+      [2, ['afterPoint']],
+    ]);
+    expect(warningTimes({ rally: [], touch }, touches, 9, 20, false)).toEqual([12, 15]);
   });
 
-  it('flags the start for a problem of the whole rally, or a set off its score', () => {
-    expect(warningTimes({ rally: ['noWinner'], touch: new Map([[0, ['noServe']]]) }, touches, 9, false)).toEqual([9, 10]);
-    expect(warningTimes(undefined, touches, 9, true)).toEqual([9]);
+  it('flags the start for no touch, the end for no winner or a set off its score', () => {
+    expect(warningTimes({ rally: ['empty'], touch: new Map() }, [], 9, 20, false)).toEqual([9]);
+    expect(warningTimes({ rally: ['noWinner'], touch: new Map<number, Problem[]>([[0, ['noServe']]]) }, touches, 9, 20, false)).toEqual([10, 20]);
+    expect(warningTimes(undefined, touches, 9, 20, true)).toEqual([20]);
   });
 
   it('flags nothing in a clean rally', () => {
-    expect(warningTimes({ rally: [], touch: new Map() }, touches, 9, false)).toEqual([]);
+    expect(warningTimes({ rally: [], touch: new Map() }, touches, 9, 20, false)).toEqual([]);
   });
 });
 

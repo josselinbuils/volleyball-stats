@@ -241,7 +241,7 @@ class TestReports:
             (2.0, "auto.server"),
             (3.0, "auto.fourTouches"),
             (4.0, "auto.empty"),
-            (4.0, "auto.noWinner"),
+            (4.5, "auto.noWinner"),
             (5.0, "auto.afterFault"),
             (6.0, "auto.samePlayer"),
             (7.0, "auto.afterPoint"),
@@ -250,7 +250,7 @@ class TestReports:
         # The set's last rally ends off the final score given; its report comes back once the score moves.
         page["rallies"][-1]["score"] = [5, 2]
         off = [r for r in unusual(page) if r["kind"] == "auto.scoreOff"]
-        assert [r["time"] for r in off] == [7.0]
+        assert [r["time"] for r in off] == [7.5]
         page["rallies"][-1]["score"] = [4, 3]
         assert [r["key"] for r in unusual(page) if r["kind"] == "auto.scoreOff"] != [off[0]["key"]]
         page["rallies"][-1]["score"] = [5, 3]

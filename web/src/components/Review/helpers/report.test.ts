@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { changedSince, freeFrame, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits, matchFinished } from '@/components/Review/helpers/report';
+import {
+  aboutEnd,
+  changedSince,
+  freeFrame,
+  nextTouch,
+  offGiven,
+  pieceOf,
+  rallyAt,
+  rallyOf,
+  runningScores,
+  timeoutsAfter,
+  withAdded,
+  withSplits,
+  matchFinished,
+} from '@/components/Review/helpers/report';
 
 describe('changedSince', () => {
   const saved = {
@@ -91,6 +105,14 @@ describe('withAdded', () => {
     expect(rallies.map((r) => r.start)).toEqual([10, 35]);
     expect(rallies.map((r) => r.end)).toEqual([20, 50]);
     expect(rallyOf(rallies, 36, 'pass')).toBe(1);
+  });
+});
+
+describe('aboutEnd', () => {
+  it('holds only when every report is about how the rally ended', () => {
+    expect(aboutEnd({ reports: [{ kind: 'auto.boardOff' }, { kind: 'auto.missedPoint' }] })).toBe(true);
+    expect(aboutEnd({ reports: [{ kind: 'auto.boardOff' }, { kind: 'auto.gap' }] })).toBe(false);
+    expect(aboutEnd({ reports: [] })).toBe(false);
   });
 });
 

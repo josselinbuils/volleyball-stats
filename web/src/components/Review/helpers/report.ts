@@ -61,6 +61,13 @@ export function offGiven(sets: number[], scores: ([number, number] | null)[], gi
 /** A touch added under this long after the one before it in its rally follows it; later, it starts the next rally. */
 export const NEXT_TOUCH_S = 5;
 
+const ABOUT_END = ['auto.noWinner', 'auto.scoreOff', 'auto.boardOff', 'auto.missedPoint'];
+
+/** Whether all a rally's reports are about how it ended: they then come after its touches. */
+export function aboutEnd(question: { reports?: { kind?: string | null }[] }): boolean {
+  return !!question.reports?.length && question.reports.every((r) => ABOUT_END.includes(r.kind ?? ''));
+}
+
 /** The touch most likely added after `before` (none: the rally's first, a serve by `server`): a
  * serve's reception, a free ball's or an attack's dig by the other team; a reception's or a dig's
  * set, a set's attack by the same team; after a block, a dig on the blockers' side. */
