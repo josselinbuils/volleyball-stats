@@ -1426,7 +1426,8 @@ def build(
     data["feedback"] = feedback
     ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
     if blurred is not None and (match / "players.csv").exists():
-        data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER])
+        samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3) / [data["fps"], 1, 1]
+        data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER], samples)
     write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data), match / "films")
     return data
 

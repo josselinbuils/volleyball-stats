@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from volleyball_stats.framing import MARGIN, MIN_VIEW, players_box, read_boxes, view_of, views
+from volleyball_stats.framing import MARGIN, MIN_VIEW, SERVER_MARGIN, players_box, read_boxes, view_of, views, with_server
 
 
 def boxes(*players):
@@ -48,6 +48,21 @@ def test_the_serve_then_the_exchange_then_the_whole_picture():
     assert [v[0] for v in found] == [0, 5.3, 16]
     assert found[0][1] == 0 and found[0][3] > found[1][3]
     assert found[-1][1:] == [0, 0, 1]
+
+
+def test_the_serves_view_shows_a_server_only_the_ball_gives_away():
+    rows = boxes((1, 0.2, 0.7))
+    touches = [{"t": 5, "type": "serve", "rally": 0}, {"t": 17, "type": "serve", "rally": 1}]
+    ball = np.array([[1, 0.5, 0.4], [16.9, 0.9, 0.4]])
+
+    found = views(rows, [rally(), rally(17, 19)], touches, ball)
+
+    assert [v[0] for v in found] == [0, 16, 20]
+    assert found[1][1] + found[1][3] == pytest.approx(0.9 + SERVER_MARGIN)
+
+
+def test_a_ball_far_from_the_serve_says_nothing_of_the_server():
+    assert with_server((0.2, 0.3, 0.7, 0.6), np.array([[4, 0.9, 0.4], [6, 0.9, 0.4]]), 5) == (0.2, 0.3, 0.7, 0.6)
 
 
 def test_a_view_that_fits_is_kept():

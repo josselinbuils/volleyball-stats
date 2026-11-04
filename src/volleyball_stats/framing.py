@@ -16,6 +16,10 @@ AFTER_SERVE_S = 0.3
 HOLD_S = 1.0
 # A shorter exchange keeps the serve's view.
 MIN_EXCHANGE_S = 1.0
+# The ball this close to the serve is at the server, who often waits too far back to be tracked.
+BALL_AT_SERVE_S = 0.2
+# Around that ball, in fractions of the picture: the server's body besides MARGIN.
+SERVER_MARGIN = 0.05
 # A track seen less than this in a moment is no player: a false detection.
 MIN_TRACK_S = 0.5
 # Around the players, in fractions of the picture; under them only, the rest above for the high balls.
@@ -59,10 +63,20 @@ def view_of(box: tuple[float, float, float, float]) -> tuple[float, float, float
     return float(min(1 - w, max(0, (x1 + x2 - w) / 2))), float(min(1 - w, max(0, y2 - w))), float(w)
 
 
-def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict]) -> list[list[float]]:
+def with_server(box: tuple[float, float, float, float] | None, ball: np.ndarray, served: float) -> tuple[float, float, float, float] | None:
+    """`box` also covering the ball of `ball` (rows [time, x, y] by time) nearest to the serve at `served`, if seen."""
+    near = np.abs(ball[:, 0] - served)
+    if box is None or not len(ball) or near.min() > BALL_AT_SERVE_S:
+        return box
+    _, x, y = ball[near.argmin()]
+    return (max(0, min(box[0], x - SERVER_MARGIN)), max(0, min(box[1], y - SERVER_MARGIN)), min(1, max(box[2], x + SERVER_MARGIN)), min(1, max(box[3], y + SERVER_MARGIN)))
+
+
+def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict], ball: np.ndarray = np.empty((0, 3))) -> list[list[float]]:
     """The views as [from this time, x, y, width], in fractions of the picture, from the rallies and their `touches`
-    (data.js's, without the ball's floor and net contacts): each serve's from the rally before's end, the exchange's
-    once the serve is hit, the whole picture after the last rally."""
+    (data.js's, without the ball's floor and net contacts): each serve's from the rally before's end, showing the
+    server by `ball` (rows [time, x, y] by time), the exchange's once the serve is hit, the whole picture after the
+    last rally."""
     shown: list[list[float]] = []
 
     def show(at: float, box: tuple[float, float, float, float] | None) -> None:
@@ -79,7 +93,7 @@ def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict]) -> list[l
     for k, rally in enumerate(rallies):
         own = [t for t in touches if t["rally"] == k]
         served = next((t["t"] for t in own if t["type"] == "serve"), rally["start"])
-        show(min(end + HOLD_S, served) if k else 0, players_box(boxes, served - SERVE_S[0], served + SERVE_S[1]))
+        show(min(end + HOLD_S, served) if k else 0, with_server(players_box(boxes, served - SERVE_S[0], served + SERVE_S[1]), ball, served))
         answered = next((t["t"] for t in own if t["t"] > served and t["type"] != "serve"), None)
         if answered is not None and rally["end"] - answered >= MIN_EXCHANGE_S:
             show(min(served + AFTER_SERVE_S, answered), players_box(boxes, answered, rally["end"]))
