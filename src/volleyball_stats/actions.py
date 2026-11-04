@@ -248,12 +248,14 @@ def late_serves(
 
 
 def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[int, int]], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
-    """Typed contacts of every rally; contacts outside the rallies are dropped."""
+    """Typed contacts of every rally; contacts outside the rallies are dropped. A contact in two
+    windows, the next one's lead overlapping, stays the first's: answers name a touch by its frame."""
     out: list[Typed] = []
     for start, end in rallies:
         start -= round(LEAD_S * fps)
         inside = [c for c in contacts if start <= c[0] <= end]
-        out += classify_rally(inside, [c for c in crossings if start <= c <= end], fps, net_x, calibration)
+        taken = {t[0] for t in out}
+        out += [t for t in classify_rally(inside, [c for c in crossings if start <= c <= end], fps, net_x, calibration) if t[0] not in taken]
     return out
 
 

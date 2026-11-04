@@ -121,6 +121,13 @@ class TestClassify:
 
         assert [(t[0], t[3]) for t in typed] == [(50, "serve"), (100, "pass")]
 
+    def test_a_contact_in_two_overlapping_windows_stays_the_first_ones(self):
+        contacts = [(50, *RIGHT), (100, *LEFT), (198, *LEFT)]
+
+        typed = classify(contacts, [70], [(55, 200), (205, 300)], FPS, NET_X)
+
+        assert [(t[0], t[3]) for t in typed] == [(50, "serve"), (100, "pass"), (198, "set")]
+
 
 class TestMarkDead:
     def test_three_touches_in_a_row_by_one_player_make_the_ball_dead_for_the_rest_of_its_rally(self):
