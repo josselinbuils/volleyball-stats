@@ -189,6 +189,15 @@ export function Review({
     }
   };
 
+  const saveUnchecked = async (changes: ReportChanges, rally: number) => {
+    try {
+      onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, unchecked: [rally] }));
+      setError(false);
+    } catch {
+      setError(true);
+    }
+  };
+
   const saveEdits = async (changes: ReportChanges, rally: number) => {
     try {
       onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, checked: [rally] }));
@@ -385,7 +394,11 @@ export function Review({
         {conflict && question && (
           <PieceConflict
             names={conflict.names}
-            chosen={conflict.choice.startsWith('player:') ? nameOf(Number(conflict.choice.split(':')[1]) as Group, Number(conflict.choice.split(':')[2])) : nameOf(question.team, question.choices[Number(conflict.choice)]?.identity)}
+            chosen={
+              conflict.choice.startsWith('player:')
+                ? nameOf(Number(conflict.choice.split(':')[1]) as Group, Number(conflict.choice.split(':')[2]))
+                : nameOf(question.team, question.choices[Number(conflict.choice)]?.identity)
+            }
             cutAt={clipTime.current}
             onReplace={() => {
               setConflict(null);
@@ -417,6 +430,7 @@ export function Review({
             onTimeout={(change) => void saveTimeout(change)}
             reports={reports}
             onSave={saveEdits}
+            onSaveUnchecked={saveUnchecked}
             onUncheck={uncheck}
             onHandled={handled}
           />
@@ -528,9 +542,7 @@ export function Review({
                           onSaved={onSaved}
                           onError={() => setError(true)}
                         />
-                        <p className="m-0 text-sm font-medium">
-                          {nameOf(question.team, c.identity) ?? t('player', { n: c.identity })}
-                        </p>
+                        <p className="m-0 text-sm font-medium">{nameOf(question.team, c.identity) ?? t('player', { n: c.identity })}</p>
                       </div>
                     ))}
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">

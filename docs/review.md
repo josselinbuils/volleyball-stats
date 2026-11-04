@@ -30,7 +30,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   none), their players and actions (`touch`, `action`); no question its check answers is asked; unchecking
   unlocks it. A rally's winner follows its last touch (`web.followed`). "Valider"
   in a rally's header saves and checks it: green, its reports handled, until a new report; the button then
-  becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections. Saved corrections not yet in the review's page show in the editor (the
+  becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections. On a rally with no touch and no end said, "Supprimer" takes its place: saved at once, no play (`play`), or its split undone if the review started it; "Rétablir" takes it back until the apply. Saved corrections not yet in the review's page show in the editor (the
   last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)
   flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
   reception, four touches in a row, the wrong server, no touch, no winner, a set ending off the

@@ -83,6 +83,7 @@ export function ReportEditor({
   onPlay,
   onPause,
   onSave,
+  onSaveUnchecked,
   green,
   checked,
   onUncheck,
@@ -114,6 +115,8 @@ export function ReportEditor({
   onPause: (time: number) => void;
   /** Saves the corrections, a rally (by its key) checked with them; `onward`: the video goes to the next rally. */
   onSave: (changes: ReportChanges, rally: number, onward: boolean) => void;
+  /** Saves the corrections, a rally (by its key) no longer checked. */
+  onSaveUnchecked: (changes: ReportChanges, rally: number) => void;
   /** The rallies checked with no report open nor corrections not saved since, by their key: shown green. */
   green: Set<number>;
   /** The rallies checked, by their key, a report open on them or not. */
@@ -417,6 +420,25 @@ export function ReportEditor({
     editRally(k, { winner: w, wrong: on });
   };
   const winner = rally ? winnerOf(here) : null;
+  const isEmpty = (k: number) => !mineOf(k).length && !fixOf(k)?.join && !fixOf(k - 1)?.join;
+  const isDeleted = (k: number) => isEmpty(k) && fixOf(k)?.play === false;
+  // A touchless rally whose end was said explains a point: it stays.
+  const canDelete = (k: number) => isEmpty(k) && fixOf(k)?.play !== false && fixOf(k)?.winner === undefined && !toReplay(k) && !calledWrong(k);
+  const otherRallies = (key: number) => (changes.rallies ?? []).filter((r) => r.start !== key);
+  // A rally the review started goes away; one of the page's is said no play.
+  const deleteRally = (k: number) => {
+    const key = keyOf(k);
+    if (splits.includes(key)) {
+      onSaveUnchecked({ ...changes, splits: splits.filter((f) => f !== key), rallies: otherRallies(key) }, key);
+    } else {
+      onSave({ ...changes, rallies: [...otherRallies(key), { ...changes.rallies?.find((r) => r.start === key), start: key, play: false }] }, key, k === here);
+    }
+  };
+  const restoreRally = (k: number) => {
+    const key = keyOf(k);
+    const { play: _, ...rest } = changes.rallies?.find((r) => r.start === key) ?? { start: key };
+    onSaveUnchecked({ ...changes, rallies: [...otherRallies(key), ...(Object.keys(rest).length > 1 ? [rest] : [])] }, key);
+  };
   const found = new Map<number, ReturnType<typeof problems>>();
   for (let k = 0; k < shown.length; k++) {
     if (fixOf(k)?.play === false || fixOf(k - 1)?.join) {
@@ -571,7 +593,19 @@ export function ReportEditor({
                       </span>
                     )}
                   </button>
-                  {checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
+                  {isDeleted(k) ? (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="mr-1 shrink-0 bg-card text-foreground"
+                      title={t('review.restoreRally', { n: k + 1 })}
+                      aria-label={t('review.restoreRally', { n: k + 1 })}
+                      onClick={() => restoreRally(k)}
+                    >
+                      <Undo2 aria-hidden />
+                      {t('review.restore')}
+                    </Button>
+                  ) : checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
                     <Button
                       variant="outline"
                       size="xs"
@@ -582,6 +616,18 @@ export function ReportEditor({
                     >
                       <CircleOff aria-hidden />
                       {t('review.uncheck')}
+                    </Button>
+                  ) : canDelete(k) ? (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="mr-1 shrink-0 bg-card text-foreground"
+                      title={t('review.deleteRally', { n: k + 1 })}
+                      aria-label={t('review.deleteRally', { n: k + 1 })}
+                      onClick={() => deleteRally(k)}
+                    >
+                      <Trash2 aria-hidden />
+                      {t('review.delete')}
                     </Button>
                   ) : (
                     <Button
@@ -777,10 +823,12 @@ export function ReportEditor({
                 </ToggleGroupItem>
               </ToggleGroup>
             </span>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={fix.play === false} onChange={(e) => editRally(here, { play: e.target.checked ? false : undefined })} />
-              {t('review.notPlay')}
-            </label>
+            {!canDelete(here) && !isDeleted(here) && (
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={fix.play === false} onChange={(e) => editRally(here, { play: e.target.checked ? false : undefined })} />
+                {t('review.notPlay')}
+              </label>
+            )}
             <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')} title={t('review.reportWrongCallHelp')}>
               <input type="checkbox" checked={calledWrong(here)} disabled={winner === null} onChange={(e) => markWrongCall(here, e.target.checked)} />
               {t('review.reportWrongCall')}

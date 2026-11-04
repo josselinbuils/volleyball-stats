@@ -28,6 +28,7 @@ export function MatchTab({
   onTimeout,
   reports,
   onSave,
+  onSaveUnchecked,
   onUncheck,
   onHandled,
   onEnd,
@@ -48,6 +49,7 @@ export function MatchTab({
   /** The report questions left: each a rally's reports. */
   reports: Question[];
   onSave: (changes: ReportChanges, rally: number) => Promise<void>;
+  onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<void>;
   onUncheck: (rally: number) => Promise<void>;
   onHandled: (report: Question, changes: ReportChanges) => Promise<void>;
   onEnd: (time: string) => void;
@@ -154,6 +156,7 @@ export function MatchTab({
                 }
               })
             }
+            onSaveUnchecked={(changes, rally) => void onSaveUnchecked(changes, rally).then(() => setRound((r) => r + 1))}
             green={green}
             checked={new Set(checked)}
             onUncheck={(rally) => void onUncheck(rally)}
