@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Maximize, Minimize, Play } from 'lucide-react';
+import { Maximize, Minimize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { match, rallies, type Group } from '@/lib/match';
 import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
@@ -14,8 +13,8 @@ import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
 
 /** The whole match to correct: its video, the bar of its rallies, touches and the viewers' reports
- * under it, the touches around where it stands beside it; under them the reports left to handle,
- * each marked handled once looked at (the corrections as they stand saved with it). */
+ * under it, the touches around where it stands beside it, each rally's reports left to handle under
+ * its header. */
 export function MatchTab({
   width,
   height,
@@ -54,7 +53,6 @@ export function MatchTab({
   onEnd: (time: string) => void;
 }) {
   const { t } = useTranslation();
-  const f = useFormat();
   const clipTime = useRef(0);
   const [now, setNow] = useState(0);
   const [seek, setSeek] = useState<{ time: number; n: number; play?: boolean }>();
@@ -66,7 +64,6 @@ export function MatchTab({
   });
   // The editor starts again from the corrections saved, after each save.
   const [round, setRound] = useState(0);
-  const latest = useRef<ReportChanges>({ touches: [], ...saved });
   const go = (time: number, play?: boolean) => setSeek((s) => ({ time: Math.max(0, time), n: (s?.n ?? 0) + 1, play }));
   const flags = reports.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
   // A viewer's report flags the touch they saw; an automatic one is about the rally.
@@ -146,53 +143,14 @@ export function MatchTab({
             checked={new Set(checked)}
             onUncheck={(rally) => void onUncheck(rally)}
             onCaption={setCaption}
-            onChanges={(changes) => (latest.current = changes)}
+            questions={reports}
+            onHandled={(q, changes) => void onHandled(q, changes).then(() => setRound((r) => r + 1))}
             saved={saved}
             comments={comments}
             onComment={onComment}
             timeouts={timeouts}
             onTimeout={onTimeout}
           />
-          <section className="grid gap-2 lg:col-span-2" aria-labelledby="reports-title">
-            <h3 id="reports-title" className="text-base font-semibold">
-              {t('review.reportsTitle', { count: reports.length })}
-            </h3>
-            {reports.length === 0 && <p className="text-sm text-muted-foreground">{t('review.noReports')}</p>}
-            <ol className="grid gap-2">
-              {reports.map((q) => {
-                const at = q.reports?.[0]?.time ?? q.clip.start;
-                return (
-                  <li key={q.id} className="grid gap-2 rounded-md border-l-4 border-primary bg-muted/50 px-3 py-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start">
-                    <Button variant="outline" size="sm" className="justify-self-start bg-card tabular-nums" title={t('review.reportGo')} onClick={() => go(at - REPORT_LEAD_S, true)}>
-                      <Play aria-hidden className="fill-current" />
-                      {clock(at)}
-                    </Button>
-                    <div className="grid gap-1">
-                      {q.reports?.map((r, k) => (
-                        <p key={k} className="m-0">
-                          {r.kind?.startsWith('auto.') && <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{t('review.autoReport')}</span>}
-                          <span className="font-medium">{t(`feedback.kinds.${r.kind}`, { defaultValue: r.kind ?? '' })}</span>
-                          {r.shown && <span className="text-muted-foreground">{` · ${r.shown}`}</span>}
-                          {r.comment && <span>{` · « ${r.comment} »`}</span>}
-                          {r.received && <span className="text-muted-foreground">{` · ${t('review.reportReceived', { when: f.when(r.received) })}`}</span>}
-                        </p>
-                      ))}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-self-start bg-card"
-                      title={t('review.reportHandledNote')}
-                      onClick={() => void onHandled(q, latest.current).then(() => setRound((r) => r + 1))}
-                    >
-                      <Check aria-hidden />
-                      {t('review.reportHandled')}
-                    </Button>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
         </div>
       </CardContent>
     </Card>

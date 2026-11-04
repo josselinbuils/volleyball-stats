@@ -8,9 +8,10 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { railAt, shiftOf, topOf } from '@/components/Review/helpers/timeline';
-import { review, type Named, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
+import { review, type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
+import { ReportRow } from '@/components/Review/ReportRow';
 import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { changedSince, freeFrame, LEAD_S, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
@@ -70,7 +71,8 @@ export function ReportEditor({
   checked,
   onUncheck,
   onCaption,
-  onChanges,
+  questions,
+  onHandled,
   onWarnings,
   onUnsaved,
   saved,
@@ -100,8 +102,10 @@ export function ReportEditor({
   /** The rallies checked, by their key, a report open on them or not. */
   checked: Set<number>;
   onUncheck: (rally: number) => void;
-  /** The corrections as they stand, saved or not. */
-  onChanges?: (changes: ReportChanges) => void;
+  /** The report questions left: each a rally's reports, listed under it. */
+  questions: Question[];
+  /** Marks a rally's reports handled, the corrections as they stand saved with them. */
+  onHandled: (question: Question, changes: ReportChanges) => void;
   /** The rallies with a warning as they stand, by their key. */
   onWarnings?: (keys: number[]) => void;
   /** The rallies with corrections not saved yet, by their key. */
@@ -218,13 +222,9 @@ export function ReportEditor({
     ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([key, f]) => ({ start: Number(key), ...f, ...(f.end !== undefined ? { end: frameOf(f.end) } : {}) })) } : {}),
     ...(splits.length ? { splits } : {}),
   };
-  const json = JSON.stringify(changes);
   // The rallies with corrections not saved yet: one checked has to be saved again.
   const since = changedSince(changes, saved);
   const unsaved = new Set([...since.starts, ...since.frames.map((frame) => shown[allRows.find((row) => row.frame === frame)?.rally ?? rallyAt(shown, frame / match.fps)]?.key)]);
-  useEffect(() => {
-    onChanges?.(changes);
-  }, [json]);
   const unsavedKeys = [...unsaved].filter((k) => k !== undefined);
   const unsavedJson = JSON.stringify(unsavedKeys);
   useEffect(() => {
@@ -428,6 +428,11 @@ export function ReportEditor({
     onWarnings?.(warned);
   }, [warnedJson]);
 
+  // The reports under their rally's header; those in no rally between the rallies, as the timeouts.
+  const reportRows = (list: Question[]) => list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} />);
+  const rallyOfReport = (q: Question) => shown.findIndex((r) => r.key === q.rally);
+  const reportsIn = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) === k));
+  const reportsAfter = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) < 0 && shown.findLastIndex((r) => r.start <= (q.reports?.[0]?.time ?? q.clip.start)) === k));
   const timeoutRows = (k: number) =>
     timeoutsAfter(shown, timeouts, k, match.fps).map((o) => <TimeoutRow key={`o${o.start}`} timeout={o} current={isCurrent(o)} onPlay={onPlay} onChange={onTimeout} />);
 
@@ -482,7 +487,7 @@ export function ReportEditor({
             <li aria-hidden className="pointer-events-none absolute top-0 left-1 w-0.5 rounded-full bg-border" style={{ height: rail.height }}>
               <div className="w-full rounded-full bg-primary" style={{ height: rail.at }} />
             </li>
-            {first === 0 && timeoutRows(-1)}
+            {first === 0 && [...reportsAfter(-1), ...timeoutRows(-1)]}
             {Array.from({ length: last - first + 1 }, (_, n) => first + n).flatMap((k) => [
               <li
                 key={`r${k}`}
@@ -564,6 +569,7 @@ export function ReportEditor({
                     </li>,
                   ]
                 : []),
+              ...reportsIn(k),
               ...rows
                 .filter((row) => row.rally === k)
                 .map((row) => {
@@ -708,6 +714,7 @@ export function ReportEditor({
                     </li>,
                   ]
                 : []),
+              ...reportsAfter(k),
               ...timeoutRows(k),
             ])}
           </ol>
