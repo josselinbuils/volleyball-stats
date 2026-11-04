@@ -19,6 +19,8 @@ let picked = 1;
 const FREE_SPAN = [20, 70];
 /** In free play, the step of the buttons going back and forth. */
 const FREE_STEP_S = 10;
+/** In free play, the step of the left and right arrow keys. */
+const ARROW_STEP_S = 1;
 /** A press on the video held this long plays it at HOLD_RATE until released. */
 const HOLD_MS = 250;
 const HOLD_RATE = 0.25;
@@ -62,7 +64,7 @@ function saveFlag(key: string, on: boolean) {
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip with its sound, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
+ * `free`: the match plays on from the clip with its sound, no loop, the arrow keys moving it; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
  * `extra`: at the right end of the speeds' line. */
 export function ClipVideo({
   clip,
@@ -224,6 +226,22 @@ export function ClipVideo({
       moveTo(from + ((event.clientX - place.left) / place.width) * (to - from));
     }
   };
+  // Fields and menus keep their arrows, and the bar when focused handles its own (it prevents the default).
+  useEffect(() => {
+    if (!free) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent) => {
+      const step = { ArrowLeft: -ARROW_STEP_S, ArrowRight: ARROW_STEP_S }[event.key];
+      const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
+      if (step && video.current && !event.defaultPrevented && !typing && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        event.preventDefault();
+        moveTo(video.current.currentTime + step);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [free]);
   const keys: Record<string, (step: number) => number> = { ArrowLeft: (step) => time - step, ArrowRight: (step) => time + step, Home: () => from, End: () => to };
   const view = pinched ?? (views && auto ? autoView(views, time, width, height) : zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height });
   const shown = useRef(view);
