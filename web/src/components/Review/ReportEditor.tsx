@@ -45,7 +45,7 @@ const touches = contacts
     return { contact: c, frame: c.f ?? frameOf(c.t), player: p && p.number !== null ? `${p.team}:${p.number}` : '' };
   });
 
-// How often the list checks on the rail's dot, and how near its edges the dot may come, in pixels.
+// How often the list checks on the rail's end, and how near its edges that end may come, in pixels.
 const RAIL_FOLLOW_PX = 24;
 const RAIL_EDGE_PX = 64;
 
@@ -290,7 +290,7 @@ export function ReportEditor({
     const height = rows.at(-1)?.bottom ?? 0;
     setRail((r) => (Math.abs(r.at - at) < 1 && r.height === height ? r : { at, height }));
   });
-  // Between rallies, no row is centred: the list follows the rail's dot when it nears an edge.
+  // Between rallies, no row is centred: the list follows the rail's end when it nears an edge.
   const railStep = Math.round(rail.at / RAIL_FOLLOW_PX);
   useEffect(() => {
     const box = list.current;
@@ -460,7 +460,6 @@ export function ReportEditor({
           >
             <li aria-hidden className="pointer-events-none absolute top-0 left-1 w-0.5 rounded-full bg-border" style={{ height: rail.height }}>
               <div className="w-full rounded-full bg-primary" style={{ height: rail.at }} />
-              <div className="absolute left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-card" style={{ top: rail.at }} />
             </li>
             {first === 0 && timeoutRows(-1)}
             {Array.from({ length: last - first + 1 }, (_, n) => first + n).flatMap((k) => [
