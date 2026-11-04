@@ -378,6 +378,18 @@ class TestWithAdded:
 
         assert "120" in [str(r["frame"]) for r in rows]
 
+    def test_a_serve_added_after_a_split_stays_in_the_rally_it_names(self, tmp_path):
+        ball = tmp_path / "ball.csv"
+        ball.write_text("frame,visible,x,y\n")
+        # A floor row just before the split, in the part before it and in the lead of the one after it.
+        typed = [{"frame": "552", "x": "1", "y": "2", "type": "net", "side": "left", "track": "", "gap": "", "team": "1", "identity": ""}]
+        added = [{"start": 554, "frame": 556, "team": 1, "type": "serve"}]
+
+        windows, rows = with_added([(61, 553), (554, 687)], [{"left": "1"}, {"left": "1"}], typed, added, ball, 5, 20, 10, 16)
+
+        assert windows == [(61, 553), (554, 687)]
+        assert [(r["frame"], r["type"]) for r in rows] == [("556", "serve")]
+
     def test_a_block_and_a_touch_added_right_after_or_before_it_are_two(self, tmp_path):
         ball = tmp_path / "ball.csv"
         ball.write_text("frame,visible,x,y\n")
