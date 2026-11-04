@@ -4,6 +4,9 @@ import {
   changedSince,
   comingFirstTouch,
   freeFrame,
+  joinEnd,
+  joinStart,
+  liveReports,
   nextTouch,
   offGiven,
   openingTime,
@@ -252,5 +255,40 @@ describe('matchFinished', () => {
 
   it('is not finished without rallies', () => {
     expect(matchFinished([], [], 0)).toBe(false);
+  });
+});
+
+describe('joinStart and joinEnd', () => {
+  const joins = (k: number) => k === 1 || k === 2;
+
+  it('find both ends of rallies joined in a chain', () => {
+    expect([1, 2, 3].map((k) => joinStart(k, joins))).toEqual([1, 1, 1]);
+    expect([1, 2, 3].map((k) => joinEnd(k, joins))).toEqual([3, 3, 3]);
+  });
+
+  it('leave a rally joined to nothing where it is', () => {
+    expect(joinStart(0, joins)).toBe(0);
+    expect(joinEnd(4, joins)).toBe(4);
+  });
+});
+
+describe('liveReports', () => {
+  const report = (kind: string | null) => ({ kind });
+
+  it('drops the automatic reports of a joined rally, with the question left empty', () => {
+    expect(liveReports([{ rally: 1, reports: [report('auto.noServe')] }], new Set([1]))).toEqual([]);
+  });
+
+  it('keeps those on a player and the viewers', () => {
+    const reports = [report('auto.gap'), report('auto.sameJersey'), report('wrongPlayer')];
+    expect(liveReports([{ rally: 1, reports }], new Set([1]))).toEqual([{ rally: 1, reports: [report('auto.sameJersey'), report('wrongPlayer')] }]);
+  });
+
+  it('leaves the other rallies and those in no rally', () => {
+    const questions = [
+      { rally: 2, reports: [report('auto.gap')] },
+      { rally: null, reports: [report('auto.gap')] },
+    ];
+    expect(liveReports(questions, new Set([1]))).toEqual(questions);
   });
 });

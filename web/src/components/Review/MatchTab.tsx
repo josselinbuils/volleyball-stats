@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { match, rallies, type Group } from '@/lib/match';
 import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { openingTime, REPORT_LEAD_S } from '@/components/Review/helpers/report';
+import { liveReports, openingTime, REPORT_LEAD_S } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
@@ -70,18 +70,19 @@ export function MatchTab({
   const [round, setRound] = useState(0);
   const listPlace = useRef({ top: 0, scrolled: 0 });
   const go = (time: number, play?: boolean) => setSeek((s) => ({ time: Math.max(0, time), n: (s?.n ?? 0) + 1, play }));
-  const flags = reports.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
+  // The warnings as the editor finds them.
+  const [found, setFound] = useState<{ times: number[]; warned: number[]; joined: number[] }>({ times: [], warned: [], joined: [] });
+  const live = liveReports(reports, new Set(found.joined));
+  const flags = live.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
   // A viewer's report flags the touch they saw; an automatic one is about the rally.
   const seen = flags.filter((r) => !r.auto);
   // Checked, with no report open on it nor corrections not saved since.
-  const open = new Set(reports.map((q) => q.rally));
+  const open = new Set(live.map((q) => q.rally));
   const [unsaved, setUnsaved] = useState<Set<number>>(new Set());
   const green = new Set(checked.filter((k) => !open.has(k) && !unsaved.has(k)));
-  // The warnings as the editor finds them.
-  const [warnings, setWarnings] = useState<{ rally: number; time: number }[]>([]);
-  const warned = new Set(warnings.map((w) => w.rally));
+  const warned = new Set(found.warned);
   // The automatic reports the editor's warnings do not already show.
-  const unwarned = reports.filter((q) => q.rally == null || !warned.has(q.rally)).flatMap((q) => (q.reports ?? []).filter((r) => r.kind?.startsWith('auto.')));
+  const unwarned = live.filter((q) => q.rally == null || !warned.has(q.rally)).flatMap((q) => (q.reports ?? []).filter((r) => r.kind?.startsWith('auto.')));
   // The video, its bar and the editor fill the screen, the video as large as what is under it leaves room for.
   const block = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
@@ -128,7 +129,7 @@ export function MatchTab({
               now={now}
               saved={saved}
               reports={seen}
-              warnings={[...warnings, ...unwarned]}
+              warnings={[...found.times.map((time) => ({ time })), ...unwarned]}
               green={green}
               warned={warned}
               comments={comments}
@@ -140,7 +141,7 @@ export function MatchTab({
             key={round}
             place={listPlace}
             onEnd={onEnd}
-            onWarnings={setWarnings}
+            onWarnings={setFound}
             onUnsaved={(keys) => setUnsaved(new Set(keys))}
             reports={seen}
             players={players}

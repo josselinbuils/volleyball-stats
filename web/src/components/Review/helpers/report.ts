@@ -69,6 +69,35 @@ export function aboutEnd(question: { reports?: { kind?: string | null }[] }): bo
   return !!question.reports?.length && question.reports.every((r) => ABOUT_END.includes(r.kind ?? ''));
 }
 
+/** The first of the rallies joined together that `k` is one of; `joins` says a rally is joined to the next one. */
+export function joinStart(k: number, joins: (k: number) => boolean): number {
+  while (joins(k - 1)) {
+    k--;
+  }
+  return k;
+}
+
+/** The last of the rallies joined together that `k` is one of. */
+export function joinEnd(k: number, joins: (k: number) => boolean): number {
+  while (joins(k)) {
+    k++;
+  }
+  return k;
+}
+
+/** The report questions without the automatic reports on the rallies of `joined`, by their key:
+ * those read the rallies as last applied, and the next apply reads them joined. One about a player
+ * (`auto.sameJersey`) stays, as does a viewer's. */
+export function liveReports<Q extends { rally?: number | null; reports?: { kind: string | null }[] }>(questions: Q[], joined: Set<number>): Q[] {
+  return questions.flatMap((q) => {
+    if (q.rally == null || !joined.has(q.rally)) {
+      return [q];
+    }
+    const reports = q.reports?.filter((r) => !r.kind?.startsWith('auto.') || r.kind === 'auto.sameJersey');
+    return reports?.length ? [{ ...q, reports }] : [];
+  });
+}
+
 /** The touch most likely added after `before` (none: the rally's first, a serve by `server`): a
  * serve's reception, a free ball's or an attack's dig by the other team; a reception's or a dig's
  * set, a set's attack by the same team; after a block, a dig on the blockers' side. */

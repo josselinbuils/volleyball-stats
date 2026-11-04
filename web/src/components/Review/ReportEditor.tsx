@@ -16,6 +16,9 @@ import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
 import {
   aboutEnd,
+  joinEnd,
+  joinStart,
+  liveReports,
   changedSince,
   comingFirstTouch,
   freeFrame,
@@ -127,8 +130,8 @@ export function ReportEditor({
   questions: Question[];
   /** Marks a rally's reports handled, the corrections as they stand saved with them. */
   onHandled: (question: Question, changes: ReportChanges) => void;
-  /** The warnings as they stand: each one's rally, by its key, and moment. */
-  onWarnings?: (warnings: { rally: number; time: number }[]) => void;
+  /** The warnings as they stand: their moments, the rallies they make orange and the rallies joined, by their key. */
+  onWarnings?: (found: { times: number[]; warned: number[]; joined: number[] }) => void;
   /** The rallies with corrections not saved yet, by their key. */
   onUnsaved?: (keys: number[]) => void;
   /** The touch the video is on in its rally, as it stands with the corrections: to show over the video. */
@@ -161,6 +164,7 @@ export function ReportEditor({
   /** What the answers name a rally by. */
   const keyOf = (k: number) => shown[k].key;
   const fixOf = (k: number): RallyFix | undefined => (shown[k] ? rallyFixes[shown[k].key] : undefined);
+  const joins = (k: number) => !!fixOf(k)?.join && k + 1 < shown.length;
   const toReplay = (k: number) => fixOf(k)?.redo ?? shown[k]?.redo ?? false;
   const calledWrong = (k: number) => fixOf(k)?.wrong ?? shown[k]?.wrongCall ?? false;
 
@@ -186,7 +190,7 @@ export function ReportEditor({
       const next: RallyFix = { ...all[key], ...change };
       // Joined, the rally's winner is the next one's.
       // Marked as the referee's error, the winner is said: no last touch gives it.
-      if (!(next.wrong ?? shown[k].wrongCall) && next.winner === (next.join ? shown[k + 1]?.winner : shown[k].winner)) {
+      if (!(next.wrong ?? shown[k].wrongCall) && next.winner === (next.join ? shown[joinEnd(k + 1, joins)]?.winner : shown[k].winner)) {
         delete next.winner;
       }
       if (next.redo === !!shown[k].redo) {
@@ -236,8 +240,8 @@ export function ReportEditor({
       kept.set(row.rally, [...(kept.get(row.rally) ?? []), row]);
     }
   }
-  /** A rally's touches kept, the next one's too when joined to it. */
-  const mineOf = (k: number) => [...(kept.get(k) ?? []), ...(fixOf(k)?.join ? (kept.get(k + 1) ?? []) : [])];
+  /** A rally's touches kept, those of the rallies joined after it too. */
+  const mineOf = (k: number): Row[] => [...(kept.get(k) ?? []), ...(joins(k) ? mineOf(k + 1) : [])];
 
   const changes: ReportChanges = {
     touches: Object.entries(fixes).map(([frame, c]) => ({ frame: Number(frame), ...c })),
@@ -306,7 +310,7 @@ export function ReportEditor({
     now,
     TOUCH_LEAD_S,
   );
-  const named = coming && !fixOf(coming.rally - 1)?.join ? coming : inHere;
+  const named = coming && !joins(coming.rally - 1) ? coming : inHere;
   const caption = named && (named.removed ? `${t(`types.${named.type}`)} · ${t('review.reportRemoved')}` : `${t(`actions.${named.type}.${named.result}`)} · ${who(named.player)}`);
   useEffect(() => {
     onCaption?.(named && caption ? { team: named.team, text: caption } : null);
@@ -367,9 +371,9 @@ export function ReportEditor({
   const end = fix.end ?? rally?.end;
   const endOf = (k: number) => clock(fixOf(k)?.end ?? shown[k].end);
   const rallyLabel = (k: number) =>
-    (fixOf(k)?.join
-      ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(shown[k].start), to: endOf(k + 1) })
-      : t(fixOf(k - 1)?.join ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(shown[k].start), to: endOf(k) })) +
+    (joins(k)
+      ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(shown[k].start), to: endOf(joinEnd(k, joins)) })
+      : t(joins(k - 1) ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(shown[k].start), to: endOf(k) })) +
     (splits.includes(shown[k].key) ? ` · ${t('review.reportRallyNew')}` : '') +
     (toReplay(k) ? ` · ${t('review.reportRedo')}` : '') +
     (calledWrong(k) ? ` · ${t('review.reportWrongCall')}` : '');
@@ -379,19 +383,19 @@ export function ReportEditor({
   // What looks wrong in each rally shown, as it stands with the corrections: a rally joined to the
   // next one is checked with its touches, one said no play not at all.
   // A rally's winner: the one set, else the one its last touch's result says, else the page's.
-  const lastOf = (k: number) => kept.get(fixOf(k)?.join ? k + 1 : k)?.at(-1);
+  const lastOf = (k: number) => mineOf(k).at(-1);
   const winnerOf = (k: number): Group | null => {
     if (toReplay(k)) {
       return null;
     }
     if (calledWrong(k)) {
-      return fixOf(k)?.winner ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
+      return fixOf(k)?.winner ?? shown[joinEnd(k, joins)]?.winner ?? null;
     }
     // As on the page: the last touch says it, a point for its team or a fault for the other's; one
     // in play, or none, leaves the winner given.
     const last = lastOf(k);
     const said = last?.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : undefined;
-    return said ?? fixOf(k)?.winner ?? (fixOf(k)?.join ? shown[k + 1]?.winner : shown[k]?.winner) ?? null;
+    return said ?? fixOf(k)?.winner ?? shown[joinEnd(k, joins)]?.winner ?? null;
   };
   const setLastResult = (k: number, result: string) => {
     const last = lastOf(k);
@@ -427,8 +431,10 @@ export function ReportEditor({
     }
     editRally(k, { winner: w, wrong: on });
   };
-  const winner = rally ? winnerOf(here) : null;
-  const isEmpty = (k: number) => !mineOf(k).length && !fixOf(k)?.join && !fixOf(k - 1)?.join;
+  // How the rally ends is said on the first of those joined.
+  const whole = joinStart(here, joins);
+  const winner = rally ? winnerOf(whole) : null;
+  const isEmpty = (k: number) => !mineOf(k).length && !joins(k) && !joins(k - 1);
   const isDeleted = (k: number) => isEmpty(k) && fixOf(k)?.play === false;
   // A touchless rally whose end was said explains a point: it stays.
   const canDelete = (k: number) => isEmpty(k) && fixOf(k)?.play !== false && fixOf(k)?.winner === undefined && !toReplay(k) && !calledWrong(k);
@@ -449,16 +455,17 @@ export function ReportEditor({
   };
   const found = new Map<number, ReturnType<typeof problems>>();
   for (let k = 0; k < shown.length; k++) {
-    if (fixOf(k)?.play === false || fixOf(k - 1)?.join) {
+    if (fixOf(k)?.play === false || joins(k - 1)) {
       continue;
     }
     const mine = mineOf(k);
     // After the referee's error the serve may follow what really happened or the point given: no check.
-    const previous = k > 0 && shown[k - 1].set === shown[k].set && fixOf(k - 1)?.play !== false && !calledWrong(k - 1) ? winnerOf(k - 1) : null;
+    const before = joinStart(k - 1, joins);
+    const previous = k > 0 && shown[k - 1].set === shown[k].set && fixOf(before)?.play !== false && !calledWrong(before) ? winnerOf(before) : null;
     found.set(k, problems(mine, winnerOf(k), previous, hasTeams && !toReplay(k), checked.has(keyOf(k)) && !unsaved.has(keyOf(k))));
   }
   const problemsOf = (row: Row): Problem[] => {
-    const k = fixOf(row.rally - 1)?.join ? row.rally - 1 : row.rally;
+    const k = joinStart(row.rally, joins);
     const mine = mineOf(k);
     return row.removed ? [] : (found.get(k)?.touch.get(mine.indexOf(row)) ?? []);
   };
@@ -469,24 +476,31 @@ export function ReportEditor({
   };
   // The score after each rally as it stands with the corrections, the rallies out of view with
   // their winner set or the page's; a set ending off the final score given is flagged.
-  const scores = hasTeams ? runningScores(shown.map((r, k) => ({ set: r.set, winner: winnerOf(k), skip: fixOf(k)?.play === false || !!fixOf(k - 1)?.join }))) : [];
+  const scores = hasTeams ? runningScores(shown.map((r, k) => ({ set: r.set, winner: winnerOf(k), skip: fixOf(k)?.play === false || joins(k - 1) }))) : [];
   const off = offGiven(
     shown.map((r) => r.set),
     scores,
     match.scores,
   );
-  const warnings = shown.flatMap((r, k) => warningTimes(found.get(k), mineOf(k), r.start, r.end, off.has(k)).map((time) => ({ rally: r.key, time })));
-  const warningsJson = JSON.stringify(warnings);
+  const warningsAt = shown.map((r, k) => warningTimes(found.get(k), mineOf(k), r.start, shown[joinEnd(k, joins)].end, off.has(k)));
+  const joinedKeys = shown.flatMap((r, k) => (joins(k) || joins(k - 1) ? [r.key] : []));
+  const warningsJson = JSON.stringify({
+    times: warningsAt.flat(),
+    warned: shown.flatMap((r, k) => (warningsAt[joinStart(k, joins)].length ? [r.key] : [])),
+    joined: joinedKeys,
+  });
   useEffect(() => {
-    onWarnings?.(warnings);
+    onWarnings?.(JSON.parse(warningsJson));
   }, [warningsJson]);
+  const openQuestions = liveReports(questions, new Set(joinedKeys));
 
   // The reports under their rally's header; those in no rally between the rallies, as the timeouts.
   const reportRows = (list: Question[]) => list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} />);
   const rallyOfReport = (q: Question) => shown.findIndex((r) => r.key === q.rally);
   // What is wrong with a rally as a whole: no touch above its touches, no winner below them.
   const rallyWarning = (k: number, place: 'start' | 'end') => {
-    const list = (found.get(k)?.rally ?? []).filter((p) => (p === 'noWinner') === (place === 'end'));
+    // Rallies joined end with the last of them.
+    const list = place === 'end' && joins(k) ? [] : (found.get(place === 'end' ? joinStart(k, joins) : k)?.rally ?? []).filter((p) => (p === 'noWinner') === (place === 'end'));
     return list.length
       ? [
           <li key={`p${k}${place}`} className="flex items-center gap-1.5 px-2 text-xs text-amber-800 dark:text-amber-300">
@@ -496,9 +510,9 @@ export function ReportEditor({
         ]
       : [];
   };
-  const reportsIn = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) === k && !aboutEnd(q)));
-  const reportsAtEnd = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) === k && aboutEnd(q)));
-  const reportsAfter = (k: number) => reportRows(questions.filter((q) => rallyOfReport(q) < 0 && shown.findLastIndex((r) => r.start <= (q.reports?.[0]?.time ?? q.clip.start)) === k));
+  const reportsIn = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && !aboutEnd(q)));
+  const reportsAtEnd = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && aboutEnd(q)));
+  const reportsAfter = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) < 0 && shown.findLastIndex((r) => r.start <= (q.reports?.[0]?.time ?? q.clip.start)) === k));
   const timeoutRows = (k: number) =>
     timeoutsAfter(shown, timeouts, k, match.fps).map((o) => <TimeoutRow key={`o${o.start}`} timeout={o} current={isCurrent(o)} onPlay={onPlay} onChange={onTimeout} />);
 
@@ -660,7 +674,7 @@ export function ReportEditor({
                   const remove = () => (row.added ? setAdded((all) => all.filter((a) => a.frame !== row.frame)) : edit(row, { player: 'none' }));
                   const change = (c: Fix) => {
                     // A point or a fault said on a touch ends the rally: it is no longer to replay.
-                    const owner = fixOf(row.rally - 1)?.join ? row.rally - 1 : row.rally;
+                    const owner = joinStart(row.rally, joins);
                     if (c.result && c.result !== 'play' && toReplay(owner)) {
                       editRally(owner, { redo: false });
                     }
@@ -769,14 +783,14 @@ export function ReportEditor({
               ...rallyWarning(k, 'end'),
               ...reportsAtEnd(k),
               // The score once the rally is over, between it and the next one.
-              ...(scores[k]
+              ...(!joins(k) && scores[joinStart(k, joins)]
                 ? [
                     <li
                       key={`s${k}`}
                       data-at={shown[k].end}
                       className={cn(
                         'my-1 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 rounded-md border-2 border-foreground/25 bg-secondary px-3 py-1.5 text-sm shadow-sm',
-                        off.has(k) && 'border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200',
+                        off.has(joinStart(k, joins)) && 'border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200',
                       )}
                     >
                       <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -786,15 +800,15 @@ export function ReportEditor({
                         <Swatch color={teamColor(1)} ring={teamRing(1)} />
                         {groupName(t, 1)}
                         <span className="text-lg font-bold">
-                          {scores[k]![0]} – {scores[k]![1]}
+                          {scores[joinStart(k, joins)]![0]} – {scores[joinStart(k, joins)]![1]}
                         </span>
                         {groupName(t, 2)}
                         <Swatch color={teamColor(2)} ring={teamRing(2)} />
                       </span>
-                      {off.has(k) && (
+                      {off.has(joinStart(k, joins)) && (
                         <span className="flex items-center gap-1">
                           <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
-                          {t('review.reportScoreGiven', { given: off.get(k) })}
+                          {t('review.reportScoreGiven', { given: off.get(joinStart(k, joins)) })}
                         </span>
                       )}
                     </li>,
@@ -816,8 +830,8 @@ export function ReportEditor({
                 type="single"
                 variant="outline"
                 spacing={0}
-                value={toReplay(here) ? 'redo' : winner === null ? '' : String(winner)}
-                onValueChange={(v) => v && (v === 'redo' ? pickReplay(here) : pickWinner(here, Number(v) as Group))}
+                value={toReplay(whole) ? 'redo' : winner === null ? '' : String(winner)}
+                onValueChange={(v) => v && (v === 'redo' ? pickReplay(whole) : pickWinner(whole, Number(v) as Group))}
               >
                 {GROUPS.map((g) => (
                   <ToggleGroupItem key={g} value={String(g)} className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
@@ -838,7 +852,7 @@ export function ReportEditor({
               </label>
             )}
             <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')} title={t('review.reportWrongCallHelp')}>
-              <input type="checkbox" checked={calledWrong(here)} disabled={winner === null} onChange={(e) => markWrongCall(here, e.target.checked)} />
+              <input type="checkbox" checked={calledWrong(whole)} disabled={winner === null} onChange={(e) => markWrongCall(whole, e.target.checked)} />
               {t('review.reportWrongCall')}
             </label>
             <label className={cn('flex items-center gap-2', !canJoin && 'text-muted-foreground')}>
