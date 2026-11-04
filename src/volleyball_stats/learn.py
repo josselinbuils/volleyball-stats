@@ -208,10 +208,12 @@ def train(match: Path, video: Path, court: Path) -> None:
 
 def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None] = lambda _: None) -> dict[str, Score]:
     """The pipeline run again on the match (match.py, the trackers' outputs and the poses kept), the
-    answers moved onto its rally windows (`rekey`), then every step scored, kept in learn.json.
+    answers moved onto its rally windows (`rekey`), then every step scored, kept in learn.json with
+    what the replaced results scored on the same answers (the held-out scores are the training's).
     `on_stage` is told each step as it starts (match.STAGE lines), "answers" for the last one."""
     from volleyball_stats import match as pipeline, rekey
 
+    replaced = {k: v for k, v in scores(match, video, court).items() if k not in from_training(match)}
     before = match / "before-rerun"
     before.mkdir(exist_ok=True)
     shutil.copy2(match / "rallies.csv", before / "rallies.csv")
@@ -232,7 +234,7 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     path = match / "identity_answers.json"
     if not path.exists():
-        return record(match, video, court)
+        return record(match, video, court, replaced)
     shutil.copy2(path, before / "identity_answers.json")
     log = rekey.moved(review.load_log(path), rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv"), round(actions.LEAD_S * fps))
     review.save(path, log)
@@ -242,16 +244,16 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     if (before / "review-data.js").exists():
         page, _ = web.match_data(match, video, Calibration.load(court))
         review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page)))
-    return record(match, video, court)
+    return record(match, video, court, replaced)
 
 
-def record(match: Path, video: Path, court: Path) -> dict[str, Score]:
-    """`scores`, added to learn.json; printed against the last ones."""
+def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | None = None) -> dict[str, Score]:
+    """`scores`, added to learn.json with those of the results they `replaced`; printed against the last ones."""
     path = match / HISTORY
     history = json.loads(path.read_text()) if path.exists() else []
     now = scores(match, video, court)
     print(report(now, history[-1]["scores"] if history else None))
-    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now})
+    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now, **({"before": replaced} if replaced else {})})
     files.write_text(path, json.dumps(history, indent=1) + "\n")
     return now
 

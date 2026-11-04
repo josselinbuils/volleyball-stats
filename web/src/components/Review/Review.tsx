@@ -15,6 +15,7 @@ import {
   post,
   type Conflict,
   type Hosted,
+  type Comparison,
   type LearnRun,
   type Named,
   type Question,
@@ -69,6 +70,7 @@ export function Review({
   conflicts,
   hosted,
   learning = [],
+  comparison = null,
   fetched,
   backup,
   films: savedFilms,
@@ -90,6 +92,7 @@ export function Review({
   conflicts: Conflict[];
   hosted?: Hosted | null;
   learning?: LearnRun[];
+  comparison?: Comparison | null;
   fetched?: { at: string; count: number; error: string | null } | null;
   backup?: { at: string; error: string | null } | null;
   films?: { total: number; stale: number };
@@ -443,7 +446,7 @@ export function Review({
           />
         )}
         {tab === 'progress' ? (
-          <Progress runs={learning} />
+          <Progress runs={learning} comparison={comparison} />
         ) : tab === 'names' ? (
           <Names players={players} roster={roster} onNamed={setGiven} onSaved={onSaved} onError={() => setError(true)} />
         ) : tab === 'match' ? (

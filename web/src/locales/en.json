@@ -442,6 +442,12 @@
       "delta_other": "{{sign}}{{count}} pts",
       "curve": "{{label}} at each analysis",
       "read": "{{when}} · version {{commit}} · {{right}}/{{total}} ({{share}})",
+      "verdict": "Against the previous analysis, on the same answers",
+      "verdictSoon": "The comparison comes with the next “Learn from my answers”.",
+      "better": "better",
+      "worse": "worse",
+      "same": "unchanged",
+      "history": "History",
       "table": "Every measure",
       "measureColumn": "Measure"
     },

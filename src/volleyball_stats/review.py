@@ -688,6 +688,14 @@ def pooled_runs(outputs: Path) -> list[dict]:
     return out
 
 
+def last_comparison(match: Path) -> dict | None:
+    """The scores of `match`'s last run (learn.json) and of the results it replaced, on the same
+    answers; None if that run did not measure them."""
+    path = match / "learn.json"
+    last = json.loads(path.read_text())[-1] if path.exists() else {}
+    return {"before": last["before"], "after": last["scores"]} if "before" in last else None
+
+
 def page_data(site: Path) -> dict | None:
     """The data.js of the page at `site`, None without one."""
     path = site / "data.js"
@@ -1968,6 +1976,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         }
         data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": hosted if (match / matches.PUBLISH).exists() else None,
             "learning": pooled_runs(match.parent),
+            "comparison": last_comparison(match),
             "fetched": fetched_log or None,
             "backup": backed or None,
             "filmsError": filmed["error"],

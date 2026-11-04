@@ -1,6 +1,17 @@
 import json
 
-from volleyball_stats.learn import from_answers, near, report
+from volleyball_stats import learn
+from volleyball_stats.learn import from_answers, near, record, report
+
+
+class TestRecord:
+    def test_the_replaced_scores_are_kept_with_the_run(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(learn, "scores", lambda *_: {"who": (3, 4)})
+        record(tmp_path, tmp_path, tmp_path)
+        record(tmp_path, tmp_path, tmp_path, {"who": (2, 4)})
+        first, second = json.loads((tmp_path / "learn.json").read_text())
+        assert "before" not in first
+        assert second["before"] == {"who": [2, 4]}
 
 
 class TestNear:

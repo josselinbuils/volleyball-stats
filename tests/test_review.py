@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -1066,3 +1066,14 @@ class TestSetPhoto:
         set_photo(tmp_path, [(1, 0, 30, 2, 5)], 2, 5, 12, [1, 2, 3, 4])
 
         assert json.loads((tmp_path / "photo_choices.json").read_text()) == {"2:5": {"frame": 12, "box": [1, 2, 3, 4]}}
+
+
+class TestLastComparison:
+    def test_the_last_run_against_what_it_replaced(self, tmp_path):
+        (tmp_path / "learn.json").write_text(json.dumps([{"scores": {"who": [1, 2]}}, {"scores": {"who": [2, 2]}, "before": {"who": [1, 2]}}]))
+        assert last_comparison(tmp_path) == {"before": {"who": [1, 2]}, "after": {"who": [2, 2]}}
+
+    def test_none_when_the_last_run_measured_nothing_before_it(self, tmp_path):
+        assert last_comparison(tmp_path) is None
+        (tmp_path / "learn.json").write_text(json.dumps([{"scores": {}, "before": {}}, {"scores": {}}]))
+        assert last_comparison(tmp_path) is None

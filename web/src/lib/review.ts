@@ -165,13 +165,19 @@ interface ReviewData {
   filmsError?: string | null;
   /** The analysis runs' scores on the answers (learn.json): each measure's right and total. */
   learning?: LearnRun[];
+  comparison?: Comparison | null;
   /** The last fetch of the viewers' reports from the hosting: when, how many for this match, why it failed. */
   fetched?: { at: string; count: number; error: string | null } | null;
   /** The last copy of the data on the hosting server: when, why it failed. */
   backup?: { at: string; error: string | null } | null;
 }
 
-export type LearnRun = { time: string; commit: string; match?: string; scores: Record<string, [number, number]> };
+export type Scores = Record<string, [number, number]>;
+
+export type LearnRun = { time: string; commit: string; match?: string; scores: Scores };
+
+/** This match's last run and the results it replaced, on the same answers. */
+export type Comparison = { before: Scores; after: Scores };
 
 export type Hosted = { at: string | null; day?: string | null; error: string | null; behind: boolean };
 

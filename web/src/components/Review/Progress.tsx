@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { compared } from '@/components/Review/helpers/comparison';
 import { useFormat } from '@/lib/format';
-import type { LearnRun } from '@/lib/review';
+import type { Comparison, LearnRun } from '@/lib/review';
 import { cn } from '@/lib/utils';
 
 // learn.json's measures, by step, with their label key: each a share of answers or labels right.
@@ -50,10 +51,10 @@ const W = 240;
 const H = 56;
 const PAD = 6;
 
-/** Each step's share right on the answers of all the matches over the analysis runs (learn.json, each
- * counting every match so far): the last run, its change since the one before and a curve of every
- * run, then a table of all of them. */
-export function Progress({ runs }: { runs: LearnRun[] }) {
+/** The last run against the results it replaced, then in a history each step's share right on the
+ * answers of all the matches over the analysis runs (learn.json, each counting every match so far):
+ * the last run, its change since the one before and a curve of every run, then a table of all of them. */
+export function Progress({ runs, comparison }: { runs: LearnRun[]; comparison: Comparison | null }) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
   const stamp = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -73,51 +74,100 @@ export function Progress({ runs }: { runs: LearnRun[] }) {
         {checked ? ` ${t('review.progress.checked', { count: checked })}` : ''}
         {matches > 1 ? ` ${t('review.progress.matches', { count: matches })}` : ''}
       </p>
-      {GROUPS.map(([group, measures]) => {
-        const shown = measures.filter(([key]) => runs.some((r) => r.scores[key]?.[1]));
-        return (
-          shown.length > 0 && (
-            <section key={group} className="grid gap-3">
-              <h2 className="m-0 px-1 text-base font-semibold">{t(`review.progress.group.${group}`)}</h2>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {shown.map(([key, label]) => (
-                  <Tile key={key} label={t(`review.progress.measure.${label}`)} points={runs.map((r) => ({ run: r, score: r.scores[key] }))} when={when} f={f} />
-                ))}
-              </div>
-            </section>
-          )
-        );
-      })}
-      <details className="rounded-lg border bg-card px-4 py-3">
-        <summary className="cursor-pointer font-medium">{t('review.progress.table')}</summary>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-sm tabular-nums">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-1 pr-4 font-normal">{t('review.progress.measureColumn')}</th>
-                {runs.map((r, k) => (
-                  <th key={k} className="py-1 pr-4 font-normal whitespace-nowrap">
-                    {when(r)} <span className="text-xs">{r.commit}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {GROUPS.flatMap(([, measures]) => measures).map(([key, label]) => (
-                <tr key={key} className="border-t">
-                  <td className="py-1 pr-4">{t(`review.progress.measure.${label}`)}</td>
-                  {runs.map((r, k) => (
-                    <td key={k} className="py-1 pr-4 whitespace-nowrap">
-                      {r.scores[key]?.[1] ? `${r.scores[key][0]}/${r.scores[key][1]}` : '–'}
-                    </td>
+      {comparison ? <Verdict comparison={comparison} /> : <p className="m-0 rounded-lg border bg-card px-4 py-3 text-muted-foreground">{t('review.progress.verdictSoon')}</p>}
+      <details open={!comparison}>
+        <summary className="cursor-pointer px-1 font-medium">{t('review.progress.history')}</summary>
+        <div className="mt-3 grid gap-6">
+          {GROUPS.map(([group, measures]) => {
+            const shown = measures.filter(([key]) => runs.some((r) => r.scores[key]?.[1]));
+            return (
+              shown.length > 0 && (
+                <section key={group} className="grid gap-3">
+                  <h2 className="m-0 px-1 text-base font-semibold">{t(`review.progress.group.${group}`)}</h2>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {shown.map(([key, label]) => (
+                      <Tile key={key} label={t(`review.progress.measure.${label}`)} points={runs.map((r) => ({ run: r, score: r.scores[key] }))} when={when} f={f} />
+                    ))}
+                  </div>
+                </section>
+              )
+            );
+          })}
+          <section className="grid gap-3">
+            <h2 className="m-0 px-1 text-base font-semibold">{t('review.progress.table')}</h2>
+            <div className="overflow-x-auto rounded-lg border bg-card px-4 py-3">
+              <table className="w-full text-sm tabular-nums">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="py-1 pr-4 font-normal">{t('review.progress.measureColumn')}</th>
+                    {runs.map((r, k) => (
+                      <th key={k} className="py-1 pr-4 font-normal whitespace-nowrap">
+                        {when(r)} <span className="text-xs">{r.commit}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {GROUPS.flatMap(([, measures]) => measures).map(([key, label]) => (
+                    <tr key={key} className="border-t">
+                      <td className="py-1 pr-4">{t(`review.progress.measure.${label}`)}</td>
+                      {runs.map((r, k) => (
+                        <td key={k} className="py-1 pr-4 whitespace-nowrap">
+                          {r.scores[key]?.[1] ? `${r.scores[key][0]}/${r.scores[key][1]}` : '–'}
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </details>
     </div>
+  );
+}
+
+/** What the last run changed: how many measures went each way, then those that moved, the worse first. */
+function Verdict({ comparison }: { comparison: Comparison }) {
+  const { t } = useTranslation();
+  const measures = GROUPS.flatMap(([, list]) => list);
+  const { better, worse, same } = compared(
+    comparison,
+    measures.map(([key]) => key),
+  );
+  const label = (key: string) => t(`review.progress.measure.${measures.find(([k]) => k === key)![1]}`);
+  const counts = [
+    { name: 'better', count: better.length, tone: better.length ? 'text-emerald-700 dark:text-emerald-400' : '' },
+    { name: 'worse', count: worse.length, tone: worse.length ? 'text-destructive' : '' },
+    { name: 'same', count: same, tone: '' },
+  ];
+  const score = ([right, total]: [number, number]) => `${right}/${total}`;
+  return (
+    <section className="grid gap-3 rounded-lg border bg-card p-4">
+      <h2 className="m-0 text-base font-semibold">{t('review.progress.verdict')}</h2>
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        {counts.map(({ name, count, tone }) => (
+          <div key={name} className="flex items-baseline gap-2">
+            <span className={cn('text-3xl font-semibold tabular-nums', tone)}>{count}</span>
+            <span className="text-sm text-muted-foreground">{t(`review.progress.${name}`)}</span>
+          </div>
+        ))}
+      </div>
+      {better.length + worse.length > 0 && (
+        <ul className="m-0 grid list-none gap-2 p-0">
+          {[...worse, ...better].map((key) => (
+            <li key={key} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-sm">
+              {worse.includes(key) ? <ArrowDown aria-hidden className="size-4 text-destructive" /> : <ArrowUp aria-hidden className="size-4 text-emerald-700 dark:text-emerald-400" />}
+              <span>{label(key)}</span>
+              <span className="ml-auto text-muted-foreground tabular-nums">
+                {score(comparison.before[key])} → {score(comparison.after[key])}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

@@ -52,7 +52,8 @@ the review added and the pipeline now finds too (0-20 frames off) are one (`web.
 In the code since 1 Nov:
 
 - `learn` scores every step on the answers and the checked rallies (full labels), each run kept in
-  `learn.json`; the review's "Progrès" tab charts them per measure.
+  `learn.json`, a rerun's with what the results it replaced scored on the same answers; the review's
+  "Progrès" tab opens on that comparison, the curves per measure in its history.
 - The review's "Apprendre de mes réponses" (`learn --rerun`) reruns the pipeline, moves the answers
   (`rekey`) and scores; `wrists.json`, `relances.json` and `looks.npz` cache the poses and looks
   (side_holdout: 3 min, then 6 s). "Mettre en ligne" uploads; an apply no longer does.
