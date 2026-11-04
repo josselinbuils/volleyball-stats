@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { Pause, Play, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SkipIcon } from '@/components/SkipIcon';
 import { Swatch } from '@/components/Swatch';
@@ -94,6 +94,7 @@ export function ClipVideo({
   const held = useRef(false);
   const holdTimer = useRef(0);
   const wasPaused = useRef(false);
+  const [paused, setPaused] = useState(true);
   const swallowClick = useRef(false);
   // The part of the frame a pinch zoomed on, null for the automatic view.
   const [pinched, setPinched] = useState<View | null>(null);
@@ -243,15 +244,18 @@ export function ClipVideo({
   }, [width, height]);
   // The native controls would zoom with the video: a click plays or pauses it instead.
   const own = zoom || pinched !== null;
-  const toggle = () => {
+  const playPause = () => {
     const v = video.current;
+    if (v) {
+      void (v.paused ? v.play().catch(() => {}) : v.pause());
+    }
+  };
+  const toggle = () => {
     if (swallowClick.current) {
       swallowClick.current = false;
       return;
     }
-    if (v) {
-      void (v.paused ? v.play().catch(() => {}) : v.pause());
-    }
+    playPause();
   };
   const press = (event: PointerEvent) => {
     grab.current = { x: event.clientX, y: event.clientY, moved: false };
@@ -322,6 +326,8 @@ export function ClipVideo({
             playsInline
             controls={!own}
             onClick={own ? toggle : undefined}
+            onPlay={() => setPaused(false)}
+            onPause={() => setPaused(true)}
             onPointerDown={press}
             onPointerMove={drag}
             onPointerUp={release}
@@ -409,6 +415,16 @@ export function ClipVideo({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="bg-card"
+          title={t(paused ? 'review.playVideo' : 'review.pauseVideo')}
+          aria-label={t(paused ? 'review.playVideo' : 'review.pauseVideo')}
+          onClick={playPause}
+        >
+          {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
+        </Button>
         {showTime && <span className="min-w-12 text-sm font-medium tabular-nums">{clock(time)}</span>}
         {free && (
           <div className="flex gap-1">

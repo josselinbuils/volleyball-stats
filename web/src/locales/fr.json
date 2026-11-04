@@ -445,6 +445,8 @@
     "exitFullScreen": "Quitter le plein écran",
     "zoomMore": "Zoomer",
     "zoomLess": "Dézoomer",
+    "playVideo": "Lire",
+    "pauseVideo": "Pause",
     "soundOn": "Activer le son",
     "soundOff": "Couper le son",
     "pinchNote": "Zoomez avec ces boutons, ⌘ ou Ctrl + molette, ou en pinçant le pavé tactile ; faites glisser la vidéo pour vous déplacer, maintenez un clic pour la ralentir.",

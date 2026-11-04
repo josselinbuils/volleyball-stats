@@ -445,6 +445,8 @@
     "exitFullScreen": "Exit full screen",
     "zoomMore": "Zoom in",
     "zoomLess": "Zoom out",
+    "playVideo": "Play",
+    "pauseVideo": "Pause",
     "soundOn": "Turn the sound on",
     "soundOff": "Turn the sound off",
     "pinchNote": "Zoom with these buttons, ⌘ or Ctrl + wheel, or by pinching the trackpad; drag the video to move around, hold a click to slow it down.",
