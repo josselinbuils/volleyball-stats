@@ -1,8 +1,15 @@
 /** What looks wrong in a rally, as the review's automatic reports find it (review.unusual). */
-export type Problem = 'empty' | 'noServe' | 'twoServes' | 'passWithoutServe' | 'serveNotReceived' | 'fourTouches' | 'samePlayer' | 'afterFault' | 'afterPoint' | 'server' | 'noWinner' | 'gap';
+export type Problem =
+  'empty' | 'noServe' | 'twoServes' | 'passWithoutServe' | 'serveNotReceived' | 'fourTouches' | 'samePlayer' | 'afterFault' | 'afterPoint' | 'server' | 'noWinner' | 'gap' | DoubtfulProblem;
+
+/** What may well be right after all, in an amateur match: a rally checked shows none of them. */
+type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | 'ace';
 
 // Over this long between two touches, in seconds, one is often missing (review.GAP_S).
 const GAP_S = 2.5;
+// Under this long after a team's touch, in seconds, a touch is often the same one seen twice.
+const DOUBLE_SAME_TEAM_S = 0.3;
+const DOUBLE_OTHER_TEAM_S = 0.25;
 
 /** A touch as the editor lists it: its player "TEAM:IDENTITY", '' when unknown. */
 export interface Checked {
@@ -24,8 +31,9 @@ export function warningTimes(found: { rally: Problem[]; touch: Map<number, Probl
  * of the ball in their order, and ends the rally as a fault does): those of the rally, and
  * those of each touch by its index, on the touch that shows them. `winner` is the rally's,
  * `previous` the winner of the rally before in the same set (null: none, or unknown), `teams`
- * whether the match has teams (no winner then is a problem). */
-export function problems(touches: Checked[], winner: number | null, previous: number | null, teams: boolean): { rally: Problem[]; touch: Map<number, Problem[]> } {
+ * whether the match has teams (no winner then is a problem; a rally to replay says false),
+ * `validated` whether the rally is checked as it stands. */
+export function problems(touches: Checked[], winner: number | null, previous: number | null, teams: boolean, validated = false): { rally: Problem[]; touch: Map<number, Problem[]> } {
   const rally: Problem[] = [];
   const touch = new Map<number, Problem[]>();
   const mark = (k: number, p: Problem) => touch.set(k, [...(touch.get(k) ?? []), p]);
@@ -78,5 +86,59 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
   if (teams && winner === null) {
     rally.push('noWinner');
   }
+  if (!validated) {
+    doubtful(touches, played, teams, mark);
+  }
   return { rally, touch };
+}
+
+/** Marks what `DoubtfulProblem` lists on `played`, the touches of the ball by their index. On the two matches reviewed, 82-100% of these flags sit on a correction. */
+function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k: number, p: Problem) => void): void {
+  played.forEach((k, n) => {
+    if (!n) {
+      return;
+    }
+    const b = played[n - 1]!;
+    const before = touches[b]!;
+    const c = touches[k]!;
+    const same = before.team === c.team;
+    const blocked = before.type === 'block' || c.type === 'block';
+    if (before.time !== undefined && c.time !== undefined) {
+      const apart = c.time - before.time;
+      if (same ? apart <= DOUBLE_SAME_TEAM_S : apart <= DOUBLE_OTHER_TEAM_S && !blocked) {
+        mark(k, 'doubleTouch');
+      }
+    }
+    if (blocked) {
+      return;
+    }
+    if (same && (before.type === 'attack' || before.type === 'relance')) {
+      mark(k, 'overThenSameTeam');
+    }
+    if (!same && before.type === 'set') {
+      mark(b, 'setToOtherTeam');
+    }
+    if (!same && c.type === 'set') {
+      mark(k, 'setFirst');
+    }
+    if (same && (c.type === 'dig' || c.type === 'pass')) {
+      mark(k, 'digLater');
+    }
+    if (same && before.type === 'set' && c.type === 'set') {
+      mark(k, 'twoSets');
+    }
+  });
+  const end = played.at(-1);
+  // A playing fault after it ends the rally.
+  if (!teams || end === undefined || end !== touches.length - 1) {
+    return;
+  }
+  const last = touches[end]!;
+  if (last.type === 'set') {
+    mark(end, 'endsOnSet');
+  } else if (last.result === 'point' && last.type === 'serve') {
+    mark(end, 'ace');
+  } else if (last.result === 'point' && ['pass', 'dig', 'relance'].includes(last.type)) {
+    mark(end, 'pointOnTouch');
+  }
 }

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats import files, web
+from volleyball_stats import files, review as review_module, web
 from volleyball_stats.teams import match_end
 from volleyball_stats.review import last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
 
@@ -1077,3 +1077,24 @@ class TestLastComparison:
         assert last_comparison(tmp_path) is None
         (tmp_path / "learn.json").write_text(json.dumps([{"scores": {}, "before": {}}, {"scores": {}}]))
         assert last_comparison(tmp_path) is None
+
+
+class TestNotOver:
+    @staticmethod
+    def page(kind="attack", result="point"):
+        rally = {"key": 100, "start": 2.0, "end": 8.0, "set": 1}
+        return {"fps": 50.0, "rallies": [rally], "contacts": [{"t": 4.0, "f": 200, "type": kind, "team": 1, "rally": 0, "result": result}, {"t": 5.0, "f": 250, "type": "floor", "team": None, "rally": 0, "result": "play"}]}
+
+    def test_a_point_with_no_crossing_after_it_is_reported(self):
+        assert [(r["kind"], r["time"]) for r in review_module.not_over(self.page(), [100, 201])] == [("auto.notOver", 4.0)]
+
+    def test_a_crossing_up_to_a_second_after_the_end_is_enough(self):
+        assert review_module.not_over(self.page(), [449]) == []
+
+    def test_neither_a_block_a_fault_a_rally_to_replay_nor_one_checked(self):
+        assert review_module.not_over(self.page("block"), []) == []
+        assert review_module.not_over(self.page(result="error"), []) == []
+        assert review_module.not_over(self.page(), [], {100}) == []
+        page = self.page()
+        page["rallies"][0]["redo"] = True
+        assert review_module.not_over(page, []) == []

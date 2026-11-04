@@ -62,7 +62,7 @@ export function offGiven(sets: number[], scores: ([number, number] | null)[], gi
 /** A touch added under this long after the one before it in its rally follows it; later, it starts the next rally. */
 export const NEXT_TOUCH_S = 5;
 
-const ABOUT_END = ['auto.noWinner', 'auto.scoreOff', 'auto.boardOff', 'auto.missedPoint'];
+const ABOUT_END = ['auto.noWinner', 'auto.scoreOff', 'auto.boardOff', 'auto.missedPoint', 'auto.boardStill'];
 
 /** Whether all a rally's reports are about how it ended: they then come after its touches. */
 export function aboutEnd(question: { reports?: { kind?: string | null }[] }): boolean {

@@ -39,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, decode, feedback, film, files, identity, jerseys, matches, rename, scoreboard, timeouts, web
+from volleyball_stats import attribution, backup, contacts, decode, feedback, film, files, identity, jerseys, matches, rallies, rename, scoreboard, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
@@ -149,7 +149,10 @@ class Questions:
         texts = scoreboard.load(self.match)
         missed = missed_points(self.page, texts) if self.page else []
         board = board_off(self.page, texts) if self.page else []
-        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []) + missed + board, key=lambda r: r.get("time") or 0)
+        done = set(checked(load_log(self.match / "identity_answers.json")))
+        still = board_still(self.page, texts, done) if self.page else []
+        over = not_over(self.page, crossings(self.match, self.calibration, self.fps), done) if self.page and self.calibration else []
+        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []) + missed + board + still + over, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -731,6 +734,8 @@ def reports(match: Path) -> list[dict]:
 GAP_S = 2.5
 # A team's six players serve in turn: under this many turns apart, it is not the same player's turn.
 ROTATION = 6
+# A touch scoring has its ball cross the net from this many frames after it to this long after its rally's end.
+OVER_FROM, OVER_AFTER_S = 2, 1.0
 
 
 def rotation_slips(page: dict) -> set[int]:
@@ -887,6 +892,47 @@ def board_off(page: dict, texts: dict[int, list[str]]) -> list[dict]:
                 said = f"auto:boardOff:{number}:{board[0]}-{board[1]}"
                 out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[k]["end"], "kind": "auto.boardOff", "comment": None, "shown": f"{score[0]}-{score[1]} ≠ {board[0]}-{board[1]}"})
                 last = off
+    return out
+
+
+def board_still(page: dict, texts: dict[int, list[str]], done: set[int] = frozenset()) -> list[dict]:
+    """The rallies played between two equal readings of the score board (`scoreboard.load`'s texts), to replay or none, as reports
+    at their end, kind "auto.boardStill", `shown` the reading; none on a rally to replay or one of `done` (checked, by key).
+    Second match: 6 flags, 6 on a rally corrected; first match: none, its board rarely read."""
+    rallies = page["rallies"]
+    readings = scoreboard.boards(texts, [(r["start"], r["end"], r["set"]) for r in rallies], page["fps"])
+    out = []
+    for (j, (left, a, b, right)), (k, after) in zip(readings, readings[1:]):
+        r = rallies[k]
+        if k == j + 1 and after == (left, a, b, right) and a + b == r["set"] - 1 and not r.get("redo") and r.get("key") not in done:
+            said = f"auto:boardStill:{r['set']}:{left}-{right}:{r['start']}"
+            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["end"], "kind": "auto.boardStill", "comment": None, "shown": f"{left}-{right}"})
+    return out
+
+
+def crossings(match: Path, calibration: Calibration, fps: float) -> list[int]:
+    """Every net crossing of the match's ball track; net.csv holds only those of the rally windows, which may end too early."""
+    track = rallies.load_track(match / "ball.csv")
+    net_x = float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
+    return contacts.detect_crossings(track, net_x, fps, contacts.MARGIN * rallies.court_scale(calibration))
+
+
+def not_over(page: dict, crossed: list[int], done: set[int] = frozenset()) -> list[dict]:
+    """The rallies whose last touch scores (a block apart, at the net) with no net crossing (`crossed`, frames) from it to OVER_AFTER_S
+    after the rally's end, as reports on it, kind "auto.notOver"; none on a rally to replay or one of `done` (checked, by key).
+    Second match: 17 flags, 16 on a correction; first match: 10, 10."""
+    fps = page["fps"]
+    at = np.array(crossed, dtype=int)
+    last = {c["rally"]: c for c in page["contacts"] if c["type"] not in web.NO_PLAYER and c["type"] != "fault"}
+    out = []
+    for k, c in last.items():
+        r = page["rallies"][k]
+        frame = c.get("f", round(c["t"] * fps))
+        if web.labelled(c) != "point" or c["type"] == "block" or r.get("redo") or r.get("key") in done:
+            continue
+        if not np.any((at > frame + OVER_FROM) & (at < round((r["end"] + OVER_AFTER_S) * fps))):
+            said = f"auto:notOver:{frame}"
+            out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": c["t"], "kind": "auto.notOver", "comment": None})
     return out
 
 

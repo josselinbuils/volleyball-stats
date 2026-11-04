@@ -1,4 +1,4 @@
-from volleyball_stats.review import board_off, missed_points
+from volleyball_stats.review import board_off, board_still, missed_points
 from volleyball_stats.scoreboard import boards, grid, parse, steady
 
 
@@ -47,6 +47,15 @@ class TestBoardOff:
         page = self.page([[1, 0], [2, 0], [3, 0]])
         texts = self.texts(page, ["1000", "1000", "3000"])
         assert board_off(page, texts) == []
+
+    def test_a_rally_leaving_the_board_as_it_was_is_reported_unless_replayed_or_checked(self):
+        page = self.page([[1, 0], [2, 0], [3, 0]])
+        texts = self.texts(page, ["1000", "2000", "2000"])
+        assert [(r["kind"], r["time"], r["shown"]) for r in board_still(page, texts)] == [("auto.boardStill", 25.0, "2-0")]
+        page["rallies"][2]["key"] = 1000
+        assert board_still(page, texts, {1000}) == []
+        page["rallies"][2]["redo"] = True
+        assert board_still(page, texts) == []
 
     def test_a_board_gaining_more_points_than_rallies_is_a_missed_point(self):
         page = self.page([[1, 0], [2, 0], [3, 0], [4, 0], [5, 0]])

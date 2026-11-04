@@ -749,7 +749,18 @@
         "gap": "Long pause between two touches",
         "serverOrder": "Server out of rotation order",
         "sameJersey": "Two players with the same jersey",
-        "missedPoint": "More points on the board than rallies: a missed point?"
+        "missedPoint": "More points on the board than rallies: a missed point?",
+        "boardStill": "Scoreboard unchanged: a rally to replay?",
+        "notOver": "A point without the ball crossing the net",
+        "doubleTouch": "The same touch seen twice?",
+        "overThenSameTeam": "The same team plays on after an attack or a relance",
+        "setToOtherTeam": "A set followed by the other team",
+        "setFirst": "A set as first touch",
+        "digLater": "A dig or reception after the team's own touch",
+        "twoSets": "Two sets in a row",
+        "endsOnSet": "The rally ends on a set",
+        "pointOnTouch": "A point on a reception, dig or relance",
+        "ace": "An ace: did nobody touch the ball?"
       }
     },
     "details": "Add details",

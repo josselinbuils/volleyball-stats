@@ -749,7 +749,18 @@
         "gap": "Longue pause entre deux touches",
         "serverOrder": "Serveur hors de l'ordre de rotation",
         "sameJersey": "Deux joueurs avec le même maillot",
-        "missedPoint": "Plus de points au tableau que d'échanges : un point manqué ?"
+        "missedPoint": "Plus de points au tableau que d'échanges : un point manqué ?",
+        "boardStill": "Tableau inchangé : échange à rejouer ?",
+        "notOver": "Point sans passage du filet",
+        "doubleTouch": "La même touche vue deux fois ?",
+        "overThenSameTeam": "La même équipe rejoue après une attaque ou une relance",
+        "setToOtherTeam": "Une passe suivie par l'autre équipe",
+        "setFirst": "Une passe en première touche",
+        "digLater": "Une défense ou une réception après une touche de l'équipe",
+        "twoSets": "Deux passes de suite",
+        "endsOnSet": "L'échange finit sur une passe",
+        "pointOnTouch": "Un point sur une réception, une défense ou une relance",
+        "ace": "Un ace : personne n'a touché le ballon ?"
       }
     },
     "details": "Préciser",

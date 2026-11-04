@@ -63,6 +63,48 @@ describe('problems', () => {
     });
   });
 
+  describe('what may be right after all', () => {
+    const at = (type: string, team: number, time: number, result = 'play') => ({ ...c(type, team, '', result), time });
+    const others = ['noServe', 'passWithoutServe', 'serveNotReceived', 'afterPoint', 'afterFault', 'noWinner'];
+    // The touches after a first one, without the problems a rally not starting with a serve has anyway.
+    const of = (rally: Checked[], teams = false, validated = false) =>
+      Object.fromEntries(
+        [...problems(rally, 1, null, teams, validated).touch].flatMap(([k, list]) => {
+          const mine = list.filter((p) => !others.includes(p));
+          return mine.length ? [[k, mine]] : [];
+        }),
+      );
+
+    it('marks a touch seen twice, not a block on its attack', () => {
+      expect(of([at('dig', 2, 1), at('set', 2, 1.25)])[1]).toEqual(['doubleTouch']);
+      expect(of([at('dig', 2, 1), at('set', 2, 1.4)])).toEqual({});
+      expect(of([at('dig', 2, 1), at('dig', 1, 1.25)])[1]).toEqual(['doubleTouch']);
+      expect(of([at('attack', 1, 0), at('block', 2, 0.1)])).toEqual({});
+    });
+
+    it("marks touches out of a team's order", () => {
+      expect(of([c('attack', 1), c('dig', 1)])[1]).toEqual(['overThenSameTeam', 'digLater']);
+      expect(of([c('relance', 1), c('set', 1)])[1]).toEqual(['overThenSameTeam']);
+      expect(of([c('set', 1), c('dig', 2)])[0]).toEqual(['setToOtherTeam']);
+      expect(of([c('attack', 1), c('set', 2)])[1]).toEqual(['setFirst']);
+      expect(of([c('set', 1), c('set', 1)])[1]).toEqual(['twoSets']);
+      expect(of([c('attack', 1), c('block', 2), c('dig', 1)])).toEqual({});
+    });
+
+    it('marks a rally ending oddly, not one to replay nor one a playing fault ends', () => {
+      const pass = c('pass', 2);
+      expect(of([c('serve', 1), pass, c('set', 2)], true)[2]).toEqual(['endsOnSet']);
+      expect(of([c('serve', 1), pass, c('dig', 2, '', 'point')], true)[2]).toEqual(['digLater', 'pointOnTouch']);
+      expect(of([c('serve', 1, '', 'point')], true)[0]).toEqual(['ace']);
+      expect(of([c('serve', 1), pass, c('set', 2)])).toEqual({});
+      expect(of([c('serve', 1), pass, c('set', 2), c('fault', 1, '', 'error')], true)).toEqual({});
+    });
+
+    it('shows none of it on a rally checked', () => {
+      expect(of([at('set', 1, 0), at('dig', 2, 1), at('set', 2, 1.1)], true, true)).toEqual({});
+    });
+  });
+
   it('takes a playing fault for no touch of the ball, ending the rally', () => {
     const c = (type: string, team: number, result = 'play', player = '') => ({ type, team, result, player });
     // A rotation fault of the receivers at the serve; then a touch after it.
