@@ -4,14 +4,13 @@ The rules on what may go online are in `CLAUDE.md`.
 
 https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE-TEAM-vs-TEAM/`
 (the first match at `/volleyball/2026-10-29-aspom-1-vs-aspom-2/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
-`volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo: changes go through a PR
-there, assigned to the owner), the site in `volleyball-stats/site`, the `/volleyball` route in
+`volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo), the site in `volleyball-stats/site`, the `/volleyball` route in
 `reverse-proxy/Caddyfile` (rollback `/root/rollback-proxy.sh`). `/usr/local/bin/vbs-monitor.sh` logs the CPU every
 minute to `/var/log/vbs-monitor/` with a snapshot when busy; `matches.build` writes `.gz` copies nginx sends as
 they are (`gzip_static`). SSH is key-only, but for root with a password from the Docker networks: the
 build manager (`josselinbuils/build-manager`, on a push to master of blog or portfolio) logs in so and
 rebuilds that service with `docker compose`. Every service restarts with the server. The docker repo
-takes commits on master directly. Cloudflare and browsers keep the hashed and `?v=` files for good (the
+takes commits on master directly, the owner's choice: GitHub reports the push as bypassing its PR rule. Cloudflare and browsers keep the hashed and `?v=` files for good (the
 unhashed ones load with the build's hash, card pictures with their own), images a day, pages are
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
