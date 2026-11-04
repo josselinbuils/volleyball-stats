@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pause, Play, Users, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { Pause, Play, Search, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SkipIcon } from '@/components/SkipIcon';
 import { Swatch } from '@/components/Swatch';
@@ -488,7 +488,7 @@ export function ClipVideo({
         )}
         {views && (
           <Button variant={auto ? 'default' : 'outline'} size="sm" className={auto ? undefined : 'bg-card'} aria-pressed={auto} onClick={toggleAuto}>
-            <Users aria-hidden />
+            <Search aria-hidden />
             {t('review.autoZoom')}
           </Button>
         )}
