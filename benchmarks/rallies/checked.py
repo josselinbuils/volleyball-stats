@@ -45,10 +45,10 @@ def main() -> None:
     positions = [(r.frame, *r.court) for r in attribution.read_players(args.match / "players.csv")]
     whistles = rallies.whistles(rallies.read_audio(args.video))
     windows, found, _ = match.rally_windows(rallies.load_track(args.match / "ball.csv"), whistles, fps, net_x, calibration, positions)
-    first = min(start for start, _ in spans) - round(actions.SERVE_BEFORE_S * fps)
+    first, last = min(start for start, _ in spans) - round(actions.SERVE_BEFORE_S * fps), max(end for _, end in spans)
     within = round(learn.SAME_S * fps)
     touches = [c["f"] for c in page["contacts"] if c["rally"] in checked]
-    print(score([w for w in windows if w[0] >= first], sorted(c[0] for c in found), spans, touches, lead, within))
+    print(score([w for w in windows if first <= w[0] <= last], sorted(c[0] for c in found), spans, touches, lead, within))
 
 
 if __name__ == "__main__":

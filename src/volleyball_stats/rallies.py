@@ -70,6 +70,10 @@ GO_AFTER_S, SERVE_DEPTH = (1.5, 16.0), 0.7
 # stand ends up to 1.3 s before the ball flies (school match).
 SAME_SERVE_S, SERVE_LEAD_S = 8.0, 2.0
 
+# The ball lost near a player (MOTION_BRIDGE_S) ends a window, not its rally, which plays on in contacts under CARRY_GAP_S apart:
+# CARRY_MIN or more before a whistle (fewer are mostly the dead ball's, first ASPOM match and second: 16 real of 44).
+CARRY_GAP_S, CARRY_MIN = 2.5, 3
+
 Rally = tuple[int, int]
 
 
@@ -300,6 +304,27 @@ def with_serves(rallies: list[Rally], serves: list[tuple[int, int, int]], lead: 
         joined = [r for r in out if s < r[0] <= e + gap]
         out = [r for r in out if r not in joined] + [(s, max([e] + [end for _, end in joined]))]
     return sorted(out)
+
+
+def carried_on(windows: list[Rally], contacts: list[int], whistle_times: list[tuple[float, float]], fps: float, lead: int = 0) -> list[Rally]:
+    """`windows` (in order) each to the last of the contacts (frames, in order) following it under CARRY_GAP_S apart, from the last one
+    inside it, up to the next whistle and `lead` frames before the next window, when there are CARRY_MIN or more; a whistle
+    before the window's end closes it."""
+    found = np.array(contacts, dtype=int)
+    onsets = np.array([round(w[0] * fps) for w in whistle_times], dtype=int)
+    out = []
+    for (start, end), following in zip(windows, [*windows[1:], None]):
+        inside = found[(found >= start) & (found <= end)]
+        last = int(inside[-1]) if len(inside) else start
+        stop = min([*onsets[onsets >= last][:1].tolist(), *([following[0] - lead] if following else [])], default=np.inf)
+        chain = []
+        for frame in found[(found > end) & (found < stop)]:
+            if frame - last > CARRY_GAP_S * fps:
+                break
+            last = int(frame)
+            chain.append(last)
+        out.append((start, chain[-1]) if len(chain) >= CARRY_MIN else (start, end))
+    return out
 
 
 def main() -> None:

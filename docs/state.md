@@ -9,6 +9,7 @@ The pipeline's weak spots and what is left to do, most useful first.
   doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le ballon ?"; `benchmarks/attribution/answers.py` scores the
   picks. Identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame (high serves and sets): the false touches
   that makes are dropped (`attribution.FAR`) and no net crossing is lost (`contacts.MAX_GAP`); carrying the flight across waits for a match where it shows.
+- Rally ends now carry on through contacts (`rallies.carried_on`); most touches still added by hand have no contact: the ball is unseen near the floor.
 - `docs/next_steps.md`: what is left in the pipeline, with the numbers; the plan for learning from the review (`learn`).
 
 ## Open

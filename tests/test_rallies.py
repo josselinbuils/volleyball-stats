@@ -1,7 +1,7 @@
 import numpy as np
 
 from volleyball_stats.court import Calibration
-from volleyball_stats.rallies import FFT_SIZE, SAMPLE_RATE, alone, ball_runs, runs, segment, served, whistled, whistles, with_serves
+from volleyball_stats.rallies import FFT_SIZE, SAMPLE_RATE, alone, ball_runs, carried_on, runs, segment, served, whistled, whistles, with_serves
 
 FPS = 30.0
 
@@ -158,3 +158,24 @@ class TestServed:
         assert with_serves([(300, 400)], [(100, 200, 1)], 30, 60) == [(100, 200), (300, 400)]
         # Two served ones under `gap` apart too.
         assert with_serves([], [(100, 200, 1), (230, 280, -1)], 30, 60) == [(100, 280)]
+
+
+class TestCarriedOn:
+    fps = 50.0
+
+    def test_a_window_plays_on_in_contacts_up_to_the_whistle(self):
+        contacts = [100, 200, 300, 400, 500, 600]
+        assert carried_on([(0, 250)], contacts, [(11.0, 11.2)], self.fps) == [(0, 500)]
+
+    def test_under_three_contacts_after_it_are_the_dead_balls(self):
+        assert carried_on([(0, 250)], [100, 200, 300, 400], [], self.fps) == [(0, 250)]
+
+    def test_a_long_gap_ends_the_chain(self):
+        assert carried_on([(0, 250)], [200, 300, 400, 600, 700], [], self.fps) == [(0, 250)]
+
+    def test_a_whistle_before_the_end_closes_the_window(self):
+        assert carried_on([(0, 250)], [200, 300, 400, 500], [(4.5, 4.6)], self.fps) == [(0, 250)]
+
+    def test_the_next_window_stops_it(self):
+        windows = [(0, 250), (480, 900)]
+        assert carried_on(windows, [200, 300, 400, 450, 500, 600], [], self.fps, lead=20) == [(0, 450), (480, 900)]

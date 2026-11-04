@@ -71,7 +71,8 @@ def rally_windows(
     spare balls masked, pixel constants at the court's scale, the serves the players' positions
     (frame, court x, court y) show added, the windows opening on a contact inside the court
     dropped, then the serves after the referee's go (`rallies.whistled`) where no window is near;
-    each window opening after its serve contact moved to it. The benchmarks score this."""
+    each window opening after its serve contact moved to it, then those the ball's absence ended carried on
+    (`rallies.carried_on`). The benchmarks score this."""
     track, scale = track.copy(), 1.0
     if calibration is not None:
         track[calibration.in_front(track, SPARE_Y)] = np.nan
@@ -88,6 +89,7 @@ def rally_windows(
     windows = actions.serve_starts(windows, found, crossings, fps, net_x, calibration, scale)
     if calibration is not None:
         windows = actions.late_serves(windows, found, crossings, whistle_times, fps, net_x, calibration)
+    windows = rallies.carried_on(windows, [c[0] for c in found], whistle_times, fps, round(actions.LEAD_S * fps))
     return windows, found, crossings
 
 

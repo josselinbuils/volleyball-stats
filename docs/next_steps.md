@@ -1,5 +1,13 @@
 # Next steps from the review's answers (1 Nov)
 
+## Rallies carried on (4 Nov)
+
+`rallies.carried_on`: no window of the two matches ends on a whistle when a rally is cut short: the ball lost near a player ends it. A window now plays on
+through 3 contacts or more under 2.5 s apart before the next whistle (fewer are mostly the dead ball's: 16 real of 44). `benchmarks/rallies/checked.py`, touches in windows and
+contacts that are none: second match 681 → 701 of 766 and 130 → 142, first 869 → 875 of 945 and 175 → 186. The full pipeline against the checked rallies: touches to add 133 → 113,
+to remove 33 → 37, types 46 → 49, winners 5 → 4 (second); 102 → 95, 44 → 44, 65 → 63, 7 → 7 (first). The rest is out of the ends' reach: 55 and 60 of those touches have no contact at all,
+the ball unseen; better tracking near the floor is what would find them.
+
 What the first match's answers (`outputs/2026-10-29-aspom-1-vs-aspom-2/identity_answers.json`: 277 touches, 71
 added, 34 rallies, 23 type fixes, 81 results) and the viewers' 18 reports taught the pipeline,
 what is in the code since, and what is left, with the numbers to start from.
