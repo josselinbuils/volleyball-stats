@@ -484,13 +484,21 @@ export function ClipVideo({
             >
               <ZoomOut aria-hidden />
             </Button>
+            {views && (
+              <Button
+                variant={auto ? 'default' : 'outline'}
+                size="sm"
+                className={auto ? undefined : 'bg-card'}
+                title={t('review.autoZoom')}
+                aria-label={t('review.autoZoom')}
+                aria-pressed={auto}
+                onClick={toggleAuto}
+              >
+                <Search aria-hidden />
+                {t('review.auto')}
+              </Button>
+            )}
           </div>
-        )}
-        {views && (
-          <Button variant={auto ? 'default' : 'outline'} size="sm" className={auto ? undefined : 'bg-card'} aria-pressed={auto} onClick={toggleAuto}>
-            <Search aria-hidden />
-            {t('review.autoZoom')}
-          </Button>
         )}
         {/* No outline, nothing to zoom on. */}
         {clip.boxes.length > 0 && (
