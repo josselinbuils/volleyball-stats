@@ -1810,6 +1810,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
 
 
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
+    matches.ensure_publish(match, video, theme)
     site = match / "review"
     # Open at once: the pictures follow (`afterwards`), minutes if their scores are out of date.
     web.review_page(match, video, court, theme, pictures=False)

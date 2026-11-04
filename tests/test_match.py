@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from volleyball_stats import decode, jerseys, web
-from volleyball_stats.match import busiest, in_rallies, read_jerseys, report, review_page, settled_teams, slow_run_reasons, unseen_serves
+from volleyball_stats import decode, jerseys, video_copies, web
+from volleyball_stats.match import busiest, hosted_copies, in_rallies, read_jerseys, report, review_page, settled_teams, slow_run_reasons, unseen_serves
 from volleyball_stats.players import Row
 
 
@@ -158,3 +158,26 @@ class TestReviewPage:
         review_page(tmp_path, tmp_path / "video.mp4", tmp_path / "court.json")
 
         assert "no pictures" in capsys.readouterr().err
+
+
+class TestHostedCopies:
+    def test_makes_them_for_an_imported_match_only(self, monkeypatch):
+        made = []
+        monkeypatch.setattr(video_copies, "make", made.append)
+
+        hosted_copies(Path("outputs/clip"), Path("data/clip.mp4"))
+        assert made == []
+
+        video = Path("data/2026-a-vs-b/2026-a-vs-b.mp4")
+        hosted_copies(Path("outputs/2026-a-vs-b"), video)
+        assert made == [video]
+
+    def test_a_failure_only_warns(self, monkeypatch, capsys):
+        def fails(video):
+            raise RuntimeError("no space")
+
+        monkeypatch.setattr(video_copies, "make", fails)
+
+        hosted_copies(Path("outputs/m"), Path("data/m/m.mp4"))
+
+        assert "no space" in capsys.readouterr().err

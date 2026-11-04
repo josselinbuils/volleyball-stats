@@ -17,7 +17,9 @@ checked each time; the video copy's files only in the viewer's browser (`private
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
 `club`, `upload` as `root@<OVH IP>:…/site/`, `key`; a match's video copies in its `data/MATCH/`), the review's "Mettre en ligne" does all of it
-(`matches.host`, refusing to upload a video copy that opens without the password) and says when:
+(`matches.host`, refusing to upload a video copy that opens without the password) and says when. The review writes an imported match's
+`publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). `match` ends by making the copies
+(`video_copies.py`, or `uv run python -m volleyball_stats.video_copies VIDEO`). By hand:
 
 ```bash
 uv run python -m volleyball_stats.web outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH

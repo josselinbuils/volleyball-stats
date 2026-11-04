@@ -181,3 +181,61 @@ class TestHost:
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
         assert ran[0][:3] == ["rsync", "-rt", "--delete"] and ran[0][-2:] == [f"{tmp_path}/", "host:/site/"]
+
+
+class TestEnsurePublish:
+    @staticmethod
+    def imported(tmp_path, name="2026-11-02-avia-1-vs-aspom-2"):
+        match = tmp_path / "outputs" / name
+        match.mkdir(parents=True)
+        (match / "teams.json").write_text(json.dumps({"teams": [{"name": "AVIA 1"}, {"name": "ASPOM 2"}]}))
+        return match, tmp_path / "data" / name / f"{name}.mp4"
+
+    @staticmethod
+    def hosted(tmp_path):
+        other = tmp_path / "outputs" / "2026-10-29-a-vs-b"
+        other.mkdir(parents=True)
+        (other / matches.PUBLISH).write_text(json.dumps({"site": "outputs/hosted", "url": "https://example.org/", "upload": "host:/site/", "key": "key", "light": "old.mp4", "club": 1}))
+
+    def test_takes_the_hosting_from_another_match_with_its_own_copies_and_club(self, tmp_path):
+        self.hosted(tmp_path)
+        match, video = self.imported(tmp_path)
+
+        matches.ensure_publish(match, video, "aspom")
+
+        config = json.loads((match / matches.PUBLISH).read_text())
+        assert (config["site"], config["url"], config["upload"], config["key"]) == ("outputs/hosted", "https://example.org/", "host:/site/", "key")
+        assert config["club"] == 2
+        assert config["light"].endswith("2026-11-02-avia-1-vs-aspom-2_1080p.mp4")
+
+    def test_keeps_an_existing_config(self, tmp_path):
+        self.hosted(tmp_path)
+        match, video = self.imported(tmp_path)
+        (match / matches.PUBLISH).write_text("{}")
+
+        matches.ensure_publish(match, video, "aspom")
+
+        assert (match / matches.PUBLISH).read_text() == "{}"
+
+    def test_none_without_another_match_hosted(self, tmp_path):
+        match, video = self.imported(tmp_path)
+
+        matches.ensure_publish(match, video, "aspom")
+
+        assert not (match / matches.PUBLISH).exists()
+
+    def test_none_for_a_test_clip(self, tmp_path):
+        self.hosted(tmp_path)
+        match, _ = self.imported(tmp_path, "side_setend")
+
+        matches.ensure_publish(match, tmp_path / "data" / "side_setend.mp4", "aspom")
+
+        assert not (match / matches.PUBLISH).exists()
+
+
+class TestClubTeam:
+    @pytest.mark.parametrize("names, expected", [(["AVIA 1", "ASPOM 2"], 2), (["ASPOM 1", "ASPOM 2"], 1), (["A", "B"], 1)])
+    def test_the_first_team_of_the_club(self, tmp_path, names, expected):
+        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": n} for n in names]}))
+
+        assert matches.club_team(tmp_path, "aspom") == expected

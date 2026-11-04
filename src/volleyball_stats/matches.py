@@ -26,7 +26,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import files, web
+from volleyball_stats import files, video_copies, web
 from volleyball_stats.web import BRANDING, brand
 
 TEMPLATE = Path(__file__).with_name("matches_site")
@@ -295,6 +295,30 @@ def protected(url: str) -> bool:
 def unguarded_videos(site: Path) -> list[Path]:
     """The site's videos outside a match's video/ folder, the only one the password guards."""
     return [p for p in site.rglob("*.mp4") if "video" not in p.relative_to(site).parts[:-1]]
+
+
+def imported(match: Path, video: Path) -> bool:
+    """Whether this is a real match from import_match, data/MATCH/MATCH.mp4, not a test clip."""
+    return video.parent.name == video.stem == match.name
+
+
+def club_team(match: Path, theme: str) -> int:
+    """The team of the `theme` club: the first if both or neither are."""
+    path = match / "teams.json"
+    names = [team["name"] or "" for team in json.loads(path.read_text())["teams"]] if path.exists() else []
+    return next((k for k, name in enumerate(names, 1) if slug(name).startswith(slug(theme))), 1)
+
+
+def ensure_publish(match: Path, video: Path, theme: str) -> None:
+    """Gives an imported match a publish.json, the hosting taken from another match's, for its upload and backups."""
+    target = match / PUBLISH
+    others = sorted(match.parent.glob(f"*/{PUBLISH}"))
+    if target.exists() or not others or not imported(match, video):
+        return
+    other = json.loads(others[-1].read_text())
+    copies = {key: str(path.resolve()) for key, path in video_copies.paths(video).items()}
+    config = {**{key: other[key] for key in ("site", "url", "upload", "key")}, **copies, "club": club_team(match, theme)}
+    files.write_text(target, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
 
 
 def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> None:
