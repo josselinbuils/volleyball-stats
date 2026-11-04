@@ -1,10 +1,15 @@
-/** Where `now` falls on a list's rail, in pixels: between the middles of the rows around it (`at` their
- * time, in order), from the first's top to the last's bottom. */
+/** Where `now` falls on a list's rail, in pixels: it reaches a row's top at `at`, the moment the row
+ * becomes active (in order), and the last row's bottom past it. */
 export function railAt(rows: { at: number; top: number; bottom: number }[], now: number): number {
   if (!rows.length) {
     return 0;
   }
-  const next = rows.findIndex((r) => r.at > now);
+  // A rally's first touch can light up before its header: a row is reached by the time the next one is.
+  const ats = rows.map((r) => r.at);
+  for (let i = ats.length - 2; i >= 0; i--) {
+    ats[i] = Math.min(ats[i], ats[i + 1]);
+  }
+  const next = ats.findIndex((at) => at > now);
   if (next === 0) {
     return rows[0].top;
   }
@@ -12,8 +17,7 @@ export function railAt(rows: { at: number; top: number; bottom: number }[], now:
     return rows[rows.length - 1].bottom;
   }
   const [a, b] = [rows[next - 1], rows[next]];
-  const [from, to] = [(a.top + a.bottom) / 2, (b.top + b.bottom) / 2];
-  return from + ((to - from) * (now - a.at)) / (b.at - a.at);
+  return a.top + ((b.top - a.top) * (now - ats[next - 1])) / (ats[next] - ats[next - 1]);
 }
 
 /** The steps between the time labels, in seconds. */

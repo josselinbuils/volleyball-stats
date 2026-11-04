@@ -17,7 +17,7 @@ describe('zoomed', () => {
     expect(zoomed(30, 2, 0.5, 40)).toBe(40);
   });
 
-  it('places the current time between the rows around it', () => {
+  it("reaches a row's top at its time", () => {
     const rows = [
       { at: 10, top: 0, bottom: 20 },
       { at: 20, top: 40, bottom: 60 },
@@ -25,8 +25,22 @@ describe('zoomed', () => {
 
     expect(railAt([], 5)).toBe(0);
     expect(railAt(rows, 5)).toBe(0);
-    expect(railAt(rows, 10)).toBe(10);
-    expect(railAt(rows, 15)).toBe(30);
+    expect(railAt(rows, 10)).toBe(0);
+    expect(railAt(rows, 15)).toBe(20);
+    expect(railAt(rows, 20)).toBe(60);
     expect(railAt(rows, 25)).toBe(60);
+  });
+
+  it("passes a row whose time comes after the next row's", () => {
+    const rows = [
+      { at: 0, top: 0, bottom: 20 },
+      { at: 12, top: 100, bottom: 120 },
+      { at: 10, top: 140, bottom: 160 },
+      { at: 20, top: 240, bottom: 260 },
+    ];
+
+    expect(railAt(rows, 5)).toBe(50);
+    expect(railAt(rows, 10)).toBe(140);
+    expect(railAt(rows, 15)).toBe(190);
   });
 });

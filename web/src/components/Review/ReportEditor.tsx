@@ -13,7 +13,7 @@ import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
 import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { changedSince, freeFrame, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
+import { changedSince, freeFrame, LEAD_S, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
@@ -21,6 +21,8 @@ const RESULTS = ['play', 'point', 'error'] as const;
 const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
 /** After the user scrolls the list, it stops following the video this long. */
 const HOLD_MS = 3000;
+/** A touch's row lights up this long before the touch. */
+const TOUCH_LEAD_S = 0.2;
 /** The list shows this many rallies before and after the one the video is in. */
 const AROUND_RALLIES = 2;
 
@@ -223,7 +225,7 @@ export function ReportEditor({
 
   // The touch the video is on: the last one started, highlighted until 3 s after it; a removed one
   // gives way to the touch still there.
-  const started = rows.filter((row) => !row.removed && row.time - 0.2 <= now).at(-1);
+  const started = rows.filter((row) => !row.removed && row.time - TOUCH_LEAD_S <= now).at(-1);
   const playing = started && now - started.time < 3 ? started.frame : undefined;
   // The touches a viewer reported from (the moment replayed then).
   const reported = new Set(rows.filter((row) => reports.some((r) => Math.abs(r.time - row.time) <= 0.6)).map((row) => row.frame));
@@ -285,7 +287,14 @@ export function ReportEditor({
   // The rail along the list: how far the time has come, between rallies too, where no row is lit.
   const [rail, setRail] = useState({ at: 0, height: 0 });
   useLayoutEffect(() => {
-    const rows = [...(list.current?.querySelectorAll<HTMLElement>('[data-at]') ?? [])].map((e) => ({ at: Number(e.dataset.at), top: e.offsetTop, bottom: e.offsetTop + e.offsetHeight }));
+    const box = list.current;
+    const gap = box ? parseFloat(getComputedStyle(box).rowGap) : 0;
+    // A stuck rally header's offsetTop follows the scroll: its place comes from the row after it.
+    const topOf = (e: HTMLElement): number => {
+      const next = e.nextElementSibling as HTMLElement | null;
+      return next && e.classList.contains('sticky') ? topOf(next) - gap - e.offsetHeight : e.offsetTop;
+    };
+    const rows = [...(box?.querySelectorAll<HTMLElement>('[data-at]') ?? [])].map((e) => ({ at: Number(e.dataset.at), top: topOf(e), bottom: topOf(e) + e.offsetHeight }));
     const at = railAt(rows, now);
     const height = rows.at(-1)?.bottom ?? 0;
     setRail((r) => (Math.abs(r.at - at) < 1 && r.height === height ? r : { at, height }));
@@ -463,7 +472,12 @@ export function ReportEditor({
             </li>
             {first === 0 && timeoutRows(-1)}
             {Array.from({ length: last - first + 1 }, (_, n) => first + n).flatMap((k) => [
-              <li key={`r${k}`} data-key={`r${k}`} className={cn('sticky top-0 z-10 rounded-md bg-card', k === here && 'text-primary')}>
+              <li
+                key={`r${k}`}
+                data-key={`r${k}`}
+                data-at={Math.max(shown[k].start - LEAD_S, shown[k - 1]?.end ?? 0)}
+                className={cn('sticky top-0 z-10 rounded-md bg-card', k === here && 'text-primary')}
+              >
                 <div
                   className={cn(
                     'flex items-center overflow-hidden rounded-md border bg-muted',
@@ -558,7 +572,7 @@ export function ReportEditor({
                     <li
                       key={`t${row.frame}`}
                       data-key={`t${row.frame}`}
-                      data-at={row.frame / match.fps}
+                      data-at={row.time - TOUCH_LEAD_S}
                       className={cn(
                         'grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border bg-card p-1.5 transition-colors',
                         row.frame === playing && 'border-primary bg-primary/10',
