@@ -15,7 +15,7 @@ import { ReportRow } from '@/components/Review/ReportRow';
 import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { changedSince, freeFrame, LEAD_S, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
-import { problems, type Problem } from '@/components/Review/helpers/checks';
+import { problems, warningTimes, type Problem } from '@/components/Review/helpers/checks';
 import { labelled } from '@/helpers/contacts';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
@@ -108,8 +108,8 @@ export function ReportEditor({
   questions: Question[];
   /** Marks a rally's reports handled, the corrections as they stand saved with them. */
   onHandled: (question: Question, changes: ReportChanges) => void;
-  /** The rallies with a warning as they stand, by their key. */
-  onWarnings?: (keys: number[]) => void;
+  /** The warnings as they stand: each one's rally, by its key, and moment. */
+  onWarnings?: (warnings: { rally: number; time: number }[]) => void;
   /** The rallies with corrections not saved yet, by their key. */
   onUnsaved?: (keys: number[]) => void;
   /** The touch the video is on in its rally, as it stands with the corrections: to show over the video. */
@@ -430,12 +430,11 @@ export function ReportEditor({
     scores,
     match.scores,
   );
-  // The rallies with a warning, by their key, for the match's bar.
-  const warned = shown.flatMap((r, k) => (rallyProblems(k).length > 0 || off.has(k) ? [r.key] : []));
-  const warnedJson = JSON.stringify(warned);
+  const warnings = shown.flatMap((r, k) => warningTimes(found.get(k), mineOf(k), r.start, off.has(k)).map((time) => ({ rally: r.key, time })));
+  const warningsJson = JSON.stringify(warnings);
   useEffect(() => {
-    onWarnings?.(warned);
-  }, [warnedJson]);
+    onWarnings?.(warnings);
+  }, [warningsJson]);
 
   // The reports under their rally's header; those in no rally between the rallies, as the timeouts.
   const reportRows = (list: Question[]) => list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} />);

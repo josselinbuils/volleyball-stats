@@ -172,7 +172,7 @@
   "review": {
     "title": "Check the players",
     "intro": "Tracking is unsure about these players: say who is outlined in yellow. The questions that matter most come first.",
-    "matchIntro": "The whole match, to correct its actions. Click the bar to go to a moment: it shows each rally, each touch and, in red, each report. Correct the touches on the right, then “Validate”; nothing changes on the page before “Apply”.",
+    "matchIntro": "The whole match, to correct its actions. Click the bar to go to a moment: it shows each rally, each touch, each report in red and each warning in orange. Correct the touches on the right, then “Validate”; nothing changes on the page before “Apply”.",
     "matchPage": "See the match page",
     "otherMatch": "Change match",
     "undo": "Undo the last answer",

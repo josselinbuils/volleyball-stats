@@ -14,6 +14,12 @@ export interface Checked {
   time?: number;
 }
 
+/** Where a rally's warnings sit on the match bar, in seconds: on each touch showing one, at `start` for one about the whole rally. */
+export function warningTimes(found: { rally: Problem[]; touch: Map<number, Problem[]> } | undefined, touches: { time: number }[], start: number, off: boolean): number[] {
+  const times = [...(found?.touch.keys() ?? [])].map((k) => touches[k].time);
+  return [...new Set(off || found?.rally.length ? [start, ...times] : times)];
+}
+
 /** The problems of a rally's touches (in order, the removed ones left out; a playing fault is no touch
  * of the ball in their order, and ends the rally as a fault does): those of the rally, and
  * those of each touch by its index, on the touch that shows them. `winner` is the rally's,

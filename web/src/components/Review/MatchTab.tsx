@@ -73,8 +73,11 @@ export function MatchTab({
   const open = new Set(reports.map((q) => q.rally));
   const [unsaved, setUnsaved] = useState<Set<number>>(new Set());
   const green = new Set(checked.filter((k) => !open.has(k) && !unsaved.has(k)));
-  // The rallies with a warning as the editor finds them, by their key.
-  const [warned, setWarned] = useState<Set<number>>(new Set());
+  // The warnings as the editor finds them.
+  const [warnings, setWarnings] = useState<{ rally: number; time: number }[]>([]);
+  const warned = new Set(warnings.map((w) => w.rally));
+  // The automatic reports the editor's warnings do not already show.
+  const unwarned = reports.filter((q) => q.rally == null || !warned.has(q.rally)).flatMap((q) => (q.reports ?? []).filter((r) => r.kind?.startsWith('auto.')));
   // The video, its bar, the editor and the reports fill the screen, the video as large as its height allows.
   const block = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
@@ -117,13 +120,23 @@ export function MatchTab({
                 )
               }
             />
-            <MatchTimeline now={now} saved={saved} reports={flags} green={green} warned={warned} comments={comments} timeouts={timeouts} onSeek={(time) => go(time)} />
+            <MatchTimeline
+              now={now}
+              saved={saved}
+              reports={seen}
+              warnings={[...warnings, ...unwarned]}
+              green={green}
+              warned={warned}
+              comments={comments}
+              timeouts={timeouts}
+              onSeek={(time) => go(time)}
+            />
           </div>
           <ReportEditor
             key={round}
             place={listPlace}
             onEnd={onEnd}
-            onWarnings={(keys) => setWarned(new Set(keys))}
+            onWarnings={setWarnings}
             onUnsaved={(keys) => setUnsaved(new Set(keys))}
             reports={seen}
             players={players}
