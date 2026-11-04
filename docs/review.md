@@ -8,7 +8,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   the new windows itself (`learn.rerun`, `rekey`). Before stopping the review (a restart is needed for a server or page change), check that
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two
   answers that disagreed (merged). The review's progress names each step and the pipeline's stage, with the time left from each one's last duration
-  (`outputs/MATCH/review_timings.json`). `uv run python -m volleyball_stats.learn outputs/MATCH --video VIDEO --court COURT` scores every step on the
+  (`outputs/MATCH/review_timings.json`). A run that fails opens an alert with its step and error, even after a reload, until closed (`/failure`); the traceback is in the server's log. `uv run python -m volleyball_stats.learn outputs/MATCH --video VIDEO --court COURT` scores every step on the
   answers and the checked rallies, against its last run (`learn.json`).
   Stats: a serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that
   touch staying the other team's fault (both count; a serve's is an ace); an attack

@@ -214,6 +214,8 @@
       "hosting": "Mise à jour de la page en ligne…",
       "films": "Création des films"
     },
+    "failed": "Échec : {{step}}",
+    "failedClose": "Fermer",
     "error": "La réponse n'a pas été enregistrée : le serveur de vérification est-il toujours lancé ?",
     "who": "Qui est entouré en jaune ?",
     "mergeQuestion": "Le n° {{a}} et le n° {{b}} sont-ils la même personne ?",

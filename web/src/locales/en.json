@@ -214,6 +214,8 @@
       "hosting": "Updating the online page…",
       "films": "Making the films"
     },
+    "failed": "Failed: {{step}}",
+    "failedClose": "Close",
     "error": "The answer was not saved: is the review server still running?",
     "who": "Who is outlined in yellow?",
     "mergeQuestion": "Are no. {{a}} and no. {{b}} the same person?",

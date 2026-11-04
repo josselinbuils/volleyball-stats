@@ -8,12 +8,28 @@ import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
-import { allMarked, post, type Conflict, type Hosted, type LearnRun, type Named, type Question, type ReportChanges, type Saved, type Suggestion, type Timeout, type TimeoutChange } from '@/lib/review';
+import {
+  readFailure,
+  type Failure,
+  allMarked,
+  post,
+  type Conflict,
+  type Hosted,
+  type LearnRun,
+  type Named,
+  type Question,
+  type ReportChanges,
+  type Saved,
+  type Suggestion,
+  type Timeout,
+  type TimeoutChange,
+} from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { Pictures } from '@/components/Review/Pictures';
 import { Conflicts } from '@/components/Review/Conflicts';
 import { PieceConflict } from '@/components/Review/PieceConflict';
+import { RunFailure } from '@/components/Review/RunFailure';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
@@ -107,6 +123,10 @@ export function Review({
   const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'reports' | 'films' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  useEffect(() => {
+    void readFailure().then(setFailure);
+  }, []);
   // What the last action did, shown for NOTICE_MS.
   const [notice, setNotice] = useState<string | null>(null);
   useEffect(() => {
@@ -288,7 +308,9 @@ export function Review({
       window.clearInterval(poll);
       setProgress(null);
       setBusy(null);
-      setError(true);
+      const failed = await readFailure();
+      setFailure(failed);
+      setError(!failed);
     }
   };
 
@@ -390,6 +412,15 @@ export function Review({
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}
           </p>
+        )}
+        {failure && (
+          <RunFailure
+            failure={failure}
+            onClose={() => {
+              setFailure(null);
+              void post('failure').catch(() => {});
+            }}
+          />
         )}
         {conflict && question && (
           <PieceConflict

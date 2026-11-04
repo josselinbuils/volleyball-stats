@@ -1821,6 +1821,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # its stage (the pipeline's). Each step's and stage's last duration ("STEP:STAGE"), kept per match
     # (TIMINGS) to outlive a restart, first guessed from the first ASPOM match.
     progress: dict = {}
+    # The last run's failure until the user dismisses it: `step` and `error`.
+    failure: dict = {}
     took = {**TOOK, **(json.loads((match / TIMINGS).read_text()) if (match / TIMINGS).exists() else {})}
     # The last hosting (publish.json): when, why it failed, and whether the page has changed since; the
     # page says it. The user puts the pages online ("/host"), an apply does not.
@@ -1907,10 +1909,15 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
     def run_steps(steps: list) -> None:
         progress.update(steps=[name for name, _ in steps], started=time.time())
+        failure.clear()
         try:
             for k, (name, work) in enumerate(steps):
                 progress.update(done=k, since=time.time(), stage=None)
-                work()
+                try:
+                    work()
+                except Exception as error:
+                    failure.update(step=name, error=repr(error))
+                    raise
                 staged(None)
                 took[name] = time.time() - progress["since"]
                 files.write_text(match / TIMINGS, json.dumps(took, indent=1) + "\n")
@@ -2014,6 +2021,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if url.path == "/progress":
                 state = dict(progress)
                 return self.send(json.dumps(eta(state, took, time.time()) if state else {}).encode(), "application/json")
+            if url.path == "/failure":
+                return self.send(json.dumps(failure).encode(), "application/json")
             if url.path == "/more":
                 q = parse_qs(url.query)
                 team, number = int(q["team"][0]), int(q["identity"][0])
@@ -2079,6 +2088,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     f.write(json.dumps({"received": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "report": raw.decode()}, ensure_ascii=False) + "\n")
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
+            if self.path == "/failure":
+                failure.clear()
+                return self.send(b"{}", "application/json")
             if self.path == "/open":
                 if progress:
                     return self.send(b'{"error":"busy"}', "application/json", 409)

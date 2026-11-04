@@ -239,8 +239,40 @@ export function onServerBusy(listener: () => void): () => void {
 
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
+/** What stopped the server's last run, until dismissed: null without one, or without a server. */
+export async function readFailure(): Promise<Failure | null> {
+  try {
+    const failure = (await (await fetch('failure')).json()) as Partial<Failure>;
+    return failure.step && failure.error ? { step: failure.step, error: failure.error } : null;
+  } catch {
+    return null;
+  }
+}
+
+export type Failure = { step: string; error: string };
+
 export async function post(
-  path: 'answer' | 'comment' | 'timeout' | 'name' | 'odd' | 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'cut' | 'separate' | 'end' | 'forget' | 'more' | 'repin' | 'team' | 'photo',
+  path:
+    | 'answer'
+    | 'comment'
+    | 'timeout'
+    | 'name'
+    | 'odd'
+    | 'undo'
+    | 'apply'
+    | 'rerun'
+    | 'host'
+    | 'reports'
+    | 'films'
+    | 'cut'
+    | 'separate'
+    | 'end'
+    | 'forget'
+    | 'more'
+    | 'repin'
+    | 'team'
+    | 'photo'
+    | 'failure',
   body: object = {},
 ): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
