@@ -44,6 +44,14 @@ export function autoView(views: MatchView[], time: number, width: number, height
   return { x: x * width, y: y * height, w: w * width, h: w * height };
 }
 
+/** Seconds the automatic zoom keeps a rally's view after its end, as framing.py's HOLD_S. */
+const HOLD_S = 1;
+
+/** The rally `time` belongs to, for the automatic zoom: the first of `rallies` not over by then, the wait before a serve being its rally's; -1 after the last. */
+export function exchangeAt(rallies: { end: number }[], time: number): number {
+  return rallies.findIndex((r) => time < r.end + HOLD_S);
+}
+
 /** The most a pinch zooms the video in. */
 export const MAX_ZOOM = 6;
 const WHEEL_SPEED = 0.01;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoView, boxAt, MAX_ZOOM, panView, viewAt, zoomView, wheelZoom } from '@/components/Review/helpers/box';
+import { autoView, boxAt, exchangeAt, MAX_ZOOM, panView, viewAt, zoomView, wheelZoom } from '@/components/Review/helpers/box';
 
 describe('autoView', () => {
   const views: [number, number, number, number][] = [
@@ -14,6 +14,20 @@ describe('autoView', () => {
 
   it('shows the first one before it starts', () => {
     expect(autoView(views, 1, 100, 50)).toEqual({ x: 10, y: 10, w: 50, h: 25 });
+  });
+});
+
+describe('exchangeAt', () => {
+  const rallies = [{ end: 10 }, { end: 30 }];
+
+  it('holds a rally a moment after its end, then the wait belongs to the next one', () => {
+    expect(exchangeAt(rallies, 10.9)).toBe(0);
+    expect(exchangeAt(rallies, 11)).toBe(1);
+    expect(exchangeAt(rallies, 20)).toBe(1);
+  });
+
+  it('finds none after the last one', () => {
+    expect(exchangeAt(rallies, 31)).toBe(-1);
   });
 });
 

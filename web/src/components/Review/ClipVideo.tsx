@@ -8,7 +8,7 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
-import { autoView, boxAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
+import { autoView, boxAt, exchangeAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
 const AROUND = 0.5;
@@ -62,7 +62,7 @@ function saveFlag(key: string, on: boolean) {
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
- * `free`: the match plays on from the clip with its sound, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand leaves the automatic zoom.
+ * `free`: the match plays on from the clip with its sound, no loop; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
  * `extra`: at the right end of the speeds' line. */
 export function ClipVideo({
   clip,
@@ -112,10 +112,14 @@ export function ClipVideo({
   const views = free && match.views.length ? match.views : null;
   const [auto, setAuto] = useState(() => savedFlag(AUTO_KEY));
   const zoomedByHand = useRef(false);
-  zoomedByHand.current = pinched !== null;
+  zoomedByHand.current = pinched !== null && pinched.w < width;
+  const following = useRef(false);
+  following.current = views !== null && auto;
+  const zoomedIn = useRef(-1);
+  // Back at the whole frame by hand, the automatic zoom must not zoom in again.
   const zoomByHand = (next: View | null) => {
-    setAuto(false);
-    setPinched(next);
+    zoomedIn.current = exchangeAt(rallies, video.current?.currentTime ?? 0);
+    setPinched(next ?? (following.current ? { x: 0, y: 0, w: width, h: height } : null));
   };
   const grab = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -193,6 +197,13 @@ export function ClipVideo({
       }
     }
   }, [seek]);
+
+  const exchange = exchangeAt(rallies, time);
+  useEffect(() => {
+    if (following.current && exchange !== zoomedIn.current) {
+      setPinched(null);
+    }
+  }, [exchange]);
 
   const box = boxAt(clip, time);
   // Where the bar stands, and the outlined parts of it: the clip, or in free play the rallies there.
@@ -326,10 +337,13 @@ export function ClipVideo({
   };
   const zoomBy = (factor: number) => zoomByHand(zoomView(view, 0.5, 0.5, factor, width, height));
   const toggleAuto = () => {
-    saveFlag(AUTO_KEY, !auto);
     setPinched(null);
-    setAuto(!auto);
+    if (!auto || !pinched) {
+      saveFlag(AUTO_KEY, !auto);
+      setAuto(!auto);
+    }
   };
+  const autoShown = auto && !pinched;
   const toggleMuted = () => {
     setMuted(!muted);
     saveFlag(MUTED_KEY, !muted);
@@ -486,12 +500,12 @@ export function ClipVideo({
             </Button>
             {views && (
               <Button
-                variant={auto ? 'default' : 'outline'}
+                variant={autoShown ? 'default' : 'outline'}
                 size="sm"
-                className={auto ? undefined : 'bg-card'}
+                className={autoShown ? undefined : 'bg-card'}
                 title={t('review.autoZoom')}
                 aria-label={t('review.autoZoom')}
-                aria-pressed={auto}
+                aria-pressed={autoShown}
                 onClick={toggleAuto}
               >
                 <Search aria-hidden />
