@@ -8,8 +8,8 @@ match.
 
 Done: `LIVE_SPEED` per second (812 -> 829 touches in windows, `side_holdout` 0.75 -> 0.86).
 
-Running: WASB on frames t, t+2, t+4 over the whole match, into
-`outputs/2026-10-29-aspom-1-vs-aspom-2/experiments/ball_step2.csv` (frame, x, y, peak). `ball.csv` is untouched. The scripts
+Tried: WASB on frames t, t+2, t+4 over the whole match, in
+`outputs/2026-10-29-aspom-1-vs-aspom-2/experiments/ball_step2.csv` (frame, x, y, peak), dropped below. `ball.csv` is untouched. The scripts
 are in that folder: `pass2.py` (the pass), `track_exp.py` (the sample), `ev2.py` (its scoring).
 
 On 25 sampled rallies, touches found of 205 and contacts that are no touch:
@@ -127,6 +127,6 @@ localhost, the first match without footage: first load 1,824 -> 282 KB, LCP 2.73
 a script running before the paint is recorded counts as blocking it in Lighthouse's simulated LCP. Moving the review
 screens to their own bundle would save 24 KB compressed, not done; `i18next` (15 KB) and `cn` (8 KB) stay.
 
-## Page: other ideas, not started
+## Page: la saison (4 Nov)
 
-1. **La saison**: each player's progress over matches and the team's form. Needs a second match.
+A tab of the match list, shown once a named team has 2 listed matches (`Season/`): the team's results, then its row and its players' over the matches, on points per set and the serve, reception, attack and dig ratings. Same rules as the match pages (`lines`), each match's `data.js` loaded when the tab opens. A player is followed by name, else jersey; a value needs 5 touches in the match (5 rated ones for a rating). Faults are left out, and no colour marks a fall. Not online yet: only the first match is hosted. Today it follows ASPOM 2, the second match only partly reviewed.
