@@ -264,7 +264,6 @@ export function ReportEditor({
   const playing = started && now - started.time < 3 ? started.frame : undefined;
   // The touches a viewer reported from (the moment replayed then).
   const reported = new Set(rows.filter((row) => reports.some((r) => Math.abs(r.time - row.time) <= 0.6)).map((row) => row.frame));
-  const canAdd = rallies.length > 0;
   const add = () => {
     const frame = freeFrame([...contacts.map((c) => c.f ?? frameOf(c.t)), ...added.map((a) => a.frame)], frameOf(timeOf()));
     const time = frame / match.fps;
@@ -523,10 +522,6 @@ export function ReportEditor({
       <div className="relative lg:row-span-2 lg:self-stretch lg:[:fullscreen_&]:sticky lg:[:fullscreen_&]:top-0 lg:[:fullscreen_&]:h-[calc(100vh-(--spacing(8)))] lg:[:fullscreen_&]:self-start">
         <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
-              <Plus aria-hidden />
-              {t('review.reportAdd', { time: clock(now) })}
-            </Button>
             <Button variant="outline" className="flex-1 bg-card" title={t('review.reportStartHelp')} onClick={startHere}>
               <SquarePlus aria-hidden />
               {t('review.reportStart', { time: clock(now) })}
