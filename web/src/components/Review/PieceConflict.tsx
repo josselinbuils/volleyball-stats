@@ -27,7 +27,15 @@ export function PieceConflict({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent showCloseButton={false} container={document.fullscreenElement}>
+      <DialogContent
+        showCloseButton={false}
+        container={document.fullscreenElement}
+        // On the dialog, not its first button: the Enter that answered must not settle it too.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          (event.currentTarget as HTMLElement).focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{t('review.pieceConflict', { name: earlier })}</DialogTitle>
         </DialogHeader>
