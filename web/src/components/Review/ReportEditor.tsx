@@ -780,6 +780,20 @@ export function ReportEditor({
                     </li>
                   );
                 }),
+              // A touch lands at the video's moment: only the rally on the video takes it.
+              <li key={`a${k}`}>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="w-full bg-card"
+                  disabled={k !== here}
+                  title={t('review.reportAdd', { time: clock(now) })}
+                  aria-label={t('review.reportAdd', { time: clock(now) })}
+                  onClick={add}
+                >
+                  <Plus aria-hidden />
+                </Button>
+              </li>,
               ...rallyWarning(k, 'end'),
               ...reportsAtEnd(k),
               // The score once the rally is over, between it and the next one.
