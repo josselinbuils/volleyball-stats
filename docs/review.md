@@ -11,8 +11,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   (`outputs/MATCH/review_timings.json`). `uv run python -m volleyball_stats.learn outputs/MATCH --video VIDEO --court COURT` scores every step on the
   answers and the checked rallies, against its last run (`learn.json`).
   Stats: a serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that
-  touch staying the other team's fault (the owner's rule: labelled so, both count; a serve's is an ace); an attack
-  blocked for a point is a fault (`web.credited`). The viewers' "Signaler" reports ([hosting.md](hosting.md)) are the main source of
+  touch staying the other team's fault (both count; a serve's is an ace); an attack
+  blocked for a point is a fault (`web.credited`). That is the statistics' reading only: the labels stay what happened, the attack in play (the owner's rule, `label` on the page's touch, `web.labelled`), so a label's point or fault before another touch warns. The viewers' "Signaler" reports ([hosting.md](hosting.md)) are the main source of
   corrections: fetch them, record the clear ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
   the rest (no comment, unsure) to the review's Match tab, which lists each rally reported; then score and fix
   the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.

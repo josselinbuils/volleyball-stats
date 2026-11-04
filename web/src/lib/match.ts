@@ -26,7 +26,10 @@ export interface Contact {
   x: number | null;
   y: number | null;
   zone: number | null;
+  /** As the statistics read it. */
   result: Result;
+  /** What the review shows where that reading differs from what happened (`web.credited`). */
+  label?: Result;
   /** Key of the attributed player in `match.people`. */
   person: number | null;
   /** That player's jersey number, else their number for the match. */

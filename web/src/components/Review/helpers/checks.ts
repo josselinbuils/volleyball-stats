@@ -49,15 +49,12 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
       mark(k, 'gap');
     }
   });
-  touches.forEach((c, k) => {
+  touches.forEach((_, k) => {
     const before = touches[k - 1];
-    // An attack blocked for a point is the attacker's fault, the block after it.
-    if (before?.result === 'error' && c.type !== 'block') {
+    if (before?.result === 'error') {
       mark(k, 'afterFault');
     }
-    // A serve, an attack or a block the other team then loses is a point, that last touch its fault.
-    const lost = k === touches.length - 1 && c.result === 'error' && c.team !== before?.team && ['serve', 'attack', 'block'].includes(before?.type ?? '');
-    if (before?.result === 'point' && !lost) {
+    if (before?.result === 'point') {
       mark(k, 'afterPoint');
     }
   });

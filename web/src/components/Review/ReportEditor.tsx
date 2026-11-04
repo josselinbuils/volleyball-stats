@@ -16,6 +16,7 @@ import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { changedSince, freeFrame, LEAD_S, NEXT_TOUCH_S, nextTouch, offGiven, pieceOf, rallyAt, rallyOf, runningScores, timeoutsAfter, withAdded, withSplits } from '@/components/Review/helpers/report';
 import { problems, type Problem } from '@/components/Review/helpers/checks';
+import { labelled } from '@/helpers/contacts';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
 const RESULTS = ['play', 'point', 'error'] as const;
@@ -146,7 +147,7 @@ export function ReportEditor({
     setFixes((all) => {
       const c = row.contact!;
       const next: Fix = { ...all[row.frame], ...change };
-      const own: Fix = { player: touches.find((x) => x.frame === row.frame)?.player || undefined, type: c.type, result: c.result };
+      const own: Fix = { player: touches.find((x) => x.frame === row.frame)?.player || undefined, type: c.type, result: labelled(c) };
       for (const k of ['player', 'type', 'result'] as const) {
         if (next[k] === undefined || next[k] === own[k]) {
           delete next[k];
@@ -196,7 +197,7 @@ export function ReportEditor({
         rally: pieceOf(split, c.rally, c.t),
         team: fix.player && fix.player !== 'none' ? teamOf(fix.player) : (c.team as Group),
         type: fix.type ?? c.type,
-        result: fix.result ?? c.result,
+        result: fix.result ?? labelled(c),
         player: fix.player === 'none' ? '' : (fix.player ?? player),
         removed: fix.player === 'none',
         added: false,

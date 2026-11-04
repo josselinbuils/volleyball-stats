@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { clock } from '@/lib/format';
 import { contacts, groupName, match, playerLabel, rallies, teamColor, teamEdge, type Group } from '@/lib/match';
-import { isTouch } from '@/helpers/contacts';
+import { isTouch, labelled } from '@/helpers/contacts';
 import type { ReportChanges, Timeout } from '@/lib/review';
 import { tickStep, zoomed } from '@/components/Review/helpers/timeline';
 
@@ -112,7 +112,7 @@ export function MatchTimeline({
   const touches = [
     ...contacts
       .filter((c) => isTouch(c) || c.type === 'fault')
-      .map((c) => ({ key: `c${c.i}`, time: c.t, team: c.g, removed: removed.has(c.f ?? Math.round(c.t * match.fps)), label: touchLabel(t, c.type, c.result, c.g, c.person) })),
+      .map((c) => ({ key: `c${c.i}`, time: c.t, team: c.g, removed: removed.has(c.f ?? Math.round(c.t * match.fps)), label: touchLabel(t, c.type, labelled(c), c.g, c.person) })),
     ...(saved.added ?? []).map((a) => ({ key: `a${a.frame}`, time: a.frame / match.fps, team: a.team, removed: false, label: touchLabel(t, a.type, a.result, a.team, null) })),
   ];
   const marks = [...(saved.touches ?? []), ...(saved.added ?? [])].map((c) => c.frame / match.fps);

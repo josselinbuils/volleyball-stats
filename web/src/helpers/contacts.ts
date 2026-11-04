@@ -4,3 +4,6 @@ const TOUCHES = new Set(['serve', 'pass', 'set', 'attack', 'relance', 'block', '
 
 /** Whether a player touched the ball: floor and net contacts are the ball's, not a player's. */
 export const isTouch = (c: Contact) => TOUCHES.has(c.type);
+
+/** What a touch holds for the review, before the statistics' reading. */
+export const labelled = (c: Contact) => c.label ?? c.result;

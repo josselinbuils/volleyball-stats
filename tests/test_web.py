@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, credited, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, credited, labelled, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -173,7 +173,7 @@ class TestContacts:
             c("attack", 1, 4), c("dig", 2, 4), c("floor", None, 4),  # kept in play
             c("attack", 1, 5), c("dig", 2, 5, "error"),  # in play in the review: the same
             c("attack", 1, 6, "error"), c("dig", 2, 6, "error"),  # a fault in the review stays
-            c("attack", 1, 7), c("block", 2, 7, "point"),  # its result given by the review
+            c("attack", 1, 7), c("block", 2, 7, "point"),  # in play in the review: the same
             c("attack", 1, 8), c("dig", 2, 8, "error"), c("set", 2, 8, "error"),  # touches after it
             c("attack", 1, 9), c("attack", 2, 9, "error"),  # the other team's own attack
             c("serve", 2, 10), c("pass", 1, 10, "error"),  # the first receiver loses it: an ace
@@ -182,11 +182,14 @@ class TestContacts:
         ]
         typed = [{"frame": str(k)} for k in range(len(found))]
 
-        credited(found, typed, {11, 15})
+        credited(found, typed)
 
         assert [x["result"] for x in found if x["type"] in ("attack", "serve") or x["team"] == 1 and x["type"] == "block"] == [
-            "point", "point", "point", "error", "play", "point", "error", "play", "play", "play", "error", "point", "play", "play",
+            "point", "point", "point", "error", "play", "point", "error", "error", "play", "play", "error", "point", "play", "play",
         ]
+        # The labels stay what happened.
+        assert {labelled(x) for x in found if x["type"] == "attack" and x["rally"] in (1, 3, 5, 7)} == {"play"}
+        assert labelled(next(x for x in found if x["type"] == "attack" and x["rally"] == 6)) == "error"
 
     def test_the_review_s_types_and_results_replace_the_touches(self):
         found = [{"type": "serve", "result": "point"}, {"type": "pass", "result": "play"}]

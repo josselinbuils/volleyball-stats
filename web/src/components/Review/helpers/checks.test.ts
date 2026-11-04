@@ -11,12 +11,11 @@ describe('problems', () => {
     expect(marks(found)).toEqual({});
   });
 
-  it('accepts the other team losing an attack or a block as the last touch', () => {
+  it('marks a fault after a point: the labels say what happened, the statistics read the point', () => {
     for (const type of ['attack', 'block'] as const) {
       const rally = [c('serve', 1, '1:2'), c('pass', 2, '2:1'), c(type, 2, '2:4', 'point'), c('dig', 1, '1:3', 'error')];
-      expect(marks(problems(rally, 2, 1, true))).not.toHaveProperty('3');
+      expect(marks(problems(rally, 2, 1, true))[3]).toEqual(['afterPoint']);
     }
-    expect(marks(problems([c('serve', 1, '1:2'), c('pass', 2, '2:1'), c('attack', 2, '2:4', 'point'), c('dig', 1, '1:3')], 2, 1, true))[3]).toContain('afterPoint');
   });
 
   it('marks a touch coming long after the one before', () => {
@@ -27,8 +26,7 @@ describe('problems', () => {
 
   it('marks a touch after a point', () => {
     expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
-    // A reception lost is the ace's own fault, its last touch.
-    expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1', 'error')], 1, null, true))).toEqual({});
+    expect(marks(problems([c('serve', 1, '1:2', 'point'), c('pass', 2, '2:1', 'error')], 1, null, true))).toEqual({ 1: ['afterPoint'] });
   });
 
   it('marks each problem on the touch that shows it', () => {

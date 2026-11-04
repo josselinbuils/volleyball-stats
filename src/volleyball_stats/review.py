@@ -790,12 +790,9 @@ def unusual(page: dict) -> list[dict]:
             why.append("serveNotReceived")
         if any(a.get("person") is not None and a.get("person") == b.get("person") and a["type"] != "block" for a, b in pairs):
             why.append("samePlayer")
-        # An attack blocked for a point is the attacker's fault, the block after it.
-        if any(a.get("result") == "error" and b["type"] != "block" for a, b in zip(touches, touches[1:])):
+        if any(web.labelled(a) == "error" for a in touches[:-1]):
             why.append("afterFault")
-        # A serve, an attack or a block the other team then loses is a point, that last touch its fault.
-        lost = len(touches) >= 2 and touches[-2]["type"] in ("serve", "attack", "block") and touches[-1].get("result") == "error" and touches[-1].get("team") != touches[-2].get("team")
-        if any(a.get("result") == "point" for a in touches[: -2 if lost else -1]):
+        if any(web.labelled(a) == "point" for a in touches[:-1]):
             why.append("afterPoint")
         run, side = 0, None
         for c in played:
@@ -921,7 +918,7 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
     people = page.get("people") or {}
     player = lambda p: (lambda q: f"{q['team']}:{q['number']}" if q and q.get("number") is not None else None)(people.get(str(p)) if p is not None else None)  # noqa: E731
     touches = [
-        {"frame": c.get("f", round(c["t"] * fps)), "time": c["t"], "type": c["type"], "team": c["team"], "player": player(c.get("person")), "result": c.get("result")}
+        {"frame": c.get("f", round(c["t"] * fps)), "time": c["t"], "type": c["type"], "team": c["team"], "player": player(c.get("person")), "result": web.labelled(c)}
         for c in page["contacts"]
         if k is not None and c["rally"] == k and c["type"] not in web.NO_PLAYER
     ]
@@ -1548,7 +1545,7 @@ def locked(page: dict | None, keys: list[int], given: dict[tuple[int, int], dict
                 continue
             frame = c.get("f", round(c["t"] * page["fps"]))
             mine.append({"frame": frame, "team": c["team"], "type": c["type"]})
-            out["action"].append({"frame": frame, "type": c["type"], "result": c["result"]})
+            out["action"].append({"frame": frame, "type": c["type"], "result": web.labelled(c)})
             # Keyed by text once read from data.js.
             p = people.get(str(c["person"]), people.get(c["person"])) if c.get("person") is not None else None
             if p and p.get("number") is not None and p["team"] == c["team"]:

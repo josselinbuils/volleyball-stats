@@ -592,20 +592,24 @@ def acted(found: list[dict], typed: list[dict], fixes: dict[int, dict]) -> None:
         contact.update(fixes.get(int(row["frame"]), {}))
 
 
-def credited(found: list[dict], typed: list[dict], fixed: set[int]) -> None:
-    """The serves, attacks and blocks of `found` (from actions CSV rows `typed`) the other team's next touch,
-    the rally's last, loses: a point, that touch staying a fault (the owner's rule, 1 Nov), whatever the review
-    gave them but a result other than in play. An attack blocked for a point is a fault, unless the
-    review gave its result (`fixed` frames)."""
+def credited(found: list[dict], typed: list[dict]) -> None:
+    """The statistics' reading of a rally's end, over labels that stay what happened (the owner's rule, 4 Nov): a serve, attack or
+    block in play the other team's next touch, the rally's last, loses counts as a point, and an attack blocked for a point as a
+    fault. `result` is that reading, `label` what such a touch keeps for the review (`labelled`)."""
     touches = [(c, int(row["frame"])) for c, row in zip(found, typed) if c["type"] not in ("floor", "net")]
     last = {c["rally"]: id(c) for c, _ in touches}
-    for (a, frame), (b, _) in zip(touches, touches[1:]):
+    for (a, _), (b, _) in zip(touches, touches[1:]):
         if a["result"] != "play" or b["rally"] != a["rally"] or last[b["rally"]] != id(b) or b["team"] in (None, a["team"]):
             continue
         if a["type"] in ("serve", "attack", "block") and b["type"] in LOSING_TOUCHES and b["result"] == "error":
-            a["result"] = "point"
-        elif a["type"] == "attack" and b["type"] == "block" and b["result"] == "point" and frame not in fixed:
-            a["result"] = "error"
+            a.update(result="point", label="play")
+        elif a["type"] == "attack" and b["type"] == "block" and b["result"] == "point":
+            a.update(result="error", label="play")
+
+
+def labelled(contact: dict) -> str | None:
+    """What a page's touch holds for the review, before the statistics' reading (`credited`)."""
+    return contact.get("label", contact.get("result"))
 
 
 def split_at(windows: list[tuple[int, int]], frames: list[int]) -> list[tuple[int, int, int | None]]:
@@ -787,7 +791,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     # The referee got it wrong: the last touch is what really happened, the other team won it.
     settle(found, [3 - r["winner"] if r["winner"] and r["key"] in wrong else r["winner"] for r in rallies])
     acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
-    credited(found, actions, {a["frame"] for a in answers(match, "action") if "result" in a})
+    credited(found, actions)
     followed(rallies, found, said_on(match, "redo", "redo"), wrong)
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
