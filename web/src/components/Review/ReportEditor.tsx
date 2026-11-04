@@ -7,7 +7,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
-import { railAt, shiftOf } from '@/components/Review/helpers/timeline';
+import { railAt, shiftOf, topOf } from '@/components/Review/helpers/timeline';
 import { review, type Named, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
@@ -272,29 +272,26 @@ export function ReportEditor({
   useEffect(() => () => onCaption?.(null), []);
   const isCurrent = (o: Timeout) => o.start / match.fps <= now && now < o.end / match.fps;
   const inTimeout = timeouts.find(isCurrent);
-  const current = inTimeout ? `o${inTimeout.start}` : inHere ? `t${inHere.frame}` : `r${here}`;
+  // A serve can light up just before its rally starts: the list goes straight to it.
+  const followed = started && started.rally >= here ? started : undefined;
+  const current = inTimeout ? `o${inTimeout.start}` : followed ? `t${followed.frame}` : `r${here}`;
   const centre = (key: string) => {
     const box = list.current;
     const item = box?.querySelector<HTMLElement>(`[data-key="${key}"]`);
-    box?.scrollTo({ top: item ? item.offsetTop - (box.clientHeight - item.offsetHeight) / 2 : 0, behavior: 'smooth' });
+    box?.scrollTo({ top: item ? topOf(item) - (box.clientHeight - item.offsetHeight) / 2 : 0, behavior: 'smooth' });
     return item;
   };
   useEffect(() => {
     if (!editing && Date.now() - scrolled.current > HOLD_MS) {
       centre(current);
     }
-  }, [current, editing]);
+    // `first`: keeping the rows in place when the rallies around change stops the scroll under way.
+  }, [current, editing, first]);
   // The rail along the list: how far the time has come, between rallies too, where no row is lit.
   const [rail, setRail] = useState({ at: 0, height: 0 });
   const placed = useRef({ first, tops: new Map<string, number>() });
   useLayoutEffect(() => {
     const box = list.current;
-    const gap = box ? parseFloat(getComputedStyle(box).rowGap) : 0;
-    // A stuck rally header's offsetTop follows the scroll: its place comes from the row after it.
-    const topOf = (e: HTMLElement): number => {
-      const next = e.nextElementSibling as HTMLElement | null;
-      return next && e.classList.contains('sticky') ? topOf(next) - gap - e.offsetHeight : e.offsetTop;
-    };
     const rows = [...(box?.querySelectorAll<HTMLElement>('[data-at]') ?? [])].map((e) => ({ key: e.dataset.key, at: Number(e.dataset.at), top: topOf(e), bottom: topOf(e) + e.offsetHeight }));
     // Rallies leaving the list or joining it must not move the rows still there on screen.
     const tops = new Map(rows.flatMap((r) => (r.key ? [[r.key, r.top] as const] : [])));

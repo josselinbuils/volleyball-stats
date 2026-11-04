@@ -20,6 +20,15 @@ export function railAt(rows: { at: number; top: number; bottom: number }[], now:
   return a.top + ((b.top - a.top) * (now - ats[next - 1])) / (ats[next] - ats[next - 1]);
 }
 
+/** A row's place in its list: a stuck rally header's offsetTop follows the scroll, so its own comes from the row after it. */
+export function topOf(row: HTMLElement): number {
+  const next = row.nextElementSibling as HTMLElement | null;
+  if (!next || !row.classList.contains('sticky')) {
+    return row.offsetTop;
+  }
+  return topOf(next) - parseFloat(getComputedStyle(row.parentElement!).rowGap) - row.offsetHeight;
+}
+
 /** How far the rows listed both `before` and `after` moved (their tops by key), 0 with none. */
 export function shiftOf(before: Map<string, number>, after: Map<string, number>): number {
   for (const [key, top] of after) {
