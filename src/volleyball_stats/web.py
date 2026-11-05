@@ -24,6 +24,7 @@ import base64
 import csv
 import hashlib
 import json
+import os
 import shutil
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
@@ -948,6 +949,15 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
     return out
 
 
+def linked(source: Path, target: Path) -> None:
+    """`target` the same file as `source`, taking no room (a hard link), else a copy keeping its date."""
+    target.unlink(missing_ok=True)
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
+
+
 def copy_films(films: Path | None, site: Path) -> dict[str, str]:
     """The players' films of the folder `films` in SITE/films/, unchanged ones left there, by name their addresses."""
     target = site / "films"
@@ -964,7 +974,7 @@ def copy_films(films: Path | None, site: Path) -> dict[str, str]:
     for e in made.values():
         source, copied = films / e["file"], target / e["file"]
         if not copied.exists() or copied.stat().st_mtime != source.stat().st_mtime or copied.stat().st_size != source.stat().st_size:
-            shutil.copy2(source, copied)
+            linked(source, copied)
     return {name: f"films/{e['file']}?v={e['hash']}" for name, e in made.items()}
 
 
@@ -1030,7 +1040,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     # Copied with their dates: an upload skips the unchanged ones.
     for kept in filter(None, (video, video and av1, video and small)):
         if copy:
-            shutil.copy2(kept, site / kept.name)
+            linked(kept, site / kept.name)
         else:
             (site / kept.name).symlink_to(kept.resolve())
 

@@ -693,6 +693,7 @@ class TestWriteSite:
         assert (site / "match_av1.mp4").read_bytes() == b"av1"
         assert (site / "match_720p.mp4").read_bytes() == b"720p"
         assert (site / "match.mp4").stat().st_mtime == video.stat().st_mtime
+        assert (site / "match.mp4").stat().st_ino == video.stat().st_ino
 
     def test_leaves_the_video_out_and_removes_a_previous_one(self, tmp_path):
         # The camera names its files in capitals; a symlinked one too.
