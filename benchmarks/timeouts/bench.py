@@ -1,6 +1,6 @@
 """Timeouts found on each match, scored on the owner's answers in the review when it has any.
 
-    uv run python benchmarks/timeouts/bench.py outputs/MATCH [...] [--fps 50]
+    uv run python benchmarks/timeouts/bench.py outputs/matches/MATCH [...] [--fps 50]
 """
 
 import argparse

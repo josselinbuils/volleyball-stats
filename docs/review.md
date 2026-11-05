@@ -2,13 +2,13 @@
 
 How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
-- A match's review: `uv run python -m volleyball_stats.review outputs/MATCH` (http://127.0.0.1:8765, `/review#questions`, `/review#match`). Each apply
-  rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password, or without it (`outputs/MATCH/publish.json`); "Apprendre de mes réponses"
+- A match's review: `uv run python -m volleyball_stats.review outputs/matches/MATCH` (http://127.0.0.1:8765, `/review#questions`, `/review#match`). Each apply
+  rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password, or without it (`outputs/matches/MATCH/publish.json`); "Apprendre de mes réponses"
   retrains the learned attribution and reruns the pipeline (`learn --rerun`: 3 min on the M4 with the poses cached, 40 without), moving the answers onto
   the new windows itself (`learn.rerun`, `rekey`). Before stopping the review (a restart is needed for a server or page change), check that
-  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. `outputs/feedback-conflicts.log` is no viewer's: Claude's note on two
+  `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. `outputs/feedback/feedback-conflicts.log` is no viewer's: Claude's note on two
   answers that disagreed (merged). The review's progress names each step and the pipeline's stage, with the time left from each one's last duration
-  (`outputs/MATCH/review_timings.json`). A run that fails opens an alert with its step and error, even after a reload, until closed (`/failure`); the traceback is in the server's log. `uv run python -m volleyball_stats.learn outputs/MATCH --video VIDEO --court COURT` scores every step on the
+  (`outputs/matches/MATCH/review_timings.json`). A run that fails opens an alert with its step and error, even after a reload, until closed (`/failure`); the traceback is in the server's log. `uv run python -m volleyball_stats.learn outputs/matches/MATCH --video VIDEO --court COURT` scores every step on the
   answers and the checked rallies, against its last run (`learn.json`).
   Stats: a serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that
   touch staying the other team's fault (both count; a serve's is an ace); an attack

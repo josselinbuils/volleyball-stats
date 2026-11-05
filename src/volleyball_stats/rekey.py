@@ -3,7 +3,7 @@ their rallies.csv start (`rally`, `added`, `join`, `winner`, `end`, the rallies 
 automatic reports by their page start, which a rerun moves. Each old rally goes to the new window it
 overlaps most; one overlapping none keeps its key (the page then leaves its answers out).
 
-    uv run python -m volleyball_stats.rekey outputs/VIDEO --before BACKUP/rallies.csv --page-before BACKUP/review-data.js --video VIDEO --court COURT_JSON
+    uv run python -m volleyball_stats.rekey outputs/matches/VIDEO --before BACKUP/rallies.csv --page-before BACKUP/review-data.js --video VIDEO --court COURT_JSON
 """
 
 import argparse

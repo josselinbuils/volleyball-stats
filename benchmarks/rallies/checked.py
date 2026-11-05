@@ -1,6 +1,6 @@
 """Rally windows scored on the rallies a match's review checked, labels of the whole match.
 
-    uv run --group bench python benchmarks/rallies/checked.py outputs/MATCH --video VIDEO --court COURT_JSON
+    uv run --group bench python benchmarks/rallies/checked.py outputs/matches/MATCH --video VIDEO --court COURT_JSON
 """
 
 import argparse

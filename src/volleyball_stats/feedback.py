@@ -1,8 +1,8 @@
 """Viewers' reports of what is wrong in a match page's moments (web.py --feedback), from the hosting's
 log: one JSON object a line, the body the page sent in its "report". Listed by match, then time.
 
-    scp -i ~/.ssh/id_ed25519_ovh root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/feedback/feedback.log outputs/feedback.log
-    uv run python -m volleyball_stats.feedback outputs/feedback.log
+    scp -i ~/.ssh/id_ed25519_ovh root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/feedback/feedback.log outputs/feedback/feedback.log
+    uv run python -m volleyball_stats.feedback outputs/feedback/feedback.log
 """
 
 import argparse
@@ -41,14 +41,15 @@ def read(path: Path) -> list[dict]:
     return out
 
 
-def fetch(outputs: Path, upload: str, key: str) -> Path | None:
+def fetch(folder: Path, upload: str, key: str) -> Path | None:
     """The hosting's report log (beside the site of `upload`, publish.json's "root@HOST:.../site/")
-    copied to `outputs`/feedback-DATE.log, which the review reads, then emptied online; None when it
+    copied to `folder`/feedback-DATE.log, which the review reads, then emptied online; None when it
     holds nothing. The copy is kept before the log is emptied."""
     host, site = upload.split(":", 1)
     online = str(Path(site.rstrip("/")).parent / "feedback" / "feedback.log")
     ssh = ["-i", str(Path(key).expanduser()), "-o", "BatchMode=yes"]
-    target = outputs / f"feedback-{time.strftime('%Y%m%d-%H%M%S')}.log"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f"feedback-{time.strftime('%Y%m%d-%H%M%S')}.log"
     subprocess.run(["scp", *ssh, f"{host}:{online}", str(target)], check=True, capture_output=True)
     if not target.stat().st_size:
         target.unlink()

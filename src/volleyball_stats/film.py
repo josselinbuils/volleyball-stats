@@ -1,6 +1,6 @@
 """Each player's film: a vertical film of under 45 s cut from the real video like a broadcast, made ahead of time on demand.
 
-    uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT_JSON [--names NAME,NAME]
+    uv run python -m volleyball_stats.film outputs/matches/MATCH --video VIDEO --court COURT_JSON [--names NAME,NAME]
 
 The moments are a player's fastest serve and best points, each played then replayed slowly; the match has its own 16/9 film of about a
 minute (HIGHLIGHTS). `build` makes only the films whose `plan` changed (FILMS/manifest.json); the ball's search is kept whatever

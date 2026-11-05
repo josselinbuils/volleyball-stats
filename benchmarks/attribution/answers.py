@@ -6,7 +6,7 @@ attribution.ranked as it stands run again on actions.csv's contacts and players.
 identity being its track's in identities.csv), to score a change to the step without rerunning the
 pipeline; with --video, attribution.by_wrists after it too (pose on the video).
 
-    uv run python benchmarks/attribution/answers.py outputs/2026-10-29-aspom-1-vs-aspom-2 [--rerank [--video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4]]
+    uv run python benchmarks/attribution/answers.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 [--rerank [--video data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4]]
 """
 
 import argparse

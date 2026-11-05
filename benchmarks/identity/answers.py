@@ -2,7 +2,7 @@
 held out in turn, the step run with the other half (the names and the cuts always kept), and the
 held-out answers checked: "same" pieces in one identity, "different" ones in two.
 
-    uv run python benchmarks/identity/answers.py outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4
+    uv run python benchmarks/identity/answers.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 --video data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4
 """
 
 import argparse

@@ -1,6 +1,6 @@
 """Review, on the video, the player identities the identity step is least sure of.
 
-    uv run python -m volleyball_stats.review outputs/VIDEO --video VIDEO --court COURT_JSON [--squad N[,N]] [--theme NAME] [--roster PATH] [--port PORT]
+    uv run python -m volleyball_stats.review outputs/matches/VIDEO --video VIDEO --court COURT_JSON [--squad N[,N]] [--theme NAME] [--roster PATH] [--port PORT]
 
 Builds the match page like web.py, with the video and every player's picture, into MATCH/review/,
 apart from the page to publish (MATCH/site/, rebuilt with its own choices on "apply"), then serves
@@ -720,9 +720,9 @@ REPORT_BEFORE_S, REPORT_AFTER_S = 3.0, 8.0
 
 def reports(match: Path) -> list[dict]:
     """The viewers' reports about `match` (its folder's name) in the logs fetched beside it
-    (feedback*.log), each once with its `key`, by time."""
+    (outputs/feedback/*.log), each once with its `key`, by time."""
     found: dict[str, dict] = {}
-    for log in sorted(match.parent.glob("feedback*.log")):
+    for log in sorted((files.root(match) / "feedback").glob("*.log")):
         for r in feedback.read(log):
             if r.get("match") in (match.name, *files.aliases(match)):
                 # A report sent with its `id` (a one-tap flag, then maybe its details) is one, whichever log holds what.
@@ -2342,7 +2342,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
                     def fetched() -> None:
                         try:
-                            got = feedback.fetch(match.parent, config["upload"], config["key"])
+                            got = feedback.fetch(files.root(match) / "feedback", config["upload"], config["key"])
                             fetched_log.update(at=time.strftime("%H:%M"), count=len([r for r in feedback.read(got) if r.get("match") in (match.name, *files.aliases(match))]) if got else 0, error=None)
                         except Exception as error:  # noqa: BLE001
                             fetched_log.update(at=time.strftime("%H:%M"), count=0, error=str(error) or type(error).__name__)
@@ -2430,8 +2430,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Review the doubtful player identities on the video, in the browser.")
-    parser.add_argument("match", type=Path, nargs="?", help="The match's outputs directory (outputs/VIDEO), run with --players. Default: the list of the matches")
-    parser.add_argument("--outputs", type=Path, default=Path("outputs"), help="Where the list of the matches looks")
+    parser.add_argument("match", type=Path, nargs="?", help="The match's outputs directory (outputs/matches/VIDEO), run with --players. Default: the list of the matches")
+    parser.add_argument("--outputs", type=Path, default=Path("outputs/matches"), help="Where the list of the matches looks")
     parser.add_argument("--video", type=Path, help="Default: the match's source.json")
     parser.add_argument("--court", type=Path, help="Court calibration JSON the match was run with. Default: the match's source.json")
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2")

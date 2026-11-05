@@ -2,8 +2,8 @@
 
     uv run python -m volleyball_stats.import_match SOURCE --teams "NAME_1[:COLOUR],NAME_2[:COLOUR]" [--from TIME] [--to TIME] [--date DATE] [--recording N]
 
-Joins a recording's chapters without re-encoding, from --from to --to in the joined video, into data/MATCH/MATCH.mp4, and starts
-outputs/MATCH/ with teams.json and start.jpg to check the sides. The first team is the one on the left at the first rally. The cut
+Joins a recording's chapters without re-encoding, from --from to --to in the joined video, into data/matches/MATCH/MATCH.mp4, and starts
+outputs/matches/MATCH/ with teams.json and start.jpg to check the sides. The first team is the one on the left at the first rally. The cut
 starts on the keyframe before --from. SOURCE is only read.
 """
 
@@ -117,8 +117,8 @@ def main() -> None:
     parser.add_argument("--to", dest="end", help="Where it ends")
     parser.add_argument("--date", help="The match's date. Default: the camera's")
     parser.add_argument("--recording", type=int, help="Which recording, when the card holds several")
-    parser.add_argument("--data", type=Path, default=Path("data"))
-    parser.add_argument("--out", type=Path, default=Path("outputs"))
+    parser.add_argument("--data", type=Path, default=Path("data/matches"))
+    parser.add_argument("--out", type=Path, default=Path("outputs/matches"))
     args = parser.parse_args()
 
     try:

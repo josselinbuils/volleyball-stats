@@ -2,7 +2,7 @@
 picture's scale gives for gravity and the players' heads, how far each measure moves under what could be wrong (contact
 frames, sightings, feet), and whether a player's measures agree with each other.
 
-    uv run python benchmarks/ball3d/measures.py outputs/2026-10-29-aspom-1-vs-aspom-2 outputs/courts/aspom_begles.json
+    uv run python benchmarks/ball3d/measures.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 outputs/courts/aspom_begles.json
 """
 
 import json

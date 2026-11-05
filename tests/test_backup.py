@@ -4,14 +4,14 @@ from volleyball_stats.backup import rsync_command, signature, sources, stale, va
 
 
 class TestSources:
-    def test_the_match_and_what_sits_beside_it(self, tmp_path):
-        match = tmp_path / "first_match"
-        match.mkdir()
+    def test_the_match_and_what_sits_in_the_outputs_folder(self, tmp_path):
+        match = tmp_path / "matches" / "first_match"
+        match.mkdir(parents=True)
         (tmp_path / "courts").mkdir()
         (tmp_path / "roster.json").write_text("{}")
-        (tmp_path / "feedback-1.log").write_text("")
+        (tmp_path / "feedback").mkdir()
         (tmp_path / "hosted").mkdir()
-        assert [p.name for p in sources(match) if p.is_relative_to(tmp_path)] == ["first_match", "courts", "roster.json", "feedback-1.log"]
+        assert [p.name for p in sources(match) if p.is_relative_to(tmp_path)] == ["first_match", "courts", "roster.json", "feedback"]
 
 
 class TestSignature:

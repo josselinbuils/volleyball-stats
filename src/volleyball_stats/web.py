@@ -1,6 +1,6 @@
 """The match page: a static site built from the pipeline's outputs, index.html + data.js + the video.
 
-    uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court COURT_JSON [--club N] [--footage MODE] [--pictures] [--out DIR] [--copy-video] [--theme NAME]
+    uv run python -m volleyball_stats.web outputs/matches/VIDEO --video VIDEO --court COURT_JSON [--club N] [--footage MODE] [--pictures] [--out DIR] [--copy-video] [--theme NAME]
 
 The page (site/, built from web/ with `npm run build` and copied as is) reads the match from data.js,
 a script rather than fetched JSON so it opens from the disk by double-clicking index.html, and the
@@ -1498,7 +1498,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
 def main() -> None:
     themes = sorted(p.parent.name for p in BRANDING.glob("*/brand.json"))
     parser = argparse.ArgumentParser(description="Build the static match page from the pipeline's outputs.")
-    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO)")
+    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/matches/VIDEO)")
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--court", type=Path, required=True, help="Court calibration JSON the match was run with")
     parser.add_argument("--out", type=Path, help="Site directory (default: MATCH/site)")

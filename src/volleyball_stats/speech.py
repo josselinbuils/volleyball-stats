@@ -1,7 +1,7 @@
 """The spoken commentary of a match page: short lines timed on the match, with the audio generated once for each text.
 
 The script comes from the page's data alone, so that every build says what the page shows: a line whose audio is not
-there yet (`voice.py` makes it) is left out. `outputs/MATCH/spoken.json` spells words for the voice ({"Loick": "Lo-ïk"}).
+there yet (`voice.py` makes it) is left out. `outputs/matches/MATCH/spoken.json` spells words for the voice ({"Loick": "Lo-ïk"}).
 """
 
 import hashlib

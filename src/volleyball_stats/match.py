@@ -2,7 +2,7 @@
 
     uv run python -m volleyball_stats.match VIDEO (--court CALIBRATION_JSON | --net-x PX) [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE] [--sets M:SS,...] [--scores 25-21,...] [--squad N[,N]]] [--force]
 
-Each step writes its output to outputs/<video>/; the ball and player tracks, the slow steps, are
+Each step writes its output to outputs/matches/<video>/; the ball and player tracks, the slow steps, are
 reused when they exist unless --force. With the players, teams.json holds the teams' names, colours,
 the match's date and title, the set starts and the sets' final scores: written on the first run
 (asked on a terminal), edited by hand if need be, reused on the next runs unless the flags override
@@ -264,7 +264,7 @@ def main() -> None:
     net = parser.add_mutually_exclusive_group(required=True)
     net.add_argument("--court", type=Path, help="Court calibration JSON (court.py fit or auto)")
     net.add_argument("--net-x", type=float, help="Net position in frame pixels, without a calibration (no floor contacts)")
-    parser.add_argument("--out", type=Path, default=Path("outputs"))
+    parser.add_argument("--out", type=Path, default=Path("outputs/matches"))
     parser.add_argument("--players", action="store_true", help="Also track the players (about 2.5x the ball's time) and tell the teams apart")
     parser.add_argument(
         "--teams",

@@ -3,7 +3,7 @@ labels of two 10 minutes (`benchmarks/rallies/ground_truth/first_match_*.csv`): 
 names the end serving ("left serves"), the winner of a rally is the end serving the next one (the
 sideout rule), unknown for a span's last rally.
 
-    uv run python benchmarks/points/first_match.py [outputs/2026-10-29-aspom-1-vs-aspom-2] [--verbose]
+    uv run python benchmarks/points/first_match.py [outputs/matches/2026-10-29-aspom-1-vs-aspom-2] [--verbose]
 """
 
 import argparse
@@ -28,7 +28,7 @@ def labels() -> list[tuple[int, str, str | None]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("match", type=Path, nargs="?", default=ROOT / "outputs/2026-10-29-aspom-1-vs-aspom-2")
+    parser.add_argument("match", type=Path, nargs="?", default=ROOT / "outputs/matches/2026-10-29-aspom-1-vs-aspom-2")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     with open(args.match / "rallies.csv") as f:

@@ -3,7 +3,7 @@ matches given and the labelled school clips, score it with each group held out i
 a match, each clip) against the rule (attribution.by_wrists without it), then write the weights fit
 on everything to src/volleyball_stats/attribution_ranker.json.
 
-    uv run --group bench python benchmarks/attribution/ranker.py outputs/2026-10-29-aspom-1-vs-aspom-2:data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4:outputs/courts/aspom_begles.json [--clips side_club side_long side_holdout] [--write]
+    uv run --group bench python benchmarks/attribution/ranker.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2:data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4:outputs/courts/aspom_begles.json [--clips side_club side_long side_holdout] [--write]
 
 The poses are kept in outputs/benchmarks/ranker/ (first run: about a second per touch).
 """

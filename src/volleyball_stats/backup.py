@@ -2,9 +2,9 @@
 results, the courts, the viewers' reports, the sponsors) on the hosting server, outside its website.
 Files unchanged since the copy before take no room. The video is too big for that server.
 
-    uv run python -m volleyball_stats.backup outputs/2026-10-29-aspom-1-vs-aspom-2
+    uv run python -m volleyball_stats.backup outputs/matches/2026-10-29-aspom-1-vs-aspom-2
 
-Restore: rsync -rt -e "ssh -i KEY" root@HOST:/root/backups/volleyball-stats/DAY/2026-10-29-aspom-1-vs-aspom-2/ outputs/2026-10-29-aspom-1-vs-aspom-2/
+Restore: rsync -rt -e "ssh -i KEY" root@HOST:/root/backups/volleyball-stats/DAY/2026-10-29-aspom-1-vs-aspom-2/ outputs/matches/2026-10-29-aspom-1-vs-aspom-2/
 """
 
 import argparse
@@ -17,7 +17,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from volleyball_stats import matches
+from volleyball_stats import files, matches
 
 ROOT = "/root/backups/volleyball-stats"
 # Old copies of the results, the pages built from them (the review's links the video), half-written files, the review's
@@ -41,8 +41,8 @@ DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 def sources(match: Path) -> list[Path]:
     """What is copied, each landing under its name: the match's folder and what sits beside it."""
-    outputs = match.parent
-    found = [match, outputs / "courts", outputs / "roster.json", outputs / "lens.json", SPONSORS, *sorted(outputs.glob("feedback*.log"))]
+    outputs = files.root(match)
+    found = [match, outputs / "courts", outputs / "roster.json", outputs / "lens.json", SPONSORS, outputs / "feedback"]
     return [p for p in found if p.exists()]
 
 

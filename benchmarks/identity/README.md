@@ -10,7 +10,7 @@ page from the first serve to the last ball. Scored against hand-labelled identit
 `match.py --players` runs it after the teams; alone, on a match folder run with `--players`:
 
 ```bash
-uv run python -m volleyball_stats.identity outputs/VIDEO --video VIDEO [--squad N[,N]]
+uv run python -m volleyball_stats.identity outputs/matches/VIDEO --video VIDEO [--squad N[,N]]
 ```
 
 writes `identities.csv` (`track,start_frame,end_frame,team,identity,runner_up,confidence`: one row
@@ -52,7 +52,7 @@ sweeping `CROPS`, `CLEAR`, `HALF` or the crowd constants. About 1 minute per cli
 kept), the held-out "same" groups and "different" pairs checked (37 s on the first ASPOM match).
 
 ```bash
-uv run python benchmarks/identity/answers.py outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4
+uv run python benchmarks/identity/answers.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 --video data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4
 ```
 
 First ASPOM match, 143 answers and 37 names (one club, one kit for both teams): 181/329 held-out

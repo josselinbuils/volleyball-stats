@@ -15,7 +15,7 @@ the numbers of the previous identities.csv. Inside a rally, where the tracks kee
 through crowds, each track then holds one number. See benchmarks/identity/README.md for the numbers
 behind the constants.
 
-    uv run python -m volleyball_stats.identity outputs/VIDEO --video VIDEO [--squad N[,N]]
+    uv run python -m volleyball_stats.identity outputs/matches/VIDEO --video VIDEO [--squad N[,N]]
 
 Reads players.csv, rallies.csv and actions.csv of a match run with --players and, when present,
 identity_answers.json (the user's answers, hard constraints overriding the model), the previous
@@ -938,7 +938,7 @@ def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None) -> lis
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Link the player tracks into one identity per player for the whole match.")
-    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO), run with --players")
+    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/matches/VIDEO), run with --players")
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--squad", type=parse_squad, help="Players per team, N or N1,N2 (team 1 is on the left at the first rally)")
     args = parser.parse_args()

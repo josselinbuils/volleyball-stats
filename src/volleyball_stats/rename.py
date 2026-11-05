@@ -1,8 +1,8 @@
 """Rename a match, everywhere on this machine and in its backups: by default to the name its date and teams give, its hosted page's.
 
-    uv run python -m volleyball_stats.rename outputs/MATCH [NEW_NAME]
+    uv run python -m volleyball_stats.rename outputs/matches/MATCH [NEW_NAME]
 
-data/NEW/NEW.mp4 with the match's other video files, outputs/NEW/ with its own court; the old name stays an alias (files.SOURCE) so
+data/matches/NEW/NEW.mp4 with the match's other video files, outputs/matches/NEW/ with its own court; the old name stays an alias (files.SOURCE) so
 that the viewers' reports and choices made under it still count. The hosted page follows on its next upload (matches.host), with a
 redirect from its old address (matches.build).
 """
@@ -81,7 +81,7 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
             path = moved(path, folder / video_copies.FOLDER)
         config[key] = str(path.resolve())
     # A court of its own goes with it; a gym's, in the library, stays for the next matches.
-    own = outputs / "court"
+    own = files.root(match) / "court"
     match.rename(target)
     if court.resolve().parent == (outputs / old).resolve():
         court = target / court.name
@@ -93,7 +93,7 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
         files.write_text(target / matches.PUBLISH, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
     given["aliases"] = sorted({*given.get("aliases", []), old} - {new})
     files.write_text(target / files.SOURCE, json.dumps({**given, "video": str(video), "court": str(court)}, indent=1) + "\n")
-    roster = outputs / ROSTER
+    roster = files.root(target) / ROSTER
     if roster.exists():
         saved = json.loads(roster.read_text())
         for player in saved["players"]:

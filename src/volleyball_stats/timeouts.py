@@ -6,7 +6,7 @@ corrections from the review's Match tab, in frames so that a rerun moving the ra
 This also finds an injury or a long pause: the owner removes those. The team that called a timeout is
 not found, the owner picks it.
 
-    uv run python -m volleyball_stats.timeouts outputs/MATCH --fps 50
+    uv run python -m volleyball_stats.timeouts outputs/matches/MATCH --fps 50
 """
 
 import argparse

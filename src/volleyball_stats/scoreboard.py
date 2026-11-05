@@ -4,7 +4,7 @@ them, the sets each side won. What each frame read is kept in scoreboard.csv: a 
 the frames it lacks. The review compares the board with the running score (`review.board_off`).
 A step of match.py; alone:
 
-    uv run python -m volleyball_stats.scoreboard outputs/MATCH --video VIDEO
+    uv run python -m volleyball_stats.scoreboard outputs/matches/MATCH --video VIDEO
 """
 
 import argparse
@@ -121,7 +121,7 @@ def run(match: Path, video: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Read the score board before each serve of a match.")
-    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO)")
+    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/matches/VIDEO)")
     parser.add_argument("--video", type=Path, required=True)
     args = parser.parse_args()
     start = time.perf_counter()

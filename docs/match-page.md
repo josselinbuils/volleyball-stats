@@ -62,8 +62,8 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
   did something, who scored and who gave a point away.
 - **Voice:** a script for speech (`speech.py`), in French, calling every named touch, in full when there is room before the next and
   else by the player's name, spoken on request by a voice generated on this machine: Kokoro,
-  the SIWIS voice at 1.2 times its speed. `uv run --group voice python -m volleyball_stats.voice outputs/MATCH` makes the audio missing
-  in `outputs/MATCH/voice/` (`spoken.json` there spells names for it, never committed), then build the page: a build keeps the lines
+  the SIWIS voice at 1.2 times its speed. `uv run --group voice python -m volleyball_stats.voice outputs/matches/MATCH` makes the audio missing
+  in `outputs/matches/MATCH/voice/` (`spoken.json` there spells names for it, never committed), then build the page: a build keeps the lines
   still true of the match, so run it again after a review's changes. Without audio, or in English, the browser's voice.
 
 ## Le coin du coach

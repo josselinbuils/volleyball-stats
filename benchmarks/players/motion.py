@@ -1,6 +1,6 @@
 """How natural the page's players move, from a match's tracking to `web.natural_motion`.
 
-    uv run python benchmarks/players/motion.py outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json
+    uv run python benchmarks/players/motion.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 --video data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json
 
 No ground truth: moves over 7 m/s are noise, the step in speed from one sample to the next is what looks jerky, and the
 named player's distance to the ball at their touch (`ball3d.js` of the review's page) says whether they stay where they played,

@@ -17,12 +17,12 @@ uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "NAME_1[
 ```
 
 It joins the camera's chapters without re-encoding, cut at the times given in the joined video, into
-`data/MATCH/MATCH.mp4`, where `MATCH` is the name of the match's hosted page (date and teams), and starts
-`outputs/MATCH/` with `teams.json`. The first team is the one on the left at the first rally: check
-`outputs/MATCH/start.jpg`. The card is only read.
+`data/matches/MATCH/MATCH.mp4`, where `MATCH` is the name of the match's hosted page (date and teams), and starts
+`outputs/matches/MATCH/` with `teams.json`. The first team is the one on the left at the first rally: check
+`outputs/matches/MATCH/start.jpg`. The card is only read.
 
 Change a team's name in the review and the match follows: its folders, video and backups take the new name, and the next upload moves
-its hosted page, with a redirect from the old address. `uv run python -m volleyball_stats.rename outputs/MATCH [NEW_NAME]` does the same without the review.
+its hosted page, with a redirect from the old address. `uv run python -m volleyball_stats.rename outputs/matches/MATCH [NEW_NAME]` does the same without the review.
 
 ## 1. Map the court
 
@@ -44,7 +44,7 @@ Either file is the `--court` of the next steps.
 uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE] [--sets M:SS,...] [--scores 25-21,...] [--squad N[,N]]]
 ```
 
-`match` writes to `outputs/VIDEO/`:
+`match` writes to `outputs/matches/VIDEO/`:
 
 - the ball track, rallies, typed contacts, net crossings and a report;
 - the actions CSV: each contact with its type and side of the net.
@@ -69,7 +69,7 @@ change ends, at a set break or a timeout. Kits may differ within a team: a playe
 side of the net. Two teams in the same kit (two teams of one club) are taken to change ends at every
 set break, as the rules say, and only then.
 
-`outputs/VIDEO/teams.json` holds:
+`outputs/matches/VIDEO/teams.json` holds:
 
 | Field | Value | Default (`null`) |
 | --- | --- | --- |
@@ -106,10 +106,10 @@ over, and the report gives the estimated score's drift from them.
 
 ```bash
 uv run python -m volleyball_stats.review                 # opens on the list of the matches
-uv run python -m volleyball_stats.review outputs/VIDEO   # opens on this match
+uv run python -m volleyball_stats.review outputs/matches/VIDEO   # opens on this match
 ```
 
-The list shows the matches `match --players` has run on (`outputs/VIDEO/source.json` holds their video and court), one still
+The list shows the matches `match --players` has run on (`outputs/matches/VIDEO/source.json` holds their video and court), one still
 being processed greyed out; "Changer de match" goes back to it from a review. Choosing another match restarts the server on it,
 which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved.
 
@@ -154,7 +154,7 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   `match`, `scoreboard.csv`, kept for the next runs): the review reports the rally after which the
   running score parts from it ("Score après l'échange différent du tableau", `review.board_off`).
 - **Apply** shows its steps on a progress bar; pictures are cut ahead and kept in
-  `outputs/VIDEO/crops/`.
+  `outputs/matches/VIDEO/crops/`.
 - **Apply** comes back without waiting for the players' pictures and the jersey numbers they read:
   they follow in the background, each kept (`photo_moments/`, `jersey_pictures.json`) under a stamp of
   the video, the code and the locked dependencies, so a change of any of them makes them again.
@@ -166,7 +166,7 @@ For two numbers never on court together: 1 for the same person, 2 for two people
 - **"Apply"** (or "undo") reruns the identity step and rebuilds the match page in seconds, keeping
   the other numbers.
 - **The identity step also reruns alone:**
-  `uv run python -m volleyball_stats.identity outputs/VIDEO --video VIDEO [--squad N[,N]]`.
+  `uv run python -m volleyball_stats.identity outputs/matches/VIDEO --video VIDEO [--squad N[,N]]`.
 
 The **"Noms" tab** names the players: pictures of each one, a name and an optional jersey number,
 which the page then shows instead of the match number.
@@ -185,10 +185,10 @@ which the page then shows instead of the match number.
 ## 4. Build the match page
 
 ```bash
-uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--club N] [--footage none|full|blur-opponents|blur-all] [--pictures] [--copy-video] [--theme NAME]
+uv run python -m volleyball_stats.web outputs/matches/VIDEO --video VIDEO --court CALIBRATION_JSON [--club N] [--footage none|full|blur-opponents|blur-all] [--pictures] [--copy-video] [--theme NAME]
 ```
 
-`web` builds the page in `outputs/VIDEO/site/`: open `index.html` (French by default). What it shows
+`web` builds the page in `outputs/matches/VIDEO/site/`: open `index.html` (French by default). What it shows
 is described in [The match page](match-page.md).
 
 | `--footage` | The page shows |
@@ -206,10 +206,10 @@ is described in [The match page](match-page.md).
 - **`--theme`** picks a club theme, `branding/NAME/brand.json` with its logo (default `aspom`, `none`
   for the neutral one; see [`branding/brand.example.json`](../branding/brand.example.json)): logo and
   club name in a band at the top linking to `url`, accent colours, page and card styles per colour scheme.
-- **Choices are saved** in `outputs/VIDEO/page.json`: rebuild with only the flag to change
+- **Choices are saved** in `outputs/matches/VIDEO/page.json`: rebuild with only the flag to change
   (`--no-pictures`, `--footage none`...). A build with `--out` (to host) neither reads nor saves
   them: no video nor pictures unless its own flags ask.
-- **The review page** builds its own copy with the video in `outputs/VIDEO/review/`, and rebuilds the
+- **The review page** builds its own copy with the video in `outputs/matches/VIDEO/review/`, and rebuilds the
   published page on "apply".
 
 ## 5. Host the matches

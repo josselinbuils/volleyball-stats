@@ -7,7 +7,7 @@ their track and either side of a longer gap, so a player the tracker lost for a 
 bench, the public, a player standing off the court) are not blurred. The video is decoded and
 encoded by ffmpeg, on an NVIDIA GPU when it can.
 
-    uv run python -m volleyball_stats.blur outputs/VIDEO --video VIDEO --teams 2 [--out OUT.mp4]
+    uv run python -m volleyball_stats.blur outputs/matches/VIDEO --video VIDEO --teams 2 [--out OUT.mp4]
 """
 
 import argparse
@@ -110,7 +110,7 @@ def write(match: Path, video: Path, teams: set[int], out: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Copy a match video with the players of some teams blurred.")
-    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO), run with --players")
+    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/matches/VIDEO), run with --players")
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--teams", default="1,2", help="Teams to blur, 1, 2 or 1,2 (default: both)")
     parser.add_argument("--out", type=Path, help="Defaults to MATCH/VIDEO_blurred.mp4")

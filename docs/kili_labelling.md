@@ -2,15 +2,15 @@
 
 A labelled match is the reference the benchmarks score the pipeline against. Label one per new
 setup (gym, camera, framing), not every match. This guide uses the first ASPOM match
-(`data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4`); change the names for another.
+(`data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4`); change the names for another.
 
 ## Video
 
 Upload a 1080p copy: it keeps the 4K file's frames, so a Kili frame number is the pipeline's.
 
 ```bash
-ffmpeg -hwaccel videotoolbox -i data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 -vf scale=1920:-2 -fps_mode passthrough \
-  -c:v h264_videotoolbox -b:v 12M -c:a aac -b:a 128k -movflags +faststart data/first_match_1080p.mp4
+ffmpeg -hwaccel videotoolbox -i data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 -vf scale=1920:-2 -fps_mode passthrough \
+  -c:v h264_videotoolbox -b:v 12M -c:a aac -b:a 128k -movflags +faststart data/matches/2026-10-29-aspom-1-vs-aspom-2/reencoded/first_match_1080p.mp4
 ```
 
 - A video project at the native 50 fps: Kili samples 30 fps by default (`processingParameters`
@@ -18,8 +18,8 @@ ffmpeg -hwaccel videotoolbox -i data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-as
   from 0 or 1: the converter needs it.
 - Upload one part per set (the whole match at 1080p is about 6 GB), cut at exact frames between
   sets and named by its first frame, which the converter adds back. For the set from 24:10 (frame
-  72500) to 46:00: `ffmpeg -ss 1450 -i data/first_match_1080p.mp4 -t 1310 -fps_mode passthrough
-  -c:v h264_videotoolbox -b:v 12M -c:a aac data/first_match_1080p_from_72500.mp4`. A cut can land
+  72500) to 46:00: `ffmpeg -ss 1450 -i data/matches/2026-10-29-aspom-1-vs-aspom-2/reencoded/first_match_1080p.mp4 -t 1310 -fps_mode passthrough
+  -c:v h264_videotoolbox -b:v 12M -c:a aac data/matches/2026-10-29-aspom-1-vs-aspom-2/reencoded/first_match_1080p_from_72500.mp4`. A cut can land
   a frame off: check each part's first frame against the whole file and name the part by the frame
   it really starts on. The first match's parts start at frames 0, 72500 and 137999.
 - Keep the project private: the footage shows real players (see Privacy in the README).
@@ -127,6 +127,6 @@ the benchmarks' ground truth, scaling boxes to the 4K frame:
 | Labels | Ground truth |
 | --- | --- |
 | SERVE, DEAD | `benchmarks/rallies/ground_truth/first_match.csv`, `benchmarks/points/ground_truth/first_match.csv` |
-| SERVE, DEAD + set starts in `outputs/2026-10-29-aspom-1-vs-aspom-2/teams.json` | `benchmarks/teams/ground_truth/first_match.csv` |
+| SERVE, DEAD + set starts in `outputs/matches/2026-10-29-aspom-1-vs-aspom-2/teams.json` | `benchmarks/teams/ground_truth/first_match.csv` |
 | TOUCH, NET_TOUCH | `benchmarks/contacts/ground_truth/first_match.csv`, `benchmarks/attribution/ground_truth/first_match.csv` |
 | PLAYER | `benchmarks/identity/ground_truth/first_match.csv` (players as `ASPOM 01 #22`) |

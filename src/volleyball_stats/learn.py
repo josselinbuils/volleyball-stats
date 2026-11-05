@@ -10,7 +10,7 @@ the match folder): what the answers teach, after each review or pipeline change.
 - checked: the rallies checked in the Match tab, labels in full: their touches, types, players and
   winner on the page against the pipeline's own.
 
-    uv run python -m volleyball_stats.learn outputs/VIDEO --video VIDEO --court COURT_JSON [--rerun]
+    uv run python -m volleyball_stats.learn outputs/matches/VIDEO --video VIDEO --court COURT_JSON [--rerun]
 
 With --rerun (the review's "Apprendre de mes réponses"), the learned attribution is trained again on the
 answers (`train`), the pipeline runs again and the answers move onto its rally windows.

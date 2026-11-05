@@ -3,7 +3,7 @@
 `volleyball_stats.timeouts`: a gap inside a set under 180 s, with 6 players or fewer on the court for 30 s or more, or of 70 s or more.
 
 ```bash
-uv run python benchmarks/timeouts/bench.py outputs/MATCH
+uv run python benchmarks/timeouts/bench.py outputs/matches/MATCH
 ```
 
 It scores on the review's answers (`timeouts.json`), once given. No truth yet: on two matches, of 268 gaps, 6 found, from one frame each 3 look like

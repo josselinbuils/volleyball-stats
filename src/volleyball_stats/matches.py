@@ -306,7 +306,7 @@ def unguarded_videos(site: Path) -> list[Path]:
 
 
 def imported(match: Path, video: Path) -> bool:
-    """Whether this is a real match from import_match, data/MATCH/MATCH.mp4, not a test clip."""
+    """Whether this is a real match from import_match, data/matches/MATCH/MATCH.mp4, not a test clip."""
     return video.parent.name == video.stem == match.name
 
 

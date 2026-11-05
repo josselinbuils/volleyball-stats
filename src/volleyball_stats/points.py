@@ -13,7 +13,7 @@ The team serving the next rally won the previous one (the sideout rule). It only
 next rally found is the next one played: a missed rally in between breaks it. `combine` weighs the
 two; see benchmarks/points/README.md for the numbers.
 
-    uv run python -m volleyball_stats.points outputs/VIDEO --fps FPS --court COURT_JSON
+    uv run python -m volleyball_stats.points outputs/matches/VIDEO --fps FPS --court COURT_JSON
 
 reads match.py's actions.csv, net.csv, rallies.csv and teams.json, and writes points.csv: each
 rally's server, winner, reason and the score after it (team 1, team 2) in its set.
@@ -201,7 +201,7 @@ def summary(found: list[dict], given: list[str | None]) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Find who won each rally and the running score.")
-    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO)")
+    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/matches/VIDEO)")
     parser.add_argument("--court", type=Path, help="Court calibration JSON the match was run with")
     parser.add_argument("--fps", type=float, required=True, help="The video's frame rate")
     args = parser.parse_args()

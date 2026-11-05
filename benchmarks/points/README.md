@@ -9,7 +9,7 @@ and `side_long`, then run once on the held-out `side_holdout` and `side_setend`.
 ```bash
 uv run --group bench python benchmarks/points/bench.py side_club side_long [--verbose]
 uv run --group bench python benchmarks/points/bench.py side_holdout side_setend
-uv run python -m volleyball_stats.points outputs/VIDEO --fps FPS --court COURT_JSON
+uv run python -m volleyball_stats.points outputs/matches/VIDEO --fps FPS --court COURT_JSON
 ```
 
 The bench reads each clip's ball track, the jersey colour on each side of the

@@ -4,7 +4,7 @@ a number kept when READINGS_AGREE readings or more agree and none disagrees: a w
 join two players for good. Written to jerseys.csv, which identity.run reads. A step of match.py on
 footage of MIN_HEIGHT pixels or more; alone:
 
-    uv run python -m volleyball_stats.jerseys outputs/VIDEO --video VIDEO
+    uv run python -m volleyball_stats.jerseys outputs/matches/VIDEO --video VIDEO
 """
 
 import argparse
@@ -129,7 +129,7 @@ def load(match: Path, rare: bool = False) -> dict[tuple[int, int], int] | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Read the jersey numbers of a match's player tracks (4K footage).")
-    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/VIDEO), run with --players")
+    parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/matches/VIDEO), run with --players")
     parser.add_argument("--video", type=Path, required=True)
     args = parser.parse_args()
     start = time.perf_counter()

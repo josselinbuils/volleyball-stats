@@ -14,15 +14,15 @@ takes commits on master directly, the owner's choice: GitHub reports the push as
 unhashed ones load with the build's hash, card pictures with their own), images a day, pages are
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
-copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
-`club`, `upload` as `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its `data/MATCH/reencoded/`), the review's "Mettre en ligne" does all of it
+copy it over; nothing restarts. With `outputs/matches/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
+`club`, `upload` as `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its `data/matches/MATCH/reencoded/`), the review's "Mettre en ligne" does all of it
 (`matches.host`, refusing to upload a video copy that opens without the password) and says when. The review writes an imported match's
 `publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). The first "Mettre en ligne" asks: with the video and
 a password, or without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Only the password's fingerprint is kept. Nothing is encoded before that choice:
 with the video, its copies are made then (`video_copies.py`). By hand:
 
 ```bash
-uv run python -m volleyball_stats.web outputs/2026-10-29-aspom-1-vs-aspom-2 --video data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH
+uv run python -m volleyball_stats.web outputs/matches/2026-10-29-aspom-1-vs-aspom-2 --video data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json --footage none --club 1 --no-pictures --video-page video/ --feedback /volleyball/feedback --out outputs/hosted/MATCH
 uv run python -m volleyball_stats.matches outputs/hosted --url https://josselinbuils.dev/volleyball/
 rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/site/
 ```
@@ -45,21 +45,21 @@ to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Cont
 no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
 video. The copies keep their source's date, so an upload skips an unchanged video.
 
-The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films de joueurs" and "Créer les highlights" each make those of their kind whose `plan` changed, never an apply; only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/MATCH/films/`, outside the backup.
+The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films de joueurs" and "Créer les highlights" each make those of their kind whose `plan` changed, never an apply; only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/matches/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/matches/MATCH/films/`, outside the backup.
 
-The commentary's voice: `uv run --group voice python -m volleyball_stats.voice outputs/MATCH` after a page's build makes the missing audio in
-`outputs/MATCH/voice/`, the next build takes it (a line no longer true of the match is left out), so after a review's changes run it, then upload.
+The commentary's voice: `uv run --group voice python -m volleyball_stats.voice outputs/matches/MATCH` after a page's build makes the missing audio in
+`outputs/matches/MATCH/voice/`, the next build takes it (a line no longer true of the match is left out), so after a review's changes run it, then upload.
 
 Hosted pages are built with `--feedback /volleyball/feedback`: one tap on "Signaler" reports the
 moment, "Préciser" then adds what is wrong and a comment to the same report (its `id`); the
 service's nginx logs each POST (2 KB, 5 a minute per visitor) to
 `volleyball-stats/feedback/feedback.log`. Fetch them keeping a dated copy (the review reads every
-`outputs/feedback*.log`), then empty the log online:
+`outputs/feedback/*.log`), then empty the log online:
 
 ```bash
-scp -i ~/.ssh/id_ed25519_ovh root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/feedback/feedback.log outputs/feedback.log
-cp -p outputs/feedback.log outputs/feedback-$(date +%Y%m%d-%H%M%S).log
-uv run python -m volleyball_stats.feedback outputs/feedback.log
+scp -i ~/.ssh/id_ed25519_ovh root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/feedback/feedback.log outputs/feedback/feedback.log
+cp -p outputs/feedback/feedback.log outputs/feedback/feedback-$(date +%Y%m%d-%H%M%S).log
+uv run python -m volleyball_stats.feedback outputs/feedback/feedback.log
 ssh -i ~/.ssh/id_ed25519_ovh root@<OVH IP> ': > /home/ubuntu/docker/volleyball-stats/feedback/feedback.log'
 ```
 
@@ -70,7 +70,7 @@ Link previews: `matches.build` with a `url` tags the list and each match page (`
 Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bot` list (search engines, AI scrapers, SEO tools; link previews stay) and sends `X-Robots-Tag: noindex` on all, the pages carry the same meta tag. A bot lying about its name gets through; the domain's `robots.txt` has no rule, Cloudflare's bot settings are the owner's. A change of a mounted config from `git pull` needs `docker compose up -d --force-recreate --no-deps volleyballstats`: the running container keeps the old file.
 
 Backup: while the review runs, every 10 minutes if something changed (and `uv run python -m volleyball_stats.backup
-outputs/MATCH`), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
+outputs/matches/MATCH`), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
 and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
 files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.

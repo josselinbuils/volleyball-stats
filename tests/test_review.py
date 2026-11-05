@@ -182,11 +182,12 @@ class TestReports:
     def test_reads_this_match_s_reports_once_from_the_fetched_logs(self, tmp_path):
         line = lambda r: json.dumps({"received": "t", "report": json.dumps(r)})  # noqa: E731
         mine, other = {"match": "m", "time": 41.0, "kind": "player", "comment": ""}, {"match": "x", "time": 5.0, "kind": "other"}
-        (tmp_path / "feedback.log").write_text(line(mine) + "\n" + line(other) + "\n")
-        (tmp_path / "feedback-copy.log").write_text(line(mine) + "\n")
-        (tmp_path / "m").mkdir()
+        (tmp_path / "feedback").mkdir()
+        (tmp_path / "feedback" / "feedback.log").write_text(line(mine) + "\n" + line(other) + "\n")
+        (tmp_path / "feedback" / "feedback-copy.log").write_text(line(mine) + "\n")
+        (tmp_path / "matches" / "m").mkdir(parents=True)
 
-        found = reports(tmp_path / "m")
+        found = reports(tmp_path / "matches" / "m")
 
         assert [(r["time"], len(r["key"])) for r in found] == [(41.0, 12)]
 

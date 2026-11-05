@@ -10,7 +10,7 @@ class TestRename:
     @staticmethod
     def match(tmp_path, monkeypatch, video="data/old.mp4", court="outputs/court/old.json"):
         monkeypatch.chdir(tmp_path)
-        match = tmp_path / "outputs" / "old"
+        match = tmp_path / "outputs" / "matches" / "old"
         match.mkdir(parents=True)
         for path in (video, court, "data/old_1080p.mp4", "outputs/court/old.jpg", "outputs/court/old_clicks.json", "outputs/court/older.json"):
             (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
@@ -35,7 +35,7 @@ class TestRename:
 
         target = rename_match(match, "new", tmp_path / "data")
 
-        assert target == tmp_path / "outputs" / "new" and not match.exists()
+        assert target == tmp_path / "outputs" / "matches" / "new" and not match.exists()
         given = json.loads((target / files.SOURCE).read_text())
         assert given["aliases"] == ["old"] and (tmp_path / given["video"]).name == "new.mp4"
         assert sorted(p.name for p in (tmp_path / "data" / "new").iterdir()) == ["new.mp4", "old_1080p.mp4"]
@@ -102,7 +102,7 @@ class TestRename:
     def test_refuses_with_nothing_moved(self, tmp_path, monkeypatch):
         match = self.match(tmp_path, monkeypatch)
         data = tmp_path / "data"
-        (tmp_path / "outputs" / "taken").mkdir()
+        (tmp_path / "outputs" / "matches" / "taken").mkdir()
         with pytest.raises(ValueError):
             rename_match(match, "taken", data)
         with pytest.raises(ValueError):

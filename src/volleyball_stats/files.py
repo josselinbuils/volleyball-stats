@@ -20,6 +20,11 @@ from typing import IO
 SOURCE = "source.json"
 
 
+def root(match: Path) -> Path:
+    """The outputs folder of `match`, which sits in its matches/ folder."""
+    return match.parent.parent
+
+
 @contextmanager
 def replacing(path: Path, mode: str = "w", **kwargs) -> Iterator[IO]:
     """`path` opened for writing (`mode` and `kwargs` as `open`'s), in place once the block ends."""

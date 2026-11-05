@@ -93,7 +93,7 @@ for the stand, the camera settings and the lens calibration.
 uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "Home:navy,Away:white"
 ```
 
-It joins the camera's files into `data/MATCH/MATCH.mp4` and starts `outputs/MATCH/`, where `MATCH` is
+It joins the camera's files into `data/matches/MATCH/MATCH.mp4` and starts `outputs/matches/MATCH/`, where `MATCH` is
 the match's date and teams, e.g. `2026-11-08-home-vs-away`. The first team is the one on the left at the
 first rally.
 
@@ -102,8 +102,8 @@ first rally.
 Once per gym: click roughly on the court lines, and the fit snaps them to the painted lines.
 
 ```bash
-uv run python -m volleyball_stats.court click data/MATCH/MATCH.mp4
-uv run python -m volleyball_stats.court fit outputs/court/MATCH_clicks.json data/MATCH/MATCH.mp4 \
+uv run python -m volleyball_stats.court click data/matches/MATCH/MATCH.mp4
+uv run python -m volleyball_stats.court fit outputs/court/MATCH_clicks.json data/matches/MATCH/MATCH.mp4 \
   --court my_gym
 ```
 
@@ -112,7 +112,7 @@ The next matches in that gym use `court auto` instead.
 ### 5. Run the pipeline
 
 ```bash
-uv run python -m volleyball_stats.match data/MATCH/MATCH.mp4 \
+uv run python -m volleyball_stats.match data/matches/MATCH/MATCH.mp4 \
   --court outputs/courts/my_gym.json --players
 ```
 
@@ -121,7 +121,7 @@ This is the long step: hours for a 2-hour match.
 ### 6. Review and name the players
 
 ```bash
-uv run python -m volleyball_stats.review outputs/MATCH
+uv run python -m volleyball_stats.review outputs/matches/MATCH
 ```
 
 It opens a page in your browser, on this machine only. Name each player from their pictures, answer the
@@ -130,11 +130,11 @@ questions it asks about the players it is unsure of, then apply: the match page 
 ### 7. Open the match page
 
 ```bash
-uv run python -m volleyball_stats.web outputs/MATCH --video data/MATCH/MATCH.mp4 \
+uv run python -m volleyball_stats.web outputs/matches/MATCH --video data/matches/MATCH/MATCH.mp4 \
   --court outputs/courts/my_gym.json --theme none
 ```
 
-Open `outputs/MATCH/site/index.html`. `--theme` takes your club's colours and logo (see
+Open `outputs/matches/MATCH/site/index.html`. `--theme` takes your club's colours and logo (see
 [`branding/brand.example.json`](branding/brand.example.json)), `--footage` adds the video, and the same
 files can be hosted as they are.
 

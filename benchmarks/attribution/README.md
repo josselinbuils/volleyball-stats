@@ -187,7 +187,7 @@ picks the doubts miss. `answers.py` scores the automatic picks on a match's answ
 by gap, to set `DOUBT` from them:
 
 ```bash
-uv run python benchmarks/attribution/answers.py outputs/2026-10-29-aspom-1-vs-aspom-2
+uv run python benchmarks/attribution/answers.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2
 ```
 
 On the first ASPOM match (4K, 649 touches), the 138 touches asked were all answered: the automatic
@@ -269,7 +269,7 @@ touches below the head), trained by `ranker.py` here on the review's touch answe
 clips' labelled touchers, the weights in `src/volleyball_stats/attribution_ranker.json`:
 
 ```bash
-uv run --group bench python benchmarks/attribution/ranker.py outputs/2026-10-29-aspom-1-vs-aspom-2:data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4:outputs/courts/aspom_begles.json [--write]
+uv run --group bench python benchmarks/attribution/ranker.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2:data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4:outputs/courts/aspom_begles.json [--write]
 ```
 
 Each group held out in turn (a set of the first match, a school clip), 1 Nov:
