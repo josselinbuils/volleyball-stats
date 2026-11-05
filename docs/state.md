@@ -26,17 +26,16 @@ The pipeline's weak spots and what is left to do, most useful first.
    rallies end (in, out, fault).
 5. The review's rally answers and the 129 checked rallies as labels to drop false windows
    automatically (asked, not started).
-6. Node.js and library updates on the owner's services (offered by the owner, not done).
-7. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
+6. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
    the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
    players a team rotate in).
-8. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
-9. `data/benchmarks/` holds the benchmark clips, `outputs/benchmarks/` their outputs.
-10. The owner's plan, nothing started, not before the second match is reviewed and its quality known: a helper they trust,
+7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+8. `data/benchmarks/` holds the benchmark clips, `outputs/benchmarks/` their outputs.
+9. The owner's plan, nothing started, not before the second match is reviewed and its quality known: a helper they trust,
    then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
    useful alone; then the VPS's system upgraded (2 vCPU, 3.7 GB, 18 GB free, Ubuntu 20.04), a login per person and the review on it, with
    the slow steps on the workers, a process per open match (`review.switch` restarts the only server) and crops prepared from the 4K.
    About 1-2 weeks, about EUR 0-1 a month. Other people adding matches is decided later: uploads, court setup in the browser, clubs kept
    apart, workers sandboxed, consent and GDPR (advice first; the hosting rules in `CLAUDE.md` would change on purpose). In between, a club sends a video
    and the owner processes it. Rejected for now: rented GPUs for everything (EUR 25-45 a month, rough, from third-party prices).
-11. Done (5 Nov): the star on a touch (Match tab) puts it in the match's film and its player's.
+10. Done (5 Nov): the star on a touch (Match tab) puts it in the match's film and its player's.
