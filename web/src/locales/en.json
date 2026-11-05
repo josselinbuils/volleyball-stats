@@ -704,11 +704,9 @@
   "season": {
     "title": "The season",
     "view": "Matches or season",
-    "record": "{{wins, number}} W · {{losses, number}} L",
-    "win": "W",
-    "loss": "L",
-    "draw": "D",
-    "versus": "against {{team}}",
+    "win": "Win",
+    "loss": "Loss",
+    "draw": "Draw",
     "pickTeam": "Team",
     "loading": "Loading…",
     "failed": "Could not load it.",
@@ -727,7 +725,11 @@
     },
     "risingGrade": "From {{from}} to {{to}} out of 5",
     "risingPoints": "From {{from}} to {{to}} points per set",
-    "lastMatch": "Last match: {{detail}}"
+    "lastMatch": "Last match: {{detail}}",
+    "wins_one": "{{count}} win",
+    "wins_other": "{{count}} wins",
+    "losses_one": "{{count}} loss",
+    "losses_other": "{{count}} losses"
   },
   "feedback": {
     "open": "Report a problem in this moment: one click is enough, details are optional",

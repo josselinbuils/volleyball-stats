@@ -704,11 +704,9 @@
   "season": {
     "title": "La saison",
     "view": "Matchs ou saison",
-    "record": "{{wins, number}} V · {{losses, number}} D",
-    "win": "V",
-    "loss": "D",
-    "draw": "N",
-    "versus": "contre {{team}}",
+    "win": "Victoire",
+    "loss": "Défaite",
+    "draw": "Nul",
     "pickTeam": "Équipe",
     "loading": "Chargement…",
     "failed": "Chargement impossible.",
@@ -727,7 +725,11 @@
     },
     "risingGrade": "De {{from}} à {{to}} sur 5",
     "risingPoints": "De {{from}} à {{to}} points par set",
-    "lastMatch": "Au dernier match : {{detail}}"
+    "lastMatch": "Au dernier match : {{detail}}",
+    "wins_one": "{{count}} victoire",
+    "wins_other": "{{count}} victoires",
+    "losses_one": "{{count}} défaite",
+    "losses_other": "{{count}} défaites"
   },
   "feedback": {
     "open": "Signaler un problème sur ce moment : un clic suffit, les détails sont facultatifs",

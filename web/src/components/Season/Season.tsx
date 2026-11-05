@@ -23,23 +23,37 @@ function Form({ season }: { season: SeasonData }) {
       <h2 className="flex items-center gap-2 text-lg font-semibold">
         {season.colour && <Swatch color={season.colour} ring="var(--border)" />}
         <span className="min-w-0 truncate">{season.team}</span>
-        <span className="ml-auto shrink-0 text-sm font-medium text-muted-foreground tabular-nums">{t('season.record', { wins, losses })}</span>
+        <span className="ml-auto shrink-0 text-sm font-medium text-muted-foreground">
+          {t('season.wins', { count: wins })} · {t('season.losses', { count: losses })}
+        </span>
       </h2>
-      <ol className="grid gap-2">
-        {season.played.map((p) => (
-          <li key={p.path} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3">
-            <span
-              className={cn(
-                'row-span-2 flex size-8 items-center justify-center rounded-md border text-sm font-semibold',
-                p.won > p.lost ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground',
-              )}
-            >
-              {t(p.won > p.lost ? 'season.win' : p.won < p.lost ? 'season.loss' : 'season.draw')}
-            </span>
-            <span className="truncate font-medium">{p.opponent ? t('season.versus', { team: p.opponent }) : p.path}</span>
-            <span className="text-sm text-muted-foreground tabular-nums">{[p.date && f.date(p.date), p.scores.map(([us, them]) => `${us}-${them}`).join(' · ')].filter(Boolean).join(' · ')}</span>
-          </li>
-        ))}
+      <ol className="grid gap-3">
+        {season.played.map((p) => {
+          const result = p.won > p.lost ? 'win' : p.won < p.lost ? 'loss' : 'draw';
+          return (
+            <li key={p.path} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+              <span
+                className={cn(
+                  'row-span-2 w-20 rounded-md border py-1 text-center text-sm font-semibold',
+                  result === 'win' ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground',
+                )}
+              >
+                {t(`season.${result}`)}
+              </span>
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className="truncate font-medium">{p.opponent ?? p.path}</span>
+                {p.date && <span className="ml-auto shrink-0 text-sm text-muted-foreground">{f.date(p.date)}</span>}
+              </span>
+              <span className="flex flex-wrap gap-1.5">
+                {p.scores.map(([us, them], k) => (
+                  <span key={k} className={cn('rounded-md border px-2 py-0.5 text-sm tabular-nums', us > them && 'border-primary/40 bg-primary/10 font-semibold')}>
+                    {us}-{them}
+                  </span>
+                ))}
+              </span>
+            </li>
+          );
+        })}
       </ol>
     </Card>
   );
