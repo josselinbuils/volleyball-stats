@@ -158,6 +158,20 @@ class TestHost:
         (tmp_path / "m" / "films" / "1-ana.mp4").write_bytes(b"")
         assert [p.name for p in matches.unguarded_videos(tmp_path)] == ["1-ana.mp4"]
 
+    @pytest.mark.parametrize("code, location, expected", [(302, "/volleyball/m/?video=denied", True), (403, None, False), (302, "/elsewhere", False)])
+    def test_protected_only_by_the_redirect_to_the_password(self, monkeypatch, code, location, expected):
+        import email.message
+        import urllib.error
+
+        def refuse(url, headers=None):
+            sent = email.message.Message()
+            if location:
+                sent["Location"] = location
+            raise urllib.error.HTTPError(url, code, "", sent, None)
+
+        monkeypatch.setattr(matches, "_head", refuse)
+        assert matches.protected("https://example.org/volleyball/m/video/") is expected
+
     def test_stops_before_any_build_when_a_video_copy_is_missing(self, tmp_path, monkeypatch):
         built = []
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append(args))

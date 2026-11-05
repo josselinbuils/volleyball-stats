@@ -284,13 +284,19 @@ class _Stay(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _head(url: str, headers: dict | None = None):
+    """`url`'s answer to a HEAD, redirects not followed. Named: Cloudflare refuses Python's own user agent."""
+    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "volleyball-stats", **(headers or {})})
+    return urllib.request.build_opener(_Stay).open(request, timeout=20)
+
+
 def protected(url: str) -> bool:
-    """Whether `url` refuses a visitor without the password: a redirect (to the page that asks
-    it) or a refusal, rather than the page."""
+    """Whether `url` sends a visitor without the password back to the page that asks it (`?video=denied`).
+    Any other refusal, a CDN's 403 among them, says nothing of the server's."""
     try:
-        urllib.request.build_opener(_Stay).open(urllib.request.Request(url, method="HEAD"), timeout=20)
+        _head(url)
     except urllib.error.HTTPError as error:
-        return error.code in (301, 302, 303, 307, 401, 403)
+        return error.code in (301, 302, 303, 307) and "video=denied" in (error.headers.get("Location") or "")
     return False
 
 
@@ -371,8 +377,7 @@ def install_key(config: dict, folder: str) -> None:
 def opens(url: str, key: str) -> bool:
     """Whether `url` opens to the cookie holding `key`."""
     try:
-        request = urllib.request.Request(url, method="HEAD", headers={"Cookie": f"video_key={key}"})
-        return urllib.request.build_opener(_Stay).open(request, timeout=20).status == 200
+        return _head(url, {"Cookie": f"video_key={key}"}).status == 200
     except urllib.error.URLError:
         return False
 
