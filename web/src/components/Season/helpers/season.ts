@@ -13,6 +13,8 @@ export interface Played {
   path: string;
   date: string | null;
   opponent: string | null;
+  /** The team's colour and the opponent's. */
+  colours: [string | null, string | null];
   /** Each set's points, the team's first. */
   scores: [number, number][];
   /** Sets won and lost. */
@@ -132,7 +134,7 @@ function risesOf(values: Values): Rise[] {
 export function buildSeason(team: string, played: { match: ListedMatch; data: Data }[]): SeasonData {
   const players = new Map<string, SeasonPlayer & { touches: number; found: Map<string, SeasonStrength> }>();
   let colour: string | null = null;
-  const results = played.map(({ match, data }, k) => {
+  const results = played.map(({ match, data }, k): Played => {
     const at = data.teams?.findIndex((t) => t.name === team) ?? -1;
     const g = (at + 1) as Group;
     colour = data.teams?.[at]?.colour ?? colour;
@@ -183,6 +185,7 @@ export function buildSeason(team: string, played: { match: ListedMatch; data: Da
       path: match.path,
       date: match.date,
       opponent: data.teams?.[2 - g]?.name ?? null,
+      colours: [data.teams?.[at]?.colour ?? null, data.teams?.[2 - g]?.colour ?? null],
       scores,
       won: scores.filter(([us, them]) => us > them).length,
       lost: scores.filter(([us, them]) => us < them).length,

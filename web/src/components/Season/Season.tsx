@@ -27,30 +27,46 @@ function Form({ season }: { season: SeasonData }) {
           {t('season.wins', { count: wins })} · {t('season.losses', { count: losses })}
         </span>
       </h2>
-      <ol className="grid gap-3">
+      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {season.played.map((p) => {
           const result = p.won > p.lost ? 'win' : p.won < p.lost ? 'loss' : 'draw';
+          const rows = [
+            { name: season.team, colour: p.colours[0], sets: p.won, points: p.scores.map(([us]) => us), other: p.scores.map(([, them]) => them) },
+            { name: p.opponent ?? p.path, colour: p.colours[1], sets: p.lost, points: p.scores.map(([, them]) => them), other: p.scores.map(([us]) => us) },
+          ];
           return (
-            <li key={p.path} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-              <span
-                className={cn(
-                  'row-span-2 w-20 rounded-md border py-1 text-center text-sm font-semibold',
-                  result === 'win' ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground',
-                )}
-              >
-                {t(`season.${result}`)}
-              </span>
-              <span className="flex min-w-0 items-baseline gap-2">
-                <span className="truncate font-medium">{p.opponent ?? p.path}</span>
-                {p.date && <span className="ml-auto shrink-0 text-sm text-muted-foreground">{f.date(p.date)}</span>}
-              </span>
-              <span className="flex flex-wrap gap-1.5">
-                {p.scores.map(([us, them], k) => (
-                  <span key={k} className={cn('rounded-md border px-2 py-0.5 text-sm tabular-nums', us > them && 'border-primary/40 bg-primary/10 font-semibold')}>
-                    {us}-{them}
+            <li key={p.path} className="rounded-lg border px-3 py-2.5">
+              <table className="w-full tabular-nums">
+                <caption className="pb-1.5">
+                  <span className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">{p.date && f.date(p.date)}</span>
+                    <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', result === 'win' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                      {t(`season.${result}`)}
+                    </span>
                   </span>
-                ))}
-              </span>
+                </caption>
+                <tbody>
+                  {rows.map((row) => {
+                    const won = row.sets > rows.find((r) => r !== row)!.sets;
+                    return (
+                      <tr key={row.name}>
+                        <th scope="row" className={cn('w-full max-w-0 py-0.5 text-left', won ? 'font-semibold' : 'font-normal')}>
+                          <span className="flex min-w-0 items-center gap-2">
+                            {row.colour && <Swatch color={row.colour} ring="var(--border)" />}
+                            <span className="truncate">{row.name}</span>
+                          </span>
+                        </th>
+                        <td className={cn('w-8 px-1 text-center text-lg font-semibold', !won && 'text-muted-foreground')}>{row.sets}</td>
+                        {row.points.map((n, k) => (
+                          <td key={k} className={cn('w-9 px-1 text-center', n > row.other[k] ? 'font-semibold' : 'text-muted-foreground')}>
+                            {n}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </li>
           );
         })}
