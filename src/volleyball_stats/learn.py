@@ -12,7 +12,7 @@ the match folder): what the answers teach, after each review or pipeline change.
 
     uv run python -m volleyball_stats.learn outputs/matches/VIDEO --video VIDEO --court COURT_JSON [--rerun]
 
-With --rerun (the review's "Apprendre de mes réponses"), the learned attribution is trained again on the
+With --rerun (the review's "Apprendre de mes réponses"), the learned attribution is trained again on every reviewed match's
 answers (`train`), the pipeline runs again and the answers move onto its rally windows.
 """
 
@@ -196,12 +196,22 @@ def report(now: dict[str, Score], before: dict[str, Score] | None) -> str:
     return "\n".join(lines)
 
 
+def reviewed(match: Path) -> list[str]:
+    """The other matches beside `match` with review answers, as ranker.py takes them."""
+    found = []
+    for source in sorted(match.parent.glob(f"*/{files.SOURCE}")):
+        other, given = source.parent, json.loads(source.read_text())
+        if other != match and (other / "identity_answers.json").exists() and (ROOT / given["video"]).exists():
+            found.append(f"{other}:{ROOT / given['video']}:{ROOT / given['court']}")
+    return found
+
+
 def train(match: Path, video: Path, court: Path) -> None:
-    """The learned order of who touched the ball (ranker.py) trained again on the match's answers
-    and the school clips' labels, kept only if it gains on the rule on the match's touches held out
-    set by set; its held-out scores in ranker.json for `scores`."""
+    """The learned order of who touched the ball (ranker.py) trained again on the answers of every
+    reviewed match and the school clips' labels, kept only if it gains on the rule on the matches'
+    touches held out set by set; `match`'s held-out scores in ranker.json for `scores`."""
     subprocess.run(
-        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), f"{match}:{video}:{court}", "--write", "--if-better", "--summary", str(match / RANKER)],
+        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), f"{match}:{video}:{court}", *reviewed(match), "--write", "--if-better", "--summary", str(match / RANKER)],
         cwd=ROOT, stdin=subprocess.DEVNULL, check=True,
     )
 

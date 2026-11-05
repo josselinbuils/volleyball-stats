@@ -47,3 +47,17 @@ class TestFromAnswers:
         assert out["actions: types set"] == (1, 1)
         assert out["rallies: kept"] == (1, 1)
         assert out["rallies: dropped"] == (1, 1)
+
+
+class TestReviewed:
+    def test_the_other_answered_matches_with_their_video(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(learn, "ROOT", tmp_path)
+        (tmp_path / "a.mp4").touch()
+        for name, answered, video in (("open", True, "a.mp4"), ("other", True, "a.mp4"), ("unanswered", False, "a.mp4"), ("no_video", True, "gone.mp4")):
+            folder = tmp_path / "matches" / name
+            folder.mkdir(parents=True)
+            (folder / "source.json").write_text(json.dumps({"video": video, "court": "c.json"}))
+            if answered:
+                (folder / "identity_answers.json").write_text("{}")
+
+        assert learn.reviewed(tmp_path / "matches" / "open") == [f"{tmp_path / 'matches' / 'other'}:{tmp_path / 'a.mp4'}:{tmp_path / 'c.json'}"]
