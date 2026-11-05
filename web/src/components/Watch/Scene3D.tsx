@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { loadBall3d } from '@/lib/ball3d';
 import { match, versioned } from '@/lib/match';
 import type { Scene, SceneState } from '@/scene3d/scene';
+import { Tip } from '@/components/Tip';
 
 let loading: Promise<void> | null = null;
 
@@ -118,12 +119,11 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
       {status !== 'ready' && <p className="absolute inset-0 m-0 grid place-items-center text-sm text-muted-foreground">{t(status === 'failed' ? 'scene3d.failed' : 'scene3d.loading')}</p>}
       {overlay}
       {status === 'ready' && badge && (
-        <p
-          className="absolute top-2 right-2 m-0 [:fullscreen_&]:top-auto [:fullscreen_&]:bottom-2 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground"
-          title={t(match.ball3d ? 'scene3d.noteFound' : 'scene3d.note')}
-        >
-          {t(match.ball3d ? 'scene3d.badgeFound' : 'scene3d.badge')}
-        </p>
+        <Tip label={t(match.ball3d ? 'scene3d.noteFound' : 'scene3d.note')}>
+          <p className="absolute top-2 right-2 m-0 [:fullscreen_&]:top-auto [:fullscreen_&]:bottom-2 max-w-[60%] rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground">
+            {t(match.ball3d ? 'scene3d.badgeFound' : 'scene3d.badge')}
+          </p>
+        </Tip>
       )}
     </div>
   );

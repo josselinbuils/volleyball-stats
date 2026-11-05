@@ -14,6 +14,7 @@ import { Film } from '@/components/MyMatch/Film';
 import { Curve } from '@/components/Story/Curve';
 import { momentText } from '@/components/Story/helpers/momentText';
 import { story, type Moment } from '@/components/Story/helpers/story';
+import { Tip } from '@/components/Tip';
 
 /** The match as a story: the score gap rally after rally, then each set in plain sentences, each
  * moment replaying. */
@@ -78,26 +79,27 @@ function MomentRow({ moment: m, number }: { moment: Moment; number: number }) {
   const text = momentText(t, m, f.secs);
   return (
     <li>
-      <button
-        type="button"
-        title={t('story.replay')}
-        onClick={() =>
-          play(
-            (tr) => momentText(tr, m, f.secs),
-            rallyClips(
-              allRallies.filter((r) => m.rallies.includes(r.i)),
-              match.duration,
-            ),
-          )
-        }
-        className="group flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <span aria-hidden className="inline-grid size-5 shrink-0 place-items-center rounded-full bg-foreground text-xs font-semibold text-background tabular-nums">
-          {number}
-        </span>
-        <span className="min-w-0 flex-1">{text}</span>
-        <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-      </button>
+      <Tip label={t('story.replay')}>
+        <button
+          type="button"
+          onClick={() =>
+            play(
+              (tr) => momentText(tr, m, f.secs),
+              rallyClips(
+                allRallies.filter((r) => m.rallies.includes(r.i)),
+                match.duration,
+              ),
+            )
+          }
+          className="group flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span aria-hidden className="inline-grid size-5 shrink-0 place-items-center rounded-full bg-foreground text-xs font-semibold text-background tabular-nums">
+            {number}
+          </span>
+          <span className="min-w-0 flex-1">{text}</span>
+          <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </Tip>
     </li>
   );
 }

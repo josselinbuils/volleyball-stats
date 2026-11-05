@@ -59,7 +59,7 @@
   "results": {
     "point": "Point",
     "error": "Error",
-    "play": "Still in play"
+    "play": "In play"
   },
   "timelineCaption": "Each bar is a rally, taller when it lasts longer. Click it to watch it.",
   "histCaption": "Rallies by number of touches. Click a bar to watch them.",

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tip } from '@/components/Tip';
 import { useFormat } from '@/lib/format';
 import { match, type Contact } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
@@ -26,18 +26,15 @@ export function CountButton({ title, picked, value, tip, className }: { title: (
   const shown = value ?? f.num(picked.length);
   const hint = [tip, t('watchN', { count: picked.length })].filter(Boolean).join(' · ');
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          aria-label={`${shown} · ${title(t)} · ${hint}`}
-          className={cn('min-w-12 bg-primary/10 text-base font-semibold text-link hover:bg-primary hover:text-primary-foreground max-sm:min-w-10', className)}
-          onClick={() => play(title, contactClips(picked, match.duration))}
-        >
-          {shown}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{hint}</TooltipContent>
-    </Tooltip>
+    <Tip label={hint}>
+      <Button
+        variant="ghost"
+        aria-label={`${shown} · ${title(t)} · ${hint}`}
+        className={cn('min-w-12 bg-primary/10 text-base font-semibold text-link hover:bg-primary hover:text-primary-foreground max-sm:min-w-10', className)}
+        onClick={() => play(title, contactClips(picked, match.duration))}
+      >
+        {shown}
+      </Button>
+    </Tip>
   );
 }

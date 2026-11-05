@@ -21,6 +21,7 @@ import { InsightChip } from '@/components/Stats/StatsTable';
 import { highlights, measures, tops } from '@/components/MyMatch/helpers/myMatch';
 import { Film } from '@/components/MyMatch/Film';
 import { PlayerCard, type CardRow } from '@/components/MyMatch/PlayerCard';
+import { Tip } from '@/components/Tip';
 
 // What a player can lead their team in.
 const TOPS: readonly Stat[] = ['points', 'kills', 'aces', 'blockPoints', 'digs', 'receptions', 'sets'];
@@ -238,15 +239,16 @@ function Row({ title, clips, children }: { title: (t: TFunction) => string; clip
   const { play } = usePlayer();
   return (
     <li>
-      <button
-        type="button"
-        title={t('story.replay')}
-        onClick={() => play(title, clips)}
-        className="flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <span className="min-w-0 flex-1">{children}</span>
-        <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-      </button>
+      <Tip label={t('story.replay')}>
+        <button
+          type="button"
+          onClick={() => play(title, clips)}
+          className="flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span className="min-w-0 flex-1">{children}</span>
+          <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </Tip>
     </li>
   );
 }
@@ -267,14 +269,15 @@ function Lead({ stat, picked, title }: { stat: Stat; picked: Contact[]; title: (
   const { play } = usePlayer();
   const name = (tr: TFunction) => tr('myMatch.topsTitle', { stat: tr(`stats.names.${stat}`), name: title(tr) });
   return (
-    <button
-      type="button"
-      title={`${t('myMatch.tops')} · ${t('watchN', { count: picked.length })}`}
-      onClick={() => play(name, contactClips(picked, match.duration))}
-      className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-emerald-900 outline-none hover:bg-emerald-200 focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
-    >
-      <Trophy aria-hidden className="size-3" />
-      {`${t(`stats.names.${stat}`)} · ${picked.length}`}
-    </button>
+    <Tip label={`${t('myMatch.tops')} · ${t('watchN', { count: picked.length })}`}>
+      <button
+        type="button"
+        onClick={() => play(name, contactClips(picked, match.duration))}
+        className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-emerald-900 outline-none hover:bg-emerald-200 focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
+      >
+        <Trophy aria-hidden className="size-3" />
+        {`${t(`stats.names.${stat}`)} · ${picked.length}`}
+      </button>
+    </Tip>
   );
 }

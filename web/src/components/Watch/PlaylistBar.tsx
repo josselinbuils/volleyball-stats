@@ -9,6 +9,7 @@ import { seek as seekTo, usePlayer, useVideoTime } from '@/lib/player';
 import { clipLabel, PAD, rallyAt, rallyClips, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { lastTouch } from '@/components/Watch/helpers/replay';
+import { Tip } from '@/components/Tip';
 
 /** What is playing, with the playlist's controls; else the rally the video is on, the one
  * highlighted below, with controls to move to another one and play from it. Under it the action on
@@ -45,11 +46,13 @@ export function PlaylistBar() {
                 <span className="block truncate text-xs leading-5 font-semibold tracking-wide text-link uppercase">
                   {`${t('nowPlaying')} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}`}
                 </span>
-                <span className="line-clamp-2" title={details}>
-                  {clip.team && <Swatch color={teamColor(clip.team)} ring={teamRing(clip.team)} className="mr-1.5 align-[-1px]" />}
-                  <b className="font-semibold text-foreground">{playlist.title(t)}</b>
-                  {` · ${clipLabel(clip, t, f, (g) => groupName(t, g))}`}
-                </span>
+                <Tip label={details}>
+                  <span className="line-clamp-2">
+                    {clip.team && <Swatch color={teamColor(clip.team)} ring={teamRing(clip.team)} className="mr-1.5 align-[-1px]" />}
+                    <b className="font-semibold text-foreground">{playlist.title(t)}</b>
+                    {` · ${clipLabel(clip, t, f, (g) => groupName(t, g))}`}
+                  </span>
+                </Tip>
               </>
             ) : rally ? (
               <>
@@ -77,14 +80,18 @@ export function PlaylistBar() {
           {playlist ? (
             <>
               {/* Chevrons alone when narrow, where the three labels would wrap. */}
-              <Button variant="outline" className="bg-card @max-sm:px-3" title={t('prev')} disabled={playlist.at === 0} onClick={() => go(playlist.at - 1)}>
-                <ChevronLeft aria-hidden />
-                <span className="@max-sm:sr-only">{t('prev')}</span>
-              </Button>
-              <Button variant="outline" className="bg-card @max-sm:px-3" title={t('next')} disabled={playlist.at === playlist.clips.length - 1} onClick={() => go(playlist.at + 1)}>
-                <span className="@max-sm:sr-only">{t('next')}</span>
-                <ChevronRight aria-hidden />
-              </Button>
+              <Tip label={t('prev')}>
+                <Button variant="outline" className="bg-card @max-sm:px-3" disabled={playlist.at === 0} onClick={() => go(playlist.at - 1)}>
+                  <ChevronLeft aria-hidden />
+                  <span className="@max-sm:sr-only">{t('prev')}</span>
+                </Button>
+              </Tip>
+              <Tip label={t('next')}>
+                <Button variant="outline" className="bg-card @max-sm:px-3" disabled={playlist.at === playlist.clips.length - 1} onClick={() => go(playlist.at + 1)}>
+                  <span className="@max-sm:sr-only">{t('next')}</span>
+                  <ChevronRight aria-hidden />
+                </Button>
+              </Tip>
               <Button variant="outline" className="bg-card" onClick={stop}>
                 <Square aria-hidden className="fill-current" />
                 {t('stop')}
@@ -93,18 +100,24 @@ export function PlaylistBar() {
           ) : (
             rally && (
               <>
-                <Button variant="outline" className="bg-card @max-sm:px-3" title={t('prevRally')} disabled={k === 0} onClick={() => seek(k - 1)}>
-                  <ChevronLeft aria-hidden />
-                  <span className="@max-sm:sr-only">{t('prev')}</span>
-                </Button>
-                <Button variant="outline" className="bg-card @max-sm:px-3" title={t('nextRally')} disabled={k === rallies.length - 1} onClick={() => seek(k + 1)}>
-                  <span className="@max-sm:sr-only">{t('next')}</span>
-                  <ChevronRight aria-hidden />
-                </Button>
-                <Button title={t('watchRally')} onClick={playFrom}>
-                  <Play aria-hidden className="fill-current" />
-                  {t('playRally')}
-                </Button>
+                <Tip label={t('prevRally')}>
+                  <Button variant="outline" className="bg-card @max-sm:px-3" disabled={k === 0} onClick={() => seek(k - 1)}>
+                    <ChevronLeft aria-hidden />
+                    <span className="@max-sm:sr-only">{t('prev')}</span>
+                  </Button>
+                </Tip>
+                <Tip label={t('nextRally')}>
+                  <Button variant="outline" className="bg-card @max-sm:px-3" disabled={k === rallies.length - 1} onClick={() => seek(k + 1)}>
+                    <span className="@max-sm:sr-only">{t('next')}</span>
+                    <ChevronRight aria-hidden />
+                  </Button>
+                </Tip>
+                <Tip label={t('watchRally')}>
+                  <Button onClick={playFrom}>
+                    <Play aria-hidden className="fill-current" />
+                    {t('playRally')}
+                  </Button>
+                </Tip>
               </>
             )
           )}

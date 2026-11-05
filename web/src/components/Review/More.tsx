@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ofName } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { lookAlikes, pieceKey, post, type Found, type Named, type Saved } from '@/lib/review';
+import { Tip } from '@/components/Tip';
 
 /** A button opening the pieces that look most like `player` (`label` naming them), a batch at a
  * time: those left unmarked are confirmed as them, the marked ones as someone else, then the next
@@ -84,18 +85,18 @@ export function More({ player, label, onSaved, onError }: { player: Named; label
               {pieces.map((p) => {
                 const isOdd = odd.has(pieceKey(p));
                 return (
-                  <button
-                    key={pieceKey(p)}
-                    type="button"
-                    aria-pressed={isOdd}
-                    aria-label={t('review.oddMark')}
-                    title={t('review.oddMark')}
-                    onClick={() => toggle(p)}
-                    className={cn('relative rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50', isOdd && 'ring-2 ring-destructive')}
-                  >
-                    <img src={p.crop} alt="" loading="lazy" className={cn('h-40 max-w-none rounded-md bg-muted', isOdd && 'opacity-40')} />
-                    {isOdd && <X aria-hidden className="absolute inset-0 m-auto size-10 text-destructive" />}
-                  </button>
+                  <Tip key={pieceKey(p)} label={t('review.oddMark')}>
+                    <button
+                      type="button"
+                      aria-pressed={isOdd}
+                      aria-label={t('review.oddMark')}
+                      onClick={() => toggle(p)}
+                      className={cn('relative rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50', isOdd && 'ring-2 ring-destructive')}
+                    >
+                      <img src={p.crop} alt="" loading="lazy" className={cn('h-40 max-w-none rounded-md bg-muted', isOdd && 'opacity-40')} />
+                      {isOdd && <X aria-hidden className="absolute inset-0 m-auto size-10 text-destructive" />}
+                    </button>
+                  </Tip>
                 );
               })}
             </div>

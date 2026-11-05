@@ -59,7 +59,7 @@
   "results": {
     "point": "Point",
     "error": "Faute",
-    "play": "Toujours en jeu"
+    "play": "En jeu"
   },
   "timelineCaption": "Chaque barre est un échange, plus haute s'il dure longtemps. Cliquez dessus pour le revoir.",
   "histCaption": "Échanges selon leur nombre de touches. Cliquez sur une barre pour les revoir.",

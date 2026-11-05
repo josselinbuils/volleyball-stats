@@ -13,6 +13,7 @@ import { useSet } from '@/lib/sets';
 import { Section } from '@/components/Coach/Section';
 import { Setters } from '@/components/Coach/Setters';
 import { setters, things, type Thing } from '@/components/Coach/helpers/coach';
+import { Tip } from '@/components/Tip';
 
 /** What a coach reads for one team, for the team: no player is named for a fault or a weak number. What cost it points
  * and who sets whom. */
@@ -84,27 +85,28 @@ function ThingRow({ thing, rank, g }: { thing: Thing; rank: number; g: Group }) 
   const title = (tr: TFunction) => tr(`coach.things.names.${thing.cause}`);
   return (
     <li>
-      <button
-        type="button"
-        title={t('watchN', { count: thing.n })}
-        onClick={() =>
-          play(
-            title,
-            contactClips(thing.contacts, match.duration).map(({ player: _, name: __, ...clip }) => clip),
-          )
-        }
-        className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <span aria-hidden className="inline-grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-sm font-semibold text-background tabular-nums">
-          {rank}
-        </span>
-        <span className="grid min-w-0 flex-1 gap-0.5">
-          <b className="font-semibold">{title(t)}</b>
-          <span className="text-sm font-medium tabular-nums">{t('coach.things.count', { count: thing.n, other: thing.other, team: groupName(t, (3 - g) as Group) })}</span>
-          <span className="text-[13px] text-muted-foreground">{t(`coach.things.tips.${thing.cause}`)}</span>
-        </span>
-        <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-      </button>
+      <Tip label={t('watchN', { count: thing.n })}>
+        <button
+          type="button"
+          onClick={() =>
+            play(
+              title,
+              contactClips(thing.contacts, match.duration).map(({ player: _, name: __, ...clip }) => clip),
+            )
+          }
+          className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span aria-hidden className="inline-grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-sm font-semibold text-background tabular-nums">
+            {rank}
+          </span>
+          <span className="grid min-w-0 flex-1 gap-0.5">
+            <b className="font-semibold">{title(t)}</b>
+            <span className="text-sm font-medium tabular-nums">{t('coach.things.count', { count: thing.n, other: thing.other, team: groupName(t, (3 - g) as Group) })}</span>
+            <span className="text-[13px] text-muted-foreground">{t(`coach.things.tips.${thing.cause}`)}</span>
+          </span>
+          <Play aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </Tip>
     </li>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { teams, type Group } from '@/lib/match';
 import { reachedMatch } from '@/lib/openMatch';
 import { post } from '@/lib/review';
+import { Tip } from '@/components/Tip';
 
 /** A team's name and colour, saved to teams.json; the pages are rebuilt with them, then reloaded. */
 export function TeamEditor({ g, onError }: { g: Group; onError: () => void }) {
@@ -34,14 +35,15 @@ export function TeamEditor({ g, onError }: { g: Group; onError: () => void }) {
 
   return (
     <form onSubmit={(event) => void save(event)} className="flex flex-wrap items-center gap-2">
-      <input
-        type="color"
-        value={colour}
-        onChange={(event) => setColour(event.target.value)}
-        aria-label={t('review.teamColour')}
-        title={t('review.teamColour')}
-        className="h-8 w-10 cursor-pointer rounded-md border border-input bg-card p-0.5"
-      />
+      <Tip label={t('review.teamColour')}>
+        <input
+          type="color"
+          value={colour}
+          onChange={(event) => setColour(event.target.value)}
+          aria-label={t('review.teamColour')}
+          className="h-8 w-10 cursor-pointer rounded-md border border-input bg-card p-0.5"
+        />
+      </Tip>
       <input
         value={name}
         onChange={(event) => setName(event.target.value)}

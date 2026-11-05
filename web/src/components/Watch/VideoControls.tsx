@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Focus, Maximize, Minimize, Pause, Play, Repeat1, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tip } from '@/components/Tip';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
@@ -103,7 +103,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   );
   const skip = (by: number) => video && seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + by)));
   const skipButton = (by: number) => (
-    <Tip label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} full={state.full}>
+    <Tip label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })}>
       <button type="button" className={cn(button, 'relative', by < 0 && 'max-sm:ml-auto')} aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
         <SkipIcon seconds={by} />
       </button>
@@ -113,7 +113,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   return (
     // On a phone the timeline takes its own row above the buttons. Over the video zoomed on the ball, which runs past its box.
     <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'relative z-10 bg-black text-white')}>
-      <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')} full={state.full}>
+      <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')}>
         <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
           {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
         </button>
@@ -142,7 +142,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       </span>
       {skipButton(-SKIP)}
       {skipButton(SKIP)}
-      <Tip label={t('slowVideo')} full={state.full}>
+      <Tip label={t('slowVideo')}>
         <button
           type="button"
           className={cn(button, state.slow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
@@ -153,13 +153,13 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
           <Snail aria-hidden />
         </button>
       </Tip>
-      <Tip label={t('loopVideo')} full={state.full}>
+      <Tip label={t('loopVideo')}>
         <button type="button" className={cn(button, loop && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={loop} aria-label={t('loopVideo')} onClick={() => setLoop(!loop)}>
           <Repeat1 aria-hidden />
         </button>
       </Tip>
       {onFollow && (
-        <Tip label={t('followBall')} full={state.full}>
+        <Tip label={t('followBall')}>
           <button type="button" className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={follow} aria-label={t('followBall')} onClick={onFollow}>
             <Focus aria-hidden />
           </button>
@@ -167,32 +167,19 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       )}
       {/* The court's replay has no sound. */}
       {match.video && (
-        <Tip label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} full={state.full}>
+        <Tip label={t(state.muted ? 'unmuteVideo' : 'muteVideo')}>
           <button type="button" className={button} aria-label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
             {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
           </button>
         </Tip>
       )}
       {fullscreen && (
-        <Tip label={t(state.full ? 'exitFullscreen' : 'fullscreen')} full={state.full}>
+        <Tip label={t(state.full ? 'exitFullscreen' : 'fullscreen')}>
           <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
             {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
           </button>
         </Tip>
       )}
     </div>
-  );
-}
-
-/** A control button with `label` in a tooltip above it, inside the full-screen element while there is
- * one (`full`): the page around it is hidden then. */
-function Tip({ label, full, children }: { label: string; full: boolean; children: ReactElement }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="top" sideOffset={4} container={full ? document.fullscreenElement : undefined}>
-        {label}
-      </TooltipContent>
-    </Tooltip>
   );
 }

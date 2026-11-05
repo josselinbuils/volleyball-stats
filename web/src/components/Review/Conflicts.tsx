@@ -8,6 +8,7 @@ import { post, type Conflict, type Linking, type Named } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { clock } from '@/lib/format';
+import { Tip } from '@/components/Tip';
 
 /** The players holding two names after the last apply, to split (`onSplit`), each with the answers
  * joining them: a piece to cut where the person changes, or answers to forget. Each action reloads
@@ -107,16 +108,17 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
         {answer.strip.map((m, k) => (
           <div key={m.time} className="flex shrink-0 items-end gap-0.5">
             {k > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="mb-6 size-7"
-                aria-label={t('review.cutBetween', { a: clock(answer.strip[k - 1].time), b: clock(m.time) })}
-                title={t('review.cutBetween', { a: clock(answer.strip[k - 1].time), b: clock(m.time) })}
-                onClick={() => void act('cut', (answer.strip[k - 1].time + m.time) / 2)}
-              >
-                <Scissors aria-hidden />
-              </Button>
+              <Tip label={t('review.cutBetween', { a: clock(answer.strip[k - 1].time), b: clock(m.time) })}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="mb-6 size-7"
+                  aria-label={t('review.cutBetween', { a: clock(answer.strip[k - 1].time), b: clock(m.time) })}
+                  onClick={() => void act('cut', (answer.strip[k - 1].time + m.time) / 2)}
+                >
+                  <Scissors aria-hidden />
+                </Button>
+              </Tip>
             )}
             <button
               type="button"

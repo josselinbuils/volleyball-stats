@@ -9,6 +9,7 @@ import { usePlayer, useVideoTime } from '@/lib/player';
 import { clipLabel, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/Tip';
 
 const KINDS = ['player', 'action', 'result', 'ball', 'notPlay', 'other'] as const;
 
@@ -101,10 +102,12 @@ export function Feedback({ inline = false }: { inline?: boolean }) {
     : 'inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm outline-none hover:bg-black/75 focus-visible:ring-3 focus-visible:ring-white/60';
   return (
     <div className={cn('flex items-center gap-1.5', inline ? 'relative shrink-0' : 'absolute top-2 right-2 z-10')}>
-      <button type="button" title={t('feedback.open')} disabled={state === 'sending'} onClick={flag} className={look}>
-        {state === 'sent' ? <Check aria-hidden className={inline ? 'size-3.5' : 'size-4'} /> : <Flag aria-hidden className={inline ? 'size-3.5' : 'size-4'} />}
-        <span role="status">{t(state === 'sent' ? 'feedback.thanksShort' : state === 'sending' ? 'feedback.sending' : state === 'failed' ? 'feedback.retry' : 'feedback.button')}</span>
-      </button>
+      <Tip label={t('feedback.open')}>
+        <button type="button" disabled={state === 'sending'} onClick={flag} className={look}>
+          {state === 'sent' ? <Check aria-hidden className={inline ? 'size-3.5' : 'size-4'} /> : <Flag aria-hidden className={inline ? 'size-3.5' : 'size-4'} />}
+          <span role="status">{t(state === 'sent' ? 'feedback.thanksShort' : state === 'sending' ? 'feedback.sending' : state === 'failed' ? 'feedback.retry' : 'feedback.button')}</span>
+        </button>
+      </Tip>
       {state === 'sent' && flagged && (
         <button type="button" aria-haspopup="dialog" onClick={details} className={look}>
           <MessageSquarePlus aria-hidden className={inline ? 'size-3.5' : 'size-4'} />

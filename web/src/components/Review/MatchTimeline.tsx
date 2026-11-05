@@ -7,6 +7,7 @@ import { contacts, groupName, match, playerLabel, rallies, teamColor, teamEdge, 
 import { isTouch, labelled } from '@/helpers/contacts';
 import type { ReportChanges, Timeout } from '@/lib/review';
 import { tickStep, zoomed } from '@/components/Review/helpers/timeline';
+import { Tip } from '@/components/Tip';
 
 /** The closest zoom, in pixels a second: a touch a few pixels from the next. */
 const MAX_SCALE = 40;
@@ -134,53 +135,29 @@ export function MatchTimeline({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">{t('review.timeline')}</span>
         <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8 bg-card"
-            title={t('review.previousToCheck')}
-            aria-label={t('review.previousToCheck')}
-            disabled={!previous}
-            onClick={() => previous && onSeek(previous.start)}
-          >
-            <ChevronLeft aria-hidden />
-          </Button>
+          <Tip label={t('review.previousToCheck')}>
+            <Button variant="outline" size="icon" className="size-8 bg-card" aria-label={t('review.previousToCheck')} disabled={!previous} onClick={() => previous && onSeek(previous.start)}>
+              <ChevronLeft aria-hidden />
+            </Button>
+          </Tip>
           <span className="text-sm tabular-nums">{t('review.toCheck', { count: toCheck.length })}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8 bg-card"
-            title={t('review.nextToCheck')}
-            aria-label={t('review.nextToCheck')}
-            disabled={!next}
-            onClick={() => next && onSeek(next.start)}
-          >
-            <ChevronRight aria-hidden />
-          </Button>
+          <Tip label={t('review.nextToCheck')}>
+            <Button variant="outline" size="icon" className="size-8 bg-card" aria-label={t('review.nextToCheck')} disabled={!next} onClick={() => next && onSeek(next.start)}>
+              <ChevronRight aria-hidden />
+            </Button>
+          </Tip>
         </div>
         <div className="ml-auto flex gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8 bg-card"
-            title={t('review.zoomOutTimeline')}
-            aria-label={t('review.zoomOutTimeline')}
-            disabled={scale <= fit}
-            onClick={() => zoom(1 / STEP)}
-          >
-            <ZoomOut aria-hidden />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8 bg-card"
-            title={t('review.zoomInTimeline')}
-            aria-label={t('review.zoomInTimeline')}
-            disabled={scale >= MAX_SCALE}
-            onClick={() => zoom(STEP)}
-          >
-            <ZoomIn aria-hidden />
-          </Button>
+          <Tip label={t('review.zoomOutTimeline')}>
+            <Button variant="outline" size="icon" className="size-8 bg-card" aria-label={t('review.zoomOutTimeline')} disabled={scale <= fit} onClick={() => zoom(1 / STEP)}>
+              <ZoomOut aria-hidden />
+            </Button>
+          </Tip>
+          <Tip label={t('review.zoomInTimeline')}>
+            <Button variant="outline" size="icon" className="size-8 bg-card" aria-label={t('review.zoomInTimeline')} disabled={scale >= MAX_SCALE} onClick={() => zoom(STEP)}>
+              <ZoomIn aria-hidden />
+            </Button>
+          </Tip>
           <Button variant="outline" size="sm" className="bg-card" disabled={scale <= fit} onClick={() => setChosen(null)}>
             <Maximize2 aria-hidden />
             {t('review.wholeMatch')}

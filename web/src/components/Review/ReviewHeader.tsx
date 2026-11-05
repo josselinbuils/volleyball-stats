@@ -9,6 +9,7 @@ import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import type { FilmCounts, Hosted } from '@/lib/review';
 import { HostChoice } from '@/components/Review/HostChoice';
+import { Tip } from '@/components/Tip';
 
 type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
@@ -41,15 +42,16 @@ function MatchSwitch({ title, disabled, onFailed }: { title: string; disabled: b
   };
   return (
     <DropdownMenu onOpenChange={load}>
-      <DropdownMenuTrigger
-        disabled={disabled || opening}
-        aria-label={t('review.otherMatch')}
-        title={t('review.otherMatch')}
-        className="group -mx-1 inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
-      >
-        <h1 className="min-w-0 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]">{opening ? t('matches.opening') : title}</h1>
-        <ChevronDown aria-hidden className="size-5 shrink-0 text-muted-foreground" />
-      </DropdownMenuTrigger>
+      <Tip label={t('review.otherMatch')}>
+        <DropdownMenuTrigger
+          disabled={disabled || opening}
+          aria-label={t('review.otherMatch')}
+          className="group -mx-1 inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+        >
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]">{opening ? t('matches.opening') : title}</h1>
+          <ChevronDown aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+        </DropdownMenuTrigger>
+      </Tip>
       <DropdownMenuContent align="start">
         {matches?.map((m) => (
           <DropdownMenuItem key={m.path} disabled={!m.ready} onSelect={() => m.path !== match.name && go(m.path)}>
@@ -107,38 +109,41 @@ export function ReviewHeader({
         <div className="flex min-w-0 items-center gap-1">
           <MatchSwitch title={title} disabled={busy !== null} onFailed={onFailed} />
           <Button variant="ghost" size="icon" asChild>
-            <a href="./" aria-label={t('review.matchPage')} title={t('review.matchPage')}>
-              <ExternalLink aria-hidden />
-            </a>
+            <Tip label={t('review.matchPage')}>
+              <a href="./" aria-label={t('review.matchPage')}>
+                <ExternalLink aria-hidden />
+              </a>
+            </Tip>
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={busy === 'undo' ? t('review.undoing') : t('review.undo')}
-            title={t('review.undo')}
-            disabled={!answered || busy !== null}
-            onClick={() => run('undo')}
-          >
-            <Undo2 aria-hidden />
-          </Button>
+          <Tip label={t('review.undo')}>
+            <Button variant="ghost" size="icon" aria-label={busy === 'undo' ? t('review.undoing') : t('review.undo')} disabled={!answered || busy !== null} onClick={() => run('undo')}>
+              <Undo2 aria-hidden />
+            </Button>
+          </Tip>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={t('review.more')} title={t('review.more')} disabled={busy !== null}>
-                <Ellipsis aria-hidden />
-              </Button>
+              <Tip label={t('review.more')}>
+                <Button variant="ghost" size="icon" aria-label={t('review.more')} disabled={busy !== null}>
+                  <Ellipsis aria-hidden />
+                </Button>
+              </Tip>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem title={t('review.rerunNote')} onSelect={() => window.confirm(t('review.rerunConfirm')) && run('rerun')}>
-                <RefreshCw aria-hidden />
-                {t('review.rerun')}
-              </DropdownMenuItem>
-              {hosted && (
-                <DropdownMenuItem title={t('review.fetchNote')} onSelect={() => run('reports')}>
-                  <CloudDownload aria-hidden />
-                  {t('review.fetch')}
+              <Tip label={t('review.rerunNote')}>
+                <DropdownMenuItem onSelect={() => window.confirm(t('review.rerunConfirm')) && run('rerun')}>
+                  <RefreshCw aria-hidden />
+                  {t('review.rerun')}
                 </DropdownMenuItem>
+              </Tip>
+              {hosted && (
+                <Tip label={t('review.fetchNote')}>
+                  <DropdownMenuItem onSelect={() => run('reports')}>
+                    <CloudDownload aria-hidden />
+                    {t('review.fetch')}
+                  </DropdownMenuItem>
+                </Tip>
               )}
               {films.players.total > 0 && (
                 <DropdownMenuItem disabled={!films.players.stale} onSelect={() => run('films')}>
@@ -176,22 +181,28 @@ export function ReviewHeader({
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground max-sm:gap-x-3" aria-live="polite">
         <span>{t('review.answers', { count: answered })}</span>
         {backup && (
-          <span className={cn(backup.error && 'text-destructive')} title={backup.error ?? undefined}>
-            <Dot />
-            {backup.error ? t('review.backupFailed', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
-          </span>
+          <Tip label={backup.error ?? undefined}>
+            <span className={cn(backup.error && 'text-destructive')}>
+              <Dot />
+              {backup.error ? t('review.backupFailed', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
+            </span>
+          </Tip>
         )}
         {fetched && (
-          <span className={cn(fetched.error && 'text-destructive')} title={fetched.error ?? undefined}>
-            <Dot />
-            {fetched.error ? t('review.fetchFailed', { at: fetched.at }) : t('review.fetched', { count: fetched.count, at: fetched.at })}
-          </span>
+          <Tip label={fetched.error ?? undefined}>
+            <span className={cn(fetched.error && 'text-destructive')}>
+              <Dot />
+              {fetched.error ? t('review.fetchFailed', { at: fetched.at }) : t('review.fetched', { count: fetched.count, at: fetched.at })}
+            </span>
+          </Tip>
         )}
         {filmsError && (
-          <span className="text-destructive" title={filmsError}>
-            <Dot />
-            {t('review.filmsFailed')}
-          </span>
+          <Tip label={filmsError}>
+            <span className="text-destructive">
+              <Dot />
+              {t('review.filmsFailed')}
+            </span>
+          </Tip>
         )}
         {running && (
           <span>
@@ -200,24 +211,26 @@ export function ReviewHeader({
           </span>
         )}
         {hosted && (
-          <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')} title={hosted.error ?? undefined}>
-            <Dot />
-            {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
-            {hosted.error
-              ? t('review.hostedFailed', { at: hosted.at })
-              : hosted.behind
-                ? t('review.hostedLate')
-                : hosted.day
-                  ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at })
-                  : t('review.hosted', { at: hosted.at })}
+          <Tip label={hosted.error ?? undefined}>
+            <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')}>
+              <Dot />
+              {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
+              {hosted.error
+                ? t('review.hostedFailed', { at: hosted.at })
+                : hosted.behind
+                  ? t('review.hostedLate')
+                  : hosted.day
+                    ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at })
+                    : t('review.hosted', { at: hosted.at })}
 
-            {(hosted.behind || hosted.error) && (
-              <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
-                <CloudUpload aria-hidden />
-                {busy === 'host' ? t('review.hosting') : t('review.host')}
-              </Button>
-            )}
-          </span>
+              {(hosted.behind || hosted.error) && (
+                <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
+                  <CloudUpload aria-hidden />
+                  {busy === 'host' ? t('review.hosting') : t('review.host')}
+                </Button>
+              )}
+            </span>
+          </Tip>
         )}
       </div>
       {choosing && (

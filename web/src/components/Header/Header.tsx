@@ -14,6 +14,7 @@ import { pointSplit, setScores, setsWon } from '@/components/Header/helpers/scor
 import { SetFilter } from '@/components/Header/SetFilter';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
+import { Tip } from '@/components/Tip';
 
 export function Header() {
   const { t } = useTranslation();
@@ -98,36 +99,38 @@ export function Header() {
                 </span>
               </dd>
               {scoreMore && (
-                <dd className="text-sm text-muted-foreground" title={shown.some((s) => !s.final) ? t('scoreHint') : undefined}>
-                  {scoreMore}
-                </dd>
+                <Tip label={shown.some((s) => !s.final) ? t('scoreHint') : undefined}>
+                  <dd className="text-sm text-muted-foreground">{scoreMore}</dd>
+                </Tip>
               )}
-              <dd className="mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center pt-2 gap-x-3 gap-y-1 text-sm" title={t('pointsSplitHint')}>
-                <span />
-                <span className="text-center text-xs text-muted-foreground">{t('pointsDirectHead')}</span>
-                <span className="text-center text-xs text-muted-foreground">{t('pointsFaultsHead')}</span>
-                {GROUPS.map((g) => {
-                  const split = pointSplit(rallies, g);
-                  return (
-                    <Fragment key={g}>
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Swatch color={teamColor(g)} ring={teamRing(g)} />
-                        <span className="truncate">{groupName(t, g)}</span>
-                      </span>
-                      <CountButton
-                        title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g), ofTeam: ofName(groupName(tr, g)) })}
-                        picked={split.direct}
-                        className="h-7 justify-self-center text-sm"
-                      />
-                      <CountButton
-                        title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g), ofTeam: ofName(groupName(tr, g)) })}
-                        picked={split.faults}
-                        className="h-7 justify-self-center text-sm"
-                      />
-                    </Fragment>
-                  );
-                })}
-              </dd>
+              <Tip label={t('pointsSplitHint')}>
+                <dd className="mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center pt-2 gap-x-3 gap-y-1 text-sm">
+                  <span />
+                  <span className="text-center text-xs text-muted-foreground">{t('pointsDirectHead')}</span>
+                  <span className="text-center text-xs text-muted-foreground">{t('pointsFaultsHead')}</span>
+                  {GROUPS.map((g) => {
+                    const split = pointSplit(rallies, g);
+                    return (
+                      <Fragment key={g}>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Swatch color={teamColor(g)} ring={teamRing(g)} />
+                          <span className="truncate">{groupName(t, g)}</span>
+                        </span>
+                        <CountButton
+                          title={(tr) => tr('pointsDirectTitle', { team: groupName(tr, g), ofTeam: ofName(groupName(tr, g)) })}
+                          picked={split.direct}
+                          className="h-7 justify-self-center text-sm"
+                        />
+                        <CountButton
+                          title={(tr) => tr('pointsFaultsTitle', { team: groupName(tr, g), ofTeam: ofName(groupName(tr, g)) })}
+                          picked={split.faults}
+                          className="h-7 justify-self-center text-sm"
+                        />
+                      </Fragment>
+                    );
+                  })}
+                </dd>
+              </Tip>
             </Card>
           </dl>
         )}

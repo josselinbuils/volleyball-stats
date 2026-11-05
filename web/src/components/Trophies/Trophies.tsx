@@ -12,6 +12,7 @@ import { useSet } from '@/lib/sets';
 import { lines } from '@/components/Stats/helpers/stats';
 import { GOLD_CSS } from '@/components/Stats/Mvp';
 import { trophies, type Trophy } from '@/components/Trophies/helpers/trophies';
+import { Tip } from '@/components/Tip';
 
 const ICONS: Record<string, LucideIcon> = {
   touches: BatteryFull,
@@ -109,21 +110,22 @@ function Award({ trophy }: { trophy: Trophy }) {
         : t(`trophies.details.${trophy.kind}`, { count: trophy.n, of: trophy.kind === 'duo' ? trophy.of : undefined });
   return (
     <li>
-      <button
-        type="button"
-        title={t('watchN', { count: clips(trophy).length })}
-        onClick={() => play((tr) => [tr(`trophies.names.${trophy.kind}`), winners(tr, trophy)].filter(Boolean).join(', '), clips(trophy))}
-        className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <span aria-hidden className="inline-grid size-9 shrink-0 place-items-center rounded-full text-[#3a2a00] shadow-sm" style={{ background: GOLD_CSS }}>
-          <Icon className="size-5" />
-        </span>
-        <span className="grid min-w-0 gap-0.5">
-          <b className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{name}</b>
-          {who && <span className="font-semibold [overflow-wrap:anywhere]">{who}</span>}
-          <span className="text-[13px] text-muted-foreground">{detail}</span>
-        </span>
-      </button>
+      <Tip label={t('watchN', { count: clips(trophy).length })}>
+        <button
+          type="button"
+          onClick={() => play((tr) => [tr(`trophies.names.${trophy.kind}`), winners(tr, trophy)].filter(Boolean).join(', '), clips(trophy))}
+          className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span aria-hidden className="inline-grid size-9 shrink-0 place-items-center rounded-full text-[#3a2a00] shadow-sm" style={{ background: GOLD_CSS }}>
+            <Icon className="size-5" />
+          </span>
+          <span className="grid min-w-0 gap-0.5">
+            <b className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{name}</b>
+            {who && <span className="font-semibold [overflow-wrap:anywhere]">{who}</span>}
+            <span className="text-[13px] text-muted-foreground">{detail}</span>
+          </span>
+        </button>
+      </Tip>
     </li>
   );
 }

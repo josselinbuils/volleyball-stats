@@ -6,6 +6,7 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { GROUPS, groupName, match, teamColor, teamRing } from '@/lib/match';
 import type { Timeout, TimeoutChange } from '@/lib/review';
+import { Tip } from '@/components/Tip';
 
 /** A timeout among the rallies: its team to pick, its bounds to move to the video's moment, removed if it is none. */
 export function TimeoutRow({
@@ -35,20 +36,23 @@ export function TimeoutRow({
       className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border border-dashed bg-card p-1.5 transition-colors', current && 'border-muted-foreground bg-muted')}
     >
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          title={t('review.reportPlay')}
-          aria-label={`${t('review.reportPlay')} ${clock(time)}`}
-          onClick={() => onPlay(time)}
-          className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <Play aria-hidden className="size-3.5 fill-current" />
-          {clock(time)} – {clock(endTime)}
-        </button>
+        <Tip label={t('review.reportPlay')}>
+          <button
+            type="button"
+            aria-label={`${t('review.reportPlay')} ${clock(time)}`}
+            onClick={() => onPlay(time)}
+            className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <Play aria-hidden className="size-3.5 fill-current" />
+            {clock(time)} – {clock(endTime)}
+          </button>
+        </Tip>
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{t('review.timeout')}</span>
-        <Button variant="ghost" size="icon-sm" title={t('review.timeoutRemove')} aria-label={t('review.timeoutRemove')} onClick={() => onChange({ start, end, removed: true })}>
-          <X aria-hidden />
-        </Button>
+        <Tip label={t('review.timeoutRemove')}>
+          <Button variant="ghost" size="icon-sm" aria-label={t('review.timeoutRemove')} onClick={() => onChange({ start, end, removed: true })}>
+            <X aria-hidden />
+          </Button>
+        </Tip>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {GROUPS.map((g) => (

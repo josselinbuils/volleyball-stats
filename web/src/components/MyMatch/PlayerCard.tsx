@@ -16,6 +16,7 @@ import type { Best } from '@/components/Stats/helpers/best';
 import type { Stat } from '@/components/Stats/helpers/stats';
 import { GOLD_CSS, Mvp } from '@/components/Stats/Mvp';
 import type { Row } from '@/components/Stats/StatsTable';
+import { Tip } from '@/components/Tip';
 
 const SIX: Stat[] = ['serves', 'receptions', 'sets', 'attacks', 'blocks', 'digs'];
 // The stars over a hovered picture: left and top (% of the picture), size (px), delay (s).
@@ -45,15 +46,16 @@ function Play({ stat, row, className }: { stat: Stat; row: CardRow; className?: 
     return <span className={cn('opacity-60', className)}>0</span>;
   }
   return (
-    <button
-      type="button"
-      aria-label={`${f.num(picked.length)} · ${title(t)} · ${t('watchN', { count: picked.length })}`}
-      title={t('watchN', { count: picked.length })}
-      className={cn('rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-current/50', className)}
-      onClick={() => play(title, contactClips(picked, match.duration))}
-    >
-      {f.num(picked.length)}
-    </button>
+    <Tip label={t('watchN', { count: picked.length })}>
+      <button
+        type="button"
+        aria-label={`${f.num(picked.length)} · ${title(t)} · ${t('watchN', { count: picked.length })}`}
+        className={cn('rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-current/50', className)}
+        onClick={() => play(title, contactClips(picked, match.duration))}
+      >
+        {f.num(picked.length)}
+      </button>
+    </Tip>
   );
 }
 

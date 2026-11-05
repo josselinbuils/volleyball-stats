@@ -19,6 +19,7 @@ import { BroadcastControls, BroadcastOverlay } from '@/components/Watch/Broadcas
 import { Feedback } from '@/components/Watch/Feedback';
 import { idleCamera, rallyCamera, replayAt, replayCamera, replays } from '@/components/Watch/helpers/director';
 import { scoreAt } from '@/components/Watch/helpers/score';
+import { Tip } from '@/components/Tip';
 
 const STORED = 'court-view';
 const VIEWS = ['2d', '3d', 'tv'] as const;
@@ -108,9 +109,11 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
     <figure className="m-0 min-w-0 [:fullscreen_&]:relative [:fullscreen_&]:flex [:fullscreen_&]:h-full [:fullscreen_&]:flex-col">
       {/* Boxed like the score bar beside it, at the same height; in full screen its content alone over the view. */}
       <div className="mb-3 flex h-11 items-center gap-2 rounded-lg bg-muted px-3 text-sm leading-5 font-semibold [:fullscreen_&]:absolute [:fullscreen_&]:inset-x-2 [:fullscreen_&]:top-2 [:fullscreen_&]:z-10 [:fullscreen_&]:mb-0 [:fullscreen_&]:bg-transparent [:fullscreen_&]:[text-shadow:0_0_4px_var(--background),0_0_10px_var(--background)]">
-        <p className="m-0 line-clamp-2 min-w-0 flex-1" aria-live="off" title={now}>
-          {now}
-        </p>
+        <Tip label={now}>
+          <p className="m-0 line-clamp-2 min-w-0 flex-1" aria-live="off">
+            {now}
+          </p>
+        </Tip>
         {canDraw3d() && (
           <ToggleGroup type="single" variant="outline" size="sm" spacing={0} value={view} onValueChange={(v) => v && choose(v as View)} aria-label={t('scene3d.label')} className="shrink-0 bg-card">
             {VIEWS.map((v) => (

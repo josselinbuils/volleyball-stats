@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { autoView, boxAt, exchangeAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
+import { Tip } from '@/components/Tip';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
 const AROUND = 0.5;
@@ -410,29 +411,30 @@ export function ClipVideo({
             </svg>
           </div>
           {caption && (
-            <span
-              title={t('review.captionMove')}
-              onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt };
-              }}
-              onPointerMove={dragCaption}
-              onPointerUp={dropCaption}
-              onPointerCancel={dropCaption}
-              onDoubleClick={() => {
-                setCaptionAt(CAPTION_AT);
-                try {
-                  localStorage.removeItem(CAPTION_KEY);
-                } catch {
-                  // Kept for this page only.
-                }
-              }}
-              style={{ left: `${captionAt.x * 100}%`, top: `${captionAt.y * 100}%` }}
-              className="absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
-            >
-              <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
-              <span className="truncate">{caption.text}</span>
-            </span>
+            <Tip label={t('review.captionMove')}>
+              <span
+                onPointerDown={(event) => {
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt };
+                }}
+                onPointerMove={dragCaption}
+                onPointerUp={dropCaption}
+                onPointerCancel={dropCaption}
+                onDoubleClick={() => {
+                  setCaptionAt(CAPTION_AT);
+                  try {
+                    localStorage.removeItem(CAPTION_KEY);
+                  } catch {
+                    // Kept for this page only.
+                  }
+                }}
+                style={{ left: `${captionAt.x * 100}%`, top: `${captionAt.y * 100}%` }}
+                className="absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
+              >
+                <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
+                <span className="truncate">{caption.text}</span>
+              </span>
+            </Tip>
           )}
         </div>
       </div>
@@ -472,63 +474,55 @@ export function ClipVideo({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon-sm"
-          className="bg-card"
-          title={t(paused ? 'review.playVideo' : 'review.pauseVideo')}
-          aria-label={t(paused ? 'review.playVideo' : 'review.pauseVideo')}
-          onClick={playPause}
-        >
-          {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
-        </Button>
+        <Tip label={t(paused ? 'review.playVideo' : 'review.pauseVideo')}>
+          <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t(paused ? 'review.playVideo' : 'review.pauseVideo')} onClick={playPause}>
+            {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
+          </Button>
+        </Tip>
         {showTime && <span className="min-w-12 text-sm font-medium tabular-nums">{clock(time)}</span>}
         {free && (
           <div className="flex gap-1">
             {[-FREE_STEP_S, FREE_STEP_S].map((step) => (
-              <Button
-                key={step}
-                variant="outline"
-                size="icon-sm"
-                className="relative bg-card"
-                title={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}
-                aria-label={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}
-                onClick={() => moveTo(time + step)}
-              >
-                <SkipIcon seconds={step} />
-              </Button>
+              <Tip key={step} label={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="relative bg-card"
+                  aria-label={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}
+                  onClick={() => moveTo(time + step)}
+                >
+                  <SkipIcon seconds={step} />
+                </Button>
+              </Tip>
             ))}
           </div>
         )}
         {free && (
           <div className="flex gap-1">
-            <Button variant="outline" size="icon-sm" className="bg-card" title={t('review.pinchNote')} aria-label={t('review.zoomMore')} onClick={() => zoomBy(ZOOM_STEP)}>
-              <ZoomIn aria-hidden />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="bg-card"
-              title={t('review.pinchNote')}
-              aria-label={t('review.zoomLess')}
-              disabled={view.w >= width}
-              onClick={() => zoomBy(1 / ZOOM_STEP)}
-            >
-              <ZoomOut aria-hidden />
-            </Button>
-            {views && (
-              <Button
-                variant={autoShown ? 'default' : 'outline'}
-                size="sm"
-                className={autoShown ? undefined : 'bg-card'}
-                title={t('review.autoZoom')}
-                aria-label={t('review.autoZoom')}
-                aria-pressed={autoShown}
-                onClick={toggleAuto}
-              >
-                <Search aria-hidden />
-                {t('review.auto')}
+            <Tip label={t('review.pinchNote')}>
+              <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t('review.zoomMore')} onClick={() => zoomBy(ZOOM_STEP)}>
+                <ZoomIn aria-hidden />
               </Button>
+            </Tip>
+            <Tip label={t('review.pinchNote')}>
+              <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t('review.zoomLess')} disabled={view.w >= width} onClick={() => zoomBy(1 / ZOOM_STEP)}>
+                <ZoomOut aria-hidden />
+              </Button>
+            </Tip>
+            {views && (
+              <Tip label={t('review.autoZoom')}>
+                <Button
+                  variant={autoShown ? 'default' : 'outline'}
+                  size="sm"
+                  className={autoShown ? undefined : 'bg-card'}
+                  aria-label={t('review.autoZoom')}
+                  aria-pressed={autoShown}
+                  onClick={toggleAuto}
+                >
+                  <Search aria-hidden />
+                  {t('review.auto')}
+                </Button>
+              </Tip>
             )}
           </div>
         )}
@@ -548,16 +542,11 @@ export function ClipVideo({
           </Button>
         )}
         {free && (
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="bg-card"
-            title={t(muted ? 'review.soundOn' : 'review.soundOff')}
-            aria-label={t(muted ? 'review.soundOn' : 'review.soundOff')}
-            onClick={toggleMuted}
-          >
-            {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
-          </Button>
+          <Tip label={t(muted ? 'review.soundOn' : 'review.soundOff')}>
+            <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t(muted ? 'review.soundOn' : 'review.soundOff')} onClick={toggleMuted}>
+              {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+            </Button>
+          </Tip>
         )}
         <div role="group" aria-label={t('review.speed')} className="flex gap-1">
           {SPEEDS.map((s) => (

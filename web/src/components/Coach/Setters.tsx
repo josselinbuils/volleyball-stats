@@ -7,6 +7,7 @@ import { contactClips } from '@/lib/playlist';
 import { Section } from '@/components/Coach/Section';
 import type { Contact } from '@/lib/match';
 import type { Setter } from '@/components/Coach/helpers/coach';
+import { Tip } from '@/components/Tip';
 
 /** A setter's attackers with a single attack, together one row when there are several. */
 const once = (s: Setter) => s.attackers.filter((a) => a.attacks.length === 1);
@@ -62,22 +63,23 @@ function Row({ label, title, attacks, most }: { label: string; title: (t: TFunct
   const detail = [t('coach.setters.attacks', { count: attacks.length }), ...(kills ? [t('coach.setters.kills', { count: kills })] : [])].join(', ');
   return (
     <li>
-      <button
-        type="button"
-        title={detail}
-        aria-label={`${label}, ${detail}`}
-        onClick={() => play(title, contactClips(attacks, match.duration))}
-        className="grid w-full grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <span className="truncate">{label}</span>
-        <span aria-hidden className="flex h-2 overflow-hidden rounded-full bg-muted">
-          <span className="flex h-full" style={{ width: `${(100 * attacks.length) / most}%`, background: color('play') }}>
-            <span className="h-full" style={{ width: `${(100 * kills) / attacks.length}%`, background: color('point') }} />
+      <Tip label={detail}>
+        <button
+          type="button"
+          aria-label={`${label}, ${detail}`}
+          onClick={() => play(title, contactClips(attacks, match.duration))}
+          className="grid w-full grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span className="truncate">{label}</span>
+          <span aria-hidden className="flex h-2 overflow-hidden rounded-full bg-muted">
+            <span className="flex h-full" style={{ width: `${(100 * attacks.length) / most}%`, background: color('play') }}>
+              <span className="h-full" style={{ width: `${(100 * kills) / attacks.length}%`, background: color('point') }} />
+            </span>
           </span>
-        </span>
-        <span className="text-right whitespace-nowrap tabular-nums">{attacks.length}</span>
-        <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-      </button>
+          <span className="text-right whitespace-nowrap tabular-nums">{attacks.length}</span>
+          <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </Tip>
     </li>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Moon, Sun, SunMoon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tip } from '@/components/Tip';
 
 const MODES = { light: Sun, dark: Moon, auto: SunMoon } as const;
 type Mode = keyof typeof MODES;
@@ -54,14 +54,11 @@ export function ThemeSwitch() {
   return (
     <ToggleGroup type="single" variant="outline" size="sm" spacing={0} value={mode} onValueChange={pick} aria-label={t('theme')} className="shrink-0 bg-card">
       {Object.entries(MODES).map(([value, Icon]) => (
-        <Tooltip key={value}>
-          <TooltipTrigger asChild>
-            <ToggleGroupItem value={value} aria-label={t(`themes.${value}`)} className="aria-checked:bg-primary aria-checked:text-primary-foreground">
-              <Icon aria-hidden />
-            </ToggleGroupItem>
-          </TooltipTrigger>
-          <TooltipContent>{t(`themes.${value}`)}</TooltipContent>
-        </Tooltip>
+        <Tip key={value} label={t(`themes.${value}`)}>
+          <ToggleGroupItem value={value} aria-label={t(`themes.${value}`)} className="aria-checked:bg-primary aria-checked:text-primary-foreground">
+            <Icon aria-hidden />
+          </ToggleGroupItem>
+        </Tip>
       ))}
     </ToggleGroup>
   );

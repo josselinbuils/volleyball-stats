@@ -3,6 +3,7 @@ import { Check, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { clock, useFormat } from '@/lib/format';
 import type { Question } from '@/lib/review';
+import { Tip } from '@/components/Tip';
 
 /** A rally's reports in its list: what each said, the moment to replay, and marking them handled. */
 export function ReportRow({ question, onPlay, onHandled }: { question: Question; onPlay: (time: number) => void; onHandled: () => void }) {
@@ -12,20 +13,23 @@ export function ReportRow({ question, onPlay, onHandled }: { question: Question;
   return (
     <li className="grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border border-l-4 border-primary bg-primary/5 p-1.5 text-sm">
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          title={t('review.reportGo')}
-          aria-label={`${t('review.reportGo')} ${clock(at)}`}
-          onClick={() => onPlay(at)}
-          className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <Flag aria-hidden className="size-3.5 text-primary" />
-          {clock(at)}
-        </button>
-        <Button variant="outline" size="xs" className="ml-auto bg-card" title={t('review.reportHandledNote')} onClick={onHandled}>
-          <Check aria-hidden />
-          {t('review.reportHandled')}
-        </Button>
+        <Tip label={t('review.reportGo')}>
+          <button
+            type="button"
+            aria-label={`${t('review.reportGo')} ${clock(at)}`}
+            onClick={() => onPlay(at)}
+            className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <Flag aria-hidden className="size-3.5 text-primary" />
+            {clock(at)}
+          </button>
+        </Tip>
+        <Tip label={t('review.reportHandledNote')}>
+          <Button variant="outline" size="xs" className="ml-auto bg-card" onClick={onHandled}>
+            <Check aria-hidden />
+            {t('review.reportHandled')}
+          </Button>
+        </Tip>
       </div>
       {question.reports?.map((r, k) => (
         <p key={k} className="m-0 px-1.5">

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { Group } from '@/lib/match';
 import { marked, pieceKey, post, type Named, type Piece, type Saved } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
+import { Tip } from '@/components/Tip';
 
 /** The pictures of `owner`, an identity; clicking one marks it as someone else than the others, and
  * a list under it says who, among `players` (`nameOf` their names). Saved at once and applied with
@@ -68,23 +69,24 @@ export function Pictures({
           const isOdd = odd.has(key);
           return (
             <div key={src} className="grid shrink-0 content-start gap-1">
-              <button
-                ref={(b) => {
-                  if (b) {
-                    buttons.current.set(key, b);
-                  }
-                }}
-                data-picture
-                type="button"
-                aria-pressed={isOdd}
-                aria-label={t('review.oddMark')}
-                title={t('review.oddMark')}
-                onClick={() => toggle(pieces[k])}
-                className={cn('relative rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50', isOdd && 'ring-2 ring-destructive')}
-              >
-                <img src={src} alt="" loading="lazy" className={cn('h-52 max-w-none rounded-md bg-muted', isOdd && 'opacity-40')} />
-                {isOdd && <X aria-hidden className="absolute inset-0 m-auto size-10 text-destructive" />}
-              </button>
+              <Tip label={t('review.oddMark')}>
+                <button
+                  ref={(b) => {
+                    if (b) {
+                      buttons.current.set(key, b);
+                    }
+                  }}
+                  data-picture
+                  type="button"
+                  aria-pressed={isOdd}
+                  aria-label={t('review.oddMark')}
+                  onClick={() => toggle(pieces[k])}
+                  className={cn('relative rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50', isOdd && 'ring-2 ring-destructive')}
+                >
+                  <img src={src} alt="" loading="lazy" className={cn('h-52 max-w-none rounded-md bg-muted', isOdd && 'opacity-40')} />
+                  {isOdd && <X aria-hidden className="absolute inset-0 m-auto size-10 text-destructive" />}
+                </button>
+              </Tip>
               {isOdd && (
                 <PlayerSelect
                   players={players}

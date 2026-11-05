@@ -36,6 +36,7 @@ import {
 } from '@/components/Review/helpers/report';
 import { problems, warningTimes, type Problem } from '@/components/Review/helpers/checks';
 import { labelled } from '@/helpers/contacts';
+import { Tip } from '@/components/Tip';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
 const RESULTS = ['play', 'point', 'error'] as const;
@@ -532,10 +533,12 @@ export function ReportEditor({
               <Plus aria-hidden />
               {t('review.reportAdd', { time: clock(now) })}
             </Button>
-            <Button variant="outline" className="flex-1 bg-card" title={t('review.reportStartHelp')} onClick={startHere}>
-              <SquarePlus aria-hidden />
-              {t('review.reportStart', { time: clock(now) })}
-            </Button>
+            <Tip label={t('review.reportStartHelp')}>
+              <Button variant="outline" className="flex-1 bg-card" onClick={startHere}>
+                <SquarePlus aria-hidden />
+                {t('review.reportStart', { time: clock(now) })}
+              </Button>
+            </Tip>
             <Button variant="outline" className="flex-1 bg-card" disabled={!!inTimeout} onClick={() => onTimeout({ frame: frameOf(timeOf()) })}>
               <Hand aria-hidden />
               {t('review.timeoutAdd', { time: clock(now) })}
@@ -591,83 +594,76 @@ export function ReportEditor({
                     k === here && 'border-primary',
                   )}
                 >
-                  <button
-                    type="button"
-                    title={t('review.reportRallyPlay')}
-                    onClick={() => onPlay(shown[k].start)}
-                    className={cn(
-                      'flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
-                      (rallyProblems(k).length > 0 || off.has(k)) && 'hover:bg-amber-200 dark:hover:bg-amber-900',
-                      fixOf(k)?.play === false && 'line-through',
-                    )}
-                  >
-                    <Play aria-hidden className="size-3.5 shrink-0 fill-current" />
-                    <span className="truncate">{rallyLabel(k)}</span>
-                    {green.has(keyOf(k)) && <CircleCheck aria-label={t('review.rallyChecked')} className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />}
-                    {rallyProblems(k).length > 0 && (
-                      <span role="img" title={describe([...new Set(rallyProblems(k))])} aria-label={describe([...new Set(rallyProblems(k))])} className="shrink-0">
-                        <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
-                      </span>
-                    )}
-                    {comments[keyOf(k)] && (
-                      <span role="img" title={comments[keyOf(k)]} aria-label={comments[keyOf(k)]} className="shrink-0">
-                        <MessageSquareText aria-hidden className="size-3.5 text-sky-600 dark:text-sky-400" />
-                      </span>
-                    )}
-                    {savedStarts.has(keyOf(k)) && (
-                      <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
-                        <PenLine aria-hidden className="size-3.5" />
-                      </span>
-                    )}
-                  </button>
+                  <Tip label={t('review.reportRallyPlay')}>
+                    <button
+                      type="button"
+                      onClick={() => onPlay(shown[k].start)}
+                      className={cn(
+                        'flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
+                        (rallyProblems(k).length > 0 || off.has(k)) && 'hover:bg-amber-200 dark:hover:bg-amber-900',
+                        fixOf(k)?.play === false && 'line-through',
+                      )}
+                    >
+                      <Play aria-hidden className="size-3.5 shrink-0 fill-current" />
+                      <span className="truncate">{rallyLabel(k)}</span>
+                      {green.has(keyOf(k)) && <CircleCheck aria-label={t('review.rallyChecked')} className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />}
+                      {rallyProblems(k).length > 0 && (
+                        <Tip label={describe([...new Set(rallyProblems(k))])}>
+                          <span role="img" aria-label={describe([...new Set(rallyProblems(k))])} className="shrink-0">
+                            <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
+                          </span>
+                        </Tip>
+                      )}
+                      {comments[keyOf(k)] && (
+                        <Tip label={comments[keyOf(k)]}>
+                          <span role="img" aria-label={comments[keyOf(k)]} className="shrink-0">
+                            <MessageSquareText aria-hidden className="size-3.5 text-sky-600 dark:text-sky-400" />
+                          </span>
+                        </Tip>
+                      )}
+                      {savedStarts.has(keyOf(k)) && (
+                        <Tip label={t('review.reportSaved')}>
+                          <span role="img" aria-label={t('review.reportSaved')} className="ml-auto shrink-0">
+                            <PenLine aria-hidden className="size-3.5" />
+                          </span>
+                        </Tip>
+                      )}
+                    </button>
+                  </Tip>
                   {isDeleted(k) ? (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="mr-1 shrink-0 bg-card text-foreground"
-                      title={t('review.restoreRally', { n: k + 1 })}
-                      aria-label={t('review.restoreRally', { n: k + 1 })}
-                      onClick={() => restoreRally(k)}
-                    >
-                      <Undo2 aria-hidden />
-                      {t('review.restore')}
-                    </Button>
+                    <Tip label={t('review.restoreRally', { n: k + 1 })}>
+                      <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.restoreRally', { n: k + 1 })} onClick={() => restoreRally(k)}>
+                        <Undo2 aria-hidden />
+                        {t('review.restore')}
+                      </Button>
+                    </Tip>
                   ) : checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="mr-1 shrink-0 bg-card text-foreground"
-                      title={t('review.uncheckRally', { n: k + 1 })}
-                      aria-label={t('review.uncheckRally', { n: k + 1 })}
-                      onClick={() => onUncheck(keyOf(k))}
-                    >
-                      <CircleOff aria-hidden />
-                      {t('review.uncheck')}
-                    </Button>
+                    <Tip label={t('review.uncheckRally', { n: k + 1 })}>
+                      <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.uncheckRally', { n: k + 1 })} onClick={() => onUncheck(keyOf(k))}>
+                        <CircleOff aria-hidden />
+                        {t('review.uncheck')}
+                      </Button>
+                    </Tip>
                   ) : canDelete(k) ? (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="mr-1 shrink-0 bg-card text-foreground"
-                      title={t('review.deleteRally', { n: k + 1 })}
-                      aria-label={t('review.deleteRally', { n: k + 1 })}
-                      onClick={() => deleteRally(k)}
-                    >
-                      <Trash2 aria-hidden />
-                      {t('review.delete')}
-                    </Button>
+                    <Tip label={t('review.deleteRally', { n: k + 1 })}>
+                      <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.deleteRally', { n: k + 1 })} onClick={() => deleteRally(k)}>
+                        <Trash2 aria-hidden />
+                        {t('review.delete')}
+                      </Button>
+                    </Tip>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="mr-1 shrink-0 bg-card text-foreground"
-                      title={t('review.validateRally', { n: k + 1 })}
-                      aria-label={t('review.validateRally', { n: k + 1 })}
-                      onClick={() => onSave(changes, keyOf(k), k === here)}
-                    >
-                      <Check aria-hidden />
-                      {t('review.validate')}
-                    </Button>
+                    <Tip label={t('review.validateRally', { n: k + 1 })}>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="mr-1 shrink-0 bg-card text-foreground"
+                        aria-label={t('review.validateRally', { n: k + 1 })}
+                        onClick={() => onSave(changes, keyOf(k), k === here)}
+                      >
+                        <Check aria-hidden />
+                        {t('review.validate')}
+                      </Button>
+                    </Tip>
                   )}
                 </div>
               </li>,
@@ -701,23 +697,26 @@ export function ReportEditor({
                       )}
                     >
                       <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          title={t('review.reportPlay')}
-                          aria-label={`${t('review.reportPlay')} ${clock(row.time)}`}
-                          onClick={() => onPlay(row.time)}
-                          className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          <Play aria-hidden className="size-3.5 fill-current" />
-                          <Swatch color={teamColor(row.team)} ring={teamRing(row.team)} />
-                          {clock(row.time)}
-                          {reported.has(row.frame) && <Flag aria-label={t('review.reportedTouch')} className="size-3.5 text-primary" />}
-                          {savedFrames.has(row.frame) && (
-                            <span role="img" title={t('review.reportSaved')} aria-label={t('review.reportSaved')}>
-                              <PenLine aria-hidden className="size-3.5 text-muted-foreground" />
-                            </span>
-                          )}
-                        </button>
+                        <Tip label={t('review.reportPlay')}>
+                          <button
+                            type="button"
+                            aria-label={`${t('review.reportPlay')} ${clock(row.time)}`}
+                            onClick={() => onPlay(row.time)}
+                            className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            <Play aria-hidden className="size-3.5 fill-current" />
+                            <Swatch color={teamColor(row.team)} ring={teamRing(row.team)} />
+                            {clock(row.time)}
+                            {reported.has(row.frame) && <Flag aria-label={t('review.reportedTouch')} className="size-3.5 text-primary" />}
+                            {savedFrames.has(row.frame) && (
+                              <Tip label={t('review.reportSaved')}>
+                                <span role="img" aria-label={t('review.reportSaved')}>
+                                  <PenLine aria-hidden className="size-3.5 text-muted-foreground" />
+                                </span>
+                              </Tip>
+                            )}
+                          </button>
+                        </Tip>
                         {row.removed ? (
                           <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground line-through">{t(`types.${row.type}`)}</span>
                         ) : (
@@ -753,28 +752,30 @@ export function ReportEditor({
                           </>
                         )}
                         {!row.removed && (
+                          <Tip label={t('review.inHighlights')}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 shrink-0"
+                              aria-label={t('review.inHighlights')}
+                              aria-pressed={picks.has(row.frame)}
+                              onClick={() => onPick(row.frame, !picks.has(row.frame))}
+                            >
+                              <Star aria-hidden className={cn(picks.has(row.frame) && 'fill-amber-400 text-amber-500')} />
+                            </Button>
+                          </Tip>
+                        )}
+                        <Tip label={t(row.removed ? 'review.reportRestore' : 'review.reportRemove')}>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-8 shrink-0"
-                            title={t('review.inHighlights')}
-                            aria-label={t('review.inHighlights')}
-                            aria-pressed={picks.has(row.frame)}
-                            onClick={() => onPick(row.frame, !picks.has(row.frame))}
+                            aria-label={t(row.removed ? 'review.reportRestore' : 'review.reportRemove')}
+                            onClick={() => (row.removed ? edit(row, { player: undefined }) : remove())}
                           >
-                            <Star aria-hidden className={cn(picks.has(row.frame) && 'fill-amber-400 text-amber-500')} />
+                            {row.removed ? <Undo2 aria-hidden /> : <Trash2 aria-hidden />}
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 shrink-0"
-                          title={t(row.removed ? 'review.reportRestore' : 'review.reportRemove')}
-                          aria-label={t(row.removed ? 'review.reportRestore' : 'review.reportRemove')}
-                          onClick={() => (row.removed ? edit(row, { player: undefined }) : remove())}
-                        >
-                          {row.removed ? <Undo2 aria-hidden /> : <Trash2 aria-hidden />}
-                        </Button>
+                        </Tip>
                       </div>
                       {problemsOf(row).length > 0 && (
                         <p className="m-0 flex items-center gap-1.5 px-1 text-xs text-amber-800 dark:text-amber-300">
@@ -800,17 +801,11 @@ export function ReportEditor({
                 }),
               // A touch lands at the video's moment: only the rally on the video takes it.
               <li key={`a${k}`}>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="w-full bg-card"
-                  disabled={k !== here}
-                  title={t('review.reportAdd', { time: clock(now) })}
-                  aria-label={t('review.reportAdd', { time: clock(now) })}
-                  onClick={add}
-                >
-                  <Plus aria-hidden />
-                </Button>
+                <Tip label={t('review.reportAdd', { time: clock(now) })}>
+                  <Button variant="outline" size="xs" className="w-full bg-card" disabled={k !== here} aria-label={t('review.reportAdd', { time: clock(now) })} onClick={add}>
+                    <Plus aria-hidden />
+                  </Button>
+                </Tip>
               </li>,
               ...rallyWarning(k, 'end'),
               ...reportsAtEnd(k),
@@ -871,10 +866,12 @@ export function ReportEditor({
                     {groupName(t, g)}
                   </ToggleGroupItem>
                 ))}
-                <ToggleGroupItem value="redo" title={t('review.reportRedoHelp')} className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                  <RotateCcw aria-hidden />
-                  {t('review.reportRedo')}
-                </ToggleGroupItem>
+                <Tip label={t('review.reportRedoHelp')}>
+                  <ToggleGroupItem value="redo" className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                    <RotateCcw aria-hidden />
+                    {t('review.reportRedo')}
+                  </ToggleGroupItem>
+                </Tip>
               </ToggleGroup>
             </span>
             {!canDelete(here) && !isDeleted(here) && (
@@ -883,10 +880,12 @@ export function ReportEditor({
                 {t('review.notPlay')}
               </label>
             )}
-            <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')} title={t('review.reportWrongCallHelp')}>
-              <input type="checkbox" checked={calledWrong(whole)} disabled={winner === null} onChange={(e) => markWrongCall(whole, e.target.checked)} />
-              {t('review.reportWrongCall')}
-            </label>
+            <Tip label={t('review.reportWrongCallHelp')}>
+              <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')}>
+                <input type="checkbox" checked={calledWrong(whole)} disabled={winner === null} onChange={(e) => markWrongCall(whole, e.target.checked)} />
+                {t('review.reportWrongCall')}
+              </label>
+            </Tip>
             <label className={cn('flex items-center gap-2', !canJoin && 'text-muted-foreground')}>
               <input type="checkbox" checked={fix.join === true} disabled={!canJoin} onChange={(e) => editRally(here, { join: e.target.checked ? true : undefined })} />
               {t('review.reportJoin', { n: here + 2 })}
