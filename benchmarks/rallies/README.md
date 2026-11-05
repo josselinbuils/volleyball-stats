@@ -324,3 +324,22 @@ start fewer): left at 2. The constants sit on a plateau, so what is left on 50:0
 (ends with no whistle). Tried and dropped: carrying a rally through the next contacts after its window
 (7 real touches for 16-29 false).
 
+
+### 5 Nov: both matches checked
+
+With the second match's 150 checked rallies, the windows after `no_play` (`match.py`'s) scored on both matches:
+
+- `no_play` drops a window with no player touch rather than one with no serve: the second match's camera misses
+  servers, and 7 of its real rallies had no serve typed (dropped), against 3 false windows that have touches.
+- `rallies.alone` takes a whistled serve however short: the aces and serve faults the server's stand misses
+  (5 on the two matches) last 1-3 s, under the 5 s it asked.
+
+| | Windows M1 / M2 | False | Missed | Ends ±1 s | `side_holdout` F1 ±1 s |
+| --- | --- | --- | --- | --- | --- |
+| before | 130 / 144 | 2 / 3 | 2 / 9 | 118 / 129 | 0.77 |
+| after | 134 / 152 | 4 / 3 | **0 / 2** | 120 / 131 | **0.86** |
+
+26:00-36:00 0.90, 50:00-60:00 0.58, `side_club` 0.93 and `side_long` 0.89 do not move. `checked.py` (the windows before
+`no_play`): touches 875 → 877 of 945 and 1087 → 1091 of 1199. The new false window of the first match (46:31, 13 s) is a ball
+bounced 30 times after a whistle. The 2 left on the second match: a serve fault whose ball is lost at once (39:10), and a
+serve inside a window opened 6 s early by a ball thrown over, typed "net" (69:22).

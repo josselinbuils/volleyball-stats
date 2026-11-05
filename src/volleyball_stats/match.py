@@ -84,7 +84,7 @@ def rally_windows(
     found, crossings = contacts.detect(track, fps, net_x, scale, (lambda x, y: actions.on_floor(calibration, x, y, True)) if calibration is not None else None)
     windows = actions.served(windows, found, fps, calibration)
     if positions is not None:
-        alone = rallies.alone(windows, rallies.whistled(track, whistle_times, fps, calibration), gap, round(rallies.ALONE_MIN_S * fps))
+        alone = rallies.alone(windows, rallies.whistled(track, whistle_times, fps, calibration), gap)
         windows = sorted(windows + actions.served(alone, found, fps, calibration))
     windows = actions.serve_starts(windows, found, crossings, fps, net_x, calibration, scale)
     if calibration is not None:

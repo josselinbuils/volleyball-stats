@@ -220,10 +220,15 @@ class TestMarkRelances:
 class TestNoPlayWindows:
     FPS = 50.0
 
-    def test_a_window_with_no_serve_is_none(self):
+    def test_a_window_with_no_player_touch_is_none(self):
+        typed = [(10, 0, 0, "floor", "left"), (20, 0, 0, "net", "left")]
+
+        assert no_play(typed, [0, 0, None], [(0, 100), (200, 210)], [50], self.FPS) == {0, 1}
+
+    def test_a_window_with_touches_and_no_serve_stays(self):
         typed = [(10, 0, 0, "dig", "left"), (20, 0, 0, "set", "left")]
 
-        assert no_play(typed, [0, 0], [(0, 100)], [50], self.FPS) == {0}
+        assert no_play(typed, [0, 0], [(0, 100)], [50], self.FPS) == set()
 
     def test_a_long_window_with_no_crossing_is_none(self):
         typed = [(10, 0, 0, "serve", "left"), (20, 0, 0, "net", "left")]

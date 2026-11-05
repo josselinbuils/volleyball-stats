@@ -282,9 +282,9 @@ def no_play(typed: list[Typed], rallies: list[int | None], windows: list[tuple[i
     """The rallies whose contacts are IDLE_FLOORS floor contacts or more and no player touch: the
     next server bouncing the ball, a ball rolled back (first ASPOM match: the 2 such windows of
     50:00-60:00, labelled no rally, and none other on the match); `rallies` holds each contact's.
-    With the windows, also those with no serve (first ASPOM match: 3 false windows; a rally's serve
-    lost to the track is `unseen_serves`'s) and those over NO_CROSSING_S with no crossing: a serve
-    into the net is over before that (at most 1.6 s, the 2 longer false)."""
+    With the windows, also those with no player touch at all and those over NO_CROSSING_S with no
+    crossing: a serve into the net is over before that (at most 1.6 s, the 2 longer false). A window
+    with touches and no serve stays: the server out of view (second ASPOM match: 7 such rallies, 3 false)."""
     found: dict[int, list[str]] = {}
     for t, k in zip(typed, rallies):
         if k is not None:
@@ -295,7 +295,7 @@ def no_play(typed: list[Typed], rallies: list[int | None], windows: list[tuple[i
     lead = round(LEAD_S * fps)
     for k, (start, end) in enumerate(windows):
         crossed = any(start - lead <= c <= end for c in crossings or [])
-        if "serve" not in found.get(k, []) or (not crossed and (end - start) / fps >= NO_CROSSING_S):
+        if not set(found.get(k, [])) - {"floor", "net"} or (not crossed and (end - start) / fps >= NO_CROSSING_S):
             idle.add(k)
     return idle
 

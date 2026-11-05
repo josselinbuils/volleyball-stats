@@ -145,8 +145,8 @@ class TestServed:
         mid = np.concatenate([np.tile([900.0, 300.0], (60, 1)), flight(30, 900, -20.0), np.full((300, 2), np.nan)])
         assert whistled(mid, [(0.0, 0.4)], FPS, self.calibration) == []
 
-    def test_alone_keeps_the_long_served_rallies_far_from_any_other(self):
-        assert alone([(100, 200)], [(250, 600, 1), (500, 900, -1), (1000, 1100, 1)], 100, 200) == [(500, 900)]
+    def test_alone_keeps_the_served_rallies_far_from_any_other(self):
+        assert alone([(100, 200)], [(250, 600, 1), (500, 900, -1), (1000, 1100, 1)], 100) == [(500, 900), (1000, 1100)]
 
     def test_with_serves_adds_the_served_rallies_serving_in_none_joined_to_the_one_they_run_into(self):
         assert with_serves([(100, 200)], [(150, 300, 1), (400, 500, -1)]) == [(100, 200), (400, 500)]

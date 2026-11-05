@@ -281,14 +281,13 @@ def whistled(track: np.ndarray, whistle_times: list[tuple[float, float]], fps: f
     return out
 
 
-# A whistled serve counts only where nothing else is near and when it lasts ALONE_MIN_S: elsewhere
-# it mostly opens the next window too early (a ball run after the go that is not the serve).
-ALONE_MIN_S = 5.0
+# A whistled serve counts only where nothing else is near: elsewhere it mostly opens the next window too early (a ball run after
+# the go that is not the serve). However short: the aces and serve faults the server's stand misses (5 of the two ASPOM matches).
 
 
-def alone(rallies: list[Rally], serves: list[tuple[int, int, int]], gap: int, min_frames: int) -> list[Rally]:
-    """The served rallies lasting `min_frames` or more with no rally within `gap` frames of them."""
-    return [(s, e) for s, e, _ in serves if e - s >= min_frames and not any(start < e + gap and end > s - gap for start, end in rallies)]
+def alone(rallies: list[Rally], serves: list[tuple[int, int, int]], gap: int) -> list[Rally]:
+    """The served rallies with no rally within `gap` frames of them."""
+    return [(s, e) for s, e, _ in serves if not any(start < e + gap and end > s - gap for start, end in rallies)]
 
 
 def with_serves(rallies: list[Rally], serves: list[tuple[int, int, int]], lead: int = 0, gap: int = 0) -> list[Rally]:
