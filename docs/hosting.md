@@ -15,7 +15,7 @@ unhashed ones load with the build's hash, card pictures with their own), images 
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
-`club`, `upload` as `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its `data/MATCH/`), the review's "Mettre en ligne" does all of it
+`club`, `upload` as `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its `data/MATCH/reencoded/`), the review's "Mettre en ligne" does all of it
 (`matches.host`, refusing to upload a video copy that opens without the password) and says when. The review writes an imported match's
 `publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). The first "Mettre en ligne" asks: with the video and
 a password, or without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Only the password's fingerprint is kept. Nothing is encoded before that choice:

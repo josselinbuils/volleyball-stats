@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from volleyball_stats import backup, files, matches
+from volleyball_stats import backup, files, matches, video_copies
 
 ROSTER = "roster.json"
 PORT = 8765
@@ -62,8 +62,9 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
     if missing:
         raise ValueError(f"{', '.join(missing)} missing")
 
+    home = (data / old).resolve()
     # Its folder holds what belongs to the match; else its video files are found by name.
-    if video.resolve().parent == (data / old).resolve():
+    if video.resolve().parent == home:
         (data / old).rename(folder)
         video = folder / video.name
     else:
@@ -73,8 +74,11 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
             moved(other, folder)
     video = video.rename(folder / f"{new}{video.suffix}")
     for key in copies:
-        path = Path(config[key]).expanduser()
-        path = moved(path, folder) if path.exists() else folder / path.name
+        path = Path(config[key]).expanduser().resolve()
+        if not path.exists():  # moved with its folder or the video's files
+            path = folder / (path.relative_to(home) if path.is_relative_to(home) else path.name)
+        if path.parent.resolve() != (folder / video_copies.FOLDER).resolve():
+            path = moved(path, folder / video_copies.FOLDER)
         config[key] = str(path.resolve())
     # A court of its own goes with it; a gym's, in the library, stays for the next matches.
     own = outputs / "court"

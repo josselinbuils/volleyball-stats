@@ -76,8 +76,20 @@ class TestRename:
         target = rename_match(match, "new", tmp_path / "data")
 
         saved = json.loads((target / "publish.json").read_text())
-        assert saved["light"].endswith("data/new/light.mp4") and (tmp_path / "data" / "new" / "light.mp4").exists()
+        assert saved["light"].endswith("data/new/reencoded/light.mp4") and (tmp_path / "data" / "new" / "reencoded" / "light.mp4").exists()
         assert saved["av1"] is None and not copy.exists()
+
+    def test_the_copies_stay_in_their_folder(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path, monkeypatch, video="data/old/old.mp4")
+        copy = tmp_path / "data" / "old" / "reencoded" / "old_720p.mp4"
+        copy.parent.mkdir()
+        copy.touch()
+        (match / "publish.json").write_text(json.dumps({"site": "outputs/hosted", "small": str(copy)}))
+
+        target = rename_match(match, "new", tmp_path / "data")
+
+        assert json.loads((target / "publish.json").read_text())["small"] == str((tmp_path / "data" / "new" / "reencoded" / "old_720p.mp4").resolve())
+        assert (tmp_path / "data" / "new" / "reencoded" / "old_720p.mp4").exists()
 
     def test_moves_the_roster_s_entries(self, tmp_path, monkeypatch):
         match = self.match(tmp_path, monkeypatch)

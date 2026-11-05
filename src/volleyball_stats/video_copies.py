@@ -3,8 +3,8 @@
     uv run python -m volleyball_stats.video_copies VIDEO
 
 `light`, 1080p H.264, plays in browsers without AV1; `av1`, 1080p, plays in the others, smaller at the
-same quality; `small`, 720p H.264, plays while the player is small. Makes those missing, from one reading
-of the source: decoding 4K costs more than the encoders' share. A copy only appears once whole.
+same quality; `small`, 720p H.264, plays while the player is small. Makes those missing, in `reencoded/`
+beside the source, from one reading of it: decoding 4K costs more than the encoders' share. A copy only appears once whole.
 """
 
 import argparse
@@ -23,11 +23,12 @@ COPIES = {
     "small": ("_720p", 720, H264),
 }
 TOLERANCE_S = 1.0
+FOLDER = "reencoded"
 
 
 def paths(video: Path) -> dict[str, Path]:
-    """Where each copy of `video` goes, beside it."""
-    return {key: video.with_name(f"{video.stem}{suffix}.mp4") for key, (suffix, _, _) in COPIES.items()}
+    """Where each copy of `video` goes, in the FOLDER beside it."""
+    return {key: video.parent / FOLDER / f"{video.stem}{suffix}.mp4" for key, (suffix, _, _) in COPIES.items()}
 
 
 def part(path: Path) -> Path:
@@ -56,6 +57,7 @@ def make(video: Path) -> dict[str, Path]:
     if not missing:
         return made
     parts = [part(made[key]) for key in missing]
+    (video.parent / FOLDER).mkdir(exist_ok=True)
     try:
         run = subprocess.run(command(video, missing, decode.hardware(video)), capture_output=True, text=True)
         if run.returncode:

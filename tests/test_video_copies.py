@@ -26,10 +26,11 @@ class TestVideoCopies:
         assert self.stream(made["av1"]) == "av1,1080,25/1"
         assert self.stream(made["small"]) == "h264,720,25/1"
         assert all(video_copies.duration(path) == pytest.approx(2.0, abs=0.1) for path in made.values())
-        assert sorted(p.name for p in tmp_path.iterdir()) == ["m.mp4", "m_1080p.mp4", "m_720p.mp4", "m_av1.mp4"]
+        assert sorted(p.name for p in (tmp_path / "reencoded").iterdir()) == ["m_1080p.mp4", "m_720p.mp4", "m_av1.mp4"]
 
     def test_only_those_missing(self, tmp_path, monkeypatch):
         video = tmp_path / "m.mp4"
+        video_copies.paths(video)["light"].parent.mkdir()
         video_copies.paths(video)["light"].write_bytes(b"")
         ran = []
         monkeypatch.setattr(video_copies.subprocess, "run", lambda command, **kwargs: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
@@ -49,4 +50,4 @@ class TestVideoCopies:
         with pytest.raises(RuntimeError, match="lasts"):
             video_copies.make(video)
 
-        assert [p.name for p in tmp_path.iterdir()] == ["m.mp4"]
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["m.mp4", "reencoded"] and not any((tmp_path / "reencoded").iterdir())
