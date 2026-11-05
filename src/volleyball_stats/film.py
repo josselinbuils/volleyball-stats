@@ -56,9 +56,12 @@ REPLAY_BEFORE_S, REPLAY_AFTER_S, REPLAY_SPEED = 1.0, 0.8, 0.5
 REPLAY_PRE, FREEZE = 1.75, 0.6
 # The match's film, under this name among the players'.
 HIGHLIGHTS = "*"
-HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS, LONGEST_S = 65.0, 8, 3, 18.0
-# A clip starts this long before its rally, the server getting ready, and runs on to its end, up to END_S after the touch.
-BEFORE_RALLY_S, END_S = 1.5, 4.0
+HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS = 50.0, 8, 3
+# Its clips: from the set before the touch, or the serve's toss, to the point's banner gone; a point another touch wins, up
+# to PUNCH_END_S after the touch.
+PUNCH_LEAD_S, TOSS_S, PUNCH_END_S = 2.0, 1.2, 2.5
+# The longest rally runs FAST times its speed for up to FAST_S of the film, slowing to real speed over RAMP_S into its clip.
+FAST, FAST_S, RAMP_S = 4.0, 5.0, 0.6
 # The camera on a live shot follows the ball, on the player only this long around their touch; it widens for a ball this many seconds
 # of flight across, and keeps the ball within this share of the picture's half.
 ON_PLAYER_BEFORE_S, ON_PLAYER_AFTER_S, FLIGHT_IN_VIEW_S, BALL_IN_VIEW = 1.0, 0.5, 0.8, 0.8
@@ -301,16 +304,30 @@ def highlight_moments(page: dict) -> list[tuple[dict, dict]]:
         following = rallies[r["i"] + 1]["set"] if r["i"] + 1 < len(rallies) else None
         scored = c is scoring_touch(r)
         late = max(score) >= LATE and abs(score[0] - score[1]) <= 1 and abs(was[0] - was[1]) <= 1
-        return (3.0 if following != r["set"] else 0) + (3.0 if late else 0) + (0.4 * n if n >= 5 else 0) + (2 + (c.get("speed") or 0) / 40 if scored and c["type"] == "serve" else 0) + (2.0 if scored and c["type"] == "block" else 0) + (1.5 if (c.get("reach") or 0) >= 3.2 else 0)
+        return (3.0 if following != r["set"] else 0) + (3.0 if late else 0) + (0.2 * min(n, 15) if n >= LONG_RALLY else 0) + (2 + (c.get("speed") or 0) / 40 if scored and c["type"] == "serve" else 0) + (3.0 if scored and c["type"] == "block" else 0) + (1.5 if scored and c["type"] == "attack" else 0) + (1.5 if (c.get("reach") or 0) >= 3.2 else 0)
 
-    def clip(r: dict) -> tuple[float, float]:
-        t = rally_touch(r, people)["t"]
-        return max(r["start"] - BEFORE_RALLY_S, t - (LONGEST_S if r is longest else LEAD_S)), max(t + AFTER_POINT_S, min(r["end"] + 0.3, t + END_S))
+    def clip(r: dict) -> tuple[float, float, float]:
+        """Its clip in match time: its start, where it plays at real speed, its end. Only the longest rally's starts earlier, fast."""
+        c = rally_touch(r, people)
+        t, served = c["t"], min(r["start"], next(q["t"] for q in r["contacts"] if is_touch(q))) - TOSS_S
+        real = max(served, t - PUNCH_LEAD_S)
+        begin = max(served, real - FAST * FAST_S + RAMP_S * (FAST - 1) / 2) if r is longest else real
+        point = t if c is scoring_touch(r) else min(r["end"], t + PUNCH_END_S)
+        return begin if real - begin >= RAMP_S * (FAST + 1) / 2 else real, real, point + AFTER_POINT_S
+
+    def ramp(r: dict) -> float:
+        """How long the film runs its fast part."""
+        begin, real, _ = clip(r)
+        return (real - begin + RAMP_S * (FAST - 1) / 2) / FAST if begin < real else 0.0
+
+    def length(r: dict) -> float:
+        _, real, end = clip(r)
+        return ramp(r) + end - real
 
     replay_s = (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED
     room = HIGHLIGHTS_S - INTRO_S - OUTRO_S - HIGHLIGHTS_REPLAYS * replay_s
     chosen = [longest] if longest is last else [longest, last]
-    room -= sum(clip(r)[1] - clip(r)[0] for r in chosen)
+    room -= sum(length(r) for r in chosen)
     while True:
         def adjusted(r: dict) -> float:
             c = rally_touch(r, people)
@@ -319,14 +336,14 @@ def highlight_moments(page: dict) -> list[tuple[dict, dict]]:
             teams = [sum(q["g"] == g for q in shown) for g in (1, 2)]
             return worth(r) - 1.5 * sum(people[str(q["person"])]["name"] == name for q in shown) - 1.0 * sum(q["type"] == c["type"] for q in shown) + (1.5 if teams[c["g"] - 1] < teams[2 - c["g"]] else 0) + (1.5 if r["set"] not in {q["set"] for q in chosen} else 0)
 
-        left = [r for r in played if r not in chosen and clip(r)[1] - clip(r)[0] <= room]
+        left = [r for r in played if r not in chosen and length(r) <= room]
         if not left:
             break
         best = max(left, key=adjusted)
         chosen.append(best)
-        room -= clip(best)[1] - clip(best)[0]
+        room -= length(best)
     replayed = {last["i"], *sorted((r["i"] for r in chosen if r is not last), key=lambda k: -worth(rallies[k]))[: HIGHLIGHTS_REPLAYS - 1]}
-    return [(rally_touch(r, people), {"start": clip(r)[0], "end": clip(r)[1], "replayed": r["i"] in replayed}) for r in sorted(chosen, key=lambda r: r["start"])]
+    return [(rally_touch(r, people), {"start": clip(r)[0], "real": clip(r)[1], "end": clip(r)[2], "ramp": ramp(r), "length": length(r), "replayed": r["i"] in replayed}) for r in sorted(chosen, key=lambda r: r["start"])]
 
 
 def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
@@ -344,7 +361,9 @@ def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
 
     add("intro", INTRO_S, moments[0][0]["t"] - LEAD_S, 1, moments[0][0])
     for c, span in moments:
-        add("live", span["end"] - span["start"], span["start"], 1, c)
+        add("live", span["length"], span["start"], FAST if span["ramp"] else 1, c)
+        if span["ramp"]:
+            shots[-1].update(ramp=span["ramp"], real=span["real"])
         if span["replayed"]:
             add("replay", (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED, c["t"] - REPLAY_BEFORE_S, REPLAY_SPEED, c)
     add("outro", OUTRO_S, moments[-1][0]["t"], 1, moments[-1][0])
@@ -1179,7 +1198,9 @@ class Maker:
         self.name = film["name"]
         self.ball = film_path(self.page, film, self.detected, self.found, self.places, self.cal, self.rejected)
         self.rng = np.random.default_rng(7)
-        self.cuts = [s["start"] for s in film["shots"][1:]]
+        # The bars cross a change of shot kind; the match's film cuts straight from one action to the next.
+        self.cuts = [b["start"] for a, b in zip(film["shots"], film["shots"][1:]) if film.get("kind") != "highlights" or a["kind"] != b["kind"]]
+        self.impacts: list[float] = []
         self.masks: dict[tuple, np.ndarray | None] = {}
         self.below = " · ".join(x for x in (film["teams"][film["team"] - 1] if film["teams"] and film["team"] else None, self.long_date(film["date"])) if x).upper()
         silent = out.with_suffix(".video.mp4")
@@ -1238,6 +1259,10 @@ class Maker:
         """The match time of each frame: the replay ramps down into a freeze on the touch and back up."""
         n = int(round(shot["length"] * FPS))
         tau = np.arange(n) / FPS
+        if shot.get("ramp"):
+            # Fast, easing down to real speed by `ramp` seconds in.
+            speed = 1 + (shot["speed"] - 1) * (1 - ease(shot["ramp"] - RAMP_S, shot["ramp"], tau))
+            return shot["from"] + np.r_[0.0, np.cumsum(speed[:-1])] / FPS
         if shot["kind"] != "replay":
             return shot["from"] + tau * shot["speed"]
         t = self.touch_time(shot)
@@ -1312,6 +1337,14 @@ class Maker:
             cy = keep_in_view(cy, by, BALL_IN_VIEW * tall / 2, watched)
             cx = keep_in_view(cx, feet[:, 0], BALL_IN_VIEW * tall * ASPECT / 2, on >= 0.5)
             cy = keep_in_view(cy, feet[:, 1] - 0.5 * ppm, BALL_IN_VIEW * tall / 2, on >= 0.5)
+        if kind == "live" and self.impact is not None:
+            # A jolt and a push in on the point's touch.
+            since = ms - self.impact
+            after = since >= 0
+            jolt = np.where(after, np.exp(-np.abs(since) / 0.14), 0)
+            cx = cx + 0.012 * tall * jolt * np.sin(2 * np.pi * 13 * since)
+            cy = cy + 0.009 * tall * jolt * np.cos(2 * np.pi * 17 * since)
+            tall = tall * (1 - 0.07 * np.where(after, np.exp(-np.abs(since) / 0.3), 0))
         # Upright, as far as it costs no picture: a corner's full correction would push the player out of the video.
         leans = np.array([self.lean(a, b) for a, b in zip(cx[::10], cy[::10])])
         roll = gauss(np.clip(np.interp(np.arange(n), np.arange(n)[::10], -leans), -np.radians(7), np.radians(7)), FPS * 0.4) + np.radians(handheld(n, 0.07, self.rng))
@@ -1325,6 +1358,11 @@ class Maker:
     def shoot(self, shot: dict, encoder: subprocess.Popen) -> None:
         self.follow_body(shot)
         ms = self.moments(shot)
+        # The match's film hits each point's touch.
+        punch = shot["kind"] == "live" and self.film.get("kind") == "highlights" and self.contact(shot).get("result") == "point"
+        self.impact = self.touch_time(shot) if punch else None
+        if self.impact is not None:
+            self.impacts.append(shot["start"] + np.searchsorted(ms, self.impact) / FPS)
         cx, cy, tall, roll = self.camera(shot, ms)
         first = int(round(ms.min() * FPS))
         last = int(round(ms.max() * FPS))
@@ -1346,6 +1384,9 @@ class Maker:
             m = np.c_[linear, np.array([WIDTH / 2, HEIGHT / 2]) - linear @ np.array([cx[i], cy[i]])]
             g = cv2.warpAffine(picture, m, (WIDTH, HEIGHT), flags=cv2.INTER_CUBIC if tall[i] < HEIGHT else cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
             tau = i / FPS
+            if self.impact is not None and 0 <= moment - self.impact < 0.2:
+                flash = 0.6 * np.exp(-(moment - self.impact) / 0.05)
+                g[:] = cv2.addWeighted(g, 1 - flash, np.full_like(g, 255), flash, 0)
             if shot["kind"] in ("live", "replay"):
                 # Everyone's outline changes slowly: what is painted on the court hides under it, read every other frame.
                 if i % 2 == 0:
@@ -1356,6 +1397,8 @@ class Maker:
                 self.banner(g, shot, moment)
                 if shot["kind"] == "replay":
                     self.telemetry(g, shot, tau)
+                elif shot.get("ramp"):
+                    self.counter(g, shot, tau, moment)
             elif shot["kind"] == "intro":
                 self.title_card(g, tau)
             else:
@@ -1525,14 +1568,23 @@ class Maker:
             label, value, unit = "POINT", str(int(round(rank * count))), f"SUR {self.film['points']}"
         else:
             return
-        slant(g, x, y, 340, 170, INK, 0.86)
-        slant(g, x, y, 8, 170, RED)
-        write(g, label, x + 34, y + 38, 26, self.cond, GREY)
-        write(g, value, x + 32, y + 138, 104, self.din, GOLD if count >= 1 else WHITE)
-        write(g, unit, x + 320 - text_width(unit, self.cond, 34), y + 138, 34, self.cond)
+        self.stat(g, x, y, label, value, unit, count >= 1)
         if c.get("speed") is not None:
             cv2.rectangle(g, (x + 30, y + 150), (x + 300, y + 158), (70, 70, 70), -1)
             cv2.rectangle(g, (x + 30, y + 150), (x + 30 + int(270 * count * min(1, c["speed"] / 110)), y + 158), GOLD, -1)
+
+    def stat(self, g: np.ndarray, x: int, y: int, label: str, value: str, unit: str, final: bool) -> None:
+        slant(g, x, y, 340, 170, INK, 0.86)
+        slant(g, x, y, 8, 170, RED)
+        write(g, label, x + 34, y + 38, 26, self.cond, GREY)
+        write(g, value, x + 32, y + 138, 104, self.din, GOLD if final else WHITE)
+        write(g, unit, x + 320 - text_width(unit, self.cond, 34), y + 138, 34, self.cond)
+
+    def counter(self, g: np.ndarray, shot: dict, tau: float, moment: float) -> None:
+        """The longest rally's touches, counting up as it runs fast."""
+        touches = [q[1] for q in self.film["rallies"][str(shot["rally"])]["touches"] if q[2] in TOUCHES]
+        n = sum(t <= moment for t in touches)
+        self.stat(g, int(WIDTH - 380 + (1 - out_back(tau / 0.3)) * 420), 205, "ÉCHANGE", str(n), "TOUCHES", n == len(touches))
 
     def point_at(self, shot: dict) -> float | None:
         """When a shot's point is won: at its touch, or in the match's film at the end of a rally another touch ended."""
@@ -1663,18 +1715,27 @@ class Maker:
             room = min(len(clip), total - k)
             track[k : k + room] += clip[:room]
 
+        n = int(0.5 * rate)
+        t = np.arange(n) / rate
+        hit = (np.sin(2 * np.pi * (70 * t - 25 * t**2)) * np.exp(-t * 9) * 0.75 + np.random.default_rng(5).standard_normal(n) * np.exp(-t * 45) * 0.18).astype(np.float32)
         for shot in film["shots"]:
             if shot["kind"] == "live":
-                clip = read(["-ss", f"{self.times[round(shot['from'] * FPS)]:.3f}", "-i", str(self.video), "-t", f"{shot['length']:.3f}", "-vn"])
-                ramp = min(len(clip) // 2, int(0.06 * rate))
-                clip[:ramp] *= np.linspace(0, 1, ramp)[:, None]
-                clip[-ramp:] *= np.linspace(1, 0, ramp)[:, None]
-                put(hall, shot["start"], clip)
+                # A fast part plays its sound as fast, at its pitch.
+                ramp = shot.get("ramp", 0.0)
+                real = shot.get("real", shot["from"])
+                parts = [(shot["start"] + ramp, real, shot["length"] - ramp, [])]
+                if ramp:
+                    parts.append((shot["start"], shot["from"], real - shot["from"], ["-af", f"atempo={shot['speed']}"]))
+                for at, begin, span, tempo in parts:
+                    clip = read(["-ss", f"{self.times[round(begin * FPS)]:.3f}", "-t", f"{span:.3f}", "-i", str(self.video), "-vn", *tempo])
+                    fade = min(len(clip) // 2, int(0.06 * rate))
+                    clip[:fade] *= np.linspace(0, 1, fade)[:, None]
+                    clip[-fade:] *= np.linspace(1, 0, fade)[:, None]
+                    put(hall, at, clip)
             elif shot["kind"] == "replay":
-                n = int(0.5 * rate)
-                t = np.arange(n) / rate
-                hit = (np.sin(2 * np.pi * (70 * t - 25 * t**2)) * np.exp(-t * 9) * 0.75 + np.random.default_rng(5).standard_normal(n) * np.exp(-t * 45) * 0.18).astype(np.float32)
                 put(marks_fx, shot["start"] + REPLAY_PRE, np.c_[hit, hit])
+        for at in self.impacts:
+            put(marks_fx, at, np.c_[hit, hit])
         for line in film["lines"]:
             put(voice, line["at"], read(["-i", str(self.match / "review" / "voice" / line["file"])]))
         n = int(0.55 * rate)

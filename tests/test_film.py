@@ -178,10 +178,18 @@ class TestHighlights:
     def test_a_too_short_match_has_no_film(self, tmp_path):
         assert film.highlight_film(TestPlan.page(), tmp_path, "") is None
 
-    def test_the_longest_rally_shows_its_end_when_too_long(self):
+    def test_the_longest_rally_runs_fast_into_its_end_at_real_speed(self):
         page = self.page()
-        [(_, span)] = [m for m in film.highlight_moments(page) if m[0]["rally"] == 7]
-        assert span["end"] - span["start"] <= film.LONGEST_S + film.END_S
+        [(touch, span)] = [m for m in film.highlight_moments(page) if m[0]["rally"] == 7]
+        assert 0 < span["ramp"] <= film.FAST_S and span["real"] == touch["t"] - film.PUNCH_LEAD_S
+        shot = {"kind": "live", "from": span["start"], "speed": film.FAST, "ramp": span["ramp"], "length": span["length"]}
+        ms = film.Maker.moments(None, shot)
+        assert ms[int(span["ramp"] * film.FPS)] == pytest.approx(span["real"], abs=0.1)
+        assert ms[-1] == pytest.approx(span["end"], abs=0.1)
+
+    def test_other_clips_are_short(self):
+        clips = [span for touch, span in film.highlight_moments(self.page()) if touch["rally"] != 7]
+        assert all(not span["ramp"] and span["length"] <= film.PUNCH_LEAD_S + film.PUNCH_END_S + film.AFTER_POINT_S for span in clips)
 
 
 class TestServingBody:
