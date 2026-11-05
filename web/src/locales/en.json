@@ -729,7 +729,8 @@
     "wins_one": "{{count}} win",
     "wins_other": "{{count}} wins",
     "losses_one": "{{count}} loss",
-    "losses_other": "{{count}} losses"
+    "losses_other": "{{count}} losses",
+    "intro": "The team's results, then what each player brings, match after match."
   },
   "feedback": {
     "open": "Report a problem in this moment: one click is enough, details are optional",

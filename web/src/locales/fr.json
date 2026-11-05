@@ -729,7 +729,8 @@
     "wins_one": "{{count}} victoire",
     "wins_other": "{{count}} victoires",
     "losses_one": "{{count}} défaite",
-    "losses_other": "{{count}} défaites"
+    "losses_other": "{{count}} défaites",
+    "intro": "Les résultats de l'équipe, puis ce que chaque joueur apporte au fil des matchs."
   },
   "feedback": {
     "open": "Signaler un problème sur ce moment : un clic suffit, les détails sont facultatifs",

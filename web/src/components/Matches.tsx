@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tabs } from '@/components/Tabs';
 import { BrandBar } from '@/components/BrandBar';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { Season } from '@/components/Season/Season';
@@ -68,7 +68,6 @@ export function Matches({ matches, brand, review = false }: MatchList) {
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
-            {view === 'matches' && <p className="mt-1 text-muted-foreground">{t(review ? 'matches.pick' : 'matches.intro')}</p>}
             {failed && (
               <p className="mt-1 text-sm text-destructive" role="alert">
                 {t('matches.openFailed')}
@@ -81,27 +80,20 @@ export function Matches({ matches, brand, review = false }: MatchList) {
           </div>
         </header>
         {hasSeason && (
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            spacing={0}
+          <Tabs
+            label={t('season.view')}
             value={view}
-            onValueChange={(v) => {
-              if (v) {
-                setView(v as 'matches' | 'season');
-                history.replaceState(null, '', v === 'season' ? SEASON : location.pathname + location.search);
-              }
+            onChange={(v) => {
+              setView(v);
+              history.replaceState(null, '', v === 'season' ? SEASON : location.pathname + location.search);
             }}
-            aria-label={t('season.view')}
-          >
-            <ToggleGroupItem value="matches" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-              {heading}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="season" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-              {t('season.title')}
-            </ToggleGroupItem>
-          </ToggleGroup>
+            tabs={[
+              { id: 'matches', label: heading },
+              { id: 'season', label: t('season.title') },
+            ]}
+          />
         )}
+        <p className="px-1 text-muted-foreground">{t(view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}</p>
         {view === 'season' ? (
           <Season matches={matches} />
         ) : matches.length ? (
