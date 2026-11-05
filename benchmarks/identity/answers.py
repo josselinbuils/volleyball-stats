@@ -77,15 +77,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("match", type=Path)
     parser.add_argument("--video", type=Path, required=True)
+    parser.add_argument("--sharpen", type=float, nargs="+", default=[identity.SHARPEN], help="identity.SHARPEN values to score")
     args = parser.parse_args()
     inputs = load(args.match, args.video)
     log = json.loads((args.match / "identity_answers.json").read_text())["log"]
     names = [(e["ref"], e["name"]) for e in identity.read_names(args.match) if e.get("name")]
     numbers = jerseys.load(args.match)
-    for label, read in (("without jersey numbers", None), ("with jersey numbers", numbers)) if numbers else (("", None),):
-        start = time.perf_counter()
-        kept, total = run(args.match, args.video, inputs, log, names, read)
-        print(f"{len(log)} answers, {len(names)} names{', ' + label if label else ''}: {kept}/{total} held-out constraints kept ({kept / max(total, 1):.0%}), {time.perf_counter() - start:.0f} s")
+    for share in args.sharpen:
+        identity.SHARPEN = share
+        for label, read in (("without jersey numbers", None), ("with jersey numbers", numbers)) if numbers else (("", None),):
+            start = time.perf_counter()
+            kept, total = run(args.match, args.video, inputs, log, names, read)
+            print(f"SHARPEN {share}, {len(log)} answers, {len(names)} names{', ' + label if label else ''}: {kept}/{total} held-out constraints kept ({kept / max(total, 1):.1%}), {time.perf_counter() - start:.0f} s", flush=True)
 
 
 if __name__ == "__main__":

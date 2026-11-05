@@ -69,8 +69,9 @@ CONTINUITY, STAY = 0.3, 0.2
 # Principal components of a team's segment embeddings kept, whitened.
 WHITEN = 32
 # Share of each whitened direction's weight set by how well it tells apart the players the answers
-# and names confirm (`sharpen`), the rest kept even. First ASPOM match, 460 answers (1 Nov): 69.5%
-# of the held-out answers kept at 0.5, 73.4-74.0% from 0.75 to 1.
+# and names confirm (`sharpen`), the rest kept even. Held-out answers kept with the jersey numbers (5 Nov,
+# benchmarks/identity/answers.py --sharpen): first ASPOM match 367/543 at 0, 412 at 0.5, 419 at 0.9 and 1;
+# second 199/333, 208, 206 and 206.
 SHARPEN = 0.9
 # Segments starting within BATCH frames of each other share out the free identities; a new
 # identity costs a distance of NEW.
@@ -793,7 +794,7 @@ def identify(
                 earlier[local[b]] = local[a]
         mass = np.array([len(segments[k].frames) for k in idx], float)
         count = squad[team - 1] if squad and team in (1, 2) else None
-        wv[idx] = sharpen(whiten(v[idx], weights[idx], WHITEN), weights[idx], must)
+        wv[idx] = sharpen(whiten(v[idx], weights[idx], WHITEN), weights[idx], must, SHARPEN)
         local_cannot = [{local[j] for j in cannot[k] if j in local} for k in idx]
         local_aim = np.array([local.get(aim[k], -1) for k in idx])
         found = group(wv[idx], weights[idx], mass, np.array([segments[k].start for k in idx]), local_cannot, must, earlier, fps, count, local_aim)

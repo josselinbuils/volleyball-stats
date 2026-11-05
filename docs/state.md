@@ -15,8 +15,9 @@ The pipeline's weak spots and what is left to do, most useful first.
 ## Open
 
 1. Done (5 Nov): the second match (`2026-11-02-avia-1-vs-aspom-2`) reviewed and hosted.
-2. Once reviewed, that match held out whole: everything is tuned on the first. Retrain the ranker and
-   re-sweep `identity.SHARPEN`.
+2. Done (5 Nov): the learned attribution trains on every reviewed match (held out 623 -> 625 of 691, 859 -> 868 of 957);
+   `identity.SHARPEN` 0.9 kept on both matches' answers. The jersey numbers cost identity on the second match: 224 -> 206
+   of 333 held-out answers (+6 of 543 on the first).
 3. `docs/plan.md`: the touches left, the 3D ball and TV mode's limits.
 4. Rally ends and winners: `rallies.whistled` as a fallback is in (held
    out found R 1.00, F1 ±1 s 0.57). Left on 50:00-60:00: two false windows (server bouncing the ball,
