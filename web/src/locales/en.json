@@ -153,6 +153,7 @@
   "pointsFaultsTitle": "{{team}}'s points from opponent faults",
   "pointsSplitHint": "Direct points: won by the team itself (ace, attack, block…). From opponent faults: given by the other team's fault.",
   "clubSite": "{{name}} website (new tab)",
+  "sourceCode": "Source code on GitHub",
   "loadingPlayers": "Loading players…",
   "numbersNote": "Each number is the same player for the whole match.",
   "numbersNoteNamed": "Hover a number or initial to see the player's name.",

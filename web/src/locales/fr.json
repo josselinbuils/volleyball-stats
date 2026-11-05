@@ -153,6 +153,7 @@
   "pointsFaultsTitle": "Points {{ofTeam}} sur fautes adverses",
   "pointsSplitHint": "Points directs : gagnés par l'équipe elle-même (ace, attaque, contre…). Sur fautes adverses : donnés par une faute de l'autre équipe.",
   "clubSite": "Site du club {{name}} (nouvel onglet)",
+  "sourceCode": "Code source sur GitHub",
   "loadingPlayers": "Chargement des positions…",
   "numbersNote": "Chaque numéro désigne le même joueur pendant tout le match.",
   "numbersNoteNamed": "Survolez un numéro ou une initiale pour voir le nom du joueur.",
