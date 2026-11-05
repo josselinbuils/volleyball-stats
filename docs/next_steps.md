@@ -195,3 +195,16 @@ the rally after which the running score parts from it for two readings in a row.
 out of view): 21 readings for 129 rallies, 19 equal to the reviewed score, no report. Second match: 82
 readings for 144 rallies, 16 equal to the page's score (its 3 sets end off the given score), 7 reports;
 its last readings per set match the given scores. About 6 min on the M4 the first time, nothing on a rerun.
+
+## Pose on every touch and serve rotation (5 Nov)
+
+The pose on passes, sets and digs is in: `attribution.by_wrists` (the rule, below the head) and the learned order, which
+poses every touch with two candidates on 4K. The rule posing serves, attacks and blocks too loses, right picks of the
+touches answered or labelled: first match 609 → 594 of 691, second 844 → 828 of 957, `side_club` 25 → 22, `side_long`
+39 → 38, `side_holdout` 39 → 39. Dropped.
+
+The second match's reviewed servers follow each team's rotation of 6 too: 6 servers a set, 8 a team over the match
+(substitutions between sets), one swap in 82 turns (set 3, 73:29, `auto.serverOrder`'s one flag). Fixing the pipeline's
+servers from it still loses (first, second, of 126 and 138): the rotation decoded 117 → 115, 129 → 117; one server per
+turn by majority 117 → 119, 129 → 123; a server between two agreeing ones of the turn 117, 129. `auto.serverOrder` stays
+a review flag.

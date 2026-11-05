@@ -305,6 +305,8 @@ the player seen elsewhere. Every track cut between the rallies it spans, re-iden
 
 ## Tried and dropped
 
+- The rule (`by_wrists`) posing serves, attacks and blocks too (5 Nov): right picks 609 → 594 of 691 and
+  844 → 828 of 957 on the two matches' answers, 25 → 22, 39 → 38, 39 → 39 on the school clips.
 - Anchors per type (distance to a point above the box top for attacks, at mid-height for passes):
   43-47 of 70, against 50 for the plain box at that stage (before the gap step).
 - The jump, as a tie-break for attacks: the hitter's feet rise by over 0.2 box heights in the last
