@@ -16,8 +16,8 @@ The pipeline's weak spots and what is left to do, most useful first.
 
 1. Done (5 Nov): the second match (`2026-11-02-avia-1-vs-aspom-2`) reviewed and hosted.
 2. Done (5 Nov): the learned attribution trains on every reviewed match (held out 623 -> 625 of 691, 859 -> 868 of 957);
-   `identity.SHARPEN` 0.9 kept on both matches' answers. The jersey numbers cost identity on the second match: 224 -> 206
-   of 333 held-out answers (+6 of 543 on the first).
+   `identity.SHARPEN` 0.9 kept on both matches' answers. Jersey numbers now only keep players apart, and one read mostly on the
+   other team links nobody (`identity.jersey_links`): held-out answers 206 -> 230 of 333 (224 without numbers), 419 -> 420 of 543.
 3. `docs/plan.md`: the touches left, the 3D ball and TV mode's limits.
 4. Rally ends and winners. Done (5 Nov, `benchmarks/rallies/README.md`): `no_play` keeps rallies with touches and no serve seen,
    short whistled serves count, a ball bounced 20 times is no rally; rallies missed 2 -> 0 of 129 and 9 -> 2 of 150, false windows
@@ -27,7 +27,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 5. Done (5 Nov): the checked rallies as labels (`checked.py` scores `match.py`'s windows). The 6 false windows left have
    no feature apart from real rallies: review questions.
 6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.
-7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
+7. On the owner's RTX 5080 PC: measure `speed.py`.
 8. `data/benchmarks/` holds the benchmark clips, `outputs/benchmarks/` their outputs.
 9. The owner's plan, nothing started, not before the second match is reviewed and its quality known: a helper they trust,
    then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
