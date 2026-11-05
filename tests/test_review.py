@@ -469,13 +469,14 @@ class TestUnnamed:
 
 
 class TestAces:
-    def test_asks_the_serves_that_end_a_rally_their_team_won_with_their_landing(self):
-        row = lambda frame, kind, team="": {"frame": str(frame), "type": kind, "team": team}  # noqa: E731
-        actions = [row(10, "serve", "1"), row(30, "floor"), row(100, "serve", "2"), row(200, "serve", "1"), row(220, "pass", "2"), row(300, "serve", "2")]
+    def test_asks_the_pages_aces_no_touch_follows_with_their_landing_and_rally(self):
+        c = lambda f, kind, team, rally, result="play": {"f": f, "t": f / 10, "type": kind, "team": team, "rally": rally, "result": result}  # noqa: E731
+        contacts = [c(10, "serve", 1, 0, "point"), c(30, "floor", 2, 0), c(100, "serve", 2, 1), c(200, "serve", 1, 2, "point"), c(210, "net", 1, 2), c(220, "pass", 2, 2, "error"), c(300, "serve", 2, 3, "point")]
+        page = {"fps": 10, "contacts": contacts, "rallies": [{"key": 5}, {"key": 95}, {"key": 195}, {"key": 295}]}
 
-        found = aces(actions, [(0, 50), (90, 150), (190, 250), (290, 350)], ["1", "1", "2", None])
-
-        assert [(s["frame"], l and l["frame"]) for s, l in found] == [("10", "30")]
+        # The reception after the net touched the second ace: its own fault, no receiver to ask.
+        assert aces(page) == [({"frame": 10, "team": 1}, {"frame": 30, "team": 2}, 5), ({"frame": 300, "team": 2}, None, 295)]
+        assert aces(None) == []
 
     def test_the_receiver_is_the_players_said_or_no_one(self):
         ace = {"frame": 500, "team": 1}

@@ -77,6 +77,9 @@ describe('lines', () => {
     const [one, total] = lines([serve, pass], people, 1);
     expect(count(one.stats)).toEqual({ touches: 1, receptions: 1, missed: 1, rated: 1, faults: 1 });
     expect(count(total.stats)).toEqual({ touches: 1, receptions: 1, missed: 1, rated: 1, faults: 1 });
+    // The ball hitting the net before the reception: still that reception's.
+    const net = { ...touch('net', 2, null), rally: serve.rally };
+    expect(lines([serve, net, pass], people, 1).map((l) => l.id)).toEqual([0, 'total']);
   });
 
   it('counts an ace missed by no identified player in the rest', () => {

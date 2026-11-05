@@ -136,7 +136,7 @@ class Questions:
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
         self.read = card_numbers(self.table, jerseys.load(self.match, rare=True), self.picture_counts())
         actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
-        rallies, points = web.rally_table(self.match) if (self.match / "rallies.csv").exists() else ([], [])
+        rallies, _ = web.rally_table(self.match) if (self.match / "rallies.csv").exists() else ([], [])
         lead = round(web.LEAD_S * self.fps)
         windows, actions = web.with_added(
             web.ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rallies], web.answers(self.match, "end")), rallies, actions, web.answers(self.match, "added"), self.match / "ball.csv",
@@ -156,11 +156,7 @@ class Questions:
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
-        gone = web.no_rallies(self.match, self.fps)
-        played = [(w, p.get("winner"), int(r["start_frame"])) for w, r, p in zip(windows, rallies, points) if int(r["start_frame"]) not in gone]
-        self.aces = aces([r for r in actions if r["frame"] not in nothing], [w for w, _, _ in played], [p for _, p, _ in played])
-        # Each ace's rally, by its key: an ace may be no play at all.
-        self.ace_rally = {int(s["frame"]): next((k for (a, b), _, k in played if a - lead <= int(s["frame"]) <= b), None) for s, _ in self.aces}
+        self.aces = aces(self.page)
 
     def track_rows(self, track: int, start: int, end: int) -> np.ndarray:
         """Indices of a track's boxes from `start` to `end`, by frame."""
@@ -581,7 +577,7 @@ class Questions:
             told.append({"id": qid, **question})
             refs[qid] = {"report": ref}
         missed = []
-        for serve, landing in self.aces:
+        for serve, landing, key in self.aces:
             # The team where the ball lands: a window starting late takes a touch for its serve.
             frame = int(serve["frame"])
             team = int(landing["team"]) if landing and landing.get("team") else 3 - int(serve["team"])
@@ -594,7 +590,7 @@ class Questions:
                 "action": "serve", "time": round(frame / self.fps, 2), "reason": "ace", "proposed": None, "crops": [], "choices": [],
                 "clip": {"start": round(frame / self.fps, 2), "end": round(at / self.fps, 2), "around": TOUCH_AROUND_S, "slow": TOUCH_SLOW, "boxes": []},
             })
-            refs[qid] = {"receiver": {"frame": frame, "team": team}, "start": self.ace_rally.get(frame)}
+            refs[qid] = {"receiver": {"frame": frame, "team": team}, "start": key}
         found = []
         for (start, end), number, key in self.empty:
             qid = f"rally:{start}"
@@ -641,16 +637,22 @@ def touches_in(actions: list[dict], window: tuple[int, int]) -> list[dict]:
     return [r for r in actions if r["type"] not in web.NO_PLAYER and window[0] <= int(r["frame"]) <= window[1]]
 
 
-def aces(actions: list[dict], windows: list[tuple[int, int]], winners: list[str | None]) -> list[tuple[dict, dict | None]]:
-    """The serves of actions.csv's rows (frame order) that the page makes aces as their window's
-    (lead included) last touch, their team its winner (`winners`, points.csv's by window), each with
-    the row after it in the window (the landing), None when unseen."""
+def aces(page: dict | None) -> list[tuple[dict, dict | None, int]]:
+    """The aces of the page no touch follows in their rally, those its stats count as missed
+    receptions (stats.ts), each with the contact after it (the landing, None when unseen) and its
+    rally's key (an ace may be no play at all); a contact as {"frame", "team"}."""
+    if page is None:
+        return []
+    contacts = page["contacts"]
+    touches = set(TOUCH_TYPES) - {"fault"}
+    place = lambda c: {"frame": c.get("f", round(c["t"] * page["fps"])), "team": c.get("team")}  # noqa: E731
     out = []
-    for (start, end), winner in zip(windows, winners):
-        rows = [r for r in actions if start <= int(r["frame"]) <= end]
-        touches = [r for r in rows if r["type"] not in web.NO_PLAYER]
-        if winner and touches and touches[-1]["type"] == "serve" and touches[-1].get("team") == winner:
-            out.append((touches[-1], next((r for r in rows if int(r["frame"]) > int(touches[-1]["frame"])), None)))
+    for k, c in enumerate(contacts):
+        if c["type"] != "serve" or c["result"] != "point":
+            continue
+        after = [n for n in contacts[k + 1 :] if n["rally"] == c["rally"]]
+        if not any(n["type"] in touches for n in after):
+            out.append((place(c), place(after[0]) if after else None, page["rallies"][c["rally"]]["key"]))
     return out
 
 

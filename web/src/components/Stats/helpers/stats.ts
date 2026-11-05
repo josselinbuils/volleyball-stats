@@ -187,8 +187,8 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
   const out = Object.fromEntries(STATS.map((s) => [s, [] as Contact[]])) as Stats;
   for (const [k, c] of contacts.entries()) {
     const ace = c.type === 'serve' && c.result === 'point';
-    // A reception touched and missed counts as its own fault.
-    const touched = contacts[k + 1]?.rally === c.rally && isTouch(contacts[k + 1]);
+    // A reception touched and missed counts as its own fault, even after the ball hit the net.
+    const touched = ace && contacts.slice(k + 1).some((n) => n.rally === c.rally && isTouch(n));
     if (ace && !touched && missedAce(c)) {
       out.receptions.push(c);
       out.missed.push(c);
