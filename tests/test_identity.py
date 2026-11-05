@@ -183,10 +183,10 @@ class TestAnswers:
         assert resolve({"track": 1, "frame": 18}, self.segments, before) == [1]
         assert resolve({"team": 1, "identity": 3}, self.segments, before) == [0, 2]
 
-    def test_jersey_numbers_join_the_same_number_and_part_two_numbers(self):
+    def test_jersey_numbers_part_two_numbers(self):
         jerseys = {(5, 1): 12, (25, 1): 12, (5, 2): 7}
 
-        assert jersey_links(self.segments, jerseys) == ([[0, 1]], [[[2], [0, 1]]])
+        assert jersey_links(self.segments, jerseys) == [[[2], [0, 1]]]
 
     def test_finder_answers_as_lookup_does(self):
         table = [(1, 0, 10, 1, 3), (1, 20, 30, 2, 0), (1, 40, 50, 2, 7), (2, 5, 9, 1, 4)]
@@ -202,21 +202,21 @@ class TestAnswers:
         assert ended_cuts(rows, 100) == {1: [99]}
 
     def test_a_piece_answered_on_the_other_team_links_to_its_number_there(self):
-        segments = [Segment(1, [5], [(0.0, 0.0)], team=2), Segment(2, [5000], [(0.0, 0.0)], team=1), Segment(3, [9000], [(0.0, 0.0)], team=1)]
-        jerseys = {(5, 1): 25, (5000, 2): 25, (9000, 3): 25}
+        segments = [Segment(1, [5], [(0.0, 0.0)], team=2), Segment(2, [5000], [(0.0, 0.0)], team=1), Segment(3, [9000], [(0.0, 0.0)], team=2)]
+        jerseys = {(5, 1): 25, (5000, 2): 25, (9000, 3): 7}
 
-        assert jersey_links(segments, jerseys)[0] == [[1, 2]]
+        assert jersey_links(segments, jerseys) == [[[2], [0]]]
         answered_teams(segments, [[0, 1]])
 
-        assert [s.team for s in segments] == [2, 2, 1]
-        assert jersey_links(segments, jerseys)[0] == [[0, 1]]
+        assert [s.team for s in segments] == [2, 2, 2]
+        assert jersey_links(segments, jerseys) == [[[2], [0, 1]]]
 
     def test_an_answer_moves_the_piece_given_and_not_its_whole_number(self):
         jerseys = {(5, 1): 12, (25, 1): 12, (5, 2): 7}
 
-        assert jersey_links(self.segments, jerseys, [[0, 1, 2]]) == ([[0, 1]], [])
-        assert jersey_links(self.segments, jerseys, [[0, 1], [1, 2]]) == ([[0, 1]], [])
-        assert jersey_links(self.segments, jerseys, [[0, 2]]) == ([], [])
+        assert jersey_links(self.segments, jerseys, [[0, 1, 2]]) == []
+        assert jersey_links(self.segments, jerseys, [[0, 1], [1, 2]]) == []
+        assert jersey_links(self.segments, jerseys, [[0, 2]]) == []
 
 
     def test_names_join_the_same_name_whatever_the_case_and_part_two_names(self):
@@ -284,21 +284,19 @@ class TestSharpen:
 
 
 class TestJerseyLinks:
-    def test_a_number_worn_by_two_people_at_once_joins_nobody(self):
+    def test_two_numbers_part_their_pieces_and_one_number_joins_none(self):
         # Number 10 on tracks 1 and 2 at the same time, then on track 3 later; number 8 on track 4.
         segments = [Segment(1, list(range(0, 10)), []), Segment(2, list(range(5, 15)), []), Segment(3, list(range(20, 30)), []), Segment(4, list(range(0, 10)), [])]
         for s in segments:
             s.team = 1
-        jerseys = {(0, 1): 10, (5, 2): 10, (20, 3): 10, (0, 4): 8}
 
-        same, different = jersey_links(segments, jerseys)
+        assert jersey_links(segments, {(0, 1): 10, (5, 2): 10, (20, 3): 10, (0, 4): 8}) == [[[3], [0, 1, 2]]]
 
-        assert same == []
-        assert different == [[[3], [0, 1, 2]]] or different == [[[0, 1, 2], [3]]]
+    def test_a_number_mostly_read_on_the_other_team_links_nobody(self):
+        # Number 38 on team 2's track 1 for 100 frames, on team 1's track 2 for 10 (a player on the wrong side), 16 on team 1's track 3.
+        segments = [Segment(1, list(range(0, 100)), [], team=2), Segment(2, list(range(100, 110)), [], team=1), Segment(3, list(range(100, 110)), [], team=1)]
+        jerseys = {(0, 1): 38, (100, 2): 38, (100, 3): 16}
 
-    def test_a_number_worn_by_one_person_joins_their_pieces(self):
-        segments = [Segment(1, list(range(0, 10)), []), Segment(3, list(range(20, 30)), [])]
-        for s in segments:
-            s.team = 1
-
-        assert jersey_links(segments, {(0, 1): 10, (20, 3): 10})[0] == [[0, 1]]
+        assert jersey_links(segments, jerseys) == []
+        segments[1].frames = list(range(100, 200))
+        assert jersey_links(segments, jerseys) == [[[2], [1]]]

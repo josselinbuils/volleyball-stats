@@ -22,8 +22,8 @@ identity_answers.json (the user's answers, hard constraints overriding the model
 identities.csv, the embedding cache embeddings.npz and player_names.json (the names the user gave,
 constraints too: one name one player). Writes identities.csv, identity_candidates.json and the
 cache, and refreshes actions.csv's identity column: a rerun without new tracks takes seconds.
-Jersey numbers, once read (4K footage), enter `identify` as `jerseys`: the same number is one
-player, two numbers are two.
+Jersey numbers, once read (4K footage), enter `identify` as `jerseys`: two numbers of a team are two
+players.
 """
 
 import argparse
@@ -70,9 +70,12 @@ CONTINUITY, STAY = 0.3, 0.2
 WHITEN = 32
 # Share of each whitened direction's weight set by how well it tells apart the players the answers
 # and names confirm (`sharpen`), the rest kept even. Held-out answers kept with the jersey numbers (5 Nov,
-# benchmarks/identity/answers.py --sharpen): first ASPOM match 367/543 at 0, 412 at 0.5, 419 at 0.9 and 1;
-# second 199/333, 208, 206 and 206.
+# benchmarks/identity/answers.py --sharpen): first ASPOM match 361/543 at 0, 404 at 0.5, 420 at 0.9, 412 at 1;
+# second 211/333, 228, 230 and 220.
 SHARPEN = 0.9
+# A number is a team's when its pieces there hold OTHER_TEAM of its time or more: on the other team's it is a player standing on the
+# wrong side or a partial read ("3" for 30). Second ASPOM match: #38 on 25 pieces of team 1; held-out answers 224 -> 230/333, first 420/543.
+OTHER_TEAM = 1 / 3
 # Segments starting within BATCH frames of each other share out the free identities; a new
 # identity costs a distance of NEW.
 BATCH, NEW = 90, 0.9
@@ -500,27 +503,28 @@ def answered_teams(segments: list[Segment], same: Iterable[list[int]]) -> None:
             segments[k].team = segments[group_[0]].team
 
 
-def jersey_links(segments: list[Segment], jerseys: dict[Key, int], answered: Iterable[list[int]] = ()) -> tuple[list[list[int]], list[list[list[int]]]]:
-    """"same" groups of segment indices and "different" pairs of such groups, from jersey numbers
-    read on (frame, track) boxes: per team, two numbers are two players, and one number one player
-    unless two of its segments are on court at once (two people wear it: one club kit for both
-    teams, a spare shirt). On the first ASPOM match, joining every number merged two named players;
-    this keeps 281/389 held-out answers against 282 (benchmarks/identity/answers.py). A segment the
-    `answered` "same" groups give another number's player follows the answer alone: its own number
-    links it to nobody, or one answer would bring every segment of that number."""
+def jersey_links(segments: list[Segment], jerseys: dict[Key, int], answered: Iterable[list[int]] = ()) -> list[list[list[int]]]:
+    """"different" pairs of groups of segment indices from jersey numbers read on (frame, track) boxes:
+    per team, two numbers are two players. One number is not made one player: a piece of track holds
+    other people around its reads (crowds hand tracks over), and joining every piece of a number kept
+    206/333 held-out answers on the second ASPOM match against 224 (first: 419/543 against 420,
+    benchmarks/identity/answers.py). A number under OTHER_TEAM of its time on the piece's team, and a
+    segment the `answered` "same" groups give another number's player, link nobody."""
     numbers: dict[int, int] = {}
     for k, s in enumerate(segments):
         found = {jerseys[f, s.track] for f in s.frames if (f, s.track) in jerseys}
         if len(found) == 1:
             numbers[k] = found.pop()
+    held: dict[int, Counter] = {}
+    for k, n in numbers.items():
+        held.setdefault(n, Counter())[segments[k].team] += len(segments[k].frames)
+    numbers = {k: n for k, n in numbers.items() if held[n][segments[k].team] >= OTHER_TEAM * sum(held[n].values())}
     apart = against_answers(numbers, answered)
     read: dict[tuple[int, int], list[int]] = {}
     for k, number_ in numbers.items():
         if k not in apart:
             read.setdefault((segments[k].team, number_), []).append(k)
-    same, different = links(read)
-    worn_by_one = [g for g in same if not any(segments[a].track != segments[b].track and segments[a].start <= segments[b].end and segments[b].start <= segments[a].end for i, a in enumerate(g) for b in g[i + 1 :])]
-    return worn_by_one, different
+    return links(read)[1]
 
 
 def name_pins(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> dict[tuple[int, str], list[int]]:
@@ -756,8 +760,7 @@ def identify(
     # An answer's team first: the numbers read link each piece within the team it gives.
     answered_teams(segments, same)
     if jerseys:
-        read_same, read_different = jersey_links(segments, jerseys, same)
-        same, different = same + read_same, different + read_different
+        different = different + jersey_links(segments, jerseys, same)
     if names:
         named_same, named_different = name_links(segments, names, before)
         same, different = same + named_same, different + named_different
