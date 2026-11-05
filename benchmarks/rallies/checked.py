@@ -1,4 +1,5 @@
-"""Rally windows scored on the rallies a match's review checked, labels of the whole match.
+"""Rally windows, as match.py writes them (after `actions.no_play`), scored on the rallies a match's review checked, labels of
+the whole match.
 
     uv run --group bench python benchmarks/rallies/checked.py outputs/matches/MATCH --video VIDEO --court COURT_JSON
 """
@@ -42,13 +43,19 @@ def main() -> None:
     checked = {k: r for k, r in enumerate(page["rallies"]) if r["key"] in keys}
     lead = round(actions.LEAD_S * fps)
     spans = [(round(r["start"] * fps) - lead, round(r["end"] * fps)) for r in checked.values()]
-    positions = [(r.frame, *r.court) for r in attribution.read_players(args.match / "players.csv")]
+    rows = attribution.read_players(args.match / "players.csv")
     whistles = rallies.whistles(rallies.read_audio(args.video))
-    windows, found, _ = match.rally_windows(rallies.load_track(args.match / "ball.csv"), whistles, fps, net_x, calibration, positions)
+    track = rallies.load_track(args.match / "ball.csv")
+    windows, found, crossings = match.rally_windows(track, whistles, fps, net_x, calibration, [(r.frame, *r.court) for r in rows])
+    windows, typed = match.typed_windows(windows, found, crossings, fps, net_x, calibration, rows, track, whistles)
+    rally = [match.rally_of(t[0], windows, lead) for t in typed]
+    typed, _ = actions.mark_dead(typed, [c[0][2] if c else None for c in attribution.ranked(typed, rows, fps)], rally)
+    idle = actions.no_play(typed, rally, windows, crossings, fps)
+    windows = [w for k, w in enumerate(windows) if k not in idle]
     first, last = min(start for start, _ in spans) - round(actions.SERVE_BEFORE_S * fps), max(end for _, end in spans)
     within = round(learn.SAME_S * fps)
     touches = [c["f"] for c in page["contacts"] if c["rally"] in checked]
-    print(score([w for w in windows if first <= w[0] <= last], sorted(c[0] for c in found), spans, touches, lead, within))
+    print(score([w for w in windows if first <= w[0] <= last], [t[0] for t in typed], spans, touches, lead, within))
 
 
 if __name__ == "__main__":

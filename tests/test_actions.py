@@ -225,6 +225,11 @@ class TestNoPlayWindows:
 
         assert no_play(typed, [0, 0, None], [(0, 100), (200, 210)], [50], self.FPS) == {0, 1}
 
+    def test_a_ball_bounced_on_and_on_is_no_rally(self):
+        typed = [(10, 0, 0, "serve", "left"), (20, 0, 0, "attack", "left")] + [(30 + k, 0, 0, "floor", "right") for k in range(20)]
+
+        assert no_play(typed, [0] * 22, [(0, 100)], [25], self.FPS) == {0}
+
     def test_a_window_with_touches_and_no_serve_stays(self):
         typed = [(10, 0, 0, "dig", "left"), (20, 0, 0, "set", "left")]
 

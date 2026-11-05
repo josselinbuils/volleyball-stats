@@ -80,6 +80,9 @@ DEAD_RUN = 3
 # A window with this many floor contacts and no player touch is no rally (`no_play`).
 IDLE_FLOORS = 2
 NO_CROSSING_S = 3.0
+# A ball bounced this many times in a window is played with, not in a rally: 31 in the false windows of both ASPOM matches,
+# at most 13 in a real one (its dead ball's).
+BOUNCED_FLOORS = 20
 
 Contact = tuple[int, int, int]
 Typed = tuple[int, int, int, str, str]
@@ -289,7 +292,7 @@ def no_play(typed: list[Typed], rallies: list[int | None], windows: list[tuple[i
     for t, k in zip(typed, rallies):
         if k is not None:
             found.setdefault(k, []).append(t[3])
-    idle = {k for k, kinds in found.items() if kinds.count("floor") >= IDLE_FLOORS and set(kinds) <= {"floor", "net"}}
+    idle = {k for k, kinds in found.items() if kinds.count("floor") >= IDLE_FLOORS and set(kinds) <= {"floor", "net"} or kinds.count("floor") >= BOUNCED_FLOORS}
     if windows is None:
         return idle
     lead = round(LEAD_S * fps)

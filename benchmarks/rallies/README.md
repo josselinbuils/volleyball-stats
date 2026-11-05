@@ -275,9 +275,9 @@ rally the ball's motion overruns into the dead ball.
 
 ## Whole match, on the review's checked rallies
 
-`checked.py` scores `match.rally_windows` on every rally a match's review checked: the touches with a
+`checked.py` scores the windows `match.py` writes on every rally a match's review checked: the touches with a
 contact inside a window, the contacts in windows that are no touch, the windows on no rally, the rallies
-with no window.
+with no window (`match.rally_windows` alone before 5 Nov, the tables below).
 
 ```bash
 uv run --group bench python benchmarks/rallies/checked.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 --video data/matches/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4 --court outputs/courts/aspom_begles.json
@@ -327,19 +327,39 @@ start fewer): left at 2. The constants sit on a plateau, so what is left on 50:0
 
 ### 5 Nov: both matches checked
 
-With the second match's 150 checked rallies, the windows after `no_play` (`match.py`'s) scored on both matches:
+`checked.py` now scores the windows `match.py` writes (`match.typed_windows`, then `actions.no_play`). With the second
+match's 150 checked rallies:
 
 - `no_play` drops a window with no player touch rather than one with no serve: the second match's camera misses
   servers, and 7 of its real rallies had no serve typed (dropped), against 3 false windows that have touches.
 - `rallies.alone` takes a whistled serve however short: the aces and serve faults the server's stand misses
   (5 on the two matches) last 1-3 s, under the 5 s it asked.
+- `no_play` drops a window of 20 floor contacts or more (`BOUNCED_FLOORS`): a ball bounced 31 times after a whistle,
+  where a real rally has at most 13.
 
-| | Windows M1 / M2 | False | Missed | Ends ±1 s | `side_holdout` F1 ±1 s |
+| | Touches in windows M1 / M2 | Contacts no touch | False windows | Rallies missed | `side_holdout` F1 ±1 s |
 | --- | --- | --- | --- | --- | --- |
-| before | 130 / 144 | 2 / 3 | 2 / 9 | 118 / 129 | 0.77 |
-| after | 134 / 152 | 4 / 3 | **0 / 2** | 120 / 131 | **0.86** |
+| before | 878 / 1073 | 63 / 89 | 2 / 3 | 2 / 9 | 0.77 |
+| after | 880 / **1103** | 66 / 94 | 3 / 3 | **0 / 2** | **0.86** |
 
-26:00-36:00 0.90, 50:00-60:00 0.58, `side_club` 0.93 and `side_long` 0.89 do not move. `checked.py` (the windows before
-`no_play`): touches 875 → 877 of 945 and 1087 → 1091 of 1199. The new false window of the first match (46:31, 13 s) is a ball
-bounced 30 times after a whistle. The 2 left on the second match: a serve fault whose ball is lost at once (39:10), and a
-serve inside a window opened 6 s early by a ball thrown over, typed "net" (69:22).
+Of 945 and 1199 touches, 129 and 150 rallies. 26:00-36:00 0.90, 50:00-60:00 0.58, `side_club` 0.93 and `side_long` 0.89
+(`match.py`'s windows) do not move. The 2 rallies left on the second match: a serve fault whose ball is lost at once
+(39:10), and a serve inside a window opened 6 s early by a ball thrown over, typed "net" (69:22).
+
+The 6 false windows left were all answered "no play" in the review but one, and nothing tells them from rallies: their
+contacts run serve, pass, set like a rally's, and a referee's go comes before them as often (107 of 130 real windows
+have one 1.5-16 s before). They stay review questions.
+
+Ends, tried on the labelled spans and dropped:
+
+| | 26:00-36:00 F1 ±1 s | 50:00-60:00 |
+| --- | --- | --- |
+| now | 0.90 | 0.58 |
+| end at the first floor contact after the last touch | 0.81 | 0.62 |
+| the same with 2 or 3 floors after it | 0.90 | 0.58 |
+| the same after a serve only (aces) | 0.90 | 0.62, but it cuts real rallies whose pass was typed floor (a set after it) |
+| `carried_on` through a whistle contacts follow 1-3 s later | 0.86 | 0.58 (`side_long` 0.78, `side_holdout` 0.67) |
+
+What is left on 50:00-60:00 is the ball out of sight (-3.0, -2.3, -9.9 s), another court's whistle (-4.1 s) and a rally
+joined to its dead-ball tail (+10 s, a tail with a net crossing, closed by the next serve's go): ends need a signal other
+than the ball's, the players' moves, say.

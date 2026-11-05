@@ -93,6 +93,27 @@ def rally_windows(
     return windows, found, crossings
 
 
+def typed_windows(
+    windows: list[rallies.Rally], found: list[contacts.Contact], crossings: list[int], fps: float, net_x: float, calibration: court.Calibration | None, rows: list[players.Row] | None,
+    track: np.ndarray, whistle_times: list[tuple[float, float]],
+) -> tuple[list[rallies.Rally], list[actions.Typed]]:
+    """The windows' contacts typed; with the players' `rows`, the touches no player reaches dropped and the serves the ball
+    track missed added (`unseen_serves`)."""
+    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    if rows is None:
+        return windows, typed
+    # Touches with no player at the ball are none; the rest typed again without them.
+    far = attribution.unreached(typed, rows, fps, crossings)
+    found = [c for c in found if c[0] not in far]
+    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    track = track.copy()
+    track[calibration.in_front(track, SPARE_Y)] = np.nan
+    windows, added = unseen_serves(windows, typed, crossings, rallies.served([(r.frame, *r.court) for r in rows], track, whistle_times, fps, calibration), rows, fps)
+    if added:
+        typed = actions.classify(sorted(found + added), crossings, windows, fps, net_x, calibration)
+    return windows, typed
+
+
 def unseen_serves(
     windows: list[rallies.Rally], typed: list[actions.Typed], crossings: list[int], serves: list[tuple[int, int, int]], rows: list[players.Row], fps: float
 ) -> tuple[list[rallies.Rally], list[contacts.Contact]]:
@@ -353,19 +374,7 @@ def main() -> None:
 
     stage("actions")
     start = time.perf_counter()
-    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
-    if rows is not None:
-        # Touches with no player at the ball are none; the rest typed again without them.
-        far = attribution.unreached(typed, rows, fps, crossings)
-        found = [c for c in found if c[0] not in far]
-        typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
-    if rows is not None:
-        masked = rallies.load_track(track_path)
-        masked[calibration.in_front(masked, SPARE_Y)] = np.nan
-        windows, added = unseen_serves(windows, typed, crossings, rallies.served(positions, masked, whistle_times, fps, calibration), rows, fps)
-        if added:
-            found = sorted(found + added)
-            typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    windows, typed = typed_windows(windows, found, crossings, fps, net_x, calibration, rows, rallies.load_track(track_path), whistle_times)
     typed = actions.mark_relances(args.video, typed, fps, out / "relances.json")
     if calibration is not None and calibration.lens:
         typed = actions.by_flight(typed, ball3d.flight_places(typed, windows, round(actions.LEAD_S * fps), track_path, calibration, fps), fps)
