@@ -157,7 +157,7 @@
   "loadingPlayers": "Loading players…",
   "numbersNote": "Each number is the same player for the whole match.",
   "numbersNoteNamed": "Hover a number or initial to see the player's name.",
-  "player": "player {{n}}",
+  "player": "Player {{n}}",
   "onTheLeft": "{{team}} on the left",
   "theme": "Theme",
   "themes": {
