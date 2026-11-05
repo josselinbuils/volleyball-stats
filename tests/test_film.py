@@ -134,10 +134,9 @@ class TestHighlights:
             number = 1 if k < 15 else 2
             if k == 15:
                 scores = [0, 0]
-            winner = 1 + k % 2
-            scores[winner - 1] += 1
             person = 1 + k % 6
-            team = 1 + person % 2
+            team = winner = 1 + person % 2
+            scores[winner - 1] += 1
             count = 12 if k == 7 else 1
             touches = []
             for n in range(count):
@@ -148,7 +147,7 @@ class TestHighlights:
 
     def test_keeps_the_longest_rally_and_the_match_point_in_match_order_within_its_length(self, tmp_path):
         film_ = film.highlight_film(self.page(), tmp_path, "")
-        lives = [s for s in film_["shots"] if s["kind"] == "live"]
+        lives = [s for s in film_["shots"] if s["kind"] == "live" and not s.get("hook")]
 
         assert 7 in [s["rally"] for s in lives] and lives[-1]["rally"] == 29
         assert [s["rally"] for s in lives] == sorted(s["rally"] for s in lives)
@@ -178,18 +177,30 @@ class TestHighlights:
     def test_a_too_short_match_has_no_film(self, tmp_path):
         assert film.highlight_film(TestPlan.page(), tmp_path, "") is None
 
-    def test_the_longest_rally_runs_fast_into_its_end_at_real_speed(self):
+    def test_the_longest_rally_cuts_to_its_exchanges_before_its_end(self):
         page = self.page()
-        [(touch, span)] = [m for m in film.highlight_moments(page) if m[0]["rally"] == 7]
-        assert 0 < span["ramp"] <= film.FAST_S and span["real"] == touch["t"] - film.PUNCH_LEAD_S
-        shot = {"kind": "live", "from": span["start"], "speed": film.FAST, "ramp": span["ramp"], "length": span["length"]}
-        ms = film.Maker.moments(None, shot)
-        assert ms[int(span["ramp"] * film.FPS)] == pytest.approx(span["real"], abs=0.1)
-        assert ms[-1] == pytest.approx(span["end"], abs=0.1)
+        # Rally 7: attacks by P2 (team 1), each saved by a dig of P3 (team 2).
+        for c in page["rallies"][7]["contacts"][:-1]:
+            odd = (c["t"] - 700) % 2 == 1
+            c.update(type="dig" if odd else "attack", person=3 if odd else 2, g=2 if odd else 1, team=2 if odd else 1)
+        *beats, finish = [span for touch, span in film.highlight_moments(page) if touch["rally"] == 7 and not span.get("hook")]
+        touches = [touch for touch, span in film.highlight_moments(page) if touch["rally"] == 7 and not span.get("hook")][:-1]
+
+        assert 1 <= len(beats) <= film.BEATS and all(t["type"] == "dig" for t in touches)
+        assert all(a["end"] <= b["start"] for a, b in zip(beats, [*beats[1:], finish]))
+        assert all(b["end"] - b["start"] <= 1 + film.BEAT_BEFORE_S + film.BEAT_AFTER_S + 1e-6 for b in beats)
+
+    def test_opens_on_a_point_before_its_title(self, tmp_path):
+        page = self.page()
+        film_ = film.highlight_film(page, tmp_path, "")
+        hook, intro = film_["shots"][:2]
+
+        assert hook["hook"] and hook["kind"] == "live" and intro["kind"] == "intro"
+        assert page["contacts"][hook["contact"]]["result"] == "point" and hook["rally"] not in (7, 29)
 
     def test_other_clips_are_short(self):
         clips = [span for touch, span in film.highlight_moments(self.page()) if touch["rally"] != 7]
-        assert all(not span["ramp"] and span["length"] <= film.PUNCH_LEAD_S + film.PUNCH_END_S + film.AFTER_POINT_S for span in clips)
+        assert all(span["end"] - span["start"] <= film.PUNCH_LEAD_S + film.PUNCH_END_S + film.AFTER_POINT_S for span in clips)
 
 
 class TestServingBody:
