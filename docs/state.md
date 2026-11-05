@@ -4,7 +4,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 
 - Weak spots: touches and rally ends. On the first match: touches found 872 of 945, 863 of 909 real, types 778 of 872, named players 679 of 761,
   checked winners 117 of 128. Rallies on its two labelled 10 minutes (`benchmarks/rallies`): pipeline F1 ±1 s 0.90 on the span the `served` fixes were
-  tuned on, 0.57 on the other; a third of the school match's held-out rallies missed. How a rally ends (in, out, fault) is the least reliable measure.
+  tuned on, 0.58 on the other; the school match's held-out clip 0.86. How a rally ends (in, out, fault) is the least reliable measure.
   Attribution is right 76-87% of the time on the labelled clips (held out on the first match's answers, the learned order 628 of 702, the rule 615): its
   doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le ballon ?"; `benchmarks/attribution/answers.py` scores the
   picks. Identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame (high serves and sets): the false touches
@@ -19,16 +19,14 @@ The pipeline's weak spots and what is left to do, most useful first.
    `identity.SHARPEN` 0.9 kept on both matches' answers. The jersey numbers cost identity on the second match: 224 -> 206
    of 333 held-out answers (+6 of 543 on the first).
 3. `docs/plan.md`: the touches left, the 3D ball and TV mode's limits.
-4. Rally ends and winners: `rallies.whistled` as a fallback is in (held
-   out found R 1.00, F1 ±1 s 0.57). Left on 50:00-60:00: two false windows (server bouncing the ball,
-   a ball rolled back), ends cut by another court's whistle (-4.1 s) or the ball out of sight (-3.0,
-   -2.3, and -10 s for 58:55), a rally joined to its dead-ball tail by the 8 s rule (+10 s); then how
-   rallies end (in, out, fault).
-5. The review's rally answers and the 129 checked rallies as labels to drop false windows
-   automatically (asked, not started).
-6. Deferred: the pose check on passes, sets and digs (hands near the ball, +1-2 of 42 touches on
-   the benchmark for a pose pass over every touch); the serve rotation check (unverified, ~9
-   players a team rotate in).
+4. Rally ends and winners. Done (5 Nov, `benchmarks/rallies/README.md`): `no_play` keeps rallies with touches and no serve seen,
+   short whistled serves count, a ball bounced 20 times is no rally; rallies missed 2 -> 0 of 129 and 9 -> 2 of 150, false windows
+   2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Apprendre de mes réponses".
+   12 of the second match's 18 wrong winners are rallies with no window. Left: ends with the ball out of sight or another court's
+   whistle (50:00-60:00 F1 ±1 s 0.58; four end rules tried, none gains), then how rallies end (in, out, fault).
+5. Done (5 Nov): the checked rallies as labels (`checked.py` scores `match.py`'s windows). The 6 false windows left have
+   no feature apart from real rallies: review questions.
+6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.
 7. On the owner's RTX 5080 PC: measure `speed.py`, tune jersey numbers on that footage.
 8. `data/benchmarks/` holds the benchmark clips, `outputs/benchmarks/` their outputs.
 9. The owner's plan, nothing started, not before the second match is reviewed and its quality known: a helper they trust,
