@@ -185,6 +185,7 @@ class TestHost:
     @staticmethod
     def hosting(tmp_path, monkeypatch, **config):
         built, ran = [], []
+        monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match)))
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
@@ -208,7 +209,7 @@ class TestHost:
         with pytest.raises(RuntimeError):
             matches.host(*args)
 
-        assert built == [("full", None, site / "first" / "video"), ("none", "video/", site / "first")] and ran == []
+        assert built == [("voice", Path("outputs/first")), ("full", None, site / "first" / "video"), ("none", "video/", site / "first")] and ran == []
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
         assert ran[0][0] == "ssh" and '"2026-10-29-a-vs-b:abc" 1;' in ran[0][-1]
@@ -229,7 +230,7 @@ class TestHost:
 
         matches.host(*args)
 
-        assert built == [("none", None, site / "first")] and not old.exists()
+        assert built == [("voice", Path("outputs/first")), ("none", None, site / "first")] and not old.exists()
         assert [command[0] for command in ran] == ["rsync"]
 
     def test_refuses_without_a_choice(self, tmp_path, monkeypatch):

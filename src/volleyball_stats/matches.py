@@ -382,24 +382,32 @@ def opens(url: str, key: str) -> bool:
         return False
 
 
+def make_voice(match: Path) -> None:
+    """The commentary's missing audio (`voice.py`), which the build then takes; Kokoro is in the voice group only."""
+    run = subprocess.run(["uv", "run", "--group", "voice", "python", "-m", "volleyball_stats.voice", str(match.resolve())], cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True)
+    if run.returncode:
+        raise RuntimeError(f"voice: {(run.stderr.strip().splitlines() or [f'exit {run.returncode}'])[-1]}")
+
+
 def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> None:
     """The match's hosted pages rebuilt in `config`'s site folder (publish.json) and the site uploaded by rsync to
     `upload` with the ssh `key`: the public page, no footage nor pictures. With `video`, also its copy with both in video/
     (the `light`, `av1` and `small` copies), once the copy at `url` turns a visitor without the password away, the
-    password opening it after. RuntimeError if not, or with no `video` chosen."""
+    password opening it after; the commentary's voice made first. RuntimeError if not, or with no `video` chosen."""
     if "video" not in config:
         raise RuntimeError("with or without the video: not chosen")
     site = Path(config["site"]).expanduser()
     known = {match.name, *files.aliases(match)}
     folder = next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] in known), site / match.name)
     with_video = config["video"]
+    # Before the build, which removes the copies of the video it finds in the site folder. Without
+    # them the build would take the source, tens of GB.
+    if with_video and copies_missing(config):
+        raise RuntimeError(f"video copies not found: {', '.join(k for k in video_copies.COPIES if not config.get(k) or not Path(config[k]).expanduser().exists())}")
+    if with_video and not config.get("videoKey"):
+        raise RuntimeError("the video has no password")
+    make_voice(match)
     if with_video:
-        # Before the build, which removes the copies of the video it finds in the site folder. Without
-        # them the build would take the source, tens of GB.
-        if copies_missing(config):
-            raise RuntimeError(f"video copies not found: {', '.join(k for k in video_copies.COPIES if not config.get(k) or not Path(config[k]).expanduser().exists())}")
-        if not config.get("videoKey"):
-            raise RuntimeError("the video has no password")
         path = lambda key: str(Path(config[key]).expanduser())  # noqa: E731
         web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}, folder / "video")
     else:

@@ -1,4 +1,4 @@
-"""Generates the commentary's audio of a built match page, once for each text (`speech.py` says which).
+"""Generates the commentary's audio of a match's page (the review's, else its built one), once for each text (`speech.py` says which).
 
     uv run --group voice python -m volleyball_stats.voice outputs/matches/2026-10-29-aspom-1-vs-aspom-2
 
@@ -38,7 +38,8 @@ def main() -> None:
     parser.add_argument("match", type=Path)
     parser.add_argument("--again", action="store_true", help="make every line again, not only the missing ones")
     args = parser.parse_args()
-    text = (args.match / "site" / "data.js").read_text()
+    page = args.match / "review" / "data.js"
+    text = (page if page.exists() else args.match / "site" / "data.js").read_text()
     data = json.loads(text[text.index("{") : text.rindex("}") + 1])
     spoken = read_spoken(args.match)
     lines = script(data)
