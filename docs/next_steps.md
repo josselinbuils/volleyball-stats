@@ -204,7 +204,7 @@ touches answered or labelled: first match 609 → 594 of 691, second 844 → 828
 39 → 38, `side_holdout` 39 → 39. Dropped.
 
 The second match's reviewed servers follow each team's rotation of 6 too: 6 servers a set, 8 a team over the match
-(substitutions between sets), one swap in 82 turns (set 3, 73:29, `auto.serverOrder`'s one flag). Fixing the pipeline's
+(substitutions between sets), one swap in 82 turns (set 3, 73:29, `auto.serverOrder`'s one flag: a real rotation fault, the owner says). Fixing the pipeline's
 servers from it still loses (first, second, of 126 and 138): the rotation decoded 117 → 115, 129 → 117; one server per
 turn by majority 117 → 119, 129 → 123; a server between two agreeing ones of the turn 117, 129. `auto.serverOrder` stays
 a review flag.
