@@ -87,11 +87,11 @@ function Players({ season }: { season: SeasonData }) {
   return (
     <Card className="gap-3 px-4 py-3.5">
       <h2 className="text-lg font-semibold">{t('season.players')}</h2>
-      <ul className="grid gap-3">
+      <ul className="grid divide-y">
         {shown.map((p) => (
-          <li key={p.key} className="grid gap-1.5">
+          <li key={p.key} className="grid gap-1.5 py-3 first:pt-0 last:pb-0">
             <span className="flex min-w-0 items-baseline gap-2">
-              <span className="truncate font-medium">{p.name ?? t('player', { n: p.jersey })}</span>
+              <span className="truncate font-semibold">{p.name ?? t('player', { n: p.jersey })}</span>
               <span className="shrink-0 text-sm text-muted-foreground">{t('season.matches', { count: p.matches })}</span>
             </span>
             <span className="flex flex-wrap gap-1.5">
