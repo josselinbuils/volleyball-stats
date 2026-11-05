@@ -44,4 +44,4 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   a winner takes it back. "Erreur d'arbitrage" (`referee` answers, `wrongCall` on the page): the winner stays the
   team that got the point, the score follows it, the last touch keeps what really happened: the true
   winner is the other team. Nothing trains on how rallies end yet: such training reads these answers. The rally's "Commentaire": the owner's note, in the review only
-  (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field. The star in a rally's header puts it in the match's film (`film.PICKS`, saved at once, moved by a rerun like a comment).
+  (`rally_comments.json`, moved by a rerun; on no page, so never hosted), saved on leaving the field. The star on a touch puts it in the films, the match's and its player's (`film.PICKS`, by frame, saved at once; a rerun's touch within 0.3 s takes it).

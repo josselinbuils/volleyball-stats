@@ -142,9 +142,9 @@ export function ReportEditor({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
-  /** The rallies in the highlights, by their key. */
+  /** The touches in the films, by their frame. */
   picks: Set<number>;
-  onPick: (rally: number, picked: boolean) => void;
+  onPick: (frame: number, picked: boolean) => void;
   timeouts: Timeout[];
   onTimeout: (change: TimeoutChange) => void;
   /** Where the list stands and when the user last scrolled it: a save starts the editor again. */
@@ -620,19 +620,6 @@ export function ReportEditor({
                       </span>
                     )}
                   </button>
-                  {!isDeleted(k) && (
-                    <Button
-                      variant="outline"
-                      size="icon-xs"
-                      className="mr-1 shrink-0 bg-card text-foreground"
-                      title={t('review.inHighlights')}
-                      aria-label={t('review.inHighlights')}
-                      aria-pressed={picks.has(keyOf(k))}
-                      onClick={() => onPick(keyOf(k), !picks.has(keyOf(k)))}
-                    >
-                      <Star aria-hidden className={cn(picks.has(keyOf(k)) && 'fill-amber-400 text-amber-500')} />
-                    </Button>
-                  )}
                   {isDeleted(k) ? (
                     <Button
                       variant="outline"
@@ -764,6 +751,19 @@ export function ReportEditor({
                               ))}
                             </select>
                           </>
+                        )}
+                        {!row.removed && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 shrink-0"
+                            title={t('review.inHighlights')}
+                            aria-label={t('review.inHighlights')}
+                            aria-pressed={picks.has(row.frame)}
+                            onClick={() => onPick(row.frame, !picks.has(row.frame))}
+                          >
+                            <Star aria-hidden className={cn(picks.has(row.frame) && 'fill-amber-400 text-amber-500')} />
+                          </Button>
                         )}
                         <Button
                           variant="ghost"

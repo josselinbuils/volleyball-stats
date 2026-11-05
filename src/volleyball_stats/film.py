@@ -46,7 +46,7 @@ RED, GOLD, WHITE, INK, GREY = (19, 6, 227), (40, 200, 255), (255, 255, 255), (22
 FONTS = Path("/System/Library/Fonts/Supplemental")
 
 # The film's shape.
-MOMENTS, LEAST_MOMENTS = 5, 2
+MOMENTS, LEAST_MOMENTS = 6, 2
 # At most this many of a kind of touch while there is anything else to show: the same action again looks like a repeat.
 SAME_KIND = 2
 INTRO_S, OUTRO_S = 2.6, 4.5
@@ -56,16 +56,17 @@ REPLAY_BEFORE_S, REPLAY_AFTER_S, REPLAY_SPEED = 1.0, 0.8, 0.5
 REPLAY_PRE, FREEZE = 1.75, 0.6
 # The match's film, under this name among the players'.
 HIGHLIGHTS = "*"
-# The rallies the owner puts in it from the review's Match tab, by key.
-PICKS = "highlight_picks.json"
+# The touches the owner puts in the films from the review's Match tab, by video frame: the touch nearest each, within
+# PICK_SLACK_S, a rerun moving touches a little.
+PICKS, PICK_SLACK_S = "highlight_picks.json", 0.3
 HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS = 50.0, 8, 2
-# Its clips: from the set before the touch, or the serve's toss, to the point's banner gone; a point another touch wins, up
-# to PUNCH_END_S after the touch.
+# A clip runs from the set before its touch, or the serve's toss; in the match's film to the point's banner gone, a point another
+# touch wins up to PUNCH_END_S after the touch.
 PUNCH_LEAD_S, TOSS_S, PUNCH_END_S = 2.0, 1.2, 2.5
 # The longest rally's best exchanges, BEATS at most, cut in before its end: from just before an attack to just after the touch
 # that kept the ball in play.
 BEATS, BEAT_BEFORE_S, BEAT_AFTER_S = 3, 0.7, 0.5
-# The film opens on its most striking touch, this long before and after it, then its title.
+# A film opens on its most striking point, this long before and after it, then its title.
 HOOK_BEFORE_S, HOOK_AFTER_S = 1.0, 0.8
 # The camera on a live shot follows the ball, on the player only this long around their touch; it widens for a ball this many seconds
 # of flight across, and keeps the ball within this share of the picture's half.
@@ -143,6 +144,16 @@ def write_picks(match: Path, picks: set[int]) -> None:
     files.write_text(match / PICKS, json.dumps(sorted(picks)) + "\n")
 
 
+def picked(contacts: list[dict], picks: set[int], fps: float) -> list[dict]:
+    touches = [c for c in contacts if is_touch(c)]
+    out = []
+    for frame in sorted(picks):
+        c = min(touches, key=lambda c: abs(c["f"] - frame), default=None)
+        if c is not None and abs(c["f"] - frame) <= PICK_SLACK_S * fps and c not in out:
+            out.append(c)
+    return out
+
+
 def is_touch(c: dict) -> bool:
     return c["type"] in TOUCHES
 
@@ -154,6 +165,16 @@ def scoring_touch(rally: dict) -> dict | None:
     if len(touches) >= 2 and touches[-1].get("result") == "error" and touches[-2].get("result") == "point" and touches[-2]["g"] != touches[-1]["g"]:
         return touches[-2]
     return None
+
+
+def clip_start(rally: dict, t: float) -> float:
+    served = min(rally["start"], next(q["t"] for q in rally["contacts"] if is_touch(q))) - TOSS_S
+    return max(served, t - PUNCH_LEAD_S)
+
+
+def striking(c: dict) -> float:
+    """How striking a point looks: a block, an attack's height, a serve's speed."""
+    return 3.0 if c["type"] == "block" else (c.get("reach") or 0) if c["type"] == "attack" else (c.get("speed") or 0) / 30
 
 
 def scores_before(rallies: list[dict]) -> dict[int, list[int]]:
@@ -185,9 +206,11 @@ def highlights(rallies: list[dict], key: set[int]) -> list[dict]:
     return [c for _, c in sorted(found, key=lambda x: (KINDS.index(x[0]), x[1]["t"]))[:MOMENTS]]
 
 
-def moments_of(rallies: list[dict], key: set[int], mine: list[dict]) -> list[dict]:
-    """A player's moments in the order the film shows them: their fastest serve, then their points building up to the best."""
+def moments_of(rallies: list[dict], key: set[int], mine: list[dict], picks: list[dict] = ()) -> list[dict]:
+    """A player's moments in the order the film shows them: their fastest serve, then their points building up to the best, the
+    touches picked in the review always, as the best."""
     played = [c for c in mine if is_touch(c) and c.get("result") != "error"]
+    forced = [c for c in picks if c in played]
     timed = [c for c in played if c.get("speed") is not None]
     fastest = None
     for c in timed:
@@ -195,6 +218,7 @@ def moments_of(rallies: list[dict], key: set[int], mine: list[dict]) -> list[dic
             fastest = c
     touches_in = lambda c: sum(is_touch(q) for q in rallies[c["rally"]]["contacts"])  # noqa: E731
     candidates = [
+        *forced,
         *highlights(rallies, key),
         *sorted((c for c in played if c.get("result") == "point"), key=lambda c: -c["t"]),
         *sorted((c for c in played if c.get("result") != "point"), key=lambda c: -touches_in(c)),
@@ -202,6 +226,11 @@ def moments_of(rallies: list[dict], key: set[int], mine: list[dict]) -> list[dic
     seen = {fastest["rally"]} if fastest else set()
     kinds = [fastest["type"]] if fastest else []
     best = []
+    for c in forced:
+        if c["rally"] not in seen:
+            seen.add(c["rally"])
+            kinds.append(c["type"])
+            best.append(c)
     for limit in (SAME_KIND, MOMENTS):
         for c in candidates:
             if len(seen) < MOMENTS and c["rally"] not in seen and kinds.count(c["type"]) < limit:
@@ -232,7 +261,7 @@ def varied(moments: list[dict]) -> list[dict]:
 
 
 def shots_of(moments: list[dict], rallies: list[dict]) -> tuple[list[dict], float]:
-    """The film's shots: a title, each moment played then replayed, an end."""
+    """The film's shots: its most striking point but the last as a hook, a title, each moment played then replayed, an end."""
     shots, at = [], 0.0
 
     def add(kind: str, length: float, start: float, speed: float, c: dict) -> None:
@@ -240,12 +269,17 @@ def shots_of(moments: list[dict], rallies: list[dict]) -> tuple[list[dict], floa
         shots.append({"kind": kind, "start": at, "length": length, "from": start, "speed": speed, "contact": c["i"], "rally": c["rally"]})
         at += length
 
+    scored = [c for c in moments[:-1] if c.get("result") == "point"]
+    if scored:
+        hook = max(scored, key=striking)
+        add("live", HOOK_BEFORE_S + HOOK_AFTER_S, hook["t"] - HOOK_BEFORE_S, 1, hook)
+        shots[-1]["hook"] = True
     add("intro", INTRO_S, moments[0]["t"] - LEAD_S, 1, moments[0])
     for c in moments:
         rally = rallies[c["rally"]]
         touches = [q for q in rally["contacts"] if is_touch(q)]
         following = next((q for q, was in zip(touches[1:], touches) if was is c), None)
-        start = max(rally["start"], c["t"] - LEAD_S)
+        start = clip_start(rally, c["t"])
         end = following["t"] + AFTER_FLIGHT_S if c["type"] == "serve" and following else c["t"] + (AFTER_POINT_S if c.get("result") == "point" else AFTER_S)
         add("live", end - start, start, 1, c)
         # Replayed only where it adds something: the first when its speed was measured, and the last, the best.
@@ -269,7 +303,7 @@ def lines_of(shots: list[dict], voice: dict | None, name: str) -> list[dict]:
         return []
     out, free = [], 0.0
     for shot in shots:
-        if shot["kind"] == "live":
+        if shot["kind"] == "live" and not shot.get("hook"):
             for t, clip, length in voice["lines"]:
                 at = shot["start"] + t - shot["from"]
                 if max(shot["start"], free) <= at < shot["start"] + shot["length"]:
@@ -303,7 +337,7 @@ def rally_touch(rally: dict, people: dict) -> dict | None:
 
 def highlight_moments(page: dict, picks: set[int] = frozenset()) -> list[tuple[dict, dict]]:
     """The match's best rallies, in match order, as (touch, its clip's start and end, replayed or not), the longest's best exchanges
-    before its end, its most striking point first as a hook: the longest, the match point and the rallies `picks` (by key)
+    before its end, its most striking point first as a hook: the longest, the match point and the touches `picks` (by frame)
     always, then set points, late ties, aces, blocks and kills, both teams, every set and many players shown."""
     rallies, people = page["rallies"], page.get("people") or {}
     before = scores_before(rallies)
@@ -323,9 +357,8 @@ def highlight_moments(page: dict, picks: set[int] = frozenset()) -> list[tuple[d
 
     def clip(r: dict) -> tuple[float, float]:
         c = rally_touch(r, people)
-        t, served = c["t"], min(r["start"], next(q["t"] for q in r["contacts"] if is_touch(q))) - TOSS_S
-        point = t if c is scoring_touch(r) else min(r["end"], t + PUNCH_END_S)
-        return max(served, t - PUNCH_LEAD_S), point + AFTER_POINT_S
+        point = c["t"] if c is scoring_touch(r) else min(r["end"], c["t"] + PUNCH_END_S)
+        return clip_start(r, c["t"]), point + AFTER_POINT_S
 
     def beats(r: dict) -> list[tuple[dict, float, float]]:
         """Its best exchanges before its clip, one per stretch of the rally: an attack and the named touch that kept the ball in
@@ -350,15 +383,14 @@ def highlight_moments(page: dict, picks: set[int] = frozenset()) -> list[tuple[d
     def length(r: dict) -> float:
         return clip(r)[1] - clip(r)[0] + sum(end - start for _, start, end in beats(r))
 
-    def striking(r: dict) -> float:
-        c = rally_touch(r, people)
-        return 3.0 if c["type"] == "block" else (c.get("reach") or 0) if c["type"] == "attack" else (c.get("speed") or 0) / 30
-
     replay_s = (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED
     room = HIGHLIGHTS_S - HOOK_BEFORE_S - HOOK_AFTER_S - INTRO_S - OUTRO_S - HIGHLIGHTS_REPLAYS * replay_s
     chosen = [longest] if longest is last else [longest, last]
-    chosen += [r for r in played if r.get("key") in picks and r not in chosen]
-    room -= sum(length(r) for r in chosen)
+    # A touch picked is its rally's clip when the rally is shown for it, else a clip of its own.
+    wanted = [c for c in picked(page["contacts"], picks, page.get("fps", FPS)) if people.get(str(c.get("person")), {}).get("name") and c.get("result") != "error"]
+    chosen += [r for r in played if rally_touch(r, people) in wanted and r not in chosen]
+    extras = [(c, clip_start(rallies[c["rally"]], c["t"]), c["t"] + AFTER_S) for c in wanted if not any(c is rally_touch(r, people) for r in chosen)]
+    room -= sum(length(r) for r in chosen) + sum(end - start for _, start, end in extras)
     while True:
         def adjusted(r: dict) -> float:
             c = rally_touch(r, people)
@@ -379,10 +411,14 @@ def highlight_moments(page: dict, picks: set[int] = frozenset()) -> list[tuple[d
     for r in sorted(chosen, key=lambda r: r["start"]):
         out += [(b, {"start": start, "end": end, "replayed": False}) for b, start, end in beats(r)]
         out.append((rally_touch(r, people), {"start": clip(r)[0], "end": clip(r)[1], "replayed": r["i"] in replayed}))
+    # A picked touch already in another clip is not shown twice.
+    taken = [(span["start"], span["end"]) for _, span in out]
+    out += [(c, {"start": start, "end": end, "replayed": False}) for c, start, end in extras if all(end <= a or start >= b for a, b in taken)]
+    out.sort(key=lambda m: m[1]["start"])
     # The hook: a point the film comes back to later.
     scored = [r for r in chosen if r is not last and r is not longest and rally_touch(r, people) is scoring_touch(r)]
     if scored:
-        c = rally_touch(max(scored, key=striking), people)
+        c = rally_touch(max(scored, key=lambda r: striking(rally_touch(r, people))), people)
         out.insert(0, (c, {"start": c["t"] - HOOK_BEFORE_S, "end": c["t"] + HOOK_AFTER_S, "replayed": False, "hook": True}))
     return out
 
@@ -465,13 +501,14 @@ def plan(page: dict, site: Path, stamp: str = "") -> dict[str, dict]:
     rallies, contacts = page["rallies"], page["contacts"]
     people = page.get("people") or {}
     voice = voice_index(site)
+    picks = picked(contacts, read_picks(site.parent), page.get("fps", FPS))
     out = {}
     names = dict.fromkeys(q["name"] for q in people.values() if q.get("name"))
     for name in names:
         first = next(q for q in people.values() if q.get("name") == name)
         key = {int(p) for p, q in people.items() if q.get("name") == name and q.get("team") == first["team"] and q.get("number") is not None}
         mine = [c for c in contacts if c.get("person") in key]
-        moments = moments_of(rallies, key, mine)
+        moments = moments_of(rallies, key, mine, [c for c in picks if c in mine])
         if len(moments) < LEAST_MOMENTS:
             continue
         shots, length = shots_of(moments, rallies)
@@ -1241,8 +1278,8 @@ class Maker:
         self.name = film["name"]
         self.ball = film_path(self.page, film, self.detected, self.found, self.places, self.cal, self.rejected)
         self.rng = np.random.default_rng(7)
-        # The bars cross a change of shot kind; the match's film cuts straight from one action to the next.
-        self.cuts = [b["start"] for a, b in zip(film["shots"], film["shots"][1:]) if film.get("kind") != "highlights" or a["kind"] != b["kind"]]
+        # The bars cross a change of shot kind; one action cuts straight to the next.
+        self.cuts = [b["start"] for a, b in zip(film["shots"], film["shots"][1:]) if a["kind"] != b["kind"]]
         self.impacts: list[float] = []
         self.on_rally = None
         self.masks: dict[tuple, np.ndarray | None] = {}
@@ -1398,8 +1435,8 @@ class Maker:
     def shoot(self, shot: dict, encoder: subprocess.Popen) -> None:
         self.follow_body(shot)
         ms = self.moments(shot)
-        # The match's film hits each point's touch.
-        punch = shot["kind"] == "live" and self.film.get("kind") == "highlights" and self.contact(shot).get("result") == "point"
+        # Each point's touch hits.
+        punch = shot["kind"] == "live" and self.contact(shot).get("result") == "point"
         self.impact = self.touch_time(shot) if punch else None
         if self.impact is not None:
             self.impacts.append(shot["start"] + np.searchsorted(ms, self.impact) / FPS)

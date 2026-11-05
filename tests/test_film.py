@@ -35,13 +35,22 @@ class TestMoments:
         # Nothing they got wrong, at most one a rally.
         assert len({c["rally"] for c in found}) == len(found)
 
+    def test_always_shows_the_touches_picked_in_the_review(self):
+        points = [contact(k, 10.0 * k, ("attack", "serve", "block")[k % 3], 1, result="point", rally=k) for k in range(film.MOMENTS + 2)]
+        dig = contact(len(points), 200.0, "dig", 1, rally=len(points))
+        mine = [*points, dig]
+        rallies = [rally(k, [c], [k, 0]) for k, c in enumerate(mine)]
+
+        assert dig not in film.moments_of(rallies, {1}, mine)
+        assert dig in film.moments_of(rallies, {1}, mine, [dig])
+
     def test_leaves_out_what_they_got_wrong(self):
         fault = contact(0, 10.0, "attack", 1, result="error")
         assert film.moments_of([rally(0, [fault], [0, 1], 2)], {1}, [fault]) == []
 
     def test_mixes_the_kinds_of_touch_while_there_is_anything_else_to_show(self):
         serves = [contact(k, 10.0 * k, "serve", 1, result="point", rally=k) for k in range(5)]
-        others = [contact(5, 50.0, "dig", 1, rally=5), contact(6, 60.0, "pass", 1, rally=6)]
+        others = [contact(5 + k, 50.0 + 10 * k, kind, 1, rally=5 + k) for k, kind in enumerate(("dig", "pass", "set", "block"))]
         mine = [*serves, *others]
         rallies = [rally(k, [c], [k, 0]) for k, c in enumerate(mine)]
 
@@ -49,10 +58,10 @@ class TestMoments:
 
         assert len(found) == film.MOMENTS
         assert sum(c["type"] == "serve" for c in found) <= film.SAME_KIND + 1
-        assert {"dig", "pass"} <= {c["type"] for c in found}
+        assert {"dig", "pass", "set", "block"} <= {c["type"] for c in found}
 
     def test_shows_a_kind_again_when_the_player_has_nothing_else(self):
-        serves = [contact(k, 10.0 * k, "serve", 1, rally=k) for k in range(5)]
+        serves = [contact(k, 10.0 * k, "serve", 1, rally=k) for k in range(film.MOMENTS)]
         assert len(film.moments_of([rally(k, [c], [0, k + 1], 2) for k, c in enumerate(serves)], {1}, serves)) == film.MOMENTS
 
     def test_keeps_the_same_kind_apart_where_it_can_the_best_last(self):
@@ -75,9 +84,14 @@ class TestMoments:
         shots, length = film.shots_of([c], [rally(0, [c], [1, 0], start=5.0)])
         assert [s["kind"] for s in shots] == ["intro", "live", "replay", "outro"]
         assert shots[2]["from"] == pytest.approx(10.0 - film.REPLAY_BEFORE_S)
-        assert shots[1]["from"] == pytest.approx(6.5)
-        assert shots[1]["length"] == pytest.approx(film.LEAD_S + film.AFTER_POINT_S)
+        assert shots[1]["from"] == pytest.approx(10.0 - film.PUNCH_LEAD_S)
+        assert shots[1]["length"] == pytest.approx(film.PUNCH_LEAD_S + film.AFTER_POINT_S)
         assert length == pytest.approx(sum(s["length"] for s in shots))
+
+    def test_opens_on_its_most_striking_point_but_the_best_before_the_title(self):
+        cs = [contact(0, 10.0, "attack", 1, result="point", reach=2.9), contact(1, 30.0, "serve", 1, result="point", rally=1, speed=60), contact(2, 50.0, "attack", 1, result="point", rally=2, reach=3.1)]
+        shots, _ = film.shots_of(cs, [rally(k, [c], [k, 0]) for k, c in enumerate(cs)])
+        assert [s["kind"] for s in shots[:2]] == ["live", "intro"] and shots[0]["hook"] and shots[0]["contact"] == 0
 
 
 class TestPlan:
@@ -198,13 +212,15 @@ class TestHighlights:
         assert hook["hook"] and hook["kind"] == "live" and intro["kind"] == "intro"
         assert page["contacts"][hook["contact"]]["result"] == "point" and hook["rally"] not in (7, 29)
 
-    def test_takes_the_rallies_picked_in_the_review(self, tmp_path):
+    def test_takes_the_touches_picked_in_the_review(self, tmp_path):
         page = self.page()
         left = next(r for r in page["rallies"] if r["i"] not in {t["rally"] for t, _ in film.highlight_moments(page)})
-        left["key"] = 123
-        film.write_picks(tmp_path, {123})
+        # The point of a rally left out, a frame off; a set of the longest rally, before its end.
+        point, setter = left["contacts"][-1], page["rallies"][7]["contacts"][3]
+        film.write_picks(tmp_path, {point["f"] + 3, setter["f"]})
+        found = film.highlight_moments(page, film.read_picks(tmp_path))
 
-        assert left["i"] in {t["rally"] for t, _ in film.highlight_moments(page, film.read_picks(tmp_path))}
+        assert any(t is point for t, _ in found) and any(t is setter for t, _ in found)
 
     def test_other_clips_are_short(self):
         clips = [span for touch, span in film.highlight_moments(self.page()) if touch["rally"] != 7]

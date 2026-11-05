@@ -46,9 +46,9 @@ export function MatchTab({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
-  /** The rallies in the highlights, by their key. */
+  /** The touches in the films, by their frame. */
   picks: Set<number>;
-  onPick: (rally: number, picked: boolean) => void;
+  onPick: (frame: number, picked: boolean) => void;
   timeouts: Timeout[];
   onTimeout: (change: TimeoutChange) => void;
   /** The report questions left: each a rally's reports. */

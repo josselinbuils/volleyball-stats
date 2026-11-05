@@ -204,18 +204,18 @@ export function Review({
     }
   };
 
-  const savePick = async (rally: number, picked: boolean) => {
+  const savePick = async (frame: number, picked: boolean) => {
     setPicks((all) => {
       const out = new Set(all);
       if (picked) {
-        out.add(rally);
+        out.add(frame);
       } else {
-        out.delete(rally);
+        out.delete(frame);
       }
       return out;
     });
     try {
-      await post('pick', { rally, picked });
+      await post('pick', { frame, picked });
       setError(false);
     } catch {
       setError(true);
@@ -483,7 +483,7 @@ export function Review({
             comments={comments}
             onComment={saveComment}
             picks={picks}
-            onPick={(rally, picked) => void savePick(rally, picked)}
+            onPick={(frame, picked) => void savePick(frame, picked)}
             timeouts={timeouts}
             onTimeout={(change) => void saveTimeout(change)}
             reports={reports}

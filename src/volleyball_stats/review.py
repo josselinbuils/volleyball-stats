@@ -2021,7 +2021,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "picks": sorted(commented(dict.fromkeys(film.read_picks(match), ""), questions.page, log)), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
+        data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "picks": sorted(film.read_picks(match)), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
             "learning": pooled_runs(match.parent),
             "comparison": last_comparison(match),
             "fetched": fetched_log or None,
@@ -2216,9 +2216,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     write_comments(match, comments)
                     return self.send(b"{}", "application/json")
                 if self.path == "/pick":
-                    # Held by the rally the page shows, as a comment is.
-                    picks, key = set(commented(dict.fromkeys(film.read_picks(match), ""), questions.page, log)), int(body["rally"])
-                    film.write_picks(match, picks | {key} if body["picked"] else picks - {key})
+                    picks, frame = film.read_picks(match), int(body["frame"])
+                    film.write_picks(match, picks | {frame} if body["picked"] else picks - {frame})
                     return self.send(b"{}", "application/json")
                 if self.path == "/timeout":
                     return self.send(json.dumps({"timeouts": timeouts.answer(match, questions.fps, body)}).encode(), "application/json")

@@ -28,7 +28,7 @@ from pathlib import Path
 
 import cv2
 
-from volleyball_stats import actions, files, film, identity, review, web
+from volleyball_stats import actions, files, identity, review, web
 from volleyball_stats.court import Calibration
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -241,9 +241,6 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     if (match / review.COMMENTS).exists():
         shutil.copy2(match / review.COMMENTS, before / review.COMMENTS)
         review.write_comments(match, rekey.moved_comments(review.read_comments(match), rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv"), round(actions.LEAD_S * fps)))
-    if (match / film.PICKS).exists():
-        shutil.copy2(match / film.PICKS, before / film.PICKS)
-        film.write_picks(match, set(rekey.moved_comments(dict.fromkeys(film.read_picks(match), ""), rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv"), round(actions.LEAD_S * fps))))
     if (before / "review-data.js").exists():
         page, _ = web.match_data(match, video, Calibration.load(court))
         review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page)))
