@@ -14,7 +14,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 
 ## Open
 
-1. The second match (`2026-11-02-avia-1-vs-aspom-2`): in review, 22 of about 144 rallies checked on 4 Nov, 7 score board reports, not hosted yet.
+1. Done (5 Nov): the second match (`2026-11-02-avia-1-vs-aspom-2`) reviewed and hosted.
 2. Once reviewed, that match held out whole: everything is tuned on the first. Retrain the ranker and
    re-sweep `identity.SHARPEN`.
 3. `docs/plan.md`: the touches left, the 3D ball and TV mode's limits.
