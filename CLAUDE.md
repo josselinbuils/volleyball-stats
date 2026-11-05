@@ -60,4 +60,4 @@ These are not loaded at the start of a session: read the one a task touches.
 | Importing and running a match, a busy machine, checking the page on the short clips | [docs/running.md](docs/running.md) |
 | The server, uploads, password, viewers' reports, crawlers, backups, films, voice | [docs/hosting.md](docs/hosting.md) |
 | Pipeline changes and their numbers; ideas for the page | [docs/next_steps.md](docs/next_steps.md), [docs/plan.md](docs/plan.md) |
-| Setup, recording, each pipeline step | [README.md](README.md) |
+| Setup, recording, every command and option, the page's sections and stats, each pipeline step | [docs/setup.md](docs/setup.md), [docs/recording.md](docs/recording.md), [docs/processing.md](docs/processing.md), [docs/match-page.md](docs/match-page.md), [docs/pipeline.md](docs/pipeline.md) |

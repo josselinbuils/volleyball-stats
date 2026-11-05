@@ -66,7 +66,7 @@ Tried and dropped: see `benchmarks/rallies/README.md`.
 
 ## Page: online since 2 Nov
 
-"Le coin du coach" (`web/src/components/Coach/`) and "Mode TV" (README, `Watch/Broadcast.tsx`, `scene3d/hall.ts`).
+"Le coin du coach" (`web/src/components/Coach/`) and "Mode TV" ([match-page.md](match-page.md), `Watch/Broadcast.tsx`, `scene3d/hall.ts`).
 
 The ball in 3D (`benchmarks/ball3d/bench.py`, first match, no 3D truth): the camera found at x 0.1, y 11.83, 3.93 m high (set up
 on the net's line, about 6 m from the sideline, 3.6 m high: 7.3 m from it); path to the ball in the picture, median and 90%,

@@ -1,578 +1,172 @@
+<div align="center">
+
 # volleyball-stats
 
-Automatic per-player volleyball statistics from a match video.
+**Per-player volleyball statistics from one camera on the sideline.**
 
-- **Input:** one fixed camera on the sideline, filming a whole match.
-- **Output:** a match page with each player's stats, every moment replayable in the video or on an
-  animated court.
-- **Only manual step:** naming the players. The pipeline groups every touch into identities, and you
-  name each one once. A roster kept across matches suggests the names of players it has already
-  seen.
+Film a match, let the pipeline find every touch, name the players once:<br>
+you get a match page where every number replays its moments.
 
-## Contents
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
+[![Platform: Linux, WSL2, macOS](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2%20%7C%20macOS-lightgrey)](docs/setup.md)
 
-- [How it works](#how-it-works)
-- [Recording](#recording)
-- [Setup](#setup)
-- [Process a match](#process-a-match)
-- [The match page](#the-match-page)
-- [Pipeline](#pipeline)
-- [Roadmap](#roadmap)
-- [Prior art](#prior-art), [License](#license), [Privacy](#privacy)
+<br>
+
+<img src="docs/images/match-page.webp" alt="A match page: the score, the match in numbers and the story of the match, set by set">
+
+</div>
+
+## What you get
+
+From the video of a whole match, with no tagging by hand:
+
+- **Every player's statistics:** serves, receptions, sets, attacks, blocks and digs, with their
+  outcomes, ratings and faults, team by team and set by set.
+- **Every moment replayable:** click a number, a dot or a trophy to watch those touches, in the video
+  or on an animated court in 2D, 3D or a TV-style broadcast with commentary.
+- **The story of the match:** the score gap rally by rally, runs, comebacks and set points saved.
+- **Advice for the team:** what cost the most points and who sets whom, naming no one for a fault, and
+  trophies for what players did well.
+- **My match:** each player picks their name and sees their own touches, best points and card.
+- **A page to share:** static files that open from disk or host anywhere, in French and English, light
+  or dark. With no footage by default, so no player shows on video without their consent.
+
+The only manual step is naming the players: the pipeline groups every touch into identities, a review
+page asks about the ones it is unsure of, and you name each player once. A roster suggests the names
+of players already seen in earlier matches.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/tv-mode.webp" alt="TV mode: a rally rebuilt in 3D in a model of the gym, filmed like a broadcast"><br><b>TV mode:</b> each rally rebuilt in 3D, filmed like a broadcast</td>
+    <td width="50%"><img src="docs/images/statistics.webp" alt="The statistics table: touches, serves, receptions and sets per player"><br><b>Statistics:</b> each player's touches and their outcomes</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/court-map.webp" alt="Every touch of the match drawn where it was played on the court"><br><b>On the court:</b> every touch where it was played</td>
+    <td width="50%"><img src="docs/images/coach.webp" alt="The coach's corner: what cost the most points, and who sets whom"><br><b>The coach's corner:</b> what to work on, who sets whom</td>
+  </tr>
+</table>
+
+Screenshots of a real match, with the players' names hidden.
 
 ## How it works
 
-1. **Film** the match with one fixed camera ([Recording](#recording)).
-2. **Map the court** once per gym: a few rough clicks on the court lines.
-3. **Run the pipeline:** ball, rallies, contacts, actions, players, teams, identities, score.
-4. **Review** the players it is least sure of, and name them.
-5. **Open the match page:** stats per player and team, each one playing its moments.
+```mermaid
+flowchart LR
+    A[Film the match] --> B[Map the court<br>once per gym]
+    B --> C[Run the pipeline]
+    C --> D[Review and<br>name the players]
+    D --> E[Match page]
+```
 
-## Recording
+The pipeline reads the video once and finds the rallies, tracks the ball and its contacts, types each
+touch (serve, reception, set, attack, block, dig), tracks the players, splits them into teams, follows
+each one through the whole match and keeps the score. Each step is scored against hand labels in
+[`benchmarks/`](benchmarks). See [the pipeline](docs/pipeline.md) for the methods and their accuracy.
 
-### Camera placement
+## Getting started
 
-- One fixed camera on a sideline, aligned with the net, about 6 m from the sideline, 3.6 m high.
-- It frames both end lines. No auto-tracking or panning camera.
-- It sits on a light stand (Manfrotto 1004BAC):
-  - the stand's base on the floor behind a handball goal post;
-  - the column strapped to the post (80 × 80 mm) with two straps, one low and one at ~1.8 m;
-  - only on an anchored goal. Without a goal: sandbags on the stand legs.
+### 1. Install
 
-### Hardware
-
-- [x] DJI Osmo Action 3 Standard Combo
-- [x] microSD SanDisk Extreme 256 GB
-- [x] 5 m USB-C charging cable
-- [x] Manfrotto 1004BAC light stand
-- [x] Three-prong to 1/4" adapter: Insta360 1/4" to 3 Pin Adapter
-- [x] 2 straps, 25 mm, ~2 m, no hooks (gentle on the stand column)
-- [ ] Cord loop (any, e.g. paracord), camera frame to stand column, with a little slack
-- [x] Power bank, ~10,000 mAh
-- [x] Fan: [JISULIFE pocket fan, 4,500 mAh](https://www.amazon.fr/dp/B09PDMZKQW), held on the stand
-      column by two velcro straps and a cord over a strip of foam, at its lowest speed, 80 cm below the
-      camera, blowing up at it. Closer, its air rumbles on the mics.
-      Without a fan, the still camera overheats within about 30 minutes at 22 °C (4K or 2.7K, 50 fps).
-      With it, it recorded 2 h 49 min at 4K 50 fps on the power bank, a bit hot; no visible shake.
-      Its noise on the mics (dBFS, lower is quieter) is a low rumble under 1 kHz; whistles are
-      still detected in every case. If the camera runs hot, raise the speed before moving the fan closer.
-
-  | Fan | Speed 1 | Speed 2 | Speed 3 |
-  | --- | --- | --- | --- |
-  | 80 cm, vertical | −47 | −42 | −33 |
-  | 80 cm, turned to the camera | −46 | −42 | −36 |
-  | 50 cm, turned to the camera | −32 (+14 dB rumble) | −28 (+14 dB rumble) | −25 (+11 dB rumble) |
-
-- Only if needed: sandbags (free-standing stand), ball head (if the camera hinge slips), bike
-  handlebar mount.
-
-### Camera settings (Osmo Action 3)
-
-In short: 4K (2.7K minimum) at 50 fps, Standard field of view, everything locked, shutter 1/250 or
-faster.
-
-| Setting | Réglage | Where | Value | Why |
-| --- | --- | --- | --- | --- |
-| Resolution | Résolution | Swipe up | 4K (16:9) | Ball and jersey numbers; the ball model reads 16:9 |
-| Frame rate | Fréquence d'images | Swipe up | 50 fps | No flicker under 50 Hz lighting |
-| Loop recording | Enregistrement en boucle | Swipe up, top left | Off | Would overwrite the start of the match |
-| Stabilisation | Stabilisation | Swipe up, top right | Off (no RockSteady, no HorizonBalancing) | Fixed camera; stabilisation warps each frame |
-| Mode | Mode | Parameters icon | PRO | Locked exposure |
-| Field of view | Champ de vision | PRO | Standard; Wide or Ultra Wide only if the stand is too close to frame the court | 6 m from the sideline it frames the whole court; wider ones shrink the players and bend the lines |
-| Shutter speed | Vitesse d'obturation | PRO, Exposure: Manual | 1/250, 1/500 if the gym is bright | Sharp ball |
-| ISO | ISO | PRO, Exposure: Manual | Lowest correct one, set at the gym (often 800–3200) | Locked exposure |
-| White balance | Balance des blancs | PRO | Manual, set at the gym (often 4500–5500 K under LEDs) | Stable jersey colours for the teams |
-| Colour | Couleur | PRO | Normal, not D-Cinelike | Natural colours for the teams |
-| Enhanced image quality | Qualité d'image améliorée | PRO | Off, On only facing sunlit windows | Made for strong light contrast; more power and heat |
-| Wind noise reduction | Réduction du bruit du vent | PRO, audio | On | Less fan rumble; the whistle comes through |
-| Directional audio | Audio directionnel | PRO, audio | Off | The whistle comes from anywhere around the court |
-| Video compression | Compression vidéo | Swipe down, Settings | Compatibility (H.264) or Efficiency (HEVC, smaller files) | Both decode on the GPU |
-| Anti-flicker | Anti-scintillement | Swipe down, Settings | 50 Hz | French power grid |
-| Screen off when recording | Écran éteint pendant l'enregistrement | Swipe down, Settings | Shortest delay | Less heat |
-| Auto power off | Arrêt automatique | Swipe down, Settings | 30 min (the longest) | No stop before the first serve; the 2-hour test checks it never stops a recording |
-
-- Resolution, frame rate, field of view and stabilisation stay the same for the lens calibration and
-  every match. ISO and white balance change with the gym only.
-- There is no bitrate setting: the camera records at up to 130 Mbps, about 120 GB for 2 hours.
-- The French names are approximate: the menus may word them slightly differently.
-
-### Before the first match
-
-- [x] Check the SD card with [F3](https://github.com/AltraMayor/f3) or H2testw.
-- [x] Set the [camera settings](#camera-settings-osmo-action-3), ISO and white balance aside.
-- [x] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
-      overheating.
-- [x] Calibrate the lens in Standard (see [below](#lens-calibration)).
-- [ ] At the gym: get approval for the handball goals and check they are anchored. Check the framing
-      from the stand shows both end lines and the near corners.
-
-#### Lens calibration
-
-Without it, the court mapping is off by 0.3–1.4 m on wide footage the camera did not straighten (see
-the [court benchmark](benchmarks/court/README.md)). Film the board in the matches' field of view.
-Standard straightens most of it in the camera but still moves the 4K frame's corners by about 66 px
-and its side edges by 41 px. On the first match the court sat in the frame's straight middle band:
-the lens moved court positions by 5 cm at most (13 cm in the free zone).
-
-1. Print the [board](docs/checkerboard.png) on A4 landscape, fit to page.
-2. Keep it flat: tape it on a wall or door and move the camera, or show it full screen on a TV.
-3. Film it for a minute at about 1 m, from several angles. Watching the camera screen, place the
-   whole board in each corner, at the middle of each edge and in the centre, 2 s each.
-4. Run `uv run python -m volleyball_stats.lens calibrate VIDEO`. It writes `outputs/lens.json`, to
-   pass as `--lens` to the court commands. The Osmo Action 3's, in Standard at 4K, is
-   [`docs/lens_osmo_action3_standard_4k.json`](docs/lens_osmo_action3_standard_4k.json).
-
-### After the first match
-
-- [ ] Label rallies and the contacts of a few rallies, then rerun the ball, rally and contact
-      benchmarks on them.
-- [ ] Rallies: apply and test the fixes of the
-      [held-out check](benchmarks/rallies/README.md#held-out-check):
-  - a whistle threshold per video;
-  - "ball still in play" from contacts;
-  - authorization whistles never closing a rally.
-- [ ] Contact pixel thresholds: rerun the sweep for 4K 50 fps.
-
-## Setup
-
-### Requirements
-
-- Training and match processing run on an NVIDIA GPU (RTX 5080), in WSL2 with Ubuntu.
-- The Windows NVIDIA driver covers WSL2: do not install a Linux driver.
-- The locked PyTorch is the CUDA 13 build. It supports the RTX 50 series and needs a recent driver
-  (R580 or later).
-- Code can be written on any machine and run on the GPU machine over SSH (e.g. VS Code Remote-SSH).
-- Older repositories pinning older PyTorch or TensorFlow versions are ported to this environment
-  rather than run as-is.
-
-### Install
-
-On the Windows PC:
+You need a GPU (NVIDIA, or Apple Silicon at a slower pace), [`uv`](https://docs.astral.sh/uv/) and
+`ffmpeg`.
 
 ```bash
-wsl --install -d Ubuntu-24.04                     # in PowerShell, then reboot
-# in Ubuntu:
-sudo apt update && sudo apt install -y ffmpeg git
-curl -LsSf https://astral.sh/uv/install.sh | sh
-git clone https://github.com/josselinbuils/volleyball-stats.git && cd volleyball-stats
+git clone https://github.com/josselinbuils/volleyball-stats.git
+cd volleyball-stats
 uv sync
-uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name())"
-uv run python benchmarks/speed.py VIDEO          # projected processing time of a match
 ```
 
-### Performance
+On Windows, run it in WSL2: see [Setup](docs/setup.md).
 
-- **Keep the videos in the Ubuntu file system** (`~/`), not under `/mnt/c`: reading Windows files
-  from WSL2 is several times slower.
-- **One reading of the video:** `ffmpeg` decodes it once for both the ball and the players, on the
-  graphics card (NVDEC) when it can, shrinking the frames to 1280 px before the models.
-  `sudo apt install ffmpeg` in WSL2 is enough for NVDEC.
-- **Processing time:** `speed.py` compares that reading with the old two readings and projects both
-  over a 2-hour match. On the M4 Pro the models set the pace (7.8 h instead of 8.4 h for 2 hours of
-  4K 50 fps). The RTX 5080 should run them several times faster, so the saved reading matters more
-  there.
-- **Memory:** a 2-hour match at 50 fps needs about 8 GB of RAM at its peak, the identity step
-  holding the players' rows (`benchmarks/scale.py` measures each step on a synthetic long match).
-- **WSL2 memory:** WSL2 gets half of the PC's RAM by default. With 16 GB, raise it in
-  `%UserProfile%\.wslconfig` (`[wsl2]`, then `memory=12GB`) and restart WSL (`wsl --shutdown`).
+### 2. Film a match
 
-## Process a match
+One fixed camera on a sideline, in line with the net, about 6 m away and 3.6 m high, framing both end
+lines. Film in 4K (2.7K minimum) at 50 fps with the exposure locked. See [Recording](docs/recording.md)
+for the stand, the camera settings and the lens calibration.
 
-### Import a match
+### 3. Import it
 
 ```bash
-uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "NAME_1[:COLOUR],NAME_2[:COLOUR]" [--from TIME] [--to TIME] [--date DATE]
+uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "Home:navy,Away:white"
 ```
 
-It joins the camera's chapters without re-encoding, cut at the times given in the joined video, into
-`data/MATCH/MATCH.mp4`, where `MATCH` is the name of the match's hosted page (date and teams), and starts
-`outputs/MATCH/` with `teams.json`. The first team is the one on the left at the first rally: check
-`outputs/MATCH/start.jpg`. The card is only read.
+It joins the camera's files into `data/MATCH/MATCH.mp4` and starts `outputs/MATCH/`, where `MATCH` is
+the match's date and teams, e.g. `2026-11-08-home-vs-away`. The first team is the one on the left at the
+first rally.
 
-Change a team's name in the review and the match follows: its folders, video and backups take the new name, and the next upload moves
-its hosted page, with a redirect from the old address. `uv run python -m volleyball_stats.rename outputs/MATCH [NEW_NAME]` does the same without the review.
+### 4. Map the court
 
-### 1. Map the court
+Once per gym: click roughly on the court lines, and the fit snaps them to the painted lines.
 
 ```bash
-uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
-uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens docs/lens_osmo_action3_standard_4k.json]
-uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
+uv run python -m volleyball_stats.court click data/MATCH/MATCH.mp4
+uv run python -m volleyball_stats.court fit outputs/court/MATCH_clicks.json data/MATCH/MATCH.mp4 \
+  --court my_gym
 ```
 
-- **First match on a court:** `click`, then `fit`. It writes `outputs/courts/NAME.json`.
-- **Next matches on that court:** `auto` recognises it, even when the stand moved a little. It
-  writes `outputs/court/VIDEO.json`.
+The next matches in that gym use `court auto` instead.
 
-Either file is the `--court` of the next steps.
-
-### 2. Run the pipeline
+### 5. Run the pipeline
 
 ```bash
-uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE] [--sets M:SS,...] [--scores 25-21,...] [--squad N[,N]]]
+uv run python -m volleyball_stats.match data/MATCH/MATCH.mp4 \
+  --court outputs/courts/my_gym.json --players
 ```
 
-`match` writes to `outputs/VIDEO/`:
+This is the long step: hours for a 2-hour match.
 
-- the ball track, rallies, typed contacts, net crossings and a report;
-- the actions CSV: each contact with its type and side of the net.
-
-`--players` adds the players, from the same reading of the video as the ball:
-
-- **Teams:** each contact gets the team on its side (actions CSV `team`), each rally the team on the
-  left and its set (rallies CSV `left`, `set`). The report counts per team and per set instead of
-  per side.
-- **Identities:** each player gets one identity for the whole match, numbered 1, 2, ... per team
-  (`identities.csv`, actions CSV `identity`; see the
-  [identity benchmark](benchmarks/identity/README.md)).
-- **Score:** each rally's winner and the running score of its set (`points.csv`; see the
-  [points benchmark](benchmarks/points/README.md)).
-- `--squad` gives the number of players of each team when known (team 1 first): the identities to
-  find.
-
-#### Teams, date, title, sets and scores
-
-Team 1 is the team on the left of the camera at the first rally. Teams keep their names when they
-change ends, at a set break or a timeout. Kits may differ within a team: a player's team is their
-side of the net. Two teams in the same kit (two teams of one club) are taken to change ends at every
-set break, as the rules say, and only then.
-
-`outputs/VIDEO/teams.json` holds:
-
-| Field | Value | Default (`null`) |
-| --- | --- | --- |
-| Names | Team names | "Team 1" / "Équipe 1" |
-| `colour` | Team colours | The detected `jersey` colour |
-| Date | `"yyyy-mm-dd"` | The video's recording date |
-| Title | The match's title | "Match NAME_1 vs NAME_2", translated on the page |
-| Set starts | `"m:ss"`, the first set 1's: the rallies before it (the warm-up) are left out | The detected set starts, the first `"0:00"` |
-| Final scores | `"25-21"`, team 1 first | Unknown |
-| `end` | `"m:ss"`, the end of the match ("Fin du match" in the review's Match tab): what follows is left out | The end of the video |
-
-The first run writes it, from the first source available:
-
-1. **The flags:**
-   - `--teams` for the names and colours: the first name is the team on the left at the first rally;
-     a colour is `#rrggbb` or a name such as `white`, `navy`, `rouge`, `marine`;
-   - `--date`, `--title`, `--sets` and `--scores`.
-2. **Questions on a terminal:** it opens an image of a few players of each team and asks for their
-   names and colours, then the date (dd/mm/yyyy or yyyy-mm-dd), the title, each set's start and its
-   final score. Enter keeps the default.
-3. **The defaults.**
-
-Later runs reuse the file. To fix something, either:
-
-- edit the file: a name, a colour, the date, the title, a set start or a score;
-- or pass the flags again (`--title ""` goes back to the default title).
-
-A new set starts when the teams change ends after a set break (see the
-[teams benchmark](benchmarks/teams/README.md)). Teams that keep their ends between sets get no new
-set: give the set starts with `--sets` or at the prompt. The final scores show on the page once a set is
-over, and the report gives the estimated score's drift from them.
-
-### 3. Review and name the players
+### 6. Review and name the players
 
 ```bash
-uv run python -m volleyball_stats.review                 # opens on the list of the matches
-uv run python -m volleyball_stats.review outputs/VIDEO   # opens on this match
+uv run python -m volleyball_stats.review outputs/MATCH
 ```
 
-The list shows the matches `match --players` has run on (`outputs/VIDEO/source.json` holds their video and court), one still
-being processed greyed out; "Changer de match" goes back to it from a review. Choosing another match restarts the server on it,
-which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved.
+It opens a page in your browser, on this machine only. Name each player from their pictures, answer the
+questions it asks about the players it is unsure of, then apply: the match page is rebuilt in seconds.
 
-`review` opens, on this machine only, on the **"Noms" tab** (below), then asks about the players the
-identity step is least sure of, most at stake first. Each question shows the player outlined on a
-looping video, zoomed on them ("Voir toute l'image" for the whole frame), and pictures of the
-players they could be, with the names already given.
+### 7. Open the match page
 
-| Key | Answer |
+```bash
+uv run python -m volleyball_stats.web outputs/MATCH --video data/MATCH/MATCH.mp4 \
+  --court outputs/courts/my_gym.json --theme none
+```
+
+Open `outputs/MATCH/site/index.html`. `--theme` takes your club's colours and logo (see
+[`branding/brand.example.json`](branding/brand.example.json)), `--footage` adds the video, and the same
+files can be hosted as they are.
+
+Every option of every step: [Processing a match](docs/processing.md).
+
+## Documentation
+
+| Guide | What it covers |
 | --- | --- |
-| 1, 2 | That number |
-| 3 | Someone else |
-| X | Not a player |
-| S | Don't know |
+| [Setup](docs/setup.md) | Requirements, install on WSL2 or macOS, processing time and memory |
+| [Recording](docs/recording.md) | Camera placement, hardware, settings, lens calibration |
+| [Processing a match](docs/processing.md) | Import, court, pipeline, review, page build and hosting, with every option |
+| [The match page](docs/match-page.md) | Each section of the page, how each statistic is counted, changing the page |
+| [Pipeline](docs/pipeline.md) | Each step's method and benchmark, accuracy, prior art |
+| [Literature](docs/literature.md) | Scientific work per pipeline step, with recommendations |
 
-For two numbers never on court together: 1 for the same person, 2 for two people.
-
-- **Answers** are saved at once to `identity_answers.json` and hold as hard constraints. Undoing one
-  not applied yet is instant.
-- **"Ou choisissez qui c'est"** answers a question with any player of either team: type part of a
-  name, Enter picks the one left. **"La personne change ici"** (C), the clip paused when the outlined
-  person changes, cuts the piece of track there into two players.
-- Only doubts with 10 s or more at stake are asked (a touch counting as 10 s): the questions end.
-- **A warning** shows the players holding two names after an apply, with the answers joining them:
-  a filmstrip of each piece (two people: cut between them; one: forget the answer whose name does not
-  match), and every answer pinned on those names, each correctable. An answer that would join two
-  named players asks first.
-- **"Plus d'images de …"** on a card shows the 24 pieces looking most like the player (same team,
-  never on court at the same time as their card's pictures): click those showing someone else and
-  confirm, the rest are them.
-- **The keyboard** in "Noms": ↑ ↓ between cards, ← → between pictures, Space marks a picture (type the
-  name, Enter), N names the player.
-- **Jersey numbers** (footage of 1440p or more) join the pieces read with one number and part two
-  numbers: a step of `match`, about an hour on 4K, writes `jerseys.csv`, kept for the next runs and
-  read by every apply. "Noms" fills the number read and suggests first the roster's player wearing
-  it; a card without one takes what its pictures read (`jersey_pictures.json`).
-  Each team's numbers are its own. RapidOCR reads the torsos; a piece keeps a number read
-  twice and never contradicted, and a number seen on two pieces at once (two people wear it) joins
-  nobody.
-  A piece your answers give another number's player follows the answer alone.
-- **The score board** the scorer flips near the camera is read before each serve (RapidOCR, a step of
-  `match`, `scoreboard.csv`, kept for the next runs): the review reports the rally after which the
-  running score parts from it ("Score après l'échange différent du tableau", `review.board_off`).
-- **Apply** shows its steps on a progress bar; pictures are cut ahead and kept in
-  `outputs/VIDEO/crops/`.
-- **Apply** comes back without waiting for the players' pictures and the jersey numbers they read:
-  they follow in the background, each kept (`photo_moments/`, `jersey_pictures.json`) under a stamp of
-  the video, the code and the locked dependencies, so a change of any of them makes them again.
-- **A picture showing someone else**, in a question or in "Noms": click it, then say who it is if you
-  know, or that it is not a player. On "Apply", that piece of track becomes that player (or someone
-  else, or no one) and leaves the other pictures' player. A player whose pictures are all marked is
-  no longer offered, and players with the same name are offered once. A name or a choice pinned on
-  a picture marked as someone else moves to the player's first picture left.
-- **"Apply"** (or "undo") reruns the identity step and rebuilds the match page in seconds, keeping
-  the other numbers.
-- **The identity step also reruns alone:**
-  `uv run python -m volleyball_stats.identity outputs/VIDEO --video VIDEO [--squad N[,N]]`.
-
-The **"Noms" tab** names the players: pictures of each one, a name and an optional jersey number,
-which the page then shows instead of the match number.
-
-- Names are saved at once to `player_names.json` and apply like answers: one name is one player, two
-  names two, so naming two numbers alike joins them.
-- Applying also updates the roster (`--roster`, `outputs/roster.json` by default, outside the
-  repository since it names people): each named player's appearance over their last 5 matches. Its players follow a team's name
-  however it changes.
-- "Noms" offers both teams' names: one of the other team moves the card there on "Apply".
-- The next matches suggest names from it, to confirm with a click. On two clips of the same club,
-  the right name came first for 7 of 12 players, and among the 3 shown for 9.
-- Answers and names refer to pieces of player tracks: tracking the players again (`--force`) drops
-  them.
-
-### 4. Build the match page
+## Development
 
 ```bash
-uv run python -m volleyball_stats.web outputs/VIDEO --video VIDEO --court CALIBRATION_JSON [--club N] [--footage none|full|blur-opponents|blur-all] [--pictures] [--copy-video] [--theme NAME]
+uv run pytest -q                                  # Python tests
+cd web && npm install && npm test && npm run build   # the page (Node 22), its build committed
 ```
 
-`web` builds the page in `outputs/VIDEO/site/`: open `index.html` (French by default).
+Each pipeline step has a benchmark in [`benchmarks/`](benchmarks): change a step, run its benchmark,
+compare the numbers before and after.
 
-| `--footage` | The page shows |
-| --- | --- |
-| `none` (default) | No video: every moment replays on an animated top view of the court |
-| `full` | The video |
-| `blur-opponents` | The video, with the team other than `--club` (your team, 1 or 2) pixelated |
-| `blur-all` | The video, with both teams pixelated |
+## Privacy
 
-- **Blurring** (`volleyball_stats.blur`) pixelates the tracked players' boxes, carried across
-  tracking gaps. People never tracked, such as the bench or the public, stay visible. The blurred
-  copy is kept beside the outputs.
-- **`--pictures`** puts your team's players' pictures on their cards. Without it, the cards show a
-  silhouette.
-- **`--theme`** picks a club theme, `branding/NAME/brand.json` with its logo (default `aspom`, `none`
-  for the neutral one; see `branding/brand.example.json`): logo and club name in a band at the top
-  linking to `url`, accent colours, page and card styles per colour scheme.
-- **Choices are saved** in `outputs/VIDEO/page.json`: rebuild with only the flag to change
-  (`--no-pictures`, `--footage none`...). A build with `--out` (to host) neither reads nor saves
-  them: no video nor pictures unless its own flags ask.
-- **The review page** builds its own copy with the video in `outputs/VIDEO/review/`, and rebuilds the
-  published page on "apply".
-
-## The match page
-
-### Replay
-
-- The match's title and date head the page.
-- Every number and chart element plays its moments in the video or on the animated court.
-- Above the video: the set and its score (estimated, or the final score you gave once the set is
-  over).
-- The video player skips 10 s back or forward.
-- Beside it, the court seen from above follows the play: the players, the ball with a trail as long
-  as it is fast, and a ring around the player touching it.
-- Each player keeps one mark for the whole match: their number, then once named their jersey number, or without one
-  their initials (two letters when two teammates without a jersey share one).
-- **3D view:** a switch turns the court into a 3D scene to turn around with the pointer (three.js, in
-  its own `scene3d.js` loaded only then):
-  - the players as figures jumping to attack and block;
-  - the ball's height reconstructed, each flight rising as high as gravity requires for its duration,
-    and over the net when it crosses it, each touch at a typical height for its action.
-
-### Mon match and L'histoire du match
-
-"Mon match": a viewer picks their name (remembered on that device) and sees what they did, their touches
-to replay, their best points, their run on serve, who sets whom and their card to save. "L'histoire du
-match": the score gap rally by rally, a few plain sentences per set and the key moments (runs of 5 points,
-deficits of 4 caught up, set points saved, the longest rally), each replaying. Both follow the set filter.
-
-### Les trophées
-
-Awards for what players did well, never for faults, from a minimum so that none goes to next to nothing;
-a tie shares one. Each replays its moments. Most touches, winning attacks, winning blocks, aces, digs, sets
-and perfect receptions, the longest run on serve, the setter and attacker with the most winning attacks, and
-the longest rally.
-
-### Mode TV
-
-The view's "TV" switch films the match like a broadcast, in a 3D model of the first match's gym, with no footage, so the
-whole match can be public without anyone's consent. "Regarder le match" plays every rally of the set shown, one after another.
-
-- **Ball:** each flight is an arc under gravity between two touches, each touch placed in 3D where the path best matches
-  the ball in the video (`ball3d.py`, `ball3d.js` on the page, loaded with the 3D view). It needs the camera's lens: without
-  it, typical heights per action stay. `benchmarks/ball3d/bench.py` scores it.
-- **Director** (`Watch/helpers/director.ts`, a function of the time alone, so pausing and jumping just work): behind the
-  server, then a wide shot following the ball, a cut to the net's side from each set to the attack.
-- **Players** (`Watch/helpers/pose.ts`, in the plain 3D view too): they run as fast as the tracking says and make each
-  action's gesture around its real contact: jumping to the ball's height, lunging up to 1.2 m towards it when it is within
-  2.5 m. The gestures are illustrative, not the player's own technique. A serve starts in the server's hand.
-- **Replays:** in the real pauses between rallies, slowed down, through the eyes of who scored: aces, winning blocks, attacks
-  ending a long rally or a set, and one winning attack in four otherwise.
-- **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions, naming who
-  did something, who scored and who gave a point away.
-- **Voice:** a script for speech (`speech.py`), in French, calling every named touch, in full when there is room before the next and
-  else by the player's name, spoken on request by a voice generated on this machine: Kokoro,
-  the SIWIS voice at 1.2 times its speed. `uv run --group voice python -m volleyball_stats.voice outputs/MATCH` makes the audio missing
-  in `outputs/MATCH/voice/` (`spoken.json` there spells names for it, never committed), then build the page: a build keeps the lines
-  still true of the match, so run it again after a review's changes. Without audio, or in English, the browser's voice.
-
-### Le coin du coach
-
-Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number.
-
-- what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
-  team's last touch scoring), with the other team's count and a tip;
-- who sets whom: each setter from 5 sets and who attacks right after, the winners in green.
-
-### Statistics
-
-The "Statistiques" table gives, team by team, each player's and the whole team's:
-
-- touches;
-- serves: aces (nobody touches it, or the first receiver loses it with no touch after), faults;
-- receptions and digs: faults (an ace counts against the receiver nearest to where it landed), and
-  those after which the team did not attack;
-- receptions: a rating out of 3 from where the next touch is played: 3 within 1.5 m of the setter's
-  target (1 m off the net, between zones 2 and 3), 2 within 3 m, 1 further or sent straight over the
-  net, 0 for a fault;
-- sets: attacked right after, assists (a teammate's winning attack right after), faults;
-- attacks: winning, faults, and from 5 attacks a rating out of 5: 5 winning, 4 in play with no counter-attack, 2 with one, 1 blocked,
-  0 another fault;
-- free balls: faults;
-- blocks;
-- digs: from 5 digs a rating out of 5, as for receptions;
-- "Bilan": points, faults, and "Entre deux": the balls that landed in untouched within 2.5 m of two
-  teammates about as close as each other, the pair on hover.
-
-Its "Analyse" group lists each player's main thing to work on, its largest gap with the rest of the team, and, the rarest in their team first, two strengths at most, beside the MVP's badge:
-the rates at least 20 points above the rest of their team's; how present they are for their time on the court (on every ball,
-in defence); how reliable (serve, attack, few faults); tough serves; sets followed by an attack; assists, winning blocks, points when the score is
-high and close, the most points in the team, and playing all around. Each is earned from a minimum, from 5 attempts on each side
-for a rate, so a player can have none.
-
-"Mon match" shows the picked player's FIFA-style card, with their picture from the
-video (`site/players/`: the clearest moment of their longest stretch on court, 3 wide for 4 tall).
-
-Without player tracks, everything counts each side of the net instead of each team.
-
-### Display
-
-- **Team colours:** everything is split by team, in each team's jersey colour. A colour too close to
-  the background is outlined in grey; Team 2's changes when the two look alike.
-- **Set filter:** with several sets, one filter at the top of the screen shows a single set. Every
-  section follows it, and the video's timeline then covers that set only.
-- **Theme:** a switch next to the language picks the light, dark or automatic theme (the system's,
-  by default), remembered by the browser.
-- **Loading:** the players' positions come in one file a minute (`positions/N.js`), loaded as the replay reaches them, the next one a little ahead; the balls dropped between two players read theirs from `data.js`.
-
-### Hosting
-
-The same files open from disk and host well (Lighthouse mobile performance 98 with gzip).
-
-The hosted page has no password, so it never carries real footage or player pictures (nor anything
-cut from them) without every player's consent. To host the matches:
-
-1. Build each one with `--footage none --no-pictures --out SITE/NAME`, any NAME.
-2. List them, newest first, on `SITE/index.html`: `uv run python -m volleyball_stats.matches SITE`
-   (again after each new match). It renames each folder after the match's date and teams' names,
-   its address: `SITE/2026-10-25-aspom-begles-vs-talence/`. A new build of a match replaces its
-   folder.
-3. Copy `SITE` to a server that supports gzip (nginx does).
-4. Set long cache headers on `assets/`.
-
-With every player's consent, `--footage ... --copy-video` adds the video: the server then needs HTTP
-range requests too.
-
-### Change the page
-
-The page is a React + shadcn/ui app in `web/`. Its build is committed in
-`src/volleyball_stats/site/`, so processing a match needs no Node.
-
-```bash
-cd web
-npm install
-npm run dev      # reads web/public/data.js, copied from a built match
-npm test
-npm run build    # updates src/volleyball_stats/site/ and matches_site/
-```
-
-## Pipeline
-
-Each step is scored against hand labels in `benchmarks/`; to label a new setup's match, see
-[docs/kili_labelling.md](docs/kili_labelling.md).
-
-| Step | What it does | Starting point |
-| --- | --- | --- |
-| 1. Rallies | Find when the ball is in play, drop dead time | Ball-track runs closed by the referee's whistle ([benchmark](benchmarks/rallies/README.md)) |
-| 2. Court | Map pixels to court coordinates | Lens undistortion + homography: rough clicks once per court, snapped to the painted lines; known courts recognised automatically when the stand moves a little ([benchmark](benchmarks/court/README.md)) |
-| 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](benchmarks/ball/README.md)); contacts from velocity changes with gravity removed ([benchmark](benchmarks/contacts/README.md)) |
-| 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](benchmarks/actions/README.md)) |
-| 5. Players | Detect and track players, tell the teams apart, attribute each contact | YOLO11m + BoT-SORT + an offline pass joining and filtering tracks ([benchmark](benchmarks/players/README.md)); teams from the side of the net, followed from rally to rally by the tracks crossing each break and, after a long break, by the players' looks (by the rules when both teams wear the same kit), so kits may differ within a team; sets from the changes of ends ([benchmark](benchmarks/teams/README.md)); toucher = nearest box on the contact's side, an arm above for serves, attacks and blocks ([benchmark](benchmarks/attribution/README.md)) |
-| 6. Identity | Merge tracklets into one identity per player for the match | Tracks cut at crowd episodes, OSNet re-ID embeddings whitened per team, a time-ordered assignment under cannot-links (seen together, too far to run), one number per track inside a rally; jersey numbers read on 4K footage as constraints; dimensions weighted by how well they tell apart the players the review confirms ([benchmark](benchmarks/identity/README.md)) |
-| 7. Naming | Name each identity once, suggest names across matches | The review page's "Noms" tab; a roster of re-ID embeddings per named player |
-| 8. Stats | Per-player counts and outcomes, reception ratings, balls dropped between two players, strengths and things to work on | The page's "Statistiques" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands; a reception's rating from where the next touch is played; the players' positions where an untouched ball lands; a player's rates compared with the rest of their team's |
-
-## Roadmap
-
-Every step of the pipeline runs, benchmarked on YouTube clips of another club (720p, 30 fps). Next:
-
-1. Film a first match (with the players' consent) and work through the checklists above.
-2. Measure `benchmarks/speed.py` on the RTX 5080.
-3. Tune on that 4K footage:
-   - rally detection: it misses about a third of the held-out clip's rallies;
-   - how rallies end;
-   - contacts at 50 fps;
-   - jersey numbers as identity clues.
-4. Later: stats over several matches per named player, attack efficiency, a second camera on the
-   opposite sideline if the far side is unreliable.
-
-Each step is checked on real footage against a manual scout of the same rallies. For reference, a
-fixed-camera semi-automatic system reached 77% agreement with human scouting
-([UFP thesis, 2026](https://bdigital.ufp.pt/bitstreams/9e2cbd9e-89d4-4191-a1bc-7a0533e97f9f/download)).
-
-## Prior art
-
-- [shukkkur/VolleyVision](https://github.com/shukkkur/VolleyVision) (AGPL-3.0): ball tracking,
-  court detection, action recognition.
-- [Shaamallow/VolleyVision](https://github.com/Shaamallow/VolleyVision): ball tracking, YOLOv8
-  action model.
-- [masouduut94/volleyball_analytics](https://github.com/masouduut94/volleyball_analytics)
-  (GPL-2.0): ball and action detection.
-- [haotianxia/VolleyStats](https://github.com/haotianxia/VolleyStats) (Apache 2.0): stats on top of
-  [tprlab/vball](https://github.com/tprlab/vball).
-- [SFU Volleyball dataset](https://github.com/mostafa-saad/deep-activity-rec): annotated frames
-  with player actions.
-- [DL-Volleyball-Analysis](https://github.com/DL-Volleyball-Analysis/volleyball-analysis) (MIT):
-  the same goal, with per-stage numbers.
-- Commercial: Balltime / Hudl Assist.
-
-Scientific literature per pipeline step, with recommendations: [docs/literature.md](docs/literature.md).
+Published footage, player pictures or datasets require the consent of every filmed player (parents for
+minors), opponents included. The page shows no video and no player picture unless asked to.
 
 ## License
 
 [AGPL-3.0](LICENSE), so AGPL dependencies such as Ultralytics YOLO and VolleyVision can be reused.
 GPL-2.0-only code, such as volleyball_analytics, is incompatible: reference only.
-
-## Privacy
-
-Published footage or datasets require the consent of every filmed player (parents for minors),
-opponents included.
