@@ -38,13 +38,16 @@ export interface MatchList {
 }
 
 /** The match pages, newest first, each a card linking to it. */
+// The season's own address: the list's with this hash.
+const SEASON = '#saison';
+
 export function Matches({ matches, brand, review = false }: MatchList) {
   const { t } = useTranslation();
   const f = useFormat();
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const [view, setView] = useState<'matches' | 'season'>('matches');
   const hasSeason = seasonTeams(matches).length > 0;
+  const [view, setView] = useState<'matches' | 'season'>(() => (hasSeason && location.hash === SEASON ? 'season' : 'matches'));
   const open = (name: string) => {
     setOpening(name);
     setFailed(false);
@@ -86,6 +89,7 @@ export function Matches({ matches, brand, review = false }: MatchList) {
             onValueChange={(v) => {
               if (v) {
                 setView(v as 'matches' | 'season');
+                history.replaceState(null, '', v === 'season' ? SEASON : location.pathname + location.search);
               }
             }}
             aria-label={t('season.view')}
