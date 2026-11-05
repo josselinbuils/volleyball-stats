@@ -100,6 +100,10 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
             if old in player.get("vectors", {}):
                 player["vectors"][new] = player["vectors"].pop(old)
         files.write_text(roster, json.dumps(saved, ensure_ascii=False) + "\n")
+    # The learned attribution's pose cache (benchmarks/attribution/ranker.py): about a second a touch to recompute.
+    poses = files.root(target) / "benchmarks" / "ranker" / f"{old}_wrists.json"
+    if poses.exists():
+        poses.rename(poses.with_name(f"{new}_wrists.json"))
     shutil.rmtree(outputs / ".review_matches", ignore_errors=True)
     return target
 

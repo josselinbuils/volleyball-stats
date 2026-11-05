@@ -99,6 +99,16 @@ class TestRename:
 
         assert json.loads((tmp_path / "outputs" / "roster.json").read_text())["players"][0]["vectors"] == {"new": [1.0], "other": [2.0]}
 
+    def test_moves_the_learned_attribution_s_pose_cache(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path, monkeypatch)
+        cache = tmp_path / "outputs" / "benchmarks" / "ranker"
+        cache.mkdir(parents=True)
+        (cache / "old_wrists.json").write_text("{}")
+
+        rename_match(match, "new", tmp_path / "data")
+
+        assert sorted(p.name for p in cache.iterdir()) == ["new_wrists.json"]
+
     def test_refuses_with_nothing_moved(self, tmp_path, monkeypatch):
         match = self.match(tmp_path, monkeypatch)
         data = tmp_path / "data"
