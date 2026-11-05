@@ -20,15 +20,22 @@ from pathlib import Path
 from volleyball_stats import matches
 
 ROOT = "/root/backups/volleyball-stats"
-# Old copies of the results, the pages built from them (the review's links the video), half-written files.
-SKIP = ("backup-*", "review", "site", "films", "photo_moments", ".*.tmp")
+# Old copies of the results, the pages built from them (the review's links the video), half-written files, the review's
+# marker of a page waiting for its pictures (review.STALE_PHOTOS), made and removed as it builds.
+SKIP = ("backup-*", "review", "site", "films", "photo_moments", ".*.tmp", "photos_stale")
 SPONSORS = Path("branding/aspom/sponsors")
 KEEP = 30
 # Under this, no copy: the server also runs the owner's websites.
 MIN_FREE_GB = 5
 TIMEOUT_S = 3600
-# rsync: a file vanished while it read the folder (the review writing); the next copy takes it.
+# rsync: a file vanished while it read the folder (the review writing); the next copy takes it. The Mac's openrsync says it
+# as a file it could not open.
 VANISHED = 24
+
+
+def vanished(stderr: str) -> bool:
+    lines = [line for line in stderr.splitlines() if line.strip()]
+    return bool(lines) and all("No such file or directory" in line for line in lines)
 DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
@@ -84,7 +91,7 @@ def backup(match: Path, day: str | None = None, root: str = ROOT) -> None:
     days = sorted(d for d in found[1:] if DAY.fullmatch(d))
     previous = next((d for d in reversed(days) if d != day), None)
     run = subprocess.run(rsync_command(sources(match), host, ssh, root, day, previous), capture_output=True, text=True, timeout=TIMEOUT_S)
-    if run.returncode not in (0, VANISHED):
+    if run.returncode not in (0, VANISHED) and not vanished(run.stderr):
         raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
     old = stale(sorted({*days, day}))
     if old:

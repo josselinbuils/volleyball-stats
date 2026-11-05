@@ -1887,20 +1887,32 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     fetched_log: dict = {}
     backed: dict = {}
 
+    backup_lock = threading.Lock()
+
+    def back_up() -> bool:
+        """A copy on the hosting server now, its time or failure for the page; whether it was made. One at a time: the page
+        can ask for one while the timer makes another."""
+        with backup_lock:
+            try:
+                backup.backup(match)
+                backed.update(at=time.strftime("%H:%M"), error=None)
+                return True
+            except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
+                backed.update(at=time.strftime("%H:%M"), error=str(error) or type(error).__name__)
+                print(f"backup failed: {backed['error']}", flush=True)
+                return False
+
     def backing() -> None:
-        """A copy on the hosting server whenever something changed, the last one's time or failure
-        for the page."""
+        """A copy whenever something changed."""
         last = None
         while True:
             try:
                 now = backup.signature(backup.sources(match))
-                if now != last:
-                    backup.backup(match)
-                    last = now
-                    backed.update(at=time.strftime("%H:%M"), error=None)
-            except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
-                backed.update(at=time.strftime("%H:%M"), error=str(error) or type(error).__name__)
-                print(f"backup failed: {backed['error']}", flush=True)
+            except OSError:
+                # A file gone while it was read: the next round reads them again.
+                now = None
+            if now is not None and now != last and back_up():
+                last = now
             time.sleep(BACKUP_EVERY_S)
 
 
@@ -2150,6 +2162,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if self.path == "/failure":
                 failure.clear()
                 return self.send(b"{}", "application/json")
+            if self.path == "/backup":
+                back_up()
+                return self.send(json.dumps(backed).encode(), "application/json")
             if self.path == "/open":
                 if progress:
                     return self.send(b'{"error":"busy"}', "application/json", 409)

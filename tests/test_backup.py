@@ -1,6 +1,6 @@
 import os
 
-from volleyball_stats.backup import rsync_command, signature, sources, stale
+from volleyball_stats.backup import rsync_command, signature, sources, stale, vanished
 
 
 class TestSources:
@@ -23,6 +23,7 @@ class TestSignature:
         assert first == (1, 100)
         (tmp_path / "site" / "data.js").write_text("b")
         (tmp_path / ".answers.json.1.tmp").write_text("c")
+        (tmp_path / "photos_stale").touch()
         assert signature([tmp_path]) == first
         os.utime(tmp_path / "answers.json", (200, 200))
         assert signature([tmp_path]) == (1, 200)
@@ -30,6 +31,13 @@ class TestSignature:
     def test_a_link_to_the_video_is_not_read(self, tmp_path):
         (tmp_path / "video.mp4").symlink_to(tmp_path / "gone.mp4")
         assert signature([tmp_path]) == (0, 0.0)
+
+
+class TestVanished:
+    def test_a_file_gone_during_the_copy_is_no_failure(self):
+        assert vanished("rsync(63518): error: outputs/m/photos_stale: open (2) in /x: No such file or directory\n")
+        assert not vanished("ssh: connect to host 1.2.3.4 port 22: Connection refused\n")
+        assert not vanished("")
 
 
 class TestStale:

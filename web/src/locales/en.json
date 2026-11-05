@@ -479,7 +479,9 @@
     "fetched_zero": "No new report at {{at}}",
     "fetched_one": "{{count}} new report loaded at {{at}}",
     "fetched_other": "{{count}} new reports loaded at {{at}}",
-    "fetchFailed": "The reports could not be loaded at {{at}}: try again later."
+    "fetchFailed": "The reports could not be loaded at {{at}}: try again later.",
+    "backupRetry": "Retry",
+    "backingUp": "Backing up…"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -730,7 +732,7 @@
     "wins_other": "{{count}} wins",
     "losses_one": "{{count}} loss",
     "losses_other": "{{count}} losses",
-    "intro": "The team's results, then what each player brings, match after match."
+    "intro": "The team's results and how its players progress, match after match."
   },
   "feedback": {
     "open": "Report a problem in this moment: one click is enough, details are optional",

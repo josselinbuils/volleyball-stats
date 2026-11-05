@@ -479,7 +479,9 @@
     "fetched_zero": "Aucun nouveau signalement à {{at}}",
     "fetched_one": "{{count}} nouveau signalement chargé à {{at}}",
     "fetched_other": "{{count}} nouveaux signalements chargés à {{at}}",
-    "fetchFailed": "Les signalements n'ont pas pu être chargés à {{at}} : réessayez plus tard."
+    "fetchFailed": "Les signalements n'ont pas pu être chargés à {{at}} : réessayez plus tard.",
+    "backupRetry": "Réessayer",
+    "backingUp": "Sauvegarde en cours…"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
@@ -730,7 +732,7 @@
     "wins_other": "{{count}} victoires",
     "losses_one": "{{count}} défaite",
     "losses_other": "{{count}} défaites",
-    "intro": "Les résultats de l'équipe, puis ce que chaque joueur apporte au fil des matchs."
+    "intro": "Les résultats de l'équipe et l'évolution des joueurs au fil des matchs."
   },
   "feedback": {
     "open": "Signaler un problème sur ce moment : un clic suffit, les détails sont facultatifs",

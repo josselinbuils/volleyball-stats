@@ -266,6 +266,7 @@ export async function post(
     | 'answer'
     | 'comment'
     | 'pick'
+    | 'backup'
     | 'timeout'
     | 'name'
     | 'odd'

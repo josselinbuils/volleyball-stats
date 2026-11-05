@@ -77,6 +77,8 @@ export function ReviewHeader({
   answered,
   hosted,
   backup,
+  backingUp = false,
+  onBackup,
   fetched,
   filmsError,
   films,
@@ -89,6 +91,10 @@ export function ReviewHeader({
   answered: number;
   hosted?: Hosted | null;
   backup?: { at: string; error: string | null } | null;
+  /** A copy asked for is being made. */
+  backingUp?: boolean;
+  /** Makes a copy now. */
+  onBackup?: () => void;
   fetched?: { at: string; count: number; error: string | null } | null;
   filmsError?: string | null;
   films: FilmCounts;
@@ -182,9 +188,15 @@ export function ReviewHeader({
         <span>{t('review.answers', { count: answered })}</span>
         {backup && (
           <Tip label={backup.error ?? undefined}>
-            <span className={cn(backup.error && 'text-destructive')}>
+            <span className={cn('inline-flex items-center gap-1.5', backup.error && 'text-destructive')}>
               <Dot />
-              {backup.error ? t('review.backupFailed', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
+              {backingUp ? t('review.backingUp') : backup.error ? t('review.backupFailed', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
+              {backup.error && onBackup && (
+                <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={backingUp} onClick={onBackup}>
+                  <RefreshCw aria-hidden />
+                  {t('review.backupRetry')}
+                </Button>
+              )}
             </span>
           </Tip>
         )}

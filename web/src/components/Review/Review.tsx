@@ -74,7 +74,7 @@ export function Review({
   learning = [],
   comparison = null,
   fetched,
-  backup,
+  backup: savedBackup,
   films: savedFilms,
   filmsError,
 }: {
@@ -201,6 +201,21 @@ export function Review({
     } catch {
       setError(true);
       return false;
+    }
+  };
+
+  const [backup, setBackup] = useState(savedBackup);
+  const [backingUp, setBackingUp] = useState(false);
+  const retryBackup = async () => {
+    setBackingUp(true);
+    try {
+      // The server answers with the copy's time or failure.
+      setBackup((await post('backup')) as unknown as { at: string; error: string | null });
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setBackingUp(false);
     }
   };
 
@@ -387,6 +402,8 @@ export function Review({
           answered={answered}
           hosted={hosted}
           backup={backup}
+          backingUp={backingUp}
+          onBackup={() => void retryBackup()}
           fetched={fetched}
           filmsError={filmsError}
           films={films}
