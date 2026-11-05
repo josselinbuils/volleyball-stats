@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { CountButton } from '@/components/CountButton';
-import { GitHubLink } from '@/components/GitHubLink';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { clock, ofName, useFormat } from '@/lib/format';
@@ -73,10 +72,7 @@ export function Header() {
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
             <ThemeSwitch />
-            <div className="flex gap-2">
-              <LanguageSwitch />
-              <GitHubLink />
-            </div>
+            <LanguageSwitch />
           </div>
         </div>
         <div className="-mt-3 grid gap-2.5">

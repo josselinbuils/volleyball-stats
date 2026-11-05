@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
 import { BrandBar } from '@/components/BrandBar';
-import { GitHubLink } from '@/components/GitHubLink';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { Season } from '@/components/Season/Season';
 import { seasonTeams } from '@/components/Season/helpers/season';
@@ -77,10 +76,7 @@ export function Matches({ matches, brand, review = false }: MatchList) {
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
             <ThemeSwitch />
-            <div className="flex gap-2">
-              <LanguageSwitch />
-              <GitHubLink />
-            </div>
+            <LanguageSwitch />
           </div>
         </header>
         {hasSeason && (
