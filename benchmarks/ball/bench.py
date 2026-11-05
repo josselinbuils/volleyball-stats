@@ -15,7 +15,7 @@ from pathlib import Path
 
 from candidates import CANDIDATES, DEVICE
 
-OUT = Path("outputs/bench")
+OUT = Path("outputs/benchmarks/bench")
 THRESHOLDS = [round(0.05 * i, 2) for i in range(1, 20)]
 # WASB's online tracker: blobs farther than this from the last ball are ignored, for 1280 px wide.
 MAX_DISP = 300 / 1280

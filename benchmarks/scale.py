@@ -4,7 +4,7 @@
     uv run --group bench python benchmarks/scale.py run
 
 `build` repeats a clip's outputs (players, rallies, actions, net crossings) `--times` times one
-after the other in outputs/scale/, with a tiny black video of the same length and noise for audio.
+after the other in outputs/benchmarks/scale/, with a tiny black video of the same length and noise for audio.
 20 times side_holdout (10 min at 30 fps) holds the player rows of 2 hours at 50 fps. `run` runs
 each step in its own process and prints its time and peak memory. The video is 64x36: the steps
 reading it (teams, identity's embeddings, patched to random vectors) are timed without the 4K
@@ -39,7 +39,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-OUT = Path("outputs/scale")
+OUT = Path("outputs/benchmarks/scale")
 VIDEO = OUT / "scale.mp4"
 STEPS = ["whistles", "finish", "teams", "attribution", "identity", "web", "review"]
 
@@ -62,7 +62,7 @@ def tile(src: Path, dst: Path, times: int, frames: int, keys: dict[str, str]) ->
 
 
 def build(clip: str, times: int) -> None:
-    src, video = Path(f"outputs/{clip}"), Path(f"data/benchmarks/{clip}.mp4")
+    src, video = Path(f"outputs/benchmarks/{clip}"), Path(f"data/benchmarks/{clip}.mp4")
     cap = cv2.VideoCapture(str(video))
     fps, frames = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()

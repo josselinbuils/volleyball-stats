@@ -2,7 +2,7 @@
 
     uv run --group bench python benchmarks/identity/bench.py CLIP ... [--sweep] [--squad N[,N]] [--baseline]
 
-Each CLIP reads data/benchmarks/CLIP.mp4 and the outputs of `match.py --players` in outputs/CLIP/ (players.csv,
+Each CLIP reads data/benchmarks/CLIP.mp4 and the outputs of `match.py --players` in outputs/benchmarks/CLIP/ (players.csv,
 rallies.csv) and benchmarks/identity/ground_truth/CLIP.csv: the identity of every tracked on-court
 player on frames 2 s apart (`?` unsure, `X` not a player). Scores, per clip and pooled:
 - IDF1 (IDP, IDR): labelled boxes whose identity is the one paired with their player, players and
@@ -124,7 +124,7 @@ def teams_by_track(rows: list[Row]) -> dict[int, list[Row]]:
 
 
 def evaluate(clip: str, squad=None, quiet: bool = False, tracks_only: bool = False, colour: bool = False) -> tuple[list[str], list, list, list]:
-    video, match = Path(f"data/benchmarks/{clip}.mp4"), Path(f"outputs/{clip}")
+    video, match = Path(f"data/benchmarks/{clip}.mp4"), Path(f"outputs/benchmarks/{clip}")
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     rows = read_players(match / "players.csv")
     with open(match / "rallies.csv") as f:

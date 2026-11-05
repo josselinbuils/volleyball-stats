@@ -8,14 +8,14 @@ on a held-out clip of the same match.
 
 ```bash
 uv run --group bench python benchmarks/rallies/bench.py \
-  data/benchmarks/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/rallies/ground_truth/side_club.csv \
-  data/benchmarks/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/rallies/ground_truth/side_long.csv \
-  data/benchmarks/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/rallies/ground_truth/side_holdout.csv --show
-uv run --group bench python -m volleyball_stats.rallies data/benchmarks/side_club.mp4 outputs/ball/side_club_ball.csv
+  data/benchmarks/side_club.mp4:outputs/benchmarks/ball/side_club_ball.csv:benchmarks/rallies/ground_truth/side_club.csv \
+  data/benchmarks/side_long.mp4:outputs/benchmarks/ball/side_long_ball.csv:benchmarks/rallies/ground_truth/side_long.csv \
+  data/benchmarks/side_holdout.mp4:outputs/benchmarks/ball/side_holdout_ball.csv:benchmarks/rallies/ground_truth/side_holdout.csv --show
+uv run --group bench python -m volleyball_stats.rallies data/benchmarks/side_club.mp4 outputs/benchmarks/ball/side_club_ball.csv --out outputs/benchmarks
 ```
 
 The ball tracks come from `ball.py` (default stride). The motion energy of each video is cached
-under `outputs/bench/rallies/`. Append `:outputs/players/CLIP_players.csv:outputs/court/side_holdout.json`
+under `outputs/benchmarks/bench/rallies/`. Append `:outputs/benchmarks/players/CLIP_players.csv:outputs/court/side_holdout.json`
 to a triple to score `served` and `pipeline` (match.py's windows, `match.rally_windows`) too.
 
 ## Videos

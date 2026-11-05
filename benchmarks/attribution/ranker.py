@@ -5,7 +5,7 @@ on everything to src/volleyball_stats/attribution_ranker.json.
 
     uv run --group bench python benchmarks/attribution/ranker.py outputs/2026-10-29-aspom-1-vs-aspom-2:data/2026-10-29-aspom-1-vs-aspom-2/2026-10-29-aspom-1-vs-aspom-2.mp4:outputs/courts/aspom_begles.json [--clips side_club side_long side_holdout] [--write]
 
-The poses are kept in outputs/ranker/ (first run: about a second per touch).
+The poses are kept in outputs/benchmarks/ranker/ (first run: about a second per touch).
 """
 
 import argparse
@@ -22,7 +22,7 @@ import bench  # noqa: E402
 from volleyball_stats import actions, attribution, ball3d, contacts, identity, ranker, web  # noqa: E402
 from volleyball_stats.court import Calibration  # noqa: E402
 
-CACHE = Path("outputs/ranker")
+CACHE = Path("outputs/benchmarks/ranker")
 
 
 def candidates_features(video: Path, typed: list, rows: list, fps: float, cache: Path, places: dict | None = None) -> tuple[list, list, list]:
@@ -85,9 +85,9 @@ def from_clip(clip: str) -> list[dict]:
     """The labelled touches of a school clip (the attribution bench's `truth`)."""
     fps = bench.FPS
     cal = bench.calibration()
-    rows = attribution.read_players(Path(f"outputs/players/{clip}_players.csv"))
+    rows = attribution.read_players(Path(f"outputs/benchmarks/players/{clip}_players.csv"))
     touchers = bench.load_touchers(Path(f"benchmarks/attribution/ground_truth/{clip}.csv"))
-    filled = contacts.interpolate(contacts.read_track(Path(f"outputs/ball/{clip}_ball.csv")))
+    filled = contacts.interpolate(contacts.read_track(Path(f"outputs/benchmarks/ball/{clip}_ball.csv")))
     typed = []
     for rally in bench.load_contacts(Path(f"benchmarks/contacts/ground_truth/{clip}.csv")):
         given = [(f, round(filled[f, 0]), round(filled[f, 1])) for f in rally["contacts"]]

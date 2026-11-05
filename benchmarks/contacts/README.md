@@ -7,16 +7,16 @@ against hand-labelled rallies, then checked on a held-out clip of the same match
 
 ```bash
 uv run --group bench python benchmarks/contacts/bench.py score \
-  outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv \
-  outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv --verbose
+  outputs/benchmarks/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv \
+  outputs/benchmarks/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv --verbose
 uv run --group bench python benchmarks/contacts/bench.py score \
-  outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv --verbose
+  outputs/benchmarks/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv --verbose
 uv run --group bench python benchmarks/contacts/bench.py sweep <the two tuning pairs>
 ```
 
 `score` runs `contacts.detect` with its defaults and pools the pairs it is given, `sweep` searches
 the parameters of the three candidates. The tracks come from `python -m volleyball_stats.ball VIDEO
---stride 1 --out outputs/ball`. All clips are 29.97 fps with the net at x=612: on this side camera
+--stride 1 --out outputs/benchmarks/ball`. All clips are 29.97 fps with the net at x=612: on this side camera
 the net plane projects to x≈598 at the near post and x≈625 at the far post (measured on frame 0 of
 `side_club`; `side_holdout` is shifted by under 0.1 px); the court calibration module will provide
 that x later.

@@ -2,15 +2,15 @@
 
     uv run --group bench python benchmarks/points/bench.py CLIP ... [--verbose]
 
-Each CLIP reads data/benchmarks/CLIP.mp4, its ball track (outputs/ball/CLIP_ball.csv, else
-outputs/CLIP/ball.csv), this folder's ground truth (every rally's set, server and winner, by jersey
+Each CLIP reads data/benchmarks/CLIP.mp4, its ball track (outputs/benchmarks/ball/CLIP_ball.csv, else
+outputs/benchmarks/CLIP/ball.csv), this folder's ground truth (every rally's set, server and winner, by jersey
 colour), the jersey colour on each side per rally of benchmarks/teams and, where they exist, the
 labelled contacts of benchmarks/contacts. Pooled over the clips given, winners right out of the
 labelled rallies:
 - labelled: the labelled windows, contacts and types (the rules alone; rallies with labelled contacts);
 - detected: contacts.detect and actions.classify in the labelled windows;
 - pipeline: match.py's windows, contacts and crossings (match.rally_windows, with the players of
-  outputs/players/CLIP_players.csv, else outputs/CLIP/players.csv, when tracked), matched to the
+  outputs/benchmarks/players/CLIP_players.csv, else outputs/benchmarks/CLIP/players.csv, when tracked), matched to the
   labelled rallies by overlap; a labelled rally without a window counts as missed;
 each by the end-of-rally rule, the next-serve rule (the next window's server) and the two combined
 (points.combine). Then the running score of each set against the labelled one: the pipeline's,
@@ -41,13 +41,13 @@ def read(path: Path) -> list[dict]:
 
 
 def track_path(clip: str) -> Path:
-    path = Path(f"outputs/ball/{clip}_ball.csv")
-    return path if path.exists() else Path(f"outputs/{clip}/ball.csv")
+    path = Path(f"outputs/benchmarks/ball/{clip}_ball.csv")
+    return path if path.exists() else Path(f"outputs/benchmarks/{clip}/ball.csv")
 
 
 def positions(clip: str) -> list[tuple[int, float, float]] | None:
     """The tracked players' (frame, court x, court y), None without player tracks."""
-    path = next((p for p in (Path(f"outputs/players/{clip}_players.csv"), Path(f"outputs/{clip}/players.csv")) if p.exists()), None)
+    path = next((p for p in (Path(f"outputs/benchmarks/players/{clip}_players.csv"), Path(f"outputs/benchmarks/{clip}/players.csv")) if p.exists()), None)
     return None if path is None else [(r.frame, *r.court) for r in attribution.read_players(path)]
 
 

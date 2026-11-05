@@ -29,13 +29,13 @@ uv run --group bench python benchmarks/teams/bench.py side_holdout side_setend -
 uv run --group bench python benchmarks/teams/bench.py side_holdout side_setend --same
 ```
 
-`--mixed` dresses each player of the clip's `outputs/CLIP/identities.csv` in a random shirt (9
+`--mixed` dresses each player of the clip's `outputs/benchmarks/CLIP/identities.csv` in a random shirt (9
 common colours) and shorts (white, black or grey), over 5 seeds, and scores the side map again: kits
 that differ within a team, as in adult leisure matches. `--same` dresses every player of both teams
 in one random kit: two teams of one club.
 
-Each clip reads `data/benchmarks/CLIP.mp4`, its player tracks (`outputs/players/CLIP_players.csv`, else
-`outputs/CLIP/players.csv`), this folder's ground truth, and where they exist the identity labels of
+Each clip reads `data/benchmarks/CLIP.mp4`, its player tracks (`outputs/benchmarks/players/CLIP_players.csv`, else
+`outputs/benchmarks/CLIP/players.csv`), this folder's ground truth, and where they exist the identity labels of
 [benchmarks/players](../players/README.md) and the touchers of
 [benchmarks/attribution](../attribution/README.md).
 
@@ -44,7 +44,7 @@ whole pipeline with the court of `side_holdout`:
 
 ```bash
 uvx yt-dlp -f '136+140' --download-sections '*2580-3180' -o data/benchmarks/side_setend.mp4 -- bFLVvZ09YJo
-uv run --group bench python -m volleyball_stats.match data/benchmarks/side_setend.mp4 --court outputs/courts/test.json --players
+uv run --group bench python -m volleyball_stats.match data/benchmarks/side_setend.mp4 --court outputs/courts/test.json --players --out outputs/benchmarks
 ```
 
 ## Ground truth

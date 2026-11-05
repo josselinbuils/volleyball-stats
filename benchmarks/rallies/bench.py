@@ -21,7 +21,7 @@ from volleyball_stats.court import Calibration
 from volleyball_stats.match import rally_windows
 from volleyball_stats.rallies import ball_runs, load_track, read_audio, runs, segment, served, whistles
 
-OUT = Path("outputs/bench/rallies")
+OUT = Path("outputs/benchmarks/bench/rallies")
 TOLERANCES_S = (1.0, 2.0)
 # Whistle pairs: an authorization whistle lasts 0.6 s or more; the serve follows within 40 s.
 AUTH_WHISTLE_S = 0.6

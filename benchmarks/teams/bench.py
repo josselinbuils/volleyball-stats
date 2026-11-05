@@ -2,8 +2,8 @@
 
     uv run --group bench python benchmarks/teams/bench.py CLIP ... [--sweep]
 
-Each CLIP reads data/benchmarks/CLIP.mp4, its player tracks (outputs/players/CLIP_players.csv, else
-outputs/CLIP/players.csv) and benchmarks/teams/ground_truth/CLIP.csv: per rally window, the jersey
+Each CLIP reads data/benchmarks/CLIP.mp4, its player tracks (outputs/benchmarks/players/CLIP_players.csv, else
+outputs/benchmarks/CLIP/players.csv) and benchmarks/teams/ground_truth/CLIP.csv: per rally window, the jersey
 colour on each side of the net. Scores, pooled over the clips given:
 - side map: rallies whose left team has the labelled jersey colour, and changes of ends found;
 - colour vs side: player frames whose torso colour group (2-means) plays on the side its group holds
@@ -15,7 +15,7 @@ colour on each side of the net. Scores, pooled over the clips given:
   searched among players.py's sides, the colour groups, or the teams;
 - sets: the set starts found.
 --sweep compares samples per track and torso boxes on colour vs side. --mixed scores the side map
-again with mixed kits: each player of the clip's identities.csv (outputs/CLIP/) gets a random shirt
+again with mixed kits: each player of the clip's identities.csv (outputs/benchmarks/CLIP/) gets a random shirt
 and shorts colour, over 5 seeds. --same does it with one kit for every player of both teams (two
 teams of one club).
 """
@@ -39,8 +39,8 @@ spec.loader.exec_module(bench)
 
 
 def players(clip: str) -> list[Row]:
-    path = Path(f"outputs/players/{clip}_players.csv")
-    return attribution.read_players(path if path.exists() else Path(f"outputs/{clip}/players.csv"))
+    path = Path(f"outputs/benchmarks/players/{clip}_players.csv")
+    return attribution.read_players(path if path.exists() else Path(f"outputs/benchmarks/{clip}/players.csv"))
 
 
 def truth(clip: str) -> list[dict]:
@@ -122,7 +122,7 @@ def attribution_hits(clip: str, rows: list[Row], side_of: dict[int, str]) -> tup
     cal, gap = bench.calibration(), round(attribution.GAP_S * FPS)
     by_track = attribution.tracks(rows)
     touchers = bench.load_touchers(Path(f"benchmarks/attribution/ground_truth/{clip}.csv"))
-    track = contacts.read_track(Path(f"outputs/ball/{clip}_ball.csv"))
+    track = contacts.read_track(Path(f"outputs/benchmarks/ball/{clip}_ball.csv"))
     filled = contacts.interpolate(track)
     found, crossings = contacts.detect(track, FPS, bench.NET_X)
     on_truth, detected, labels, matched = [], [], {}, {}
@@ -221,7 +221,7 @@ def mixed(clips: list[str], seeds: int = 5, same: bool = False) -> None:
     palette = np.array([(240, 128, 128), (30, 128, 128), (128, 128, 128), (90, 170, 150), (80, 140, 90), (60, 135, 100), (200, 125, 200), (120, 175, 110), (150, 100, 160)], float)
     sample = teams.sample
     for clip in clips:
-        path = Path(f"outputs/{clip}/identities.csv")
+        path = Path(f"outputs/benchmarks/{clip}/identities.csv")
         if not path.exists():
             print(f"{clip}: no {path}")
             continue

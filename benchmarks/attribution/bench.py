@@ -2,7 +2,7 @@
 
     uv run --group bench python benchmarks/attribution/bench.py CLIP ... [--verbose] [--pose]
 
-Each CLIP reads outputs/ball/CLIP_ball.csv, outputs/players/CLIP_players.csv,
+Each CLIP reads outputs/benchmarks/ball/CLIP_ball.csv, outputs/benchmarks/players/CLIP_players.csv,
 benchmarks/contacts/ground_truth/CLIP.csv, benchmarks/attribution/ground_truth/CLIP.csv and, with
 --pose, data/benchmarks/CLIP.mp4. Every method (the module's steps, from the nearest-box baseline) gets two
 scores, pooled over the clips given:
@@ -204,10 +204,10 @@ def score(clips: list[str], verbose: bool, pose: bool) -> None:
     # attribute's doubts: (doubt, right) per labelled player contact.
     doubts = defaultdict(list)
     for clip in clips:
-        rows = attribution.read_players(Path(f"outputs/players/{clip}_players.csv"))
+        rows = attribution.read_players(Path(f"outputs/benchmarks/players/{clip}_players.csv"))
         by_track = attribution.tracks(rows)
         touchers = load_touchers(Path(f"benchmarks/attribution/ground_truth/{clip}.csv"))
-        track = contacts.read_track(Path(f"outputs/ball/{clip}_ball.csv"))
+        track = contacts.read_track(Path(f"outputs/benchmarks/ball/{clip}_ball.csv"))
         filled = contacts.interpolate(track)
         found, crossings = contacts.detect(track, FPS, NET_X)
         truth, detected, labels, matched = [], [], {}, {}

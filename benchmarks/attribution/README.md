@@ -25,8 +25,8 @@ uv run --group bench python benchmarks/attribution/bench.py side_club side_long 
 uv run --group bench python benchmarks/attribution/bench.py side_holdout
 ```
 
-Each clip reads `data/benchmarks/CLIP.mp4` (only with `--pose`), `outputs/ball/CLIP_ball.csv`,
-`outputs/players/CLIP_players.csv` and both ground truths. The player tracks are `players.py` on the
+Each clip reads `data/benchmarks/CLIP.mp4` (only with `--pose`), `outputs/benchmarks/ball/CLIP_ball.csv`,
+`outputs/benchmarks/players/CLIP_players.csv` and both ground truths. The player tracks are `players.py` on the
 whole clips with the court fitted by least squares on the 7 line landmarks of
 [benchmarks/court/ground_truth/side_club.json](../court/ground_truth/side_club.json) (same camera in
 the three clips, as in the players benchmark):
@@ -37,7 +37,7 @@ import json; from pathlib import Path; from volleyball_stats import court
 p = json.loads(Path('benchmarks/court/ground_truth/side_club.json').read_text())['points']
 court.fit({n: tuple(v) for n, v in p.items() if not n.startswith('post')}, ransac=False).save(Path('outputs/court/side_club_lines.json'))"
 for clip in side_club side_long side_holdout; do
-  uv run --group bench python -m volleyball_stats.players data/benchmarks/$clip.mp4 outputs/court/side_club_lines.json --out outputs/players
+  uv run --group bench python -m volleyball_stats.players data/benchmarks/$clip.mp4 outputs/court/side_club_lines.json --out outputs/benchmarks/players
 done
 ```
 

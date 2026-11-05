@@ -85,7 +85,7 @@ Constants, each the middle of a plateau on the tuning clips: net margin 0.75-1.5
 Winners right out of every labelled rally. `labelled`: labelled windows, contacts and types (the
 rallies the contacts benchmark labelled); `detected`: `contacts.py` and `actions.py` in the labelled
 windows; `pipeline`: `match.py`'s windows, contacts and crossings (`match.rally_windows`, with the
-players of `outputs/players/CLIP_players.csv`, else `outputs/CLIP/players.csv`), a labelled rally
+players of `outputs/benchmarks/players/CLIP_players.csv`, else `outputs/benchmarks/CLIP/players.csv`), a labelled rally
 without a window counting as wrong. In brackets, rallies with an answer.
 
 | Contacts and windows | Rule | Tuning (17 rallies) | Held out (31 rallies) |
