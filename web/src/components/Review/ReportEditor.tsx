@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Star, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -99,6 +99,8 @@ export function ReportEditor({
   saved,
   comments,
   onComment,
+  picks,
+  onPick,
   timeouts,
   onTimeout,
   place,
@@ -140,6 +142,9 @@ export function ReportEditor({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
+  /** The rallies in the highlights, by their key. */
+  picks: Set<number>;
+  onPick: (rally: number, picked: boolean) => void;
   timeouts: Timeout[];
   onTimeout: (change: TimeoutChange) => void;
   /** Where the list stands and when the user last scrolled it: a save starts the editor again. */
@@ -604,6 +609,11 @@ export function ReportEditor({
                         <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
                       </span>
                     )}
+                    {picks.has(keyOf(k)) && (
+                      <span role="img" title={t('review.inHighlights')} aria-label={t('review.inHighlights')} className="shrink-0">
+                        <Star aria-hidden className="size-3.5 fill-amber-400 text-amber-500" />
+                      </span>
+                    )}
                     {comments[keyOf(k)] && (
                       <span role="img" title={comments[keyOf(k)]} aria-label={comments[keyOf(k)]} className="shrink-0">
                         <MessageSquareText aria-hidden className="size-3.5 text-sky-600 dark:text-sky-400" />
@@ -868,6 +878,10 @@ export function ReportEditor({
             <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')} title={t('review.reportWrongCallHelp')}>
               <input type="checkbox" checked={calledWrong(whole)} disabled={winner === null} onChange={(e) => markWrongCall(whole, e.target.checked)} />
               {t('review.reportWrongCall')}
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={picks.has(rally.key)} onChange={(e) => onPick(rally.key, e.target.checked)} />
+              {t('review.inHighlights')}
             </label>
             <label className={cn('flex items-center gap-2', !canJoin && 'text-muted-foreground')}>
               <input type="checkbox" checked={fix.join === true} disabled={!canJoin} onChange={(e) => editRally(here, { join: e.target.checked ? true : undefined })} />

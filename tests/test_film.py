@@ -198,6 +198,14 @@ class TestHighlights:
         assert hook["hook"] and hook["kind"] == "live" and intro["kind"] == "intro"
         assert page["contacts"][hook["contact"]]["result"] == "point" and hook["rally"] not in (7, 29)
 
+    def test_takes_the_rallies_picked_in_the_review(self, tmp_path):
+        page = self.page()
+        left = next(r for r in page["rallies"] if r["i"] not in {t["rally"] for t, _ in film.highlight_moments(page)})
+        left["key"] = 123
+        film.write_picks(tmp_path, {123})
+
+        assert left["i"] in {t["rally"] for t, _ in film.highlight_moments(page, film.read_picks(tmp_path))}
+
     def test_other_clips_are_short(self):
         clips = [span for touch, span in film.highlight_moments(self.page()) if touch["rally"] != 7]
         assert all(span["end"] - span["start"] <= film.PUNCH_LEAD_S + film.PUNCH_END_S + film.AFTER_POINT_S for span in clips)

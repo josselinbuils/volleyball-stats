@@ -38,4 +38,4 @@ The pipeline's weak spots and what is left to do, most useful first.
    About 1-2 weeks, about EUR 0-1 a month. Other people adding matches is decided later: uploads, court setup in the browser, clubs kept
    apart, workers sandboxed, consent and GDPR (advice first; the hosting rules in `CLAUDE.md` would change on purpose). In between, a club sends a video
    and the owner processes it. Rejected for now: rented GPUs for everything (EUR 25-45 a month, rough, from third-party prices).
-11. The owner's idea, not started: a way to mark actions for the highlights during the review.
+11. Done (5 Nov): the Match tab's "Dans les highlights" puts a rally in the match's film.

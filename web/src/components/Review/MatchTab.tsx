@@ -24,6 +24,8 @@ export function MatchTab({
   checked,
   comments,
   onComment,
+  picks,
+  onPick,
   timeouts,
   onTimeout,
   reports,
@@ -44,6 +46,9 @@ export function MatchTab({
   /** The owner's notes on the rallies, by their key. */
   comments: Record<number, string>;
   onComment: (rally: number, text: string) => Promise<boolean>;
+  /** The rallies in the highlights, by their key. */
+  picks: Set<number>;
+  onPick: (rally: number, picked: boolean) => void;
   timeouts: Timeout[];
   onTimeout: (change: TimeoutChange) => void;
   /** The report questions left: each a rally's reports. */
@@ -169,6 +174,8 @@ export function MatchTab({
             saved={saved}
             comments={comments}
             onComment={onComment}
+            picks={picks}
+            onPick={onPick}
             timeouts={timeouts}
             onTimeout={onTimeout}
           />

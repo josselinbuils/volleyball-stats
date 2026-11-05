@@ -147,6 +147,8 @@ interface ReviewData {
   checked: number[];
   /** The owner's notes on the rallies, by their key: in the review only. */
   comments: Record<number, string>;
+  /** The rallies the owner wants in the highlights, by their key. */
+  picks: number[];
   timeouts: Timeout[];
   questions: Question[];
   players: Named[];
@@ -263,6 +265,7 @@ export async function post(
   path:
     | 'answer'
     | 'comment'
+    | 'pick'
     | 'timeout'
     | 'name'
     | 'odd'

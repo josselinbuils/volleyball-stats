@@ -56,6 +56,8 @@ REPLAY_BEFORE_S, REPLAY_AFTER_S, REPLAY_SPEED = 1.0, 0.8, 0.5
 REPLAY_PRE, FREEZE = 1.75, 0.6
 # The match's film, under this name among the players'.
 HIGHLIGHTS = "*"
+# The rallies the owner puts in it from the review's Match tab, by key.
+PICKS = "highlight_picks.json"
 HIGHLIGHTS_S, HIGHLIGHTS_LEAST, HIGHLIGHTS_REPLAYS = 50.0, 8, 2
 # Its clips: from the set before the touch, or the serve's toss, to the point's banner gone; a point another touch wins, up
 # to PUNCH_END_S after the touch.
@@ -130,6 +132,15 @@ def read_page(site: Path) -> dict | None:
     for c in page["contacts"]:
         page["rallies"][c["rally"]]["contacts"].append(c)
     return page
+
+
+def read_picks(match: Path) -> set[int]:
+    path = match / PICKS
+    return set(json.loads(path.read_text())) if path.exists() else set()
+
+
+def write_picks(match: Path, picks: set[int]) -> None:
+    files.write_text(match / PICKS, json.dumps(sorted(picks)) + "\n")
 
 
 def is_touch(c: dict) -> bool:
@@ -290,10 +301,10 @@ def rally_touch(rally: dict, people: dict) -> dict | None:
     return next((c for c in reversed(touches) if c["g"] == rally.get("winner")), touches[-1] if touches else None)
 
 
-def highlight_moments(page: dict) -> list[tuple[dict, dict]]:
+def highlight_moments(page: dict, picks: set[int] = frozenset()) -> list[tuple[dict, dict]]:
     """The match's best rallies, in match order, as (touch, its clip's start and end, replayed or not), the longest's best exchanges
-    before its end, its most striking point first as a hook: the longest and the match point always, then set points, late ties,
-    aces, blocks and kills, both teams, every set and many players shown."""
+    before its end, its most striking point first as a hook: the longest, the match point and the rallies `picks` (by key)
+    always, then set points, late ties, aces, blocks and kills, both teams, every set and many players shown."""
     rallies, people = page["rallies"], page.get("people") or {}
     before = scores_before(rallies)
     played = [r for r in rallies if r.get("winner") and rally_touch(r, people)]
@@ -346,6 +357,7 @@ def highlight_moments(page: dict) -> list[tuple[dict, dict]]:
     replay_s = (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED
     room = HIGHLIGHTS_S - HOOK_BEFORE_S - HOOK_AFTER_S - INTRO_S - OUTRO_S - HIGHLIGHTS_REPLAYS * replay_s
     chosen = [longest] if longest is last else [longest, last]
+    chosen += [r for r in played if r.get("key") in picks and r not in chosen]
     room -= sum(length(r) for r in chosen)
     while True:
         def adjusted(r: dict) -> float:
@@ -378,7 +390,7 @@ def highlight_moments(page: dict) -> list[tuple[dict, dict]]:
 def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
     """What the match's film shows."""
     rallies, contacts, people = page["rallies"], page["contacts"], page.get("people") or {}
-    moments = highlight_moments(page)
+    moments = highlight_moments(page, read_picks(site.parent))
     if not moments:
         return None
     shots, at = [], 0.0

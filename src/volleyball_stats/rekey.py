@@ -12,7 +12,7 @@ import json
 import shutil
 from pathlib import Path
 
-from volleyball_stats import review, web
+from volleyball_stats import film, review, web
 from volleyball_stats.court import Calibration
 
 Window = tuple[int, int]
@@ -144,6 +144,8 @@ def main() -> None:
     log = moved(review.load_log(path), read_windows(args.before), read_windows(args.match / "rallies.csv"), round(web.LEAD_S * fps))
     review.save(path, log)
     review.write_comments(args.match, moved_comments(review.read_comments(args.match), read_windows(args.before), read_windows(args.match / "rallies.csv"), round(web.LEAD_S * fps)))
+    if (args.match / film.PICKS).exists():
+        film.write_picks(args.match, set(moved_comments(dict.fromkeys(film.read_picks(args.match), ""), read_windows(args.before), read_windows(args.match / "rallies.csv"), round(web.LEAD_S * fps))))
     page, _ = web.match_data(args.match, args.video, Calibration.load(args.court))
     keys = renamed_reports(read_page(args.page_before), page)
     review.save(path, with_reports(log, keys))

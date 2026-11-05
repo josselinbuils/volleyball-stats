@@ -64,6 +64,7 @@ export function Review({
   corrections: savedCorrections,
   checked: savedChecked,
   comments: savedComments,
+  picks: savedPicks,
   timeouts: savedTimeouts,
   questions: initial,
   players,
@@ -85,6 +86,7 @@ export function Review({
   namesPending: boolean;
   corrections: Partial<ReportChanges>;
   comments: Record<number, string>;
+  picks: number[];
   timeouts: Timeout[];
   checked: number[];
   questions: Question[];
@@ -108,6 +110,7 @@ export function Review({
   const [corrections, setCorrections] = useState(savedCorrections);
   const [checked, setChecked] = useState(savedChecked);
   const [comments, setComments] = useState(savedComments);
+  const [picks, setPicks] = useState(() => new Set(savedPicks));
   const [timeouts, setTimeouts] = useState(savedTimeouts);
   const onSaved = (saved: Saved) => {
     if (saved.corrections !== undefined) {
@@ -198,6 +201,24 @@ export function Review({
     } catch {
       setError(true);
       return false;
+    }
+  };
+
+  const savePick = async (rally: number, picked: boolean) => {
+    setPicks((all) => {
+      const out = new Set(all);
+      if (picked) {
+        out.add(rally);
+      } else {
+        out.delete(rally);
+      }
+      return out;
+    });
+    try {
+      await post('pick', { rally, picked });
+      setError(false);
+    } catch {
+      setError(true);
     }
   };
 
@@ -461,6 +482,8 @@ export function Review({
             checked={checked}
             comments={comments}
             onComment={saveComment}
+            picks={picks}
+            onPick={(rally, picked) => void savePick(rally, picked)}
             timeouts={timeouts}
             onTimeout={(change) => void saveTimeout(change)}
             reports={reports}
