@@ -46,7 +46,7 @@ export interface ServeRun {
 export const teamFirst = (score: [number, number], team: Group): [number, number] => (team === 1 ? score : [score[1], score[0]]);
 
 /** The score before each rally of `rallies`, set by set. */
-export function scoresBefore(rallies: Rally[]): Map<number, [number, number]> {
+export function scoresBefore(rallies: Pick<Rally, 'i' | 'set' | 'score'>[]): Map<number, [number, number]> {
   const out = new Map<number, [number, number]>();
   let set: number | null = null;
   let before: [number, number] = [0, 0];

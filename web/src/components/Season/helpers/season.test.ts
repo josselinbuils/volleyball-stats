@@ -103,8 +103,26 @@ describe('season', () => {
       expect(season.players[0].values.serve).toEqual([null, null]);
     });
 
-    it('gives the team its own row', () => {
-      expect(season.total.points).toEqual([3, 3]);
+    it('adds up the strengths of the match pages over the matches they showed in', () => {
+      expect(season.players[0]).toMatchObject({ matches: 2, strengths: [{ key: 'topScorer', n: 6, of: 6, matches: 1 }], work: null });
+    });
+
+    it('shows what went up, never what went down', () => {
+      const better = data(
+        ['A', 'B'],
+        { 1: person('Léa', null, 1, 1) },
+        [0, 1, 2, 3, 4, 5].map((r) => touch(r, 1, 'attack', 'point', 1)),
+      );
+      const rose = buildSeason('A', [
+        { match: listed('one', '2026-01-01', 'A', 'B'), data: first },
+        { match: listed('two', '2026-01-08', 'A', 'B'), data: better },
+      ]);
+      const fell = buildSeason('A', [
+        { match: listed('one', '2026-01-01', 'A', 'B'), data: better },
+        { match: listed('two', '2026-01-08', 'A', 'B'), data: first },
+      ]);
+      expect(rose.players[0].rising).toEqual([{ measure: 'points', from: 3, to: 6 }]);
+      expect(fell.players[0].rising).toEqual([]);
     });
 
     it('does not carry an unnamed player without a jersey across matches', () => {

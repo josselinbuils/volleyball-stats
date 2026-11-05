@@ -1,4 +1,5 @@
 import type { Contact } from '@/lib/match';
+import { cn } from '@/lib/utils';
 import type { Stat, Stats } from '@/components/Stats/helpers/stats';
 
 // A rate stands out with at least MIN_TRIES attempts on both sides and a gap of GAP or more.
@@ -61,3 +62,10 @@ export function insights(player: Stats, team: Stats): Insight[] {
   }
   return out.sort((a, b) => b.gap - a.gap).map(({ gap: _, ...insight }) => insight);
 }
+
+/** A strength's look (green), or a thing to work on's (amber). */
+export const chipLook = (strength: boolean) =>
+  cn(
+    'rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap',
+    strength ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
+  );

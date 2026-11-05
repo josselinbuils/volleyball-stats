@@ -10,7 +10,7 @@ import { clock, useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
-import type { Insight } from '@/components/Stats/helpers/insights';
+import { chipLook, type Insight } from '@/components/Stats/helpers/insights';
 import { meanAttackRating, meanDigRating, meanRating, meanServeRating, type Stat, type Stats } from '@/components/Stats/helpers/stats';
 
 /** The columns, each a count of touches (`stat`) under its group's title (`of`), named by `label`
@@ -244,10 +244,9 @@ export function InsightChip({ insight: i, who }: { insight: Insight; who: (t: TF
           type="button"
           aria-label={`${label(t)} · ${detail} · ${t('watchN', { count: i.picked.length })}`}
           className={cn(
-            'rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
-            i.strength
-              ? 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900'
-              : 'bg-amber-100 text-amber-900 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900',
+            chipLook(i.strength),
+            'outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+            i.strength ? 'hover:bg-emerald-200 dark:hover:bg-emerald-900' : 'hover:bg-amber-200 dark:hover:bg-amber-900',
           )}
           onClick={() => play((tr) => `${label(tr)}, ${who(tr)}`, contactClips(i.picked, match.duration))}
         >

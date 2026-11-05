@@ -47,7 +47,7 @@ function clean(key: string, s: Stats, team: Stats, of: (x: Stats) => Contact[], 
 /** Each player's strengths among `lines` (a team's, the whole team's last), by line id: what the rates of `insights` show,
  * plus how present they are for the time they played (`seconds`), how reliable, what they give the others and when it counts.
  * The rarest in the team come first, SHOWN at most. */
-export function strengths(found: Line[], seconds: (person: number) => number, rallies: Rally[]): Map<number, Insight[]> {
+export function strengths(found: Line[], seconds: (person: number) => number, rallies: Pick<Rally, 'i' | 'set' | 'score'>[]): Map<number, Insight[]> {
   const team = found[found.length - 1].stats;
   const players = found.filter((l): l is Line & { id: number } => typeof l.id === 'number');
   const before = scoresBefore(rallies);

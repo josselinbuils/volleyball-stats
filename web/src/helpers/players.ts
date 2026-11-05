@@ -99,3 +99,12 @@ export function playerKey(person: number | null | undefined, people: Record<stri
   const p = person == null ? undefined : people[person];
   return p?.number == null ? null : `${p.team}:${p.name ? `name ${p.name}` : p.jersey != null ? `jersey ${p.jersey}` : `number ${p.number}`}`;
 }
+
+/** A player's time on the court among `people`: their identities', in `set` or the whole match (null). */
+export function timeOnCourt(person: number, set: number | null, people: Record<string, Person>): number {
+  const key = playerKey(person, people);
+  return Object.entries(people)
+    .filter(([k]) => playerKey(Number(k), people) === key)
+    .flatMap(([, p]) => Object.entries(p.seconds ?? {}))
+    .reduce((sum, [n, v]) => (set === null || Number(n) === set ? sum + v : sum), 0);
+}

@@ -1,14 +1,10 @@
 import { contacts, GROUPS, match } from '@/lib/match';
-import { playerKey } from '@/helpers/players';
+import { playerKey, timeOnCourt } from '@/helpers/players';
 import { lines, mvp, type Stats } from '@/components/Stats/helpers/stats';
 
 /** A player's time on the court: their identities', in `set` or the whole match (null). */
 export function playingTime(person: number, set: number | null): number {
-  const key = playerKey(person, match.people);
-  return Object.entries(match.people)
-    .filter(([k]) => playerKey(Number(k), match.people) === key)
-    .flatMap(([, p]) => Object.entries(p.seconds ?? {}))
-    .reduce((sum, [n, v]) => (set === null || Number(n) === set ? sum + v : sum), 0);
+  return timeOnCourt(person, set, match.people);
 }
 
 /** The match's MVP: their `playerKey`, stats and time on the court over the whole match. */

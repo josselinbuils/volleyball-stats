@@ -3,39 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Swatch } from '@/components/Swatch';
 import type { ListedMatch } from '@/components/Matches';
 import { loadMatch } from '@/components/Season/helpers/loadMatch';
-import { buildSeason, matchesOf, MEASURES, seasonTeams, type Measure, type Played, type SeasonData } from '@/components/Season/helpers/season';
+import { buildSeason, matchesOf, seasonTeams, type SeasonData } from '@/components/Season/helpers/season';
+import { chipLook } from '@/components/Stats/helpers/insights';
+import { Tip } from '@/components/Tip';
 import { useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
-
-const WIDE = 96;
-const TALL = 32;
-const INSET = 5;
-
-/** A row's values over the matches, on the scale all its table's rows share. */
-function Sparkline({ values, played, top, label }: { values: (number | null)[]; played: Played[]; top: number; label: string }) {
-  const f = useFormat();
-  const x = (k: number) => (values.length > 1 ? INSET + (k * (WIDE - 2 * INSET)) / (values.length - 1) : WIDE / 2);
-  const y = (value: number) => TALL - INSET - (value / top) * (TALL - 2 * INSET);
-  const known = values.flatMap((value, k) => (value === null ? [] : [{ value, k }]));
-  return (
-    <svg viewBox={`0 0 ${WIDE} ${TALL}`} width={WIDE} height={TALL} role="img" aria-label={label} className="block">
-      <polyline points={known.map((p) => `${x(p.k)},${y(p.value)}`).join(' ')} fill="none" stroke="var(--primary)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      {known.map((p) => (
-        <g key={p.k}>
-          <circle cx={x(p.k)} cy={y(p.value)} r={4} fill="var(--primary)" stroke="var(--card)" strokeWidth={1} />
-          <circle cx={x(p.k)} cy={y(p.value)} r={12} fill="transparent">
-            <title>{`${played[p.k].opponent ?? ''} · ${f.dec(p.value)}`}</title>
-          </circle>
-        </g>
-      ))}
-    </svg>
-  );
-}
 
 /** The team's results, oldest first. */
 function Form({ season }: { season: SeasonData }) {
@@ -70,79 +45,67 @@ function Form({ season }: { season: SeasonData }) {
   );
 }
 
-/** A value's change since the match before it, in neutral ink: "=" when it stays. */
-function change(values: (number | null)[], dec: (x: number) => string): string | null {
-  const known = values.filter((v) => v !== null);
-  if (known.length < 2) {
-    return null;
-  }
-  const by = known[known.length - 1] - known[known.length - 2];
-  return Math.abs(by) < 0.05 ? '=' : `${by > 0 ? '+' : ''}${dec(by)}`;
-}
-
-function Progress({ season }: { season: SeasonData }) {
+/** Each player's season in words, as the match pages tell it: what they do well, what went up, what their last match
+ * gave them to work on. Nothing compares them with one another. */
+function Players({ season }: { season: SeasonData }) {
   const { t } = useTranslation();
   const f = useFormat();
-  const [measure, setMeasure] = useState<Measure>('points');
-  const rows = [
-    { key: 'total', label: t('season.team'), values: season.total[measure], team: true },
-    ...season.players.filter((p) => p.values[measure].some((v) => v !== null)).map((p) => ({ key: p.key, label: p.name ?? t('player', { n: p.jersey }), values: p.values[measure], team: false })),
-  ];
-  // Points: the team's row on its own scale, its total dwarfing a player's.
-  const top = (values: (number | null)[]) => (measure === 'points' ? Math.max(1, ...values.map((v) => v ?? 0)) : 5);
-  const playersTop = top(rows.slice(1).flatMap((r) => r.values));
+  const shown = season.players.filter((p) => p.strengths.length + p.rising.length > 0 || p.work);
+  if (!shown.length) {
+    return null;
+  }
   return (
     <Card className="gap-3 px-4 py-3.5">
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        size="sm"
-        spacing={2}
-        className="flex-wrap"
-        value={measure}
-        onValueChange={(v) => {
-          if (v) {
-            setMeasure(v as Measure);
-          }
-        }}
-        aria-label={t('season.measure')}
-      >
-        {MEASURES.map((m) => (
-          <ToggleGroupItem key={m} value={m} className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-            {t(`season.measures.${m}`)}
-          </ToggleGroupItem>
+      <h2 className="text-lg font-semibold">{t('season.players')}</h2>
+      <ul className="grid gap-3">
+        {shown.map((p) => (
+          <li key={p.key} className="grid gap-1.5">
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="truncate font-medium">{p.name ?? t('player', { n: p.jersey })}</span>
+              <span className="shrink-0 text-sm text-muted-foreground">{t('season.matches', { count: p.matches })}</span>
+            </span>
+            <span className="flex flex-wrap gap-1.5">
+              {p.strengths.map((s) => (
+                <Tip key={s.key} label={t('season.strengthIn', { count: s.matches, of: p.matches })}>
+                  <span tabIndex={0} className={chipLook(true)}>
+                    {t(`stats.insights.${s.key}`, { count: s.n, of: s.of })}
+                  </span>
+                </Tip>
+              ))}
+              {p.rising.map((r) => (
+                <Tip key={r.measure} label={t(r.measure === 'points' ? 'season.risingPoints' : 'season.risingGrade', { from: f.dec(r.from), to: f.dec(r.to) })}>
+                  <span tabIndex={0} className={chipLook(true)}>
+                    {t(`season.rising.${r.measure}`)}
+                  </span>
+                </Tip>
+              ))}
+              {p.work && (
+                <Tip
+                  label={t('season.lastMatch', {
+                    detail: t('stats.insights.detail', {
+                      n: p.work.n,
+                      of: p.work.of,
+                      p: f.pct(p.work.n / p.work.of),
+                      restN: p.work.restN,
+                      restOf: p.work.restOf,
+                      restP: f.pct(p.work.restN / p.work.restOf),
+                    }),
+                  })}
+                >
+                  <span tabIndex={0} className={chipLook(false)}>
+                    {t(`stats.insights.${p.work.key}`, { count: p.work.n, of: p.work.of })}
+                  </span>
+                </Tip>
+              )}
+            </span>
+          </li>
         ))}
-      </ToggleGroup>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-full px-0" />
-            <TableHead className="px-2" />
-            <TableHead className="px-2 text-right">{t('season.last')}</TableHead>
-            <TableHead className="pr-0 pl-2 text-right">{t('season.change')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const last = row.values.filter((v) => v !== null).at(-1);
-            return (
-              <TableRow key={row.key}>
-                <TableCell className={cn('max-w-0 truncate px-0', row.team && 'font-semibold')}>{row.label}</TableCell>
-                <TableCell className="px-2">
-                  <Sparkline values={row.values} played={season.played} top={row.team ? top(row.values) : playersTop} label={row.values.map((v) => (v === null ? '–' : f.dec(v))).join(', ')} />
-                </TableCell>
-                <TableCell className={cn('px-2 text-right tabular-nums', row.team && 'font-semibold')}>{last == null ? '–' : f.dec(last)}</TableCell>
-                <TableCell className="pr-0 pl-2 text-right text-muted-foreground tabular-nums">{change(row.values, f.dec) ?? ''}</TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      </ul>
     </Card>
   );
 }
 
-/** A team over its matches: its results, then each player's progress. */
+/** A team over its matches: its results, then each player's season. */
 export function Season({ matches }: { matches: ListedMatch[] }) {
   const { t } = useTranslation();
   const teams = useMemo(() => seasonTeams(matches), [matches]);
@@ -203,7 +166,7 @@ export function Season({ matches }: { matches: ListedMatch[] }) {
       ) : season ? (
         <>
           <Form season={season} />
-          <Progress season={season} />
+          <Players season={season} />
         </>
       ) : (
         <p className="px-1 text-muted-foreground">{t('season.loading')}</p>
