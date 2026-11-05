@@ -17,7 +17,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   online without that consent only behind a password, unreachable by direct link without it. Never
   republish the YouTube clips in `data/`.
 - Commit with the personal identity (`Josselin BUILS <josselin.buils@gmail.com>`), never a work email.
-- A fix or feature done: commit it and restart the review without asking, once `curl -s 127.0.0.1:8765/progress` gives `{}` (otherwise an apply is running). A restart passes `--no-browser`: the page is already open. Only a first start opens it.
+- A fix or feature done: commit it, push it to `main` and restart the review without asking, once `curl -s 127.0.0.1:8765/progress` gives `{}` (otherwise an apply is running). A restart passes `--no-browser`: the page is already open. Only a first start opens it.
 - No new Python dependency without asking (no scipy: numpy and what is installed).
 - The review server binds 127.0.0.1 only. `outputs/` (gitignored) holds names of real people
   (`player_names.json`, `roster.json`): never commit it.
