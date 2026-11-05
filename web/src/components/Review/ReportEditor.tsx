@@ -609,11 +609,6 @@ export function ReportEditor({
                         <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
                       </span>
                     )}
-                    {picks.has(keyOf(k)) && (
-                      <span role="img" title={t('review.inHighlights')} aria-label={t('review.inHighlights')} className="shrink-0">
-                        <Star aria-hidden className="size-3.5 fill-amber-400 text-amber-500" />
-                      </span>
-                    )}
                     {comments[keyOf(k)] && (
                       <span role="img" title={comments[keyOf(k)]} aria-label={comments[keyOf(k)]} className="shrink-0">
                         <MessageSquareText aria-hidden className="size-3.5 text-sky-600 dark:text-sky-400" />
@@ -625,6 +620,19 @@ export function ReportEditor({
                       </span>
                     )}
                   </button>
+                  {!isDeleted(k) && (
+                    <Button
+                      variant="outline"
+                      size="icon-xs"
+                      className="mr-1 shrink-0 bg-card text-foreground"
+                      title={t('review.inHighlights')}
+                      aria-label={t('review.inHighlights')}
+                      aria-pressed={picks.has(keyOf(k))}
+                      onClick={() => onPick(keyOf(k), !picks.has(keyOf(k)))}
+                    >
+                      <Star aria-hidden className={cn(picks.has(keyOf(k)) && 'fill-amber-400 text-amber-500')} />
+                    </Button>
+                  )}
                   {isDeleted(k) ? (
                     <Button
                       variant="outline"
@@ -878,10 +886,6 @@ export function ReportEditor({
             <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')} title={t('review.reportWrongCallHelp')}>
               <input type="checkbox" checked={calledWrong(whole)} disabled={winner === null} onChange={(e) => markWrongCall(whole, e.target.checked)} />
               {t('review.reportWrongCall')}
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={picks.has(rally.key)} onChange={(e) => onPick(rally.key, e.target.checked)} />
-              {t('review.inHighlights')}
             </label>
             <label className={cn('flex items-center gap-2', !canJoin && 'text-muted-foreground')}>
               <input type="checkbox" checked={fix.join === true} disabled={!canJoin} onChange={(e) => editRally(here, { join: e.target.checked ? true : undefined })} />
