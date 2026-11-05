@@ -62,7 +62,7 @@ def tile(src: Path, dst: Path, times: int, frames: int, keys: dict[str, str]) ->
 
 
 def build(clip: str, times: int) -> None:
-    src, video = Path(f"outputs/{clip}"), Path(f"data/{clip}.mp4")
+    src, video = Path(f"outputs/{clip}"), Path(f"data/benchmarks/{clip}.mp4")
     cap = cv2.VideoCapture(str(video))
     fps, frames = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()

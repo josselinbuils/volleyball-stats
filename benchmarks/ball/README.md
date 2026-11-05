@@ -7,10 +7,10 @@ filmed from the sideline next to the net, like this project, and two from behind
 
 ```bash
 ./benchmarks/ball/setup.sh   # weights and third-party model code, into .cache/bench
-uv run --group bench python benchmarks/ball/bench.py run data/side_club.mp4
+uv run --group bench python benchmarks/ball/bench.py run data/benchmarks/side_club.mp4
 uv run --group bench python benchmarks/ball/bench.py compare \
-  data/side_club.mp4:benchmarks/ball/ground_truth/side_club.csv \
-  data/side_vnl.mp4:benchmarks/ball/ground_truth/side_vnl.csv
+  data/benchmarks/side_club.mp4:benchmarks/ball/ground_truth/side_club.csv \
+  data/benchmarks/side_vnl.mp4:benchmarks/ball/ground_truth/side_vnl.csv
 ```
 
 `bench.py` imports `candidates.py` from its own folder: run it with `PYTHONPATH=benchmarks/ball`.
@@ -26,10 +26,10 @@ uv run --group bench python benchmarks/ball/bench.py compare \
 | `club.mp4` | [Forza North 14ONE vs Madfrog 14](https://www.youtube.com/watch?v=rKahSdKGgv4) | 900–1020 s, 720p60 | phone on a low tripod behind the baseline, other courts in view |
 
 ```bash
-uvx yt-dlp -f '136+140' --download-sections '*1800-1980' -o data/side_club.mp4 -- bFLVvZ09YJo
-uvx yt-dlp -f '136+140' --download-sections '*2700-2880' -o data/side_vnl.mp4 -- jTigaX7Xd5c
-uvx yt-dlp -f '298+140' --download-sections '*600-780' -o data/backcourt.mp4 -- BVL7g25bP4c
-uvx yt-dlp -f 'bv*[height=720][ext=mp4]+ba[ext=m4a]' --download-sections '*900-1020' -o data/club.mp4 -- rKahSdKGgv4
+uvx yt-dlp -f '136+140' --download-sections '*1800-1980' -o data/benchmarks/side_club.mp4 -- bFLVvZ09YJo
+uvx yt-dlp -f '136+140' --download-sections '*2700-2880' -o data/benchmarks/side_vnl.mp4 -- jTigaX7Xd5c
+uvx yt-dlp -f '298+140' --download-sections '*600-780' -o data/benchmarks/backcourt.mp4 -- BVL7g25bP4c
+uvx yt-dlp -f 'bv*[height=720][ext=mp4]+ba[ext=m4a]' --download-sections '*900-1020' -o data/benchmarks/club.mp4 -- rKahSdKGgv4
 ```
 
 ## Ground truth

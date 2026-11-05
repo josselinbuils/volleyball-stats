@@ -9,10 +9,10 @@ on the typed contacts of [benchmarks/contacts](../contacts/README.md): tuned on 
 
 ```bash
 uv run --group bench python benchmarks/actions/bench.py \
-  data/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv:outputs/players/side_club_players.csv \
-  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv:outputs/players/side_long_players.csv [--verbose]
+  data/benchmarks/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv:outputs/players/side_club_players.csv \
+  data/benchmarks/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv:outputs/players/side_long_players.csv [--verbose]
 uv run --group bench python benchmarks/actions/bench.py \
-  data/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv:outputs/players/side_holdout_players.csv
+  data/benchmarks/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv:outputs/players/side_holdout_players.csv
 uv run python -m volleyball_stats.actions CONTACTS_CSV NET_CSV RALLIES_CSV --fps 29.97 --court COURT_JSON
 ```
 
@@ -203,9 +203,9 @@ weak at 720p: about half the youth attacks show no measurable lift of the box bo
 
 ```bash
 uv run python benchmarks/actions/relance.py \
-  data/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv \
-  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv \
-  data/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv
+  data/benchmarks/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/contacts/ground_truth/side_club.csv \
+  data/benchmarks/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/contacts/ground_truth/side_long.csv \
+  data/benchmarks/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/contacts/ground_truth/side_holdout.csv
 ```
 
 ## Limits

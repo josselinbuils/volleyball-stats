@@ -2,7 +2,7 @@
 
     uv run --group bench python benchmarks/points/bench.py CLIP ... [--verbose]
 
-Each CLIP reads data/CLIP.mp4, its ball track (outputs/ball/CLIP_ball.csv, else
+Each CLIP reads data/benchmarks/CLIP.mp4, its ball track (outputs/ball/CLIP_ball.csv, else
 outputs/CLIP/ball.csv), this folder's ground truth (every rally's set, server and winner, by jersey
 colour), the jersey colour on each side per rally of benchmarks/teams and, where they exist, the
 labelled contacts of benchmarks/contacts. Pooled over the clips given, winners right out of the
@@ -133,7 +133,7 @@ def clip_scores(clip: str, cal, verbose: bool) -> tuple[dict[str, list], list[st
         simulated["end"] += final_drifts(found_kept, ends, true_final)
 
     # The pipeline.
-    whistle_times = rallies.whistles(rallies.read_audio(Path(f"data/{clip}.mp4")))
+    whistle_times = rallies.whistles(rallies.read_audio(Path(f"data/benchmarks/{clip}.mp4")))
     pipe_windows, pipe_found, pipe_crossings = match.rally_windows(rallies.load_track(track_path(clip)), whistle_times, FPS, NET_X, cal, positions(clip))
     pipe_left = lefts(pipe_windows, sides, team_of)
     pipe_sets = teams.set_numbers(pipe_windows, teams.set_starts(pipe_windows, pipe_left, FPS), FPS)

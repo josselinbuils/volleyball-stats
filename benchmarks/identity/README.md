@@ -40,7 +40,7 @@ uv run --group bench python benchmarks/identity/bench.py side_holdout side_seten
 GRID="NEW=0.8,0.9 CONTINUITY=0.2,0.3" uv run --group bench python benchmarks/identity/bench.py side_holdout --sweep
 ```
 
-Each clip reads `data/CLIP.mp4` and `outputs/CLIP/` from `match.py --players` (players.csv,
+Each clip reads `data/benchmarks/CLIP.mp4` and `outputs/CLIP/` from `match.py --players` (players.csv,
 rallies.csv). The embedding cache is keyed by piece of track only: delete `embeddings.npz` before
 sweeping `CROPS`, `CLEAR`, `HALF` or the crowd constants. About 1 minute per clip on the M4 Pro
 (MPS) without the cache, seconds with it.

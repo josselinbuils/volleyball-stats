@@ -25,11 +25,11 @@ path) with the clicks, the snapped landmarks, the lines' colour and line samples
 
 ```bash
 uv run --group bench python benchmarks/court/bench.py manual \
-  data/side_club.mp4:benchmarks/court/ground_truth/side_club.json \
-  data/side_vnl.mp4:benchmarks/court/ground_truth/side_vnl.json
+  data/benchmarks/side_club.mp4:benchmarks/court/ground_truth/side_club.json \
+  data/benchmarks/side_vnl.mp4:benchmarks/court/ground_truth/side_vnl.json
 uv run --group bench python benchmarks/court/bench.py refine \
-  data/side_club.mp4:benchmarks/court/ground_truth/side_club.json \
-  data/side_vnl.mp4:benchmarks/court/ground_truth/side_vnl.json [--seeds 20]
+  data/benchmarks/side_club.mp4:benchmarks/court/ground_truth/side_club.json \
+  data/benchmarks/side_vnl.mp4:benchmarks/court/ground_truth/side_vnl.json [--seeds 20]
 uv run --group bench python benchmarks/court/bench.py auto
 ```
 

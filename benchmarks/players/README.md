@@ -25,11 +25,11 @@ is, `players.make_tracker` stands in ultralytics' own assignment solver for it.
 
 ```bash
 uv run --group bench python benchmarks/players/bench.py detect \
-  data/side_club.mp4:benchmarks/players/ground_truth/side_club.csv \
-  data/side_holdout.mp4:benchmarks/players/ground_truth/side_holdout.csv
+  data/benchmarks/side_club.mp4:benchmarks/players/ground_truth/side_club.csv \
+  data/benchmarks/side_holdout.mp4:benchmarks/players/ground_truth/side_holdout.csv
 uv run --group bench python benchmarks/players/bench.py track \
-  data/side_club.mp4:benchmarks/players/ground_truth/side_club_sequence.csv \
-  data/side_holdout.mp4:benchmarks/players/ground_truth/side_holdout_sequence.csv \
+  data/benchmarks/side_club.mp4:benchmarks/players/ground_truth/side_club_sequence.csv \
+  data/benchmarks/side_holdout.mp4:benchmarks/players/ground_truth/side_holdout_sequence.csv \
   [--model yolo11x --imgsz 1280 --conf 0.4] [--trackers bytetrack,botsort,botsort-reid] [--buffer 60]
 ```
 

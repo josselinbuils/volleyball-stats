@@ -8,10 +8,10 @@ on a held-out clip of the same match.
 
 ```bash
 uv run --group bench python benchmarks/rallies/bench.py \
-  data/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/rallies/ground_truth/side_club.csv \
-  data/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/rallies/ground_truth/side_long.csv \
-  data/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/rallies/ground_truth/side_holdout.csv --show
-uv run --group bench python -m volleyball_stats.rallies data/side_club.mp4 outputs/ball/side_club_ball.csv
+  data/benchmarks/side_club.mp4:outputs/ball/side_club_ball.csv:benchmarks/rallies/ground_truth/side_club.csv \
+  data/benchmarks/side_long.mp4:outputs/ball/side_long_ball.csv:benchmarks/rallies/ground_truth/side_long.csv \
+  data/benchmarks/side_holdout.mp4:outputs/ball/side_holdout_ball.csv:benchmarks/rallies/ground_truth/side_holdout.csv --show
+uv run --group bench python -m volleyball_stats.rallies data/benchmarks/side_club.mp4 outputs/ball/side_club_ball.csv
 ```
 
 The ball tracks come from `ball.py` (default stride). The motion energy of each video is cached

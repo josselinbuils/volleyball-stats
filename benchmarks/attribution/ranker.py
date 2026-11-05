@@ -93,7 +93,7 @@ def from_clip(clip: str) -> list[dict]:
         given = [(f, round(filled[f, 0]), round(filled[f, 1])) for f in rally["contacts"]]
         typed += [(f, x, y, rally["contacts"][f], side) for f, x, y, _, side in actions.classify_rally(given, rally["net"], fps, bench.NET_X, cal)]
     typed = [t for t in typed if touchers[t[0]]["toucher"] != "none" and t[3] not in attribution.NO_PLAYER]
-    found, feats, rule = candidates_features(Path(f"data/{clip}.mp4"), typed, rows, fps, CACHE / f"{clip}_wrists.json")
+    found, feats, rule = candidates_features(Path(f"data/benchmarks/{clip}.mp4"), typed, rows, fps, CACHE / f"{clip}_wrists.json")
     by_track, gap = attribution.tracks(rows), round(attribution.GAP_S * fps)
     out = []
     for t, c, x, ru in zip(typed, found, feats, rule):

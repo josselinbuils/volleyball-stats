@@ -2,7 +2,7 @@
 
     uv run --group bench python benchmarks/teams/bench.py CLIP ... [--sweep]
 
-Each CLIP reads data/CLIP.mp4, its player tracks (outputs/players/CLIP_players.csv, else
+Each CLIP reads data/benchmarks/CLIP.mp4, its player tracks (outputs/players/CLIP_players.csv, else
 outputs/CLIP/players.csv) and benchmarks/teams/ground_truth/CLIP.csv: per rally window, the jersey
 colour on each side of the net. Scores, pooled over the clips given:
 - side map: rallies whose left team has the labelled jersey colour, and changes of ends found;
@@ -149,10 +149,10 @@ def score(clips: list[str]) -> None:
     for clip in clips:
         rows, labelled = players(clip), truth(clip)
         windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in labelled]
-        looks, _ = teams.sample(Path(f"data/{clip}.mp4"), rows)
+        looks, _ = teams.sample(Path(f"data/benchmarks/{clip}.mp4"), rows)
         lengths = {t: len(r) for t, r in teams.by_track(rows).items()}
         group = two_means({t: look[:3] for t, look in looks.items()}, lengths)
-        found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows, FPS)
+        found = teams.assign(Path(f"data/benchmarks/{clip}.mp4"), rows, windows, FPS)
         name = {t: teams.hex_name(c) for t, c in found.colours.items()}
         left = [name[g] if g else None for g in found.left]
         right_map = sum(l == r["left"] for l, r in zip(left, labelled))
@@ -208,7 +208,7 @@ def sweep(clips: list[str]) -> None:
             for clip in clips:
                 rows = players(clip)
                 windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in truth(clip)]
-                looks, _ = teams.sample(Path(f"data/{clip}.mp4"), rows, samples)
+                looks, _ = teams.sample(Path(f"data/benchmarks/{clip}.mp4"), rows, samples)
                 group = two_means({t: look[:3] for t, look in looks.items()}, {t: len(r) for t, r in teams.by_track(rows).items()})
                 a, n = colour_vs_side(rows, windows, group, colour_lefts(rows, windows, group))
                 agree, frames = agree + a, frames + n
@@ -232,7 +232,7 @@ def mixed(clips: list[str], seeds: int = 5, same: bool = False) -> None:
         owner = {t: max(v)[1:] for t, v in segments.items()}
         rows, labelled = players(clip), truth(clip)
         windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in labelled]
-        looks, crops = sample(Path(f"data/{clip}.mp4"), rows)
+        looks, crops = sample(Path(f"data/benchmarks/{clip}.mp4"), rows)
         for seed in range(seeds):
             rng = np.random.default_rng(seed)
             kits: dict[tuple[str, str], np.ndarray] = {}
@@ -241,7 +241,7 @@ def mixed(clips: list[str], seeds: int = 5, same: bool = False) -> None:
                 kit = kits.setdefault(("", "") if same else owner.get(t, ("", str(t))), np.concatenate([palette[rng.integers(len(palette))], palette[rng.integers(3)]]))
                 dressed[t] = kit + rng.normal(0, 6, 6)
             teams.sample = lambda video, rows, dressed=dressed: (dressed, crops)
-            found = teams.assign(Path(f"data/{clip}.mp4"), rows, windows, FPS)
+            found = teams.assign(Path(f"data/benchmarks/{clip}.mp4"), rows, windows, FPS)
             teams.sample = sample
             # Team colours are random here: a rally is right when its left team is the first rally's
             # exactly when the labels say so.

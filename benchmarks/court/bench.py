@@ -123,26 +123,26 @@ def refine_bench(pairs: list[tuple[Path, Path]], seeds: int) -> None:
 
 # Library courts built from the ground truth, and the frames matched against them: VIDEO or
 # VIDEO@FRAME, with the ground truth that applies when the camera is the same.
-LIBRARY = {"side_club": "data/side_club.mp4", "side_vnl": "data/side_vnl.mp4@785"}
+LIBRARY = {"side_club": "data/benchmarks/side_club.mp4", "side_vnl": "data/benchmarks/side_vnl.mp4@785"}
 TARGETS = {
     "side_club": [
-        ("data/side_club.mp4", "side_club"),
-        ("data/side_long.mp4", "side_club"),
-        ("data/side_holdout.mp4", "side_club"),
-        ("data/side_vnl.mp4@785", None),
-        ("data/side_vnl.mp4@1500", None),
-        ("data/side_vnl.mp4@2500", None),
-        ("data/backcourt.mp4@500", None),
-        ("data/club.mp4@500", None),
+        ("data/benchmarks/side_club.mp4", "side_club"),
+        ("data/benchmarks/side_long.mp4", "side_club"),
+        ("data/benchmarks/side_holdout.mp4", "side_club"),
+        ("data/benchmarks/side_vnl.mp4@785", None),
+        ("data/benchmarks/side_vnl.mp4@1500", None),
+        ("data/benchmarks/side_vnl.mp4@2500", None),
+        ("data/benchmarks/backcourt.mp4@500", None),
+        ("data/benchmarks/club.mp4@500", None),
     ],
     "side_vnl": [
-        ("data/side_vnl.mp4@785", "side_vnl"),
-        ("data/side_vnl.mp4@1500", None),
-        ("data/side_vnl.mp4@2500", None),
-        ("data/side_vnl.mp4@4300", None),
-        ("data/side_club.mp4", None),
-        ("data/backcourt.mp4@500", None),
-        ("data/club.mp4@500", None),
+        ("data/benchmarks/side_vnl.mp4@785", "side_vnl"),
+        ("data/benchmarks/side_vnl.mp4@1500", None),
+        ("data/benchmarks/side_vnl.mp4@2500", None),
+        ("data/benchmarks/side_vnl.mp4@4300", None),
+        ("data/benchmarks/side_club.mp4", None),
+        ("data/benchmarks/backcourt.mp4@500", None),
+        ("data/benchmarks/club.mp4@500", None),
     ],
 }
 # Simulated stand moves on side_long: shift x, shift y (px), roll (degrees), zoom.
@@ -178,7 +178,7 @@ def auto_bench() -> None:
             target_truth = line_landmarks(load_ground_truth(GROUND_TRUTH / f"{truth_name}.json")[1]) if truth_name else None
             auto_row(target, load_image(target, cache), court, target_truth)
         if name == "side_club":
-            image = load_image("data/side_long.mp4", cache)
+            image = load_image("data/benchmarks/side_long.mp4", cache)
             for dx, dy, roll, zoom in MOVES:
                 m = cv2.getRotationMatrix2D((image.shape[1] / 2, image.shape[0] / 2), roll, zoom)
                 m[:, 2] += (dx, dy)

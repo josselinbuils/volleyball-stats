@@ -4,7 +4,7 @@
 
 Each CLIP reads outputs/ball/CLIP_ball.csv, outputs/players/CLIP_players.csv,
 benchmarks/contacts/ground_truth/CLIP.csv, benchmarks/attribution/ground_truth/CLIP.csv and, with
---pose, data/CLIP.mp4. Every method (the module's steps, from the nearest-box baseline) gets two
+--pose, data/benchmarks/CLIP.mp4. Every method (the module's steps, from the nearest-box baseline) gets two
 scores, pooled over the clips given:
 - `truth`: the labelled contacts with their labelled types (sides from actions.classify_rally);
 - `detected`: contacts.detect in the labelled windows typed by actions.classify_rally, matched to
@@ -220,7 +220,7 @@ def score(clips: list[str], verbose: bool, pose: bool) -> None:
             typed = actions.classify_rally(inside, [c for c in crossings if start <= c <= end], FPS, NET_X, cal)
             detected += typed
             matched |= pair([t[0] for t in typed], list(rally["contacts"]))
-        methods = METHODS | ({"+ pose veto on sets, passes, digs": pose_veto(Path(f"data/{clip}.mp4")), "+ nearest wrists among close candidates (by_wrists)": wrists(Path(f"data/{clip}.mp4"))} if pose else {})
+        methods = METHODS | ({"+ pose veto on sets, passes, digs": pose_veto(Path(f"data/benchmarks/{clip}.mp4")), "+ nearest wrists among close candidates (by_wrists)": wrists(Path(f"data/benchmarks/{clip}.mp4"))} if pose else {})
         for name, method in methods.items():
             on_truth = dict(zip([t[0] for t in truth], method(truth, rows)))
             on_detected = dict(zip([t[0] for t in detected], method(detected, rows)))

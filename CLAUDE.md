@@ -15,7 +15,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   never carries real footage or player pictures (nor anything cut from them) without every
   player's consent; the names given in the review stay on it (the owner's choice). Footage may go
   online without that consent only behind a password, unreachable by direct link without it. Never
-  republish the YouTube clips in `data/`.
+  republish the YouTube clips in `data/benchmarks/`.
 - Commit with the personal identity (`Josselin BUILS <josselin.buils@gmail.com>`), never a work email.
 - A fix or feature done: commit it, push it to `main` and restart the review without asking, once `curl -s 127.0.0.1:8765/progress` gives `{}` (otherwise an apply is running). A restart passes `--no-browser`: the page is already open. Only a first start opens it.
 - No new Python dependency without asking (no scipy: numpy and what is installed).

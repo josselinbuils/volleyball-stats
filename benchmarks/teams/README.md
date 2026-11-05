@@ -34,7 +34,7 @@ common colours) and shorts (white, black or grey), over 5 seeds, and scores the 
 that differ within a team, as in adult leisure matches. `--same` dresses every player of both teams
 in one random kit: two teams of one club.
 
-Each clip reads `data/CLIP.mp4`, its player tracks (`outputs/players/CLIP_players.csv`, else
+Each clip reads `data/benchmarks/CLIP.mp4`, its player tracks (`outputs/players/CLIP_players.csv`, else
 `outputs/CLIP/players.csv`), this folder's ground truth, and where they exist the identity labels of
 [benchmarks/players](../players/README.md) and the touchers of
 [benchmarks/attribution](../attribution/README.md).
@@ -43,8 +43,8 @@ Each clip reads `data/CLIP.mp4`, its player tracks (`outputs/players/CLIP_player
 whole pipeline with the court of `side_holdout`:
 
 ```bash
-uvx yt-dlp -f '136+140' --download-sections '*2580-3180' -o data/side_setend.mp4 -- bFLVvZ09YJo
-uv run --group bench python -m volleyball_stats.match data/side_setend.mp4 --court outputs/courts/test.json --players
+uvx yt-dlp -f '136+140' --download-sections '*2580-3180' -o data/benchmarks/side_setend.mp4 -- bFLVvZ09YJo
+uv run --group bench python -m volleyball_stats.match data/benchmarks/side_setend.mp4 --court outputs/courts/test.json --players
 ```
 
 ## Ground truth
