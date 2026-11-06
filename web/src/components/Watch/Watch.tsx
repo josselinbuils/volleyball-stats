@@ -29,6 +29,8 @@ const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? matc
 const WIDE_PX = 1600;
 // A playlist's clips loaded ahead of the one playing, one after another.
 const AHEAD = 3;
+// The page served from this machine (the review, or opened from the disk): its video comes at once, nothing to preload.
+const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
 // How often the playlist's hidden copy checks whether it holds the clip it loads.
 const PRELOAD_MS = 250;
 // A wait for the video's data shorter than this shows nothing.
@@ -204,7 +206,7 @@ export function Watch() {
               {/* Full screen takes the video with its controls. */}
               <div className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
                 {full && <Feedback />}
-                {playlist && reached === playlist.clips && playlist.at + 1 < playlist.clips.length && <Preload src={src} clips={playlist.clips} at={playlist.at} />}
+                {!LOCAL && playlist && reached === playlist.clips && playlist.at + 1 < playlist.clips.length && <Preload src={src} clips={playlist.clips} at={playlist.at} />}
                 {/* What plays, over the video: the bar below is out of sight from the stats and in full screen. */}
                 {playlist && (
                   <span
