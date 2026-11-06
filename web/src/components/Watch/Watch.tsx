@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock } from 'lucide-react';
+import { LoaderCircle, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
@@ -26,6 +26,8 @@ const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
 const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? match.av1 : match.video;
 // Wider than this on the screen (in its pixels), the 720p copy would be stretched: the player takes the 1080p one.
 const WIDE_PX = 1600;
+// A wait for the video's data shorter than this shows nothing.
+const BUFFERING_MS = 300;
 
 export function Watch() {
   const { t } = useTranslation();
@@ -217,6 +219,7 @@ export function Watch() {
                   onClick={() => togglePlay(video)}
                   className="block aspect-video w-full cursor-pointer [:fullscreen>&]:aspect-auto [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1"
                 />
+                {video instanceof HTMLVideoElement && <Buffering video={video} />}
                 <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} />
               </div>
             </div>
@@ -227,6 +230,44 @@ export function Watch() {
         <RallyCards />
       </CardContent>
     </Card>
+  );
+}
+
+/** A spinner over `video` while it waits for data, to play on or to show the moment it moved to. */
+function Buffering({ video }: { video: HTMLVideoElement }) {
+  const { t } = useTranslation();
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    let timer = 0;
+    const check = () => {
+      window.clearTimeout(timer);
+      if (!video.error && (video.seeking || (!video.paused && video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA))) {
+        timer = window.setTimeout(() => setShown(true), BUFFERING_MS);
+      } else {
+        setShown(false);
+      }
+    };
+    const events = ['waiting', 'playing', 'canplay', 'seeking', 'seeked', 'play', 'pause', 'emptied', 'error'];
+    events.forEach((e) => video.addEventListener(e, check));
+    return () => {
+      window.clearTimeout(timer);
+      events.forEach((e) => video.removeEventListener(e, check));
+    };
+  }, [video]);
+  if (!shown) {
+    return null;
+  }
+  // Over the picture, the controls below it; in full screen over the whole screen.
+  return (
+    <div
+      role="status"
+      aria-label={t('videoLoading')}
+      className="pointer-events-none absolute inset-x-0 top-0 grid aspect-video place-items-center [:fullscreen>&]:bottom-0 [:fullscreen>&]:aspect-auto"
+    >
+      <span className="rounded-full bg-black/60 p-2.5 text-white backdrop-blur-sm">
+        <LoaderCircle aria-hidden className="size-8 animate-spin" />
+      </span>
+    </div>
   );
 }
 
