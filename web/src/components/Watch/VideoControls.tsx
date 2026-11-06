@@ -92,9 +92,13 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
     // Polled: the playlist's hidden copy of the video loads the next clips without this one saying so.
     const read = () => {
       const copies = [...(video.parentElement?.querySelectorAll('video') ?? [])].filter((v) => v.currentSrc === video.currentSrc);
-      const ranges = copies.flatMap((v) => Array.from({ length: v.buffered.length }, (_, k): [number, number] => [v.buffered.start(k), v.buffered.end(k)]));
       const head = CHROMIUM && video.currentSrc ? match.heads[decodeURIComponent(new URL(video.currentSrc).pathname.split('/').pop() ?? '')] : undefined;
-      const next = merged(head && video.duration ? unshifted(ranges, video.duration, head) : ranges);
+      const next = merged(
+        copies.flatMap((v) => {
+          const ranges = Array.from({ length: v.buffered.length }, (_, k): [number, number] => [v.buffered.start(k), v.buffered.end(k)]);
+          return head && video.duration ? unshifted(ranges, video.duration, head, v.currentTime) : ranges;
+        }),
+      );
       setHeld((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next));
     };
     read();

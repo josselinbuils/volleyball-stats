@@ -9,6 +9,7 @@ import { useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { Clock } from '@/lib/clock';
 import { togglePlay, usePlayer } from '@/lib/player';
+import type { Clip } from '@/lib/playlist';
 import { Feedback } from '@/components/Watch/Feedback';
 import { PlaylistBar } from '@/components/Watch/PlaylistBar';
 import { RallyCards } from '@/components/Watch/RallyCards';
@@ -28,6 +29,8 @@ const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? matc
 const WIDE_PX = 1600;
 // A playlist's clips loaded ahead of the one playing, one after another.
 const AHEAD = 3;
+// How often the playlist's hidden copy checks whether it holds the clip it loads.
+const PRELOAD_MS = 250;
 // A wait for the video's data shorter than this shows nothing.
 const BUFFERING_MS = 300;
 
@@ -81,14 +84,14 @@ export function Watch() {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [video, follow, ball]);
-  // A playlist's next clips load once the video has reached the one it plays: both at once would
+  // A playlist's next clips load once the video has reached its first one: both at once would
   // slow its start.
-  const [reached, setReached] = useState<typeof playlist>(null);
+  const [reached, setReached] = useState<Clip[] | null>(null);
   useEffect(() => {
     if (!(video instanceof HTMLVideoElement) || !playlist) {
       return;
     }
-    const on = () => setReached(playlist);
+    const on = () => setReached(playlist.clips);
     video.addEventListener('seeked', on);
     return () => video.removeEventListener('seeked', on);
   }, [video, playlist]);
@@ -201,9 +204,7 @@ export function Watch() {
               {/* Full screen takes the video with its controls. */}
               <div className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
                 {full && <Feedback />}
-                {playlist && reached === playlist && playlist.at + 1 < playlist.clips.length && (
-                  <Preload src={src} times={playlist.clips.slice(playlist.at + 1, playlist.at + 1 + AHEAD).map((c) => c.start)} />
-                )}
+                {playlist && reached === playlist.clips && playlist.at + 1 < playlist.clips.length && <Preload src={src} clips={playlist.clips} at={playlist.at} />}
                 {/* What plays, over the video: the bar below is out of sight from the stats and in full screen. */}
                 {playlist && (
                   <span
@@ -275,27 +276,40 @@ function Buffering({ video }: { video: HTMLVideoElement }) {
   );
 }
 
-/** A hidden copy of the video (`src`, the copy playing) loading the next clips' starts (`times`) in turn, each once it
- * can play the one before: the browser keeps what it fetches for the video, which then jumps there without waiting. */
-function Preload({ src, times }: { src: string | null; times: number[] }) {
+/** A hidden copy of the video (`src`, the copy playing) loading the starts of the AHEAD `clips` after `at` one after
+ * another, each until the browser holds enough of it to play it; the same for the whole playlist, it remembers those
+ * done. The browser keeps what it fetches for the video, which then jumps there without waiting. */
+function Preload({ src, clips, at }: { src: string | null; clips: Clip[]; at: number }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const key = times.join(',');
+  const done = useRef(new Set<number>());
+  useEffect(() => {
+    done.current = new Set();
+  }, [src]);
   useEffect(() => {
     const preload = ref.current;
     if (!preload) {
       return;
     }
-    const starts = key.split(',').map(Number);
-    let k = 0;
-    preload.currentTime = starts[0];
-    const next = () => {
-      if (k + 1 < starts.length) {
-        k += 1;
-        preload.currentTime = starts[k];
+    const ahead = clips.slice(at + 1, at + 1 + AHEAD).map((c) => c.start);
+    const step = () => {
+      const target = ahead.find((t) => !done.current.has(t));
+      if (target === undefined) {
+        return;
+      }
+      if (Math.abs(preload.currentTime - target) > 0.5) {
+        preload.currentTime = target;
+        return;
+      }
+      // Enough to play, or as much as the browser fetches for a video that does not play.
+      const held = preload.readyState === HTMLMediaElement.HAVE_ENOUGH_DATA || (preload.readyState === HTMLMediaElement.HAVE_FUTURE_DATA && preload.networkState === HTMLMediaElement.NETWORK_IDLE);
+      if (!preload.seeking && held) {
+        done.current.add(target);
+        step();
       }
     };
-    preload.addEventListener('canplaythrough', next);
-    return () => preload.removeEventListener('canplaythrough', next);
-  }, [key, src]);
+    step();
+    const timer = window.setInterval(step, PRELOAD_MS);
+    return () => window.clearInterval(timer);
+  }, [clips, at, src]);
   return <video ref={ref} src={src ?? undefined} muted playsInline preload="auto" aria-hidden className="hidden" />;
 }

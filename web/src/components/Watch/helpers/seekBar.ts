@@ -18,13 +18,13 @@ export function seekLine(time: number, start: number, end: number, held: [number
   };
 }
 
-/** Where Chromium's `buffered` `ranges` of a video of `duration` s really are: it places each loaded byte at its share of
- * the file in the timeline, the index before the frames (`head`, a share of the file) included. The frames are taken as
- * evenly spread, within 10 s on the two matches; the few seconds it reports exactly, around the playhead, go behind it,
- * under the played part. */
-export function unshifted(ranges: [number, number][], duration: number, head: number): [number, number][] {
-  const at = (t: number) => Math.min(duration, Math.max(0, ((t / duration - head) / (1 - head)) * duration));
-  return ranges.map(([a, b]) => [at(a), at(b)]);
+/** Where Chromium's `buffered` `ranges` of a video of `duration` s really are, for a copy of it standing at `at`: it
+ * places each loaded byte at its share of the file in the timeline, the index before the frames (`head`, a share of the
+ * file) included; the frames are taken as evenly spread, within 10 s on the two matches. The few seconds around `at` it
+ * reads exactly: that range stays. */
+export function unshifted(ranges: [number, number][], duration: number, head: number, at: number): [number, number][] {
+  const place = (t: number) => Math.min(duration, Math.max(0, ((t / duration - head) / (1 - head)) * duration));
+  return ranges.map(([a, b]) => (a <= at && at <= b ? [a, b] : [place(a), place(b)]));
 }
 
 /** `ranges` in order, those overlapping or touching joined: a gradient's stops must not go back. */
