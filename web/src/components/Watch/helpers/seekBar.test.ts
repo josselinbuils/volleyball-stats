@@ -23,6 +23,22 @@ describe('seekLine', () => {
     expect(line.backgroundSize).toBe('25% 4px, 100% 4px, 100% 4px');
   });
 
+  it('leaves out the parts and gaps of a few pixels', () => {
+    // On a 1000 s bar: 0.2 s loaded alone, and two parts 0.2 s apart drawn as one.
+    const line = seekLine(
+      0,
+      0,
+      1000,
+      [
+        [100, 100.2],
+        [500, 520],
+        [520.2, 540],
+      ],
+      colors,
+    );
+    expect(line.backgroundImage).toBe('linear-gradient(P, P), linear-gradient(to right, transparent 50%, H 50% 54%, transparent 54%), linear-gradient(R, R)');
+  });
+
   it('has no loaded layer before anything loads', () => {
     expect(seekLine(0, 0, 10, [], colors).backgroundImage).toBe('linear-gradient(P, P), linear-gradient(R, R)');
   });
