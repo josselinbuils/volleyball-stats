@@ -205,6 +205,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
         style={line}
         className={cn(
           'h-9 min-w-0 flex-1 cursor-pointer appearance-none rounded-md bg-transparent outline-none focus-visible:ring-3 max-sm:order-first max-sm:h-7 max-sm:basis-full',
+          // The thumb's size is seekBar's THUMB_PX.
           '[&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-(--primary)',
           '[&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-(--primary) [&::-moz-range-track]:bg-transparent',
           light ? 'focus-visible:ring-ring/50' : 'focus-visible:ring-white/70',

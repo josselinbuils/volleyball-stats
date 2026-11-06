@@ -2,11 +2,17 @@ import type { CSSProperties } from 'react';
 
 /** Height (px) of the seek bar's line, in the middle of its box. */
 const LINE_PX = 4;
+/** Width (px) of the seek bar's thumb (VideoControls' size-3.5): the browser moves its centre from half of it to the
+ * bar's width less half of it, where the line's places must be. */
+const THUMB_PX = 14;
 
 /** The seek bar's line over `start`..`end`: played up to `time` in `played`, the stretches of `held` (the video's loaded
  * parts) in `heldColor`, the rest in `rest`. */
 export function seekLine(time: number, start: number, end: number, held: [number, number][], colors: { played: string; heldColor: string; rest: string }): CSSProperties {
-  const share = (at: number) => `${(100 * (Math.min(end, Math.max(start, at)) - start)) / Math.max(1e-9, end - start)}%`;
+  const share = (at: number) => {
+    const s = (Math.min(end, Math.max(start, at)) - start) / Math.max(1e-9, end - start);
+    return `calc(${THUMB_PX / 2}px + ${100 * s}% - ${THUMB_PX * s}px)`;
+  };
   const solid = (color: string) => `linear-gradient(${color}, ${color})`;
   const parts = held.filter(([a, b]) => b > start && a < end).map(([a, b]) => `transparent ${share(a)}, ${colors.heldColor} ${share(a)} ${share(b)}, transparent ${share(b)}`);
   const layers = [solid(colors.played), ...(parts.length ? [`linear-gradient(to right, ${parts.join(', ')})`] : []), solid(colors.rest)];

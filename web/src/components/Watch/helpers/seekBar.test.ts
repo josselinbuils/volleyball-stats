@@ -17,10 +17,12 @@ describe('seekLine', () => {
       ],
       colors,
     );
+    // Each place where the thumb's centre stands for it: 7 px in, 7 px short of the end.
+    const at = (share: number) => `calc(7px + ${100 * share}% - ${14 * share}px)`;
     expect(line.backgroundImage).toBe(
-      'linear-gradient(P, P), linear-gradient(to right, transparent 0%, H 0% 20%, transparent 20%, transparent 50%, H 50% 60%, transparent 60%), linear-gradient(R, R)',
+      `linear-gradient(P, P), linear-gradient(to right, transparent ${at(0)}, H ${at(0)} ${at(0.2)}, transparent ${at(0.2)}, transparent ${at(0.5)}, H ${at(0.5)} ${at(0.6)}, transparent ${at(0.6)}), linear-gradient(R, R)`,
     );
-    expect(line.backgroundSize).toBe('25% 4px, 100% 4px, 100% 4px');
+    expect(line.backgroundSize).toBe(`${at(0.25)} 4px, 100% 4px, 100% 4px`);
   });
 
   it('has no loaded layer before anything loads', () => {
