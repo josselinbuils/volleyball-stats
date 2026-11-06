@@ -21,7 +21,8 @@ moments.
 - The video player skips 10 s back or forward. Its "Zoom auto" frames the players as the review's
   (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
-  around each jump. A spinner shows over the picture while the video waits for its data over 0.3 s.
+  around each jump. A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
+  shows in a lighter line what the browser holds of the video (`video.buffered`).
 - Beside it, the court seen from above follows the play: the players, the ball with a trail as long
   as it is fast, and a ring around the player touching it.
 - Each player keeps one mark for the whole match: their number, then once named their jersey number, or without one

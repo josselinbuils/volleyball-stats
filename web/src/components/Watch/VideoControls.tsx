@@ -8,6 +8,7 @@ import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
+import { seekLine } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 
 /** Seconds the skip buttons move the video by. */
@@ -77,6 +78,25 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
     };
   }, [video, span]);
 
+  // What the browser holds of the video, drawn on the seek bar: it plays there without waiting.
+  const [held, setHeld] = useState<[number, number][]>([]);
+  useEffect(() => {
+    if (!(video instanceof HTMLVideoElement)) {
+      setHeld([]);
+      return;
+    }
+    const read = () => setHeld(Array.from({ length: video.buffered.length }, (_, k): [number, number] => [video.buffered.start(k), video.buffered.end(k)]));
+    const events = ['progress', 'loadedmetadata', 'seeked', 'emptied'] as const;
+    events.forEach((e) => video.addEventListener(e, read));
+    read();
+    return () => events.forEach((e) => video.removeEventListener(e, read));
+  }, [video]);
+  const line = seekLine(time, span.start, span.end, held, {
+    played: 'var(--primary)',
+    heldColor: light ? 'color-mix(in oklab, var(--foreground) 35%, transparent)' : 'rgb(255 255 255 / 0.5)',
+    rest: light ? 'color-mix(in oklab, var(--foreground) 15%, transparent)' : 'rgb(255 255 255 / 0.2)',
+  });
+
   // iPhones put only a video full screen, not the court's replay.
   const fullscreen = !!video?.parentElement?.requestFullscreen || (video !== null && 'webkitEnterFullscreen' in video);
   const toggleFullscreen = () => {
@@ -134,7 +154,13 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
         }}
         aria-label={t('seekVideo')}
         aria-valuetext={clock(time)}
-        className="h-9 min-w-0 flex-1 cursor-pointer accent-(--primary) max-sm:order-first max-sm:h-7 max-sm:basis-full"
+        style={line}
+        className={cn(
+          'h-9 min-w-0 flex-1 cursor-pointer appearance-none rounded-md bg-transparent outline-none focus-visible:ring-3 max-sm:order-first max-sm:h-7 max-sm:basis-full',
+          '[&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-(--primary)',
+          '[&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-(--primary) [&::-moz-range-track]:bg-transparent',
+          light ? 'focus-visible:ring-ring/50' : 'focus-visible:ring-white/70',
+        )}
       />
       {/* A phone's row has no room for it: the timeline shows where the video is. */}
       <span className={cn('shrink-0 px-1 text-sm tabular-nums max-sm:hidden', light ? 'text-muted-foreground' : 'text-white/75')} aria-hidden>
