@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { around, merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { around, isDownload, merged, placer, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 
 describe('seekLine', () => {
   const colors = { played: 'P', heldColor: 'H', rest: 'R' };
@@ -23,72 +23,73 @@ describe('seekLine', () => {
     expect(line.backgroundSize).toBe('25% 4px, 100% 4px, 100% 4px');
   });
 
-  it('leaves out the parts and gaps of a few pixels', () => {
-    // On a 1000 s bar: 0.2 s loaded alone, and two parts 0.2 s apart drawn as one.
-    const line = seekLine(
-      0,
-      0,
-      1000,
-      [
-        [100, 100.2],
-        [500, 520],
-        [520.2, 540],
-      ],
-      colors,
-    );
-    expect(line.backgroundImage).toBe('linear-gradient(P, P), linear-gradient(to right, transparent 50%, H 50% 54%, transparent 54%), linear-gradient(R, R)');
-  });
-
   it('has no loaded layer before anything loads', () => {
     expect(seekLine(0, 0, 10, [], colors).backgroundImage).toBe('linear-gradient(P, P), linear-gradient(R, R)');
   });
 });
 
-describe('unshifted', () => {
+describe('placer', () => {
   // A 100 s video: its frames from 10% of the file, the first 50 s in a fifth of it, the rest in the rest.
-  const index: [number, number][] = [
+  const place = placer(100, [
     [0, 0.1],
     [50, 0.3],
     [90, 0.9],
-  ];
+  ]);
 
   it("reads Chromium's places back through the file's index", () => {
     // Chromium puts the byte at 30% of the file at 30 s: the index says 50 s; at 60%, 70 s; past the last point, the rest.
-    expect(
-      unshifted(
-        [
-          [30, 60],
-          [95, 100],
-        ],
-        100,
-        index,
-        -1,
-      ),
-    ).toEqual([
-      [50, 70],
-      [95, 100],
-    ]);
+    expect([place(30), place(60), place(95)]).toEqual([50, 70, 95]);
   });
 
   it('puts the bytes before the frames at the start', () => {
-    expect(unshifted([[0, 5]], 100, index, -1)).toEqual([[0, 0]]);
+    expect(place(5)).toBe(0);
+  });
+});
+
+describe('unshifted', () => {
+  // Chromium's places 10 s early: the bytes lag behind the time.
+  const late = (t: number) => t + 10;
+
+  it('reads every range back, the one around the copy ending no further than either reading', () => {
+    expect(
+      unshifted(
+        [
+          [40, 47],
+          [70, 80],
+        ],
+        late,
+        43,
+      ),
+    ).toEqual([
+      [40, 47],
+      [80, 90],
+    ]);
+  });
+});
+
+describe('isDownload', () => {
+  // Chromium's places 30 s late: the index at the file's start.
+  const early = (t: number) => t - 30;
+
+  it("tells the copy's own growing download from its exact seconds and older downloads", () => {
+    // At 100 s: its exact seconds 99-101 s, the estimate of its download 129-140 s (129-135 s before), an older one 160-170 s.
+    const before: [number, number][] = [
+      [129, 135],
+      [160, 170],
+    ];
+    expect(
+      (
+        [
+          [99, 101],
+          [129, 140],
+          [160, 170],
+        ] as [number, number][]
+      ).map((r) => isDownload(r, before, early, 100)),
+    ).toEqual([false, true, false]);
   });
 
-  it('ends where the copy stands no further than either reading', () => {
-    // Here the bytes lag behind the time: the exact 40-47 s around 43 s would read back to 57-61 s.
-    expect(unshifted([[40, 47]], 100, index, 43)).toEqual([[40, 47]]);
-    // A file whose first half holds 70% of the bytes: the bytes run ahead, 80 s reading back to 66.7 s.
-    const [[a, b]] = unshifted(
-      [[44, 80]],
-      100,
-      [
-        [0, 0],
-        [50, 0.7],
-      ],
-      45,
-    );
-    expect(a).toBeCloseTo((0.44 / 0.7) * 50, 6);
-    expect(b).toBeCloseTo(50 + (0.1 / 0.3) * 50, 6);
+  it('is no download while it has not grown', () => {
+    expect(isDownload([129, 140], [[129, 140]], early, 100)).toBe(false);
   });
 });
 

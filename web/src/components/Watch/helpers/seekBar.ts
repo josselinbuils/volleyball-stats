@@ -2,25 +2,13 @@ import type { CSSProperties } from 'react';
 
 /** Height (px) of the seek bar's line, in the middle of its box. */
 const LINE_PX = 4;
-/** Loaded parts narrower than this share of the bar, and gaps as narrow between two, are only noise: a few pixels. */
-const MIN_SHARE = 0.004;
 
 /** The seek bar's line over `start`..`end`: played up to `time` in `played`, the stretches of `held` (the video's loaded
- * parts, in order) in `heldColor` past MIN_SHARE, the rest in `rest`. */
+ * parts) in `heldColor`, the rest in `rest`. */
 export function seekLine(time: number, start: number, end: number, held: [number, number][], colors: { played: string; heldColor: string; rest: string }): CSSProperties {
   const share = (at: number) => `${(100 * (Math.min(end, Math.max(start, at)) - start)) / Math.max(1e-9, end - start)}%`;
   const solid = (color: string) => `linear-gradient(${color}, ${color})`;
-  const min = MIN_SHARE * (end - start);
-  const shown: [number, number][] = [];
-  for (const [a, b] of held) {
-    const last = shown.at(-1);
-    if (last && a - last[1] < min) {
-      last[1] = Math.max(last[1], b);
-    } else {
-      shown.push([a, b]);
-    }
-  }
-  const parts = shown.filter(([a, b]) => Math.min(b, end) - Math.max(a, start) >= min).map(([a, b]) => `transparent ${share(a)}, ${colors.heldColor} ${share(a)} ${share(b)}, transparent ${share(b)}`);
+  const parts = held.filter(([a, b]) => b > start && a < end).map(([a, b]) => `transparent ${share(a)}, ${colors.heldColor} ${share(a)} ${share(b)}, transparent ${share(b)}`);
   const layers = [solid(colors.played), ...(parts.length ? [`linear-gradient(to right, ${parts.join(', ')})`] : []), solid(colors.rest)];
   return {
     backgroundImage: layers.join(', '),
@@ -30,12 +18,11 @@ export function seekLine(time: number, start: number, end: number, held: [number
   };
 }
 
-/** Where Chromium's `buffered` `ranges` of a video of `duration` s really are, for a copy of it standing at `at`: it
- * places each loaded byte at its share of the file in the timeline, which the file's `index` ([time, share of the file]
- * in order, every 10 s) reads back, within 2 s on the two matches. Around `at` it joins the few seconds it reads exactly,
- * which need no reading back: that range's end is the lesser of both readings, never past what is loaded. */
-export function unshifted(ranges: [number, number][], duration: number, index: [number, number][], at: number): [number, number][] {
-  const place = (t: number) => {
+/** Chromium's place in the timeline of a video of `duration` s, read back to its real time: Chromium places each
+ * loaded byte at its share of the file, which the file's `index` ([time, share of the file] in order, every 10 s) reads
+ * back, within 2 s on the two matches. */
+export function placer(duration: number, index: [number, number][]): (t: number) => number {
+  return (t) => {
     const share = t / duration;
     const k = index.findLastIndex(([, s]) => s <= share);
     if (k < 0) {
@@ -45,7 +32,26 @@ export function unshifted(ranges: [number, number][], duration: number, index: [
     const [t1, s1] = index[k + 1] ?? [duration, 1];
     return Math.min(duration, t0 + ((share - s0) / Math.max(1e-12, s1 - s0)) * (t1 - t0));
   };
+}
+
+/** The playing copy's `ranges` (Chromium's `buffered`) read back, the copy standing at `at`. Around `at` Chromium joins
+ * the few seconds it reads exactly, which need no reading back: that range's end is the lesser of both readings. */
+export function unshifted(ranges: [number, number][], place: (t: number) => number, at: number): [number, number][] {
   return ranges.map(([a, b]) => (a <= at && at <= b ? [Math.min(a, place(a)), Math.max(at, Math.min(b, place(b)))] : [place(a), place(b)]));
+}
+
+/** Seconds before where a copy stands that its download may start: the keyframe before (one every 2 s). */
+const KEYFRAME_S = 2.5;
+
+/** Whether `range`, among a copy's ranges (Chromium's `buffered`), is that copy's own download where it stands, at `at`,
+ * the copy not playing: it grew since the copy's `previous` ranges and, read back, starts at the keyframe before `at`.
+ * Chromium also keeps an exact range at each place a copy stood, and its estimates of other downloads: only one copy's
+ * own growing download starts there. */
+export function isDownload([a, b]: [number, number], previous: [number, number][], place: (t: number) => number, at: number): boolean {
+  const near = (x: number) => at - KEYFRAME_S <= x && x <= at + 0.5;
+  const grew = !previous.some(([c, d]) => c <= a + 0.01 && d >= b - 0.01);
+  const exact = near(a) && Math.abs(place(a) - a) > KEYFRAME_S;
+  return grew && !exact && near(place(a)) && place(b) > place(a);
 }
 
 /** Seconds a loaded part may start after one of `points` and still count as loaded from there. */

@@ -8,14 +8,14 @@ import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
-import { around, merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { around, isDownload, merged, placer, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
 // How often the seek bar reads what the browser holds of the video.
 const HELD_MS = 500;
-// Chromium (Chrome, Edge, Android) reports a video's loaded parts at their bytes' share of the file (`unshifted`).
+// Chromium (Chrome, Edge, Android) reports a video's loaded parts at their bytes' share of the file (`placer`).
 const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.some((b) => b.brand === 'Chromium') ?? false;
 
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
@@ -91,23 +91,50 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       setHeld([]);
       return;
     }
-    // Polled: the playlist's hidden copy of the video loads the next clips without this one saying so. Only what is
-    // loaded from where the video stands and from the next clips is drawn.
+    // The playlist's hidden copy's downloads, by where Chromium starts them, as last read back: they stay once it is
+    // gone. And each copy's ranges at the last reading.
+    const downloads = new Map<string, [number, number]>();
+    const previous = new WeakMap<HTMLVideoElement, [number, number][]>();
+    let src = '';
+    // Polled, and at each jump: the hidden copy loads the next clips without this one saying so. Only what is loaded
+    // from where the video stands and from the next clips is drawn.
     const read = () => {
-      const copies = [...(video.parentElement?.querySelectorAll('video') ?? [])].filter((v) => v.currentSrc === video.currentSrc);
-      const index = CHROMIUM && video.currentSrc ? match.index[decodeURIComponent(new URL(video.currentSrc).pathname.split('/').pop() ?? '')] : undefined;
-      const loaded = merged(
-        copies.flatMap((v) => {
-          const ranges = Array.from({ length: v.buffered.length }, (_, k): [number, number] => [v.buffered.start(k), v.buffered.end(k)]);
-          return index && video.duration ? unshifted(ranges, video.duration, index, v.currentTime) : ranges;
-        }),
-      );
-      const shown = around(loaded, [video.currentTime, ...next.current]);
+      if (video.currentSrc !== src) {
+        src = video.currentSrc;
+        downloads.clear();
+      }
+      const copies = [...(video.parentElement?.querySelectorAll('video') ?? [])].filter((v) => v.currentSrc === src);
+      const index = CHROMIUM && src ? match.index[decodeURIComponent(new URL(src).pathname.split('/').pop() ?? '')] : undefined;
+      const place = index && video.duration ? placer(video.duration, index) : null;
+      const parts = copies.flatMap((v) => {
+        const ranges = Array.from({ length: v.buffered.length }, (_, k): [number, number] => [v.buffered.start(k), v.buffered.end(k)]);
+        if (!place) {
+          return ranges;
+        }
+        if (v === video) {
+          return unshifted(ranges, place, v.currentTime);
+        }
+        for (const range of ranges) {
+          const key = range[0].toFixed(2);
+          if (downloads.has(key) || isDownload(range, previous.get(v) ?? [], place, v.currentTime)) {
+            downloads.set(key, [place(range[0]), place(range[1])]);
+          }
+        }
+        previous.set(v, ranges);
+        return [];
+      });
+      const shown = around(merged([...parts, ...downloads.values()]), [video.currentTime, ...next.current]);
       setHeld((now) => (JSON.stringify(now) === JSON.stringify(shown) ? now : shown));
     };
     read();
     const timer = window.setInterval(read, HELD_MS);
-    return () => window.clearInterval(timer);
+    video.addEventListener('seeking', read);
+    video.addEventListener('seeked', read);
+    return () => {
+      window.clearInterval(timer);
+      video.removeEventListener('seeking', read);
+      video.removeEventListener('seeked', read);
+    };
   }, [video]);
   const line = seekLine(time, span.start, span.end, held, {
     played: 'var(--primary)',
