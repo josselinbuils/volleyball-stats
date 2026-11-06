@@ -128,8 +128,8 @@ export interface Data {
   av1?: string | null;
   /** Its 720p copy, played while the player is small. */
   small?: string | null;
-  /** By file, the share of each copy before its frames: its index (web.frames_start). */
-  heads?: Record<string, number>;
+  /** By file, where each copy holds its video: [time (s), share of the file] in order (web.frames_index). */
+  index?: Record<string, [number, number][]>;
   /** On a page without the video, where the same page with it is, behind a password. */
   videoPage?: string | null;
   /** Where viewers send what they found wrong in a moment, null to not ask. */
@@ -191,7 +191,7 @@ export const match = {
   aliases: data.aliases,
   positions: data.positions ?? null,
   views: data.views ?? [],
-  heads: data.heads ?? {},
+  index: data.index ?? {},
   scores: data.scores ?? [],
   brand: data.brand ?? null,
   date: data.date ?? null,

@@ -45,32 +45,37 @@ describe('seekLine', () => {
 });
 
 describe('unshifted', () => {
-  it("takes the index's bytes out of Chromium's places", () => {
-    // A 1000 s video whose first 10% is its index: Chromium puts its frames' 0-100 s at 100-190 s.
-    const [[a, b]] = unshifted([[100, 190]], 1000, 0.1, 0);
-    expect(a).toBeCloseTo(0, 6);
-    expect(b).toBeCloseTo(100, 6);
-  });
+  // A 100 s video: its frames from 10% of the file, the first 50 s in a fifth of it, the rest in the rest.
+  const index: [number, number][] = [
+    [0, 0.1],
+    [50, 0.3],
+    [90, 0.9],
+  ];
 
-  it('keeps the places inside the video', () => {
-    expect(unshifted([[0, 50]], 1000, 0.1, 500)).toEqual([[0, 0]]);
-  });
-
-  it('leaves where the copy stands as read', () => {
+  it("reads Chromium's places back through the file's index", () => {
+    // Chromium puts the byte at 30% of the file at 30 s: the index says 50 s; at 60%, 70 s; past the last point, the rest.
     expect(
       unshifted(
         [
-          [400, 407],
-          [430, 450],
+          [30, 60],
+          [95, 100],
         ],
-        1000,
-        0.1,
-        403,
+        100,
+        index,
+        -1,
       ),
     ).toEqual([
-      [400, 407],
-      [((0.43 - 0.1) / 0.9) * 1000, ((0.45 - 0.1) / 0.9) * 1000],
+      [50, 70],
+      [95, 100],
     ]);
+  });
+
+  it('puts the bytes before the frames at the start', () => {
+    expect(unshifted([[0, 5]], 100, index, -1)).toEqual([[0, 0]]);
+  });
+
+  it('leaves where the copy stands as read', () => {
+    expect(unshifted([[40, 47]], 100, index, 43)).toEqual([[40, 47]]);
   });
 });
 

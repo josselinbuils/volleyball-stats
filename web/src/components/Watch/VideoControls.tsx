@@ -15,7 +15,7 @@ import { span as allowed } from '@/components/Watch/helpers/span';
 const SKIP = 10;
 // How often the seek bar reads what the browser holds of the video.
 const HELD_MS = 500;
-// Chromium (Chrome, Edge, Android) reports a video's loaded parts shifted by its index (`unshifted`).
+// Chromium (Chrome, Edge, Android) reports a video's loaded parts at their bytes' share of the file (`unshifted`).
 const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.some((b) => b.brand === 'Chromium') ?? false;
 
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
@@ -92,11 +92,11 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
     // Polled: the playlist's hidden copy of the video loads the next clips without this one saying so.
     const read = () => {
       const copies = [...(video.parentElement?.querySelectorAll('video') ?? [])].filter((v) => v.currentSrc === video.currentSrc);
-      const head = CHROMIUM && video.currentSrc ? match.heads[decodeURIComponent(new URL(video.currentSrc).pathname.split('/').pop() ?? '')] : undefined;
+      const index = CHROMIUM && video.currentSrc ? match.index[decodeURIComponent(new URL(video.currentSrc).pathname.split('/').pop() ?? '')] : undefined;
       const next = merged(
         copies.flatMap((v) => {
           const ranges = Array.from({ length: v.buffered.length }, (_, k): [number, number] => [v.buffered.start(k), v.buffered.end(k)]);
-          return head && video.duration ? unshifted(ranges, video.duration, head, v.currentTime) : ranges;
+          return index && video.duration ? unshifted(ranges, video.duration, index, v.currentTime) : ranges;
         }),
       );
       setHeld((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next));

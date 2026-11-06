@@ -31,11 +31,20 @@ export function seekLine(time: number, start: number, end: number, held: [number
 }
 
 /** Where Chromium's `buffered` `ranges` of a video of `duration` s really are, for a copy of it standing at `at`: it
- * places each loaded byte at its share of the file in the timeline, the index before the frames (`head`, a share of the
- * file) included; the frames are taken as evenly spread, within 10 s on the two matches. The few seconds around `at` it
- * reads exactly: that range stays. */
-export function unshifted(ranges: [number, number][], duration: number, head: number, at: number): [number, number][] {
-  const place = (t: number) => Math.min(duration, Math.max(0, ((t / duration - head) / (1 - head)) * duration));
+ * places each loaded byte at its share of the file in the timeline, which the file's `index` ([time, share of the file]
+ * in order, every 10 s) reads back, within 2 s on the two matches. The few seconds around `at` it reads exactly: that
+ * range stays. */
+export function unshifted(ranges: [number, number][], duration: number, index: [number, number][], at: number): [number, number][] {
+  const place = (t: number) => {
+    const share = t / duration;
+    const k = index.findLastIndex(([, s]) => s <= share);
+    if (k < 0) {
+      return 0;
+    }
+    const [t0, s0] = index[k];
+    const [t1, s1] = index[k + 1] ?? [duration, 1];
+    return Math.min(duration, t0 + ((share - s0) / Math.max(1e-12, s1 - s0)) * (t1 - t0));
+  };
   return ranges.map(([a, b]) => (a <= at && at <= b ? [a, b] : [place(a), place(b)]));
 }
 

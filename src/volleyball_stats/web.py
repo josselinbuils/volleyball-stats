@@ -28,6 +28,7 @@ import os
 import shutil
 import struct
 from collections.abc import Callable, Iterable, Iterator
+from typing import BinaryIO
 from pathlib import Path
 
 import cv2
@@ -979,27 +980,68 @@ def copy_films(films: Path | None, site: Path) -> dict[str, str]:
     return {name: f"films/{e['file']}?v={e['hash']}" for name, e in made.items()}
 
 
-def frames_start(path: Path) -> float | None:
-    """The share of the MP4 file at `path` before its frames: its index first, as the copies' +faststart puts it; None
-    without frames. Chromium places what it loaded of a video at that byte's share of the file in its timeline, the
-    index included: the page takes it out."""
+# One point of a video's byte index every this many seconds of it.
+INDEX_S = 10.0
+
+
+def mp4_boxes(f: BinaryIO, start: int, end: int) -> Iterator[tuple[bytes, int, int]]:
+    """The boxes of the open MP4 file `f` between `start` and `end`: their kind, where their content starts and ends."""
+    at = start
+    while at + 8 <= end:
+        f.seek(at)
+        size, kind = struct.unpack(">I4s", f.read(8))
+        head = 8
+        if size == 1:
+            size, head = struct.unpack(">Q", f.read(8))[0], 16
+        elif size == 0:
+            size = end - at
+        if size < head:
+            return
+        yield kind, at + head, at + size
+        at += size
+
+
+def frames_index(path: Path) -> list[list[float]] | None:
+    """Where the MP4 file at `path` holds its video: [time (s), share of the file] every INDEX_S, from its first chunk to
+    its last; None without a video track. Chromium places what it loaded of a video at that byte's share of the file in
+    its timeline: the page reads it back through this."""
     size = path.stat().st_size
     with open(path, "rb") as f:
-        at = 0
-        while at + 8 <= size:
-            f.seek(at)
-            header = f.read(16)
-            length, kind = struct.unpack(">I4s", header[:8])
-            skip = 8
-            if length == 1 and len(header) == 16:
-                length, skip = struct.unpack(">Q", header[8:16])[0], 16
-            elif length == 0:
-                length = size - at
-            if kind == b"mdat":
-                return (at + skip) / size
-            if length < 8:
-                return None
-            at += length
+        def child(kind: bytes, start: int, end: int) -> tuple[int, int] | None:
+            return next(((a, b) for k, a, b in mp4_boxes(f, start, end) if k == kind), None)
+
+        def table(box: tuple[int, int], skip: int, dtype: str, width: int) -> np.ndarray:
+            f.seek(box[0] + 4)
+            count = struct.unpack(">I", f.read(4))[0]
+            f.seek(box[0] + 8 + skip)
+            return np.frombuffer(f.read(count * width * np.dtype(dtype).itemsize), dtype).reshape(count, width).astype(np.int64)
+
+        moov = child(b"moov", 0, size)
+        for kind, a, b in mp4_boxes(f, *moov) if moov else []:
+            mdia = child(b"mdia", a, b) if kind == b"trak" else None
+            hdlr = mdia and child(b"hdlr", *mdia)
+            if not hdlr:
+                continue
+            f.seek(hdlr[0] + 8)
+            if f.read(4) != b"vide":
+                continue
+            mdhd = child(b"mdhd", *mdia)
+            f.seek(mdhd[0])
+            f.seek(mdhd[0] + (20 if f.read(1)[0] else 12))
+            timescale = struct.unpack(">I", f.read(4))[0]
+            stbl = child(b"stbl", *child(b"minf", *mdia))
+            deltas = table(child(b"stts", *stbl), 0, ">u4", 2)
+            to_chunk = table(child(b"stsc", *stbl), 0, ">u4", 3)
+            stco, co64 = child(b"stco", *stbl), child(b"co64", *stbl)
+            offsets = table(stco, 0, ">u4", 1)[:, 0] if stco else table(co64, 0, ">u8", 1)[:, 0]
+            times = np.concatenate([[0], np.cumsum(np.repeat(deltas[:, 1], deltas[:, 0]))]) / timescale
+            # Samples in each chunk, from the runs of chunks sharing a count.
+            per_chunk = np.zeros(len(offsets), np.int64)
+            for (first, count, _), following in zip(to_chunk, [*to_chunk[1:, 0], len(offsets) + 1]):
+                per_chunk[first - 1 : following - 1] = count
+            starts = times[np.minimum(np.cumsum(per_chunk) - per_chunk, len(times) - 1)]
+            kept = sorted({*np.unique(np.floor(starts / INDEX_S), return_index=True)[1].tolist(), len(starts) - 1})
+            return [[round(float(starts[k]), 2), round(float(offsets[k]) / size, 8)] for k in kept]
     return None
 
 
@@ -1020,9 +1062,9 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["av1"] = av1.name
     if video and small:
         data["small"] = small.name
-    heads = {p.name: round(head, 6) for p in filter(None, (video, video and av1, video and small)) if (head := frames_start(p)) is not None}
-    if heads:
-        data["heads"] = heads
+    index = {p.name: points for p in filter(None, (video, video and av1, video and small)) if (points := frames_index(p))}
+    if index:
+        data["index"] = index
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)

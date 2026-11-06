@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, credited, frames_start, labelled, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -711,19 +711,34 @@ class TestWriteSite:
         assert '"video":null' in (site / "data.js").read_text()
 
 
-class TestFramesStart:
-    def test_the_share_of_the_file_before_its_frames(self, tmp_path):
+class TestFramesIndex:
+    def test_where_each_moment_of_the_video_is_in_the_file(self, tmp_path):
+        def box(kind: bytes, *content: bytes) -> bytes:
+            return struct.pack(">I4s", 8 + sum(map(len, content)), kind) + b"".join(content)
+
+        def full(kind: bytes, *content: bytes) -> bytes:
+            return box(kind, bytes(4), *content)
+
+        # 250 samples at 10 a second, 10 to a chunk: 25 chunks of 1 s, 100 bytes apart from byte 1000.
+        stbl = box(
+            b"stbl",
+            full(b"stts", struct.pack(">III", 1, 250, 1)),
+            full(b"stsc", struct.pack(">IIII", 1, 1, 10, 1)),
+            full(b"stco", struct.pack(">I", 25), *(struct.pack(">I", 1000 + 100 * k) for k in range(25))),
+        )
+        mdia = box(b"mdia", full(b"mdhd", bytes(8), struct.pack(">I", 10), bytes(8)), full(b"hdlr", bytes(4), b"vide", bytes(12)), box(b"minf", stbl))
+        head = box(b"ftyp", b"isom") + box(b"moov", box(b"trak", mdia))
         path = tmp_path / "copy.mp4"
-        # ftyp (16 bytes), moov (84), then mdat: its header (8) and 100 bytes of frames.
-        path.write_bytes(struct.pack(">I4s", 16, b"ftyp") + bytes(8) + struct.pack(">I4s", 84, b"moov") + bytes(76) + struct.pack(">I4s", 108, b"mdat") + bytes(100))
+        path.write_bytes(head + box(b"mdat", bytes(4000 - len(head) - 8)))
 
-        assert frames_start(path) == 108 / 208
+        # A point every 10 s and the last chunk, at its share of the 4000 bytes.
+        assert frames_index(path) == [[0.0, 0.25], [10.0, 0.5], [20.0, 0.75], [24.0, 0.85]]
 
-    def test_none_for_a_file_without_frames(self, tmp_path):
+    def test_none_for_a_file_without_video(self, tmp_path):
         path = tmp_path / "copy.mp4"
         path.write_bytes(b"not a video")
 
-        assert frames_start(path) is None
+        assert frames_index(path) is None
 
 
 class TestPhotos:
