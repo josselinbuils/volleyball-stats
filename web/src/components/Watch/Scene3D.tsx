@@ -6,12 +6,16 @@ import type { Scene, SceneState } from '@/scene3d/scene';
 import { Tip } from '@/components/Tip';
 
 let loading: Promise<void> | null = null;
+// The page's script, read while it runs: scene3d.js sits beside its assets/ folder, which the hosted
+// matches share, at the version its own address carries (?v=), else the match's.
+const app = document.currentScript instanceof HTMLScriptElement && document.currentScript.src ? new URL(document.currentScript.src) : null;
 
-/** scene3d.js, beside the page, loaded once on the first 3D view. */
+/** scene3d.js, beside the page's code, loaded once on the first 3D view. */
 export function loadScene(): Promise<void> {
   loading ??= new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = versioned('scene3d.js');
+    const v = app?.searchParams.get('v');
+    script.src = app ? new URL(v ? `../scene3d.js?v=${v}` : `../${versioned('scene3d.js')}`, app).href : versioned('scene3d.js');
     script.onload = () => resolve();
     script.onerror = () => {
       loading = null;

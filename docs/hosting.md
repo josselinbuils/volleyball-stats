@@ -14,7 +14,12 @@ takes commits on master directly, the owner's choice: GitHub reports the push as
 unhashed ones load with the build's hash, card pictures with their own), images a day, pages are
 checked each time; the video copy's files only in the viewer's browser (`private`). `outputs/hosted/` holds the hosted
 site: build each match into it without footage or pictures, list them (which names their folders),
-copy it over; nothing restarts. With `outputs/matches/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
+copy it over; nothing restarts. The match page's code is there once, in `page/` (`matches.install_page`): each match
+folder and its `video/` hold only their data and an `index.html` loading it from `../page/` (its link-preview tags,
+which messaging apps read without running the page). Every upload puts the code as built online for all matches:
+`uv run python -m volleyball_stats.matches --page` uploads it alone, no match rebuilt, after a change of `web/`.
+A match's data must then still read in the new code: one it no longer reads is put online again. The review shows a
+match behind when its data or the code online (`outputs/matches/hosted_code.json`) is not the latest. With `outputs/matches/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
 `club`, `upload` as `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its `data/matches/MATCH/reencoded/`), the review's "Mettre en ligne" does all of it
 (`matches.host`, refusing to upload a video copy that opens without the password) and says when. The review writes an imported match's
 `publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). The first "Mettre en ligne" asks: with the video and

@@ -23,6 +23,9 @@ class TestHostedState:
 
         assert (state["at"], state["day"], state["behind"]) == ("00:51", None, False)
 
+    def test_behind_while_the_code_online_is_not_the_one_built(self):
+        assert hosted_state({"at": "2026-11-03T00:51:12", "stamp": "x"}, "x", self.today, code=False)["behind"]
+
     def test_behind_once_the_page_changed_and_says_another_day(self):
         state = hosted_state({"at": "2026-11-02T22:03:00", "stamp": "x"}, "y", self.today)
 
