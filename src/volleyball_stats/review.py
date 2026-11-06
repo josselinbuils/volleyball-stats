@@ -1782,7 +1782,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
                 return self.send(b"", "text/plain", 403)
             if url.path == "/current":
                 return self.send(b'{"name":null}', "application/json")
-            if url.path == "/":
+            if url.path in ("/", "/review"):
                 self.send_response(302)
                 self.send_header("Location", "/matches/")
                 self.end_headers()
