@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 
 describe('seekLine', () => {
   const colors = { played: 'P', heldColor: 'H', rest: 'R' };
@@ -38,5 +38,21 @@ describe('unshifted', () => {
 
   it('keeps the places inside the video', () => {
     expect(unshifted([[0, 50]], 1000, 0.1)).toEqual([[0, 0]]);
+  });
+});
+
+describe('merged', () => {
+  it('joins the ranges of both copies of the video that overlap or touch, in order', () => {
+    expect(
+      merged([
+        [5, 8],
+        [0, 2],
+        [1, 3],
+        [8, 9],
+      ]),
+    ).toEqual([
+      [0, 3],
+      [5, 9],
+    ]);
   });
 });

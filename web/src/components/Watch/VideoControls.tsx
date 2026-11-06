@@ -8,11 +8,13 @@ import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
-import { seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
+// How often the seek bar reads what the browser holds of the video.
+const HELD_MS = 500;
 // Chromium (Chrome, Edge, Android) reports a video's loaded parts shifted by its index (`unshifted`).
 const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.some((b) => b.brand === 'Chromium') ?? false;
 
@@ -87,15 +89,17 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       setHeld([]);
       return;
     }
+    // Polled: the playlist's hidden copy of the video loads the next clips without this one saying so.
     const read = () => {
-      const ranges = Array.from({ length: video.buffered.length }, (_, k): [number, number] => [video.buffered.start(k), video.buffered.end(k)]);
+      const copies = [...(video.parentElement?.querySelectorAll('video') ?? [])].filter((v) => v.currentSrc === video.currentSrc);
+      const ranges = copies.flatMap((v) => Array.from({ length: v.buffered.length }, (_, k): [number, number] => [v.buffered.start(k), v.buffered.end(k)]));
       const head = CHROMIUM && video.currentSrc ? match.heads[decodeURIComponent(new URL(video.currentSrc).pathname.split('/').pop() ?? '')] : undefined;
-      setHeld(head && video.duration ? unshifted(ranges, video.duration, head) : ranges);
+      const next = merged(head && video.duration ? unshifted(ranges, video.duration, head) : ranges);
+      setHeld((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next));
     };
-    const events = ['progress', 'loadedmetadata', 'seeked', 'emptied'] as const;
-    events.forEach((e) => video.addEventListener(e, read));
     read();
-    return () => events.forEach((e) => video.removeEventListener(e, read));
+    const timer = window.setInterval(read, HELD_MS);
+    return () => window.clearInterval(timer);
   }, [video]);
   const line = seekLine(time, span.start, span.end, held, {
     played: 'var(--primary)',

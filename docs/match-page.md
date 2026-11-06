@@ -22,7 +22,7 @@ moments.
   (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump; a hidden copy of the video loads the next 3 clips' starts one after another, once the clip playing has started. A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
-  shows in a lighter line what the browser holds of the video (`video.buffered`; Chromium's places taken back
+  shows in a lighter line what the browser holds of the video, read every 0.5 s from it and the hidden copy preloading a playlist (`video.buffered`; Chromium's places taken back
   from the index at the start of each copy, `web.frames_start`, which shifted them up to 38 s).
 - Beside it, the court seen from above follows the play: the players, the ball with a trail as long
   as it is fast, and a ring around the player touching it.

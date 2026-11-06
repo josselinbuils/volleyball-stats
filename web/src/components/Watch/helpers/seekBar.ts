@@ -26,3 +26,17 @@ export function unshifted(ranges: [number, number][], duration: number, head: nu
   const at = (t: number) => Math.min(duration, Math.max(0, ((t / duration - head) / (1 - head)) * duration));
   return ranges.map(([a, b]) => [at(a), at(b)]);
 }
+
+/** `ranges` in order, those overlapping or touching joined: a gradient's stops must not go back. */
+export function merged(ranges: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  for (const [a, b] of [...ranges].sort((x, y) => x[0] - y[0])) {
+    const last = out.at(-1);
+    if (last && a <= last[1]) {
+      last[1] = Math.max(last[1], b);
+    } else {
+      out.push([a, b]);
+    }
+  }
+  return out;
+}
