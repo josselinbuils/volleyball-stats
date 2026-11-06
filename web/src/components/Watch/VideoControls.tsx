@@ -8,7 +8,7 @@ import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
-import { around, isDownload, merged, placer, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { around, isDownload, merged, placer, seekLine, unshifted, within } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 
 /** Seconds the skip buttons move the video by. */
@@ -22,8 +22,9 @@ const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: 
 export function VideoControls({ light = false, follow, onFollow }: { light?: boolean; follow?: boolean; onFollow?: () => void }) {
   const { t } = useTranslation();
   const { video, loop, setLoop, playlist } = usePlayer();
-  const next = useRef<number[]>([]);
-  next.current = playlist ? playlist.clips.slice(playlist.at + 1).map((c) => c.start) : [];
+  // In a playlist, the clip playing and those after it.
+  const clips = useRef<[number, number][] | null>(null);
+  clips.current = playlist ? playlist.clips.slice(playlist.at).map((c): [number, number] => [c.start, c.end]) : null;
   const { set, rallies } = useSet();
   const span = useMemo(() => allowed(rallies, set === null, match.duration), [rallies, set]);
   // Tenths of a second: enough for the timeline, without a render per frame.
@@ -96,8 +97,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
     const downloads = new Map<string, [number, number]>();
     const previous = new WeakMap<HTMLVideoElement, [number, number][]>();
     let src = '';
-    // Polled, and at each jump: the hidden copy loads the next clips without this one saying so. Only what is loaded
-    // from where the video stands and from the next clips is drawn.
+    // Polled, and at each jump: the hidden copy loads the next clips without this one saying so.
     const read = () => {
       if (video.currentSrc !== src) {
         src = video.currentSrc;
@@ -123,7 +123,10 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
         previous.set(v, ranges);
         return [];
       });
-      const shown = around(merged([...parts, ...downloads.values()]), [video.currentTime, ...next.current]);
+      // In a playlist, only what is loaded of the clips to play: the browser loads well past each one (up to 70 s on a
+      // fast network), which the player jumps over. Otherwise what is loaded from where the video stands.
+      const loaded = merged([...parts, ...downloads.values()]);
+      const shown = clips.current ? within(loaded, clips.current) : around(loaded, [video.currentTime]);
       setHeld((now) => (JSON.stringify(now) === JSON.stringify(shown) ? now : shown));
     };
     read();

@@ -76,3 +76,8 @@ export function merged(ranges: [number, number][]): [number, number][] {
   }
   return out;
 }
+
+/** The parts of `ranges` inside `windows`, both in order. */
+export function within(ranges: [number, number][], windows: [number, number][]): [number, number][] {
+  return merged(windows.flatMap(([c, d]) => ranges.filter(([a, b]) => b > c && a < d).map(([a, b]): [number, number] => [Math.max(a, c), Math.min(b, d)])));
+}

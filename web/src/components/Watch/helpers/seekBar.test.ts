@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { around, isDownload, merged, placer, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { around, isDownload, merged, placer, seekLine, unshifted, within } from '@/components/Watch/helpers/seekBar';
 
 describe('seekLine', () => {
   const colors = { played: 'P', heldColor: 'H', rest: 'R' };
@@ -119,6 +119,29 @@ describe('merged', () => {
     ).toEqual([
       [0, 3],
       [5, 9],
+    ]);
+  });
+});
+
+describe('within', () => {
+  it('keeps what is loaded of the clips only', () => {
+    // Loaded 0-86 s and 100-130 s; clips 20-25 s, 34-38 s, 120-140 s.
+    expect(
+      within(
+        [
+          [0, 86],
+          [100, 130],
+        ],
+        [
+          [20, 25],
+          [34, 38],
+          [120, 140],
+        ],
+      ),
+    ).toEqual([
+      [20, 25],
+      [34, 38],
+      [120, 130],
     ]);
   });
 });

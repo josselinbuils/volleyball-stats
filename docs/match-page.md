@@ -22,13 +22,15 @@ moments.
   (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump; one hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
-  shows in a lighter line what the browser loads from where the video stands and, in a playlist, from the next clips' starts (what it loaded once elsewhere may be gone), read every 0.5 s and at each jump (`video.buffered`). Chromium reports
+  shows in a lighter line what the browser loads from where the video stands, and in a playlist only what it holds of
+  the clips to play: on a fast network it loads up to 70 s past each one, which the player jumps over (what it loaded
+  once elsewhere may be gone). Read every 0.5 s and at each jump (`video.buffered`). Chromium reports
   each loaded byte at its share of the file, off by up to 65 s on the copies, read back through each file's own index
   (a point every 10 s, `web.frames_index`), beside the exact seconds where each copy stood: the playing copy's range
   around it ends at the lesser reading; the hidden copy's own downloads are told by growing while it stands there and
   starting, read back, at its keyframe (`seekBar.isDownload`). Against the bytes the network delivered (headless Chrome,
-  5 Mb/s, plain play and jumps, playlists of rallies and of touches): never over 1.5 s drawn that is not loaded but in
-  4% of a rally playlist's samples, 1.5 s at most; loaded parts drawn late or short in 6-13% of samples, up to 5 s.
+  on the host and locally, 720p and AV1 copies, early and late in the match, plain play and jumps, playlists of rallies
+  and of touches): each part within 1 s of what is loaded; loaded parts drawn late or short in 3-13% of samples, up to 5 s.
 - Beside it, the court seen from above follows the play: the players, the ball with a trail as long
   as it is fast, and a ring around the player touching it.
 - Each player keeps one mark for the whole match: their number, then once named their jersey number, or without one
