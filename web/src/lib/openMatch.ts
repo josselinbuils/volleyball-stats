@@ -14,7 +14,12 @@ export async function reachedMatch(name: string): Promise<void> {
     try {
       const current = (await (await fetch('/current')).json()) as { name: string | null };
       if (current.name === name) {
-        location.href = `/review${location.hash}`;
+        // On /review, setting the same address with a hash would only scroll to it.
+        if (location.pathname === '/review') {
+          location.reload();
+        } else {
+          location.href = `/review${location.hash}`;
+        }
         return;
       }
     } catch {
