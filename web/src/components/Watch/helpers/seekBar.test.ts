@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { seekLine } from '@/components/Watch/helpers/seekBar';
+import { seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 
 describe('seekLine', () => {
   const colors = { played: 'P', heldColor: 'H', rest: 'R' };
@@ -25,5 +25,18 @@ describe('seekLine', () => {
 
   it('has no loaded layer before anything loads', () => {
     expect(seekLine(0, 0, 10, [], colors).backgroundImage).toBe('linear-gradient(P, P), linear-gradient(R, R)');
+  });
+});
+
+describe('unshifted', () => {
+  it("takes the index's bytes out of Chromium's places", () => {
+    // A 1000 s video whose first 10% is its index: Chromium puts its frames' 0-100 s at 100-190 s.
+    const [[a, b]] = unshifted([[100, 190]], 1000, 0.1);
+    expect(a).toBeCloseTo(0, 6);
+    expect(b).toBeCloseTo(100, 6);
+  });
+
+  it('keeps the places inside the video', () => {
+    expect(unshifted([[0, 50]], 1000, 0.1)).toEqual([[0, 0]]);
   });
 });

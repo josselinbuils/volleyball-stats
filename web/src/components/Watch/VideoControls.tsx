@@ -8,11 +8,13 @@ import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
-import { seekLine } from '@/components/Watch/helpers/seekBar';
+import { seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
+// Chromium (Chrome, Edge, Android) reports a video's loaded parts shifted by its index (`unshifted`).
+const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.some((b) => b.brand === 'Chromium') ?? false;
 
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
 export function VideoControls({ light = false, follow, onFollow }: { light?: boolean; follow?: boolean; onFollow?: () => void }) {
@@ -85,7 +87,11 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       setHeld([]);
       return;
     }
-    const read = () => setHeld(Array.from({ length: video.buffered.length }, (_, k): [number, number] => [video.buffered.start(k), video.buffered.end(k)]));
+    const read = () => {
+      const ranges = Array.from({ length: video.buffered.length }, (_, k): [number, number] => [video.buffered.start(k), video.buffered.end(k)]);
+      const head = CHROMIUM && video.currentSrc ? match.heads[decodeURIComponent(new URL(video.currentSrc).pathname.split('/').pop() ?? '')] : undefined;
+      setHeld(head && video.duration ? unshifted(ranges, video.duration, head) : ranges);
+    };
     const events = ['progress', 'loadedmetadata', 'seeked', 'emptied'] as const;
     events.forEach((e) => video.addEventListener(e, read));
     read();

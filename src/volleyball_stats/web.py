@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
@@ -978,6 +979,30 @@ def copy_films(films: Path | None, site: Path) -> dict[str, str]:
     return {name: f"films/{e['file']}?v={e['hash']}" for name, e in made.items()}
 
 
+def frames_start(path: Path) -> float | None:
+    """The share of the MP4 file at `path` before its frames: its index first, as the copies' +faststart puts it; None
+    without frames. Chromium places what it loaded of a video at that byte's share of the file in its timeline, the
+    index included: the page takes it out."""
+    size = path.stat().st_size
+    with open(path, "rb") as f:
+        at = 0
+        while at + 8 <= size:
+            f.seek(at)
+            header = f.read(16)
+            length, kind = struct.unpack(">I4s", header[:8])
+            skip = 8
+            if length == 1 and len(header) == 16:
+                length, skip = struct.unpack(">Q", header[8:16])[0], 16
+            elif length == 0:
+                length = size - at
+            if kind == b"mdat":
+                return (at + skip) / size
+            if length < 8:
+                return None
+            at += length
+    return None
+
+
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None, films: Path | None = None) -> None:
     """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, the commentary's `voice` (`speech.voice_index`) and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
@@ -995,6 +1020,9 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["av1"] = av1.name
     if video and small:
         data["small"] = small.name
+    heads = {p.name: round(head, 6) for p in filter(None, (video, video and av1, video and small)) if (head := frames_start(p)) is not None}
+    if heads:
+        data["heads"] = heads
     if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
