@@ -193,8 +193,7 @@ class TestHost:
         site = tmp_path / "site"
         site.mkdir()
         full = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/srv/service/site/", "key": "~/.ssh/key", **config}
-        (tmp_path / "outputs" / "first").mkdir(parents=True)
-        return (tmp_path / "outputs" / "first", Path("first.mp4"), Path("court.json"), "aspom", full), built, ran, site
+        return (Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", full), built, ran, site
 
     @staticmethod
     def copies(tmp_path):
@@ -210,12 +209,11 @@ class TestHost:
         with pytest.raises(RuntimeError):
             matches.host(*args)
 
-        assert built == [("voice", args[0]), ("full", None, site / "first" / "video"), ("none", "video/", site / "first")] and ran == []
+        assert built == [("voice", Path("outputs/first")), ("full", None, site / "first" / "video"), ("none", "video/", site / "first")] and ran == []
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
         assert ran[0][0] == "ssh" and '"2026-10-29-a-vs-b:abc" 1;' in ran[0][-1]
         assert ran[1][:3] == ["rsync", "-rt", "--delete"] and ran[1][-2:] == [f"{site}/", "host:/srv/service/site/"]
-        assert json.loads((args[0].parent / matches.HOSTED_CODE).read_text()) == {"code": matches.code_stamp()}
 
     def test_says_so_when_its_password_does_not_open_it(self, tmp_path, monkeypatch):
         args, _, _, _ = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **self.copies(tmp_path))
@@ -232,7 +230,7 @@ class TestHost:
 
         matches.host(*args)
 
-        assert built == [("voice", args[0]), ("none", None, site / "first")] and not old.exists()
+        assert built == [("voice", Path("outputs/first")), ("none", None, site / "first")] and not old.exists()
         assert [command[0] for command in ran] == ["rsync"]
 
     def test_refuses_without_a_choice(self, tmp_path, monkeypatch):
@@ -261,55 +259,6 @@ class TestHost:
             matches.host(*args)
 
         assert built == []
-
-
-class TestPage:
-    @staticmethod
-    def match(folder, v):
-        folder.mkdir(parents=True)
-        (folder / "data.js").write_text(f'window.MATCH = {json.dumps({"name": "m", "v": v, "rallies": []})};\n')
-        (folder / "index.html").write_text('<script defer src="data.js?v=old"></script><script defer src="./assets/index-old.js"></script>')
-        (folder / "assets").mkdir()
-        (folder / "scene3d.js").write_text("old")
-
-    def test_keeps_the_code_once_each_match_holding_its_data_and_a_page_loading_that_code(self, tmp_path):
-        self.match(tmp_path / "m", "aaa")
-        self.match(tmp_path / "m" / "video", "bbb")
-        # A page sending an old address on: no data, left alone.
-        (tmp_path / "old").mkdir()
-        (tmp_path / "old" / "index.html").write_text("redirect")
-
-        matches.install_page(tmp_path)
-
-        built = sorted(p.name for p in (matches.web.TEMPLATE / "assets").iterdir())
-        assert sorted(p.name for p in (tmp_path / "page" / "assets").iterdir()) == built
-        assert (tmp_path / "page" / "scene3d.js").exists() and not (tmp_path / "page" / "index.html").exists()
-        scene = hashlib.sha256((matches.web.TEMPLATE / "scene3d.js").read_bytes()).hexdigest()[:10]
-        app = next(name for name in built if name.endswith(".js"))
-        for folder, up, v in ((tmp_path / "m", "../", "aaa"), (tmp_path / "m" / "video", "../../", "bbb")):
-            page = (folder / "index.html").read_text()
-            assert f'src="data.js?v={v}"' in page and f'src="{up}page/assets/{app}?v={scene}"' in page
-            assert not (folder / "assets").exists() and not (folder / "scene3d.js").exists()
-        assert (tmp_path / "old" / "index.html").read_text() == "redirect"
-
-    def test_the_code_alone_goes_up_with_the_hosting_of_the_matches(self, tmp_path, monkeypatch):
-        site, ran, built = tmp_path / "site", [], []
-        self.match(site / "m", "aaa")
-        (tmp_path / "matches" / "m").mkdir(parents=True)
-        config = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "key"}
-        (tmp_path / "matches" / "m" / "publish.json").write_text(json.dumps(config))
-        monkeypatch.setattr(matches, "build", lambda site, theme, url: built.append((site, url)))
-        monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
-
-        matches.host_page(tmp_path / "matches", "aspom")
-
-        assert 'page/assets/' in (site / "m" / "index.html").read_text()
-        assert built == [(site, config["url"])] and ran[0][-2:] == [f"{site}/", "host:/site/"]
-        assert json.loads((tmp_path / "matches" / matches.HOSTED_CODE).read_text()) == {"code": matches.code_stamp()}
-
-    def test_refuses_without_a_hosting(self, tmp_path):
-        with pytest.raises(RuntimeError, match="publish.json"):
-            matches.host_page(tmp_path, "aspom")
 
 
 class TestEnsurePublish:

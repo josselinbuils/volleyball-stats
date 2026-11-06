@@ -1,14 +1,12 @@
 """The list of the match pages of a site, for hosting several matches.
 
     uv run python -m volleyball_stats.matches SITE [--theme NAME]
-    uv run python -m volleyball_stats.matches --page [MATCHES]
 
 Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the match's date and teams
 (SITE/2026-10-25-aspom-begles-vs-talence/) to make its address. SITE/index.html lists them newest
 first from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
-from web/ with `npm run build`), its matches in matches.js. The match page's code sits once in SITE/page/,
-each match folder holding its data. `host` rebuilds a match's two hosted pages and uploads the site, as
-the review does after each change when the match folder holds publish.json; `--page` uploads the code alone.
+from web/ with `npm run build`), its matches in matches.js. `host` rebuilds a match's two hosted pages
+and uploads the site, as the review does after each change when the match folder holds publish.json.
 """
 
 import argparse
@@ -33,15 +31,11 @@ from volleyball_stats import files, video_copies, web
 from volleyball_stats.web import BRANDING, brand
 
 TEMPLATE = Path(__file__).with_name("matches_site")
-# The match page's code, once for every match of the site: each match folder holds its data and a page loading it.
-PAGE = "page"
 # The list's own folders, which no match folder may take.
-RESERVED = ("assets", "brand", PAGE)
+RESERVED = ("assets", "brand")
 REDIRECTS = "redirects.json"
 # Where a match folder says how to host it, and where hosted pages send the viewers' reports.
 PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
-# Beside the matches' folders: the code the last upload put online (`code_stamp`).
-HOSTED_CODE = "hosted_code.json"
 VIDEO_SALT = "volleyball:"
 # Text files from COMPRESS_FROM bytes get a gzip copy the host sends as it is (nginx gzip_static):
 # compressing players.js (5.7 MB) per request cost the first match's host over a second of CPU.
@@ -198,32 +192,6 @@ def share_match(folder: Path, url: str) -> None:
     club = data.get("brand") or {}
     logo = folder / club["logo"] if club.get("logo") else None
     share(folder, url, title, description, match_card(data, logo), club.get("name"))
-
-
-def code_stamp() -> str:
-    """The pages' code as built: the match page's and the list's."""
-    digest = hashlib.sha256()
-    for path in (web.TEMPLATE / "index.html", web.TEMPLATE / "scene3d.js", TEMPLATE / "matches.html"):
-        digest.update(path.read_bytes())
-    return digest.hexdigest()[:16]
-
-
-def install_page(site: Path) -> None:
-    """The match page's code (web.TEMPLATE) once in SITE/PAGE/, each match page of `site` and its video/ reduced to its data
-    and an index.html loading that code; `build` then tags them for link previews."""
-    shutil.rmtree(site / PAGE, ignore_errors=True)
-    shutil.copytree(web.TEMPLATE, site / PAGE, ignore=shutil.ignore_patterns("index.html"))
-    # The page's script carries scene3d.js's version, which it loads beside its assets/.
-    scene = hashlib.sha256((site / PAGE / "scene3d.js").read_bytes()).hexdigest()[:10]
-    template = (web.TEMPLATE / "index.html").read_text()
-    for data in [*site.glob("*/data.js"), *site.glob("*/video/data.js")]:
-        folder = data.parent
-        up = "../" * len(folder.relative_to(site).parts)
-        shutil.rmtree(folder / "assets", ignore_errors=True)
-        for name in ("scene3d.js", "scene3d.js.gz"):
-            (folder / name).unlink(missing_ok=True)
-        page = template.replace('src="data.js"', f'src="data.js?v={page_of(folder)["v"]}"').replace('"./assets/', f'"{up}{PAGE}/assets/')
-        (folder / "index.html").write_text(re.sub(r'(src="[^"]*/assets/[^"]*\.js)"', rf'\1?v={scene}"', page))
 
 
 def build(site: Path, theme: str = "aspom", url: str | None = None) -> list[dict]:
@@ -446,41 +414,22 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
         shutil.rmtree(folder / "video", ignore_errors=True)
     public = {"footage": "none", "club": config.get("club", 1), "pictures": False, "feedback": FEEDBACK, **({"link": "video/"} if with_video else {})}
     web.publish(match, video, court, theme, public, folder)
-    install_page(site)
     named = {m["name"]: m["path"] for m in build(site, theme, config["url"])}[match.name]
     page = f"{config['url'].rstrip('/')}/{named}video/"
     if with_video:
         if not protected(page):
             raise RuntimeError(f"{page} opens without the password: not uploaded")
         install_key(config, named.rstrip("/"))
-    films = sorted((site / named / "video" / "films").glob("*.mp4"))
-    if films and not protected(f"{page}films/{films[0].name}"):
-        raise RuntimeError(f"{films[0].name} opens without the password: not uploaded")
-    upload(site, config, match.parent)
-    if with_video and not opens(page, config["videoKey"]):
-        raise RuntimeError(f"{page} does not open with its password")
-
-
-def host_page(folder: Path, theme: str) -> None:
-    """The pages' code alone put online for every hosted match, none rebuilt, with the hosting of the matches in `folder`
-    (their publish.json). Their data must still read in it: a match whose data the code no longer reads is hosted again."""
-    config = next((c for c in (json.loads(p.read_text()) for p in sorted(folder.glob(f"*/{PUBLISH}"))) if "upload" in c), None)
-    if config is None:
-        raise RuntimeError(f"no {PUBLISH} with a hosting in {folder}")
-    site = Path(config["site"]).expanduser()
-    install_page(site)
-    build(site, theme, config["url"])
-    upload(site, config, folder)
-
-
-def upload(site: Path, config: dict, folder: Path) -> None:
-    """`site` uploaded by rsync to `upload` with the ssh `key` of `config`, and its code noted in FOLDER/HOSTED_CODE."""
-    # Real footage only behind the password.
+    # Real footage, the players' films with it, only behind the password.
     outside = unguarded_videos(site)
     if outside:
         raise RuntimeError(f"videos outside a password's folder: {', '.join(p.name for p in outside)}: not uploaded")
+    films = sorted((site / named / "video" / "films").glob("*.mp4"))
+    if films and not protected(f"{page}films/{films[0].name}"):
+        raise RuntimeError(f"{films[0].name} opens without the password: not uploaded")
     subprocess.run(["rsync", "-rt", "--delete", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
-    files.write_text(folder / HOSTED_CODE, json.dumps({"code": code_stamp()}) + "\n")
+    if with_video and not opens(page, config["videoKey"]):
+        raise RuntimeError(f"{page} does not open with its password")
 
 
 def main() -> None:
@@ -488,7 +437,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="List the match pages of a site folder on its index page.")
     parser.add_argument("site", type=Path, nargs="?", help="Folder holding one match page per subfolder")
     parser.add_argument("--host", type=Path, help="Build this match's hosted pages from its publish.json and upload them")
-    parser.add_argument("--page", type=Path, nargs="?", const=Path("outputs/matches"), help="Upload the pages' code alone, with the hosting of the matches in this folder (default: outputs/matches)")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--court", type=Path)
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
@@ -496,8 +444,6 @@ def main() -> None:
     args = parser.parse_args()
     if args.host:
         return host(args.host, args.video, args.court, args.theme, json.loads((args.host / PUBLISH).read_text()))
-    if args.page:
-        return host_page(args.page, args.theme)
     if not args.site:
         parser.error("site or --host")
     matches = build(args.site, args.theme, args.url)

@@ -1672,23 +1672,25 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
 
 
 def page_stamp(match: Path) -> str:
-    """What the hosted page would show of the match: the review's page data."""
-    return hashlib.sha256((match / "review" / "data.js").read_bytes()).hexdigest()[:16]
+    """What the hosted page would show: the review's page data and the page's code."""
+    digest = hashlib.sha256()
+    for path in (match / "review" / "data.js", matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"):
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:16]
 
 
-def hosted_state(saved: dict | None, stamp: str, today: date, code: bool = True) -> dict:
-    """Where the hosted page stands from `saved`, the last upload's HOSTED: behind unless it carried this `stamp` and the
-    `code` online is the pages' as built; `day` when it was not `today`."""
+def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
+    """Where the hosted page stands from `saved`, the last upload's HOSTED: behind unless it carried this `stamp`; `day` when
+    it was not `today`."""
     if not saved:
         return {"at": None, "day": None, "error": None, "behind": True}
     at = datetime.fromisoformat(saved["at"])
-    return {"at": at.strftime("%H:%M"), "day": None if at.date() == today else at.date().isoformat(), "error": None, "behind": saved["stamp"] != stamp or not code}
+    return {"at": at.strftime("%H:%M"), "day": None if at.date() == today else at.date().isoformat(), "error": None, "behind": saved["stamp"] != stamp}
 
 
 def read_hosted(match: Path) -> dict:
-    path, online = match / HOSTED, match.parent / matches.HOSTED_CODE
-    code = online.exists() and json.loads(online.read_text())["code"] == matches.code_stamp()
-    return hosted_state(json.loads(path.read_text()) if path.exists() else None, page_stamp(match), date.today(), code)
+    path = match / HOSTED
+    return hosted_state(json.loads(path.read_text()) if path.exists() else None, page_stamp(match), date.today())
 
 
 def match_list(out: Path) -> list[dict]:
