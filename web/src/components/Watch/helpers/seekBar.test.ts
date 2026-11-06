@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { around, merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 
 describe('seekLine', () => {
   const colors = { played: 'P', heldColor: 'H', rest: 'R' };
@@ -74,8 +74,35 @@ describe('unshifted', () => {
     expect(unshifted([[0, 5]], 100, index, -1)).toEqual([[0, 0]]);
   });
 
-  it('leaves where the copy stands as read', () => {
+  it('ends where the copy stands no further than either reading', () => {
+    // Here the bytes lag behind the time: the exact 40-47 s around 43 s would read back to 57-61 s.
     expect(unshifted([[40, 47]], 100, index, 43)).toEqual([[40, 47]]);
+    // A file whose first half holds 70% of the bytes: the bytes run ahead, 80 s reading back to 66.7 s.
+    const [[a, b]] = unshifted(
+      [[44, 80]],
+      100,
+      [
+        [0, 0],
+        [50, 0.7],
+      ],
+      45,
+    );
+    expect(a).toBeCloseTo((0.44 / 0.7) * 50, 6);
+    expect(b).toBeCloseTo(50 + (0.1 / 0.3) * 50, 6);
+  });
+});
+
+describe('around', () => {
+  it('keeps what is loaded from where the video stands and from the next clips', () => {
+    const ranges: [number, number][] = [
+      [10, 30],
+      [101, 120],
+      [300, 305],
+    ];
+    expect(around(ranges, [25, 100])).toEqual([
+      [10, 30],
+      [101, 120],
+    ]);
   });
 });
 

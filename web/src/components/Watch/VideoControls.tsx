@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Focus, Maximize, Minimize, Pause, Play, Repeat1, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
@@ -8,7 +8,7 @@ import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
-import { merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
+import { around, merged, seekLine, unshifted } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 
 /** Seconds the skip buttons move the video by. */
@@ -21,7 +21,9 @@ const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: 
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
 export function VideoControls({ light = false, follow, onFollow }: { light?: boolean; follow?: boolean; onFollow?: () => void }) {
   const { t } = useTranslation();
-  const { video, loop, setLoop } = usePlayer();
+  const { video, loop, setLoop, playlist } = usePlayer();
+  const next = useRef<number[]>([]);
+  next.current = playlist ? playlist.clips.slice(playlist.at + 1).map((c) => c.start) : [];
   const { set, rallies } = useSet();
   const span = useMemo(() => allowed(rallies, set === null, match.duration), [rallies, set]);
   // Tenths of a second: enough for the timeline, without a render per frame.
@@ -89,17 +91,19 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       setHeld([]);
       return;
     }
-    // Polled: the playlist's hidden copy of the video loads the next clips without this one saying so.
+    // Polled: the playlist's hidden copy of the video loads the next clips without this one saying so. Only what is
+    // loaded from where the video stands and from the next clips is drawn.
     const read = () => {
       const copies = [...(video.parentElement?.querySelectorAll('video') ?? [])].filter((v) => v.currentSrc === video.currentSrc);
       const index = CHROMIUM && video.currentSrc ? match.index[decodeURIComponent(new URL(video.currentSrc).pathname.split('/').pop() ?? '')] : undefined;
-      const next = merged(
+      const loaded = merged(
         copies.flatMap((v) => {
           const ranges = Array.from({ length: v.buffered.length }, (_, k): [number, number] => [v.buffered.start(k), v.buffered.end(k)]);
           return index && video.duration ? unshifted(ranges, video.duration, index, v.currentTime) : ranges;
         }),
       );
-      setHeld((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next));
+      const shown = around(loaded, [video.currentTime, ...next.current]);
+      setHeld((now) => (JSON.stringify(now) === JSON.stringify(shown) ? now : shown));
     };
     read();
     const timer = window.setInterval(read, HELD_MS);
