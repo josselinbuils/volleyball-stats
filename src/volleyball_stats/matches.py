@@ -439,6 +439,7 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str) -> None:
             raise RuntimeError(f"{named(match)}the video has no password")
         if not video.exists():
             raise RuntimeError(f"{named(match)}video not found: {video}")
+    # ponytail: one match at a time, ~13 s each (2 matches: 26 s); rebuild them in parallel if a season makes it long.
     for match, video, court, c in hosted:
         folder = hosted_folder(match, site) or site / match.name
         make_voice(match)
