@@ -1,8 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { Slot } from 'radix-ui';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { Tip } from '@/components/Tip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 describe('Tip', () => {
   const src = fileURLToPath(new URL('..', import.meta.url));
@@ -25,5 +30,14 @@ describe('Tip', () => {
     }
     expect(ui).toContain('Button');
     expect(found).toEqual([]);
+  });
+
+  it('hands the props of a wrapping asChild to its child, with or without a label', () => {
+    for (const label of ['Plus', undefined]) {
+      const tip = createElement(Tip, { label, children: createElement('button', null, '…') });
+      const html = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(Slot.Root, { className: 'wrapped', 'aria-haspopup': 'menu' }, tip)));
+      expect(html).toMatch(/<button[^>]*class="wrapped"/);
+      expect(html).toContain('aria-haspopup="menu"');
+    }
   });
 });
