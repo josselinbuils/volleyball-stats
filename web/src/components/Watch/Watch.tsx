@@ -26,6 +26,8 @@ const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
 const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? match.av1 : match.video;
 // Wider than this on the screen (in its pixels), the 720p copy would be stretched: the player takes the 1080p one.
 const WIDE_PX = 1600;
+// A playlist's clips loaded ahead of the one playing, one after another.
+const AHEAD = 3;
 // A wait for the video's data shorter than this shows nothing.
 const BUFFERING_MS = 300;
 
@@ -79,7 +81,7 @@ export function Watch() {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [video, follow, ball]);
-  // A playlist's next clip loads once the video has reached the one it plays: both at once would
+  // A playlist's next clips load once the video has reached the one it plays: both at once would
   // slow its start.
   const [reached, setReached] = useState<typeof playlist>(null);
   useEffect(() => {
@@ -199,7 +201,9 @@ export function Watch() {
               {/* Full screen takes the video with its controls. */}
               <div className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
                 {full && <Feedback />}
-                {playlist && reached === playlist && playlist.at + 1 < playlist.clips.length && <Preload src={src} time={playlist.clips[playlist.at + 1].start} />}
+                {playlist && reached === playlist && playlist.at + 1 < playlist.clips.length && (
+                  <Preload src={src} times={playlist.clips.slice(playlist.at + 1, playlist.at + 1 + AHEAD).map((c) => c.start)} />
+                )}
                 {/* What plays, over the video: the bar below is out of sight from the stats and in full screen. */}
                 {playlist && (
                   <span
@@ -271,14 +275,27 @@ function Buffering({ video }: { video: HTMLVideoElement }) {
   );
 }
 
-/** A hidden copy of the video (`src`, the copy playing) waiting at `time`, the next clip's start:
- * the browser keeps what it fetches for the video, which then jumps there without waiting. */
-function Preload({ src, time }: { src: string | null; time: number }) {
+/** A hidden copy of the video (`src`, the copy playing) loading the next clips' starts (`times`) in turn, each once it
+ * can play the one before: the browser keeps what it fetches for the video, which then jumps there without waiting. */
+function Preload({ src, times }: { src: string | null; times: number[] }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const key = times.join(',');
   useEffect(() => {
-    if (ref.current) {
-      ref.current.currentTime = time;
+    const preload = ref.current;
+    if (!preload) {
+      return;
     }
-  }, [time]);
+    const starts = key.split(',').map(Number);
+    let k = 0;
+    preload.currentTime = starts[0];
+    const next = () => {
+      if (k + 1 < starts.length) {
+        k += 1;
+        preload.currentTime = starts[k];
+      }
+    };
+    preload.addEventListener('canplaythrough', next);
+    return () => preload.removeEventListener('canplaythrough', next);
+  }, [key, src]);
   return <video ref={ref} src={src ?? undefined} muted playsInline preload="auto" aria-hidden className="hidden" />;
 }
