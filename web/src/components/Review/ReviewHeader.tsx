@@ -11,7 +11,7 @@ import type { FilmCounts, Hosted } from '@/lib/review';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { Tip } from '@/components/Tip';
 
-type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights';
+type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
 
 /** Between two items of the status line, which wraps on a phone. */
@@ -150,6 +150,12 @@ export function ReviewHeader({
                     {t('review.fetch')}
                   </DropdownMenuItem>
                 </Tip>
+              )}
+              {hosted?.chosen && (
+                <DropdownMenuItem onSelect={() => run('hostAll')}>
+                  <CloudUpload aria-hidden />
+                  {t('review.hostAll')}
+                </DropdownMenuItem>
               )}
               {films.players.total > 0 && (
                 <DropdownMenuItem disabled={!films.players.stale} onSelect={() => run('films')}>

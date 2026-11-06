@@ -214,6 +214,7 @@
       "page": "Rebuilding the match page…",
       "copies": "Encoding the video",
       "hosting": "Updating the online page…",
+      "hostingAll": "Updating every match online…",
       "films": "Making the player films",
       "highlights": "Making the highlights"
     },
@@ -412,6 +413,7 @@
     "highlightsDone": "Highlights up to date",
     "filmsFailed": "Some films could not be made: try again.",
     "host": "Put online",
+    "hostAll": "Update every match online",
     "hosting": "Putting online…",
     "hostPassword": "Video password",
     "hostWithVideo": "With the video",

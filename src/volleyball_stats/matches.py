@@ -1,12 +1,14 @@
 """The list of the match pages of a site, for hosting several matches.
 
     uv run python -m volleyball_stats.matches SITE [--theme NAME]
+    uv run python -m volleyball_stats.matches --all outputs/matches [--theme NAME]
 
 Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the match's date and teams
 (SITE/2026-10-25-aspom-begles-vs-talence/) to make its address. SITE/index.html lists them newest
 first from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
 from web/ with `npm run build`), its matches in matches.js. `host` rebuilds a match's two hosted pages
-and uploads the site, as the review does after each change when the match folder holds publish.json.
+and uploads the site, as the review does after each change when the match folder holds publish.json;
+`host_all` (`--all`) rebuilds every match online, each carrying the code as built, and uploads them at once.
 """
 
 import argparse
@@ -394,42 +396,80 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
     `upload` with the ssh `key`: the public page, no footage nor pictures. With `video`, also its copy with both in video/
     (the `light`, `av1` and `small` copies), once the copy at `url` turns a visitor without the password away, the
     password opening it after; the commentary's voice made first. RuntimeError if not, or with no `video` chosen."""
-    if "video" not in config:
-        raise RuntimeError("with or without the video: not chosen")
-    site = Path(config["site"]).expanduser()
+    host_all([(match, video, court, config)], theme)
+
+
+def hosted_folder(match: Path, site: Path) -> Path | None:
+    """The folder of `site` holding `match`'s page, under its name or one it had."""
     known = {match.name, *files.aliases(match)}
-    folder = next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] in known), site / match.name)
-    with_video = config["video"]
-    # Before the build, which removes the copies of the video it finds in the site folder. Without
-    # them the build would take the source, tens of GB.
-    if with_video and copies_missing(config):
-        raise RuntimeError(f"video copies not found: {', '.join(k for k in video_copies.COPIES if not config.get(k) or not Path(config[k]).expanduser().exists())}")
-    if with_video and not config.get("videoKey"):
-        raise RuntimeError("the video has no password")
-    make_voice(match)
-    if with_video:
-        path = lambda key: str(Path(config[key]).expanduser())  # noqa: E731
-        web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}, folder / "video")
-    else:
-        shutil.rmtree(folder / "video", ignore_errors=True)
-    public = {"footage": "none", "club": config.get("club", 1), "pictures": False, "feedback": FEEDBACK, **({"link": "video/"} if with_video else {})}
-    web.publish(match, video, court, theme, public, folder)
-    named = {m["name"]: m["path"] for m in build(site, theme, config["url"])}[match.name]
-    page = f"{config['url'].rstrip('/')}/{named}video/"
-    if with_video:
-        if not protected(page):
-            raise RuntimeError(f"{page} opens without the password: not uploaded")
-        install_key(config, named.rstrip("/"))
-    # Real footage, the players' films with it, only behind the password.
+    return next((p.parent for p in site.glob("*/data.js") if listed(p.parent)["name"] in known), None)
+
+
+def online(folder: Path) -> list[tuple[Path, Path, Path, dict]]:
+    """The matches of `folder` whose page is online, with their video, court and publish.json."""
+    found = []
+    for path in sorted(folder.glob(f"*/{PUBLISH}")):
+        match, config = path.parent, json.loads(path.read_text())
+        if "video" in config and (match / files.SOURCE).exists() and hosted_folder(match, Path(config["site"]).expanduser()):
+            given = json.loads((match / files.SOURCE).read_text())
+            found.append((match, Path(given["video"]), Path(given["court"]), config))
+    return found
+
+
+def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str) -> None:
+    """Each match of `hosted` (match, video, court, publish.json) rebuilt as `host` says, then the site uploaded once,
+    its new files put in place together at the end. Nothing goes up when one cannot be rebuilt; among several, the error
+    names the match."""
+    if not hosted:
+        raise RuntimeError("no match online")
+    config = hosted[0][3]
+    if any((c["site"], c["upload"]) != (config["site"], config["upload"]) for *_, c in hosted):
+        raise RuntimeError("the matches are hosted in different places")
+    site = Path(config["site"]).expanduser()
+    named = lambda match: f"{match.name}: " if len(hosted) > 1 else ""  # noqa: E731
+    # ponytail: a match whose video is gone stops the update of all; skip it, keeping its page, if that happens.
+    for match, video, _, c in hosted:
+        if "video" not in c:
+            raise RuntimeError(f"{named(match)}with or without the video: not chosen")
+        # Before the build, which removes the copies of the video it finds in the site folder. Without
+        # them the build would take the source, tens of GB.
+        if c["video"] and copies_missing(c):
+            raise RuntimeError(f"{named(match)}video copies not found: {', '.join(k for k in video_copies.COPIES if not c.get(k) or not Path(c[k]).expanduser().exists())}")
+        if c["video"] and not c.get("videoKey"):
+            raise RuntimeError(f"{named(match)}the video has no password")
+        if not video.exists():
+            raise RuntimeError(f"{named(match)}video not found: {video}")
+    for match, video, court, c in hosted:
+        folder = hosted_folder(match, site) or site / match.name
+        make_voice(match)
+        if c["video"]:
+            path = lambda key: str(Path(c[key]).expanduser())  # noqa: E731
+            web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}, folder / "video")
+        else:
+            shutil.rmtree(folder / "video", ignore_errors=True)
+        public = {"footage": "none", "club": c.get("club", 1), "pictures": False, "feedback": FEEDBACK, **({"link": "video/"} if c["video"] else {})}
+        web.publish(match, video, court, theme, public, folder)
+    paths = {m["name"]: m["path"] for m in build(site, theme, config["url"])}
+    guarded = []
+    for match, _, _, c in hosted:
+        if c["video"]:
+            page = f"{config['url'].rstrip('/')}/{paths[match.name]}video/"
+            if not protected(page):
+                raise RuntimeError(f"{page} opens without the password: not uploaded")
+            install_key(c, paths[match.name].rstrip("/"))
+            # The players' films, real footage, only behind the password.
+            films = sorted((site / paths[match.name] / "video" / "films").glob("*.mp4"))
+            if films and not protected(f"{page}films/{films[0].name}"):
+                raise RuntimeError(f"{films[0].name} opens without the password: not uploaded")
+            guarded.append((page, c["videoKey"]))
+    # Real footage only behind the password.
     outside = unguarded_videos(site)
     if outside:
         raise RuntimeError(f"videos outside a password's folder: {', '.join(p.name for p in outside)}: not uploaded")
-    films = sorted((site / named / "video" / "films").glob("*.mp4"))
-    if films and not protected(f"{page}films/{films[0].name}"):
-        raise RuntimeError(f"{films[0].name} opens without the password: not uploaded")
-    subprocess.run(["rsync", "-rt", "--delete", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
-    if with_video and not opens(page, config["videoKey"]):
-        raise RuntimeError(f"{page} does not open with its password")
+    subprocess.run(["rsync", "-rt", "--delete", "--delay-updates", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
+    for page, key in guarded:
+        if not opens(page, key):
+            raise RuntimeError(f"{page} does not open with its password")
 
 
 def main() -> None:
@@ -437,6 +477,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="List the match pages of a site folder on its index page.")
     parser.add_argument("site", type=Path, nargs="?", help="Folder holding one match page per subfolder")
     parser.add_argument("--host", type=Path, help="Build this match's hosted pages from its publish.json and upload them")
+    parser.add_argument("--all", type=Path, help="Rebuild every match of this folder whose page is online (outputs/matches), then upload them at once")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--court", type=Path)
     parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
@@ -444,6 +485,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.host:
         return host(args.host, args.video, args.court, args.theme, json.loads((args.host / PUBLISH).read_text()))
+    if args.all:
+        return host_all(online(args.all), args.theme)
     if not args.site:
         parser.error("site or --host")
     matches = build(args.site, args.theme, args.url)

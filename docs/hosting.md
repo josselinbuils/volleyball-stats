@@ -16,7 +16,11 @@ checked each time; the video copy's files only in the viewer's browser (`private
 site: build each match into it without footage or pictures, list them (which names their folders),
 copy it over; nothing restarts. With `outputs/matches/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`,
 `club`, `upload` as `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its `data/matches/MATCH/reencoded/`), the review's "Mettre en ligne" does all of it
-(`matches.host`, refusing to upload a video copy that opens without the password) and says when. The review writes an imported match's
+(`matches.host`, refusing to upload a video copy that opens without the password) and says when. Each match page
+carries the code it was built with, so a change of the page or of the data it is built from reaches the matches
+online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`) rebuilds
+every match online and uploads them at once (`rsync --delay-updates`: the new files replace the old together), nothing
+if one cannot be rebuilt (on the two matches: 26 s). The review writes an imported match's
 `publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). The first "Mettre en ligne" asks: with the video and
 a password, or without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Only the password's fingerprint is kept. Nothing is encoded before that choice:
 with the video, its copies are made then (`video_copies.py`). By hand:

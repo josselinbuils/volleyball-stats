@@ -214,6 +214,7 @@
       "page": "Reconstruction de la page du match…",
       "copies": "Encodage de la vidéo",
       "hosting": "Mise à jour de la page en ligne…",
+      "hostingAll": "Mise à jour de tous les matchs en ligne…",
       "films": "Création des films des joueurs",
       "highlights": "Création des highlights"
     },
@@ -412,6 +413,7 @@
     "highlightsDone": "Highlights à jour",
     "filmsFailed": "Des films n'ont pas pu être créés : réessayez.",
     "host": "Mettre en ligne",
+    "hostAll": "Mettre à jour tous les matchs en ligne",
     "hosting": "Mise en ligne…",
     "hostPassword": "Mot de passe de la vidéo",
     "hostWithVideo": "Avec la vidéo",

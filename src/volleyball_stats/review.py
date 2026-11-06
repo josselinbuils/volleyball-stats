@@ -1597,7 +1597,7 @@ def unlocked(keys: list[int]) -> list[dict]:
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "copies": 3300.0, "films": 2400.0, "highlights": 300.0,
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "hostingAll": 120.0, "copies": 3300.0, "films": 2400.0, "highlights": 300.0,
     "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
     "pipeline:identity": 20.0, "pipeline:answers": 60.0,
 }
@@ -1918,13 +1918,18 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             time.sleep(BACKUP_EVERY_S)
 
 
-    def hosting() -> None:
+    def hosting(every: bool = False) -> None:
+        """This match put online, or with `every` all the matches online, rebuilt then uploaded at once."""
         try:
+            target = ["--all", str(match.parent)] if every else ["--host", str(match), "--video", str(video), "--court", str(court)]
+            done = [m for m, *_ in matches.online(match.parent)] if every else [match]
             # In its own process, with the code as it now is, whenever this server started.
-            run = subprocess.run([sys.executable, "-m", "volleyball_stats.matches", "--host", str(match), "--video", str(video), "--court", str(court), "--theme", theme], capture_output=True, text=True)
+            run = subprocess.run([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", theme], capture_output=True, text=True)
             if run.returncode:
                 raise RuntimeError((run.stderr.strip().splitlines() or [f"exit {run.returncode}"])[-1])
-            files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match)}) + "\n")
+            for m in done:
+                if (m / "review" / "data.js").exists():
+                    files.write_text(m / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(m)}) + "\n")
             hosted.update(read_hosted(match))
         except Exception as error:  # noqa: BLE001
             # The answers stay applied: only the hosted page is behind.
@@ -2356,6 +2361,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     # Hours of encoding only for a match that goes online with its video.
                     copies = [("copies", lambda: matches.add_copies(match, video))] if config["video"] and matches.copies_missing(config) else []
                     run_steps([*copies, ("hosting", hosting)])
+                    return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
+                elif self.path == "/hostAll" and (match / matches.PUBLISH).exists():
+                    run_steps([("hostingAll", lambda: hosting(every=True))])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path in ("/films", "/highlights"):
                     # The page then shows them, the hosted one on its next upload.

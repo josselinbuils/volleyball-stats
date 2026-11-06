@@ -127,7 +127,7 @@ export function Review({
     }
   };
   const films = savedFilms ?? { players: { total: 0, stale: 0 }, highlights: { total: 0, stale: 0 } };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights' | null>(null);
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'highlights' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -309,7 +309,7 @@ export function Review({
    * spent and left, and whether it takes longer than last time. */
   const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
   const minutes = (s: number) => (s < 60 ? t('review.lessThanMinute') : t('review.minutes', { count: Math.round(s / 60) }));
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'reports' | 'films' | 'highlights', body: object = {}) => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'highlights', body: object = {}) => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {

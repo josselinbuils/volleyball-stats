@@ -274,6 +274,7 @@ export async function post(
     | 'apply'
     | 'rerun'
     | 'host'
+    | 'hostAll'
     | 'reports'
     | 'films'
     | 'highlights'

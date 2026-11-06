@@ -193,7 +193,8 @@ class TestHost:
         site = tmp_path / "site"
         site.mkdir()
         full = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/srv/service/site/", "key": "~/.ssh/key", **config}
-        return (Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", full), built, ran, site
+        (tmp_path / "first.mp4").write_bytes(b"")
+        return (Path("outputs/first"), tmp_path / "first.mp4", Path("court.json"), "aspom", full), built, ran, site
 
     @staticmethod
     def copies(tmp_path):
@@ -213,7 +214,7 @@ class TestHost:
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
         assert ran[0][0] == "ssh" and '"2026-10-29-a-vs-b:abc" 1;' in ran[0][-1]
-        assert ran[1][:3] == ["rsync", "-rt", "--delete"] and ran[1][-2:] == [f"{site}/", "host:/srv/service/site/"]
+        assert ran[1][:4] == ["rsync", "-rt", "--delete", "--delay-updates"] and ran[1][-2:] == [f"{site}/", "host:/srv/service/site/"]
 
     def test_says_so_when_its_password_does_not_open_it(self, tmp_path, monkeypatch):
         args, _, _, _ = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **self.copies(tmp_path))
@@ -257,6 +258,66 @@ class TestHost:
 
         with pytest.raises(RuntimeError, match="no password"):
             matches.host(*args)
+
+        assert built == []
+
+
+class TestHostAll:
+    @staticmethod
+    def matches_of(tmp_path, monkeypatch):
+        """Two matches online, the first with its video; the hosting's builds and commands recorded."""
+        site, built, ran = tmp_path / "site", [], []
+        copies = TestHost.copies(tmp_path)
+        hosted = []
+        for name, video in (("first", True), ("second", False)):
+            match = tmp_path / "matches" / name
+            match.mkdir(parents=True)
+            (tmp_path / f"{name}.mp4").write_bytes(b"")
+            (match / "source.json").write_text(json.dumps({"video": str(tmp_path / f"{name}.mp4"), "court": "court.json"}))
+            config = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "key", "video": video, **({"videoKey": "abc", **copies} if video else {})}
+            (match / "publish.json").write_text(json.dumps(config))
+            (site / name).mkdir(parents=True)
+            (site / name / "data.js").write_text(f"window.MATCH = {json.dumps({'name': name, 'rallies': []})};\n")
+            hosted.append((match, tmp_path / f"{name}.mp4", Path("court.json"), config))
+        monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match.name)))
+        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[0].name, args[4]["footage"], args[5])) or ({}, {}))
+        monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "first/"}, {"name": "second", "path": "second/"}])
+        monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
+        monkeypatch.setattr(matches, "protected", lambda url: True)
+        monkeypatch.setattr(matches, "opens", lambda url, key: True)
+        return hosted, built, ran, site
+
+    def test_finds_the_matches_whose_page_is_online(self, tmp_path, monkeypatch):
+        hosted, _, _, _ = self.matches_of(tmp_path, monkeypatch)
+        # Chose nothing yet: never put online.
+        (tmp_path / "matches" / "third").mkdir()
+        (tmp_path / "matches" / "third" / "publish.json").write_text(json.dumps({"site": hosted[0][3]["site"]}))
+
+        assert matches.online(tmp_path / "matches") == hosted
+
+    def test_rebuilds_every_match_then_uploads_them_at_once(self, tmp_path, monkeypatch):
+        hosted, built, ran, site = self.matches_of(tmp_path, monkeypatch)
+
+        matches.host_all(hosted, "aspom")
+
+        assert built == [("voice", "first"), ("first", "full", site / "first" / "video"), ("first", "none", site / "first"), ("voice", "second"), ("second", "none", site / "second")]
+        assert [command[0] for command in ran] == ["ssh", "rsync"] and "--delay-updates" in ran[1]
+
+    def test_nothing_is_built_nor_sent_when_a_match_cannot_be(self, tmp_path, monkeypatch):
+        hosted, built, ran, _ = self.matches_of(tmp_path, monkeypatch)
+        hosted[1][1].unlink()
+
+        with pytest.raises(RuntimeError, match="second: video not found"):
+            matches.host_all(hosted, "aspom")
+
+        assert built == [] and ran == []
+
+    def test_refuses_matches_hosted_in_different_places(self, tmp_path, monkeypatch):
+        hosted, built, _, _ = self.matches_of(tmp_path, monkeypatch)
+        hosted[1][3]["upload"] = "elsewhere:/site/"
+
+        with pytest.raises(RuntimeError, match="different places"):
+            matches.host_all(hosted, "aspom")
 
         assert built == []
 
