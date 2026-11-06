@@ -18,7 +18,10 @@ moments.
 - Every number and chart element plays its moments in the video or on the animated court.
 - Above the video: the set and its score (estimated, or the final score you gave once the set is
   over).
-- The video player skips 10 s back or forward.
+- The video player skips 10 s back or forward. Its "Zoom auto" frames the players as the review's
+  (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
+  in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
+  around each jump.
 - Beside it, the court seen from above follows the play: the players, the ball with a trail as long
   as it is fast, and a ring around the player touching it.
 - Each player keeps one mark for the whole match: their number, then once named their jersey number, or without one

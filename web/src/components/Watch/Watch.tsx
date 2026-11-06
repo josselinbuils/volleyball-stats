@@ -16,10 +16,11 @@ import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 import { askVideo } from '@/components/VideoChoice';
-import { ballAt, zoomOn } from '@/components/Watch/helpers/zoom';
+import { ballAt, frameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
-// Share of the way to the zoom's target covered each frame: the view follows the ball within a fifth of a second.
-const EASE = 0.1;
+// A jump in the video this long cuts to its view: no pan across the court.
+const CUT_S = 0.5;
+const WHOLE = { x: 0.5, y: 0.5, zoom: 1 };
 // What web.py's --av1-video takes: 1080p, 8-bit, level 4.0; a browser that cannot play it takes the H.264 copy.
 const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
 const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? match.av1 : match.video;
@@ -31,11 +32,11 @@ export function Watch() {
   const f = useFormat();
   const { video, setVideo, playlist } = usePlayer();
   const court = useRef<HTMLDivElement>(null);
-  // Zoomed on the ball, the view eases toward it each frame, back to the whole picture when off or
-  // with no ball near.
+  // The automatic zoom frames the players as the review does, moving only to keep the ball in;
+  // the view springs to it each frame, back to the whole picture when off.
   const [follow, setFollow] = useState(false);
   const ball = useBall();
-  const view = useRef({ scale: 1, x: 0, y: 0 });
+  const camera = useRef({ now: { ...WHOLE }, speed: { x: 0, y: 0, zoom: 0 } });
   useEffect(() => {
     if (follow) {
       loadBall();
@@ -45,21 +46,32 @@ export function Watch() {
     if (!(video instanceof HTMLVideoElement)) {
       return;
     }
-    const now = view.current;
+    const { now, speed } = camera.current;
     let frame = 0;
-    const tick = () => {
-      const at = follow && typeof ball === 'object' ? ballAt(ball, video.currentTime) : null;
-      const target = at && video.videoWidth ? zoomOn(at, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight) : { scale: 1, x: 0, y: 0 };
-      for (const k of ['scale', 'x', 'y'] as const) {
-        now[k] += (target[k] - now[k]) * EASE;
+    let last = performance.now();
+    let shown = video.currentTime;
+    const tick = (stamp: number) => {
+      const dt = Math.min(0.05, Math.max(0, stamp - last) / 1000);
+      last = stamp;
+      const time = video.currentTime;
+      const target = follow ? frameAt(match.views, time, typeof ball === 'object' ? ballAt(ball, time) : null) : WHOLE;
+      if (Math.abs(time - shown) > CUT_S) {
+        Object.assign(now, target);
+        Object.assign(speed, { x: 0, y: 0, zoom: 0 });
       }
-      if (!follow && Math.abs(now.scale - 1) < 0.002) {
-        Object.assign(now, { scale: 1, x: 0, y: 0 });
+      shown = time;
+      spring(now, speed, target, dt);
+      if (!follow && Math.abs(now.zoom - 1) < 0.002) {
+        Object.assign(now, WHOLE);
+        Object.assign(speed, { x: 0, y: 0, zoom: 0 });
         video.style.transform = '';
         return;
       }
-      video.style.transformOrigin = '0 0';
-      video.style.transform = `translate(${now.x}px, ${now.y}px) scale(${now.scale})`;
+      if (video.videoWidth) {
+        const v = zoomOn(now, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, Math.max(1, now.zoom));
+        video.style.transformOrigin = '0 0';
+        video.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.scale})`;
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -84,7 +96,7 @@ export function Watch() {
     document.addEventListener('fullscreenchange', sync);
     return () => document.removeEventListener('fullscreenchange', sync);
   }, []);
-  // The 720p copy while the player is small; the 1080p one in full screen, zoomed on the ball or wide.
+  // The 720p copy while the player is small; the 1080p one in full screen, zoomed or wide.
   const [wide, setWide] = useState(false);
   useEffect(() => {
     if (!(video instanceof HTMLVideoElement)) {

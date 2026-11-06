@@ -111,7 +111,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   );
 
   return (
-    // On a phone the timeline takes its own row above the buttons. Over the video zoomed on the ball, which runs past its box.
+    // On a phone the timeline takes its own row above the buttons. Over the video zoomed, which runs past its box.
     <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'relative z-10 bg-black text-white')}>
       <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')}>
         <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
@@ -159,8 +159,8 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
         </button>
       </Tip>
       {onFollow && (
-        <Tip label={t('followBall')}>
-          <button type="button" className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={follow} aria-label={t('followBall')} onClick={onFollow}>
+        <Tip label={t('autoZoom')}>
+          <button type="button" className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={follow} aria-label={t('autoZoom')} onClick={onFollow}>
             <Focus aria-hidden />
           </button>
         </Tip>

@@ -29,6 +29,9 @@ interface Player {
 
 const PlayerContext = createContext<Player | null>(null);
 
+/** Seconds the video fades through black, picture and sound, out before and in after each jump of ours: the next clip, a loop's start. */
+const FADE_S = 0.3;
+
 // ponytail: one video per page, so its time lives in a module-level store.
 let now = 0;
 const listeners = new Set<() => void>();
@@ -80,6 +83,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const current = useRef<Playlist | null>(null);
   // A seek of ours is pending: clip ends and user seeks are ignored until it lands.
   const seeking = useRef(false);
+  // Where our last seek landed, the video fading in from there.
+  const landed = useRef(-Infinity);
 
   const update = useCallback((next: Playlist | null) => {
     current.current = next;
@@ -141,6 +146,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           update(null);
         }
       }
+      if (seeking.current) {
+        landed.current = video.currentTime;
+      }
       seeking.current = false;
       held = rallyAt(rallies, video.currentTime);
     };
@@ -162,9 +170,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
       if (!p && looping.current && playing && held && time > held.end + PAD) {
+        seeking.current = true;
         video.currentTime = Math.max(0, held.start - PAD);
       } else {
         held = rallyAt(rallies, time);
+      }
+      if (video instanceof HTMLVideoElement) {
+        const q = current.current;
+        const jump = q ? (looping.current || q.at + 1 < q.clips.length ? q.clips[q.at].end : Infinity) : looping.current && held ? held.end + PAD : Infinity;
+        const fadeOut = time <= jump ? (jump - time) / FADE_S : 1;
+        const fadeIn = time >= landed.current ? (time - landed.current) / FADE_S : 1;
+        const shown = seeking.current ? 0 : Math.min(1, fadeOut, fadeIn);
+        video.style.opacity = shown < 1 ? String(shown) : '';
+        if (video.volume !== shown) {
+          video.volume = shown;
+        }
       }
       if (time !== now) {
         now = time;

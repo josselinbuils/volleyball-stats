@@ -798,7 +798,7 @@
     "wrong": "Mot de passe incorrect.",
     "changed": "Le mot de passe a changé : entrez le nouveau."
   },
-  "followBall": "Zoomer sur le ballon",
+  "autoZoom": "Zoom auto",
   "story": {
     "film": "Highlights",
     "title": "L'histoire du match",

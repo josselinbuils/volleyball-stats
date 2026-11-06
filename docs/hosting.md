@@ -35,7 +35,7 @@ one the browsers that can play first (same with `-c:v libsvtav1 -preset 6 -crf 4
 at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s with `-g 250`); the public build links to it
 with `--video-page video/`, whose dialog asks the password), `--small-video` for a 720p H.264 one
 (same with `scale=1280:720`, -56% against 1080p) the page plays while its player is small: the
-1080p copy in full screen, zoomed on the ball or over 1600 screen pixels wide, the video carrying on
+1080p copy in full screen, zoomed or over 1600 screen pixels wide, the video carrying on
 where it stood. A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21
 frames to decode a jump instead of 131 with `-g 250`, for +30% size in H.264, +60% in AV1. The
 service's nginx serves a `/volleyball/FOLDER/video/` file only with the cookie `video_key`, the
