@@ -226,6 +226,7 @@ On the two reviewed matches' checked rallies and answers (M1 first, M2 second):
 | Attack heights from the 3D ball fitted at each attack's hit frame | within-player spread 0.080 → 0.105 m (M1), 0.120 → 0.110 m (M2) |
 | Jumps without a camera model (no lens), the box height as the scale | `side_holdout`: 3 of 9 attacks measured, the 2 checked by eye wrong |
 | The hips' fastest rise and fall as a jump's edges where the ankles give none | of 11 jumps the ankles miss on the 80 labelled attacks, 6 recovered, but 4 false jumps added |
+| An attack credited to the one candidate who jumps when the credited player shows none | 80 labelled attacks, 7 credits wrong: 5 switches, 1 fix, 4 breaks (a jump hidden behind another player) |
 | Attacks named at the hit rather than the contact frame | of M2's 145 answered attacks with the player posed, 8 wrong, 3 of them with the contact over 4 frames off: at most +3 |
 
 Also found: on 55 attacks labelled to the frame (`benchmarks/jumps/ground_truth/`, the hand on the ball), the ball's
