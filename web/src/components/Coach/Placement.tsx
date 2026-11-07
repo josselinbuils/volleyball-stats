@@ -10,7 +10,7 @@ import { Section } from '@/components/Coach/Section';
 import { BLOCKS, defenders, SIDES, spotsOf, type Played, type Side } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
-const DOT = 0.4;
+const DOT = 0.45;
 // The attacker 1 m off the net, across as `match.defense` puts them, the spots drawn against them.
 const HIT_DEPTH = -1;
 // The player select's value for nobody.
@@ -31,6 +31,18 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
   return (
     <Section title={t('coach.placement.title')} caption={t('coach.placement.caption')}>
       <div className="flex flex-wrap items-center gap-2">
+        <Select value={String(mode)} onValueChange={(v) => setMode(Number(v))}>
+          <SelectTrigger aria-label={t('coach.placement.system')} className="w-full bg-card sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {match.defense.modes.map((m, n) => (
+              <SelectItem key={m} value={String(n)}>
+                {t(`coach.placement.modes.${m}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={picked?.key ?? NOBODY} onValueChange={(v) => setKey(v === NOBODY ? null : v)}>
           <SelectTrigger aria-label={t('coach.placement.pick')} className="w-full bg-card sm:w-56">
             <SelectValue />
@@ -40,18 +52,6 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
             {players.map((p) => (
               <SelectItem key={p.key} value={p.key}>
                 {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(mode)} onValueChange={(v) => setMode(Number(v))}>
-          <SelectTrigger aria-label={t('coach.placement.system')} className="w-full bg-card sm:w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {match.defense.modes.map((m, n) => (
-              <SelectItem key={m} value={String(n)}>
-                {t(`coach.placement.modes.${m}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -70,7 +70,7 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
           <circle r={0.8} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
         </Glyph>
       </Legend>
-      <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3">
+      <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3 lg:grid-cols-6">
         {BLOCKS.flatMap((block) =>
           SIDES.map((side) => (
             <Card
@@ -148,7 +148,7 @@ function HalfCourt({ side, block, mode, played, g }: { side: Side; block: number
   const them = (3 - g) as Group;
   const spots = spotsOf(mode, side, block);
   const number = (x: number, y: number, n: number, fill: string) => (
-    <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={0.55} fontWeight={700} fill={fill}>
+    <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={0.7} fontWeight={700} fill={fill}>
       {n}
     </text>
   );
