@@ -75,8 +75,9 @@ way after every setting above was chosen, never tuned on (`bench.py --heldout`).
 The 6 players with 4 measured attacks on a teammate's set or more in both matches (`web.match_data`'s contacts, reviewed
 players), their medians from one match to the other: timing against the top correlates 0.93 (median gap 10 ms), the
 carry towards the net 0.93 (0.10 m), the jump height 0.88 (3 cm), the run-up 0.43 (0.68 m). The first three read as a
-player's own habits; the run-up's length moves from match to match (or with the play), so its tip is the least sure.
-Where the run-up starts holds better (0.71, median gap 0.27 m; the takeoff point 0.44).
+player's own habits; the run-up's length moves from match to match (or with the play): its tip is gone from the page
+(7 Nov). Where the run-up starts holds better (0.71, median gap 0.27 m; the takeoff point 0.44), still short of the
+others. The jump height feeds "Mon match" ("Détente") and a trophy ("Le Ressort").
 
 "Le saut d'attaque" from 5 jumps: 5 random measured attacks of a player give the same tips as all of theirs 69% of
 the time (the 12 players with 8 or more on a set, both matches, 200 draws each), 82% for the 7 with 12 or more, and 8
