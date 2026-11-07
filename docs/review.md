@@ -5,7 +5,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - A match's review: `uv run python -m volleyball_stats.review outputs/matches/MATCH` (http://127.0.0.1:8765, `/review#questions`, `/review#match`). Each apply
   rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password, or without it (`outputs/matches/MATCH/publish.json`); "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds every match online and uploads them at once; "Apprendre de mes réponses"
   retrains the learned attribution and reruns the pipeline (`learn --rerun`: 3 min on the M4 with the poses cached, 40 without), moving the answers onto
-  the new windows itself (`learn.rerun`, `rekey`). Before stopping the review (a restart is needed for a server or page change), check that
+  the new windows itself (`learn.rerun`, `rekey`; a rally the review added that the pipeline now finds moves onto its window). On a match whose every
+  rally is checked it only retrains: the match stays as reviewed (`review.reviewed`). Before stopping the review (a restart is needed for a server or page change), check that
   `curl -s 127.0.0.1:8765/progress` gives `{}`: otherwise an apply is running. `outputs/feedback/feedback-conflicts.log` is no viewer's: Claude's note on two
   answers that disagreed (merged). The review's progress names each step and the pipeline's stage, with the time left from each one's last duration
   (`outputs/matches/MATCH/review_timings.json`). A run that fails opens an alert with its step and error, even after a reload, until closed (`/failure`); the traceback is in the server's log. `uv run python -m volleyball_stats.learn outputs/matches/MATCH --video VIDEO --court COURT` scores every step on the
