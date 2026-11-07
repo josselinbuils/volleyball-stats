@@ -3,7 +3,7 @@ import numpy as np
 from volleyball_stats.ball3d import G, project
 from volleyball_stats.court import Calibration, distort
 from volleyball_stats import jumps
-from volleyball_stats.jumps import lower_hull, measure, run_up, window
+from volleyball_stats.jumps import hit, lower_hull, measure, run_up, window
 
 
 class TestJumps:
@@ -70,3 +70,16 @@ class TestJumps:
     def test_run_up_stops_where_the_player_had_come_nearer(self):
         rows = np.array([[f, 0, 0, 1, 1, -(2.0 if f < 20 else 4.0 if f < 60 else 4.0 - 2.0 * (f - 60) / 40), 0] for f in range(100)], float)
         assert 60 <= run_up(rows, 100, self.FPS) <= 62
+
+    def test_hits_where_the_ball_is_nearest_a_wrist(self):
+        frames = window(100, self.FPS)
+        keypoints = [None] * len(frames)
+        for k, f in enumerate(frames):
+            points = np.zeros((17, 3))
+            points[10] = [500.0, 300.0, 0.9]
+            keypoints[k] = points.tolist()
+        ball = {f: (500.0 + 10 * abs(f - 106), 300.0) for f in range(90, 120)}
+        assert hit(100, keypoints, ball, self.FPS) == 106
+        # Too far from the contact, or no ball seen: the contact stays.
+        assert hit(100, keypoints, {f: (500.0, 300.0) for f in (80, 120)}, self.FPS) == 100
+        assert hit(100, keypoints, {}, self.FPS) == 100

@@ -955,7 +955,7 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 
 def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: dict[int, list[dict]], match: Path, video: Path, calibration: Calibration, fps: float) -> None:
     """Writes on each attack its player's jump where `jumps.measure` finds one: `late`, the ms from the flight's top to
-    the contact, `run` the run-up and `drift` how far the jump carried towards the net, in metres. The attacker's
+    the hit, `run` the run-up and `drift` how far the jump carried towards the net, in metres. The attacker's
     track is the one showing their identity at the contact; the poses stay in jumps.json."""
     attacks = []
     for c in found:
@@ -969,8 +969,9 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
         return
     tracks = jumps.read_tracks(match / "players.csv", {t for _, t in attacks})
     poses = jumps.pose_all(video, [(c["f"], t) for c, t in attacks], tracks, fps, match / "jumps.json")
+    ball = jumps.read_ball(match / "ball.csv", {f for c, _ in attacks for f in jumps.window(c["f"], fps)}) if (match / "ball.csv").exists() else {}
     for c, t in attacks:
-        got = jumps.measure(c["f"], tracks[t], poses[f"{c['f']}:{t}"], calibration, fps)
+        got = jumps.measure(c["f"], tracks[t], poses[f"{c['f']}:{t}"], calibration, fps, ball)
         if got is None:
             continue
         c["late"] = got["late"]

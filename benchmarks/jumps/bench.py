@@ -36,7 +36,8 @@ def load() -> dict[str, dict]:
         attacks = [(int(r["frame"]), int(r["track"])) for r in labels]
         tracks = jumps.read_tracks(match / "players.csv", {t for _, t in attacks})
         poses = jumps.pose_all(Path(source["video"]), attacks, tracks, FPS, match / "jumps.json")
-        out[name] = {"labels": labels, "tracks": tracks, "poses": poses, "calibration": Calibration.load(Path(source["court"]))}
+        ball = jumps.read_ball(match / "ball.csv", {f for a, _ in attacks for f in jumps.window(a, FPS)})
+        out[name] = {"labels": labels, "tracks": tracks, "poses": poses, "ball": ball, "calibration": Calibration.load(Path(source["court"]))}
     return out
 
 
@@ -50,13 +51,13 @@ def late(contact: int, takeoff: int, landing: int) -> float:
 
 def score(data: dict, verbose: bool = False, quiet: bool = False) -> dict[str, float]:
     found = missed = false = 0
-    takeoffs, landings, lates, apexes, near, starts = [], [], [], [], [], []
+    takeoffs, landings, lates, apexes, hits, near, starts = [], [], [], [], [], [], []
     for row in data["labels"]:
         if row["attacker"] != "yes":
             continue
         frame, track = int(row["frame"]), int(row["track"])
         rows = data["tracks"][track]
-        got = jumps.measure(frame, rows, data["poses"][f"{frame}:{track}"], data["calibration"], FPS)
+        got = jumps.measure(frame, rows, data["poses"][f"{frame}:{track}"], data["calibration"], FPS, data["ball"])
         takeoff, landing = number(row["takeoff"]), number(row["landing"])
         if row["jump"] != "yes" or takeoff is None or landing is None:
             false += got is not None and row["jump"] == "no"
@@ -69,7 +70,9 @@ def score(data: dict, verbose: bool = False, quiet: bool = False) -> dict[str, f
         landings.append(got["landing"] - landing)
         contact = number(row["contact"]) or frame
         lates.append(got["late"] - late(contact, takeoff, landing))
-        apexes.append(got["late"] - late(frame, takeoff, landing))
+        apexes.append(got["late"] - late(got["hit"], takeoff, landing))
+        if number(row["contact"]) is not None:
+            hits.append(got["hit"] - contact)
         if got.get("takeoff_m") is not None:
             near.append(got["takeoff_m"] - distance(rows, takeoff - 1))
         start = number(row["start"]) if row["start"] != "none" else takeoff - 1
@@ -91,7 +94,8 @@ def score(data: dict, verbose: bool = False, quiet: bool = False) -> dict[str, f
     print(f"  jumps found {found}, missed {missed}, false {false}")
     print(f"  takeoff  |error| median {median(takeoffs):.1f} frames, within 2: {within(takeoffs, 2)}")
     print(f"  landing  |error| median {median(landings):.1f} frames, within 2: {within(landings, 2)}")
-    print(f"  late     |error| median {median(lates):.0f} ms, within 60 ms: {within(lates, 60)} (apex alone {median(apexes):.0f} ms)")
+    print(f"  hit      |error| median {median(hits):.1f} frames, within 2: {within(hits, 2)}")
+    print(f"  late     |error| median {median(lates):.0f} ms, within 60 ms: {within(lates, 60)} (the flight's top alone {median(apexes):.0f} ms)")
     print(f"  takeoff distance to the net |error| median {median(near):.2f} m, run-up start {median(starts):.2f} m, within 0.5 m: {within(starts, 0.5)}")
     return {}
 

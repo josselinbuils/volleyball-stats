@@ -16,8 +16,8 @@ from volleyball_stats.court import Calibration, undistort
 BEFORE_S, AFTER_S = 0.8, 0.8
 # The pose crop: a square this many box heights around the attacker.
 CROP = 2.0
-POSE_IMGSZ, MATCH_IOU, ANKLE_CONF = 640, 0.3, 0.3
-ANKLES = [15, 16]
+POSE_IMGSZ, MATCH_IOU, KEYPOINT_CONF = 640, 0.3, 0.3
+ANKLES, WRISTS = [15, 16], [9, 10]
 # A jump: the lower ankle over LIFT_M within CONTACT_S of the contact; airborne while over FLOOR_M around it, its
 # edges where the ankle's rise and fall slow under STOP of their fastest.
 LIFT_M, FLOOR_M, CONTACT_S, STOP = 0.15, 0.05, 0.1, 0.2
@@ -26,6 +26,9 @@ LIFT_M, FLOOR_M, CONTACT_S, STOP = 0.15, 0.05, 0.1, 0.2
 HEEL_UP_S, HEEL_DOWN_S = 0.06, 0.04
 # Flights outside these are a foot hidden or another player's taken for it (the labelled ones: 0.42-0.72 s).
 SHORTEST_S, LONGEST_S = 0.3, 0.8
+# The hit: within HIT_S of the ball's contact, the frame the ball is seen nearest a wrist (`benchmarks/jumps`: within 2
+# frames of the hand on the ball for 24 attacks of 27, against 20 for the contact).
+HIT_S = 0.24
 # Holes in the ankles or the track up to this long are bridged.
 HOLE_S = 0.1
 # The run-up: looked for over RUN_UP_S before takeoff, it starts where the player last came under STILL_M nearer the
@@ -41,6 +44,18 @@ def read_tracks(players: Path, tracks: set[int]) -> dict[int, Rows]:
     rows = np.loadtxt(players, delimiter=",", skiprows=1, usecols=(0, 1, 3, 4, 5, 6, 10, 11))
     rows = rows[np.isin(rows[:, 1], list(tracks))]
     return {t: np.delete(rows[rows[:, 1] == t], 1, axis=1) for t in tracks}
+
+
+def read_ball(path: Path, frames: set[int]) -> dict[int, tuple[float, float]]:
+    """ball.csv's sightings at `frames`, in the video's pixels."""
+    out = {}
+    with open(path) as f:
+        next(f)
+        for line in f:
+            frame, visible, x, y = line.rstrip().split(",")
+            if visible == "1" and int(frame) in frames:
+                out[int(frame)] = (float(x), float(y))
+    return out
 
 
 def window(frame: int, fps: float) -> range:
@@ -133,7 +148,7 @@ def ankle_path(keypoints: list, calibration: Calibration, hole: int) -> np.ndarr
         if points is None:
             continue
         ankles = np.array(points)[ANKLES]
-        ankles = ankles[ankles[:, 2] >= ANKLE_CONF]
+        ankles = ankles[ankles[:, 2] >= KEYPOINT_CONF]
         if len(ankles):
             y[k] = (undistort(ankles[:, :2], calibration.lens) if calibration.lens else ankles[:, :2])[:, 1].max()
     seen = np.flatnonzero(~np.isnan(y))
@@ -199,11 +214,25 @@ def run_up(rows: Rows, takeoff: int, fps: float) -> int | None:
     return frames[k]
 
 
-def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, fps: float) -> dict | None:
-    """One attack's jump: `takeoff` (first frame airborne), `landing` (first back on the floor), `late` (ms from the
-    flight's top to the contact, negative before it), `height` (m, from the flight time), the distances to the net
-    in metres at takeoff (`takeoff_m`), at the run-up's start (`start_m`, with its frame `start`) and how far the
-    jump carried towards it (`drift_m`); None without a jump."""
+def hit(frame: int, keypoints: list, ball: dict[int, tuple[float, float]], fps: float) -> int:
+    """The frame the attacker hits the ball, `frame` its contact: the ball seen nearest a wrist within HIT_S of it, else
+    `frame`."""
+    best, nearest = frame, np.inf
+    for f, points in zip(window(frame, fps), keypoints):
+        if abs(f - frame) > round(HIT_S * fps) or points is None or f not in ball:
+            continue
+        wrists = np.array(points)[WRISTS]
+        wrists = wrists[wrists[:, 2] >= KEYPOINT_CONF]
+        if len(wrists) and np.hypot(*(wrists[:, :2] - ball[f]).T).min() < nearest:
+            best, nearest = f, np.hypot(*(wrists[:, :2] - ball[f]).T).min()
+    return best
+
+
+def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, fps: float, ball: dict[int, tuple[float, float]] | None = None) -> dict | None:
+    """One attack's jump: `takeoff` (first frame airborne), `landing` (first back on the floor), `hit` (the frame of
+    the hand on the ball, from the `ball`'s sightings), `late` (ms from the flight's top to it, negative before), `height`
+    (m, from the flight time), the distances to the net in metres at takeoff (`takeoff_m`), at the run-up's start
+    (`start_m`, with its frame `start`) and how far the jump carried towards it (`drift_m`); None without a jump."""
     frames = window(frame, fps)
     hole = round(HOLE_S * fps)
     track = at(rows, frames, hole)
@@ -222,10 +251,12 @@ def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, f
         return None
     takeoff, landing = frames[first], frames[after]
     near = np.abs(track[:, 4])
+    struck = hit(frame, keypoints, ball or {}, fps)
     out = {
         "takeoff": takeoff,
         "landing": landing,
-        "late": round((frame - (takeoff + landing - 1) / 2) / fps * 1000),
+        "hit": struck,
+        "late": round((struck - (takeoff + landing - 1) / 2) / fps * 1000),
         "height": round(G * ((landing - takeoff) / fps) ** 2 / 8, 2),
         "takeoff_m": None if np.isnan(near[first - 1]) else round(float(near[first - 1]), 2),
         "drift_m": None if np.isnan(near[first - 1]) or np.isnan(near[after]) else round(float(near[first - 1] - near[after]), 2),
