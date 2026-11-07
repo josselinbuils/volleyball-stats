@@ -50,3 +50,15 @@ class TestAssign:
         assert defense.assign(spots, {1: (8.0, -1.0)}) == {1: (7.0, 0.0, 6)}
         assert len(defense.assign(spots, {k: (6.5, -3.5 + k * 0.01) for k in range(7)})) == 6
         assert defense.assign(spots, {}) == {}
+
+
+class TestTable:
+    def test_gives_every_system_its_spots_against_each_sides_attacker(self):
+        found = defense.table()
+
+        # Attack on the right under a single block: the perimeter's blocker 2 (third in court order) in front of it.
+        assert found["attackers"]["right"] == 3.0
+        assert found["spots"]["perimeter"]["right"]["1"][4:6] == [0.5, 3.0]
+        # Laëticia's block 0.8 m inside it; six spots in each.
+        assert found["spots"]["laeticia"]["right"]["1"][4:6] == [0.5, 2.2]
+        assert all(len(spots) == 12 for mode in found["spots"].values() for side in mode.values() for spots in side.values())

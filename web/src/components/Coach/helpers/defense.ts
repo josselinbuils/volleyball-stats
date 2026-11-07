@@ -15,7 +15,6 @@ export type Side = (typeof SIDES)[number];
 
 /** At the net, off it in front, or in the back row. */
 export type Role = 'block' | 'off' | 'back';
-const ROLES: Role[] = ['block', 'off', 'back'];
 
 /** A role at a position: the player's usual place and their spot there, [metres from the net, metres to their right]. */
 export interface Place {
@@ -25,8 +24,9 @@ export interface Place {
 }
 
 /** A situation a player defended: their position, the side the attack came from, how many blocked, their role, their
- * usual place and spot from FROM attacks, every position's spot then, those attacks, those whose ball came down nearer
- * their spot than any other (theirs to play), and those they stood OFF_M or more from their spot. */
+ * usual place from FROM attacks and their spot, every position's spot against the side's attacker (`match.defense`),
+ * those attacks, those whose ball came down nearer their spot than any other (theirs to play), and those they stood OFF_M
+ * or more from their spot. */
 export interface Situation {
   position: number;
   side: Side;
@@ -38,25 +38,13 @@ export interface Situation {
   off: Contact[];
 }
 
-/** Whether the ball of `c`, attacked on `team` (each defender's [position, spot depth, spot across]), came down nearest
- * the spot of `position`. */
-function theirs(c: Contact, team: number[][], position: number): boolean {
-  const f = c.flight as number[];
-  const spots = team.filter((s) => s[0]);
-  if (f.length < 4 || !spots.length) {
-    return false;
-  }
-  const far = (s: number[]) => Math.hypot(s[1] - f[2], s[2] - f[3]);
-  return spots.reduce((a, b) => (far(b) < far(a) ? b : a))[0] === position;
-}
-
 export interface Defender {
   key: string;
   person: number;
   situations: Situation[];
 }
 
-function median(xs: number[]): number {
+export function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const m = s.length >> 1;
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
@@ -75,50 +63,52 @@ export function sideOf(c: Contact): Side {
 /** The other team's attacks on `g` with their defenders' places. */
 export const attacksOn = (contacts: Contact[], g: Group) => contacts.filter((c) => c.type === 'attack' && c.g !== g && c.defense && c.flight);
 
-/** `g`'s players at the other team's attacks in the `mode`th of `match.defenseModes`, each with the situations they
- * defended: by position in court order, then side, block and role. */
+/** Every position's spot in the `mode`th system against the attacker on `side`, under `block` blockers. */
+function spotsOf(mode: number, side: Side, block: number): { position: number; spot: [number, number] }[] {
+  const flat = match.defense?.spots[match.defense.modes[mode]]?.[side]?.[String(block)] ?? [];
+  return POSITIONS.map((position, k) => ({ position, spot: [flat[2 * k], flat[2 * k + 1]] as [number, number] }));
+}
+
+/** `g`'s players at the other team's attacks in the `mode`th of `match.defense`'s systems, each with the situations they
+ * defended: by position in court order, then side and block. */
 export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>, mode: number): Defender[] {
-  const stride = 4 + 2 * match.defenseModes.length;
-  const found = new Map<string, { person: number; at: Map<string, { c: Contact; place: number[]; team: number[][] }[]> }>();
+  const found = new Map<string, { person: number; at: Map<string, { c: Contact; place: number[] }[]> }>();
   for (const c of attacksOn(contacts, g)) {
     const all = c.defense as number[];
-    // Every position's spot at this attack.
-    const team: number[][] = [];
-    for (let k = 0; k < all.length; k += stride) {
-      team.push([all[k + 3], ...all.slice(k + 4 + 2 * mode, k + 6 + 2 * mode)]);
-    }
-    for (let k = 0; k < all.length; k += stride) {
+    for (let k = 0; k < all.length; k += 4) {
       const [person, depth, across, position] = all.slice(k, k + 4);
-      const [spotDepth, spotAcross] = all.slice(k + 4 + 2 * mode, k + 6 + 2 * mode);
       const key = playerKey(person, people);
       if (key === null || people[person].team !== g) {
         continue;
       }
       const player = found.get(key) ?? { person, at: new Map() };
-      const at = `${position} ${sideOf(c)} ${c.block === 2 ? 2 : 1} ${role(position, spotDepth)}`;
-      player.at.set(at, [...(player.at.get(at) ?? []), { c, place: [depth, across, spotDepth, spotAcross], team }]);
+      const at = `${position} ${sideOf(c)} ${c.block === 2 ? 2 : 1}`;
+      player.at.set(at, [...(player.at.get(at) ?? []), { c, place: [depth, across] }]);
       found.set(key, player);
     }
   }
   return [...found].flatMap(([key, { person, at }]) => {
     const situations = POSITIONS.flatMap((position) =>
       SIDES.flatMap((side) =>
-        [1, 2].flatMap((block) =>
-          ROLES.flatMap((r): Situation[] => {
-            const seen = at.get(`${position} ${side} ${block} ${r}`) ?? [];
-            if (seen.length < FROM) {
-              return [];
-            }
-            const mid = (n: number) => median(seen.map((x) => x.place[n]));
-            const spots = POSITIONS.flatMap((p) => {
-              const here = seen.flatMap((x) => x.team.filter((s) => s[0] === p));
-              return here.length ? [{ position: p, spot: [median(here.map((s) => s[1])), median(here.map((s) => s[2]))] as [number, number] }] : [];
+        [1, 2].flatMap((block): Situation[] => {
+          const seen = at.get(`${position} ${side} ${block}`) ?? [];
+          if (seen.length < FROM) {
+            return [];
+          }
+          const spots = spotsOf(mode, side, block);
+          const spot = (spots.find((s) => s.position === position) as { spot: [number, number] }).spot;
+          // A ball is theirs when it came down nearer their spot than any other.
+          const mine = seen
+            .map((x) => x.c)
+            .filter((c) => {
+              const f = c.flight as number[];
+              const far = (s: { spot: [number, number] }) => Math.hypot(s.spot[0] - f[2], s.spot[1] - f[3]);
+              return f.length === 4 && spots.reduce((a, b) => (far(b) < far(a) ? b : a)).position === position;
             });
-            const off = seen.filter((x) => Math.hypot(x.place[2] - x.place[0], x.place[3] - x.place[1]) >= OFF_M).map((x) => x.c);
-            const mine = seen.filter((x) => theirs(x.c, x.team, position)).map((x) => x.c);
-            return [{ position, side, block, place: { role: r, usual: [mid(0), mid(1)], spot: [mid(2), mid(3)] }, spots, attacks: seen.map((x) => x.c), mine, off }];
-          }),
-        ),
+          const off = seen.filter((x) => Math.hypot(spot[0] - x.place[0], spot[1] - x.place[1]) >= OFF_M).map((x) => x.c);
+          const usual: [number, number] = [median(seen.map((x) => x.place[0])), median(seen.map((x) => x.place[1]))];
+          return [{ position, side, block, place: { role: role(position, spot[0]), usual, spot }, spots, attacks: seen.map((x) => x.c), mine, off }];
+        }),
       ),
     );
     return situations.length ? [{ key, person, situations }] : [];

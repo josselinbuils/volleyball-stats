@@ -13,11 +13,8 @@ import { Tip } from '@/components/Tip';
 
 const DOT = 0.4;
 
-// The attacker 1 m off the net, across where the card's attacks were hit, kept inside the court as the block is (`defense.REACH_M`).
+// The attacker 1 m off the net, across as `match.defense` puts them, the spots drawn against them.
 const HIT_DEPTH = -1;
-const REACH_M = 4;
-
-const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
 
 /** A player picked among `g`'s defenders and a defence system; a card per situation the player defended (position,
  * side the attack came from, block, role): the attacks and where they went, every position's spot, where the player usually
@@ -52,7 +49,7 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {match.defenseModes.map((m, n) => (
+            {(match.defense?.modes ?? []).map((m, n) => (
               <SelectItem key={m} value={String(n)}>
                 {t(`coach.placement.modes.${m}`)}
               </SelectItem>
@@ -146,7 +143,7 @@ function Card({ situation, person, g }: { situation: Situation; person: number; 
 function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
   const flights = situation.mine.map((c) => c.flight as number[]);
   const them = (3 - g) as Group;
-  const [hitDepth, hitAcross] = [HIT_DEPTH, Math.min(REACH_M, Math.max(-REACH_M, median(situation.attacks.map((c) => (c.flight as number[])[1]))))];
+  const [hitDepth, hitAcross] = [HIT_DEPTH, match.defense?.attackers[situation.side] ?? 0];
   const {
     usual: [uy, ux],
     spot: [sy, sx],

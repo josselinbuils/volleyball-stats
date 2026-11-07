@@ -954,8 +954,9 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
     """`contacts` with, on each attack, its `flight` [depth, across, then where it went if seen], its `block` (1 or 2
     blockers, `defense.doubled`) and the other half's defenders then in `defense`, flat [person, depth, across, position,
-    then for each of `defense.MODES` that position's spot depth and across, ...], in metres from the net and toward the defenders' right. The positions are the perimeter's (`defense.assign`),
-    the owner's system, the same in every system; a defender left over has none. The players held as in `with_landings`."""
+    ...], in metres from the net and toward the defenders' right: the positions the perimeter's (`defense.assign`), the
+    owner's system, which the page keeps in every system; a defender left over has none. The players held as in
+    `with_landings`."""
     back = round(HOLD_S * fps / players["step"])
     out = []
     for k, c in enumerate(contacts):
@@ -970,10 +971,8 @@ def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: floa
         here = {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
         start, end, _ = defense.flight(contacts, k)
         double = defense.doubled(here)
-        layouts = [defense.layout(mode, start[1], double) for mode in defense.MODES]
-        found = defense.assign(layouts[0], here)
-        spot = {(n, p): (depth, x) for n, spots in enumerate(layouts) for depth, x, p in spots}
-        flat = [round(v, 1) for person, (_, _, p) in found.items() for v in (person, *here[person], p, *(x for n in range(len(defense.MODES)) for x in spot[(n, p)]))]
+        found = defense.assign(defense.layout("perimeter", start[1], double), here)
+        flat = [round(v, 1) for person, (_, _, p) in found.items() for v in (person, *here[person], p)]
         out.append({**c, "flight": [round(v, 1) for v in (*start, *(end or ()))], "block": 2 if double else 1, **({"defense": flat} if found else {})})
     return out
 
@@ -1106,7 +1105,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
         if data.get("teams"):
             data["contacts"] = defended(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
-            data["defenseModes"] = list(defense.MODES)
+            data["defense"] = {"modes": list(defense.MODES), **defense.table()}
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
     if ball_js:

@@ -43,8 +43,7 @@ export interface Contact {
   flight?: number[];
   /** On an attack, how many of the defenders blocked: 1 or 2 (two or more near the net). */
   block?: number;
-  /** On an attack, the other team's defenders then, flat [person, depth, across, position, then for each of
-   * `match.defenseModes` that position's spot depth and across, ...] in the same frame: the positions the perimeter's. */
+  /** On an attack, the other team's defenders then, flat [person, depth, across, position, ...] in the same frame. */
   defense?: number[];
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */
@@ -171,8 +170,9 @@ export interface Data {
   title?: string | null;
   /** The build's hash, in the unhashed scripts' URLs. */
   v?: string;
-  /** The defence systems the attacks' `defense` places the defenders in. */
-  defenseModes?: string[];
+  /** The defence systems, each side's attacker (metres toward the defenders' right) and, in each system, every position's
+   * spot against it for a single and a double block ("1", "2"), flat [depth, across] in court order (4 3 2 5 6 1). */
+  defense?: { modes: string[]; attackers: Record<string, number>; spots: Record<string, Record<string, Record<string, number[]>>> } | null;
 }
 
 declare global {
@@ -206,7 +206,7 @@ export const match = {
   brand: data.brand ?? null,
   date: data.date ?? null,
   title: data.title ?? null,
-  defenseModes: data.defenseModes ?? [],
+  defense: data.defense ?? null,
 };
 /** `file`, beside the page, at this build's URL: a cache never serves another build's. */
 export const versioned = (file: string) => (data.v ? `${file}?v=${data.v}` : file);

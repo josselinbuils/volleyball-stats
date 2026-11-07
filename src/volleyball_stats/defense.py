@@ -9,6 +9,10 @@ import itertools
 import numpy as np
 
 MODES = ("perimeter", "laeticia", "up", "rotation")
+# The positions in court order: the front row left to right, then the back row.
+POSITIONS = (4, 3, 2, 5, 6, 1)
+# Where an attack comes from on each side, as the page draws it: metres toward the defenders' right.
+ATTACKERS = {"left": -3.0, "middle": 0.0, "right": 3.0}
 # A player this near the net at the hit blocks: two or more make a double block.
 BLOCK_M = 1.2
 # An attack this near the court's long axis comes through the middle.
@@ -109,3 +113,13 @@ def flight(contacts: list[dict], k: int) -> tuple[tuple[float, float], tuple[flo
     end = (sign * after["x"], -sign * after["y"])
     # Inside the court give or take a metre: a floor contact read off the picture can be anywhere.
     return start, (end if 0 < end[0] <= 10 and abs(end[1]) <= 5.5 else None), after["type"] != "floor"
+
+
+def table() -> dict:
+    """What the page draws: each side's attacker (`ATTACKERS`) and every system's six spots against it, for a single and a
+    double block, flat [depth, across] in POSITIONS order."""
+    spots = {
+        mode: {side: {str(n): [round(v, 2) for p in POSITIONS for v in next(s[:2] for s in layout(mode, across, n == 2) if s[2] == p)] for n in (1, 2)} for side, across in ATTACKERS.items()}
+        for mode in MODES
+    }
+    return {"attackers": ATTACKERS, "spots": spots}
