@@ -41,9 +41,9 @@ export function Watch() {
   const f = useFormat();
   const { video, setVideo, playlist } = usePlayer();
   const court = useRef<HTMLDivElement>(null);
-  // The automatic zoom frames the players as the review does, moving only to keep the ball in;
-  // the view springs to it each frame, back to the whole picture when off.
-  const [follow, setFollow] = useState(false);
+  // The automatic zoom, on from the start where the match has views, frames the players as the review does, moving only
+  // to keep the ball in; the view springs to it each frame, back to the whole picture when off.
+  const [follow, setFollow] = useState(match.views.length > 0);
   const ball = useBall();
   const camera = useRef({ now: { ...WHOLE }, speed: { x: 0, y: 0, zoom: 0 } });
   useEffect(() => {
