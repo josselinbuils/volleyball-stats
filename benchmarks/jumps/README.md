@@ -77,6 +77,10 @@ carry towards the net 0.93 (0.10 m), the jump height 0.88 (3 cm), the run-up 0.4
 player's own habits; the run-up's length moves from match to match (or with the play), so its tip is the least sure.
 Where the run-up starts holds better (0.71, median gap 0.27 m; the takeoff point 0.44).
 
+"Le saut d'attaque" from 5 jumps: 5 random measured attacks of a player give the same tips as all of theirs 69% of
+the time (the 12 players with 8 or more on a set, both matches, 200 draws each), 82% for the 7 with 12 or more, and 8
+attacks 87%. The timing tips almost never flip (0-2%), the run-up and carry ones do (6-20%), near their limits.
+
 ## Blocks (7 Nov, exploration: nothing on the page)
 
 `ground_truth/blocks.csv`: 30 defenders within 1.5 m of the net at random attacks (15 per match, seed 1), labelled by
