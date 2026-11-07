@@ -968,6 +968,8 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
             attacks.append((c, track))
     if not attacks:
         return
+    # ponytail: re-reads players.csv (0.7 s of this step's 1.3 s, a review page build's 6 s on the second match); a cache
+    # of the attack tracks' rows beside jumps.json would save it, cleared with it when the players are tracked again.
     tracks = jumps.read_tracks(match / "players.csv", {t for _, t in attacks})
     poses = jumps.pose_all(video, [(c["f"], t) for c, t in attacks], tracks, fps, match / "jumps.json")
     ball = jumps.read_ball(match / "ball.csv", {f for c, _ in attacks for f in jumps.window(c["f"], fps)}) if (match / "ball.csv").exists() else {}
