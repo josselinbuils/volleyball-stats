@@ -65,6 +65,13 @@ way after every setting above was chosen, never tuned on (`bench.py --heldout`).
 | Hit against the top, median error, within 60 ms | 30 ms, 10 of 11 | 20 ms, 10 of 13 | 20 of 24 (22 of 24) |
 | Run-up start's distance to the net, median error, within 0.5 m | 0.24 m, 7 of 10 | 0.10 m, 11 of 12 | 18 of 22 (17 of 21) |
 
+## The same players in both matches (7 Nov)
+
+The 6 players with 4 measured attacks on a teammate's set or more in both matches (`web.match_data`'s contacts, reviewed
+players), their medians from one match to the other: timing against the top correlates 0.93 (median gap 10 ms), the
+carry towards the net 0.93 (0.10 m), the jump height 0.88 (3 cm), the run-up 0.43 (0.68 m). The first three read as a
+player's own habits; the run-up moves from match to match (or with the play), so its tip is the least sure.
+
 ## Blocks (7 Nov, exploration: nothing on the page)
 
 `ground_truth/blocks.csv`: 30 defenders within 1.5 m of the net at random attacks (15 per match, seed 1), labelled by
