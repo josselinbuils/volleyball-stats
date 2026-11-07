@@ -1,0 +1,31 @@
+match,frame,track,player_ok,jump,block,takeoff,landing,error_frames,notes
+2026-10-29-aspom-1-vs-aspom-2,11776,155,yes,yes,yes,11782,11799,2,box widens over the player behind on 11763-11775
+2026-10-29-aspom-1-vs-aspom-2,14870,284,yes,no,,,,,
+2026-10-29-aspom-1-vs-aspom-2,15588,286,yes,no,,,,,box widens over the player behind on 15551-15564
+2026-10-29-aspom-1-vs-aspom-2,17862,375,yes,no,,,,,another player crosses in front on the last tiles; box partly on him 17896-17901
+2026-10-29-aspom-1-vs-aspom-2,25898,559,yes,no,,,,,no box on 25858-25864
+2026-10-29-aspom-1-vs-aspom-2,44389,705,yes,no,,,,,arms up at the net without leaving the floor
+2026-10-29-aspom-1-vs-aspom-2,79712,1606,yes,no,,,,,
+2026-10-29-aspom-1-vs-aspom-2,91810,2074,yes,yes,yes,91807,91837,1,
+2026-10-29-aspom-1-vs-aspom-2,95216,2113,yes,yes,yes,95216,95238,1,box missing on most tiles before 95194
+2026-10-29-aspom-1-vs-aspom-2,97279,2223,yes,yes,yes,97289,97309,1,
+2026-10-29-aspom-1-vs-aspom-2,99330,2241,yes,yes,yes,99320,99350,2,lateral run along the net then jump
+2026-10-29-aspom-1-vs-aspom-2,124989,2728,yes,no,,,,,
+2026-10-29-aspom-1-vs-aspom-2,169229,3639,yes,no,,,,,
+2026-10-29-aspom-1-vs-aspom-2,196359,4317,yes,no,,,,,a player passes in front on 196329-196338 hiding her feet; box partly on him
+2026-10-29-aspom-1-vs-aspom-2,196359,4353,yes,yes,yes,196356,196383,2,
+2026-11-02-avia-1-vs-aspom-2,18969,567,yes,yes,yes,18968,18987,2,
+2026-11-02-avia-1-vs-aspom-2,26788,733,no,yes,no,26781,26798,2,"box starts on navy #3, the attacker (row labels her spike), then switches ~26771 to the purple blocker, who blocks from ~26794 to ~26815"
+2026-11-02-avia-1-vs-aspom-2,31457,859,yes,yes,yes,31456,31478,1,
+2026-11-02-avia-1-vs-aspom-2,54529,1266,yes,no,,,,,
+2026-11-02-avia-1-vs-aspom-2,97789,2490,yes,yes,yes,97781,97800,2,net post hides a foot at landing
+2026-11-02-avia-1-vs-aspom-2,115879,2955,yes,no,,,,,
+2026-11-02-avia-1-vs-aspom-2,119181,2941,yes,yes,yes,119181,119198,1,
+2026-11-02-avia-1-vs-aspom-2,133078,3349,yes,yes,yes,133076,133096,2,"box loose at 133038-133039, same player"
+2026-11-02-avia-1-vs-aspom-2,144616,3532,yes,yes,yes,144614,144632,1,
+2026-11-02-avia-1-vs-aspom-2,179248,4527,yes,no,,,,,
+2026-11-02-avia-1-vs-aspom-2,203381,5133,yes,yes,yes,203380,203400,1,
+2026-11-02-avia-1-vs-aspom-2,203539,5066,yes,yes,yes,203545,203572,1,
+2026-11-02-avia-1-vs-aspom-2,207062,5207,yes,no,,,,,a spectator's head hides the feet at times; body never rises
+2026-11-02-avia-1-vs-aspom-2,214283,5267,yes,no,,,,,
+2026-11-02-avia-1-vs-aspom-2,225432,5602,yes,no,,,,,

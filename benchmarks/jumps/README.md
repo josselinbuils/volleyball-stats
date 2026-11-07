@@ -49,3 +49,13 @@ Timing within 60 ms went from 7 of 10 and 8 of 12 with the contact frame to 10 a
 a foot hidden at one end of the flight. Mirroring that end (7 Nov) brought 2 of the second match's 4 missed jumps
 back (timing off by 10 and 60 ms), none on the first; of all attacks, 86 -> 91 of 134 and 98 -> 116 of 174 get a jump:
 the others have none, or a foot hidden.
+
+## Blocks (7 Nov, exploration: nothing on the page)
+
+`ground_truth/blocks.csv`: 30 defenders within 1.5 m of the net at random attacks (15 per match, seed 1), labelled by
+Claude like the attacks: whether they jump, takeoff and landing (the frame is the attack's contact). With `CONTACT_S`
+0.4 (a block is not at the attack's contact): of 14 real jumps 11 found, all within 60 ms of the labelled flight's top
+(median 30 ms); 2 false jumps among the 15 who stay down, both over 0.7 s of flight with under 0.33 m of ankle lift (a
+player backing away from the camera, a box over two players): keeping flights of 0.7 s or less and lifts of 0.33 m or
+more keeps the 11 and drops the 2. The labelled blocks top 20-390 ms after the attack's contact frame, median 180 ms;
+measured on every defender at the net with that filter, 185 ms (second match) and 225 ms (first), 4-5% before it.
