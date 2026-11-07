@@ -11,7 +11,7 @@ The pipeline's weak spots and what is left to do, most useful first.
   that makes are dropped (`attribution.FAR`) and no net crossing is lost (`contacts.MAX_GAP`); carrying the flight across waits for a match where it shows.
 - Rally ends now carry on through contacts (`rallies.carried_on`); most touches still added by hand have no contact: the ball is unseen near the floor.
 - Attack jumps (`jumps.py`, 7 Nov): takeoff, landing, the hit and the run-up from the attacker's pose; on 40 labelled attacks
-  takeoff and landing within 2 frames for 22 of 24 jumps measured, timing within 60 ms for 22 of 24 (`benchmarks/jumps`). About 65%
+  takeoff within 2 frames for 22 of 24 jumps measured, landing 21, timing within 60 ms 22 (`benchmarks/jumps`). About two thirds
   of attacks get one (a foot hidden loses the rest). It feeds "Le saut d'attaque" in the coach's corner and the 3D figures' jumps.
 - `docs/next_steps.md`: what is left in the pipeline, with the numbers; the plan for learning from the review (`learn`).
 
