@@ -50,6 +50,21 @@ a foot hidden at one end of the flight. Mirroring that end (7 Nov) brought 2 of 
 back (timing off by 10 and 60 ms), none on the first; of all attacks, 86 -> 91 of 134 and 98 -> 116 of 174 get a jump:
 the others have none, or a foot hidden.
 
+## Held out (7 Nov)
+
+`ground_truth/heldout.csv`: a second draw of 40 attacks (seed 7, 20 per match, none of the first 40), labelled the same
+way after every setting above was chosen, never tuned on (`bench.py --heldout`). 35 outlined players are the attacker,
+30 of them jump.
+
+| | First match | Second match | Both, against the tuning set's |
+| --- | --- | --- | --- |
+| Jumps measured / missed / false | 11 / 2 / 0 | 13 / 2 / 0 | 24 of 28, none false (24 of 31, 1 false) |
+| Takeoff within 2 frames | 8 of 11 | 10 of 13 | 18 of 24 (22 of 24) |
+| Landing within 2 frames | 11 of 11 | 9 of 13 | 20 of 24 (21 of 24) |
+| Hit within 2 frames of the hand on the ball | 7 of 7 | 12 of 13 | 19 of 20 (17 of 18) |
+| Hit against the top, median error, within 60 ms | 30 ms, 10 of 11 | 20 ms, 10 of 13 | 20 of 24 (22 of 24) |
+| Run-up start's distance to the net, median error, within 0.5 m | 0.24 m, 7 of 10 | 0.10 m, 11 of 12 | 18 of 22 (17 of 21) |
+
 ## Blocks (7 Nov, exploration: nothing on the page)
 
 `ground_truth/blocks.csv`: 30 defenders within 1.5 m of the net at random attacks (15 per match, seed 1), labelled by

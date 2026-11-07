@@ -1,0 +1,41 @@
+match,frame,track,attacker,jump,takeoff,landing,contact,start,error_frames,notes
+2026-10-29-aspom-1-vs-aspom-2,6400,3,yes,yes,6389,6408,6400,6300,1,
+2026-10-29-aspom-1-vs-aspom-2,8384,12,yes,yes,8374,8394,8383,8334,1,two-hand jump set (ball held in both hands 8383-8385)
+2026-10-29-aspom-1-vs-aspom-2,9262,12,yes,yes,9254,9274,9262,9227,1,setter posture then one-arm push over (setter dump)
+2026-10-29-aspom-1-vs-aspom-2,11027,147,yes,yes,11015,11035,11027,none,1,two-hand jump set; standing jump after walking a few steps and stopping
+2026-10-29-aspom-1-vs-aspom-2,11668,228,yes,yes,11662,11691,,,1,ball above the crop; run-up starts off-crop (enters from the left ~11636)
+2026-10-29-aspom-1-vs-aspom-2,13287,159,no,,,,,,,outline on red/white #10; the hitter is the navy-top woman in front of him
+2026-10-29-aspom-1-vs-aspom-2,13494,257,no,,,,,,,track is the long-hair player in black; outline jumps to the hitter #39 behind him 13471-13494 then back
+2026-10-29-aspom-1-vs-aspom-2,17845,292,yes,no,,,17846,,,standing one-arm hit
+2026-10-29-aspom-1-vs-aspom-2,21132,384,yes,yes,21112,,,21082,1,ball above the crop; landing hidden behind red #10 and outline lost after 21135
+2026-10-29-aspom-1-vs-aspom-2,25898,558,yes,yes,25883,25910,,25828,2,ball above the crop; outline lost 25890-25898; approach drifts toward the net right after his own pass
+2026-10-29-aspom-1-vs-aspom-2,53176,1134,yes,yes,53165,53187,,53096,2,ball not visible at the hand (above crop); slow continuous approach
+2026-10-29-aspom-1-vs-aspom-2,57709,1274,yes,yes,57695,57720,,none,2,standing jump after a squat; ball not visible at the hand
+2026-10-29-aspom-1-vs-aspom-2,74458,1594,yes,yes,74448,74468,74458,74420,3,far foot hidden behind #10 at takeoff
+2026-10-29-aspom-1-vs-aspom-2,77264,1739,yes,yes,77250,77280,,77209,3,two slow steps then ~10 frames crouch; one foot hidden behind #8 at landing; ball only seen after the hit
+2026-10-29-aspom-1-vs-aspom-2,81021,1606,no,,,,,,,the woman in front jumps and touches the ball; outlined man stays on the floor
+2026-10-29-aspom-1-vs-aspom-2,93438,2051,yes,yes,93425,93450,93438,93358,2,left foot hidden behind #25 at takeoff
+2026-10-29-aspom-1-vs-aspom-2,98560,2198,yes,yes,98555,98579,,none,4,feet hidden behind #25 at takeoff; stood ~30 frames in hitting pose before jumping; ball not visible at the hand
+2026-10-29-aspom-1-vs-aspom-2,106657,2351,yes,no,,,106658,none,,standing hit on tiptoe (front foot stays down)
+2026-10-29-aspom-1-vs-aspom-2,123573,2767,yes,yes,123558,123583,123574,none,1,standing squat jump
+2026-10-29-aspom-1-vs-aspom-2,184673,4066,yes,yes,184672,,184673,184608,2,one-foot takeoff; touch looks like a two-hand jump set; outline jumps to a man in black from 184679; landing hidden behind #39
+2026-11-02-avia-1-vs-aspom-2,17553,530,yes,yes,17534,17561,17552,17468,2,right foot lands first
+2026-11-02-avia-1-vs-aspom-2,20579,591,yes,yes,20560,20595,20577,20508,3,feet hidden mid-flight; rear foot lands ~20595 and front foot 20599
+2026-11-02-avia-1-vs-aspom-2,21280,612,yes,yes,21263,21291,21276,21206,2,setter hides run-up start; feet behind #16 after landing
+2026-11-02-avia-1-vs-aspom-2,24965,699,yes,yes,24950,24979,24966,24840,1,slow walk-up approach
+2026-11-02-avia-1-vs-aspom-2,26105,723,yes,yes,26090,26116,26106,none,2,standing jump; feet behind #15 at takeoff
+2026-11-02-avia-1-vs-aspom-2,31457,841,yes,yes,31441,31472,31458,31396,1,
+2026-11-02-avia-1-vs-aspom-2,37177,966,yes,yes,37156,37188,37178,37096,2,toe-first landing
+2026-11-02-avia-1-vs-aspom-2,37362,1000,yes,no,,,37366,,,two-hand overhead push over the net; right toe lifts ~8px from 37367 but left foot hidden behind a teammate (maybe a small hop)
+2026-11-02-avia-1-vs-aspom-2,53613,1375,yes,yes,53593,53626,53614,53542,2,left foot hidden behind #25 at takeoff
+2026-11-02-avia-1-vs-aspom-2,74367,1894,yes,yes,74356,74380,74367,74326,4,tip; feet hidden behind #15 at takeoff (estimated from body arc)
+2026-11-02-avia-1-vs-aspom-2,84307,2102,yes,yes,84291,84321,84308,84238,1,
+2026-11-02-avia-1-vs-aspom-2,132176,3234,yes,yes,132178,132209,132197,132150,2,pipeline contact ~20 frames early
+2026-11-02-avia-1-vs-aspom-2,140398,3463,yes,yes,140384,140413,140400,140348,1,ball at crop top at contact
+2026-11-02-avia-1-vs-aspom-2,150996,3905,no,,,,,,,a diving teammate digs the ball; outlined #11 never touches it
+2026-11-02-avia-1-vs-aspom-2,157980,3925,yes,yes,157973,157993,157979,157896,2,jump set (two-hand overhead) not a spike
+2026-11-02-avia-1-vs-aspom-2,163445,4215,unclear,yes,163438,163457,,none,1,ball never seen at the hand; arm up near the net (block or tip?)
+2026-11-02-avia-1-vs-aspom-2,201324,5081,yes,no,,,201322,,,two-hand overhead set on tiptoes
+2026-11-02-avia-1-vs-aspom-2,215689,5354,yes,no,,,215689,,,standing float serve
+2026-11-02-avia-1-vs-aspom-2,224944,5616,yes,yes,224936,224960,224945,224869,2,one-foot takeoff (right) and one-foot landing (left)
+2026-11-02-avia-1-vs-aspom-2,227060,5750,yes,yes,227045,227075,227062,226990,3,landing feet hidden behind a front player; ball at crop edge at contact
