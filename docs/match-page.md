@@ -81,11 +81,14 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 ## Le coin du coach
 
 Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number, but in
-the defence placement (the owner's call, 7 Nov).
+the defence placement and the attack jump (the owner's call, 7 Nov).
 
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
+- "Le saut d'attaque": each attacker with 5 jumps measured on a teammate's set (`jumps.py`, `benchmarks/jumps`) and a
+  tip from their medians: jump later (the contact 120 ms or more past the flight's top) or earlier (as much before it),
+  more run-up (under 1 m), up rather than forward (carried over 0.8 m towards the net); the row replays those attacks;
 - "Placement en défense": a defence system, the setter's position (at 2, the team's, or at 3) and, if picked, a player
   (nobody at first). A card per side the other team attacks from (left, middle, right) and block (one blocker, then
   two), its court showing the attacker 1 m off the net, 3 m aside or in the middle (`defense.ATTACKERS`), and every

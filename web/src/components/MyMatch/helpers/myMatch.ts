@@ -1,5 +1,6 @@
 import type { Contact, Person, Rally } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
+import { median } from '@/helpers/median';
 import { playerKey } from '@/helpers/players';
 import { scoresBefore, scoringTouch, teamFirst } from '@/helpers/plays';
 
@@ -12,12 +13,6 @@ const TOP_FROM = 3;
 // A player's usual serve speed is told from this many serves, their attack height from this many attacks.
 const USUAL_SPEED_FROM = 3;
 const REACH_FROM = 5;
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = sorted.length >> 1;
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
 
 /** What a player's serves and attacks measure: their fastest serve, their usual speed, their usual attack height to the
  * decimetre and the attacks it rests on. Each only from enough tries. */

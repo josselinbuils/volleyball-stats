@@ -974,6 +974,17 @@
       "kills_one": "{{count}} winner",
       "kills_other": "{{count}} winners"
     },
+    "jumps": {
+      "title": "The attack jump",
+      "caption": "From each attacker's jumps.",
+      "playing": "{{player}} attacking",
+      "tips": {
+        "later": "Jump later: the ball is hit on the way down.",
+        "earlier": "Jump earlier: the ball is hit on the way up.",
+        "runUp": "Step back before attacking to take a run-up.",
+        "up": "Jump up, not forward."
+      }
+    },
     "placement": {
       "title": "Defensive positioning",
       "caption": "Where to stand when the other team hits.",

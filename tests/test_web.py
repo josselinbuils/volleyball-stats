@@ -977,6 +977,28 @@ class TestDefended:
         assert sorted(found[k + 3] for k in range(0, len(found), 4)) == [1, 2, 3, 4, 5, 6]
 
 
+class TestJumped:
+    def test_measures_each_attack_on_the_track_showing_its_player(self, monkeypatch, tmp_path):
+        # Person 0 is team 1's identity 7, on track 3 at frame 100; person 1 has no identity.
+        table = {0: {"team": 1, "number": 7}, 1: {"team": 2, "number": None}}
+        by_frame = {100: [{"track": "2"}, {"track": "3"}], 200: [{"track": "5"}]}
+        measured = []
+        monkeypatch.setattr(web.jumps, "read_tracks", lambda path, tracks: {t: np.empty((0, 7)) for t in tracks})
+        monkeypatch.setattr(web.jumps, "pose_all", lambda video, attacks, tracks, fps, cache: {f"{f}:{t}": [] for f, t in attacks})
+        monkeypatch.setattr(web.jumps, "measure", lambda f, *_: measured.append(f) or {"late": 40, "takeoff_m": 1.5, "start_m": 4.0, "drift_m": 0.6})
+        found = [
+            {"type": "attack", "f": 100, "person": 0},
+            {"type": "attack", "f": 200, "person": 1},
+            {"type": "dig", "f": 100, "person": 0},
+        ]
+
+        web.jumped(found, table, lambda track, frame: (1, 7) if track == 3 else None, by_frame, tmp_path, tmp_path / "v.mp4", IDENTITY, 50.0)
+
+        assert measured == [100]
+        assert {k: found[0][k] for k in ("late", "run", "drift")} == {"late": 40, "run": 2.5, "drift": 0.6}
+        assert "late" not in found[1] and "late" not in found[2]
+
+
 class TestKeptPhotos:
     def test_keeps_a_players_picture_unless_its_file_is_gone(self, tmp_path):
         people = {"0": {"team": 1, "number": 3, "photo": "players/0.webp?v=a"}, "1": {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}}

@@ -1,4 +1,5 @@
 import { match, type Contact, type Group, type Person } from '@/lib/match';
+import { median } from '@/helpers/median';
 import { playerKey } from '@/helpers/players';
 
 // A usual place from this many attacks at a position against one side and block; a place this far off its spot is off.
@@ -32,12 +33,6 @@ export interface Defender {
   key: string;
   person: number;
   played: Played[];
-}
-
-export function median(xs: number[]): number {
-  const s = [...xs].sort((a, b) => a - b);
-  const m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
 /** Where `c`, an attack, was hit from. */

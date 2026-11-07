@@ -974,6 +974,17 @@
       "kills_one": "{{count}} gagnante",
       "kills_other": "{{count}} gagnantes"
     },
+    "jumps": {
+      "title": "Le saut d'attaque",
+      "caption": "D'après les sauts de chaque attaquant.",
+      "playing": "{{player}} à l'attaque",
+      "tips": {
+        "later": "Sauter plus tard : la frappe arrive en redescendant.",
+        "earlier": "Sauter plus tôt : la frappe arrive en montant.",
+        "runUp": "Reculer avant d'attaquer pour prendre de l'élan.",
+        "up": "Sauter vers le haut, pas vers l'avant."
+      }
+    },
     "placement": {
       "title": "Placement en défense",
       "caption": "Où se placer à la frappe adverse.",

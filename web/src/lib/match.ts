@@ -52,6 +52,11 @@ export interface Contact {
   speed?: number;
   /** An attack's height in metres, where it is well seen: a single one is rough, a player's median holds up. */
   reach?: number;
+  /** On an attack with its jump measured, the ms from the flight's top to the contact (negative before it), the
+   * run-up and how far the jump carried towards the net, in metres. */
+  late?: number;
+  run?: number;
+  drift?: number;
 }
 
 /** From this time, the part of the picture to show: [time, x, y, width], its height the same fraction of the picture. */

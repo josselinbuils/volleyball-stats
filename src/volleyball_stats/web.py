@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, defense, files, framing
+from volleyball_stats import decode, defense, files, framing, jumps
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -800,6 +800,8 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)
     brief(found, actions, table, times, said, missed)
+    if with_teams:
+        jumped(found, table, finder(identities), by_frame, match, video, calibration, fps)
     data = {
         "name": video.stem,
         "aliases": files.aliases(match),
@@ -949,6 +951,33 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
         seen = places_at(players, c["t"], fps, back)
         out.append({**c, "around": [v for person, (x, y) in seen.items() for v in (person, x, y)]})
     return out
+
+
+def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: dict[int, list[dict]], match: Path, video: Path, calibration: Calibration, fps: float) -> None:
+    """Writes on each attack its player's jump where `jumps.measure` finds one: `late`, the ms from the flight's top to
+    the contact, `run` the run-up and `drift` how far the jump carried towards the net, in metres. The attacker's
+    track is the one showing their identity at the contact; the poses stay in jumps.json."""
+    attacks = []
+    for c in found:
+        person = table.get(c["person"]) if c["type"] == "attack" and c["person"] is not None else None
+        if person is None or person["number"] is None:
+            continue
+        track = next((int(r["track"]) for r in by_frame.get(c["f"], []) if find(int(r["track"]), c["f"]) == (person["team"], person["number"])), None)
+        if track is not None:
+            attacks.append((c, track))
+    if not attacks:
+        return
+    tracks = jumps.read_tracks(match / "players.csv", {t for _, t in attacks})
+    poses = jumps.pose_all(video, [(c["f"], t) for c, t in attacks], tracks, fps, match / "jumps.json")
+    for c, t in attacks:
+        got = jumps.measure(c["f"], tracks[t], poses[f"{c['f']}:{t}"], calibration, fps)
+        if got is None:
+            continue
+        c["late"] = got["late"]
+        if got.get("start_m") is not None and got["takeoff_m"] is not None:
+            c["run"] = round(got["start_m"] - got["takeoff_m"], 2)
+        if got["drift_m"] is not None:
+            c["drift"] = got["drift_m"]
 
 
 def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
