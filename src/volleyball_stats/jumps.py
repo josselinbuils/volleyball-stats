@@ -9,7 +9,7 @@ import numpy as np
 
 from volleyball_stats import decode, files
 from volleyball_stats.ball import default_device
-from volleyball_stats.ball3d import project, projection
+from volleyball_stats.ball3d import G, project, projection
 from volleyball_stats.court import Calibration, undistort
 
 # The frames posed around a contact.
@@ -24,7 +24,7 @@ LIFT_M, FLOOR_M, CONTACT_S, STOP = 0.15, 0.05, 0.1, 0.2
 # The ankle starts rising with the heel, before the toes leave, and stops falling once the heel is down, after the toes
 # touch (`benchmarks/jumps`: 3-4 and 2 frames at 50 fps).
 HEEL_UP_S, HEEL_DOWN_S = 0.06, 0.04
-# Flights outside these are a foot hidden or another player's taken for it (the labelled ones: 0.42-0.72 s).
+# Flights outside these have a foot hidden at one end, or another player's taken for it (the labelled ones: 0.42-0.72 s).
 SHORTEST_S, LONGEST_S = 0.3, 0.8
 # The hit: within HIT_S of the ball's contact, the frame the ball is seen nearest a wrist (`benchmarks/jumps`: within 2
 # frames of the hand on the ball for 24 attacks of 27, against 20 for the contact).
@@ -34,7 +34,6 @@ HOLE_S = 0.1
 # The run-up: looked for over RUN_UP_S before takeoff, it starts where the player last came under STILL_M nearer the
 # net over PAUSE_S.
 RUN_UP_S, PAUSE_S, STILL_M = 2.0, 0.5, 0.1
-G = 9.81
 
 Rows = np.ndarray  # one track's rows: frame, x1, y1, x2, y2, court x, court y
 
