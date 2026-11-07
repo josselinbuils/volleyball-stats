@@ -493,9 +493,9 @@ class Questions:
         return out
 
     def players(self, roster: list[dict], teams: list[str | None]) -> list[dict]:
-        """Every identity, longest on court first, with pictures, seconds of play, touches, the name
-        and jersey number given and the roster's players of its team (`teams`' names) who look most
-        like it."""
+        """Every identity but the `leftovers`, longest on court first, with pictures, seconds of play,
+        touches, the name and jersey number given and the roster's players of its team (`teams`'
+        names) who look most like it."""
         names = identity.named(self.table, identity.read_names(self.match))
         with open(self.match / "actions.csv") as f:
             touches = Counter((int(r["team"]), int(r["identity"])) for r in csv.DictReader(f) if r.get("identity"))
@@ -503,8 +503,10 @@ class Questions:
         for _, start, end, team, number in self.table:
             if number:
                 seconds[team, number] = seconds.get((team, number), 0.0) + (end - start + 1) / self.fps
-        out = []
+        out, left = [], leftovers(seconds, names)
         for (team, number), played in sorted(seconds.items(), key=lambda kv: -kv[1]):
+            if (team, number) in left:
+                continue
             given = names.get((team, number), {})
             out.append({
                 "team": team, "identity": number, "seconds": round(played, 1), "contacts": touches[team, number],
@@ -1637,6 +1639,20 @@ def checked(log: list[dict]) -> list[int]:
     for e in log:
         out = (out | set(e.get("checked", []))) - set(e.get("unchecked", []))
     return sorted(out)
+
+
+# An unnamed identity on court under this share of its team's median time.
+LEFTOVER = 0.1
+
+
+def leftovers(seconds: dict[tuple[int, int], float], names: dict[tuple[int, int], dict]) -> set[tuple[int, int]]:
+    """The unnamed identities on court under LEFTOVER of their team's median time (`seconds`): what
+    the tracking could not join to anyone, bits of several players that no name holds together.
+    ponytail: a substitute playing under a tenth of the usual time goes too; tell them apart (one
+    face, long pieces) if one goes missing."""
+    teams = {team for team, _ in seconds}
+    typical = {team: float(np.median([v for (t, _), v in seconds.items() if t == team])) for team in teams}
+    return {k for k, v in seconds.items() if not (names.get(k) or {}).get("name") and v < LEFTOVER * typical[k[0]]}
 
 
 def untaught(match: Path, table: list) -> tuple[dict[int, tuple[tuple[int, int], set[tuple[int, int]]]], dict[int, tuple[int, int]]]:
