@@ -86,5 +86,6 @@ player backing away from the camera, a box over two players): keeping flights of
 more keeps the 11 and drops the 2. The labelled blocks top 20-390 ms after the attack's contact frame, median 180 ms;
 measured on every defender at the net with that filter, 185 ms (second match) and 225 ms (first), 4-5% before it. That
 is mostly the ball's way to the net: against its first net crossing after the attack (`net.csv`, within 0.8 s), the
-blocks with no block touch after them top a median 30 ms after it (25-75%: -42 to +110 ms, 128 jumps), about on time. A
-block touch keeps the ball from crossing, so the touched ones have no fair reference there. Not a sign of late blocks.
+blocks with no block touch after them top a median 30 ms after it (25-75%: -42 to +110 ms, 128 jumps); those followed by
+a block touch, a median 5 ms after that touch (-40 to +48 ms, 38 jumps). The blockers top when the ball reaches them:
+no sign of late (or early) blocks.
