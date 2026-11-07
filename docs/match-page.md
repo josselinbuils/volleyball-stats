@@ -88,7 +88,7 @@ the defence placement (the owner's call, 7 Nov).
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
 - "Placement en défense": a player picked (the viewer's own first) and a defence system; a card per situation the player
   defended: position (4 3 2 5 6 1), side the other team attacked from (left to right), single or double block, role. Its
-  court shows the attacker 1 m off the net, in the middle or 3 m aside, the balls the player had to play (those that
+  court shows the attacker 1 m off the net, across where those attacks were hit (in front of the block), the balls the player had to play (those that
   came down nearer their spot than any other) from there to where they went, every position's spot (green dots,
   numbered), where the player usually stood at the hit (a dot in the team's colour, numbered too) and their spot (a
   green one), an arrow between them from 1.5 m (`defense.py`); above it the position, then the side, the block and the

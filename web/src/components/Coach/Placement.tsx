@@ -8,14 +8,16 @@ import { remembered } from '@/lib/me';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { Section } from '@/components/Coach/Section';
-import { defenders, type Side, type Situation } from '@/components/Coach/helpers/defense';
+import { defenders, type Situation } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
 const DOT = 0.4;
 
-// Where an attacker hits from on each side, [metres from the net, metres to the defenders' right]: 1 m off the net, in the
-// middle or 3 m aside, in front of the block.
-const HITTER: Record<Side, [number, number]> = { left: [-1, -3], middle: [-1, 0], right: [-1, 3] };
+// The attacker 1 m off the net, across where the card's attacks were hit, kept inside the court as the block is (`defense.REACH_M`).
+const HIT_DEPTH = -1;
+const REACH_M = 4;
+
+const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
 
 /** A player picked among `g`'s defenders and a defence system; a card per situation the player defended (position,
  * side the attack came from, block, role): the attacks and where they went, every position's spot, where the player usually
@@ -144,7 +146,7 @@ function Card({ situation, person, g }: { situation: Situation; person: number; 
 function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
   const flights = situation.mine.map((c) => c.flight as number[]);
   const them = (3 - g) as Group;
-  const [hitDepth, hitAcross] = HITTER[situation.side];
+  const [hitDepth, hitAcross] = [HIT_DEPTH, Math.min(REACH_M, Math.max(-REACH_M, median(situation.attacks.map((c) => (c.flight as number[])[1]))))];
   const {
     usual: [uy, ux],
     spot: [sy, sx],
