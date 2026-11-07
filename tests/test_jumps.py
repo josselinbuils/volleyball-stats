@@ -3,7 +3,7 @@ import numpy as np
 from volleyball_stats.ball3d import G, project
 from volleyball_stats.court import Calibration, distort
 from volleyball_stats import jumps
-from volleyball_stats.jumps import hit, lower_hull, measure, run_up, window
+from volleyball_stats.jumps import flight, hit, lift, lower_hull, measure, run_up, window
 
 
 class TestJumps:
@@ -96,3 +96,10 @@ class TestJumps:
         got = measure(self.CONTACT, rows, keypoints, calibration, self.FPS)
         assert got is not None
         assert abs(got["takeoff"] - self.TAKEOFF) <= 1 and abs(got["landing"] - self.LANDING) <= 2
+
+    def test_holds_when_the_ankle_is_lost_right_after_its_highest(self):
+        y = np.full(81, 500.0)
+        y[41] = 450.0
+        y[43:] = np.nan
+        found = flight(y, lift(y, 100.0), 40, self.FPS)
+        assert found is None or (found[1] - found[0]) / self.FPS < jumps.SHORTEST_S

@@ -186,8 +186,9 @@ def flight(y: np.ndarray, up: np.ndarray, contact: int, fps: float) -> tuple[int
     smooth = np.convolve(y, np.ones(3) / 3, mode="same")
     smooth[[0, -1]] = np.nan
     speed = np.diff(smooth)  # px per frame, + falling
-    rise = first - 1 + int(np.nanargmin(speed[first - 1 : top])) if top > first else None
-    fall = top + int(np.nanargmax(speed[top:after])) if after > top else None
+    rising, falling = speed[first - 1 : top], speed[top:after]
+    rise = first - 1 + int(np.nanargmin(rising)) if not np.isnan(rising).all() else None
+    fall = top + int(np.nanargmax(falling)) if not np.isnan(falling).all() else None
     if rise is not None:
         k = rise
         while k > 0 and speed[k - 1] < STOP * speed[rise]:

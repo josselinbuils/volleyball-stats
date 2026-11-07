@@ -352,8 +352,8 @@ def main() -> None:
         track(args.video, calibration, fps, track_path if new_ball else None, players_path if new_players else None)
         timings[" and ".join(name for name, new in (("ball", new_ball), ("players", new_players)) if new)] = time.perf_counter() - start
     if new_players:
-        # New tracks: the identities and their embeddings start over.
-        for stale in ("identities.csv", "embeddings.npz", "looks.npz", jerseys.FILE):
+        # New tracks: the identities, their embeddings and the attackers' poses (by track) start over.
+        for stale in ("identities.csv", "embeddings.npz", "looks.npz", jerseys.FILE, "jumps.json"):
             (out / stale).unlink(missing_ok=True)
         if (out / "identity_answers.json").exists():
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
