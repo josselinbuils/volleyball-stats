@@ -21,6 +21,9 @@ TILE_H = 260
 
 def region(rows: np.ndarray, frames: range) -> tuple[int, int, int, int]:
     near = rows[(rows[:, 0] >= frames[0]) & (rows[:, 0] <= frames[-1])]
+    if len(near) == 0:
+        # The track ends before or starts after the frames: its nearest rows.
+        near = rows[np.argsort(np.abs(rows[:, 0] - frames[len(frames) // 2]))[:50]]
     x1, y1, x2, y2 = near[:, 1].min(), near[:, 2].min(), near[:, 3].max(), near[:, 4].max()
     pad = 0.25 * (y2 - y1) / 2
     return int(max(0, x1 - pad)), int(max(0, y1 - pad)), int(x2 + pad), int(y2 + pad)

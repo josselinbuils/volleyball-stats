@@ -66,8 +66,9 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 - **Director** (`Watch/helpers/director.ts`, a function of the time alone, so pausing and jumping just work): behind the
   server, then a wide shot following the ball, a cut to the net's side from each set to the attack.
 - **Players** (`Watch/helpers/pose.ts`, in the plain 3D view too): they run as fast as the tracking says and make each
-  action's gesture around its real contact: jumping to the ball's height, lunging up to 1.2 m towards it when it is within
-  2.5 m. The gestures are illustrative, not the player's own technique. A serve starts in the server's hand.
+  action's gesture around its real contact: jumping to the ball's height (an attack with its jump measured, `air`, from its
+  real takeoff to its real landing), lunging up to 1.2 m towards it when it is within 2.5 m. The gestures are
+  illustrative, not the player's own technique. A serve starts in the server's hand.
 - **Replays:** in the real pauses between rallies, slowed down, through the eyes of who scored: aces, winning blocks, attacks
   ending a long rally or a set, and one winning attack in four otherwise.
 - **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions, naming who

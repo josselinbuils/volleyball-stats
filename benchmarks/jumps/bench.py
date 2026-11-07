@@ -1,7 +1,8 @@
-"""Scores `jumps.measure` against the hand-labelled attacks of `ground_truth/labels.csv`, per match: the first tunes, the
-second is held out. Poses come from each match's `jumps.json` (computed when missing).
+"""Scores `jumps.measure` against the hand-labelled attacks of `ground_truth/labels.csv` (what it was tuned on), or of
+`ground_truth/heldout.csv` with --heldout (a second draw, never tuned on), per match. Poses come from each match's
+`jumps.json` (computed when missing).
 
-    uv run python benchmarks/jumps/bench.py [--sweep]
+    uv run python benchmarks/jumps/bench.py [--heldout] [--verbose] [--sweep]
 """
 
 import csv
@@ -16,6 +17,7 @@ from volleyball_stats import jumps
 from volleyball_stats.court import Calibration
 
 LABELS = Path(__file__).parent / "ground_truth" / "labels.csv"
+HELDOUT = LABELS.with_name("heldout.csv")
 MATCHES = Path("outputs/matches")
 FPS = 50.0
 
@@ -24,10 +26,10 @@ def number(text: str) -> int | None:
     return int(text) if text.strip().lstrip("-").isdigit() else None
 
 
-def load() -> dict[str, dict]:
+def load(labels: Path = LABELS) -> dict[str, dict]:
     """Each match's labels, tracks, poses and calibration."""
     by_match: dict[str, list[dict]] = defaultdict(list)
-    for row in csv.DictReader(open(LABELS)):
+    for row in csv.DictReader(open(labels)):
         by_match[row["match"]].append(row)
     out = {}
     for name, labels in by_match.items():
@@ -101,7 +103,7 @@ def score(data: dict, verbose: bool = False, quiet: bool = False) -> dict[str, f
 
 
 def main() -> None:
-    data = load()
+    data = load(HELDOUT if "--heldout" in sys.argv else LABELS)
     if "--sweep" in sys.argv:
         for jumps.LIFT_M in (0.1, 0.15, 0.2):
             for jumps.FLOOR_M in (0.03, 0.05, 0.08):
