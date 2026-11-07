@@ -20,10 +20,11 @@ MIDDLE_M = 1.5
 # The blockers' feet off the net, a double block's two blockers apart, and how far inside the sidelines they block.
 NET_M, PAIR_M, REACH_M = 0.5, 0.9, 4.0
 # The spots off the net for an attack on the defenders' right (mirrored for one on their left), from AVCA's descriptions,
-# distances approximate. Front: the off-blocker on the 3 m line 1 m inside the sideline; under a single block, the front
-# player who does not block covers the tip behind it, or the middle of the 3 m line where another player covers the tip.
+# distances approximate. Front: the off-blocker on the 3 m line 1 m inside the sideline; a single block by 3, the middle
+# (the team's, "centre seul au contre"), 2 beside it covering the tip behind it, or the middle of the 3 m line where
+# another player covers the tip.
 OFF = (3.0, -3.5, 4)
-TIP, SHORT = (3.0, 1.5, 3), (3.5, 0.0, 3)
+TIP, SHORT = (3.0, 1.5, 2), (3.5, 0.0, 2)
 # Back: the perimeter's corners 2 m inside the sidelines 6 m off the net and 6 at 7 m (the owner's, 7 Nov: the textbook's
 # corners 1 m inside left the middle open at this level); the middle up's corners near the end line, 6 behind the block;
 # the rotation's 1 up for the tip down the line, 6 deep on the line, 5 deep across. A middle attack's rotation is the perimeter.
@@ -39,7 +40,7 @@ BACK = {
 INSIDE = {True: 1.2, False: 0.8}
 LAETICIA = {
     "double": [(2.4, -0.4, 4), (4.85, -2.4, 5), (7.5, -1.0, 6), (6.05, 3.9, 1)],
-    "single": [(2.5, 3.6, 3), (1.8, -1.2, 4), (5.5, -2.7, 5), (7.3, -0.7, 6), (7.1, 3.8, 1)],
+    "single": [(2.5, 3.6, 2), (1.8, -1.2, 4), (5.5, -2.7, 5), (7.3, -0.7, 6), (7.1, 3.8, 1)],
     "middle": [(2.8, -1.8, 4), (2.8, 1.8, 2), (5.75, -2.45, 5), (7.7, 0.0, 6), (5.75, 2.45, 1)],
 }
 MIRRORED = {4: 2, 2: 4, 5: 1, 1: 5}
@@ -48,12 +49,12 @@ Spot = tuple[float, float, int]
 
 def block(across: float, double: bool) -> list[Spot]:
     """The blockers' spots in front of an attack `across` metres toward the defenders' right, `across` >= 0: a single
-    block on the right by 2 (by 3 through the middle), a double one by 3 and 2."""
+    block by 3, a double one by 3 and 2."""
     at = float(min(across, REACH_M))
     if double:
         centre = min(at, REACH_M - PAIR_M / 2)
         return [(NET_M, centre - PAIR_M / 2, 3), (NET_M, centre + PAIR_M / 2, 2)]
-    return [(NET_M, at, 3 if across <= MIDDLE_M else 2)]
+    return [(NET_M, at, 3)]
 
 
 def layout(mode: str, across: float, double: bool) -> list[Spot]:

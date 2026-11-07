@@ -95,9 +95,10 @@ the defence placement (the owner's call, 7 Nov).
   the net, 6 at 7 m: the owner's), Laëticia's version of it (a teammate's diagrams: the block inside the attacker, the
   off-blocker in the middle short, the line digger deep on the line, the cross digger forward, 6 deep toward the cross),
   the middle up and the rotation (AVCA's descriptions, distances approximate). At each attack, the players within 1.2 m
-  of the net make a single or double block in front of the attacker; the perimeter's spots go to the defenders by the
-  least total distance: a position is the perimeter spot defended, not the rotation's, the same in every system, which
-  moves its spot only. `benchmarks/defense/bench.py` scores the systems.
+  of the net make a single block (by 3, the middle: the team's, its setter at 2) or a double one (3 and 2, or 4 and 3)
+  in front of the attacker; the perimeter's spots go to the defenders by the least total distance: a position is the
+  perimeter spot defended, not the rotation's, the same in every system, which moves its spot only.
+  `benchmarks/defense/bench.py` scores the systems.
 
 ## Statistics
 

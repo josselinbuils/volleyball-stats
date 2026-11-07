@@ -7,15 +7,15 @@ def rounded(spots):
 
 class TestLayout:
     def test_puts_the_block_in_front_of_the_attack_and_the_perimeter_off_the_net(self):
-        # A single block on the right: the blocker 2, the off-blocker 4 left, 3 behind the block.
-        assert defense.layout("perimeter", 3.0, False) == [(0.5, 3.0, 2), (3.0, -3.5, 4), (3.0, 1.5, 3), *defense.BACK["perimeter"]]
+        # A single block on the right: the middle 3 blocks, the off-blocker 4 left, 2 behind the block.
+        assert defense.layout("perimeter", 3.0, False) == [(0.5, 3.0, 3), (3.0, -3.5, 4), (3.0, 1.5, 2), *defense.BACK["perimeter"]]
         # A double block on the left: 3 inside, 4 outside, the off-blocker 2 right.
         assert rounded(defense.layout("perimeter", -3.0, True)[:3]) == [(0.5, -2.55, 3), (0.5, -3.45, 4), (3.0, 3.5, 2)]
         # Through the middle under a single block, both outsides drop off.
         assert defense.layout("perimeter", 0.5, False)[:3] == [(0.5, 0.5, 3), (3.0, -3.5, 4), (3.0, 3.5, 2)]
 
     def test_keeps_the_block_inside_the_court(self):
-        assert defense.layout("perimeter", 6.0, False)[0] == (0.5, 4.0, 2)
+        assert defense.layout("perimeter", 6.0, False)[0] == (0.5, 4.0, 3)
         assert rounded(defense.layout("perimeter", 6.0, True)[:2]) == [(0.5, 3.1, 3), (0.5, 4.0, 2)]
 
     def test_moves_6_up_and_1_up_on_the_attacks_side_and_mirrors_them(self):
@@ -24,7 +24,7 @@ class TestLayout:
         assert (7.5, -3.0, 6) in defense.layout("rotation", -3.0, True)
         # Through the middle, the rotation stays the perimeter; the front player free under a single block takes the middle.
         assert defense.layout("rotation", 0.5, False)[3:] == defense.BACK["perimeter"]
-        assert (3.5, 0.0, 3) in defense.layout("up", 3.0, False)
+        assert (3.5, 0.0, 2) in defense.layout("up", 3.0, False)
 
 
     def test_shifts_laeticias_block_inside_and_sends_the_line_digger_deep_on_the_line(self):
@@ -56,9 +56,10 @@ class TestTable:
     def test_gives_every_system_its_spots_against_each_sides_attacker(self):
         found = defense.table()
 
-        # Attack on the right under a single block: the perimeter's blocker 2 (third in court order) in front of it.
+        # Attack on the right under a single block: the perimeter's blocker 3 (second in court order) in front of it, 2
+        # behind the block.
         assert found["attackers"]["right"] == 3.0
-        assert found["spots"]["perimeter"]["right"]["1"][4:6] == [0.5, 3.0]
-        # Laëticia's block 0.8 m inside it; six spots in each.
-        assert found["spots"]["laeticia"]["right"]["1"][4:6] == [0.5, 2.2]
+        assert found["spots"]["perimeter"]["right"]["1"][2:6] == [0.5, 3.0, 3.0, 1.5]
+        # Laëticia's block 0.8 m inside it, 2 near the line behind it; six spots in each.
+        assert found["spots"]["laeticia"]["right"]["1"][2:6] == [0.5, 2.2, 2.5, 3.6]
         assert all(len(spots) == 12 for mode in found["spots"].values() for side in mode.values() for spots in side.values())
