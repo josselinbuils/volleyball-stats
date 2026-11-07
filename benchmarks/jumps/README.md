@@ -82,6 +82,13 @@ Where the run-up starts holds better (0.71, median gap 0.27 m; the takeoff point
 the time (the 12 players with 8 or more on a set, both matches, 200 draws each), 82% for the 7 with 12 or more, and 8
 attacks 87%. The timing tips almost never flip (0-2%), the run-up and carry ones do (6-20%), near their limits.
 
+## Against the attacks' results (7 Nov)
+
+239 measured attacks with a result on the two reviewed matches, in thirds of each measure: hit within 23 ms of the top,
+10% faults (18-19% further off); jumps over 0.38 m, 32% points (18% under 0.28 m); carry over 0.66 m, 24% faults (11-13%
+under it); run-ups under 0.77 m, 22% points (28-31% over it). About 80 a third and correlations only, but each of "Le
+saut d'attaque"'s tips points the way the results do.
+
 ## Blocks (7 Nov, exploration: nothing on the page)
 
 `ground_truth/blocks.csv`: 30 defenders within 1.5 m of the net at random attacks (15 per match, seed 1), labelled by
