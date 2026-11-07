@@ -11,6 +11,9 @@ import { BLOCKS, defenders, SIDES, spotsOf, type Played, type Side } from '@/com
 import { Tip } from '@/components/Tip';
 
 const DOT = 0.45;
+// An arrowhead's length and half width.
+const HEAD = 0.35;
+const WING = 0.2;
 // The attacker 1 m off the net, across as `match.defense` puts them, the spots drawn against them.
 const HIT_DEPTH = -1;
 // The player select's value for nobody.
@@ -182,30 +185,38 @@ function HalfCourt({ side, block, mode, setter, played, g }: { side: Side; block
       <line x1={-4.5} x2={4.5} y1={3} y2={3} className="court-line" />
       <line x1={-5} x2={5} y1={0} y2={0} stroke="var(--muted-foreground)" strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       <circle cx={match.defense?.attackers[side] ?? 0} cy={HIT_DEPTH} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-      {played.map(({ position, usual: [uy, ux] }) => {
-        const [sy, sx] = (spots.find((s) => s.position === position) as { spot: [number, number] }).spot;
-        const far = Math.hypot(sx - ux, sy - uy);
-        const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
-        const [tx, ty] = [sx - dx * DOT, sy - dy * DOT];
-        return (
-          <g key={position}>
-            <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            {number(ux, uy, position, `var(--team${g}-text)`)}
-            {far > 2 * DOT + 0.7 && (
-              <>
-                <line x1={ux + dx * DOT} y1={uy + dy * DOT} x2={tx - dx * 0.4} y2={ty - dy * 0.4} stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-                <polygon points={`${tx},${ty} ${tx - dx * 0.55 - dy * 0.3},${ty - dy * 0.55 + dx * 0.3} ${tx - dx * 0.55 + dy * 0.3},${ty - dy * 0.55 - dx * 0.3}`} fill="var(--foreground)" />
-              </>
-            )}
-          </g>
-        );
-      })}
+      {played.map(({ position, usual: [uy, ux] }) => (
+        <g key={position}>
+          <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          {number(ux, uy, position, `var(--team${g}-text)`)}
+        </g>
+      ))}
       {spots.map(({ position, spot: [y, x] }) => (
         <g key={position}>
           <circle cx={x} cy={y} r={DOT} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
           {number(x, y, position, 'white')}
         </g>
       ))}
+      {played.map(({ position, usual: [uy, ux] }) => {
+        const [sy, sx] = (spots.find((s) => s.position === position) as { spot: [number, number] }).spot;
+        const far = Math.hypot(sx - ux, sy - uy);
+        // Two dots apart only: on each other the player is in place.
+        if (far < 2 * DOT + 0.05) {
+          return null;
+        }
+        const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
+        // The head on the green dot's edge with a line behind it where the gap holds both, else the head alone across the gap.
+        const gap = far - 2 * DOT;
+        const reach = gap >= HEAD ? far - DOT : DOT + (gap + HEAD) / 2;
+        const [tx, ty] = [ux + dx * reach, uy + dy * reach];
+        const [bx, by] = [tx - dx * HEAD, ty - dy * HEAD];
+        return (
+          <g key={position}>
+            {gap > HEAD && <line x1={ux + dx * DOT} y1={uy + dy * DOT} x2={bx} y2={by} stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
+            <polygon points={`${tx},${ty} ${bx - dy * WING},${by + dx * WING} ${bx + dy * WING},${by - dx * WING}`} fill="var(--foreground)" />
+          </g>
+        );
+      })}
     </svg>
   );
 }
