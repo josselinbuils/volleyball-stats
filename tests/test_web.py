@@ -992,7 +992,7 @@ class TestJumped:
         table = {0: {"team": 1, "number": 7}, 1: {"team": 2, "number": None}}
         by_frame = {100: [{"track": "2"}, {"track": "3"}], 200: [{"track": "5"}]}
         measured = []
-        monkeypatch.setattr(web.jumps, "read_tracks", lambda path, tracks: {t: np.empty((0, 7)) for t in tracks})
+        monkeypatch.setattr(web.jumps, "attack_rows", lambda path, attacks, fps, cache: {a: np.empty((0, 7)) for a in attacks})
         monkeypatch.setattr(web.jumps, "pose_all", lambda video, attacks, tracks, fps, cache: {f"{f}:{t}": [] for f, t in attacks})
         monkeypatch.setattr(web.jumps, "measure", lambda f, *_: measured.append(f) or {"takeoff": f - 15, "landing": f + 10, "late": 40, "takeoff_m": 1.5, "start_m": 4.0, "drift_m": 0.6})
         found = [
@@ -1008,7 +1008,7 @@ class TestJumped:
         assert "late" not in found[1] and "late" not in found[2]
 
     def test_gives_the_3d_no_flight_that_misses_the_touch(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(web.jumps, "read_tracks", lambda path, tracks: {t: np.empty((0, 7)) for t in tracks})
+        monkeypatch.setattr(web.jumps, "attack_rows", lambda path, attacks, fps, cache: {a: np.empty((0, 7)) for a in attacks})
         monkeypatch.setattr(web.jumps, "pose_all", lambda video, attacks, tracks, fps, cache: {f"{f}:{t}": [] for f, t in attacks})
         monkeypatch.setattr(web.jumps, "measure", lambda f, *_: {"takeoff": f + 2, "landing": f + 30, "late": -200, "takeoff_m": None, "drift_m": None})
         found = [{"type": "attack", "f": 100, "person": 0}]

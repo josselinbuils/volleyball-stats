@@ -37,7 +37,7 @@ def load(labels: Path = LABELS) -> dict[str, dict]:
         source = json.loads((match / "source.json").read_text())
         attacks = [(int(r["frame"]), int(r["track"])) for r in labels]
         tracks = jumps.read_tracks(match / "players.csv", {t for _, t in attacks})
-        poses = jumps.pose_all(Path(source["video"]), attacks, tracks, FPS, match / "jumps.json")
+        poses = jumps.pose_all(Path(source["video"]), attacks, {(f, t): tracks[t] for f, t in attacks}, FPS, match / "jumps.json")
         ball = jumps.read_ball(match / "ball.csv", {f for a, _ in attacks for f in jumps.window(a, FPS)})
         out[name] = {"labels": labels, "tracks": tracks, "poses": poses, "ball": ball, "calibration": Calibration.load(Path(source["court"]))}
     return out

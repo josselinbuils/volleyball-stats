@@ -957,7 +957,7 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
     """Writes on each attack its player's jump where `jumps.measure` finds one: `late`, the ms from the flight's top to
     the hit, `air` its takeoff and landing in seconds from the touch, `run` the run-up and `drift` how far the jump
     carried towards the net, in metres. The attacker's track is the one showing their identity at the contact; the
-    poses stay in jumps.json."""
+    poses stay in jumps.json, the tracks' rows around each attack in jumps_rows.npz."""
     attacks = []
     for c in found:
         person = table.get(c["person"]) if c["type"] == "attack" and c["person"] is not None else None
@@ -968,13 +968,12 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
             attacks.append((c, track))
     if not attacks:
         return
-    # ponytail: re-reads players.csv (0.7 s of this step's 1.3 s, a review page build's 6 s on the second match); a cache
-    # of the attack tracks' rows beside jumps.json would save it, cleared with it when the players are tracked again.
-    tracks = jumps.read_tracks(match / "players.csv", {t for _, t in attacks})
-    poses = jumps.pose_all(video, [(c["f"], t) for c, t in attacks], tracks, fps, match / "jumps.json")
+    pairs = [(c["f"], t) for c, t in attacks]
+    rows = jumps.attack_rows(match / "players.csv", pairs, fps, match / "jumps_rows.npz")
+    poses = jumps.pose_all(video, pairs, rows, fps, match / "jumps.json")
     ball = jumps.read_ball(match / "ball.csv", {f for c, _ in attacks for f in jumps.window(c["f"], fps)}) if (match / "ball.csv").exists() else {}
     for c, t in attacks:
-        got = jumps.measure(c["f"], tracks[t], poses[f"{c['f']}:{t}"], calibration, fps, ball)
+        got = jumps.measure(c["f"], rows[(c["f"], t)], poses[f"{c['f']}:{t}"], calibration, fps, ball)
         if got is None:
             continue
         c["late"] = got["late"]

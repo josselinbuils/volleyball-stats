@@ -3,7 +3,7 @@ import numpy as np
 from volleyball_stats.ball3d import G, project
 from volleyball_stats.court import Calibration, distort
 from volleyball_stats import jumps
-from volleyball_stats.jumps import flight, hit, lift, lower_hull, measure, run_up, window
+from volleyball_stats.jumps import attack_rows, flight, hit, lift, lower_hull, measure, run_up, window
 
 
 class TestJumps:
@@ -103,3 +103,14 @@ class TestJumps:
         y[43:] = np.nan
         found = flight(y, lift(y, 100.0), 40, self.FPS)
         assert found is None or (found[1] - found[0]) / self.FPS < jumps.SHORTEST_S
+
+    def test_keeps_each_attacks_rows_and_reads_the_players_once(self, monkeypatch, tmp_path):
+        rows = np.array([[f, 0, 0, 1, 1, 0, 0] for f in range(0, 1000)], float)
+        reads = []
+        monkeypatch.setattr(jumps, "read_tracks", lambda path, tracks: reads.append(tracks) or {t: rows for t in tracks})
+        first = attack_rows(tmp_path / "players.csv", [(500, 3)], self.FPS, tmp_path / "rows.npz")
+        again = attack_rows(tmp_path / "players.csv", [(500, 3)], self.FPS, tmp_path / "rows.npz")
+        frames = first[(500, 3)][:, 0]
+        # The run-up's 2 s and the window's 0.8 s before the contact, its 0.8 s after, and a margin.
+        assert frames.min() <= 500 - (jumps.BEFORE_S + jumps.RUN_UP_S) * self.FPS and frames.max() >= 500 + jumps.AFTER_S * self.FPS
+        assert len(frames) < len(rows) and np.array_equal(first[(500, 3)], again[(500, 3)]) and reads == [{3}]

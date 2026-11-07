@@ -45,6 +45,24 @@ def read_tracks(players: Path, tracks: set[int]) -> dict[int, Rows]:
     return {t: np.delete(rows[rows[:, 1] == t], 1, axis=1) for t in tracks}
 
 
+def attack_rows(players: Path, attacks: list[tuple[int, int]], fps: float, cache: Path | None = None) -> dict[tuple[int, int], Rows]:
+    """Each attack's (frame, track) rows over what `measure` reads, its run-up and window, kept in `cache` (npz, by
+    "frame_track"): a page's build reads players.csv only for the attacks it has not seen."""
+    # ponytail: keyed by attack alone; delete the cache after changing BEFORE_S, AFTER_S, RUN_UP_S or HOLE_S.
+    kept = dict(np.load(cache)) if cache and cache.exists() else {}
+    missing = [(f, t) for f, t in attacks if f"{f}_{t}" not in kept]
+    if missing:
+        tracks = read_tracks(players, {t for _, t in missing})
+        before, after = round((BEFORE_S + RUN_UP_S + 2 * HOLE_S) * fps) + 2, round((AFTER_S + 2 * HOLE_S) * fps) + 2
+        for f, t in missing:
+            rows = tracks[t]
+            kept[f"{f}_{t}"] = rows[(rows[:, 0] >= f - before) & (rows[:, 0] <= f + after)]
+        if cache:
+            with files.replacing(cache, "wb") as out:
+                np.savez(out, **kept)
+    return {(f, t): kept[f"{f}_{t}"] for f, t in attacks}
+
+
 def read_ball(path: Path, frames: set[int]) -> dict[int, tuple[float, float]]:
     """ball.csv's sightings at `frames`, in the video's pixels."""
     out = {}
@@ -83,9 +101,10 @@ def iou(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return inter / ((a[2] - a[0]) * (a[3] - a[1]) + (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1]) - inter)
 
 
-def pose_all(video: Path, attacks: list[tuple[int, int]], tracks: dict[int, Rows], fps: float, cache: Path | None = None) -> dict[str, list]:
+def pose_all(video: Path, attacks: list[tuple[int, int]], rows: dict[tuple[int, int], Rows], fps: float, cache: Path | None = None) -> dict[str, list]:
     """Each attack's (frame, track) keypoints over its `window`: per frame the 17 (x, y, confidence) in the video's pixels
-    of the pose matching the track's box, None when none does; kept in `cache` (JSON, by "frame:track")."""
+    of the pose matching the track's box (`rows`, by attack), None when none does; kept in `cache` (JSON, by
+    "frame:track")."""
     # ponytail: the cache is keyed by attack alone; delete jumps.json after changing BEFORE_S, AFTER_S or CROP.
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     todo = [(f, t) for f, t in attacks if f"{f}:{t}" not in kept]
@@ -96,7 +115,7 @@ def pose_all(video: Path, attacks: list[tuple[int, int]], tracks: dict[int, Rows
     from volleyball_stats.actions import POSE_MODEL
 
     model, device, hole = YOLO(str(POSE_MODEL)), default_device(), round(HOLE_S * fps)
-    boxes = {(f, t): at(tracks[t], window(f, fps), hole)[:, :4] for f, t in todo}
+    boxes = {(f, t): at(rows[(f, t)], window(f, fps), hole)[:, :4] for f, t in todo}
     wanted: dict[int, list[tuple[int, int, int]]] = {}
     for (f, t), b in boxes.items():
         for k, frame in enumerate(window(f, fps)):

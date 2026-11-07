@@ -353,7 +353,7 @@ def main() -> None:
         timings[" and ".join(name for name, new in (("ball", new_ball), ("players", new_players)) if new)] = time.perf_counter() - start
     if new_players:
         # New tracks: the identities, their embeddings and the attackers' poses (by track) start over.
-        for stale in ("identities.csv", "embeddings.npz", "looks.npz", jerseys.FILE, "jumps.json"):
+        for stale in ("identities.csv", "embeddings.npz", "looks.npz", jerseys.FILE, "jumps.json", "jumps_rows.npz"):
             (out / stale).unlink(missing_ok=True)
         if (out / "identity_answers.json").exists():
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
@@ -450,7 +450,7 @@ def main() -> None:
         # The attackers' poses for the page's jumps (`web.jumped`): its build then only poses the touches the review moves.
         attacks = [(t[0], k) for t, k in zip(typed, touchers) if t[3] == "attack" and k is not None]
         if attacks:
-            jumps.pose_all(args.video, attacks, jumps.read_tracks(players_path, {k for _, k in attacks}), fps, out / "jumps.json")
+            jumps.pose_all(args.video, attacks, jumps.attack_rows(players_path, attacks, fps, out / "jumps_rows.npz"), fps, out / "jumps.json")
         timings["jumps"] = time.perf_counter() - start
         who = [identity.lookup(known, k, t[0]) if k is not None else None for t, k in zip(typed, touchers)]
         # A track swapping players across the net can hold an identity of the other team.
