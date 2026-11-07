@@ -1632,6 +1632,12 @@ def checked(log: list[dict]) -> list[int]:
     return sorted(out)
 
 
+def reviewed(page: dict | None, log: list[dict]) -> bool:
+    """Whether every rally of the review's `page` is checked."""
+    keys = {r["key"] for r in (page or {}).get("rallies", [])}
+    return bool(keys) and keys <= set(checked(log))
+
+
 def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = frozenset()) -> dict:
     """What an apply would take in: the answers saying something not applied yet (those saved
     before the flag were), whether the answers or the jersey numbers, and the names, differ from
@@ -2381,6 +2387,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 elif self.path == "/rerun":
                     from volleyball_stats import learn
 
+                    # A match whose every rally is checked only teaches the next ones: it stays as reviewed.
+                    if reviewed(questions.page, log):
+                        run_steps([("training", lambda: learn.train(match, video, court))])
+                        return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                     # The pipeline again, its identities with every answer: an apply too. Undo
                     # stops here: the answers moved onto the new rallies.
                     own, *published = pages()

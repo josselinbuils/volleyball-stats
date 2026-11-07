@@ -173,7 +173,7 @@
   "scoreHint": "Worked out automatically from the end of each rally.",
   "review": {
     "title": "Check the players",
-    "intro": "Tracking is unsure about these players: say who is outlined in yellow. The questions that matter most come first.",
+    "intro": "Tracking is unsure about these players: say who is outlined in yellow. The questions that matter most come first. “Apply” puts your answers into this match; those about who touched the ball also help the next matches, through “Learn from my answers”.",
     "matchIntro": "The whole match, to correct its actions. Click the bar to go to a moment: it shows each rally, each touch, each report in red and each warning in orange. Correct the touches on the right, then “Validate”; nothing changes on the page before “Apply”.",
     "matchPage": "See the match page",
     "otherMatch": "Change match",
@@ -406,6 +406,8 @@
     "rerunning": "Learning…",
     "rerunNote": "Trains the who-touched model again and reruns the whole match analysis with your answers. Nothing goes online.",
     "rerunConfirm": "Learn from your answers? The match analysis runs again: a few minutes to 40 minutes, the review waits. Your answers are kept.",
+    "rerunNoteReviewed": "Trains the who-touched model again for the next matches. This match, fully checked, stays as it is.",
+    "rerunConfirmReviewed": "Learn from your answers? Up to 15 minutes, the review waits. This match stays as it is.",
     "films_one": "Make {{count}} player film",
     "films_other": "Make {{count}} player films",
     "filmsMaking": "Making the player films…",

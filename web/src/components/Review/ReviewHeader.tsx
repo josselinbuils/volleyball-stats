@@ -83,6 +83,7 @@ export function ReviewHeader({
   filmsError,
   films,
   pending,
+  reviewed,
   busy,
   run,
   onFailed,
@@ -99,6 +100,8 @@ export function ReviewHeader({
   filmsError?: string | null;
   films: FilmCounts;
   pending: { answers: number; changed: boolean; names: boolean };
+  /** Every rally checked: learning leaves the match as it is. */
+  reviewed: boolean;
   busy: Action | null;
   run: (action: Action, body?: object) => void;
   onFailed: () => void;
@@ -137,8 +140,8 @@ export function ReviewHeader({
               </Tip>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <Tip label={t('review.rerunNote')}>
-                <DropdownMenuItem onSelect={() => window.confirm(t('review.rerunConfirm')) && run('rerun')}>
+              <Tip label={t(reviewed ? 'review.rerunNoteReviewed' : 'review.rerunNote')}>
+                <DropdownMenuItem onSelect={() => window.confirm(t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm')) && run('rerun')}>
                   <RefreshCw aria-hidden />
                   {t('review.rerun')}
                 </DropdownMenuItem>

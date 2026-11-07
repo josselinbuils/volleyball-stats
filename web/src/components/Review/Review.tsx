@@ -50,6 +50,8 @@ const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'sk
 const REPORT_KEYS: Record<string, string> = { s: 'skip' };
 type Tab = 'questions' | 'names' | 'match' | 'progress';
 // The tab survives the reload that applies the answers.
+/** The page's rallies, by the key the review checks them by. */
+const keys = rallies.map((r) => r.key ?? Math.round(r.start * match.fps));
 const HASHES: Record<Tab, string> = { names: '', questions: '#questions', match: '#match', progress: '#progress' };
 
 /** The review: the players' names, then the identity step's doubts one at a time, answered on the
@@ -408,6 +410,7 @@ export function Review({
           filmsError={filmsError}
           films={films}
           pending={pending}
+          reviewed={matchFinished(keys, checked, 0)}
           busy={busy}
           run={(action, body) => void reload(action, body)}
           onFailed={() => setError(true)}
@@ -434,19 +437,7 @@ export function Review({
           </div>
         )}
         {players.length > 0 && (
-          <ReviewTabs
-            tab={tab}
-            show={show}
-            named={named}
-            players={players.length}
-            questions={open.length}
-            reports={reports.length}
-            matchDone={matchFinished(
-              rallies.map((r) => r.key ?? Math.round(r.start * match.fps)),
-              checked,
-              reports.length,
-            )}
-          />
+          <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchFinished(keys, checked, reports.length)} />
         )}
         <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />

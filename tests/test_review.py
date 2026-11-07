@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -699,6 +699,12 @@ class TestChecked:
 
         assert checked(log) == [200, 300]
         assert checked([*log, {"id": "edit:4", "checked": [100]}]) == [100, 200, 300]
+
+    def test_a_match_is_reviewed_once_every_rally_is_checked(self):
+        page = {"rallies": [{"key": 100}, {"key": 200}]}
+        assert not reviewed(page, [{"id": "edit:1", "checked": [100]}])
+        assert reviewed(page, [{"id": "edit:1", "checked": [100, 200, 300]}])
+        assert not reviewed(None, [])
 
 
 class TestUndo:
