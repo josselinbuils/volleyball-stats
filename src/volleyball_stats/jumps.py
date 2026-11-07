@@ -49,7 +49,10 @@ def attack_rows(players: Path, attacks: list[tuple[int, int]], fps: float, cache
     """Each attack's (frame, track) rows over what `measure` reads, its run-up and window, kept in `cache` (npz, by
     "frame_track"): a page's build reads players.csv only for the attacks it has not seen."""
     # ponytail: keyed by attack alone; delete the cache after changing BEFORE_S, AFTER_S, RUN_UP_S or HOLE_S.
-    kept = dict(np.load(cache)) if cache and cache.exists() else {}
+    kept = {}
+    if cache and cache.exists():
+        with np.load(cache) as found:
+            kept = dict(found)
     missing = [(f, t) for f, t in attacks if f"{f}_{t}" not in kept]
     if missing:
         tracks = read_tracks(players, {t for _, t in missing})
