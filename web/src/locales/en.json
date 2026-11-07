@@ -976,8 +976,9 @@
     },
     "placement": {
       "title": "Defensive positioning",
-      "caption": "When the other team hits, position by position.",
+      "caption": "Where to stand when the other team hits.",
       "pick": "Player",
+      "nobody": "No player",
       "system": "Defence system",
       "modes": {
         "perimeter": "Perimeter",
@@ -986,10 +987,8 @@
         "rotation": "Rotation"
       },
       "attacker": "Attacker",
-      "ball": "Ball",
       "usual": "Usually",
       "spot": "Ideal spot",
-      "position": "Position {{n}}",
       "sides": {
         "left": "Attack on the left",
         "middle": "Attack in the middle",
@@ -997,11 +996,7 @@
       },
       "blocks_one": "single block",
       "blocks_other": "double block",
-      "roles": {
-        "block": "blocking",
-        "off": "not blocking"
-      },
-      "playing": "{{player}} at position {{n}}"
+      "playing": "{{player}} in defence"
     }
   },
   "broadcast": {

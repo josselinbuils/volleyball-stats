@@ -976,8 +976,9 @@
     },
     "placement": {
       "title": "Placement en défense",
-      "caption": "À la frappe adverse, poste par poste.",
+      "caption": "Où se placer à la frappe adverse.",
       "pick": "Joueur",
+      "nobody": "Aucun joueur",
       "system": "Système de défense",
       "modes": {
         "perimeter": "Périmètre",
@@ -986,10 +987,8 @@
         "rotation": "Rotation"
       },
       "attacker": "Attaquant",
-      "ball": "Ballon",
       "usual": "D'habitude",
       "spot": "Place idéale",
-      "position": "Poste {{n}}",
       "sides": {
         "left": "Attaque à gauche",
         "middle": "Attaque au centre",
@@ -997,11 +996,7 @@
       },
       "blocks_one": "contre à un",
       "blocks_other": "contre à deux",
-      "roles": {
-        "block": "au contre",
-        "off": "sans contrer"
-      },
-      "playing": "{{player}} au poste {{n}}"
+      "playing": "{{player}} en défense"
     }
   },
   "broadcast": {

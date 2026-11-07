@@ -958,7 +958,7 @@ class TestDefended:
         # player stands at their left corner, the perimeter's 5.
         found = web.defended([self.attack(), {"type": "dig", "rally": 0, "x": 5.0, "y": 2.0}], self.rallies, self.players, 10.0, self.people)
 
-        assert found[0]["flight"] == [-1.0, -3.0, 5.0, -2.0]
+        assert found[0]["hit"] == [-1.0, -3.0]
         assert found[0]["block"] == 1
         assert found[0]["defense"] == [1, 6.0, -3.5, 5]
         # From the right, only team 1 defends the left half: 2 m short of 6.

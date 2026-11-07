@@ -952,7 +952,7 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 
 
 def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
-    """`contacts` with, on each attack, its `flight` [depth, across, then where it went if seen], its `block` (1 or 2
+    """`contacts` with, on each attack, where it was hit in `hit` [depth, across], its `block` (1 or 2
     blockers, `defense.doubled`) and the other half's defenders then in `defense`, flat [person, depth, across, position,
     ...], in metres from the net and toward the defenders' right: the positions the perimeter's (`defense.assign`), the
     owner's system, which the page keeps in every system; a defender left over has none. The players held as in
@@ -969,11 +969,11 @@ def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: floa
         team = 3 - left if sign > 0 else left
         seen = places_at(players, c["t"], fps, back)
         here = {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
-        start, end, _ = defense.flight(contacts, k)
+        start, _, _ = defense.flight(contacts, k)
         double = defense.doubled(here)
         found = defense.assign(defense.layout("perimeter", start[1], double), here)
         flat = [round(v, 1) for person, (_, _, p) in found.items() for v in (person, *here[person], p)]
-        out.append({**c, "flight": [round(v, 1) for v in (*start, *(end or ()))], "block": 2 if double else 1, **({"defense": flat} if found else {})})
+        out.append({**c, "hit": [round(v, 1) for v in start], "block": 2 if double else 1, **({"defense": flat} if found else {})})
     return out
 
 

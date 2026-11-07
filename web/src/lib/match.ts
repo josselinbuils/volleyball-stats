@@ -38,9 +38,9 @@ export interface Contact {
   name: string | null;
   /** On a ball landing in after a point, the players' positions then, flat [person, x, y, ...]. */
   around?: number[];
-  /** On an attack, its place and where it went if seen, [depth, across, depth, across], in the defenders' frame: metres
-   * from the net (the attack's negative) and toward their right. */
-  flight?: number[];
+  /** On an attack, where it was hit, [depth, across], in the defenders' frame: metres from the net (the attack's
+   * negative) and toward their right. */
+  hit?: number[];
   /** On an attack, how many of the defenders blocked: 1 or 2 (two or more near the net). */
   block?: number;
   /** On an attack, the other team's defenders then, flat [person, depth, across, position, ...] in the same frame. */
