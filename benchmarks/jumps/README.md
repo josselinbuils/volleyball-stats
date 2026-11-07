@@ -30,6 +30,10 @@ under 0.2 of their speed, then moved by the heel (+3 frames at takeoff, -2 at la
 has a foot hidden at one end: that end mirrors the other about the ankle's highest, else it is dropped. The hit: within 0.24 s of the ball's contact, the frame the ball is seen nearest a wrist. The run-up: going back from takeoff on the tracked feet, until the player came under 0.1 m
 nearer the net over 0.5 s.
 
+Checked only on the ASPOM matches' 4K footage with its lens calibrated. Without a camera model (a calibration with no
+lens, the 720p school clips) it measures nothing: a player's box height as the scale there gave 3 jumps of 9 attacks
+on `side_holdout`, the 2 checked by eye wrong (a crouched dig then a run, a serve).
+
 ## Results (7 Nov)
 
 | | First match | Second match |

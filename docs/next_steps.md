@@ -224,6 +224,7 @@ On the two reviewed matches' checked rallies and answers (M1 first, M2 second):
 | False touches told by the distance to the nearest player (`gap`) | same spread as real ones (median 0.33 vs 0.37 box heights) |
 | The hitting height from the pose (wrist over the floor at the hit) to fill attacks the 3D fit leaves | +38 and +30 attacks, but within-player spread 0.096-0.109 m against 0.07-0.085 m for the ball's |
 | Attack heights from the 3D ball fitted at each attack's hit frame | within-player spread 0.080 → 0.105 m (M1), 0.120 → 0.110 m (M2) |
+| Jumps without a camera model (no lens), the box height as the scale | `side_holdout`: 3 of 9 attacks measured, the 2 checked by eye wrong |
 | Attacks named at the hit rather than the contact frame | of M2's 145 answered attacks with the player posed, 8 wrong, 3 of them with the contact over 4 frames off: at most +3 |
 
 Also found: of the touches with a clear ball turn but no contact, most sit outside the windows of the matches' outputs, which
