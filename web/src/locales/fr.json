@@ -218,6 +218,7 @@
       "hosting": "Mise à jour de la page en ligne…",
       "hostingAll": "Mise à jour de tous les matchs en ligne…",
       "films": "Création des films des joueurs",
+      "film": "Création du film du joueur",
       "highlights": "Création des highlights"
     },
     "failed": "Échec : {{step}}",
@@ -412,6 +413,8 @@
     "films_one": "Créer {{count}} film de joueur",
     "films_other": "Créer {{count}} films de joueurs",
     "filmsMaking": "Création des films des joueurs…",
+    "filmMaking": "Création du film…",
+    "makeFilm": "Créer son film",
     "filmsDone": "Films des joueurs à jour",
     "highlights": "Créer les highlights",
     "highlightsMaking": "Création des highlights…",

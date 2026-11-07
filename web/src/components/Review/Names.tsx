@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Clapperboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { GROUPS, groupName, hasTeams, teamColor, teamRing, type Group } from '@/lib/match';
@@ -39,16 +40,23 @@ function focusCard(from: Element | null, step: number) {
 /** The players of both teams to name, those without a name when the page loaded first, then longest
  * on court first; each name is saved as it is typed,
  * `onNamed` given the names and numbers saved by `team:identity`, `onSaved` what the server tells
- * after each name or picture saved. */
+ * after each name or picture saved. A player whose film is out of date (`staleFilms`, by name) can
+ * have it made alone (`onFilm`). */
 export function Names({
   players,
   roster,
+  staleFilms,
+  busy,
+  onFilm,
   onNamed,
   onSaved,
   onError,
 }: {
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
+  staleFilms: string[];
+  busy: boolean;
+  onFilm: (name: string) => void;
   onNamed: (saved: Map<string, Given>) => void;
   onSaved: (saved: Saved) => void;
   onError: () => void;
@@ -143,6 +151,8 @@ export function Names({
                   roster={offered(g)}
                   otherTeam={groupName(t, (3 - g) as Group)}
                   saved={saved.get(keyOf(p))!}
+                  film={staleFilms.includes(saved.get(keyOf(p))!.name.trim()) ? () => onFilm(saved.get(keyOf(p))!.name.trim()) : undefined}
+                  busy={busy}
                   others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
                   onEdit={(value) => edit(p, value)}
                   onSave={(value) => void save(p, value)}
@@ -167,6 +177,8 @@ function NameCard({
   roster,
   otherTeam,
   saved,
+  film,
+  busy,
   others,
   onEdit,
   onSave,
@@ -181,6 +193,9 @@ function NameCard({
   roster: (Suggestion & { other: boolean })[];
   otherTeam: string;
   saved: Given;
+  /** Makes the player's film, out of date. */
+  film?: () => void;
+  busy: boolean;
   others: { identity: number; name: string }[];
   onEdit: (value: Given) => void;
   onSave: (value: Given) => void;
@@ -201,12 +216,28 @@ function NameCard({
     onSave(next);
   };
   const id = `name-${g}-${p.identity}`;
+  const [making, setMaking] = useState(false);
 
   return (
     <div data-card tabIndex={-1} className="grid content-start gap-2.5 rounded-lg border bg-card p-3 outline-none focus-within:ring-2 focus-within:ring-ring/60">
       <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
       <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
       <PhotoPicker player={p} onError={onError} />
+      {film && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="justify-self-start bg-card"
+          disabled={busy}
+          onClick={() => {
+            setMaking(true);
+            film();
+          }}
+        >
+          <Clapperboard aria-hidden />
+          {making && busy ? t('review.filmMaking') : t('review.makeFilm')}
+        </Button>
+      )}
       <p className="m-0 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{t('player', { n: p.identity })}</span>
         <span>· {t('review.played', { time: clock(p.seconds) })}</span>

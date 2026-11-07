@@ -122,20 +122,20 @@ class TestPlan:
         assert film.plan(page, tmp_path)["Élodie"]["hash"] != first
         assert film.plan(self.page(), tmp_path, "another tracking")["Élodie"]["hash"] != first
 
-    def test_says_how_many_films_are_missing_or_out_of_date(self, tmp_path, monkeypatch):
-        none = {"total": 0, "stale": 0}
+    def test_names_the_films_missing_or_out_of_date(self, tmp_path, monkeypatch):
+        none = {"total": 0, "stale": []}
         assert film.status(tmp_path) == {"players": none, "highlights": none}
         page = self.page()
         (tmp_path / "review").mkdir()
         monkeypatch.setattr(film, "read_page", lambda _: page)
-        assert film.status(tmp_path) == {"players": {"total": 1, "stale": 1}, "highlights": none}
+        assert film.status(tmp_path) == {"players": {"total": 1, "stale": ["Élodie"]}, "highlights": none}
         planned = film.plan(page, tmp_path / "review", film.tracking_stamp(tmp_path))["Élodie"]
         (tmp_path / "films").mkdir()
         (tmp_path / "films" / planned["file"]).write_bytes(b"film")
         (tmp_path / "films" / "manifest.json").write_text(json.dumps({"Élodie": {"hash": planned["hash"], "file": planned["file"]}}))
-        assert film.status(tmp_path) == {"players": {"total": 1, "stale": 0}, "highlights": none}
+        assert film.status(tmp_path) == {"players": {"total": 1, "stale": []}, "highlights": none}
         page["people"]["1"]["jersey"] = 9
-        assert film.status(tmp_path) == {"players": {"total": 1, "stale": 1}, "highlights": none}
+        assert film.status(tmp_path) == {"players": {"total": 1, "stale": ["Élodie"]}, "highlights": none}
 
 
 class TestHighlights:

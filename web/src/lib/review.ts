@@ -181,7 +181,8 @@ export type LearnRun = { time: string; commit: string; match?: string; scores: S
 export type Comparison = { before: Scores; after: Scores };
 
 /** By kind of film: how many there should be, how many are missing or out of date. */
-export type FilmCounts = Record<'players' | 'highlights', { total: number; stale: number }>;
+/** By kind, how many films the match should have and the names of those missing or out of date. */
+export type FilmCounts = Record<'players' | 'highlights', { total: number; stale: string[] }>;
 
 export type Hosted = { chosen?: boolean; at: string | null; day?: string | null; error: string | null; behind: boolean };
 
@@ -277,6 +278,7 @@ export async function post(
     | 'hostAll'
     | 'reports'
     | 'films'
+    | 'film'
     | 'highlights'
     | 'cut'
     | 'separate'

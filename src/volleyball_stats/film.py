@@ -566,15 +566,16 @@ def kind_of(name: str) -> str:
 
 
 def status(match: Path) -> dict:
-    """By kind, how many films the match should have and how many of them are missing or out of date."""
-    out = {"players": {"total": 0, "stale": 0}, "highlights": {"total": 0, "stale": 0}}
+    """By kind, how many films the match should have and the names of those missing or out of date."""
+    out: dict = {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}
     page = read_page(match / "review")
     if not page or not page.get("positions"):
         return out
     made = manifest(match)
     for name, film in plan(page, match / "review", tracking_stamp(match)).items():
         out[kind_of(name)]["total"] += 1
-        out[kind_of(name)]["stale"] += made.get(name, {}).get("hash") != film["hash"] or not (match / FILMS / film["file"]).exists()
+        if made.get(name, {}).get("hash") != film["hash"] or not (match / FILMS / film["file"]).exists():
+            out[kind_of(name)]["stale"].append(name)
     return out
 
 

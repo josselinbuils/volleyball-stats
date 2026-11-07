@@ -218,6 +218,7 @@
       "hosting": "Updating the online page…",
       "hostingAll": "Updating every match online…",
       "films": "Making the player films",
+      "film": "Making the player's film",
       "highlights": "Making the highlights"
     },
     "failed": "Failed: {{step}}",
@@ -412,6 +413,8 @@
     "films_one": "Make {{count}} player film",
     "films_other": "Make {{count}} player films",
     "filmsMaking": "Making the player films…",
+    "filmMaking": "Making the film…",
+    "makeFilm": "Make their film",
     "filmsDone": "Player films up to date",
     "highlights": "Make the highlights",
     "highlightsMaking": "Making the highlights…",

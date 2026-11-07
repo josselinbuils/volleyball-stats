@@ -1606,7 +1606,7 @@ def unlocked(keys: list[int]) -> list[dict]:
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
 # match, 4K, on the M4 (1 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "hostingAll": 120.0, "copies": 3300.0, "films": 2400.0, "highlights": 300.0,
+    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "hostingAll": 120.0, "copies": 3300.0, "films": 2400.0, "film": 180.0, "highlights": 300.0,
     "pipeline:tracking": 7200.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
     "pipeline:identity": 20.0, "pipeline:jumps": 420.0, "pipeline:answers": 60.0,
 }
@@ -2006,9 +2006,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             # The answers stay applied: only the hosted page is behind.
             hosted.update(at=time.strftime("%H:%M"), day=None, error=str(error) or type(error).__name__)
 
-    def filming(kind: str) -> None:
+    def filming(kind: str, names: list[str] | None = None) -> None:
         try:
-            film.build(match, video, court, staged, kind=kind)
+            film.build(match, video, court, staged, names, kind)
             filmed["error"] = None
         except Exception as error:  # noqa: BLE001
             # The films made are kept: the next press makes those left.
@@ -2436,10 +2436,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 elif self.path == "/hostAll" and (match / matches.PUBLISH).exists():
                     run_steps([("hostingAll", lambda: hosting(every=True))])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
-                elif self.path in ("/films", "/highlights"):
-                    # The page then shows them, the hosted one on its next upload.
-                    step, kind = ("highlights", "highlights") if self.path == "/highlights" else ("films", "players")
-                    run_steps([(step, lambda: filming(kind)), *pages()])
+                elif self.path in ("/films", "/film", "/highlights"):
+                    # The page then shows them, the hosted one on its next upload; "/film" makes the player `name`'s alone.
+                    names = [str(body["name"])] if self.path == "/film" else None
+                    step, kind = ("highlights", "highlights") if self.path == "/highlights" else (self.path[1:], "players")
+                    run_steps([(step, lambda: filming(kind, names)), *pages()])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/rerun":
                     from volleyball_stats import learn

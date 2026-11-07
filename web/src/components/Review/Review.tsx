@@ -130,8 +130,8 @@ export function Review({
       setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
     }
   };
-  const films = savedFilms ?? { players: { total: 0, stale: 0 }, highlights: { total: 0, stale: 0 } };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'highlights' | null>(null);
+  const films = savedFilms ?? { players: { total: 0, stale: [] }, highlights: { total: 0, stale: [] } };
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -313,7 +313,7 @@ export function Review({
    * spent and left, and whether it takes longer than last time. */
   const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
   const minutes = (s: number) => (s < 60 ? t('review.lessThanMinute') : t('review.minutes', { count: Math.round(s / 60) }));
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'highlights', body: object = {}) => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {
@@ -482,7 +482,16 @@ export function Review({
         {tab === 'progress' ? (
           <Progress runs={learning} comparison={comparison} />
         ) : tab === 'names' ? (
-          <Names players={players} roster={roster} onNamed={setGiven} onSaved={onSaved} onError={() => setError(true)} />
+          <Names
+            players={players}
+            roster={roster}
+            staleFilms={films.players.stale}
+            busy={busy !== null}
+            onFilm={(name) => void reload('film', { name })}
+            onNamed={setGiven}
+            onSaved={onSaved}
+            onError={() => setError(true)}
+          />
         ) : tab === 'match' ? (
           <MatchTab
             onEnd={(time) => void saveEnd(time)}

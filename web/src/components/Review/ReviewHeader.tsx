@@ -11,7 +11,15 @@ import type { FilmCounts, Hosted } from '@/lib/review';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { Tip } from '@/components/Tip';
 
-type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'highlights';
+type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
+// What the status line says while an action runs.
+const RUNNING: Partial<Record<Action, string>> = {
+  rerun: 'review.rerunning',
+  reports: 'review.fetching',
+  films: 'review.filmsMaking',
+  film: 'review.filmMaking',
+  highlights: 'review.highlightsMaking',
+};
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
 
 /** Between two items of the status line, which wraps on a phone. */
@@ -110,8 +118,7 @@ export function ReviewHeader({
   const f = useFormat();
   const [choosing, setChoosing] = useState(false);
   const toApply = pending.changed || pending.names;
-  const running =
-    busy === 'rerun' ? t('review.rerunning') : busy === 'reports' ? t('review.fetching') : busy === 'films' ? t('review.filmsMaking') : busy === 'highlights' ? t('review.highlightsMaking') : null;
+  const running = busy && RUNNING[busy] ? t(RUNNING[busy]) : null;
   return (
     <header className="grid gap-1.5 px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -161,15 +168,15 @@ export function ReviewHeader({
                 </DropdownMenuItem>
               )}
               {films.players.total > 0 && (
-                <DropdownMenuItem disabled={!films.players.stale} onSelect={() => run('films')}>
+                <DropdownMenuItem disabled={!films.players.stale.length} onSelect={() => run('films')}>
                   <Clapperboard aria-hidden />
-                  {films.players.stale ? t('review.films', { count: films.players.stale }) : t('review.filmsDone')}
+                  {films.players.stale.length ? t('review.films', { count: films.players.stale.length }) : t('review.filmsDone')}
                 </DropdownMenuItem>
               )}
               {films.highlights.total > 0 && (
-                <DropdownMenuItem disabled={!films.highlights.stale} onSelect={() => run('highlights')}>
+                <DropdownMenuItem disabled={!films.highlights.stale.length} onSelect={() => run('highlights')}>
                   <Sparkles aria-hidden />
-                  {films.highlights.stale ? t('review.highlights') : t('review.highlightsDone')}
+                  {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
