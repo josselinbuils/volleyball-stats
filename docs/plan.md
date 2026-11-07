@@ -126,7 +126,8 @@ localhost, the first match without footage: first load 1,824 -> 282 KB, LCP 2.73
 10.9 -> 3.05 s, blocking 664 -> 644 ms, score 80 -> 82 (desktop 99, 99). The first file loads 500 ms after mounting:
 a script running before the paint is recorded counts as blocking it in Lighthouse's simulated LCP. The review's
 screens are their own script since 7 Nov (`review-app.js`, `vite.review.config.ts`, loaded by `main.tsx` when review.js
-is there): the page's script 255 -> 221 KB compressed. `i18next` (15 KB) and `cn` (8 KB) stay.
+is there): the page's script 255 -> 221 KB compressed, the download only (from disk, 4x slower CPU: script time and
+first paint unchanged, 932 vs 944 ms and 1156 vs 1152). `i18next` (15 KB) and `cn` (8 KB) stay.
 
 ## Page: la saison (4 Nov)
 
