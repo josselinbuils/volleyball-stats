@@ -952,8 +952,9 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 
 
 def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
-    """`contacts` with, on each attack, the other half's floor defenders' way to their perimeter spot then (`defense.gaps`)
-    in `defense`, flat [person, kind, back, out, ...]. The players held as in `with_landings`."""
+    """`contacts` with, on each attack, the other half's defenders then in `defense`, flat [person, position, depth, across,
+    spot depth, spot across, ...]: their place and their perimeter spot (`defense.assign`), in metres from the net and toward
+    their right. The players held as in `with_landings`."""
     back = round(HOLD_S * fps / players["step"])
     out = []
     for c in contacts:
@@ -966,8 +967,8 @@ def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: floa
         team = 3 - left if sign > 0 else left
         seen = places_at(players, c["t"], fps, back)
         here = {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
-        found = defense.gaps(-sign * c["y"], here)
-        out.append({**c, "defense": [v for person, (kind, to_back, to_out) in found.items() for v in (person, kind, round(to_back, 1), round(to_out, 1))]} if found else c)
+        found = defense.assign(-sign * c["y"], here)
+        out.append({**c, "defense": [round(v, 1) for person, (depth, x, position) in found.items() for v in (person, position, *here[person], depth, x)]} if found else c)
     return out
 
 

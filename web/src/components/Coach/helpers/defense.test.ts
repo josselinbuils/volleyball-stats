@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
-import { placements } from '@/components/Coach/helpers/defense';
+import { defenders } from '@/components/Coach/helpers/defense';
 
-describe('placements', () => {
+describe('defenders', () => {
   const people: Record<string, Person> = {
     1: { team: 1, number: 1, jersey: null, name: 'Alex' },
     2: { team: 1, number: 2, jersey: null, name: 'Sam' },
@@ -29,37 +29,35 @@ describe('placements', () => {
       name: null,
       defense,
     }) as Contact;
+  const times = (n: number, defense: (k: number) => number[]) => Array.from({ length: n }, (_, k) => attack(2, defense(k)));
 
-  it("gives each player their usual way in the kind of spot where it is longest, from 8 of the other team's attacks", () => {
+  it("gives each position a player defended, in court order, their usual place and spot in each role from 5 of the other team's attacks", () => {
     const contacts = [
-      ...Array.from({ length: 8 }, (_, k) => attack(2, [1, 2, 2 + k * 0.5, 0, 2, 1, 0.5, 1.2])),
-      ...Array.from({ length: 8 }, () => attack(2, [1, 1, 1, 0])),
-      ...Array.from({ length: 7 }, () => attack(2, [1, 0, 4, 0])),
+      // Position 2: 5 times at the net, 5 times off it 1.5 m short of the 3 m line; 4 times at 6, too few.
+      ...times(5, () => [1, 2, 0.6, 3, 0.5, 3]),
+      ...times(5, (k) => [1, 2, 1.5, 3 + k * 0.1, 3, 3.5]),
+      ...times(4, () => [1, 6, 6, 0, 8, 0]),
+      ...times(5, () => [1, 1, 5, 3, 6.5, 3.5]),
     ];
 
-    const found = placements(contacts, 1, people);
+    const [alex] = defenders(contacts, 1, people);
 
-    expect(found.map(({ person, spot, back, out }) => ({ person, spot, back, out }))).toEqual([
-      { person: 1, spot: 'deep', back: 3.75, out: 0 },
-      { person: 2, spot: 'corner', back: 0.5, out: 1.2 },
+    expect(alex.positions.map((p) => p.position)).toEqual([2, 1]);
+    expect(alex.positions[0].places).toEqual([
+      { role: 'block', usual: [0.6, 3], spot: [0.5, 3] },
+      { role: 'off', usual: [1.5, 3.2], spot: [3, 3.5] },
     ]);
-    expect(found[0].off).toHaveLength(8);
+    // 1.5 m off at 2 when not blocking, at 1 every time.
+    expect(alex.positions.map((p) => p.off.length)).toEqual([5, 5]);
   });
 
-  it("joins a player's identities, leaves out their own team's attacks and a way under 1 m", () => {
-    const contacts = [...Array.from({ length: 4 }, () => attack(2, [2, 0, 1.5, 0])), ...Array.from({ length: 4 }, () => attack(2, [4, 0, 1.5, 0]))];
+  it("joins a player's identities and leaves out their own team's attacks", () => {
+    const contacts = [...times(3, () => [2, 6, 7, 0, 8, 0]), ...times(2, () => [4, 6, 7, 0, 8, 0])];
 
-    expect(placements(contacts, 1, people).map((p) => p.spot)).toEqual(['front']);
+    expect(defenders(contacts, 1, people).map((d) => [d.person, d.positions[0].places[0].role])).toEqual([[2, 'back']]);
     expect(
-      placements(
+      defenders(
         contacts.map((c) => ({ ...c, g: 1 as const })),
-        1,
-        people,
-      ),
-    ).toEqual([]);
-    expect(
-      placements(
-        Array.from({ length: 8 }, () => attack(2, [1, 0, 0.9, -0.9])),
         1,
         people,
       ),

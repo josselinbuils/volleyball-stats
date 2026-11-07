@@ -976,17 +976,23 @@
     },
     "placement": {
       "title": "Placement en défense",
-      "caption": "À la frappe adverse, où se placer en défense périmètre par rapport à d'habitude.",
-      "spots": {
-        "front": "Devant, sans contrer",
-        "corner": "Poste 1 ou 5",
-        "deep": "Poste 6"
+      "caption": "À la frappe adverse, poste par poste.",
+      "pick": "Joueur",
+      "usual": "D'habitude",
+      "spot": "En défense périmètre",
+      "position": "Poste {{n}}",
+      "roles": {
+        "block": "Au contre",
+        "off": "Sans contrer",
+        "tip": "Derrière le contre"
       },
+      "line": "{{role}} : {{ways}}",
       "back": "{{m}} m plus loin du filet",
       "forward": "{{m}} m plus près du filet",
-      "out": "{{m}} m plus près de la ligne de côté",
-      "in": "{{m}} m plus au centre",
-      "playing": "{{player}} en défense"
+      "right": "{{m}} m plus à droite",
+      "left": "{{m}} m plus à gauche",
+      "fine": "Bien placé",
+      "playing": "{{player}} au poste {{n}}"
     }
   },
   "broadcast": {

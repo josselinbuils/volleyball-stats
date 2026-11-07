@@ -1,52 +1,60 @@
-"""Where the floor defenders stand when the other team attacks, against the perimeter defence the owner's team plays.
+"""Where the defenders stand when the other team attacks, against the perimeter defence the owner's team plays.
 
 Places are in the defenders' half: metres from the net, then metres toward their right as they face the net."""
 
+import functools
 import itertools
 
 import numpy as np
 
-# A player this near the net at the hit blocks.
+# A player this near the net at the hit blocks: two or more make a double block.
 BLOCK_M = 1.2
 # An attack this near the court's long axis comes through the middle.
 MIDDLE_M = 1.5
-# The spots' kinds, as the page names them: a front player not blocking, zone 1 or 5, zone 6.
-FRONT, CORNER, DEEP = 0, 1, 2
-# The perimeter for an attack on the defenders' right, mirrored for one on their left: the off-blocker on the 3 m line,
-# the corners 1 m inside the sidelines, zone 6 1 m off the end line. Under a single block, the front player who does
-# not block covers the tip behind it. Through the middle, both outside front players drop off.
-SIDE = [(3.0, -3.5, FRONT), (6.5, -3.5, CORNER), (8.0, 0.0, DEEP), (6.5, 3.5, CORNER)]
-TIP = (3.0, 1.5, FRONT)
-MIDDLE = [(3.0, -3.5, FRONT), (3.0, 3.5, FRONT), (6.5, -3.5, CORNER), (8.0, 0.0, DEEP), (6.5, 3.5, CORNER)]
+# The blockers' feet off the net, a double block's two blockers apart, and how far inside the sidelines they block.
+NET_M, PAIR_M, REACH_M = 0.5, 0.9, 4.0
+# Off the net: the off-blocker on the 3 m line 1 m inside the sideline, away from the attack; under a single block on a
+# side attack, the front player who does not block covers the tip behind it; the corners 1 m inside the sidelines, zone 6
+# 1 m off the end line.
+OFF, TIP = (3.0, 3.5), (3.0, 1.5)
+BACK = [(6.5, -3.5, 5), (8.0, 0.0, 6), (6.5, 3.5, 1)]
 
 
-def spots(across: float, blockers: int) -> list[tuple[float, float, int]]:
-    """The floor defenders' spots for an attack `across` metres toward the defenders' right, under `blockers`."""
-    if abs(across) <= MIDDLE_M:
-        return MIDDLE
-    side = 1 if across > 0 else -1
-    return [(depth, side * x, kind) for depth, x, kind in SIDE + ([TIP] if blockers < 2 else [])]
+def spots(across: float, double: bool) -> list[tuple[float, float, int]]:
+    """The six spots with their positions for an attack `across` metres toward the defenders' right, under a single or
+    a double block in front of it: the front ones 4, 3, 2 from left to right, then 5, 6, 1."""
+    at = float(np.clip(across, -REACH_M, REACH_M))
+    side = 1 if across >= 0 else -1
+    if double:
+        centre = float(np.clip(at, PAIR_M / 2 - REACH_M, REACH_M - PAIR_M / 2))
+        front = [(NET_M, centre - PAIR_M / 2), (NET_M, centre + PAIR_M / 2), (OFF[0], -side * OFF[1])]
+    elif abs(across) <= MIDDLE_M:
+        front = [(NET_M, at), (OFF[0], -OFF[1]), (OFF[0], OFF[1])]
+    else:
+        front = [(NET_M, at), (TIP[0], side * TIP[1]), (OFF[0], -side * OFF[1])]
+    return [(depth, x, position) for (depth, x), position in zip(sorted(front, key=lambda s: s[1]), (4, 3, 2))] + BACK
 
 
-def gaps(across: float, defenders: dict[int, tuple[float, float]]) -> dict[int, tuple[int, float, float]]:
-    """Each floor defender's spot kind and way to it: metres back from the net, metres out toward the spot's sideline
-    (toward the centre for zone 6's). The spots go to the defenders by the least total distance; a defender left over
-    has none."""
-    floor = [(person, place) for person, place in defenders.items() if place[0] > BLOCK_M]
-    targets = spots(across, len(defenders) - len(floor))
-    if not floor:
+@functools.cache
+def orders(n: int, m: int) -> np.ndarray:
+    """Every way to pair n defenders with m spots: row k gives each defender's spot (n <= m), else each spot's defender."""
+    return np.array(list(itertools.permutations(range(max(n, m)), min(n, m))))
+
+
+def assign(across: float, defenders: dict[int, tuple[float, float]]) -> dict[int, tuple[float, float, int]]:
+    """Each defender's spot (`spots`), the block single or double as the players near the net at the hit: the spots go
+    to the defenders by the least total distance; a defender left over has none."""
+    if not defenders:
         return {}
-    places, ends = np.array([place for _, place in floor]), np.array([(depth, x) for depth, x, _ in targets])
+    targets = spots(across, sum(depth <= BLOCK_M for depth, _ in defenders.values()) >= 2)
+    people = list(defenders)
+    places, ends = np.array([defenders[p] for p in people]), np.array([(depth, x) for depth, x, _ in targets])
     far = np.hypot(*(places[:, None] - ends[None]).transpose(2, 0, 1))
     n, m = far.shape
-    # ponytail: every assignment tried, at most 7 defenders for 5 spots (2520); Hungarian if crowds ever come.
+    # ponytail: every pairing tried at once, 20160 for 8 defenders; Hungarian if crowds ever come.
+    ways = orders(n, m)
     if n <= m:
-        pairs = min((list(zip(range(n), p)) for p in itertools.permutations(range(m), n)), key=lambda ps: sum(far[i, j] for i, j in ps))
-    else:
-        pairs = min((list(zip(p, range(m))) for p in itertools.permutations(range(n), m)), key=lambda ps: sum(far[i, j] for i, j in ps))
-    out = {}
-    for i, j in pairs:
-        (depth, x), (to_depth, to_x, kind) = places[i], targets[j]
-        outward = np.sign(to_x) or np.sign(x)
-        out[floor[i][0]] = (kind, float(to_depth - depth), float((to_x - x) * outward))
-    return out
+        best = ways[far[np.arange(n), ways].sum(1).argmin()]
+        return {people[i]: targets[j] for i, j in enumerate(best)}
+    best = ways[far[ways, np.arange(m)].sum(1).argmin()]
+    return {people[i]: targets[j] for j, i in enumerate(best)}

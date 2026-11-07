@@ -976,17 +976,23 @@
     },
     "placement": {
       "title": "Defensive positioning",
-      "caption": "Where to stand in a perimeter defence when the other team hits, compared with usual.",
-      "spots": {
-        "front": "Front, not blocking",
-        "corner": "Position 1 or 5",
-        "deep": "Position 6"
+      "caption": "When the other team hits, position by position.",
+      "pick": "Player",
+      "usual": "Usually",
+      "spot": "Perimeter defence",
+      "position": "Position {{n}}",
+      "roles": {
+        "block": "Blocking",
+        "off": "Not blocking",
+        "tip": "Behind the block"
       },
+      "line": "{{role}}: {{ways}}",
       "back": "{{m}} m further from the net",
       "forward": "{{m}} m closer to the net",
-      "out": "{{m}} m closer to the sideline",
-      "in": "{{m}} m closer to the centre",
-      "playing": "{{player}} in defence"
+      "right": "{{m}} m further right",
+      "left": "{{m}} m further left",
+      "fine": "Well placed",
+      "playing": "{{player}} at position {{n}}"
     }
   },
   "broadcast": {

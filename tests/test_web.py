@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.court import Calibration
-from volleyball_stats import defense, web
+from volleyball_stats import web
 from volleyball_stats.teams import COLOURS
 from volleyball_stats.web import acted, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
@@ -944,7 +944,7 @@ class TestWithLandings:
 
 
 class TestDefended:
-    # Team 1 on the left; team 2's corner 1 m short of its spot, a team 1 player and one of team 2 on the wrong half.
+    # Team 1 on the left; on the right half team 2's player 1 m short of corner 5, and a team 2 player on the wrong half.
     players = {"step": 1, "samples": [[1, 5.5, 3.5, 2, -6.0, 0.0, 3, -2.0, 0.0]]}
     people = {"1": {"team": 2}, "2": {"team": 1}, "3": {"team": 2}}
     rallies = [{"left": 1}, {"left": None}]
@@ -953,14 +953,13 @@ class TestDefended:
     def attack(side: str = "left", rally: int = 0, kind: str = "attack") -> dict:
         return {"type": kind, "side": side, "rally": rally, "t": 0.0, "x": -1.0 if side == "left" else 1.0, "y": 3.0}
 
-    def test_gives_an_attack_the_other_halfs_floor_defenders_way_to_their_spot(self):
-        # On the right half, the defenders' right is the far sideline (y < 0): the attack at y 3 comes on their left,
-        # the corner at y 3.5 is their left corner.
+    def test_gives_an_attack_the_other_halfs_defenders_places_and_spots(self):
+        # On the right half, the defenders' right is the far sideline (y < 0): the corner at y 3.5 is their left one.
         found = web.defended([self.attack()], self.rallies, self.players, 10.0, self.people)
 
-        assert found[0]["defense"] == [1, defense.CORNER, 1.0, 0.0]
+        assert found[0]["defense"] == [1, 5, 5.5, -3.5, 6.5, -3.5]
         # From the right, only team 1 defends the left half: 2 m short of zone 6's spot.
-        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people)[0]["defense"] == [2, defense.DEEP, 2.0, 0.0]
+        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people)[0]["defense"] == [2, 6, 6.0, 0.0, 8.0, 0.0]
 
     def test_leaves_other_touches_and_an_attack_without_teams(self):
         for contact in (self.attack(kind="dig"), self.attack(rally=1)):

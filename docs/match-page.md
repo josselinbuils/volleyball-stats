@@ -86,11 +86,13 @@ the defence placement (the owner's call, 7 Nov).
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
-- "Placement en défense": where each player should stand when the other team hits, against the perimeter defence the
-  owner's team plays (`defense.py`). At each attack, the players over 1.2 m off the net are the floor defenders; the
-  spots, from where the attacker is and how many block, go to them by the least total distance. A player's cue is
-  their median way to their spot (back from the net, toward the sideline) in the kind of spot where it is longest
-  (front not blocking, position 1 or 5, position 6), from 8 attacks and 1 m; it replays the attacks they stood 1 m off.
+- "Placement en défense": a player picked (the viewer's own first), and for each position they defended, laid out as on the
+  court, where they usually stood at the other team's hits (dot) and where the perimeter defence the owner's team plays puts
+  them (ring), with what to change from 1 m (`defense.py`). At each attack, the players within 1.2 m of the net make a
+  single or double block in front of the attacker; the others go to the 3 m line on the side away from it, behind a single
+  block for the tip, or to 5, 6 and 1. The six spots, numbered 4 3 2 from left to right in front, go to the defenders by
+  the least total distance: a position is the spot defended, not the rotation's. A role at a position (blocking, not
+  blocking, behind the block) shows from 5 attacks; a card replays the attacks its player stood 1 m off.
   `benchmarks/defense/bench.py` scores it.
 
 ## Statistics

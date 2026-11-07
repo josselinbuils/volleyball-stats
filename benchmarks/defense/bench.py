@@ -1,6 +1,6 @@
-"""Score the defence placement (`defense.gaps`) on built matches: whether the other team scores more when the floor
-defenders stand further from their perimeter spots, and each player's cue as the page gives it: their usual way to their
-spot, in the kind of spot where it is longest. No labels say where a player should have stood: the attacks they score on are the check.
+"""Score the defence placement (`defense.assign`) on built matches: whether the other team scores more when the
+defenders stand further from their perimeter spots, and the usual ways to the spots by position and role, as the page reads
+them. No labels say where a player should have stood: the attacks they score on are the check.
 
     uv run python benchmarks/defense/bench.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 outputs/matches/2026-11-02-avia-1-vs-aspom-2
 """
@@ -14,10 +14,9 @@ import numpy as np
 
 from volleyball_stats import web
 
-# As the page: a player's usual gap from this many attacks, told from this many metres.
-FROM = 8
+# As the page: a usual place from this many attacks at a position in one role, a way told from this many metres.
+FROM = 5
 OFF_M = 1.0
-KINDS = ("front", "corner", "deep")
 
 
 def built(match: Path) -> tuple[dict, dict]:
@@ -45,33 +44,44 @@ def built(match: Path) -> tuple[dict, dict]:
     return data, {"step": p["step"], "samples": samples}
 
 
+def role(position: int, depth: float) -> str:
+    """As the page's: at the net, off it in front (the tip at 3), or in the back row."""
+    return "block" if depth <= 1 else "tip" if position == 3 else "off" if position in (2, 4) else "back"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("matches", type=Path, nargs="+")
     args = parser.parse_args()
     rows = []
+    by_role: dict[tuple, list] = defaultdict(list)
     for match in args.matches:
         data, players = built(match)
         people = data["people"]
         found = web.defended(data["contacts"], data["rallies"], players, data["fps"], people)
         attacks = [c for c in found if c["type"] == "attack"]
         placed = [c for c in attacks if c.get("defense")]
-        print(f"{match.name}: {len(placed)} of {len(attacks)} attacks with floor defenders, {np.mean([len(c['defense']) / 4 for c in placed]):.1f} each")
+        print(f"{match.name}: {len(placed)} of {len(attacks)} attacks with defenders, {np.mean([len(c['defense']) / 6 for c in placed]):.1f} each")
         by_player = defaultdict(list)
         for c in placed:
-            gaps = np.array(c["defense"]).reshape(-1, 4)
+            spots = np.array(c["defense"]).reshape(-1, 6)
             if c["result"] != "error":
-                rows.append((float(np.hypot(gaps[:, 2], gaps[:, 3]).mean()), c["result"] == "point"))
-            for person, kind, back, out in gaps:
+                rows.append((float(np.hypot(spots[:, 4] - spots[:, 2], spots[:, 5] - spots[:, 3]).mean()), c["result"] == "point"))
+            for person, position, depth, x, to_depth, to_x in spots:
                 p = people[str(int(person))]
-                by_player[(p["team"], p.get("name") or f"#{p['number']}", int(kind))].append((back, out))
-        cues = {}
-        for (team, name, kind), gaps in by_player.items():
-            back, out = np.median(gaps, axis=0)
-            if len(gaps) >= FROM and max(abs(back), abs(out)) >= OFF_M and max(abs(back), abs(out)) > cues.get((team, name), (0, 0, 0, 0, 0))[0]:
-                cues[(team, name)] = (max(abs(back), abs(out)), KINDS[kind], len(gaps), back, out)
-        for (team, name), (_, kind, n, back, out) in sorted(cues.items()):
-            print(f"  team {team} {name:>14}: {kind:>6}, {n:3d} attacks, back {back:+.1f} m, out {out:+.1f} m")
+                key = (int(position), role(int(position), to_depth))
+                by_player[(p["team"], p.get("name") or f"#{p['number']}", *key)].append((to_depth - depth, to_x - x))
+                by_role[(match.name[:10], p["team"], *key)].append((to_depth - depth, to_x - x))
+        told = shown = 0
+        for gaps in by_player.values():
+            if len(gaps) >= FROM:
+                shown += 1
+                told += np.abs(np.median(gaps, axis=0)).max() >= OFF_M
+        print(f"  {shown} player places from {FROM} attacks, {told} of them {OFF_M:g} m or more off")
+    print("\nEach team's usual way to its spots, metres back from the net and to the right:")
+    for (match, team, position, kind), gaps in sorted(by_role.items()):
+        back, right = np.median(gaps, axis=0)
+        print(f"  {match} team {team} position {position} {kind:>5}: {len(gaps):3d}, back {back:+.1f}, right {right:+.1f}")
     gap, point = np.array(rows).T
     edges = np.percentile(gap, [25, 50, 75])
     quarter = np.digitize(gap, edges)

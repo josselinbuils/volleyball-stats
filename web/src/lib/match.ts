@@ -38,8 +38,8 @@ export interface Contact {
   name: string | null;
   /** On a ball landing in after a point, the players' positions then, flat [person, x, y, ...]. */
   around?: number[];
-  /** On an attack, the other team's floor defenders then, flat [person, spot, back, out, ...]: their kind of perimeter
-   * spot (`SPOTS`) and their way to it in metres, back from the net and out toward its sideline (toward the centre for zone 6's). */
+  /** On an attack, the other team's defenders then, flat [person, position, depth, across, spot depth, spot across, ...]:
+   * their place and their perimeter spot, in metres from the net and toward their right. */
   defense?: number[];
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */
