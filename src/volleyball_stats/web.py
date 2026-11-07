@@ -976,7 +976,9 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
         if got is None:
             continue
         c["late"] = got["late"]
-        c["air"] = [round((got["takeoff"] - c["f"]) / fps, 2), round((got["landing"] - c["f"]) / fps, 2)]
+        # The 3D figure jumps around the touch: a flight not holding it (the touch's frame off the hit) keeps the default.
+        if got["takeoff"] < c["f"] < got["landing"]:
+            c["air"] = [round((got["takeoff"] - c["f"]) / fps, 2), round((got["landing"] - c["f"]) / fps, 2)]
         if got.get("start_m") is not None and got["takeoff_m"] is not None:
             c["run"] = round(got["start_m"] - got["takeoff_m"], 2)
         if got["drift_m"] is not None:

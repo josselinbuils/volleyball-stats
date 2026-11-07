@@ -998,6 +998,16 @@ class TestJumped:
         assert {k: found[0][k] for k in ("late", "air", "run", "drift")} == {"late": 40, "air": [-0.3, 0.2], "run": 2.5, "drift": 0.6}
         assert "late" not in found[1] and "late" not in found[2]
 
+    def test_gives_the_3d_no_flight_that_misses_the_touch(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(web.jumps, "read_tracks", lambda path, tracks: {t: np.empty((0, 7)) for t in tracks})
+        monkeypatch.setattr(web.jumps, "pose_all", lambda video, attacks, tracks, fps, cache: {f"{f}:{t}": [] for f, t in attacks})
+        monkeypatch.setattr(web.jumps, "measure", lambda f, *_: {"takeoff": f + 2, "landing": f + 30, "late": -200, "takeoff_m": None, "drift_m": None})
+        found = [{"type": "attack", "f": 100, "person": 0}]
+
+        web.jumped(found, {0: {"team": 1, "number": 7}}, lambda track, frame: (1, 7), {100: [{"track": "3"}]}, tmp_path, tmp_path / "v.mp4", IDENTITY, 50.0)
+
+        assert found[0]["late"] == -200 and "air" not in found[0]
+
 
 class TestKeptPhotos:
     def test_keeps_a_players_picture_unless_its_file_is_gone(self, tmp_path):
