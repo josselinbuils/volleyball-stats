@@ -74,7 +74,8 @@ way after every setting above was chosen, never tuned on (`bench.py --heldout`).
 The 6 players with 4 measured attacks on a teammate's set or more in both matches (`web.match_data`'s contacts, reviewed
 players), their medians from one match to the other: timing against the top correlates 0.93 (median gap 10 ms), the
 carry towards the net 0.93 (0.10 m), the jump height 0.88 (3 cm), the run-up 0.43 (0.68 m). The first three read as a
-player's own habits; the run-up moves from match to match (or with the play), so its tip is the least sure.
+player's own habits; the run-up's length moves from match to match (or with the play), so its tip is the least sure.
+Where the run-up starts holds better (0.71, median gap 0.27 m; the takeoff point 0.44).
 
 ## Blocks (7 Nov, exploration: nothing on the page)
 
