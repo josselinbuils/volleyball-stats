@@ -246,11 +246,15 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     if not path.exists():
         return record(match, video, court, replaced)
     shutil.copy2(path, before / "identity_answers.json")
-    log = rekey.moved(review.load_log(path), rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv"), round(actions.LEAD_S * fps))
+    lead = round(actions.LEAD_S * fps)
+    old, new = rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv")
+    page_before = before / "review-data.js"
+    adopted = rekey.found(rekey.added_rallies(rekey.read_page(page_before), old), old, new, lead) if page_before.exists() else {}
+    log = rekey.moved(review.load_log(path), old, new, lead, adopted)
     review.save(path, log)
     if (match / review.COMMENTS).exists():
         shutil.copy2(match / review.COMMENTS, before / review.COMMENTS)
-        review.write_comments(match, rekey.moved_comments(review.read_comments(match), rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv"), round(actions.LEAD_S * fps)))
+        review.write_comments(match, rekey.moved_comments(review.read_comments(match), old, new, lead, adopted))
     if (before / "review-data.js").exists():
         page, _ = web.match_data(match, video, Calibration.load(court))
         review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page)))

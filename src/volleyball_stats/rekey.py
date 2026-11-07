@@ -34,24 +34,47 @@ def overlaps(before: list[Window], after: list[Window], lead: int) -> dict[int, 
     return out
 
 
-def moved(log: list[dict], before: list[Window], after: list[Window], lead: int) -> list[dict]:
+def added_rallies(page: dict, before: list[Window]) -> dict[int, Window]:
+    """The page's rallies no window of `before` starts (those the review split off or added between
+    two windows): key -> the frames the page showed them on."""
+    starts = {a for a, _ in before}
+    return {r["key"]: (round(r["start"] * page["fps"]), round(r["end"] * page["fps"])) for r in page["rallies"] if r["key"] not in starts}
+
+
+def found(added: dict[int, Window], before: list[Window], after: list[Window], lead: int) -> dict[int, int]:
+    """The rallies of `added` that a new window of `after`, overlapping no window of `before`, covers:
+    key -> that window's start. The pipeline now finds the rally the review had added."""
+    def overlap(x: Window, y: Window) -> bool:
+        return min(x[1], y[1]) - max(x[0], y[0]) + lead > 0
+
+    out = {}
+    for key, extent in added.items():
+        new = next((w for w in after if overlap(extent, w) and not any(overlap(old, w) for old in before)), None)
+        if new is not None:
+            out[key] = new[0]
+    return out
+
+
+def moved(log: list[dict], before: list[Window], after: list[Window], lead: int, adopted: dict[int, int] | None = None) -> list[dict]:
     """The answers' `log` with their rally starts moved from `before`'s windows to `after`'s; a join
     between two old windows now in one goes. What the answers say of a whole rally (no play, its
     winner, its end) moves only onto a window that is mostly that rally: a false window joined to
-    the rally before it is no reason to drop that rally."""
+    the rally before it is no reason to drop that rally. A rally the review added that the pipeline
+    now finds (`adopted`, from `found`) moves whole onto its window, and the split that made it goes."""
+    adopted = adopted or {}
     to = overlaps(before, after, lead)
-    starts = {s: after[to[k]][0] for k, (s, _) in enumerate(before) if k in to}
+    starts = {s: after[to[k]][0] for k, (s, _) in enumerate(before) if k in to} | adopted
 
     def mostly(k: int) -> bool:
         (a, b), (c, d) = before[k], after[to[k]]
         return 2 * (min(b, d) - max(a, c) + lead) >= d - c + lead
 
-    whole = {s: after[to[k]][0] for k, (s, _) in enumerate(before) if k in to and mostly(k)}
+    whole = {s: after[to[k]][0] for k, (s, _) in enumerate(before) if k in to and mostly(k)} | adopted
     index = {s: k for k, (s, _) in enumerate(before)}
 
     def key(start: int, moves: dict[int, int] = starts) -> int:
         # The review saved its rally questions' answers `lead` frames after the window's start until 1 Nov.
-        if start not in index and start - lead in index:
+        if start not in index and start not in adopted and start - lead in index:
             start -= lead
         return moves.get(start, start)
 
@@ -73,6 +96,8 @@ def moved(log: list[dict], before: list[Window], after: list[Window], lead: int)
         for kind in ("checked", "unchecked"):
             if kind in e:
                 e[kind] = sorted({key(s) for s in e[kind]})
+        if "split" in e:
+            e["split"] = [a for a in e["split"] if a["frame"] not in adopted]
         return e
 
     return [entry(e) for e in log]
@@ -111,15 +136,17 @@ def with_reports(log: list[dict], keys: dict[str, str]) -> list[dict]:
     return [{**e, "id": renamed(e["id"])} for e in log]
 
 
-def moved_comments(comments: dict[int, str], before: list[Window], after: list[Window], lead: int) -> dict[int, str]:
+def moved_comments(comments: dict[int, str], before: list[Window], after: list[Window], lead: int, adopted: dict[int, int] | None = None) -> dict[int, str]:
     """The review's `comments` (by rally key) moved from `before`'s windows to `after`'s: two landing
-    on one window are joined; one on no window of `before` (a rally the review started) stays."""
+    on one window are joined; one on no window of `before` (a rally the review started) stays, but
+    on its window when the pipeline now finds it (`adopted`)."""
+    adopted = adopted or {}
     to = overlaps(before, after, lead)
     index = {s: k for k, (s, _) in enumerate(before)}
     out: dict[int, str] = {}
     for key, text in sorted(comments.items()):
         k = index.get(key)
-        new = after[to[k]][0] if k in to else key
+        new = after[to[k]][0] if k in to else adopted.get(key, key)
         out[new] = f"{out[new]}\n{text}" if new in out else text
     return out
 
@@ -140,10 +167,13 @@ def main() -> None:
     args = parser.parse_args()
     path = args.match / "identity_answers.json"
     shutil.copy2(path, args.match / "identity_answers.before-rekey.json")
-    fps = read_page(args.page_before)["fps"]
-    log = moved(review.load_log(path), read_windows(args.before), read_windows(args.match / "rallies.csv"), round(web.LEAD_S * fps))
+    page_before = read_page(args.page_before)
+    lead = round(web.LEAD_S * page_before["fps"])
+    before, after = read_windows(args.before), read_windows(args.match / "rallies.csv")
+    adopted = found(added_rallies(page_before, before), before, after, lead)
+    log = moved(review.load_log(path), before, after, lead, adopted)
     review.save(path, log)
-    review.write_comments(args.match, moved_comments(review.read_comments(args.match), read_windows(args.before), read_windows(args.match / "rallies.csv"), round(web.LEAD_S * fps)))
+    review.write_comments(args.match, moved_comments(review.read_comments(args.match), before, after, lead, adopted))
     page, _ = web.match_data(args.match, args.video, Calibration.load(args.court))
     keys = renamed_reports(read_page(args.page_before), page)
     review.save(path, with_reports(log, keys))

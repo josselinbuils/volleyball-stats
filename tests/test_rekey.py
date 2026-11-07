@@ -1,5 +1,5 @@
 from volleyball_stats import review
-from volleyball_stats.rekey import moved, moved_comments, overlaps, renamed_reports, with_reports
+from volleyball_stats.rekey import added_rallies, found, moved, moved_comments, overlaps, renamed_reports, with_reports
 
 
 class TestOverlaps:
@@ -48,6 +48,27 @@ class TestMoved:
         log = [{"id": "x", "join": [{"start": 100}]}]
         assert moved(log, [(100, 200), (220, 300)], [(100, 300)], 10)[0]["join"] == []
         assert moved(log, [(100, 200), (220, 300)], [(100, 200), (220, 300)], 10)[0]["join"] == [{"start": 100}]
+
+
+class TestFound:
+    def test_a_rally_the_review_added_now_found_moves_whole_and_its_split_goes(self):
+        # The review split off 300 between the windows 100-200 and 500-600; its serve is at 250, its end 280.
+        page = {"fps": 10, "rallies": [{"key": 100, "start": 10.0, "end": 20.0}, {"key": 300, "start": 25.0, "end": 28.0}, {"key": 500, "start": 50.0, "end": 60.0}]}
+        before, after = [(100, 200), (500, 600)], [(100, 200), (245, 275), (500, 600)]
+        added = added_rallies(page, before)
+        assert added == {300: (250, 280)}
+        adopted = found(added, before, after, 10)
+        assert adopted == {300: 245}
+        log = [{"id": "x", "split": [{"frame": 300}, {"frame": 550}], "end": [{"start": 300, "end": 280}], "pinned": [{"start": 300, "winner": 2}], "checked": [300]}]
+        out = moved(log, before, after, 10, adopted)[0]
+        assert out["split"] == [{"frame": 550}]
+        assert out["end"] == [{"start": 245, "end": 280}]
+        assert out["pinned"] == [{"start": 245, "winner": 2}]
+        assert out["checked"] == [245]
+        assert moved_comments({300: "a"}, before, after, 10, adopted) == {245: "a"}
+
+    def test_a_new_window_over_an_old_one_adopts_nothing(self):
+        assert found({300: (250, 280)}, [(100, 260)], [(100, 290)], 10) == {}
 
 
 class TestReports:
