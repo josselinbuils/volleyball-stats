@@ -9,7 +9,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -705,6 +705,15 @@ class TestChecked:
         assert not reviewed(page, [{"id": "edit:1", "checked": [100]}])
         assert reviewed(page, [{"id": "edit:1", "checked": [100, 200, 300]}])
         assert not reviewed(None, [])
+
+    def test_on_a_reviewed_match_only_a_piece_or_a_merge_that_may_mend_a_trained_touch_is_asked(self):
+        # Player 2:5 touched at 100 with no track of theirs there, 2:9 being; 2:7 is twice at 300.
+        lost, double = {100: ((2, 5), {(2, 9), (1, 3)})}, {300: (2, 7)}
+        assert teaches(lost, double, 2, 50, 150, 5, 9)
+        assert not teaches(lost, double, 2, 50, 150, 6, 9)
+        assert not teaches(lost, double, 2, 150, 250, 5, 9)
+        assert teaches(lost, double, 2, 250, 350, 8, 7)
+        assert joins(lost, 2, 9, 5) and not joins(lost, 2, 9, 6)
 
 
 class TestUndo:

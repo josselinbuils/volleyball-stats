@@ -111,6 +111,8 @@ export function Review({
   const [pending, setPending] = useState({ answers: waiting, changed, names: renamed });
   const [corrections, setCorrections] = useState(savedCorrections);
   const [checked, setChecked] = useState(savedChecked);
+  // Every rally checked: only the questions that teach the next matches are left.
+  const reviewed = matchFinished(keys, checked, 0);
   const [comments, setComments] = useState(savedComments);
   const [picks, setPicks] = useState(() => new Set(savedPicks));
   const [timeouts, setTimeouts] = useState(savedTimeouts);
@@ -410,7 +412,7 @@ export function Review({
           filmsError={filmsError}
           films={films}
           pending={pending}
-          reviewed={matchFinished(keys, checked, 0)}
+          reviewed={reviewed}
           busy={busy}
           run={(action, body) => void reload(action, body)}
           onFailed={() => setError(true)}
@@ -439,7 +441,9 @@ export function Review({
         {players.length > 0 && (
           <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchFinished(keys, checked, reports.length)} />
         )}
-        <p className="px-1 text-muted-foreground">{t({ names: 'review.namesIntro', questions: 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}</p>
+        <p className="px-1 text-muted-foreground">
+          {t({ names: 'review.namesIntro', questions: reviewed ? 'review.introReviewed' : 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}
+        </p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">

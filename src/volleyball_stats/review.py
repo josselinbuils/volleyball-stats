@@ -132,6 +132,7 @@ class Questions:
 
     def load(self) -> None:
         self.table = identity.read_identities(self.match / "identities.csv")
+        self.lost, self.double = untaught(self.match, self.table)
         self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
         self.read = card_numbers(self.table, jerseys.load(self.match, rare=True), self.picture_counts())
@@ -518,13 +519,19 @@ class Questions:
         None that a rally checked answers: who made a touch it shows a named player for, whether it is a rally;
         nor who made a touch already answered elsewhere (the match tab, a rally checked)."""
         out, refs = [], {}
-        checked_keys = set(checked(load_log(self.match / "identity_answers.json")))
+        log = load_log(self.match / "identity_answers.json")
+        checked_keys = set(checked(log))
+        # A match whose every rally is checked asks only what teaches the next ones: who made a touch,
+        # a piece or two players whose answer may change a touch the learned attribution trains on.
+        done = reviewed(self.page, log)
         validated = [self.window_of[k] for k in checked_keys if k in self.window_of]
         said = {a["frame"] for a in web.answers(self.match, "touch")}
         for c in self.candidates["segments"]:
             qid = f"piece:{c['track']}:{c['start_frame']}"
             options = [n for n in (c["identity"], c["runner_up"]) if n]
             if qid in asked or not options or c["track"] not in self.rows or c["impact"] < MIN_IMPACT:
+                continue
+            if done and not teaches(self.lost, self.double, c["team"], c["start_frame"], c["end_frame"], c["runner_up"], c["identity"]):
                 continue
             track, start, end = c["track"], c["start_frame"], c["end_frame"]
             cuts = [start + (end - start) * k // PIECE_CROPS for k in range(PIECE_CROPS + 1)]
@@ -539,7 +546,7 @@ class Questions:
         for c in self.candidates["merges"]:
             team, (a, b) = c["team"], c["identities"]
             qid = f"merge:{team}:{a}:{b}"
-            if qid in asked or c["impact"] < MIN_IMPACT:
+            if qid in asked or c["impact"] < MIN_IMPACT or (done and not joins(self.lost, team, a, b)):
                 continue
             examples = [self.clip(e["track"], e["start_frame"], e["end_frame"]) for e in c["examples"]]
             out.append({
@@ -582,7 +589,7 @@ class Questions:
             frame = int(serve["frame"])
             team = int(landing["team"]) if landing and landing.get("team") else 3 - int(serve["team"])
             qid = f"receiver:{frame}"
-            if qid in asked:
+            if qid in asked or done:
                 continue
             at = int(landing["frame"]) if landing else frame + round(ACE_FLIGHT_S * self.fps)
             missed.append({
@@ -594,7 +601,7 @@ class Questions:
         found = []
         for (start, end), number, key in self.empty:
             qid = f"rally:{start}"
-            if qid in asked or key in checked_keys:
+            if qid in asked or key in checked_keys or done:
                 continue
             found.append({
                 "id": qid, "kind": "rally", "team": 1, "identity": None, "impact": 0, "seconds": round((end - start) / self.fps, 1), "contacts": 0,
@@ -1630,6 +1637,40 @@ def checked(log: list[dict]) -> list[int]:
     for e in log:
         out = (out | set(e.get("checked", []))) - set(e.get("unchecked", []))
     return sorted(out)
+
+
+def untaught(match: Path, table: list) -> tuple[dict[int, tuple[tuple[int, int], set[tuple[int, int]]]], dict[int, tuple[int, int]]]:
+    """The answered touches the learned attribution trains on (ranker.py: the toucher by name, else
+    identity) that the identities spoil, by frame: those no track of the toucher is at, with who is
+    there, and those two are at, with the toucher."""
+    given = identity.named(table, identity.read_names(match))
+    by_name = {(team, g["name"]): n for (team, n), g in given.items() if g.get("name")}
+    rows = np.array([r[1:5] for r in table], dtype=np.int64).reshape(-1, 4)
+    lost, double = {}, {}
+    for a in {a["frame"]: a for a in web.answers(match, "touch")}.values():
+        if a["identity"] is None:
+            continue
+        f, who = a["frame"], (a["team"], by_name.get((a["team"], a.get("name")), a["identity"]))
+        here = rows[(rows[:, 0] <= f) & (f <= rows[:, 1])]
+        there = {(int(t), int(n)) for t, n in here[:, 2:]}
+        count = int(((here[:, 2] == who[0]) & (here[:, 3] == who[1])).sum())
+        if not count:
+            lost[f] = (who, there)
+        elif count > 1:
+            double[f] = who
+    return lost, double
+
+
+def teaches(lost: dict, double: dict, team: int, start: int, end: int, gains: int | None, loses: int | None) -> bool:
+    """Whether a piece of `team` from `start` to `end` going to identity `gains` (from `loses`) may
+    mend a touch `untaught` found: one whose toucher is `gains` and no track, or `loses` and two."""
+    return any(start <= f <= end and who == (team, gains) for f, (who, _) in lost.items()) or any(start <= f <= end and who == (team, loses) for f, who in double.items())
+
+
+def joins(lost: dict, team: int, a: int, b: int) -> bool:
+    """Whether identities `a` and `b` of `team` said one player may mend a touch `untaught` found:
+    one's touch with no track of theirs where the other is."""
+    return any(who == (team, x) and (team, y) in there for who, there in lost.values() for x, y in ((a, b), (b, a)))
 
 
 def reviewed(page: dict | None, log: list[dict]) -> bool:
