@@ -165,9 +165,9 @@ def lift(y: np.ndarray, metres_px: float) -> np.ndarray:
     return out
 
 
-def flight(y: np.ndarray, up: np.ndarray, contact: int, fps: float) -> tuple[int, int] | None:
+def flight(y: np.ndarray, up: np.ndarray, contact: int, fps: float) -> tuple[int, int, int] | None:
     """The jump around index `contact`: its first airborne index and the first back on the floor, from the ankle's
-    path `y` and its `lift`; None without one, or when it runs off the frames seen. The flight is where the ankle
+    path `y` and its `lift`, and the ankle's highest; None without one, or when it runs off the frames seen. The flight is where the ankle
     stands over FLOOR_M; its edges then move to where the ankle's fastest rise and fall start and end (under STOP of
     their speed): past landing, a player moving away from the camera lifts the envelope's floor."""
     over = np.nan_to_num(up, nan=-1.0)
@@ -198,7 +198,7 @@ def flight(y: np.ndarray, up: np.ndarray, contact: int, fps: float) -> tuple[int
         while k + 1 < len(speed) and speed[k] > STOP * speed[fall]:
             k += 1
         after = k
-    return first, after
+    return first, after, top
 
 
 def run_up(rows: Rows, takeoff: int, fps: float) -> int | None:
@@ -245,9 +245,12 @@ def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, f
     jump = flight(y, lift(y, float(np.linalg.norm(head - foot))), frame - frames[0], fps)
     if jump is None:
         return None
-    first, after = jump
+    first, after, top = jump
     first, after = first + round(HEEL_UP_S * fps), after - round(HEEL_DOWN_S * fps)
     if not SHORTEST_S <= (after - first) / fps <= LONGEST_S:
+        # A foot hidden at one end: that end mirrors the other about the ankle's highest.
+        first, after = (first, 2 * top - first) if top - first < after - top else (2 * top - after, after)
+    if not SHORTEST_S <= (after - first) / fps <= LONGEST_S or first < 1 or after >= len(frames):
         return None
     takeoff, landing = frames[first], frames[after]
     near = np.abs(track[:, 4])

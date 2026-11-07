@@ -83,3 +83,16 @@ class TestJumps:
         # Too far from the contact, or no ball seen: the contact stays.
         assert hit(100, keypoints, {f: (500.0, 300.0) for f in (80, 120)}, self.FPS) == 100
         assert hit(100, keypoints, {}, self.FPS) == 100
+
+    def test_mirrors_an_end_a_hidden_foot_runs_off(self, monkeypatch):
+        monkeypatch.setattr(jumps, "HEEL_UP_S", 0.0)
+        monkeypatch.setattr(jumps, "HEEL_DOWN_S", 0.0)
+        rows, keypoints, calibration = self.attack()
+        frames = list(window(self.CONTACT, self.FPS))
+        # After landing, another player's foot stands in for the ankle, as high as at the flight's top, for 0.4 s.
+        high = keypoints[frames.index(85)][15]
+        for f in range(self.LANDING, self.LANDING + 20):
+            keypoints[frames.index(f)] = [p if i not in (15, 16) else high for i, p in enumerate(keypoints[frames.index(f)])]
+        got = measure(self.CONTACT, rows, keypoints, calibration, self.FPS)
+        assert got is not None
+        assert abs(got["takeoff"] - self.TAKEOFF) <= 1 and abs(got["landing"] - self.LANDING) <= 2
