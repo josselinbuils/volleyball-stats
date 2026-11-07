@@ -992,6 +992,22 @@
       "usual": "Usually",
       "spot": "Ideal spot",
       "position": "Position {{n}}",
+      "sides": {
+        "left": "Attack on the left",
+        "middle": "Attack in the middle",
+        "right": "Attack on the right"
+      },
+      "roles": {
+        "block": "Blocking",
+        "off": "Not blocking",
+        "tip": "Behind the block"
+      },
+      "line": "{{role}}: {{ways}}",
+      "back": "{{m}} m further from the net",
+      "forward": "{{m}} m closer to the net",
+      "right": "{{m}} m further right",
+      "left": "{{m}} m further left",
+      "fine": "Well placed",
       "playing": "{{player}} at position {{n}}"
     }
   },

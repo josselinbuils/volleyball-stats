@@ -992,6 +992,22 @@
       "usual": "D'habitude",
       "spot": "Place idéale",
       "position": "Poste {{n}}",
+      "sides": {
+        "left": "Attaque à gauche",
+        "middle": "Attaque au centre",
+        "right": "Attaque à droite"
+      },
+      "roles": {
+        "block": "Au contre",
+        "off": "Sans contrer",
+        "tip": "Derrière le contre"
+      },
+      "line": "{{role}} : {{ways}}",
+      "back": "{{m}} m plus loin du filet",
+      "forward": "{{m}} m plus près du filet",
+      "right": "{{m}} m plus à droite",
+      "left": "{{m}} m plus à gauche",
+      "fine": "Bien placé",
       "playing": "{{player}} au poste {{n}}"
     }
   },

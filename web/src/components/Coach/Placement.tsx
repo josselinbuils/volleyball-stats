@@ -7,9 +7,10 @@ import { match, playerLabel, teamColor, teamEdge, type Contact, type Group } fro
 import { remembered } from '@/lib/me';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
-import { useFormat } from '@/lib/format';
+import { useFormat, type Format } from '@/lib/format';
+import type { TFunction } from 'i18next';
 import { Section } from '@/components/Coach/Section';
-import { defenders, OFF_M, type Situation } from '@/components/Coach/helpers/defense';
+import { defenders, OFF_M, type Place, type Situation } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
 const RING = 0.5;
@@ -92,9 +93,27 @@ function Glyph({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** After a role and a colon, the advice starts lowercase. */
+const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+
+/** What to do at a place, to the half metre: the places are not finer. */
+function ways(t: TFunction, { num, dec }: Format, { usual, spot }: Place): string {
+  const metres = (x: number) => {
+    const m = Math.round(Math.abs(x) * 2) / 2;
+    return Number.isInteger(m) ? num(m) : dec(m);
+  };
+  const [back, right] = [spot[0] - usual[0], spot[1] - usual[1]];
+  const out = [
+    ...(Math.abs(back) >= OFF_M ? [t(back > 0 ? 'coach.placement.back' : 'coach.placement.forward', { m: metres(back) })] : []),
+    ...(Math.abs(right) >= OFF_M ? [t(right > 0 ? 'coach.placement.right' : 'coach.placement.left', { m: metres(right) })] : []),
+  ];
+  return out.length ? out.join(', ') : t('coach.placement.fine');
+}
+
 /** A position's court against one side, replaying the attacks its player stood OFF_M or more off their spot. */
 function Card({ situation, position, person, g }: { situation: Situation; position: number; person: number; g: Group }) {
   const { t } = useTranslation();
+  const format = useFormat();
   const { play } = usePlayer();
   const body = (
     <>
@@ -102,7 +121,13 @@ function Card({ situation, position, person, g }: { situation: Situation; positi
         <b className="font-semibold">{t('coach.placement.position', { n: position })}</b>
         {situation.off.length > 0 && <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
       </span>
+      <span className="text-[13px] text-muted-foreground">{t(`coach.placement.sides.${situation.side}`)}</span>
       <HalfCourt situation={situation} g={g} />
+      <span className="grid gap-0.5 text-[13px]">
+        {situation.places.map((p) => (
+          <span key={p.role}>{p.role === 'back' ? ways(t, format, p) : t('coach.placement.line', { role: t(`coach.placement.roles.${p.role}`), ways: lower(ways(t, format, p)) })}</span>
+        ))}
+      </span>
     </>
   );
   const box = 'flex h-full w-full flex-col gap-1.5 rounded-lg border bg-card px-2.5 py-2 text-left';
@@ -132,17 +157,11 @@ function Card({ situation, position, person, g }: { situation: Situation; positi
 
 /** One half seen from behind its end line, the net at the top and the other team's 3 m beyond it: the attacker where
  * they usually hit from, each attack's ball to where it went, each place's spot ringed, the usual place a dot, an arrow
- * from it to the spot with its length from OFF_M. One unit is a metre: x toward the defenders' right, y away from the net. */
+ * from it to the spot. One unit is a metre: x toward the defenders' right, y away from the net. */
 function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
-  const { num, dec } = useFormat();
   const flights = situation.attacks.map((c) => c.flight as number[]);
   const them = (3 - g) as Group;
   const [hitDepth, hitAcross] = [median(flights.map((f) => f[0])), median(flights.map((f) => f[1]))];
-  // To the half metre: the places are not finer.
-  const metres = (x: number) => {
-    const m = Math.round(x * 2) / 2;
-    return `${Number.isInteger(m) ? num(m) : dec(m)} m`;
-  };
   return (
     <svg aria-hidden viewBox="-5 -3.6 10 13.1" className="block h-auto w-full">
       <rect x={-4.5} y={-3} width={9} height={3} className="fill-court opacity-50" />
@@ -164,8 +183,6 @@ function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
         const far = Math.hypot(sx - ux, sy - uy);
         const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
         const [tx, ty] = [sx - dx * RING, sy - dy * RING];
-        // The length behind the dot, away from the arrow, inside the court.
-        const [lx, ly] = [Math.min(3.3, Math.max(-3.3, ux - dx * (DOT + 0.9))), Math.min(8.4, Math.max(0.9, uy - dy * (DOT + 0.6)))];
         return (
           <g key={role}>
             <circle cx={sx} cy={sy} r={RING} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
@@ -176,11 +193,6 @@ function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
               </>
             )}
             <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            {far >= OFF_M && (
-              <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central" fontSize={0.8} fontWeight={600} className="halo fill-foreground">
-                {metres(far)}
-              </text>
-            )}
           </g>
         );
       })}
