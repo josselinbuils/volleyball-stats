@@ -80,11 +80,18 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 
 ## Le coin du coach
 
-Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number.
+Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number, but in
+the defence placement (the owner's call, 7 Nov).
 
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
-- who sets whom: each setter from 5 sets and who attacks right after, the winners in green.
+- who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
+- "Placement en défense": where each player should stand when the other team hits, against the perimeter defence the
+  owner's team plays (`defense.py`). At each attack, the players over 1.2 m off the net are the floor defenders; the
+  spots, from where the attacker is and how many block, go to them by the least total distance. A player's cue is
+  their median way to their spot (back from the net, toward the sideline) in the kind of spot where it is longest
+  (front not blocking, position 1 or 5, position 6), from 8 attacks and 1 m; it replays the attacks they stood 1 m off.
+  `benchmarks/defense/bench.py` scores it.
 
 ## Statistics
 

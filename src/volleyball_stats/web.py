@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, files, framing
+from volleyball_stats import decode, defense, files, framing
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -951,6 +951,26 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
     return out
 
 
+def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
+    """`contacts` with, on each attack, the other half's floor defenders' way to their perimeter spot then (`defense.gaps`)
+    in `defense`, flat [person, kind, back, out, ...]. The players held as in `with_landings`."""
+    back = round(HOLD_S * fps / players["step"])
+    out = []
+    for c in contacts:
+        left = rallies[c["rally"]]["left"]
+        if c["type"] != "attack" or c.get("x") is None or c.get("y") is None or not left:
+            out.append(c)
+            continue
+        # The defenders face the net from the other half: on the right half their right is the far sideline.
+        sign = 1 if c["side"] == "left" else -1
+        team = 3 - left if sign > 0 else left
+        seen = places_at(players, c["t"], fps, back)
+        here = {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
+        found = defense.gaps(-sign * c["y"], here)
+        out.append({**c, "defense": [v for person, (kind, to_back, to_out) in found.items() for v in (person, kind, round(to_back, 1), round(to_out, 1))]} if found else c)
+    return out
+
+
 def linked(source: Path, target: Path) -> None:
     """`target` the same file as `source`, taking no room (a hard link), else a copy keeping its date."""
     target.unlink(missing_ok=True)
@@ -1069,13 +1089,16 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
     shutil.rmtree(site / "positions", ignore_errors=True)
-    positions = position_files({**players, "samples": natural_motion(players["samples"], players["step"] / data["fps"], {int(person): q["team"] for person, q in (data.get("people") or {}).items()})}, data["fps"]) if players else []
+    moving = players and {**players, "samples": natural_motion(players["samples"], players["step"] / data["fps"], {int(person): q["team"] for person, q in (data.get("people") or {}).items()})}
+    positions = position_files(moving, data["fps"]) if moving else []
     if positions:
         (site / "positions").mkdir()
         for n, content in enumerate(positions):
             (site / "positions" / f"{n}.js").write_text(content)
         data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions), "cm": POSITION_CM}
         data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
+        if data.get("teams"):
+            data["contacts"] = defended(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
     if ball_js:

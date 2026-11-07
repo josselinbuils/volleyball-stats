@@ -21,7 +21,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - No new Python dependency without asking (no scipy: numpy and what is installed).
 - The review server binds 127.0.0.1 only. `outputs/` (gitignored) holds names of real people
   (`player_names.json`, `roster.json`): never commit it.
-- "Le coin du coach" advises the team: it never names a player for a fault or a weak number (the owner's rule).
+- "Le coin du coach" advises the team: it never names a player for a fault or a weak number (the owner's rule), but in
+  "Placement en défense" (the owner's call, for now).
 - Benchmark-driven: change a step, run its benchmark, report the numbers before and after.
 - A review question about who touched the ball always offers every player of both teams: the
   touch's team is often wrong. The answer takes the picked player's team.

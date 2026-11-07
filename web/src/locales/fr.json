@@ -973,6 +973,20 @@
       "attacks_other": "{{count}} attaques",
       "kills_one": "{{count}} gagnante",
       "kills_other": "{{count}} gagnantes"
+    },
+    "placement": {
+      "title": "Placement en défense",
+      "caption": "À la frappe adverse, où se placer en défense périmètre par rapport à d'habitude.",
+      "spots": {
+        "front": "Devant, sans contrer",
+        "corner": "Poste 1 ou 5",
+        "deep": "Poste 6"
+      },
+      "back": "{{m}} m plus loin du filet",
+      "forward": "{{m}} m plus près du filet",
+      "out": "{{m}} m plus près de la ligne de côté",
+      "in": "{{m}} m plus au centre",
+      "playing": "{{player}} en défense"
     }
   },
   "broadcast": {

@@ -973,6 +973,20 @@
       "attacks_other": "{{count}} attacks",
       "kills_one": "{{count}} winner",
       "kills_other": "{{count}} winners"
+    },
+    "placement": {
+      "title": "Defensive positioning",
+      "caption": "Where to stand in a perimeter defence when the other team hits, compared with usual.",
+      "spots": {
+        "front": "Front, not blocking",
+        "corner": "Position 1 or 5",
+        "deep": "Position 6"
+      },
+      "back": "{{m}} m further from the net",
+      "forward": "{{m}} m closer to the net",
+      "out": "{{m}} m closer to the sideline",
+      "in": "{{m}} m closer to the centre",
+      "playing": "{{player}} in defence"
     }
   },
   "broadcast": {
