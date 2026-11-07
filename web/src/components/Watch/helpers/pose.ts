@@ -346,6 +346,14 @@ export function bodyOf(c: Contact, place: Point3 | null, dots: Dot[], people: Re
   return place && team[0] && distance(team[0]) <= NEAREST_M ? team[0] : named;
 }
 
+/** How high a jump `peak` high stands `t` from its touch: a parabola in the air from `air[0]` to `air[1]`, its takeoff and
+ * landing when measured, else `half` either side of the touch. */
+function jumpAt(t: number, peak: number, half: number, air?: [number, number]): number {
+  const [from, to] = air ?? [-half, half];
+  const u = (t - from) / (to - from);
+  return u > 0 && u < 1 ? peak * 4 * u * (1 - u) : 0;
+}
+
 /** The pose of each of `dots` at `time`, a rally shown or none: its touch going on, else its rest. `before` and `after` are
  * the players' places SPEED_S either side, for their speed. */
 export function posesAt(rally: Rally | undefined, time: number, dots: Dot[], before: Dot[], after: Dot[], places: Places, people: Record<string, Person>): Map<number, Pose> {
@@ -386,7 +394,7 @@ export function posesAt(rally: Rally | undefined, time: number, dots: Dot[], bef
     const lunge = moved * smooth(-0.35, -0.05, t) * (1 - smooth(0.1, 0.5, t));
     const toward = aimed && away > 0 ? { x: (((place as Point3).x - body.x) / away) * lunge, y: (((place as Point3).y - body.y) / away) * lunge } : { x: 0, y: 0 };
     out.set(body.person, {
-      jump: shape && Math.abs(t) < shape.half ? peak * (1 - (t / shape.half) ** 2) : 0,
+      jump: shape ? jumpAt(t, peak, shape.half, c.air) : 0,
       crouch: mix(rest.crouch, pose.crouch, ease),
       lean: mix(rest.lean, pose.lean, ease),
       stride: rest.stride * (1 - ease),

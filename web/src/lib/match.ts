@@ -57,6 +57,8 @@ export interface Contact {
   late?: number;
   run?: number;
   drift?: number;
+  /** On an attack with its jump measured, its takeoff and landing, in seconds from the touch. */
+  air?: [number, number];
 }
 
 /** From this time, the part of the picture to show: [time, x, y, width], its height the same fraction of the picture. */

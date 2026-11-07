@@ -955,8 +955,9 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 
 def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: dict[int, list[dict]], match: Path, video: Path, calibration: Calibration, fps: float) -> None:
     """Writes on each attack its player's jump where `jumps.measure` finds one: `late`, the ms from the flight's top to
-    the hit, `run` the run-up and `drift` how far the jump carried towards the net, in metres. The attacker's
-    track is the one showing their identity at the contact; the poses stay in jumps.json."""
+    the hit, `air` its takeoff and landing in seconds from the touch, `run` the run-up and `drift` how far the jump
+    carried towards the net, in metres. The attacker's track is the one showing their identity at the contact; the
+    poses stay in jumps.json."""
     attacks = []
     for c in found:
         person = table.get(c["person"]) if c["type"] == "attack" and c["person"] is not None else None
@@ -975,6 +976,7 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
         if got is None:
             continue
         c["late"] = got["late"]
+        c["air"] = [round((got["takeoff"] - c["f"]) / fps, 2), round((got["landing"] - c["f"]) / fps, 2)]
         if got.get("start_m") is not None and got["takeoff_m"] is not None:
             c["run"] = round(got["start_m"] - got["takeoff_m"], 2)
         if got["drift_m"] is not None:

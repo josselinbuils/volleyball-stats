@@ -985,7 +985,7 @@ class TestJumped:
         measured = []
         monkeypatch.setattr(web.jumps, "read_tracks", lambda path, tracks: {t: np.empty((0, 7)) for t in tracks})
         monkeypatch.setattr(web.jumps, "pose_all", lambda video, attacks, tracks, fps, cache: {f"{f}:{t}": [] for f, t in attacks})
-        monkeypatch.setattr(web.jumps, "measure", lambda f, *_: measured.append(f) or {"late": 40, "takeoff_m": 1.5, "start_m": 4.0, "drift_m": 0.6})
+        monkeypatch.setattr(web.jumps, "measure", lambda f, *_: measured.append(f) or {"takeoff": f - 15, "landing": f + 10, "late": 40, "takeoff_m": 1.5, "start_m": 4.0, "drift_m": 0.6})
         found = [
             {"type": "attack", "f": 100, "person": 0},
             {"type": "attack", "f": 200, "person": 1},
@@ -995,7 +995,7 @@ class TestJumped:
         web.jumped(found, table, lambda track, frame: (1, 7) if track == 3 else None, by_frame, tmp_path, tmp_path / "v.mp4", IDENTITY, 50.0)
 
         assert measured == [100]
-        assert {k: found[0][k] for k in ("late", "run", "drift")} == {"late": 40, "run": 2.5, "drift": 0.6}
+        assert {k: found[0][k] for k in ("late", "air", "run", "drift")} == {"late": 40, "air": [-0.3, 0.2], "run": 2.5, "drift": 0.6}
         assert "late" not in found[1] and "late" not in found[2]
 
 

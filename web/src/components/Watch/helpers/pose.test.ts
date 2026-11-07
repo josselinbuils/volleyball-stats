@@ -75,6 +75,15 @@ describe('pose', () => {
       expect(pose(rally([touch(5, 'attack')]), 5.5, [at(1)], places).jump).toBe(0);
     });
 
+    it('leaves and finds the floor when the player did, where the jump was measured', () => {
+      const places = new Map([[50, { x: -2, y: 0, h: 3 }]]);
+      const measured = (time: number) => pose(rally([touch(5, 'attack', 1, { air: [-0.4, 0.2] })]), time, [at(1)], places).jump;
+      const peak = pose(rally([touch(5, 'attack')]), 5, [at(1)], places).jump;
+      expect(measured(4.55)).toBe(0);
+      expect(measured(4.9)).toBeCloseTo(peak);
+      expect(measured(5.25)).toBe(0);
+    });
+
     it('raises the arms by action: over the head on a block, forward on a reception', () => {
       expect(pose(rally([touch(5, 'block')]), 5).arms[0].pitch).toBeGreaterThan(2.5);
       expect(pose(rally([touch(5, 'pass')]), 5).arms[0].pitch).toBeLessThan(1.6);
