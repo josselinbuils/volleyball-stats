@@ -363,3 +363,18 @@ Ends, tried on the labelled spans and dropped:
 What is left on 50:00-60:00 is the ball out of sight (-3.0, -2.3, -9.9 s), another court's whistle (-4.1 s) and a rally
 joined to its dead-ball tail (+10 s, a tail with a net crossing, closed by the next serve's go): ends need a signal other
 than the ball's, the players' moves, say.
+
+### 7 Nov: the players and the sound, dropped
+
+The ball cannot tell play going on out of sight (-9.9 s: unseen 4 s, then 6 contacts) from a dead ball handed back
+(+10 s: unseen 3 s, then 8 contacts). Two other signals, on the 43 labelled ends of both spans:
+
+- The players' mean speed on court (`players.csv`, 0.5 s steps): 0.4-1.2 m/s before and after every end alike; they
+  walk, celebrate and regroup as fast as they play.
+- The loudness of 300-3000 Hz (shouts, claps) after the point: the loudest of the 2 s after an end tops the 2 s before
+  it in 76-82% of rallies, by 3-5 dB at the median. Over +12 dB above the rally's median for 1 s or more: never inside a
+  rally, after 6 of 43 ends. A window ended at the last contact before such a cheer, the level against the window, its
+  first 3 s or the 30 s around it, +10 to +14 dB for 0.5-1.5 s: 26:00-36:00 0.90 -> 0.81-0.90, 50:00-60:00 0.57 every
+  time. In a long rally the play itself is loud (+7-9 dB), and the out-of-sight ends bring no cheer.
+
+Left for ends: labels from another match (this referee whistles the go, hardly the dead ball), or a learned model.
