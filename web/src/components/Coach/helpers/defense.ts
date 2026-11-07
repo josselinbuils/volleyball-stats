@@ -25,11 +25,17 @@ export interface Place {
 
 /** A position a player defended against attacks from one side: their places in each role from FROM attacks, those
  * attacks, and those they stood OFF_M or more from their spot. */
-export interface Position {
-  position: number;
+export interface Situation {
+  side: Side;
   places: Place[];
   attacks: Contact[];
   off: Contact[];
+}
+
+/** A position a player defended, against attacks from each side where they have a place. */
+export interface Position {
+  position: number;
+  situations: Situation[];
 }
 
 export interface Defender {
@@ -57,15 +63,12 @@ export function sideOf(c: Contact): Side {
 /** The other team's attacks on `g` with their defenders' places. */
 export const attacksOn = (contacts: Contact[], g: Group) => contacts.filter((c) => c.type === 'attack' && c.g !== g && c.defense && c.flight);
 
-/** `g`'s players at the other team's attacks from `side`, in the `mode`th of `match.defenseModes`, each with the
- * positions they defended there in court order. */
-export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>, mode: number, side: Side): Defender[] {
+/** `g`'s players at the other team's attacks in the `mode`th of `match.defenseModes`, each with the positions they
+ * defended in court order. */
+export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>, mode: number): Defender[] {
   const stride = 3 + 3 * match.defenseModes.length;
-  const found = new Map<string, { person: number; at: Map<number, { c: Contact; place: number[] }[]> }>();
+  const found = new Map<string, { person: number; at: Map<string, { c: Contact; place: number[] }[]> }>();
   for (const c of attacksOn(contacts, g)) {
-    if (sideOf(c) !== side) {
-      continue;
-    }
     const all = c.defense as number[];
     for (let k = 0; k < all.length; k += stride) {
       const [person, depth, across] = all.slice(k, k + 3);
@@ -75,20 +78,24 @@ export function defenders(contacts: Contact[], g: Group, people: Record<string, 
         continue;
       }
       const player = found.get(key) ?? { person, at: new Map() };
-      player.at.set(position, [...(player.at.get(position) ?? []), { c, place: [depth, across, spotDepth, spotAcross] }]);
+      const at = `${position} ${sideOf(c)}`;
+      player.at.set(at, [...(player.at.get(at) ?? []), { c, place: [depth, across, spotDepth, spotAcross] }]);
       found.set(key, player);
     }
   }
   return [...found].flatMap(([key, { person, at }]) => {
     const positions = POSITIONS.flatMap((position) => {
-      const seen = at.get(position) ?? [];
-      const places = (['block', 'off', 'tip', 'back'] as const).flatMap((r) => {
-        const here = seen.filter((x) => role(position, x.place[2]) === r).map((x) => x.place);
-        const mid = (n: number) => median(here.map((p) => p[n]));
-        return here.length >= FROM ? [{ role: r, usual: [mid(0), mid(1)], spot: [mid(2), mid(3)] } as Place] : [];
+      const situations = SIDES.flatMap((side) => {
+        const seen = at.get(`${position} ${side}`) ?? [];
+        const places = (['block', 'off', 'tip', 'back'] as const).flatMap((r) => {
+          const here = seen.filter((x) => role(position, x.place[2]) === r).map((x) => x.place);
+          const mid = (n: number) => median(here.map((p) => p[n]));
+          return here.length >= FROM ? [{ role: r, usual: [mid(0), mid(1)], spot: [mid(2), mid(3)] } as Place] : [];
+        });
+        const off = seen.filter((x) => Math.hypot(x.place[2] - x.place[0], x.place[3] - x.place[1]) >= OFF_M).map((x) => x.c);
+        return places.length ? [{ side, places, attacks: seen.map((x) => x.c), off }] : [];
       });
-      const off = seen.filter((x) => Math.hypot(x.place[2] - x.place[0], x.place[3] - x.place[1]) >= OFF_M).map((x) => x.c);
-      return places.length ? [{ position, places, attacks: seen.map((x) => x.c), off }] : [];
+      return situations.length ? [{ position, situations }] : [];
     });
     return positions.length ? [{ key, person, positions }] : [];
   });

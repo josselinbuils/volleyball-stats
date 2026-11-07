@@ -979,18 +979,11 @@
       "caption": "When the other team hits, position by position.",
       "pick": "Player",
       "system": "Defence system",
-      "from": "Where the attack comes from",
       "modes": {
         "perimeter": "Perimeter",
         "up": "Middle up",
         "rotation": "Rotation",
         "learned": "Learned from our matches"
-      },
-      "attack": "Attack",
-      "sides": {
-        "left": "Left",
-        "middle": "Middle",
-        "right": "Right"
       },
       "learned_one": "The spots nearest the other teams' balls in our match ({{balls}} balls).",
       "learned_other": "The spots nearest the other teams' balls in our {{count}} matches ({{balls}} balls).",
@@ -998,19 +991,7 @@
       "ball": "Ball",
       "usual": "Usually",
       "spot": "Ideal spot",
-      "none": "Not enough attacks from this side.",
       "position": "Position {{n}}",
-      "roles": {
-        "block": "Blocking",
-        "off": "Not blocking",
-        "tip": "Behind the block"
-      },
-      "line": "{{role}}: {{ways}}",
-      "back": "{{m}} m further from the net",
-      "forward": "{{m}} m closer to the net",
-      "right": "{{m}} m further right",
-      "left": "{{m}} m further left",
-      "fine": "Well placed",
       "playing": "{{player}} at position {{n}}"
     }
   },
