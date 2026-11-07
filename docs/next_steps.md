@@ -231,6 +231,7 @@ On the two reviewed matches' checked rallies and answers (M1 first, M2 second):
 Also found: on 55 attacks labelled to the frame (`benchmarks/jumps/ground_truth/`, the hand on the ball), the ball's
 contact frame is a frame early at the median, within 2 frames 45 times, over 4 frames off 7 times, 6 of them early (5-21
 frames): the ball seen nearest the attacker's wrist (`jumps.hit`) is within 2 frames on 36 of 38 measured jumps. The
-page's touches keep the contact frame (the answers name them by it); only the jump timing and the films use the hit.
+page's touches keep the contact frame (the answers name them by it); the jump timing uses the hit, the films their own
+search of the ball nearest the hands (`film.touch_time`).
 Also found: of the touches with a clear ball turn but no contact, most sit outside the windows of the matches' outputs, which
 predate the 5 Nov rally fixes (59 of 64 on M2); today's code: 869 → 880 of 945, 1074 → 1103 of 1199 touches in windows.
