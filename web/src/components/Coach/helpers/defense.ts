@@ -49,15 +49,30 @@ export function sideOf(c: Contact): Side {
 /** The other team's attacks on `g` with their defenders' places. */
 export const attacksOn = (contacts: Contact[], g: Group) => contacts.filter((c) => c.type === 'attack' && c.g !== g && c.defense && c.hit);
 
-/** Every position's spot in the `mode`th system against the attacker on `side`, under `block` blockers (`match.defense`). */
-export function spotsOf(mode: number, side: Side, block: number): { position: number; spot: Spot }[] {
-  const flat = match.defense?.spots[match.defense.modes[mode]]?.[side]?.[String(block)] ?? [];
-  return POSITIONS.map((position, k) => ({ position, spot: [flat[2 * k], flat[2 * k + 1]] }));
+/** The position doing a job of `match.defense`'s, whose setter is at 2, with the setter at `setter`: at 3, the outside on
+ * the attack's side blocks alone on a side attack and the setter covers behind the block. */
+export function moved(setter: number, side: Side, block: number): (position: number) => number {
+  if (setter !== 3 || block !== 1 || side === 'middle') {
+    return (position) => position;
+  }
+  const outside = side === 'right' ? 2 : 4;
+  return (position) => (position === 3 ? outside : position === outside ? 3 : position);
 }
 
-/** `g`'s players at the other team's attacks, each with where they defended, in the `mode`th system: by position in
- * court order, then side and block. */
-export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>, mode: number): Defender[] {
+/** Every position's spot in the `mode`th system against the attacker on `side`, under `block` blockers, the setter at
+ * `setter` (`match.defense`). */
+export function spotsOf(mode: number, side: Side, block: number, setter = 2): { position: number; spot: Spot }[] {
+  const flat = match.defense?.spots[match.defense.modes[mode]]?.[side]?.[String(block)] ?? [];
+  const to = moved(setter, side, block);
+  return POSITIONS.map((position) => {
+    const k = POSITIONS.indexOf(to(position) as (typeof POSITIONS)[number]);
+    return { position, spot: [flat[2 * k], flat[2 * k + 1]] };
+  });
+}
+
+/** `g`'s players at the other team's attacks, each with where they defended, in the `mode`th system, the setter at
+ * `setter`: by position in court order, then side and block. */
+export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>, mode: number, setter = 2): Defender[] {
   const found = new Map<string, { person: number; at: Map<string, { c: Contact; place: Spot }[]> }>();
   for (const c of attacksOn(contacts, g)) {
     const all = c.defense as number[];
@@ -68,7 +83,8 @@ export function defenders(contacts: Contact[], g: Group, people: Record<string, 
         continue;
       }
       const player = found.get(key) ?? { person, at: new Map() };
-      const at = `${position} ${sideOf(c)} ${c.block === 2 ? 2 : 1}`;
+      const [side, block] = [sideOf(c), c.block === 2 ? 2 : 1];
+      const at = `${moved(setter, side, block)(position)} ${side} ${block}`;
       player.at.set(at, [...(player.at.get(at) ?? []), { c, place: [depth, across] }]);
       found.set(key, player);
     }
@@ -81,7 +97,7 @@ export function defenders(contacts: Contact[], g: Group, people: Record<string, 
           if (seen.length < FROM) {
             return [];
           }
-          const spot = (spotsOf(mode, side, block).find((s) => s.position === position) as { spot: Spot }).spot;
+          const spot = (spotsOf(mode, side, block, setter).find((s) => s.position === position) as { spot: Spot }).spot;
           const off = seen.filter((x) => Math.hypot(spot[0] - x.place[0], spot[1] - x.place[1]) >= OFF_M).map((x) => x.c);
           return [{ position, side, block, usual: [median(seen.map((x) => x.place[0])), median(seen.map((x) => x.place[1]))], off }];
         }),

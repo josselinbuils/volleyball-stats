@@ -986,6 +986,8 @@
         "up": "6 avancé",
         "rotation": "Rotation"
       },
+      "setter": "Poste du passeur",
+      "setterAt": "Passeur en {{n}}",
       "attacker": "Attaquant",
       "usual": "D'habitude",
       "spot": "Place idéale",

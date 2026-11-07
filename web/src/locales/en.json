@@ -986,6 +986,8 @@
         "up": "Middle up",
         "rotation": "Rotation"
       },
+      "setter": "Setter's position",
+      "setterAt": "Setter at {{n}}",
       "attacker": "Attacker",
       "usual": "Usually",
       "spot": "Ideal spot",

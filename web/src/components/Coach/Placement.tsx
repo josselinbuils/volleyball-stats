@@ -15,13 +15,16 @@ const DOT = 0.45;
 const HIT_DEPTH = -1;
 // The player select's value for nobody.
 const NOBODY = 'nobody';
+// Where the setter plays in front: the team's at 2, else at 3.
+const SETTERS = [2, 3];
 
-/** A defence system and, if picked, one of `g`'s players; a card per side the other team attacks from and block, with
+/** A defence system, the setter's position and, if picked, one of `g`'s players; a card per side the other team attacks from and block, with
  * every position's spot in the system and, where the player defended there, their usual place at each position. */
 export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState(0);
-  const found = useMemo(() => defenders(contacts, g, match.people, mode), [contacts, g, mode]);
+  const [setter, setSetter] = useState(2);
+  const found = useMemo(() => defenders(contacts, g, match.people, mode, setter), [contacts, g, mode, setter]);
   const players = useMemo(() => found.map((d) => ({ ...d, label: playerLabel(t, d.person) ?? d.key })).sort((a, b) => a.label.localeCompare(b.label)), [found, t]);
   const [key, setKey] = useState<string | null>(null);
   if (!match.defense) {
@@ -39,6 +42,18 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
             {match.defense.modes.map((m, n) => (
               <SelectItem key={m} value={String(n)}>
                 {t(`coach.placement.modes.${m}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={String(setter)} onValueChange={(v) => setSetter(Number(v))}>
+          <SelectTrigger aria-label={t('coach.placement.setter')} className="w-full bg-card sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SETTERS.map((n) => (
+              <SelectItem key={n} value={String(n)}>
+                {t('coach.placement.setterAt', { n })}
               </SelectItem>
             ))}
           </SelectContent>
@@ -78,6 +93,7 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
               side={side}
               block={block}
               mode={mode}
+              setter={setter}
               played={picked?.played.filter((p) => p.side === side && p.block === block) ?? []}
               person={picked?.person ?? null}
               g={g}
@@ -101,7 +117,7 @@ function Glyph({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** A side and block's court, replaying the attacks the picked player stood 1 m or more off their spot. */
-function Card({ side, block, mode, played, person, g }: { side: Side; block: number; mode: number; played: Played[]; person: number | null; g: Group }) {
+function Card({ side, block, mode, setter, played, person, g }: { side: Side; block: number; mode: number; setter: number; played: Played[]; person: number | null; g: Group }) {
   const { t } = useTranslation();
   const { play } = usePlayer();
   const off = played.flatMap((p) => p.off).sort((a, b) => a.t - b.t);
@@ -118,7 +134,7 @@ function Card({ side, block, mode, played, person, g }: { side: Side; block: num
         </span>
         {off.length > 0 && <Play aria-hidden className="mt-1 size-3.5 shrink-0 text-muted-foreground" />}
       </span>
-      <HalfCourt side={side} block={block} mode={mode} played={played} g={g} />
+      <HalfCourt side={side} block={block} mode={mode} setter={setter} played={played} g={g} />
     </>
   );
   const box = 'flex h-full w-full flex-col gap-1.5 rounded-lg border bg-card px-2.5 py-2 text-left';
@@ -150,9 +166,9 @@ function Card({ side, block, mode, played, person, g }: { side: Side; block: num
  * position's spot a green dot numbered and, for each position the player defended there, their usual place a dot in the
  * team's colour numbered too, an arrow from it to the spot. One unit is a metre: x toward the defenders' right, y away
  * from the net. */
-function HalfCourt({ side, block, mode, played, g }: { side: Side; block: number; mode: number; played: Played[]; g: Group }) {
+function HalfCourt({ side, block, mode, setter, played, g }: { side: Side; block: number; mode: number; setter: number; played: Played[]; g: Group }) {
   const them = (3 - g) as Group;
-  const spots = spotsOf(mode, side, block);
+  const spots = spotsOf(mode, side, block, setter);
   const number = (x: number, y: number, n: number, fill: string) => (
     <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={0.7} fontWeight={700} fill={fill}>
       {n}

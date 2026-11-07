@@ -84,4 +84,17 @@ describe('defenders', () => {
     expect(spotsOf(1, 'left', 2).map((s) => s.position)).toEqual([4, 3, 2, 5, 6, 1]);
     expect(spotsOf(1, 'left', 2)[4].spot).toEqual([3, 2]);
   });
+
+  it('swaps the blocker and the outside on the attack side under a single block with the setter at 3', () => {
+    // From the right: 3's job at the net goes to 2, 2's behind the block to 3; nothing moves under a double block.
+    expect(spotsOf(0, 'right', 1, 3).slice(1, 3)).toEqual([
+      { position: 3, spot: [0.5, 3] },
+      { position: 2, spot: [3, 1.5] },
+    ]);
+    expect(spotsOf(0, 'right', 2, 3)).toEqual(spotsOf(0, 'right', 2));
+    // A player numbered 3 at the net is 2 with the setter at 3.
+    const blocking = Array.from({ length: 4 }, () => attack(3, [1, 0.5, 3, 3]));
+    expect(defenders(blocking, 1, people, 0, 3)[0].played[0].position).toBe(2);
+    expect(defenders(blocking, 1, people, 0)[0].played[0].position).toBe(3);
+  });
 });

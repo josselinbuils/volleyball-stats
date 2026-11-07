@@ -86,19 +86,20 @@ the defence placement (the owner's call, 7 Nov).
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
-- "Placement en défense": a defence system and, if picked, a player (nobody at first). A card per side the other team
-  attacks from (left, middle, right) and block (one blocker, then two), its court showing the attacker 1 m off the net,
-  3 m aside or in the middle (`defense.ATTACKERS`), and every position's spot in the system against them (green dots,
-  numbered, `defense.table`). With a player, each position they defended there from 4 attacks adds their usual place at
-  the hit (a dot in the team's colour, numbered too) and an arrow to its spot from 1.5 m; the card replays the attacks
-  they stood 1 m off. The systems: the perimeter the owner's team plays (its corners 2 m inside the sidelines 6 m off
-  the net, 6 at 7 m: the owner's), Laëticia's version of it (a teammate's diagrams: the block inside the attacker, the
-  off-blocker in the middle short, the line digger deep on the line, the cross digger forward, 6 deep toward the cross),
-  the middle up and the rotation (AVCA's descriptions, distances approximate). At each attack, the players within 1.2 m
-  of the net make a single block (by 3, the middle: the team's, its setter at 2) or a double one (3 and 2, or 4 and 3)
-  in front of the attacker; the perimeter's spots go to the defenders by the least total distance: a position is the
-  perimeter spot defended, not the rotation's, the same in every system, which moves its spot only.
-  `benchmarks/defense/bench.py` scores the systems.
+- "Placement en défense": a defence system, the setter's position (at 2, the team's, or at 3) and, if picked, a player
+  (nobody at first). A card per side the other team attacks from (left, middle, right) and block (one blocker, then
+  two), its court showing the attacker 1 m off the net, 3 m aside or in the middle (`defense.ATTACKERS`), and every
+  position's spot in the system against them (green dots, numbered, `defense.table`). With a player, each position they
+  defended there from 4 attacks adds their usual place at the hit (a dot in the team's colour, numbered too) and an
+  arrow to its spot from 1.5 m; the card replays the attacks they stood 1 m off. The systems: the perimeter the owner's
+  team plays (its corners 2 m inside the sidelines 6 m off the net, 6 at 7 m: the owner's), Laëticia's version of it (a
+  teammate's diagrams: the block inside the attacker, the off-blocker in the middle short, the line digger deep on the
+  line, the cross digger forward, 6 deep toward the cross), the middle up and the rotation (AVCA's descriptions,
+  distances approximate). At each attack, the players within 1.2 m of the net make a single block (by 3, the middle, the
+  setter at 2; the page swaps it with the outside on the attack's side, who then blocks, the setter at 3 covering
+  behind) or a double one (3 and 2, or 4 and 3) in front of the attacker; the perimeter's spots go to the defenders by
+  the least total distance: a position is the perimeter spot defended, not the rotation's, the same in every system,
+  which moves its spot only. `benchmarks/defense/bench.py` scores the systems.
 
 ## Statistics
 
