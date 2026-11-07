@@ -1100,3 +1100,22 @@ class TestNotOver:
         page = self.page()
         page["rallies"][0]["redo"] = True
         assert review_module.not_over(page, []) == []
+
+
+class TestServer:
+    def test_is_quiet_when_a_page_goes_and_reports_any_other_error(self, capsys):
+        server = review_module.Server(("127.0.0.1", 0), review_module.BaseHTTPRequestHandler)
+        try:
+            for error in (BrokenPipeError(), ConnectionResetError()):
+                try:
+                    raise error
+                except OSError:
+                    server.handle_error(None, ("127.0.0.1", 1))
+            assert capsys.readouterr().err == ""
+            try:
+                raise ValueError("bad answer")
+            except ValueError:
+                server.handle_error(None, ("127.0.0.1", 1))
+            assert "bad answer" in capsys.readouterr().err
+        finally:
+            server.server_close()

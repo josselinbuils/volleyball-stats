@@ -1740,6 +1740,14 @@ def reopening(name: str, out: Path, theme: str, port: int, roster: Path) -> list
     return [sys.executable, "-m", "volleyball_stats.review", str(out / name), "--outputs", str(out), "--theme", theme, "--port", str(port), "--roster", str(roster), "--no-browser"]
 
 
+class Server(ThreadingHTTPServer):
+    """The review's server, quiet when a page goes before its answer (a reload, a closed tab)."""
+
+    def handle_error(self, request, client_address) -> None:
+        if not isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            super().handle_error(request, client_address)
+
+
 def switch(command: list[str], lock: threading.Lock) -> None:
     """Replaces this server by `command`, once the response on its way has left and no answer is being saved."""
 
@@ -1800,7 +1808,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             self.send(b"{}", "application/json")
             switch(command, threading.Lock())
 
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = Server(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/matches/"
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
@@ -2421,7 +2429,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             pass
 
     # The footage shows real people: this machine only.
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = Server(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/review"
     threading.Thread(target=warm, daemon=True).start()
     threading.Thread(target=afterwards, daemon=True).start()
