@@ -216,6 +216,13 @@ def train(match: Path, video: Path, court: Path) -> None:
     )
 
 
+def retrain(match: Path, video: Path, court: Path) -> dict[str, Score]:
+    """`train` alone, the match left as it is, measured in learn.json like a rerun."""
+    replaced = {k: v for k, v in scores(match, video, court).items() if k not in from_training(match)}
+    train(match, video, court)
+    return record(match, video, court, replaced)
+
+
 def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None] = lambda _: None) -> dict[str, Score]:
     """The pipeline run again on the match (match.py, the trackers' outputs and the poses kept), the
     answers moved onto its rally windows (`rekey`), then every step scored, kept in learn.json with

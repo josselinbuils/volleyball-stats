@@ -2446,7 +2446,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
                     # A match whose every rally is checked only teaches the next ones: it stays as reviewed.
                     if reviewed(questions.page, log):
-                        run_steps([("training", lambda: learn.train(match, video, court))])
+                        run_steps([("training", lambda: learn.retrain(match, video, court))])
                         return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                     # The pipeline again, its identities with every answer: an apply too. Undo
                     # stops here: the answers moved onto the new rallies.
