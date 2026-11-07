@@ -43,7 +43,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 10. Done (5 Nov): the star on a touch (Match tab) puts it in the match's film and its player's.
 11. Done (7 Nov): attack jumps measured (`jumps.py`, `benchmarks/jumps`), "Le saut d'attaque" in the coach's corner, the 3D
     figures' jumps, a pipeline stage posing the attackers, the review's screens their own script (the page 34 KB lighter).
-    Measured, not on the page, the owner to decide: blockers top about 0.18 s after the attack's contact, late
-    (`benchmarks/jumps/ground_truth/blocks.csv`); a jump height per player. Tried and dropped the same day, numbers in
+    Measured, not on the page: blockers' jumps (`benchmarks/jumps/ground_truth/blocks.csv`), topping about when the ball
+    crosses the net (0.18 s after the attack's contact); a jump height per player, the owner to decide. Tried and dropped the same day, numbers in
     `next_steps.md`: jumps as a touch-type cue, a learned retyping, the hitting height from the pose, a lower contact
     threshold near players, rules for made-up contacts and for floors that are touches.
