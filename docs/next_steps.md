@@ -223,6 +223,7 @@ On the two reviewed matches' checked rallies and answers (M1 first, M2 second):
 | Made-up contacts (answered "no touch") dropped when the ball is little seen or turns weakly | every threshold loses more real touches: seen ≤ 40% and turn < 1.5×: 6 false for 18 real (M2), 2 for 14 (M1) |
 | False touches told by the distance to the nearest player (`gap`) | same spread as real ones (median 0.33 vs 0.37 box heights) |
 | The hitting height from the pose (wrist over the floor at the hit) to fill attacks the 3D fit leaves | +38 and +30 attacks, but within-player spread 0.096-0.109 m against 0.07-0.085 m for the ball's |
+| Attack heights from the 3D ball fitted at each attack's hit frame | within-player spread 0.080 → 0.105 m (M1), 0.120 → 0.110 m (M2) |
 | Attacks named at the hit rather than the contact frame | of M2's 145 answered attacks with the player posed, 8 wrong, 3 of them with the contact over 4 frames off: at most +3 |
 
 Also found: of the touches with a clear ball turn but no contact, most sit outside the windows of the matches' outputs, which
