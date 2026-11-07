@@ -27,6 +27,16 @@ class TestLayout:
         assert (3.5, 0.0, 3) in defense.layout("up", 3.0, False)
 
 
+    def test_shifts_laeticias_block_inside_and_sends_the_line_digger_deep_on_the_line(self):
+        found = defense.layout("laeticia", 3.0, True)
+
+        assert [(depth, round(x, 2), p) for depth, x, p in found[:2]] == [(0.5, 1.35, 3), (0.5, 2.25, 2)]
+        assert (6.05, 3.9, 1) in found and (2.4, -0.4, 4) in found
+        # Mirrored, the line digger is 5; through the middle under a double block, 4 drops off alone.
+        assert (6.05, -3.9, 5) in defense.layout("laeticia", -3.0, True)
+        assert sorted(p for _, _, p in defense.layout("laeticia", 0.5, True)) == [1, 2, 3, 4, 5, 6]
+
+
 class TestAssign:
     def test_gives_each_defender_the_nearest_free_spot(self):
         defenders = {1: (0.5, 3.0), 2: (1.0, 2.0), 3: (2.0, -3.5), 4: (5.5, -3.5), 5: (7.0, 0.0), 6: (5.5, 3.5)}

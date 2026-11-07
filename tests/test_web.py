@@ -955,12 +955,13 @@ class TestDefended:
 
     def test_gives_an_attack_its_flight_and_the_other_halfs_defenders_places_and_spots_in_each_system(self):
         # On the right half, the defenders' right is the far sideline (y < 0): the attack comes on their left, the
-        # player stands at their left corner, the perimeter's 5: deep in the middle up, up for the tip in the rotation.
+        # player stands at their left corner, the perimeter's 5: deep on the line for Laëticia and in the middle up, up for
+        # the tip in the rotation.
         found = web.defended([self.attack(), {"type": "dig", "rally": 0, "x": 5.0, "y": 2.0}], self.rallies, self.players, 10.0, self.people)
 
         assert found[0]["flight"] == [-1.0, -3.0, 5.0, -2.0]
         assert found[0]["block"] == 1
-        assert found[0]["defense"] == [1, 6.0, -3.5, 5, 6.0, -2.5, 8.0, -3.0, 3.5, -3.0]
+        assert found[0]["defense"] == [1, 6.0, -3.5, 5, 6.0, -2.5, 7.1, -3.8, 8.0, -3.0, 3.5, -3.0]
         # From the right, only team 1 defends the left half: 2 m short of 6.
         assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people)[0]["defense"][:6] == [2, 6.0, 0.0, 6, 7.0, 0.0]
 
@@ -974,7 +975,7 @@ class TestDefended:
 
         found = web.defended([self.attack()], self.rallies, crowd, 10.0, people)[0]["defense"]
 
-        assert sorted(found[k + 3] for k in range(0, len(found), 10)) == [1, 2, 3, 4, 5, 6]
+        assert sorted(found[k + 3] for k in range(0, len(found), 12)) == [1, 2, 3, 4, 5, 6]
 
 
 class TestKeptPhotos:

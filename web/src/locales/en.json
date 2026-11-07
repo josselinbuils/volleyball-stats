@@ -981,6 +981,7 @@
       "system": "Defence system",
       "modes": {
         "perimeter": "Perimeter",
+        "laeticia": "Laëticia",
         "up": "Middle up",
         "rotation": "Rotation"
       },
@@ -997,15 +998,9 @@
       "blocks_one": "single block",
       "blocks_other": "double block",
       "roles": {
-        "block": "Blocking",
-        "off": "Not blocking"
+        "block": "blocking",
+        "off": "not blocking"
       },
-      "line": "{{role}}: {{ways}}",
-      "back": "{{m}} m further from the net",
-      "forward": "{{m}} m closer to the net",
-      "right": "{{m}} m further right",
-      "left": "{{m}} m further left",
-      "fine": "Well placed",
       "playing": "{{player}} at position {{n}}"
     }
   },

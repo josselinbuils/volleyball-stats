@@ -981,6 +981,7 @@
       "system": "Système de défense",
       "modes": {
         "perimeter": "Périmètre",
+        "laeticia": "Laëticia",
         "up": "6 avancé",
         "rotation": "Rotation"
       },
@@ -997,15 +998,9 @@
       "blocks_one": "contre à un",
       "blocks_other": "contre à deux",
       "roles": {
-        "block": "Au contre",
-        "off": "Sans contrer"
+        "block": "au contre",
+        "off": "sans contrer"
       },
-      "line": "{{role}} : {{ways}}",
-      "back": "{{m}} m plus loin du filet",
-      "forward": "{{m}} m plus près du filet",
-      "right": "{{m}} m plus à droite",
-      "left": "{{m}} m plus à gauche",
-      "fine": "Bien placé",
       "playing": "{{player}} au poste {{n}}"
     }
   },

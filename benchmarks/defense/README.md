@@ -16,11 +16,13 @@ Balls within 1.5 m of a spot, first match (90 balls) / second (139):
 |---|---|---|
 | Textbook perimeter (corners 1 m inside, 6.5 m off the net; 6 at 8 m) | 58% | 47% |
 | Perimeter (corners 2 m inside, 6 m off; 6 at 7 m) | 74% | 71% |
+| Laëticia's (a teammate's diagrams of the team's perimeter) | 59% | 62% |
 | Middle up | 31% | 22% |
 | Rotation | 57% | 51% |
 | The players' own places at the hit | 64% | 76% |
 
-- The perimeter's corners were moved after looking at both matches: its numbers are not held out.
+- The perimeter's corners were moved after looking at both matches: its numbers are not held out. Laëticia's sends the
+  line digger and 6 deep, where few of these balls go: under a single block on a side attack, 52% and 62% against 78% and 79%.
 - Spots learned from the other match's balls (nearest the most of them, each ball counting more the nearer: 70% and 69%
   held out; by the balls within 1.5 m alone 66% and 55%): shown as a fourth system, removed (the owner's, 7 Nov).
 - The players' own places lean on the balls they dug, where they stood.

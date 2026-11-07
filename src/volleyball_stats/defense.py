@@ -1,5 +1,5 @@
 """Where the defenders stand when the other team attacks, against a defence system: the perimeter the owner's team plays,
-the middle up or the rotation.
+Laëticia's version of it, the middle up or the rotation.
 
 Places are in the defenders' half: metres from the net, then metres toward their right as they face the net."""
 
@@ -8,7 +8,7 @@ import itertools
 
 import numpy as np
 
-MODES = ("perimeter", "up", "rotation")
+MODES = ("perimeter", "laeticia", "up", "rotation")
 # A player this near the net at the hit blocks: two or more make a double block.
 BLOCK_M = 1.2
 # An attack this near the court's long axis comes through the middle.
@@ -27,6 +27,16 @@ BACK = {
     "perimeter": [(6.0, -2.5, 5), (7.0, 0.0, 6), (6.0, 2.5, 1)],
     "up": [(8.0, -3.0, 5), (3.0, 2.0, 6), (8.0, 3.0, 1)],
     "rotation": [(7.0, -2.0, 5), (7.5, 3.0, 6), (3.5, 3.0, 1)],
+}
+# Laëticia's, a teammate's diagrams (7 Nov, read off photos to about 0.3 m), for an attack on the defenders' right: the
+# block this far inside the attacker, the free front players in the middle short (behind a single block on the line side),
+# the line digger deep on the line, the cross digger forward, 6 deep toward the cross. The middle attack's spots also
+# serve under a double block, which the diagrams do not show.
+INSIDE = {True: 1.2, False: 0.8}
+LAETICIA = {
+    "double": [(2.4, -0.4, 4), (4.85, -2.4, 5), (7.5, -1.0, 6), (6.05, 3.9, 1)],
+    "single": [(2.5, 3.6, 3), (1.8, -1.2, 4), (5.5, -2.7, 5), (7.3, -0.7, 6), (7.1, 3.8, 1)],
+    "middle": [(2.8, -1.8, 4), (2.8, 1.8, 2), (5.75, -2.45, 5), (7.7, 0.0, 6), (5.75, 2.45, 1)],
 }
 MIRRORED = {4: 2, 2: 4, 5: 1, 1: 5}
 Spot = tuple[float, float, int]
@@ -48,6 +58,10 @@ def layout(mode: str, across: float, double: bool) -> list[Spot]:
         return [(depth, -x, MIRRORED.get(p, p)) for depth, x, p in layout(mode, -across, double)]
     middle = across <= MIDDLE_M
     front = block(across, double)
+    if mode == "laeticia":
+        if middle:
+            return front + [s for s in LAETICIA["middle"] if s[2] not in {b[2] for b in front}]
+        return [(depth, x - INSIDE[double], p) for depth, x, p in front] + LAETICIA["double" if double else "single"]
     if middle and not double:
         front += [OFF, (OFF[0], -OFF[1], 2)]
     else:

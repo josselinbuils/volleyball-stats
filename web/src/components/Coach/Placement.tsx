@@ -7,10 +7,8 @@ import { color, match, playerLabel, teamColor, teamEdge, type Contact, type Grou
 import { remembered } from '@/lib/me';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
-import { useFormat, type Format } from '@/lib/format';
-import type { TFunction } from 'i18next';
 import { Section } from '@/components/Coach/Section';
-import { defenders, OFF_M, type Place, type Side, type Situation } from '@/components/Coach/helpers/defense';
+import { defenders, type Side, type Situation } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
 const DOT = 0.4;
@@ -94,27 +92,9 @@ function Glyph({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** After a role and a colon, the advice starts lowercase. */
-const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
-
-/** What to do at a place, to the half metre: the places are not finer. */
-function ways(t: TFunction, { num, dec }: Format, { usual, spot }: Place): string {
-  const metres = (x: number) => {
-    const m = Math.round(Math.abs(x) * 2) / 2;
-    return Number.isInteger(m) ? num(m) : dec(m);
-  };
-  const [back, right] = [spot[0] - usual[0], spot[1] - usual[1]];
-  const out = [
-    ...(Math.abs(back) >= OFF_M ? [t(back > 0 ? 'coach.placement.back' : 'coach.placement.forward', { m: metres(back) })] : []),
-    ...(Math.abs(right) >= OFF_M ? [t(right > 0 ? 'coach.placement.right' : 'coach.placement.left', { m: metres(right) })] : []),
-  ];
-  return out.length ? out.join(', ') : t('coach.placement.fine');
-}
-
-/** A situation's court, replaying the attacks its player stood OFF_M or more off their spot. */
+/** A situation's court, replaying the attacks its player stood 1 m or more off their spot. */
 function Card({ situation, person, g }: { situation: Situation; person: number; g: Group }) {
   const { t } = useTranslation();
-  const format = useFormat();
   const { play } = usePlayer();
   const { place, position } = situation;
   const body = (
@@ -123,13 +103,13 @@ function Card({ situation, person, g }: { situation: Situation; person: number; 
         <b className="font-semibold">{t('coach.placement.position', { n: position })}</b>
         {situation.off.length > 0 && <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
       </span>
+      {/* As tall on every card, so the courts line up. */}
+      <span className="min-h-[3lh] text-[13px] text-muted-foreground sm:min-h-[2lh]">
+        {[t(`coach.placement.sides.${situation.side}`), t('coach.placement.blocks', { count: situation.block }), ...(place.role === 'back' ? [] : [t(`coach.placement.roles.${place.role}`)])].join(
+          ' · ',
+        )}
+      </span>
       <HalfCourt situation={situation} g={g} />
-      <span className="text-[13px] text-muted-foreground">
-        {t(`coach.placement.sides.${situation.side}`)} · {t('coach.placement.blocks', { count: situation.block })}
-      </span>
-      <span className="text-[13px]">
-        {place.role === 'back' ? ways(t, format, place) : t('coach.placement.line', { role: t(`coach.placement.roles.${place.role}`), ways: lower(ways(t, format, place)) })}
-      </span>
     </>
   );
   const box = 'flex h-full w-full flex-col gap-1.5 rounded-lg border bg-card px-2.5 py-2 text-left';
