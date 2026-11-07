@@ -10,6 +10,9 @@ import { rallyClips, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { Tip } from '@/components/Tip';
 
+// A card shows this many letters at most, the rest counted: one long rally would make every card in the row as tall.
+const LETTERS = 10;
+
 /** One card per rally with the letters of its touches, in one row scrolling sideways; the current
  * rally (`rallyNear`) stands out. */
 export function RallyCards() {
@@ -70,7 +73,7 @@ export function RallyCards() {
                   )}
                   {r.contacts.length > 0 && (
                     <span className="flex flex-wrap gap-1">
-                      {r.contacts.map((c) => (
+                      {r.contacts.slice(0, r.contacts.length > LETTERS ? LETTERS - 1 : LETTERS).map((c) => (
                         <Tip key={c.i} label={t(`types.${c.type}`)}>
                           <span
                             aria-hidden
@@ -81,6 +84,11 @@ export function RallyCards() {
                           </span>
                         </Tip>
                       ))}
+                      {r.contacts.length > LETTERS && (
+                        <span aria-hidden className="rounded-[5px] bg-muted px-1.5 text-[11px] leading-[18px] font-semibold text-muted-foreground tabular-nums">
+                          +{r.contacts.length - LETTERS + 1}
+                        </span>
+                      )}
                       <span className="sr-only">{r.contacts.map((c) => t(`types.${c.type}`)).join(', ')}</span>
                     </span>
                   )}
