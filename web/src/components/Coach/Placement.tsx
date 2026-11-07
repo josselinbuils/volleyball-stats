@@ -70,7 +70,7 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
           <circle r={0.8} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
         </Glyph>
       </Legend>
-      <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3 lg:grid-cols-6">
+      <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3 lg:gap-4">
         {BLOCKS.flatMap((block) =>
           SIDES.map((side) => (
             <Card
@@ -140,7 +140,7 @@ function Card({ side, block, mode, played, person, g }: { side: Side; block: num
   );
 }
 
-/** One half seen from behind its end line, the net at the top and the other team's 3 m beyond it: the attacker, every
+/** One half seen from behind its end line, the net at the top and 2 m of the other side beyond it: the attacker, every
  * position's spot a green dot numbered and, for each position the player defended there, their usual place a dot in the
  * team's colour numbered too, an arrow from it to the spot. One unit is a metre: x toward the defenders' right, y away
  * from the net. */
@@ -153,12 +153,11 @@ function HalfCourt({ side, block, mode, played, g }: { side: Side; block: number
     </text>
   );
   return (
-    <svg aria-hidden viewBox="-5 -3.6 10 13.1" className="block h-auto w-full">
-      <rect x={-4.5} y={-3} width={9} height={3} className="fill-court opacity-50" />
+    <svg aria-hidden viewBox="-5 -2.2 10 11.7" className="block h-auto max-h-72 w-full">
+      <rect x={-4.5} y={-2} width={9} height={2} className="fill-court opacity-50" />
       <rect x={-4.5} y={0} width={9} height={9} className="fill-court" />
       <rect x={-4.5} y={0} width={9} height={9} className="court-line" />
       <line x1={-4.5} x2={4.5} y1={3} y2={3} className="court-line" />
-      <line x1={-4.5} x2={4.5} y1={-3} y2={-3} className="court-line opacity-50" />
       <line x1={-5} x2={5} y1={0} y2={0} stroke="var(--muted-foreground)" strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       <circle cx={match.defense?.attackers[side] ?? 0} cy={HIT_DEPTH} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
       {played.map(({ position, usual: [uy, ux] }) => {
