@@ -3,7 +3,7 @@ import { Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Legend } from '@/components/Court';
-import { match, playerLabel, teamColor, teamEdge, type Contact, type Group } from '@/lib/match';
+import { color, match, playerLabel, teamColor, teamEdge, type Contact, type Group } from '@/lib/match';
 import { remembered } from '@/lib/me';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
@@ -13,7 +13,6 @@ import { Section } from '@/components/Coach/Section';
 import { defenders, OFF_M, type Place, type Situation } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
-const RING = 0.5;
 const DOT = 0.4;
 
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
@@ -72,7 +71,7 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
           <circle r={0.8} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
         </Glyph>
         <Glyph label={t('coach.placement.spot')}>
-          <circle r={0.8} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          <circle r={0.8} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
         </Glyph>
       </Legend>
       <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3 lg:grid-cols-5">
@@ -156,8 +155,8 @@ function Card({ situation, position, person, g }: { situation: Situation; positi
 }
 
 /** One half seen from behind its end line, the net at the top and the other team's 3 m beyond it: the attacker where
- * they usually hit from, each attack's ball to where it went, each place's spot ringed, the usual place a dot, an arrow
- * from it to the spot. One unit is a metre: x toward the defenders' right, y away from the net. */
+ * they usually hit from, each attack's ball to where it went, the usual place a dot in the team's colour, the spot a green
+ * one over it, an arrow between them. One unit is a metre: x toward the defenders' right, y away from the net. */
 function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
   const flights = situation.attacks.map((c) => c.flight as number[]);
   const them = (3 - g) as Group;
@@ -182,17 +181,17 @@ function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
       {situation.places.map(({ role, usual: [uy, ux], spot: [sy, sx] }) => {
         const far = Math.hypot(sx - ux, sy - uy);
         const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
-        const [tx, ty] = [sx - dx * RING, sy - dy * RING];
+        const [tx, ty] = [sx - dx * DOT, sy - dy * DOT];
         return (
           <g key={role}>
-            <circle cx={sx} cy={sy} r={RING} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            {far > RING + DOT && (
+            <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+            {far > 2 * DOT + 0.7 && (
               <>
                 <line x1={ux + dx * DOT} y1={uy + dy * DOT} x2={tx - dx * 0.4} y2={ty - dy * 0.4} stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
                 <polygon points={`${tx},${ty} ${tx - dx * 0.55 - dy * 0.3},${ty - dy * 0.55 + dx * 0.3} ${tx - dx * 0.55 + dy * 0.3},${ty - dy * 0.55 - dx * 0.3}`} fill="var(--foreground)" />
               </>
             )}
-            <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+            <circle cx={sx} cy={sy} r={DOT} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
           </g>
         );
       })}

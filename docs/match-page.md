@@ -88,7 +88,7 @@ the defence placement (the owner's call, 7 Nov).
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
 - "Placement en défense": a player picked (the viewer's own first) and a defence system; a card per position the player
   defended and side the other team attacked from (positions 4 3 2 5 6 1, sides left to right), its court showing the attacker where they usually hit from, each attack's ball to where it went, where the player usually stood at
-  the hit (dot) and their spot in the system (ring), an arrow between them (`defense.py`); above it the position and the
+  the hit (a dot in the team's colour) and their spot in the system (a green one), an arrow between them from 1.5 m (`defense.py`); above it the position and the
   side, below it each role's way to the spot from 1 m, or "Bien placé". The systems: the perimeter the owner's team plays (its corners 2 m
   inside the sidelines 6 m off the net, 6 at 7 m: the owner's), the middle up and the rotation (AVCA's descriptions, distances approximate), and the spots learned from every match beside
   this one: those nearest the balls the attacks sent (a dug ball 1 m further along its flight), each ball counting the
