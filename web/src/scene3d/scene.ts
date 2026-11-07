@@ -188,7 +188,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   element.append(renderer.domElement);
   const scene = new THREE.Scene();
   // A depth range no wider than the scene: depth stays precise near the floor.
