@@ -1001,8 +1001,7 @@
       "blocks_other": "double block",
       "roles": {
         "block": "Blocking",
-        "off": "Not blocking",
-        "tip": "Behind the block"
+        "off": "Not blocking"
       },
       "line": "{{role}}: {{ways}}",
       "back": "{{m}} m further from the net",

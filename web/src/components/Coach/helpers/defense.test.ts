@@ -12,7 +12,7 @@ describe('defenders', () => {
     4: { team: 1, number: 4, jersey: null, name: 'Sam' },
   };
 
-  // An attack by team 2 from `across`, each defender [person, depth, across, perimeter spot, middle up spot].
+  // An attack by team 2 from `across`, each defender [person, depth, across, position, perimeter spot, middle up spot].
   const attack = (across: number, defense: number[], g: 1 | 2 = 2): Contact =>
     ({
       i: 0,
@@ -39,13 +39,13 @@ describe('defenders', () => {
     const contacts = [
       // From the right: at 2 4 times blocking alone, 4 times off the net 1.5 m short beside a teammate at 6; 3 times at 6,
       // too few; 4 times at 1, 2 of them under a double block.
-      ...times(4, () => attack(3, [1, 0.6, 3, 2, 0.5, 3, 2, 0.5, 3])),
-      ...times(4, (k) => attack(3, [1, 1.5, 3 + k * 0.5, 2, 3, 3.5, 3, 3.5, 0, 2, 7, 0, 6, 7, 0, 6, 3, 2])),
-      ...times(3, () => attack(3, [1, 6, 0, 6, 7, 0, 6, 3, 2])),
-      ...times(4, (k) => ({ ...attack(3, [1, 5, 3, 1, 6, 2.5, 1, 8, 3]), block: k < 2 ? 2 : 1 })),
-      ...times(2, () => ({ ...attack(3, [1, 5, 3, 1, 6, 2.5, 1, 8, 3]), block: 2 })),
+      ...times(4, () => attack(3, [1, 0.6, 3, 2, 0.5, 3, 0.5, 3])),
+      ...times(4, (k) => attack(3, [1, 1.5, 3 + k * 0.5, 2, 3, 3.5, 3, 3.5, 2, 7, 0, 6, 7, 0, 3, 2])),
+      ...times(3, () => attack(3, [1, 6, 0, 6, 7, 0, 3, 2])),
+      ...times(4, (k) => ({ ...attack(3, [1, 5, 3, 1, 6, 2.5, 8, 3]), block: k < 2 ? 2 : 1 })),
+      ...times(2, () => ({ ...attack(3, [1, 5, 3, 1, 6, 2.5, 8, 3]), block: 2 })),
       // At 1 from the left too.
-      ...times(4, () => attack(-3, [1, 5, 3, 1, 6, 2.5, 1, 8, 3])),
+      ...times(4, () => attack(-3, [1, 5, 3, 1, 6, 2.5, 8, 3])),
     ];
 
     const [alex] = defenders(contacts, 1, people, 0);
@@ -69,15 +69,16 @@ describe('defenders', () => {
     ]);
     // The balls (all coming down at 5 m in the middle) nearest their spot: at 6 beside them off the net, theirs alone at 1.
     expect(alex.situations.map((s) => s.mine.length)).toEqual([4, 0, 4, 4]);
-    // In the middle up, the same player off the net is at 3.
-    expect(defenders(contacts, 1, people, 1)[0].situations.map((s) => s.position)).toEqual([3, 2, 1, 1]);
+    // In the middle up, the same situations, 1 deeper.
+    const up = defenders(contacts, 1, people, 1)[0].situations;
+    expect(up.map((s) => [s.position, s.side, s.block, s.place.role])).toEqual(alex.situations.map((s) => [s.position, s.side, s.block, s.place.role]));
+    expect(up[2].place.spot).toEqual([8, 3]);
   });
 
-  it("joins a player's identities, leaves out their own team's attacks and a system leaving them over", () => {
-    const contacts = [...times(2, () => attack(0, [2, 7, 0, 6, 8, 0, 0, 0, 0])), ...times(2, () => attack(0, [4, 7, 0, 6, 8, 0, 0, 0, 0]))];
+  it("joins a player's identities and leaves out their own team's attacks", () => {
+    const contacts = [...times(2, () => attack(0, [2, 7, 0, 6, 8, 0, 3, 0])), ...times(2, () => attack(0, [4, 7, 0, 6, 8, 0, 3, 0]))];
 
     expect(defenders(contacts, 1, people, 0).map((d) => [d.person, d.situations[0].side])).toEqual([[2, 'middle']]);
-    expect(defenders(contacts, 1, people, 1)).toEqual([]);
     expect(
       defenders(
         contacts.map((c) => ({ ...c, g: 1 as const })),

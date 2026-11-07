@@ -43,8 +43,8 @@ export interface Contact {
   flight?: number[];
   /** On an attack, how many of the defenders blocked: 1 or 2 (two or more near the net). */
   block?: number;
-  /** On an attack, the other team's defenders then, flat [person, depth, across, then for each of `match.defenseModes`
-   * position, spot depth, spot across, ...] in the same frame: their place and their spot, position 0 for none. */
+  /** On an attack, the other team's defenders then, flat [person, depth, across, position, then for each of
+   * `match.defenseModes` that position's spot depth and across, ...] in the same frame: the positions the perimeter's. */
   defense?: number[];
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */

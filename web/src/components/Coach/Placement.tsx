@@ -10,12 +10,14 @@ import { contactClips } from '@/lib/playlist';
 import { useFormat, type Format } from '@/lib/format';
 import type { TFunction } from 'i18next';
 import { Section } from '@/components/Coach/Section';
-import { defenders, OFF_M, type Place, type Situation } from '@/components/Coach/helpers/defense';
+import { defenders, OFF_M, type Place, type Side, type Situation } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
 const DOT = 0.4;
 
-const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
+// Where an attacker hits from on each side, [metres from the net, metres to the defenders' right]: 1 m off the net, in the
+// middle or 3 m aside, in front of the block.
+const HITTER: Record<Side, [number, number]> = { left: [-1, -3], middle: [-1, 0], right: [-1, 3] };
 
 /** A player picked among `g`'s defenders and a defence system; a card per situation the player defended (position,
  * side the attack came from, block, role): the attacks and where they went, every position's spot, where the player usually
@@ -159,14 +161,13 @@ function Card({ situation, person, g }: { situation: Situation; person: number; 
 }
 
 /** One half seen from behind its end line, the net at the top and the other team's 3 m beyond it: the attacker where
- * they usually hit from, the balls theirs to play to where they went, every position's spot a pale green dot numbered, the
- * player's usual place a dot in the team's colour, their spot a green one, an arrow between them. One unit is a metre:
+ * they hit from on that side, the balls theirs to play from there to where they went, every position's spot a green dot numbered, the
+ * player's usual place a dot in the team's colour numbered too, their spot a green one, an arrow between them. One unit is a metre:
  * x toward the defenders' right, y away from the net. */
 function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
   const flights = situation.mine.map((c) => c.flight as number[]);
   const them = (3 - g) as Group;
-  const hits = situation.attacks.map((c) => c.flight as number[]);
-  const [hitDepth, hitAcross] = [median(hits.map((f) => f[0])), median(hits.map((f) => f[1]))];
+  const [hitDepth, hitAcross] = HITTER[situation.side];
   const {
     usual: [uy, ux],
     spot: [sy, sx],
@@ -191,20 +192,21 @@ function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
         .filter((f) => f.length === 4)
         .map((f, k) => (
           <g key={k} opacity={0.4}>
-            <line x1={f[1]} y1={f[0]} x2={f[3]} y2={f[2]} stroke={teamColor(them)} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+            <line x1={hitAcross} y1={hitDepth} x2={f[3]} y2={f[2]} stroke={teamColor(them)} strokeWidth={1} vectorEffect="non-scaling-stroke" />
             <circle cx={f[3]} cy={f[2]} r={0.15} fill={teamColor(them)} />
           </g>
         ))}
-      <circle cx={Math.min(4.5, Math.max(-4.5, hitAcross))} cy={Math.max(hitDepth, -3)} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      <circle cx={hitAcross} cy={hitDepth} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
       {situation.spots
         .filter((s) => s.position !== situation.position)
         .map(({ position, spot: [y, x] }) => (
           <g key={position}>
-            <circle cx={x} cy={y} r={DOT} fill={color('point')} opacity={0.35} />
-            {number(x, y, position, 'var(--foreground)')}
+            <circle cx={x} cy={y} r={DOT} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+            {number(x, y, position, 'white')}
           </g>
         ))}
       <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      {number(ux, uy, situation.position, `var(--team${g}-text)`)}
       {far > 2 * DOT + 0.7 && (
         <>
           <line x1={ux + dx * DOT} y1={uy + dy * DOT} x2={tx - dx * 0.4} y2={ty - dy * 0.4} stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />

@@ -955,30 +955,27 @@ class TestDefended:
 
     def test_gives_an_attack_its_flight_and_the_other_halfs_defenders_places_and_spots_in_each_system(self):
         # On the right half, the defenders' right is the far sideline (y < 0): the attack comes on their left, the
-        # player stands at their left corner: 5 in the perimeter and the middle up, 6 come over to the line in the rotation.
+        # player stands at their left corner, the perimeter's 5: deep in the middle up, up for the tip in the rotation.
         found = web.defended([self.attack(), {"type": "dig", "rally": 0, "x": 5.0, "y": 2.0}], self.rallies, self.players, 10.0, self.people)
 
         assert found[0]["flight"] == [-1.0, -3.0, 5.0, -2.0]
         assert found[0]["block"] == 1
-        assert found[0]["defense"] == [1, 6.0, -3.5, 5, 6.0, -2.5, 5, 8.0, -3.0, 6, 7.5, -3.0]
+        assert found[0]["defense"] == [1, 6.0, -3.5, 5, 6.0, -2.5, 8.0, -3.0, 3.5, -3.0]
         # From the right, only team 1 defends the left half; with learned spots, a fourth system.
         learned = {"side": {"5": [(3.0, -3.0), (3.0, 0.0), (6.0, -2.0), (6.0, 2.0), (6.5, 0.0)]}, "middle": {}}
-        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people, learned)[0]["defense"][-3:] == [6, 6.5, 0.0]
+        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people, learned)[0]["defense"][-2:] == [6.5, 0.0]
 
     def test_leaves_other_touches_and_an_attack_without_teams(self):
         for contact in (self.attack(kind="dig"), self.attack(rally=1)):
             assert "defense" not in web.defended([contact], self.rallies, self.players, 10.0, self.people)[0]
 
-    def test_gives_a_defender_left_over_in_a_system_position_0_there(self):
+    def test_leaves_a_defender_over_without_a_position(self):
         crowd = {"step": 1, "samples": [[p for k in range(8) for p in (10 + k, 6.0 + k * 0.01, 3.5)]]}
         people = {str(10 + k): {"team": 2} for k in range(8)}
 
         found = web.defended([self.attack()], self.rallies, crowd, 10.0, people)[0]["defense"]
 
-        # Each system places 6 of the 8, the others 0 there; one in no system has no row.
-        rows = [found[k : k + 12] for k in range(0, len(found), 12)]
-        assert [sum(row[column] != 0 for row in rows) for column in (3, 6, 9)] == [6, 6, 6]
-        assert all(any(row[column] for column in (3, 6, 9)) for row in rows)
+        assert sorted(found[k + 3] for k in range(0, len(found), 10)) == [1, 2, 3, 4, 5, 6]
 
 
 class TestKeptPhotos:

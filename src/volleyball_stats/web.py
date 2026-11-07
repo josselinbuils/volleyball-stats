@@ -953,10 +953,10 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 
 def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict, learned: dict | None = None) -> list[dict]:
     """`contacts` with, on each attack, its `flight` [depth, across, then where it went if seen], its `block` (1 or 2
-    blockers, `defense.doubled`) and the other half's defenders then in `defense`, flat [person, depth, across, then for
-    each of `defense.MODES` (the learned one with `learned` spots only) position, spot depth, spot across, ...]
-    (`defense.assign`), in metres from the net and toward the defenders' right, position 0 for a defender left over. The
-    players held as in `with_landings`."""
+    blockers, `defense.doubled`) and the other half's defenders then in `defense`, flat [person, depth, across, position,
+    then for each of `defense.MODES` (the learned one with `learned` spots only) that position's spot depth and across,
+    ...], in metres from the net and toward the defenders' right. The positions are the perimeter's (`defense.assign`),
+    the owner's system, the same in every system; a defender left over has none. The players held as in `with_landings`."""
     back = round(HOLD_S * fps / players["step"])
     modes = defense.MODES if learned else defense.MODES[:-1]
     out = []
@@ -972,11 +972,11 @@ def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: floa
         here = {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
         start, end, _ = defense.flight(contacts, k)
         double = defense.doubled(here)
-        found = [defense.assign(defense.layout(mode, start[1], double, learned), here) for mode in modes]
-        # A defender left over in a system has position 0 there.
-        placed = [person for person in here if any(person in spots for spots in found)]
-        flat = [round(v, 1) for person in placed for v in (person, *here[person], *(x for spots in found for x in (lambda d, x, p: (p, d, x))(*spots.get(person, (0.0, 0.0, 0)))))]
-        out.append({**c, "flight": [round(v, 1) for v in (*start, *(end or ()))], "block": 2 if double else 1, **({"defense": flat} if placed else {})})
+        layouts = [defense.layout(mode, start[1], double, learned) for mode in modes]
+        found = defense.assign(layouts[0], here)
+        spot = {(n, p): (depth, x) for n, spots in enumerate(layouts) for depth, x, p in spots}
+        flat = [round(v, 1) for person, (_, _, p) in found.items() for v in (person, *here[person], p, *(x for n in range(len(modes)) for x in spot[(n, p)]))]
+        out.append({**c, "flight": [round(v, 1) for v in (*start, *(end or ()))], "block": 2 if double else 1, **({"defense": flat} if found else {})})
     return out
 
 

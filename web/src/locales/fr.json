@@ -1001,8 +1001,7 @@
       "blocks_other": "contre à deux",
       "roles": {
         "block": "Au contre",
-        "off": "Sans contrer",
-        "tip": "Derrière le contre"
+        "off": "Sans contrer"
       },
       "line": "{{role}} : {{ways}}",
       "back": "{{m}} m plus loin du filet",

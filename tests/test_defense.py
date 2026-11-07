@@ -28,10 +28,11 @@ class TestLayout:
         assert defense.layout("rotation", 0.5, False)[3:] == defense.BACK["perimeter"]
         assert (3.5, 0.0, 3) in defense.layout("up", 3.0, False)
 
-    def test_numbers_the_learned_spots_by_row_and_side(self):
+    def test_keeps_the_blockers_positions_and_numbers_the_learned_spots_by_row_and_side(self):
         learned = {"side": {"5": [(3.0, -3.0), (3.0, 0.0), (6.0, -2.0), (6.0, 2.0), (8.0, 0.0)]}, "middle": {}}
 
-        assert defense.layout("learned", 3.0, False, learned) == [(3.0, -3.0, 4), (3.0, 0.0, 3), (0.5, 3.0, 2), (6.0, -2.0, 5), (8.0, 0.0, 6), (6.0, 2.0, 1)]
+        # The single blocker stays 2, as in every system.
+        assert defense.layout("learned", 3.0, False, learned) == [(0.5, 3.0, 2), (3.0, -3.0, 4), (3.0, 0.0, 3), (6.0, -2.0, 5), (8.0, 0.0, 6), (6.0, 2.0, 1)]
 
 
 class TestAssign:

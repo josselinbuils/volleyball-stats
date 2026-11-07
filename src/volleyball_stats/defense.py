@@ -57,9 +57,11 @@ def layout(mode: str, across: float, double: bool, learned: dict | None = None) 
     middle = across <= MIDDLE_M
     front = block(across, double)
     if mode == "learned":
-        spots = front + [(depth, x, 0) for depth, x in learned["middle" if middle else "side"][str(6 - len(front))]]
-        ahead = sorted(spots, key=lambda s: s[0])
-        return [(depth, x, position) for row, positions in ((ahead[:3], (4, 3, 2)), (ahead[3:], (5, 6, 1))) for (depth, x, _), position in zip(sorted(row, key=lambda s: s[1]), positions)]
+        # The blockers keep their positions; the front ones left take the spots nearest the net, left to right.
+        floor = sorted(learned["middle" if middle else "side"][str(6 - len(front))], key=lambda s: s[0])
+        free = [p for p in (4, 3, 2) if p not in {b[2] for b in front}]
+        rows = ((floor[: len(free)], free), (floor[len(free) :], (5, 6, 1)))
+        return front + [(depth, x, position) for row, positions in rows for (depth, x), position in zip(sorted(row, key=lambda s: s[1]), positions)]
     if middle and not double:
         front += [OFF, (OFF[0], -OFF[1], 2)]
     else:

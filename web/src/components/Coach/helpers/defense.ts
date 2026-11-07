@@ -13,9 +13,9 @@ export const POSITIONS = [4, 3, 2, 5, 6, 1] as const;
 export const SIDES = ['left', 'middle', 'right'] as const;
 export type Side = (typeof SIDES)[number];
 
-/** At the net, off it in front (2 and 4), covering the tip behind a single block (3), or in the back row. */
-export type Role = 'block' | 'off' | 'tip' | 'back';
-const ROLES: Role[] = ['block', 'off', 'tip', 'back'];
+/** At the net, off it in front, or in the back row. */
+export type Role = 'block' | 'off' | 'back';
+const ROLES: Role[] = ['block', 'off', 'back'];
 
 /** A role at a position: the player's usual place and their spot there, [metres from the net, metres to their right]. */
 export interface Place {
@@ -63,7 +63,7 @@ function median(xs: number[]): number {
 }
 
 function role(position: number, depth: number): Role {
-  return depth <= 1 ? 'block' : position === 3 ? 'tip' : position === 2 || position === 4 ? 'off' : 'back';
+  return depth <= 1 ? 'block' : position >= 2 && position <= 4 ? 'off' : 'back';
 }
 
 /** Where `c`, an attack with its flight, comes from. */
@@ -78,20 +78,20 @@ export const attacksOn = (contacts: Contact[], g: Group) => contacts.filter((c) 
 /** `g`'s players at the other team's attacks in the `mode`th of `match.defenseModes`, each with the situations they
  * defended: by position in court order, then side, block and role. */
 export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>, mode: number): Defender[] {
-  const stride = 3 + 3 * match.defenseModes.length;
+  const stride = 4 + 2 * match.defenseModes.length;
   const found = new Map<string, { person: number; at: Map<string, { c: Contact; place: number[]; team: number[][] }[]> }>();
   for (const c of attacksOn(contacts, g)) {
     const all = c.defense as number[];
     // Every position's spot at this attack.
     const team: number[][] = [];
     for (let k = 0; k < all.length; k += stride) {
-      team.push(all.slice(k + 3 + 3 * mode, k + 6 + 3 * mode));
+      team.push([all[k + 3], ...all.slice(k + 4 + 2 * mode, k + 6 + 2 * mode)]);
     }
     for (let k = 0; k < all.length; k += stride) {
-      const [person, depth, across] = all.slice(k, k + 3);
-      const [position, spotDepth, spotAcross] = all.slice(k + 3 + 3 * mode, k + 6 + 3 * mode);
+      const [person, depth, across, position] = all.slice(k, k + 4);
+      const [spotDepth, spotAcross] = all.slice(k + 4 + 2 * mode, k + 6 + 2 * mode);
       const key = playerKey(person, people);
-      if (key === null || people[person].team !== g || !position) {
+      if (key === null || people[person].team !== g) {
         continue;
       }
       const player = found.get(key) ?? { person, at: new Map() };
