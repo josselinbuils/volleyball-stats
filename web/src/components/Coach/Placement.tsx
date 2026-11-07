@@ -107,11 +107,17 @@ function Card({ side, block, mode, played, person, g }: { side: Side; block: num
   const off = played.flatMap((p) => p.off).sort((a, b) => a.t - b.t);
   const body = (
     <>
-      <span className="flex items-center justify-between gap-2">
-        <b className="font-semibold">{t(`coach.placement.sides.${side}`)}</b>
-        {off.length > 0 && <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
+      {/* The block goes whole to a second line where both do not fit; two lines kept there, so the courts line up. */}
+      <span className="flex min-h-[2lh] items-start justify-between gap-2 lg:min-h-0">
+        <span className="flex flex-wrap gap-x-1">
+          <b className="font-semibold">
+            {t(`coach.placement.sides.${side}`)}
+            <span className="font-normal text-muted-foreground">,</span>
+          </b>
+          <span className="whitespace-nowrap text-muted-foreground">{t('coach.placement.blocks', { count: block })}</span>
+        </span>
+        {off.length > 0 && <Play aria-hidden className="mt-1 size-3.5 shrink-0 text-muted-foreground" />}
       </span>
-      <span className="text-[13px] text-muted-foreground">{t('coach.placement.blocks', { count: block })}</span>
       <HalfCourt side={side} block={block} mode={mode} played={played} g={g} />
     </>
   );
