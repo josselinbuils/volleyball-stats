@@ -1,5 +1,3 @@
-import numpy as np
-
 from volleyball_stats import defense
 
 
@@ -28,12 +26,6 @@ class TestLayout:
         assert defense.layout("rotation", 0.5, False)[3:] == defense.BACK["perimeter"]
         assert (3.5, 0.0, 3) in defense.layout("up", 3.0, False)
 
-    def test_keeps_the_blockers_positions_and_numbers_the_learned_spots_by_row_and_side(self):
-        learned = {"side": {"5": [(3.0, -3.0), (3.0, 0.0), (6.0, -2.0), (6.0, 2.0), (8.0, 0.0)]}, "middle": {}}
-
-        # The single blocker stays 2, as in every system.
-        assert defense.layout("learned", 3.0, False, learned) == [(0.5, 3.0, 2), (3.0, -3.0, 4), (3.0, 0.0, 3), (6.0, -2.0, 5), (8.0, 0.0, 6), (6.0, 2.0, 1)]
-
 
 class TestAssign:
     def test_gives_each_defender_the_nearest_free_spot(self):
@@ -48,36 +40,3 @@ class TestAssign:
         assert defense.assign(spots, {1: (8.0, -1.0)}) == {1: (7.0, 0.0, 6)}
         assert len(defense.assign(spots, {k: (6.5, -3.5 + k * 0.01) for k in range(7)})) == 6
         assert defense.assign(spots, {}) == {}
-
-
-class TestLearn:
-    @staticmethod
-    def attack(t: float, x: float, y: float, side: str = "left", result: str = "play") -> dict:
-        return {"type": "attack", "t": t, "rally": int(t), "side": side, "x": x, "y": y, "result": result}
-
-    def test_reads_where_each_attack_went_a_dug_ball_further_along_its_flight(self):
-        contacts = [
-            self.attack(0, -1.0, 3.0),
-            {"type": "dig", "rally": 0, "x": 4.0, "y": 3.0},
-            self.attack(1, 1.0, 0.0, side="right"),
-            {"type": "floor", "rally": 1, "x": -6.0, "y": 2.0},
-            self.attack(2, -1.0, 0.0, result="error"),
-            {"type": "floor", "rally": 2, "x": 6.0, "y": 0.0},
-            self.attack(3, -1.0, 0.0),
-            {"type": "block", "rally": 3, "x": 0.5, "y": 0.0},
-            self.attack(4, -1.0, 0.0),
-            {"type": "floor", "rally": 4, "x": 15.5, "y": -108.5},
-        ]
-
-        assert defense.balls(contacts) == [(-3.0, 5.0, -3.0), (0.0, 6.0, 2.0)]
-
-    def test_puts_the_spots_where_the_balls_went_from_enough_of_them(self):
-        rng = np.random.default_rng(0)
-        clusters = [(7.5, -3.0), (7.5, 3.0), (4.0, 0.0), (8.5, 0.0), (3.0, -3.5)]
-        found = [(across, depth + rng.normal(0, 0.2), x + rng.normal(0, 0.2)) for across in (3.0, 0.5) for depth, x in clusters for _ in range(8)]
-
-        learned = defense.learn(found)
-
-        assert all(min(np.hypot(depth - d, x - u) for d, u in learned["side"]["5"]) < 0.5 for depth, x in clusters)
-        assert len(learned["middle"]["4"]) == 4
-        assert defense.learn(found[:20]) is None

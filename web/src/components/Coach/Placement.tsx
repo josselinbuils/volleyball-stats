@@ -60,9 +60,6 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
           </SelectContent>
         </Select>
       </div>
-      {match.defenseModes[mode] === 'learned' && match.learned && (
-        <p className="text-sm text-muted-foreground">{t('coach.placement.learned', { count: match.learned.matches, balls: match.learned.balls })}</p>
-      )}
       <Legend>
         <Glyph label={t('coach.placement.attacker')}>
           <circle r={0.8} fill={teamColor((3 - g) as Group)} stroke={teamEdge((3 - g) as Group)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />

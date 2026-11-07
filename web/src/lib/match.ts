@@ -173,8 +173,6 @@ export interface Data {
   v?: string;
   /** The defence systems the attacks' `defense` places the defenders in. */
   defenseModes?: string[];
-  /** The learned system's spots, from how many matches and balls. */
-  learned?: { matches: number; balls: number } | null;
 }
 
 declare global {
@@ -209,7 +207,6 @@ export const match = {
   date: data.date ?? null,
   title: data.title ?? null,
   defenseModes: data.defenseModes ?? [],
-  learned: data.learned ?? null,
 };
 /** `file`, beside the page, at this build's URL: a cache never serves another build's. */
 export const versioned = (file: string) => (data.v ? `${file}?v=${data.v}` : file);

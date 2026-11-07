@@ -982,11 +982,8 @@
       "modes": {
         "perimeter": "Perimeter",
         "up": "Middle up",
-        "rotation": "Rotation",
-        "learned": "Learned from our matches"
+        "rotation": "Rotation"
       },
-      "learned_one": "The spots nearest the other teams' balls in our match ({{balls}} balls).",
-      "learned_other": "The spots nearest the other teams' balls in our {{count}} matches ({{balls}} balls).",
       "attacker": "Attacker",
       "ball": "Ball",
       "usual": "Usually",

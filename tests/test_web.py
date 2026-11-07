@@ -961,9 +961,8 @@ class TestDefended:
         assert found[0]["flight"] == [-1.0, -3.0, 5.0, -2.0]
         assert found[0]["block"] == 1
         assert found[0]["defense"] == [1, 6.0, -3.5, 5, 6.0, -2.5, 8.0, -3.0, 3.5, -3.0]
-        # From the right, only team 1 defends the left half; with learned spots, a fourth system.
-        learned = {"side": {"5": [(3.0, -3.0), (3.0, 0.0), (6.0, -2.0), (6.0, 2.0), (6.5, 0.0)]}, "middle": {}}
-        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people, learned)[0]["defense"][-2:] == [6.5, 0.0]
+        # From the right, only team 1 defends the left half: 2 m short of 6.
+        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people)[0]["defense"][:6] == [2, 6.0, 0.0, 6, 7.0, 0.0]
 
     def test_leaves_other_touches_and_an_attack_without_teams(self):
         for contact in (self.attack(kind="dig"), self.attack(rally=1)):

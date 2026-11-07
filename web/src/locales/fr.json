@@ -982,11 +982,8 @@
       "modes": {
         "perimeter": "Périmètre",
         "up": "6 avancé",
-        "rotation": "Rotation",
-        "learned": "Appris de nos matchs"
+        "rotation": "Rotation"
       },
-      "learned_one": "Les places les plus proches des ballons adverses de notre match ({{balls}} ballons).",
-      "learned_other": "Les places les plus proches des ballons adverses de nos {{count}} matchs ({{balls}} ballons).",
       "attacker": "Attaquant",
       "ball": "Ballon",
       "usual": "D'habitude",
