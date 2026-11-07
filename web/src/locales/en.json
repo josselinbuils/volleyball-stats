@@ -372,6 +372,7 @@
       "jerseys": "jersey numbers",
       "scoreboard": "scoreboard",
       "identity": "players",
+      "jumps": "attack jumps",
       "answers": "moving your answers and scoring"
     },
     "toCheck_one": "{{count}} to check",

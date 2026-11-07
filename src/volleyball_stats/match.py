@@ -26,7 +26,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, players, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, jumps, players, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -445,6 +445,13 @@ def main() -> None:
         attributed = [(t[0], k) for t, k in zip(typed, touchers) if k is not None]
         known = identity.run(out, args.video, rows, windows, found_teams.left, fps, args.squad, attributed)
         timings["identity"] = time.perf_counter() - start
+        stage("jumps")
+        start = time.perf_counter()
+        # The attackers' poses for the page's jumps (`web.jumped`): its build then only poses the touches the review moves.
+        attacks = [(t[0], k) for t, k in zip(typed, touchers) if t[3] == "attack" and k is not None]
+        if attacks:
+            jumps.pose_all(args.video, attacks, jumps.read_tracks(players_path, {k for _, k in attacks}), fps, out / "jumps.json")
+        timings["jumps"] = time.perf_counter() - start
         who = [identity.lookup(known, k, t[0]) if k is not None else None for t, k in zip(typed, touchers)]
         # A track swapping players across the net can hold an identity of the other team.
         # `gap`: box heights from the toucher to the next candidate, the doubt about the pick.

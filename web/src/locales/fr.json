@@ -372,6 +372,7 @@
       "jerseys": "numéros de maillot",
       "scoreboard": "tableau de score",
       "identity": "joueurs",
+      "jumps": "sauts d'attaque",
       "answers": "report de vos réponses et notes"
     },
     "toCheck_one": "{{count}} à vérifier",

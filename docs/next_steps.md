@@ -63,7 +63,7 @@ In the code since 1 Nov:
   `learn.json`, a rerun's with what the results it replaced scored on the same answers; the review's
   "Progrès" tab opens on that comparison, the curves per measure in its history.
 - The review's "Apprendre de mes réponses" (`learn --rerun`) reruns the pipeline, moves the answers
-  (`rekey`) and scores; `wrists.json`, `relances.json` and `looks.npz` cache the poses and looks
+  (`rekey`) and scores; `wrists.json`, `relances.json`, `jumps.json` and `looks.npz` cache the poses and looks
   (side_holdout: 3 min, then 6 s). "Mettre en ligne" uploads; an apply no longer does.
 - Attribution: a learned order (`ranker.py`, `benchmarks/attribution/ranker.py --write` retrains it
   on the answers), on 4K footage only: +12 of 180 held-out answered touches, -6 of 120 on the 720p
