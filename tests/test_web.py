@@ -849,7 +849,7 @@ class TestFilms:
         site, video = tmp_path / "site", tmp_path / "match.mp4"
         video.write_bytes(b"video")
 
-        web.write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, films=self.films(tmp_path))
+        web.write_site({"fps": 25.0, "rallies": [], "people": {"1": {"name": "Ana"}}}, None, video, site, copy=True, films=self.films(tmp_path))
 
         assert (site / "films" / "1-ana.mp4").read_bytes() == b"film"
         assert '"films":{"Ana":"films/1-ana.mp4?v=abc"}' in (site / "data.js").read_text()
@@ -857,7 +857,7 @@ class TestFilms:
     def test_never_beside_a_page_without_it_even_where_one_was(self, tmp_path):
         site, video = tmp_path / "site", tmp_path / "match.mp4"
         video.write_bytes(b"video")
-        web.write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, films=self.films(tmp_path))
+        web.write_site({"fps": 25.0, "rallies": [], "people": {"1": {"name": "Ana"}}}, None, video, site, copy=True, films=self.films(tmp_path))
 
         web.write_site({"fps": 25.0, "rallies": []}, None, None, site, copy=False, films=tmp_path / "films")
 
@@ -867,14 +867,24 @@ class TestFilms:
     def test_leaves_a_film_unchanged_in_place_and_drops_those_gone(self, tmp_path):
         folder, site = self.films(tmp_path), tmp_path / "site"
         site.mkdir()
-        web.copy_films(folder, site)
+        web.copy_films(folder, site, {"Ana"})
         kept = (site / "films" / "1-ana.mp4").stat().st_mtime_ns
         (site / "films" / "2-gone.mp4").write_bytes(b"old")
 
-        web.copy_films(folder, site)
+        web.copy_films(folder, site, {"Ana"})
 
         assert (site / "films" / "1-ana.mp4").stat().st_mtime_ns == kept
         assert not (site / "films" / "2-gone.mp4").exists()
+
+    def test_deletes_the_film_of_a_renamed_player_and_keeps_the_match_s(self, tmp_path):
+        folder, site = self.films(tmp_path), tmp_path / "site"
+        (folder / "resume.mp4").write_bytes(b"film")
+        (folder / "manifest.json").write_text(json.dumps({"Ana": {"hash": "abc", "file": "1-ana.mp4"}, "*": {"hash": "def", "file": "resume.mp4"}}))
+        site.mkdir()
+
+        assert web.copy_films(folder, site, {"Anna"}) == {"*": "films/resume.mp4?v=def"}
+        assert not (folder / "1-ana.mp4").exists()
+        assert list(json.loads((folder / "manifest.json").read_text())) == ["*"]
 
 
 class TestNaturalMotion:

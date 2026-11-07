@@ -1020,12 +1020,23 @@ def linked(source: Path, target: Path) -> None:
         shutil.copy2(source, target)
 
 
-def copy_films(films: Path | None, site: Path) -> dict[str, str]:
-    """The players' films of the folder `films` in SITE/films/, unchanged ones left there, by name their addresses."""
+# film.HIGHLIGHTS: the match's film among the players'.
+FILM_HIGHLIGHTS = "*"
+
+
+def copy_films(films: Path | None, site: Path, names: set[str] = frozenset()) -> dict[str, str]:
+    """The films of the folder `films`, the match's and those of the players `names`, in SITE/films/, unchanged ones left there,
+    by name their addresses. A film of a name no longer on the page (a renamed player's) is deleted from `films` too."""
     target = site / "films"
     manifest = films / "manifest.json" if films else None
     made = json.loads(manifest.read_text()) if manifest and manifest.exists() else {}
-    made = {name: e for name, e in made.items() if (films / e["file"]).exists()}
+    kept = {name: e for name, e in made.items() if name in names or name == FILM_HIGHLIGHTS}
+    if kept != made:
+        for e in made.values():
+            if e["file"] not in {k["file"] for k in kept.values()}:
+                (films / e["file"]).unlink(missing_ok=True)
+        files.write_text(manifest, json.dumps(kept, indent=1, ensure_ascii=False) + "\n")
+    made = {name: e for name, e in kept.items() if (films / e["file"]).exists()}
     if not made:
         shutil.rmtree(target, ignore_errors=True)
         return {}
@@ -1161,7 +1172,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         (site / "voice" / "index.js").write_text(voice_js)
         data["voice"] = True
     # Real footage: only beside a page that has the video, which the hosted one keeps behind its password.
-    shown_films = copy_films(films if video else None, site)
+    shown_films = copy_films(films if video else None, site, {q["name"] for q in data.get("people", {}).values() if q.get("name")})
     if shown_films:
         data["films"] = shown_films
     # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
