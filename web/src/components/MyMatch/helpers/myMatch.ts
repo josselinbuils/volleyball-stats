@@ -10,15 +10,17 @@ const LONG_RALLY = 7;
 const LATE = 20;
 // A team's best count of a stat is told from this many.
 const TOP_FROM = 3;
-// A player's usual serve speed is told from this many serves, their attack height from this many attacks.
+// A player's usual serve speed is told from this many serves, their attack height and jump from this many attacks.
 const USUAL_SPEED_FROM = 3;
 const REACH_FROM = 5;
+const JUMP_FROM = 5;
 
 /** What a player's serves and attacks measure: their fastest serve, their usual speed, their usual attack height to the
- * decimetre and the attacks it rests on. Each only from enough tries. */
+ * decimetre, their usual jump in centimetres, and the attacks each rests on. Each only from enough tries. */
 export function measures(serves: Contact[], attacks: Contact[]) {
   const timed = serves.filter((c) => c.speed !== undefined);
   const reached = attacks.filter((c) => c.reach !== undefined);
+  const jumped = attacks.filter((c) => c.jump !== undefined);
   const speeds = timed.map((c) => c.speed as number);
   return {
     fastest: timed.length ? timed[speeds.indexOf(Math.max(...speeds))] : null,
@@ -26,6 +28,8 @@ export function measures(serves: Contact[], attacks: Contact[]) {
     speed: timed.length >= USUAL_SPEED_FROM ? Math.round(median(speeds)) : null,
     reach: reached.length >= REACH_FROM ? Math.round(median(reached.map((c) => c.reach as number)) * 10) / 10 : null,
     reached,
+    jump: jumped.length >= JUMP_FROM ? Math.round(median(jumped.map((c) => c.jump as number)) * 100) : null,
+    jumped,
   };
 }
 

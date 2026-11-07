@@ -870,6 +870,8 @@
     "usualSpeed_other": "Usually {{speed}} km/h over {{count}} measured serves",
     "reach": "Hitting height: about {{height}} m",
     "reachOf_other": "From {{count}} measured attacks",
+    "jump": "Vertical leap: about {{cm}} cm",
+    "jumpOf_other": "From {{count}} measured jumps",
     "measuresNote": "Estimates from a single camera. The speed is taken in mid-flight.",
     "duos": "Duos",
     "duo": "Sets from {{setter}} for {{attacker}}",
@@ -904,6 +906,7 @@
       "perfect": "The Rock",
       "serveRun": "The Metronome",
       "fastServe": "The Missile",
+      "jump": "The Spring",
       "duo": "The Duo",
       "longest": "The Marathon"
     },
@@ -925,6 +928,7 @@
       "serveRun_one": "{{count}} point in a row on serve",
       "serveRun_other": "{{count}} points in a row on serve",
       "fastServe": "Fastest serve: {{speed}} km/h",
+      "jump": "Vertical leap: {{cm}} cm",
       "duo_one": "{{count}} winning attack of {{of}}",
       "duo_other": "{{count}} winning attacks of {{of}}",
       "longest": "The longest rally: {{n}} touches in {{seconds}}"
@@ -982,7 +986,6 @@
       "tips": {
         "later": "Jump later: the ball is hit on the way down.",
         "earlier": "Jump earlier: the ball is hit on the way up.",
-        "runUp": "Step back before attacking to take a run-up.",
         "up": "Jump up, not forward."
       }
     },

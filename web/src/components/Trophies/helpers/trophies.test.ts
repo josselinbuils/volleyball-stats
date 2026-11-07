@@ -67,4 +67,12 @@ describe('trophies', () => {
     const enough = [served(0, 1, 60), served(1, 3, 40), served(2, 3, 41), served(3, 3, 42), served(4, 2, 45)];
     expect(played(enough).find((x) => x.kind === 'fastServe')).toMatchObject({ people: [1], n: 60, contacts: [enough[0]] });
   });
+
+  it('gives the highest jump, each player by their median over 5 measured jumps', () => {
+    const jumped = (rally: number, person: number, jump?: number) => ({ ...touch(rally, 'attack', person), jump });
+    const sam = times(5, (k) => jumped(k, 2, 0.4));
+    const alex = [...times(4, (k) => jumped(10 + k, 1, 0.35)), jumped(14, 1, 0.9)];
+    expect(played([...sam, ...alex]).find((x) => x.kind === 'jump')).toMatchObject({ people: [2], n: 40, contacts: sam });
+    expect(played(sam.slice(0, 4)).find((x) => x.kind === 'jump')).toBeUndefined();
+  });
 });

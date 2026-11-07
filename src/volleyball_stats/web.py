@@ -955,8 +955,8 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
 
 def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: dict[int, list[dict]], match: Path, video: Path, calibration: Calibration, fps: float) -> None:
     """Writes on each attack its player's jump where `jumps.measure` finds one: `late`, the ms from the flight's top to
-    the hit, `air` its takeoff and landing in seconds from the touch, `run` the run-up and `drift` how far the jump
-    carried towards the net, in metres. The attacker's track is the one showing their identity at the contact; the
+    the hit, `air` its takeoff and landing in seconds from the touch, `jump` its height (from the flight time) and `drift`
+    how far it carried towards the net, in metres. The attacker's track is the one showing their identity at the contact; the
     poses stay in jumps.json, the tracks' rows around each attack in jumps_rows.npz."""
     attacks = []
     for c in found:
@@ -980,8 +980,7 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
         # The 3D figure jumps around the touch: a flight not holding it (the touch's frame off the hit) keeps the default.
         if got["takeoff"] < c["f"] < got["landing"]:
             c["air"] = [round((got["takeoff"] - c["f"]) / fps, 2), round((got["landing"] - c["f"]) / fps, 2)]
-        if got.get("start_m") is not None and got["takeoff_m"] is not None:
-            c["run"] = round(got["start_m"] - got["takeoff_m"], 2)
+        c["jump"] = got["height"]
         if got["drift_m"] is not None:
             c["drift"] = got["drift_m"]
 

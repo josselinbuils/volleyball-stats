@@ -156,7 +156,7 @@ function Player({ player }: { player: string }) {
             </div>
           )}
         </div>
-        {(fastest || measured.reach !== null) && (
+        {(fastest || measured.reach !== null || measured.jump !== null) && (
           <Section title={t('myMatch.measures')}>
             {fastest && (
               <Row title={(tr) => tr('myMatch.fastestServe', { speed: fastest.speed })} clips={contactClips([fastest], match.duration)}>
@@ -168,6 +168,12 @@ function Player({ player }: { player: string }) {
               <Row title={(tr) => tr('myMatch.reach', { height: f.dec(measured.reach as number) })} clips={contactClips(measured.reached, match.duration)}>
                 <b className="font-semibold">{t('myMatch.reach', { height: f.dec(measured.reach) })}</b>
                 <span className="block text-xs text-muted-foreground">{t('myMatch.reachOf', { count: measured.reached.length })}</span>
+              </Row>
+            )}
+            {measured.jump !== null && (
+              <Row title={(tr) => tr('myMatch.jump', { cm: measured.jump })} clips={contactClips(measured.jumped, match.duration)}>
+                <b className="font-semibold">{t('myMatch.jump', { cm: measured.jump })}</b>
+                <span className="block text-xs text-muted-foreground">{t('myMatch.jumpOf', { count: measured.jumped.length })}</span>
               </Row>
             )}
             <li className="px-1.5 text-xs text-muted-foreground">{t('myMatch.measuresNote')}</li>

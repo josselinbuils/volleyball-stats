@@ -52,10 +52,10 @@ export interface Contact {
   speed?: number;
   /** An attack's height in metres, where it is well seen: a single one is rough, a player's median holds up. */
   reach?: number;
-  /** On an attack with its jump measured, the ms from the flight's top to the contact (negative before it), the
-   * run-up and how far the jump carried towards the net, in metres. */
+  /** On an attack with its jump measured, the ms from the flight's top to the contact (negative before it), the jump's
+   * height (from its flight time) and how far it carried towards the net, in metres. */
   late?: number;
-  run?: number;
+  jump?: number;
   drift?: number;
   /** On an attack with its jump measured, its takeoff and landing, in seconds from the touch. */
   air?: [number, number];

@@ -44,7 +44,8 @@ moments.
 ## Mon match and L'histoire du match
 
 "Mon match": a viewer picks their name (remembered on that device) and sees what they did, their touches
-to replay, their best points, their run on serve, who sets whom and their card to save. "L'histoire du
+to replay, their best points, their run on serve, who sets whom and their card to save. Their measures: the fastest
+serve and the usual speed, the hitting height and the "Détente" (their median jump, from 5 measured jumps). "L'histoire du
 match": the score gap rally by rally, a few plain sentences per set and the key moments (runs of 5 points,
 deficits of 4 caught up, set points saved, the longest rally), each replaying. Both follow the set filter.
 
@@ -52,8 +53,8 @@ deficits of 4 caught up, set points saved, the longest rally), each replaying. B
 
 Awards for what players did well, never for faults, from a minimum so that none goes to next to nothing;
 a tie shares one. Each replays its moments. Most touches, winning attacks, winning blocks, aces, digs, sets
-and perfect receptions, the longest run on serve, the setter and attacker with the most winning attacks, and
-the longest rally.
+and perfect receptions, the longest run on serve, the fastest serve, the highest median jump ("Le Ressort", from 5
+measured jumps), the setter and attacker with the most winning attacks, and the longest rally.
 
 ## Mode TV
 
@@ -89,7 +90,8 @@ the defence placement and the attack jump (the owner's call, 7 Nov).
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
 - "Le saut d'attaque": each attacker with 5 jumps measured on a teammate's set (`jumps.py`, `benchmarks/jumps`) and a
   tip from their medians: jump later (the contact 120 ms or more past the flight's top) or earlier (as much before it),
-  more run-up (under 1 m), up rather than forward (carried over 0.8 m towards the net); the row replays those attacks;
+  up rather than forward (carried over 0.8 m towards the net); the row replays those attacks. No run-up tip: a player's
+  run-up changes too much from one match to the next (the owner's call, 7 Nov);
 - "Placement en défense": a defence system, the setter's position (at 2, the team's, or at 3) and, if picked, a player
   (nobody at first). A card per side the other team attacks from (left, middle, right) and block (one blocker, then
   two), its court showing the attacker 1 m off the net, 3 m aside or in the middle (`defense.ATTACKERS`), and every

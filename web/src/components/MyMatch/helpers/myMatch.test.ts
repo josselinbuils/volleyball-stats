@@ -82,5 +82,13 @@ describe('myMatch', () => {
       expect(measures([], hit(2.7, 2.7, 2.7, 2.7)).reach).toBeNull();
       expect(measures([], hit(2.68, 2.72, 2.74, 2.7, 3.8)).reach).toBe(2.7);
     });
+
+    it('tells a jump from 5 measured jumps only, in centimetres', () => {
+      const jumped = (...jumps: (number | undefined)[]) => jumps.map((jump, k) => ({ ...touch(k, 'attack', 1), jump }));
+      expect(measures([], jumped(0.4, 0.4, 0.4, 0.4, undefined)).jump).toBeNull();
+      const found = measures([], jumped(0.38, 0.41, 0.4, 0.39, 0.9));
+      expect(found.jump).toBe(40);
+      expect(found.jumped).toHaveLength(5);
+    });
   });
 });
