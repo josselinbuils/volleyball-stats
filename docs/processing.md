@@ -59,6 +59,8 @@ uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [
   [identity benchmark](../benchmarks/identity/README.md)).
 - **Score:** each rally's winner and the running score of its set (`points.csv`; see the
   [points benchmark](../benchmarks/points/README.md)).
+- **Attack jumps:** the attackers' poses around each attack (`jumps.json`), from which the page's build measures each
+  jump ([jumps benchmark](../benchmarks/jumps/README.md)); its build poses only the touches the review moves.
 - `--squad` gives the number of players of each team when known (team 1 first): the identities to
   find.
 
