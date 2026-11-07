@@ -38,8 +38,11 @@ export interface Contact {
   name: string | null;
   /** On a ball landing in after a point, the players' positions then, flat [person, x, y, ...]. */
   around?: number[];
-  /** On an attack, the other team's defenders then, flat [person, position, depth, across, spot depth, spot across, ...]:
-   * their place and their perimeter spot, in metres from the net and toward their right. */
+  /** On an attack, its place and where it went if seen, [depth, across, depth, across], in the defenders' frame: metres
+   * from the net (the attack's negative) and toward their right. */
+  flight?: number[];
+  /** On an attack, the other team's defenders then, flat [person, depth, across, then for each of `match.defenseModes`
+   * position, spot depth, spot across, ...] in the same frame: their place and their spot, position 0 for none. */
   defense?: number[];
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */
@@ -166,6 +169,10 @@ export interface Data {
   title?: string | null;
   /** The build's hash, in the unhashed scripts' URLs. */
   v?: string;
+  /** The defence systems the attacks' `defense` places the defenders in. */
+  defenseModes?: string[];
+  /** The learned system's spots, from how many matches and balls. */
+  learned?: { matches: number; balls: number } | null;
 }
 
 declare global {
@@ -199,6 +206,8 @@ export const match = {
   brand: data.brand ?? null,
   date: data.date ?? null,
   title: data.title ?? null,
+  defenseModes: data.defenseModes ?? [],
+  learned: data.learned ?? null,
 };
 /** `file`, beside the page, at this build's URL: a cache never serves another build's. */
 export const versioned = (file: string) => (data.v ? `${file}?v=${data.v}` : file);

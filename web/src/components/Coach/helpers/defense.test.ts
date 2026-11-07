@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
-import { defenders } from '@/components/Coach/helpers/defense';
+import { defenders, sideOf } from '@/components/Coach/helpers/defense';
+
+vi.mock('@/lib/match', () => ({ match: { defenseModes: ['perimeter', 'up'] } }));
 
 describe('defenders', () => {
   const people: Record<string, Person> = {
@@ -10,14 +12,15 @@ describe('defenders', () => {
     4: { team: 1, number: 4, jersey: null, name: 'Sam' },
   };
 
-  const attack = (g: 1 | 2, defense: number[]): Contact =>
+  // An attack by team 2 from `across`, each defender [person, depth, across, perimeter spot, middle up spot].
+  const attack = (across: number, defense: number[], g: 1 | 2 = 2): Contact =>
     ({
       i: 0,
       t: 0,
       type: 'attack',
       g,
       team: g,
-      side: g === 1 ? 'left' : 'right',
+      side: 'right',
       rally: 0,
       set: 1,
       x: 0,
@@ -27,40 +30,51 @@ describe('defenders', () => {
       person: null,
       player: null,
       name: null,
+      flight: [-1, across, 5, 0],
       defense,
     }) as Contact;
-  const times = (n: number, defense: (k: number) => number[]) => Array.from({ length: n }, (_, k) => attack(2, defense(k)));
+  const times = (n: number, make: (k: number) => Contact) => Array.from({ length: n }, (_, k) => make(k));
 
-  it("gives each position a player defended, in court order, their usual place and spot in each role from 5 of the other team's attacks", () => {
+  it('gives each position a player defended against one side, in court order, their usual place and spot in each role from 4 attacks', () => {
     const contacts = [
-      // Position 2: 5 times at the net, 5 times off it 1.5 m short of the 3 m line; 4 times at 6, too few.
-      ...times(5, () => [1, 2, 0.6, 3, 0.5, 3]),
-      ...times(5, (k) => [1, 2, 1.5, 3 + k * 0.1, 3, 3.5]),
-      ...times(4, () => [1, 6, 6, 0, 8, 0]),
-      ...times(5, () => [1, 1, 5, 3, 6.5, 3.5]),
+      // From the right: position 2 4 times at the net, 4 times off it 1.5 m short; 3 times at 6, too few; 4 times at 1.
+      ...times(4, () => attack(3, [1, 0.6, 3, 2, 0.5, 3, 2, 0.5, 3])),
+      ...times(4, (k) => attack(3, [1, 1.5, 3 + k * 0.5, 2, 3, 3.5, 3, 3.5, 0])),
+      ...times(3, () => attack(3, [1, 6, 0, 6, 7, 0, 6, 3, 2])),
+      ...times(4, () => attack(3, [1, 5, 3, 1, 6, 2.5, 1, 8, 3])),
+      // From the left, not counted.
+      ...times(4, () => attack(-3, [1, 5, 3, 1, 6, 2.5, 1, 8, 3])),
     ];
 
-    const [alex] = defenders(contacts, 1, people);
+    const [alex] = defenders(contacts, 1, people, 0, 'right');
 
     expect(alex.positions.map((p) => p.position)).toEqual([2, 1]);
     expect(alex.positions[0].places).toEqual([
       { role: 'block', usual: [0.6, 3], spot: [0.5, 3] },
-      { role: 'off', usual: [1.5, 3.2], spot: [3, 3.5] },
+      { role: 'off', usual: [1.5, 3.75], spot: [3, 3.5] },
     ]);
-    // 1.5 m off at 2 when not blocking, at 1 every time.
-    expect(alex.positions.map((p) => p.off.length)).toEqual([5, 5]);
+    expect(alex.positions.map((p) => [p.attacks.length, p.off.length])).toEqual([
+      [8, 4],
+      [4, 4],
+    ]);
+    // In the middle up, the same player off the net is at 3.
+    expect(defenders(contacts, 1, people, 1, 'right')[0].positions.map((p) => p.position)).toEqual([3, 2, 1]);
   });
 
-  it("joins a player's identities and leaves out their own team's attacks", () => {
-    const contacts = [...times(3, () => [2, 6, 7, 0, 8, 0]), ...times(2, () => [4, 6, 7, 0, 8, 0])];
+  it("joins a player's identities, leaves out their own team's attacks and a system leaving them over", () => {
+    const contacts = [...times(2, () => attack(0, [2, 7, 0, 6, 8, 0, 0, 0, 0])), ...times(2, () => attack(0, [4, 7, 0, 6, 8, 0, 0, 0, 0]))];
 
-    expect(defenders(contacts, 1, people).map((d) => [d.person, d.positions[0].places[0].role])).toEqual([[2, 'back']]);
+    expect(defenders(contacts, 1, people, 0, 'middle').map((d) => [d.person, d.positions[0].places[0].role])).toEqual([[2, 'back']]);
+    expect(defenders(contacts, 1, people, 1, 'middle')).toEqual([]);
     expect(
       defenders(
         contacts.map((c) => ({ ...c, g: 1 as const })),
         1,
         people,
+        0,
+        'middle',
       ),
     ).toEqual([]);
+    expect(contacts.map(sideOf)[0]).toBe('middle');
   });
 });

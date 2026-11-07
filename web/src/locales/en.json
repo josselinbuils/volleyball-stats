@@ -978,8 +978,27 @@
       "title": "Defensive positioning",
       "caption": "When the other team hits, position by position.",
       "pick": "Player",
+      "system": "Defence system",
+      "from": "Where the attack comes from",
+      "modes": {
+        "perimeter": "Perimeter",
+        "up": "Middle up",
+        "rotation": "Rotation",
+        "learned": "Learned from our matches"
+      },
+      "attack": "Attack",
+      "sides": {
+        "left": "Left",
+        "middle": "Middle",
+        "right": "Right"
+      },
+      "learned_one": "The spots nearest the other teams' balls in our match ({{balls}} balls).",
+      "learned_other": "The spots nearest the other teams' balls in our {{count}} matches ({{balls}} balls).",
+      "attacker": "Attacker",
+      "ball": "Ball",
       "usual": "Usually",
-      "spot": "Perimeter defence",
+      "spot": "Ideal spot",
+      "none": "Not enough attacks from this side.",
       "position": "Position {{n}}",
       "roles": {
         "block": "Blocking",

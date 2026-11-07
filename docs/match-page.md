@@ -18,7 +18,7 @@ moments.
 - Every number and chart element plays its moments in the video or on the animated court.
 - Above the video: the set and its score (estimated, or the final score you gave once the set is
   over).
-- The video player skips 10 s back or forward. Its "Zoom auto" frames the players as the review's
+- The video player skips 10 s back or forward. Its "Zoom auto", on from the start where the match has views, frames the players as the review's
   (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump; one hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
@@ -86,14 +86,18 @@ the defence placement (the owner's call, 7 Nov).
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
-- "Placement en défense": a player picked (the viewer's own first), and for each position they defended, laid out as on the
-  court, where they usually stood at the other team's hits (dot) and where the perimeter defence the owner's team plays puts
-  them (ring), with what to change from 1 m (`defense.py`). At each attack, the players within 1.2 m of the net make a
-  single or double block in front of the attacker; the others go to the 3 m line on the side away from it, behind a single
-  block for the tip, or to 5, 6 and 1. The six spots, numbered 4 3 2 from left to right in front, go to the defenders by
-  the least total distance: a position is the spot defended, not the rotation's. A role at a position (blocking, not
-  blocking, behind the block) shows from 5 attacks; a card replays the attacks its player stood 1 m off.
-  `benchmarks/defense/bench.py` scores it.
+- "Placement en défense": a player picked (the viewer's own first), a defence system and the side the other team
+  attacks from (the one it attacks from most first); for each position the player defended there, laid out as on the
+  court, the attacker where they usually hit from, each attack's ball to where it went, where the player usually stood at
+  the hit (dot) and their spot in the system (ring), with what to change from 1 m (`defense.py`). The systems: the
+  perimeter the owner's team plays (its corners 2 m inside the sidelines 6 m off the net, 6 at 7 m: the owner's), the
+  middle up and the rotation (AVCA's descriptions, distances approximate), and the spots learned from every match beside
+  this one: those nearest the balls the attacks sent (a dug ball 1 m further along its flight), each ball counting the
+  more the nearer its nearest spot, for a side attack and a middle one, under a single or a double block. At each
+  attack, the players within 1.2 m of the net make a single or double block in front of the attacker; the system's
+  other spots go to the defenders by the least total distance: a position is the spot defended, not the rotation's. A
+  role at a position (blocking, not blocking, behind the block) shows from 4 attacks; a card replays the attacks its
+  player stood 1 m off. `benchmarks/defense/bench.py` scores the systems.
 
 ## Statistics
 

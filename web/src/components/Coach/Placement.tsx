@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Legend } from '@/components/Court';
-import { match, playerLabel, teamColor, teamEdge, type Group } from '@/lib/match';
+import { match, playerLabel, teamColor, teamEdge, type Contact, type Group } from '@/lib/match';
 import { remembered } from '@/lib/me';
 import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useFormat, type Format } from '@/lib/format';
 import { Section } from '@/components/Coach/Section';
-import { OFF_M, type Defender, type Place, type Position } from '@/components/Coach/helpers/defense';
+import { attacksOn, defenders, OFF_M, sideOf, SIDES, type Place, type Position, type Side } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
 // From a small screen up, each position in its place on the court: the front row 4 3 2, then 5 6 1.
@@ -25,49 +26,113 @@ const CELLS: Record<number, string> = {
 const RING = 0.5;
 const DOT = 0.4;
 
-/** A player picked among `g`'s defenders, and for each position they defended, where they usually stood at the other
- * team's hits and where the perimeter defence puts them. */
-export function Placement({ g, defenders }: { g: Group; defenders: Defender[] }) {
+const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
+
+/** A player picked among `g`'s defenders, a defence system and the side the other team attacks from; for each position
+ * the player defended there, the attacks and where they went, where the player usually stood at the hit and their spot. */
+export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
   const { t } = useTranslation();
-  const sorted = useMemo(() => [...defenders].sort((a, b) => (playerLabel(t, a.person) ?? '').localeCompare(playerLabel(t, b.person) ?? '')), [defenders, t]);
+  const [mode, setMode] = useState(0);
+  const attacks = useMemo(() => attacksOn(contacts, g), [contacts, g]);
+  const [side, setSide] = useState<Side>(() => SIDES.reduce((a, b) => (attacks.filter((c) => sideOf(c) === b).length > attacks.filter((c) => sideOf(c) === a).length ? b : a)));
+  const bySide = useMemo(() => Object.fromEntries(SIDES.map((s) => [s, defenders(contacts, g, match.people, mode, s)])), [contacts, g, mode]);
+  const players = useMemo(() => {
+    const all = new Map(SIDES.flatMap((s) => bySide[s].map((d) => [d.key, d.person] as const)));
+    return [...all].map(([key, person]) => ({ key, person, label: playerLabel(t, person) ?? key })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [bySide, t]);
   const [key, setKey] = useState(remembered);
-  const shown = sorted.find((d) => d.key === key) ?? sorted[0];
+  if (!players.length) {
+    return null;
+  }
+  const picked = players.find((p) => p.key === key) ?? players[0];
+  const positions = bySide[side].find((d) => d.key === picked.key)?.positions ?? [];
+  const modeName = match.defenseModes[mode];
   return (
     <Section title={t('coach.placement.title')} caption={t('coach.placement.caption')}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Select value={shown.key} onValueChange={setKey}>
-          <SelectTrigger aria-label={t('coach.placement.pick')} className="w-full bg-card sm:w-72">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={picked.key} onValueChange={setKey}>
+          <SelectTrigger aria-label={t('coach.placement.pick')} className="w-full bg-card sm:w-56">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {sorted.map((d) => (
-              <SelectItem key={d.key} value={d.key}>
-                {playerLabel(t, d.person)}
+            {players.map((p) => (
+              <SelectItem key={p.key} value={p.key}>
+                {p.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Legend>
-          <span className="inline-flex items-center gap-1.5">
-            <svg aria-hidden viewBox="-1 -1 2 2" className="size-3">
-              <circle r={0.8} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            </svg>
-            {t('coach.placement.usual')}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <svg aria-hidden viewBox="-1 -1 2 2" className="size-3">
-              <circle r={0.8} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            </svg>
-            {t('coach.placement.spot')}
-          </span>
-        </Legend>
+        <Select value={String(mode)} onValueChange={(v) => setMode(Number(v))}>
+          <SelectTrigger aria-label={t('coach.placement.system')} className="w-full bg-card sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {match.defenseModes.map((m, n) => (
+              <SelectItem key={m} value={String(n)}>
+                {t(`coach.placement.modes.${m}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-2 max-sm:w-full">
+          <span className="text-sm text-muted-foreground">{t('coach.placement.attack')}</span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={side}
+            onValueChange={(v) => {
+              if (v) {
+                setSide(v as Side);
+              }
+            }}
+            aria-label={t('coach.placement.from')}
+            className="bg-card max-sm:flex-1"
+          >
+            {SIDES.map((s) => (
+              <ToggleGroupItem key={s} value={s} className="h-9 min-w-0 px-3 data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground max-sm:flex-1">
+                {t(`coach.placement.sides.${s}`)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
       </div>
-      <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3">
-        {shown.positions.map((p) => (
-          <Card key={p.position} position={p} person={shown.person} g={g} />
-        ))}
-      </ul>
+      {modeName === 'learned' && match.learned && <p className="text-sm text-muted-foreground">{t('coach.placement.learned', { count: match.learned.matches, balls: match.learned.balls })}</p>}
+      <Legend>
+        <Glyph label={t('coach.placement.attacker')}>
+          <circle r={0.8} fill={teamColor((3 - g) as Group)} stroke={teamEdge((3 - g) as Group)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        </Glyph>
+        <Glyph label={t('coach.placement.ball')}>
+          <line x1={-0.9} x2={0.9} y1={0} y2={0} stroke={teamColor((3 - g) as Group)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        </Glyph>
+        <Glyph label={t('coach.placement.usual')}>
+          <circle r={0.8} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        </Glyph>
+        <Glyph label={t('coach.placement.spot')}>
+          <circle r={0.8} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        </Glyph>
+      </Legend>
+      {positions.length ? (
+        <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3">
+          {positions.map((p) => (
+            <Card key={p.position} position={p} person={picked.person} g={g} />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">{t('coach.placement.none')}</p>
+      )}
     </Section>
+  );
+}
+
+function Glyph({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <svg aria-hidden viewBox="-1 -1 2 2" className="size-3">
+        {children}
+      </svg>
+      {label}
+    </span>
   );
 }
 
@@ -95,7 +160,7 @@ function Card({ position, person, g }: { position: Position; person: number; g: 
         <b className="font-semibold">{t('coach.placement.position', { n: position.position })}</b>
         {position.off.length > 0 && <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
       </span>
-      <HalfCourt places={position.places} g={g} />
+      <HalfCourt position={position} g={g} />
       <span className="grid gap-0.5 text-[13px] text-muted-foreground">
         {position.places.map((p) => (
           <span key={p.role}>{p.role === 'back' ? ways(t, format, p) : t('coach.placement.line', { role: t(`coach.placement.roles.${p.role}`), ways: ways(t, format, p) })}</span>
@@ -128,16 +193,31 @@ function Card({ position, person, g }: { position: Position; person: number; g: 
   );
 }
 
-/** One half seen from behind its end line, the net at the top: each place's spot ringed, the usual place a dot, an arrow
- * from it to the spot. One unit is a metre: x toward the player's right, y away from the net. */
-function HalfCourt({ places, g }: { places: Place[]; g: Group }) {
+/** One half seen from behind its end line, the net at the top and the other team's 3 m beyond it: the attacker where
+ * they usually hit from, each attack's ball to where it went, each place's spot ringed, the usual place a dot, an arrow
+ * from it to the spot. One unit is a metre: x toward the defenders' right, y away from the net. */
+function HalfCourt({ position, g }: { position: Position; g: Group }) {
+  const flights = position.attacks.map((c) => c.flight as number[]);
+  const them = (3 - g) as Group;
+  const [hitDepth, hitAcross] = [median(flights.map((f) => f[0])), median(flights.map((f) => f[1]))];
   return (
-    <svg aria-hidden viewBox="-5 -0.8 10 10.3" className="block h-auto w-full max-w-48 self-center overflow-visible">
+    <svg aria-hidden viewBox="-5 -3.6 10 13.1" className="block h-auto w-full max-w-48 self-center">
+      <rect x={-4.5} y={-3} width={9} height={3} className="fill-court opacity-50" />
       <rect x={-4.5} y={0} width={9} height={9} className="fill-court" />
       <rect x={-4.5} y={0} width={9} height={9} className="court-line" />
       <line x1={-4.5} x2={4.5} y1={3} y2={3} className="court-line" />
+      <line x1={-4.5} x2={4.5} y1={-3} y2={-3} className="court-line opacity-50" />
       <line x1={-5} x2={5} y1={0} y2={0} stroke="var(--muted-foreground)" strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      {places.map(({ role, usual: [uy, ux], spot: [sy, sx] }) => {
+      {flights
+        .filter((f) => f.length === 4)
+        .map((f, k) => (
+          <g key={k} opacity={0.4}>
+            <line x1={f[1]} y1={f[0]} x2={f[3]} y2={f[2]} stroke={teamColor(them)} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+            <circle cx={f[3]} cy={f[2]} r={0.15} fill={teamColor(them)} />
+          </g>
+        ))}
+      <circle cx={hitAcross} cy={Math.max(hitDepth, -3)} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      {position.places.map(({ role, usual: [uy, ux], spot: [sy, sx] }) => {
         const far = Math.hypot(sx - ux, sy - uy);
         const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
         const [tx, ty] = [sx - dx * RING, sy - dy * RING];

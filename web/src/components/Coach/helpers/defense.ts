@@ -1,12 +1,17 @@
-import type { Contact, Group, Person } from '@/lib/match';
+import { match, type Contact, type Group, type Person } from '@/lib/match';
 import { playerKey } from '@/helpers/players';
 
 // A usual place from this many attacks at a position in one role, a way told from this many metres.
-const FROM = 5;
+const FROM = 4;
 export const OFF_M = 1;
+// An attack this near the court's long axis comes through the middle (`defense.MIDDLE_M`).
+const MIDDLE_M = 1.5;
 
 /** The positions in court order: the front row left to right, then the back row. */
 export const POSITIONS = [4, 3, 2, 5, 6, 1] as const;
+/** Where an attack comes from, as the defenders see it facing the net. */
+export const SIDES = ['left', 'middle', 'right'] as const;
+export type Side = (typeof SIDES)[number];
 
 /** At the net, off it in front (2 and 4), covering the tip behind a single block (3), or in the back row. */
 export type Role = 'block' | 'off' | 'tip' | 'back';
@@ -18,11 +23,12 @@ export interface Place {
   spot: [number, number];
 }
 
-/** A position a player defended: their places in each role from FROM attacks, and the attacks they stood OFF_M or
- * more from their spot. */
+/** A position a player defended against attacks from one side: their places in each role from FROM attacks, those
+ * attacks, and those they stood OFF_M or more from their spot. */
 export interface Position {
   position: number;
   places: Place[];
+  attacks: Contact[];
   off: Contact[];
 }
 
@@ -42,21 +48,34 @@ function role(position: number, depth: number): Role {
   return depth <= 1 ? 'block' : position === 3 ? 'tip' : position === 2 || position === 4 ? 'off' : 'back';
 }
 
-/** `g`'s players at the other team's attacks, each with the positions they defended in court order. */
-export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>): Defender[] {
+/** Where `c`, an attack with its flight, comes from. */
+export function sideOf(c: Contact): Side {
+  const across = c.flight?.[1] ?? 0;
+  return across < -MIDDLE_M ? 'left' : across > MIDDLE_M ? 'right' : 'middle';
+}
+
+/** The other team's attacks on `g` with their defenders' places. */
+export const attacksOn = (contacts: Contact[], g: Group) => contacts.filter((c) => c.type === 'attack' && c.g !== g && c.defense && c.flight);
+
+/** `g`'s players at the other team's attacks from `side`, in the `mode`th of `match.defenseModes`, each with the
+ * positions they defended there in court order. */
+export function defenders(contacts: Contact[], g: Group, people: Record<string, Person>, mode: number, side: Side): Defender[] {
+  const stride = 3 + 3 * match.defenseModes.length;
   const found = new Map<string, { person: number; at: Map<number, { c: Contact; place: number[] }[]> }>();
-  for (const c of contacts) {
-    if (c.type !== 'attack' || c.g === g || !c.defense) {
+  for (const c of attacksOn(contacts, g)) {
+    if (sideOf(c) !== side) {
       continue;
     }
-    for (let k = 0; k < c.defense.length; k += 6) {
-      const place = c.defense.slice(k, k + 6);
-      const key = playerKey(place[0], people);
-      if (key === null || people[place[0]].team !== g) {
+    const all = c.defense as number[];
+    for (let k = 0; k < all.length; k += stride) {
+      const [person, depth, across] = all.slice(k, k + 3);
+      const [position, spotDepth, spotAcross] = all.slice(k + 3 + 3 * mode, k + 6 + 3 * mode);
+      const key = playerKey(person, people);
+      if (key === null || people[person].team !== g || !position) {
         continue;
       }
-      const player = found.get(key) ?? { person: place[0], at: new Map() };
-      player.at.set(place[1], [...(player.at.get(place[1]) ?? []), { c, place }]);
+      const player = found.get(key) ?? { person, at: new Map() };
+      player.at.set(position, [...(player.at.get(position) ?? []), { c, place: [depth, across, spotDepth, spotAcross] }]);
       found.set(key, player);
     }
   }
@@ -64,12 +83,12 @@ export function defenders(contacts: Contact[], g: Group, people: Record<string, 
     const positions = POSITIONS.flatMap((position) => {
       const seen = at.get(position) ?? [];
       const places = (['block', 'off', 'tip', 'back'] as const).flatMap((r) => {
-        const here = seen.filter((x) => role(position, x.place[4]) === r).map((x) => x.place);
+        const here = seen.filter((x) => role(position, x.place[2]) === r).map((x) => x.place);
         const mid = (n: number) => median(here.map((p) => p[n]));
-        return here.length >= FROM ? [{ role: r, usual: [mid(2), mid(3)], spot: [mid(4), mid(5)] } as Place] : [];
+        return here.length >= FROM ? [{ role: r, usual: [mid(0), mid(1)], spot: [mid(2), mid(3)] } as Place] : [];
       });
-      const off = seen.filter((x) => Math.hypot(x.place[4] - x.place[2], x.place[5] - x.place[3]) >= OFF_M).map((x) => x.c);
-      return places.length ? [{ position, places, off }] : [];
+      const off = seen.filter((x) => Math.hypot(x.place[2] - x.place[0], x.place[3] - x.place[1]) >= OFF_M).map((x) => x.c);
+      return places.length ? [{ position, places, attacks: seen.map((x) => x.c), off }] : [];
     });
     return positions.length ? [{ key, person, positions }] : [];
   });

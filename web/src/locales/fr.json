@@ -978,8 +978,27 @@
       "title": "Placement en défense",
       "caption": "À la frappe adverse, poste par poste.",
       "pick": "Joueur",
+      "system": "Système de défense",
+      "from": "D'où vient l'attaque",
+      "modes": {
+        "perimeter": "Périmètre",
+        "up": "6 avancé",
+        "rotation": "Rotation",
+        "learned": "Appris de nos matchs"
+      },
+      "attack": "Attaque",
+      "sides": {
+        "left": "À gauche",
+        "middle": "Au centre",
+        "right": "À droite"
+      },
+      "learned_one": "Les places les plus proches des ballons adverses de notre match ({{balls}} ballons).",
+      "learned_other": "Les places les plus proches des ballons adverses de nos {{count}} matchs ({{balls}} ballons).",
+      "attacker": "Attaquant",
+      "ball": "Ballon",
       "usual": "D'habitude",
-      "spot": "En défense périmètre",
+      "spot": "Place idéale",
+      "none": "Pas assez d'attaques de ce côté.",
       "position": "Poste {{n}}",
       "roles": {
         "block": "Au contre",

@@ -944,26 +944,40 @@ class TestWithLandings:
 
 
 class TestDefended:
-    # Team 1 on the left; on the right half team 2's player 1 m short of corner 5, and a team 2 player on the wrong half.
-    players = {"step": 1, "samples": [[1, 5.5, 3.5, 2, -6.0, 0.0, 3, -2.0, 0.0]]}
+    # Team 1 on the left; on the right half a team 2 player near corner 5, and a team 2 player on the wrong half.
+    players = {"step": 1, "samples": [[1, 6.0, 3.5, 2, -6.0, 0.0, 3, -2.0, 0.0]]}
     people = {"1": {"team": 2}, "2": {"team": 1}, "3": {"team": 2}}
     rallies = [{"left": 1}, {"left": None}]
 
     @staticmethod
     def attack(side: str = "left", rally: int = 0, kind: str = "attack") -> dict:
-        return {"type": kind, "side": side, "rally": rally, "t": 0.0, "x": -1.0 if side == "left" else 1.0, "y": 3.0}
+        return {"type": kind, "side": side, "rally": rally, "t": 0.0, "x": -1.0 if side == "left" else 1.0, "y": 3.0, "result": "play"}
 
-    def test_gives_an_attack_the_other_halfs_defenders_places_and_spots(self):
-        # On the right half, the defenders' right is the far sideline (y < 0): the corner at y 3.5 is their left one.
-        found = web.defended([self.attack()], self.rallies, self.players, 10.0, self.people)
+    def test_gives_an_attack_its_flight_and_the_other_halfs_defenders_places_and_spots_in_each_system(self):
+        # On the right half, the defenders' right is the far sideline (y < 0): the attack comes on their left, the
+        # player stands at their left corner: 5 in the perimeter and the middle up, 6 come over to the line in the rotation.
+        found = web.defended([self.attack(), {"type": "dig", "rally": 0, "x": 5.0, "y": 2.0}], self.rallies, self.players, 10.0, self.people)
 
-        assert found[0]["defense"] == [1, 5, 5.5, -3.5, 6.5, -3.5]
-        # From the right, only team 1 defends the left half: 2 m short of zone 6's spot.
-        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people)[0]["defense"] == [2, 6, 6.0, 0.0, 8.0, 0.0]
+        assert found[0]["flight"] == [-1.0, -3.0, 5.0, -2.0]
+        assert found[0]["defense"] == [1, 6.0, -3.5, 5, 6.0, -2.5, 5, 8.0, -3.0, 6, 7.5, -3.0]
+        # From the right, only team 1 defends the left half; with learned spots, a fourth system.
+        learned = {"side": {"5": [(3.0, -3.0), (3.0, 0.0), (6.0, -2.0), (6.0, 2.0), (6.5, 0.0)]}, "middle": {}}
+        assert web.defended([self.attack(side="right")], self.rallies, self.players, 10.0, self.people, learned)[0]["defense"][-3:] == [6, 6.5, 0.0]
 
     def test_leaves_other_touches_and_an_attack_without_teams(self):
         for contact in (self.attack(kind="dig"), self.attack(rally=1)):
             assert "defense" not in web.defended([contact], self.rallies, self.players, 10.0, self.people)[0]
+
+    def test_gives_a_defender_left_over_in_a_system_position_0_there(self):
+        crowd = {"step": 1, "samples": [[p for k in range(8) for p in (10 + k, 6.0 + k * 0.01, 3.5)]]}
+        people = {str(10 + k): {"team": 2} for k in range(8)}
+
+        found = web.defended([self.attack()], self.rallies, crowd, 10.0, people)[0]["defense"]
+
+        # Each system places 6 of the 8, the others 0 there; one in no system has no row.
+        rows = [found[k : k + 12] for k in range(0, len(found), 12)]
+        assert [sum(row[column] != 0 for row in rows) for column in (3, 6, 9)] == [6, 6, 6]
+        assert all(any(row[column] for column in (3, 6, 9)) for row in rows)
 
 
 class TestKeptPhotos:

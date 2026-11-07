@@ -951,13 +951,15 @@ def with_landings(contacts: list[dict], players: dict, fps: float) -> list[dict]
     return out
 
 
-def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
-    """`contacts` with, on each attack, the other half's defenders then in `defense`, flat [person, position, depth, across,
-    spot depth, spot across, ...]: their place and their perimeter spot (`defense.assign`), in metres from the net and toward
-    their right. The players held as in `with_landings`."""
+def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict, learned: dict | None = None) -> list[dict]:
+    """`contacts` with, on each attack, its `flight` [depth, across, then where it went if seen] and the other half's
+    defenders then in `defense`, flat [person, depth, across, then for each of `defense.MODES` (the learned one with
+    `learned` spots only) position, spot depth, spot across, ...] (`defense.assign`), in metres from the net and toward the
+    defenders' right, position 0 for a defender left over. The players held as in `with_landings`."""
     back = round(HOLD_S * fps / players["step"])
+    modes = defense.MODES if learned else defense.MODES[:-1]
     out = []
-    for c in contacts:
+    for k, c in enumerate(contacts):
         left = rallies[c["rally"]]["left"]
         if c["type"] != "attack" or c.get("x") is None or c.get("y") is None or not left:
             out.append(c)
@@ -967,9 +969,26 @@ def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: floa
         team = 3 - left if sign > 0 else left
         seen = places_at(players, c["t"], fps, back)
         here = {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
-        found = defense.assign(-sign * c["y"], here)
-        out.append({**c, "defense": [round(v, 1) for person, (depth, x, position) in found.items() for v in (person, position, *here[person], depth, x)]} if found else c)
+        start, end, _ = defense.flight(contacts, k)
+        found = [defense.assign(defense.layout(mode, start[1], defense.doubled(here), learned), here) for mode in modes]
+        # A defender left over in a system has position 0 there.
+        placed = [person for person in here if any(person in spots for spots in found)]
+        flat = [round(v, 1) for person in placed for v in (person, *here[person], *(x for spots in found for x in (lambda d, x, p: (p, d, x))(*spots.get(person, (0.0, 0.0, 0)))))]
+        out.append({**c, "flight": [round(v, 1) for v in (*start, *(end or ()))], **({"defense": flat} if placed else {})})
     return out
+
+
+def learned_spots(match: Path, contacts: list[dict]) -> dict | None:
+    """`defense.learn` from where the attacks went in `contacts` and in the other matches' review pages beside `match`:
+    with how many matches and balls, None from too few."""
+    found, matches = defense.balls(contacts), 1
+    for page in sorted(match.parent.glob("*/review/data.js")):
+        if page.parent.parent != match:
+            text = page.read_text()
+            found += defense.balls(json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))["contacts"])
+            matches += 1
+    spots = defense.learn(found)
+    return spots and {"matches": matches, "balls": len(found), "spots": spots}
 
 
 def linked(source: Path, target: Path) -> None:
@@ -1099,7 +1118,9 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions), "cm": POSITION_CM}
         data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
         if data.get("teams"):
-            data["contacts"] = defended(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
+            learned = data.get("learned")
+            data["contacts"] = defended(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {}, learned and learned["spots"])
+            data["defenseModes"] = list(defense.MODES if learned else defense.MODES[:-1])
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
     if ball_js:
@@ -1528,6 +1549,8 @@ def build(
     data["brand"] = brand(theme, site)
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
+    if data.get("teams"):
+        data["learned"] = learned_spots(match, data["contacts"])
     ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
     if blurred is not None and (match / "players.csv").exists():
         samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3) / [data["fps"], 1, 1]

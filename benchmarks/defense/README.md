@@ -1,7 +1,9 @@
-# Defence placement
+# Defence systems
 
-`defense.assign` against the perimeter defence the owner's team plays. No labels say where a player should have stood:
-the check is whether the other team scores more when the defenders stand further from their spots.
+`defense.layout` and `defense.learn` scored on where the other team's attacks went (`defense.balls`: the defenders'
+first touch but a block, a dug ball 1 m further along its flight, or where it landed untouched). No labels say where a
+player should have stood: the check is the share of those balls with a spot within 1.5 m, each match held out from the
+learning in turn.
 
 ```bash
 uv run python benchmarks/defense/bench.py outputs/matches/2026-10-29-aspom-1-vs-aspom-2 outputs/matches/2026-11-02-avia-1-vs-aspom-2
@@ -9,10 +11,19 @@ uv run python benchmarks/defense/bench.py outputs/matches/2026-10-29-aspom-1-vs-
 
 ## Results (7 Nov)
 
-- 367 attacks, all with defenders, 5.9 each.
-- Blockers stand near their spot: within 0.4 m of depth and 0.7 m to the side, but for one team's 4 (1.3 m). Off the net, both teams of both matches
-  stand short of the perimeter's spots: 5 and 1 1.2-1.7 m too near the net and 0.5-1.7 m inside, 6 1.3-2.1 m too near,
-  4 and 2 not blocking 0.5-1.7 m too near and up to 1.6 m inside, 3 behind the block 0.6-1.4 m too near.
-- Player places from 5 attacks: 70 on the first match, 57 of them 1 m or more off; 81 on the second, 55.
-- Attacks not missed 303, 31% scored. By the defenders' mean way to their spots, nearest quarter first: 28%, 33%,
-  26%, 37%. A hint at most: the textbook spots are not shown to cost fewer points at this level.
+Balls within 1.5 m of a spot, first match (90 balls) / second (139):
+
+| System | First | Second |
+|---|---|---|
+| Textbook perimeter (corners 1 m inside, 6.5 m off the net; 6 at 8 m) | 58% | 47% |
+| Perimeter (corners 2 m inside, 6 m off; 6 at 7 m) | 74% | 71% |
+| Middle up | 31% | 22% |
+| Rotation | 57% | 51% |
+| Learned on the other match | 70% | 69% |
+| The players' own places at the hit | 64% | 76% |
+
+- The perimeter's corners were moved after looking at both matches: its numbers are not held out.
+- Learning by the balls within 1.5 m alone held out 66% and 55%; by the mean distance, 63% and 68%; a bell 1 m wide, kept, 70% and 69%; 1.5 m, 62% and 68%.
+- The players' own places lean on the balls they dug, where they stood.
+- Even under a double block, 40 of the 93 balls past the 3 m line went through the middle 3 m: the block does not take
+  the middle away at this level.

@@ -14,7 +14,7 @@ import { Section } from '@/components/Coach/Section';
 import { Setters } from '@/components/Coach/Setters';
 import { Placement } from '@/components/Coach/Placement';
 import { setters, things, type Thing } from '@/components/Coach/helpers/coach';
-import { defenders } from '@/components/Coach/helpers/defense';
+import { attacksOn } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
 /** What a coach reads for one team: what cost it points, who sets whom, and each player's places in the perimeter defence,
@@ -28,14 +28,14 @@ export function Coach() {
       GROUPS.map((g) => ({
         things: things(rallies, g),
         setters: setters(contacts, g, match.people),
-        defenders: defenders(contacts, g, match.people),
+        defended: attacksOn(contacts, g).length > 0,
       })),
     [contacts, rallies],
   );
-  if (!hasTeams || read.every((r) => !r.things.found.length && !r.setters.length && !r.defenders.length)) {
+  if (!hasTeams || read.every((r) => !r.things.found.length && !r.setters.length && !r.defended)) {
     return null;
   }
-  const { things: lost, setters: setting, defenders: defending } = read[picked - 1];
+  const { things: lost, setters: setting, defended } = read[picked - 1];
   return (
     <Card>
       <CardHeader>
@@ -77,7 +77,7 @@ export function Coach() {
           </Section>
         )}
         {setting.length > 0 && <Setters setters={setting} />}
-        {defending.length > 0 && <Placement key={picked} g={picked} defenders={defending} />}
+        {defended && <Placement key={picked} g={picked} contacts={contacts} />}
       </CardContent>
     </Card>
   );
