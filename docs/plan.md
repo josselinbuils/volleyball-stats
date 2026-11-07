@@ -124,8 +124,9 @@ The players' positions are one file a minute (`positions/N.js`, 13 KB compressed
 them; the balls dropped between two players read theirs from `data.js` (`around`). Lighthouse, mobile, 3 runs on
 localhost, the first match without footage: first load 1,824 -> 282 KB, LCP 2.73 -> 2.41 s, time to interactive
 10.9 -> 3.05 s, blocking 664 -> 644 ms, score 80 -> 82 (desktop 99, 99). The first file loads 500 ms after mounting:
-a script running before the paint is recorded counts as blocking it in Lighthouse's simulated LCP. Moving the review
-screens to their own bundle would save 24 KB compressed, not done; `i18next` (15 KB) and `cn` (8 KB) stay.
+a script running before the paint is recorded counts as blocking it in Lighthouse's simulated LCP. The review's
+screens are their own script since 7 Nov (`review-app.js`, `vite.review.config.ts`, loaded by `main.tsx` when review.js
+is there): the page's script 255 -> 221 KB compressed. `i18next` (15 KB) and `cn` (8 KB) stay.
 
 ## Page: la saison (4 Nov)
 

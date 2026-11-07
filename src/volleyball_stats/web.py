@@ -1166,7 +1166,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["films"] = shown_films
     # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
     # serves each build its own.
-    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + places_js + voice_js + (site / "scene3d.js").read_text()
+    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + places_js + voice_js + (site / "scene3d.js").read_text() + (site / "review-app.js").read_text()
     data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     index = site / "index.html"

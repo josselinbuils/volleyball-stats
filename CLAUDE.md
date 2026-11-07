@@ -36,8 +36,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - Tooltips in `web/`: `Tip` only, never a `title` (one look everywhere, full screen included; `Tip.test.ts` checks).
 - The page's build is committed in `src/volleyball_stats/site/`: after any `web/` change run
   `npm run build` in `web/` and commit the build with it. It makes the page, `scene3d.js` (three.js)
-  that the page loads only when the 3D view is shown, and in `matches_site/` the list of the hosted
-  matches (`matches.html`, `src/matches.tsx`).
+  that the page loads only when the 3D view is shown, `review-app.js` (the review's screens) that it loads
+  only in the review, and in `matches_site/` the list of the hosted matches (`matches.html`, `src/matches.tsx`).
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
 
