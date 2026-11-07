@@ -6,7 +6,7 @@ timing against the flight's top, for the coach's advice on attacks.
 ## Run
 
 ```bash
-uv run python benchmarks/jumps/bench.py [--verbose] [--sweep]
+uv run python benchmarks/jumps/bench.py [--heldout] [--verbose] [--sweep]
 uv run python benchmarks/jumps/sheets.py MATCH OUT_DIR [COUNT]   # the sheets the labels come from
 ```
 
@@ -15,20 +15,21 @@ first match's 134 attacks, 8 min for the second's 174).
 
 ## Ground truth
 
-`ground_truth/labels.csv`: 20 attacks drawn at random from each match's `actions.csv` (seed 0), labelled by Claude
-on `sheets.py`'s crops at 50 fps: whether the outlined player is the attacker and jumps, the first frame with both feet
-off the floor (`takeoff`), the first back on it (`landing`), the hand on the ball (`contact`, when seen) and the frame
-the final run-up starts (`start`, `none` for a standing jump; every 5 frames). 3 outlined players are not the attacker,
-4 hit with no jump, 2 of the 33 jumps are jump sets; the labellers give ±1-5 frames on takeoff and landing. One takeoff checked again on 2x crops of the feet
-(attack 126339): the label stands to the frame.
+`ground_truth/labels.csv`: 20 attacks drawn at random from each match's `actions.csv` (seed 0), labelled by Claude on
+`sheets.py`'s crops at 50 fps: whether the outlined player is the attacker and jumps, the first frame with both feet off
+the floor (`takeoff`), the first back on it (`landing`), the hand on the ball (`contact`, when seen) and the frame the
+final run-up starts (`start`, `none` for a standing jump; every 5 frames). 3 outlined players are not the attacker, 4
+hit with no jump, 2 of the 33 jumps are jump sets; the labellers give ±1-5 frames on takeoff and landing. One takeoff
+checked again on 2x crops of the feet (attack 126339): the label stands to the frame.
 
 ## Method
 
 YOLO11m-pose on a crop around the attacker's track over ±0.8 s. The lower ankle's path in the picture: a jump where it
-stands 0.15 m over its lower envelope (the floor) near the contact; the edges where its fastest rise and fall slow
-under 0.2 of their speed, then moved by the heel (+3 frames at takeoff, -2 at landing). A flight outside 0.3-0.8 s
-has a foot hidden at one end: that end mirrors the other about the ankle's highest, else it is dropped. The hit: within 0.24 s of the ball's contact, the frame the ball is seen nearest a wrist. The run-up: going back from takeoff on the tracked feet, until the player came under 0.1 m
-nearer the net over 0.5 s.
+stands 0.15 m over its lower envelope (the floor) near the contact; the edges where its fastest rise and fall slow under
+0.2 of their speed, then moved by the heel (+3 frames at takeoff, -2 at landing). A flight outside 0.3-0.8 s has a foot
+hidden at one end: that end mirrors the other about the ankle's highest, else it is dropped. The hit: within 0.24 s of
+the ball's contact, the frame the ball is seen nearest a wrist. The run-up: going back from takeoff on the tracked feet,
+until the player came under 0.1 m nearer the net over 0.5 s.
 
 Checked only on the ASPOM matches' 4K footage with its lens calibrated. Without a camera model (a calibration with no
 lens, the 720p school clips) it measures nothing: a player's box height as the scale there gave 3 jumps of 9 attacks
