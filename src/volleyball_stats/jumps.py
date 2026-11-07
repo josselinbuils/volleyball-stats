@@ -87,6 +87,7 @@ def iou(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 def pose_all(video: Path, attacks: list[tuple[int, int]], tracks: dict[int, Rows], fps: float, cache: Path | None = None) -> dict[str, list]:
     """Each attack's (frame, track) keypoints over its `window`: per frame the 17 (x, y, confidence) in the video's pixels
     of the pose matching the track's box, None when none does; kept in `cache` (JSON, by "frame:track")."""
+    # ponytail: the cache is keyed by attack alone; delete jumps.json after changing BEFORE_S, AFTER_S or CROP.
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     todo = [(f, t) for f, t in attacks if f"{f}:{t}" not in kept]
     if not todo:
@@ -233,6 +234,8 @@ def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, f
     the hand on the ball, from the `ball`'s sightings), `late` (ms from the flight's top to it, negative before), `height`
     (m, from the flight time), the distances to the net in metres at takeoff (`takeoff_m`), at the run-up's start
     (`start_m`, with its frame `start`) and how far the jump carried towards it (`drift_m`); None without a jump."""
+    # ponytail: one camera on the sideline; a foot hidden at both ends of the flight, or the attacker behind another
+    # player, loses the jump (about 30% of the labelled ones). A second camera, or the hips' parabola, would bring some back.
     frames = window(frame, fps)
     hole = round(HOLE_S * fps)
     track = at(rows, frames, hole)

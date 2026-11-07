@@ -10,6 +10,9 @@ The pipeline's weak spots and what is left to do, most useful first.
   picks. Identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame (high serves and sets): the false touches
   that makes are dropped (`attribution.FAR`) and no net crossing is lost (`contacts.MAX_GAP`); carrying the flight across waits for a match where it shows.
 - Rally ends now carry on through contacts (`rallies.carried_on`); most touches still added by hand have no contact: the ball is unseen near the floor.
+- Attack jumps (`jumps.py`, 7 Nov): takeoff, landing, the hit and the run-up from the attacker's pose; on 40 labelled attacks
+  takeoff and landing within 2 frames for 22 of 24 jumps measured, timing within 60 ms for 22 of 24 (`benchmarks/jumps`). About 65%
+  of attacks get one (a foot hidden loses the rest). It feeds "Le saut d'attaque" in the coach's corner and the 3D figures' jumps.
 - `docs/next_steps.md`: what is left in the pipeline, with the numbers; the plan for learning from the review (`learn`).
 
 ## Open
