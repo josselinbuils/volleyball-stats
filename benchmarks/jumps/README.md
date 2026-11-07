@@ -19,7 +19,8 @@ first match's 134 attacks, 8 min for the second's 174).
 on `sheets.py`'s crops at 50 fps: whether the outlined player is the attacker and jumps, the first frame with both feet
 off the floor (`takeoff`), the first back on it (`landing`), the hand on the ball (`contact`, when seen) and the frame
 the final run-up starts (`start`, `none` for a standing jump; every 5 frames). 3 outlined players are not the attacker,
-4 hit with no jump, 2 of the 33 jumps are jump sets; the labellers give ±1-5 frames on takeoff and landing.
+4 hit with no jump, 2 of the 33 jumps are jump sets; the labellers give ±1-5 frames on takeoff and landing. One takeoff checked again on 2x crops of the feet
+(attack 126339): the label stands to the frame.
 
 ## Method
 
