@@ -208,3 +208,22 @@ The second match's reviewed servers follow each team's rotation of 6 too: 6 serv
 servers from it still loses (first, second, of 126 and 138): the rotation decoded 117 → 115, 129 → 117; one server per
 turn by majority 117 → 119, 129 → 123; a server between two agreeing ones of the turn 117, 129. `auto.serverOrder` stays
 a review flag.
+
+## Tried and dropped (7 Nov)
+
+On the two reviewed matches' checked rallies and answers (M1 first, M2 second):
+
+| Idea | Result |
+| --- | --- |
+| A "relance" with a jump becomes an attack | 59-68% of real attacks are jumped, but so are 26-30% of real relances: 6 fixed for 11 broken (M1) |
+| A set sent over typed attack when the toucher jumped | M1 5 fixed, 3 broken; M2 8 fixed, 9 broken |
+| A learned retyping of the rules' types (multinomial logit on the rule's type, neighbours', sides, touch count, timing, place), one match trained, the other tested | 940 → 942 of 1057 (M2), 749 → 751 of 839 (M1) at best; overfits |
+| A rally's last contact typed floor turned into a touch when a player's wrists are at the ball | wrists within 0.15 box heights: M1 6 fixed, 6 broken; M2 10 fixed, 3 broken |
+| A lower contact threshold where a player is at the ball (item 3 above) | missed touches under the threshold with a player there: 1 (M1), 7 (M2), against 78 and 82 false candidates |
+| Made-up contacts (answered "no touch") dropped when the ball is little seen or turns weakly | every threshold loses more real touches: seen ≤ 40% and turn < 1.5×: 6 false for 18 real (M2), 2 for 14 (M1) |
+| False touches told by the distance to the nearest player (`gap`) | same spread as real ones (median 0.33 vs 0.37 box heights) |
+| The hitting height from the pose (wrist over the floor at the hit) to fill attacks the 3D fit leaves | +38 and +30 attacks, but within-player spread 0.096-0.109 m against 0.07-0.085 m for the ball's |
+| Attacks named at the hit rather than the contact frame | of M2's 145 answered attacks with the player posed, 8 wrong, 3 of them with the contact over 4 frames off: at most +3 |
+
+Also found: of the touches with a clear ball turn but no contact, most sit outside the windows of the matches' outputs, which
+predate the 5 Nov rally fixes (59 of 64 on M2); today's code: 869 → 880 of 945, 1074 → 1103 of 1199 touches in windows.
