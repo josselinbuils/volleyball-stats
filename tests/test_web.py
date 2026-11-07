@@ -806,6 +806,15 @@ class TestPublish:
         with pytest.raises(ValueError):
             publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": "both", "footage": "blur-opponents"}, tmp_path / "hosted")
 
+    def test_only_the_review_keeps_its_screens(self, tmp_path, monkeypatch):
+        built = []
+        monkeypatch.setattr(web, "build", lambda *args, **kwargs: built.append(kwargs.get("review", False)) or {})
+
+        web.review_page(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json")
+        publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": 1}, tmp_path / "hosted")
+
+        assert built == [True, False]
+
     def test_refuses_pictures_or_a_blurred_opponent_without_a_club(self, tmp_path):
         with pytest.raises(ValueError):
             publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"pictures": True})

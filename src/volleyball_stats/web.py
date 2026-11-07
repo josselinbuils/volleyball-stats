@@ -1546,13 +1546,14 @@ def build(
     feedback: str | None = None,
     av1: Path | None = None,
     small: Path | None = None,
+    review: bool = False,
 ) -> dict:
     """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
     pictures of the `pictured` teams' players; `light` a lighter copy of `video` on its timeline for
     the page to play with the full footage, `av1` an AV1 copy played first where the browser can, `small` a 720p one played in a small player, and `link`, on a page without footage, where the same
     page with it is (behind a password); `feedback` where viewers report what is wrong in a moment
-    (none: they are not asked); returns data.js's match. ValueError for `light`, `av1` or `small` with a
-    footage to blur (blurring works on the tracked video)."""
+    (none: they are not asked); `review` keeps the review's screens (review-app.js) beside it; returns data.js's match.
+    ValueError for `light`, `av1` or `small` with a footage to blur (blurring works on the tracked video)."""
     if (light or av1 or small) and footage != "full":
         raise ValueError("--light-video, --av1-video and --small-video go with --footage full")
     calibration = Calibration.load(court)
@@ -1573,13 +1574,15 @@ def build(
         samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3) / [data["fps"], 1, 1]
         data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER], samples)
     write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data), match / "films")
+    if not review:
+        (site / "review-app.js").unlink(missing_ok=True)
     return data
 
 
 def review_page(match: Path, video: Path, court: Path, theme: str = "aspom", pictures: bool = True) -> dict:
     """The review's own page in MATCH/review/, with the video and every picture: the published one
     stays as it was built. Without `pictures`, each player keeps their last one (`refresh_photos`)."""
-    return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures)
+    return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True)
 
 
 def kept_photos(people: dict[int, dict], site: Path) -> None:
