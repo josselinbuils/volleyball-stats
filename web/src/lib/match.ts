@@ -41,6 +41,8 @@ export interface Contact {
   /** On an attack, its place and where it went if seen, [depth, across, depth, across], in the defenders' frame: metres
    * from the net (the attack's negative) and toward their right. */
   flight?: number[];
+  /** On an attack, how many of the defenders blocked: 1 or 2 (two or more near the net). */
+  block?: number;
   /** On an attack, the other team's defenders then, flat [person, depth, across, then for each of `match.defenseModes`
    * position, spot depth, spot across, ...] in the same frame: their place and their spot, position 0 for none. */
   defense?: number[];

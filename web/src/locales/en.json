@@ -997,6 +997,8 @@
         "middle": "Attack in the middle",
         "right": "Attack on the right"
       },
+      "blocks_one": "single block",
+      "blocks_other": "double block",
       "roles": {
         "block": "Blocking",
         "off": "Not blocking",

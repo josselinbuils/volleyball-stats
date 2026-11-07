@@ -17,8 +17,9 @@ const DOT = 0.4;
 
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
 
-/** A player picked among `g`'s defenders and a defence system; a card per position the player defended and side the
- * other team attacked from: the attacks and where they went, where the player usually stood at the hit and their spot. */
+/** A player picked among `g`'s defenders and a defence system; a card per situation the player defended (position,
+ * side the attack came from, block, role): the attacks and where they went, every position's spot, where the player usually
+ * stood at the hit and their spot. */
 export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState(0);
@@ -75,7 +76,9 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
         </Glyph>
       </Legend>
       <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3 lg:grid-cols-5">
-        {picked.positions.flatMap((p) => p.situations.map((situation) => <Card key={`${p.position} ${situation.side}`} situation={situation} position={p.position} person={picked.person} g={g} />))}
+        {picked.situations.map((s) => (
+          <Card key={`${s.position} ${s.side} ${s.block} ${s.place.role}`} situation={s} person={picked.person} g={g} />
+        ))}
       </ul>
     </Section>
   );
@@ -109,23 +112,24 @@ function ways(t: TFunction, { num, dec }: Format, { usual, spot }: Place): strin
   return out.length ? out.join(', ') : t('coach.placement.fine');
 }
 
-/** A position's court against one side, replaying the attacks its player stood OFF_M or more off their spot. */
-function Card({ situation, position, person, g }: { situation: Situation; position: number; person: number; g: Group }) {
+/** A situation's court, replaying the attacks its player stood OFF_M or more off their spot. */
+function Card({ situation, person, g }: { situation: Situation; person: number; g: Group }) {
   const { t } = useTranslation();
   const format = useFormat();
   const { play } = usePlayer();
+  const { place, position } = situation;
   const body = (
     <>
       <span className="flex items-center justify-between gap-2">
         <b className="font-semibold">{t('coach.placement.position', { n: position })}</b>
         {situation.off.length > 0 && <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
       </span>
-      <span className="text-[13px] text-muted-foreground">{t(`coach.placement.sides.${situation.side}`)}</span>
       <HalfCourt situation={situation} g={g} />
-      <span className="grid gap-0.5 text-[13px]">
-        {situation.places.map((p) => (
-          <span key={p.role}>{p.role === 'back' ? ways(t, format, p) : t('coach.placement.line', { role: t(`coach.placement.roles.${p.role}`), ways: lower(ways(t, format, p)) })}</span>
-        ))}
+      <span className="text-[13px] text-muted-foreground">
+        {t(`coach.placement.sides.${situation.side}`)} · {t('coach.placement.blocks', { count: situation.block })}
+      </span>
+      <span className="text-[13px]">
+        {place.role === 'back' ? ways(t, format, place) : t('coach.placement.line', { role: t(`coach.placement.roles.${place.role}`), ways: lower(ways(t, format, place)) })}
       </span>
     </>
   );
@@ -155,12 +159,26 @@ function Card({ situation, position, person, g }: { situation: Situation; positi
 }
 
 /** One half seen from behind its end line, the net at the top and the other team's 3 m beyond it: the attacker where
- * they usually hit from, each attack's ball to where it went, the usual place a dot in the team's colour, the spot a green
- * one over it, an arrow between them. One unit is a metre: x toward the defenders' right, y away from the net. */
+ * they usually hit from, the balls theirs to play to where they went, every position's spot a pale green dot numbered, the
+ * player's usual place a dot in the team's colour, their spot a green one, an arrow between them. One unit is a metre:
+ * x toward the defenders' right, y away from the net. */
 function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
-  const flights = situation.attacks.map((c) => c.flight as number[]);
+  const flights = situation.mine.map((c) => c.flight as number[]);
   const them = (3 - g) as Group;
-  const [hitDepth, hitAcross] = [median(flights.map((f) => f[0])), median(flights.map((f) => f[1]))];
+  const hits = situation.attacks.map((c) => c.flight as number[]);
+  const [hitDepth, hitAcross] = [median(hits.map((f) => f[0])), median(hits.map((f) => f[1]))];
+  const {
+    usual: [uy, ux],
+    spot: [sy, sx],
+  } = situation.place;
+  const far = Math.hypot(sx - ux, sy - uy);
+  const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
+  const [tx, ty] = [sx - dx * DOT, sy - dy * DOT];
+  const number = (x: number, y: number, n: number, fill: string) => (
+    <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={0.55} fontWeight={700} fill={fill}>
+      {n}
+    </text>
+  );
   return (
     <svg aria-hidden viewBox="-5 -3.6 10 13.1" className="block h-auto w-full">
       <rect x={-4.5} y={-3} width={9} height={3} className="fill-court opacity-50" />
@@ -177,24 +195,24 @@ function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
             <circle cx={f[3]} cy={f[2]} r={0.15} fill={teamColor(them)} />
           </g>
         ))}
-      <circle cx={hitAcross} cy={Math.max(hitDepth, -3)} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-      {situation.places.map(({ role, usual: [uy, ux], spot: [sy, sx] }) => {
-        const far = Math.hypot(sx - ux, sy - uy);
-        const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
-        const [tx, ty] = [sx - dx * DOT, sy - dy * DOT];
-        return (
-          <g key={role}>
-            <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            {far > 2 * DOT + 0.7 && (
-              <>
-                <line x1={ux + dx * DOT} y1={uy + dy * DOT} x2={tx - dx * 0.4} y2={ty - dy * 0.4} stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-                <polygon points={`${tx},${ty} ${tx - dx * 0.55 - dy * 0.3},${ty - dy * 0.55 + dx * 0.3} ${tx - dx * 0.55 + dy * 0.3},${ty - dy * 0.55 - dx * 0.3}`} fill="var(--foreground)" />
-              </>
-            )}
-            <circle cx={sx} cy={sy} r={DOT} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      <circle cx={Math.min(4.5, Math.max(-4.5, hitAcross))} cy={Math.max(hitDepth, -3)} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      {situation.spots
+        .filter((s) => s.position !== situation.position)
+        .map(({ position, spot: [y, x] }) => (
+          <g key={position}>
+            <circle cx={x} cy={y} r={DOT} fill={color('point')} opacity={0.35} />
+            {number(x, y, position, 'var(--foreground)')}
           </g>
-        );
-      })}
+        ))}
+      <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      {far > 2 * DOT + 0.7 && (
+        <>
+          <line x1={ux + dx * DOT} y1={uy + dy * DOT} x2={tx - dx * 0.4} y2={ty - dy * 0.4} stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          <polygon points={`${tx},${ty} ${tx - dx * 0.55 - dy * 0.3},${ty - dy * 0.55 + dx * 0.3} ${tx - dx * 0.55 + dy * 0.3},${ty - dy * 0.55 - dx * 0.3}`} fill="var(--foreground)" />
+        </>
+      )}
+      <circle cx={sx} cy={sy} r={DOT} fill={color('point')} stroke="var(--card)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      {number(sx, sy, situation.position, 'white')}
     </svg>
   );
 }

@@ -86,17 +86,18 @@ the defence placement (the owner's call, 7 Nov).
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
-- "Placement en défense": a player picked (the viewer's own first) and a defence system; a card per position the player
-  defended and side the other team attacked from (positions 4 3 2 5 6 1, sides left to right), its court showing the attacker where they usually hit from, each attack's ball to where it went, where the player usually stood at
-  the hit (a dot in the team's colour) and their spot in the system (a green one), an arrow between them from 1.5 m (`defense.py`); above it the position and the
-  side, below it each role's way to the spot from 1 m, or "Bien placé". The systems: the perimeter the owner's team plays (its corners 2 m
+- "Placement en défense": a player picked (the viewer's own first) and a defence system; a card per situation the player
+  defended: position (4 3 2 5 6 1), side the other team attacked from (left to right), single or double block, role. Its
+  court shows the attacker where they usually hit from, the balls the player had to play (those that came down nearer
+  their spot than any other) to where they went, every position's spot (pale green dots, numbered), where the player
+  usually stood at the hit (a dot in the team's colour) and their spot (a green one), an arrow between them from 1.5 m
+  (`defense.py`); above it the position, below it the side, the block and the way to the spot from 1 m, or "Bien placé". The systems: the perimeter the owner's team plays (its corners 2 m
   inside the sidelines 6 m off the net, 6 at 7 m: the owner's), the middle up and the rotation (AVCA's descriptions, distances approximate), and the spots learned from every match beside
   this one: those nearest the balls the attacks sent (a dug ball 1 m further along its flight), each ball counting the
   more the nearer its nearest spot, for a side attack and a middle one, under a single or a double block. At each
   attack, the players within 1.2 m of the net make a single or double block in front of the attacker; the system's
   other spots go to the defenders by the least total distance: a position is the spot defended, not the rotation's. A
-  role at a position (blocking, not blocking, behind the block) shows from 4 attacks from a side; a card replays the
-  attacks its player stood 1 m off. `benchmarks/defense/bench.py` scores the systems.
+  situation shows from 4 attacks; its card replays the attacks its player stood 1 m off. `benchmarks/defense/bench.py` scores the systems.
 
 ## Statistics
 
