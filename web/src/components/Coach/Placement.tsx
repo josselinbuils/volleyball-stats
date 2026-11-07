@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Legend } from '@/components/Court';
@@ -8,25 +9,16 @@ import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { useFormat } from '@/lib/format';
 import { Section } from '@/components/Coach/Section';
-import { defenders, OFF_M, type Position, type Situation } from '@/components/Coach/helpers/defense';
+import { defenders, OFF_M, type Situation } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
 
-// On a wide screen, each position in its place on the court: the front row 4 3 2, then 5 6 1.
-const CELLS: Record<number, string> = {
-  4: 'lg:col-start-1 lg:row-start-1',
-  3: 'lg:col-start-2 lg:row-start-1',
-  2: 'lg:col-start-3 lg:row-start-1',
-  5: 'lg:col-start-1 lg:row-start-2',
-  6: 'lg:col-start-2 lg:row-start-2',
-  1: 'lg:col-start-3 lg:row-start-2',
-};
 const RING = 0.5;
 const DOT = 0.4;
 
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
 
-/** A player picked among `g`'s defenders and a defence system; for each position the player defended, a court per side
- * the other team attacked from: the attacks and where they went, where the player usually stood at the hit and their spot. */
+/** A player picked among `g`'s defenders and a defence system; a card per position the player defended and side the
+ * other team attacked from: the attacks and where they went, where the player usually stood at the hit and their spot. */
 export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState(0);
@@ -82,10 +74,8 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
           <circle r={0.8} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
         </Glyph>
       </Legend>
-      <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
-        {picked.positions.map((p) => (
-          <Card key={p.position} position={p} person={picked.person} g={g} />
-        ))}
+      <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3 lg:grid-cols-5">
+        {picked.positions.flatMap((p) => p.situations.map((situation) => <Card key={`${p.position} ${situation.side}`} situation={situation} position={p.position} person={picked.person} g={g} />))}
       </ul>
     </Section>
   );
@@ -102,44 +92,41 @@ function Glyph({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** A position's courts, one per side the other team attacked from, left to right. */
-function Card({ position, person, g }: { position: Position; person: number; g: Group }) {
-  const { t } = useTranslation();
-  return (
-    <li className={`grid gap-1.5 rounded-lg border bg-card px-2.5 py-2 ${CELLS[position.position]}`}>
-      <b className="font-semibold">{t('coach.placement.position', { n: position.position })}</b>
-      <div className="grid grid-cols-3 gap-1.5">
-        {position.situations.map((situation) => (
-          <Situated key={situation.side} situation={situation} position={position.position} person={person} g={g} />
-        ))}
-      </div>
-    </li>
-  );
-}
-
-/** A court that replays the attacks its player stood OFF_M or more off their spot. */
-function Situated({ situation, position, person, g }: { situation: Situation; position: number; person: number; g: Group }) {
+/** A position's court against one side, replaying the attacks its player stood OFF_M or more off their spot. */
+function Card({ situation, position, person, g }: { situation: Situation; position: number; person: number; g: Group }) {
   const { t } = useTranslation();
   const { play } = usePlayer();
-  if (!situation.off.length) {
-    return <HalfCourt situation={situation} g={g} />;
-  }
+  const body = (
+    <>
+      <span className="flex items-center justify-between gap-2">
+        <b className="font-semibold">{t('coach.placement.position', { n: position })}</b>
+        {situation.off.length > 0 && <Play aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
+      </span>
+      <HalfCourt situation={situation} g={g} />
+    </>
+  );
+  const box = 'flex h-full w-full flex-col gap-1.5 rounded-lg border bg-card px-2.5 py-2 text-left';
   return (
-    <Tip label={t('watchN', { count: situation.off.length })}>
-      <button
-        type="button"
-        aria-label={t('watchN', { count: situation.off.length })}
-        onClick={() =>
-          play(
-            (tr) => tr('coach.placement.playing', { player: playerLabel(tr, person), n: position }),
-            contactClips(situation.off, match.duration).map(({ player: _, name: __, ...clip }) => clip),
-          )
-        }
-        className="rounded-md transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <HalfCourt situation={situation} g={g} />
-      </button>
-    </Tip>
+    <li>
+      {situation.off.length ? (
+        <Tip label={t('watchN', { count: situation.off.length })}>
+          <button
+            type="button"
+            onClick={() =>
+              play(
+                (tr) => tr('coach.placement.playing', { player: playerLabel(tr, person), n: position }),
+                contactClips(situation.off, match.duration).map(({ player: _, name: __, ...clip }) => clip),
+              )
+            }
+            className={`${box} transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50`}
+          >
+            {body}
+          </button>
+        </Tip>
+      ) : (
+        <div className={box}>{body}</div>
+      )}
+    </li>
   );
 }
 
@@ -178,7 +165,7 @@ function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
         const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
         const [tx, ty] = [sx - dx * RING, sy - dy * RING];
         // The length behind the dot, away from the arrow, inside the court.
-        const [lx, ly] = [Math.min(3.3, Math.max(-3.3, ux - dx * (DOT + 1.2))), Math.min(8.4, Math.max(0.9, uy - dy * (DOT + 0.8)))];
+        const [lx, ly] = [Math.min(3.3, Math.max(-3.3, ux - dx * (DOT + 0.9))), Math.min(8.4, Math.max(0.9, uy - dy * (DOT + 0.6)))];
         return (
           <g key={role}>
             <circle cx={sx} cy={sy} r={RING} fill="none" stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
@@ -190,7 +177,7 @@ function HalfCourt({ situation, g }: { situation: Situation; g: Group }) {
             )}
             <circle cx={ux} cy={uy} r={DOT} fill={teamColor(g)} stroke={teamEdge(g)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
             {far >= OFF_M && (
-              <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central" fontSize={1.1} fontWeight={600} className="halo fill-foreground">
+              <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central" fontSize={0.8} fontWeight={600} className="halo fill-foreground">
                 {metres(far)}
               </text>
             )}
