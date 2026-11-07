@@ -41,3 +41,9 @@ The pipeline's weak spots and what is left to do, most useful first.
    apart, workers sandboxed, consent and GDPR (advice first; the hosting rules in `CLAUDE.md` would change on purpose). In between, a club sends a video
    and the owner processes it. Rejected for now: rented GPUs for everything (EUR 25-45 a month, rough, from third-party prices).
 10. Done (5 Nov): the star on a touch (Match tab) puts it in the match's film and its player's.
+11. Done (7 Nov): attack jumps measured (`jumps.py`, `benchmarks/jumps`), "Le saut d'attaque" in the coach's corner, the 3D
+    figures' jumps, a pipeline stage posing the attackers, the review's screens their own script (the page 34 KB lighter).
+    Measured, not on the page, the owner to decide: blockers top about 0.18 s after the attack's contact, late
+    (`benchmarks/jumps/ground_truth/blocks.csv`); a jump height per player. Tried and dropped the same day (numbers in the
+    session's report): jumps as a touch-type cue, a learned retyping, the hitting height from the pose, a lower contact
+    threshold near players, rules for made-up contacts and for floors that are touches.
