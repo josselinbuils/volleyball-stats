@@ -2052,6 +2052,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         try:
             target = ["--all", str(match.parent)] if every else ["--host", str(match), "--video", str(video), "--court", str(court)]
             done = [m for m, *_ in matches.online(match.parent)] if every else [match]
+            # Those another machine holds are left as they are online (`matches.main`).
+            held = sync.elsewhere(done)
+            done = [m for m in done if m.name not in held]
             # In its own process, with the code as it now is, whenever this server started.
             run = subprocess.run([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", theme], capture_output=True, text=True)
             if run.returncode:

@@ -92,7 +92,9 @@ push outputs/matches/MATCH`; a machine with no match yet first `sync setup root@
 copied there). The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting:
 the Mac, WSL2 being unreachable from outside), never through the server.
 
-Uploads with two machines: the site folder is first made what the server holds (`matches.mirror`, the video copies aside),
+Uploads with two machines: a match the other machine holds, or whose server copy is newer than this machine's, is left as it is
+online (`sync.elsewhere`: "Mettre à jour" refuses it, the update of every match skips it; on 8 Nov the PC's put the first match's
+older copy online while the Mac held it). The site folder is first made what the server holds (`matches.mirror`, the video copies aside),
 so the pages the other machine put online stay; the upload sends only the rebuilt matches' video copies, and refuses if its dry
 run would delete another match's page. The mirror brings the films too: a match with no `films/` folder here (made on the other
 machine, not pulled since) takes those online, names from the page (`matches.adopt_films`), so its rebuild keeps them; an upload

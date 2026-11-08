@@ -145,6 +145,20 @@ def take(match: Path) -> None:
     remote(config, "claim", match.name, force=True)
 
 
+def elsewhere(found: list[Path]) -> dict[str, str]:
+    """The matches of `found` another machine holds on the server, or whose server copy is newer than the one this machine
+    started from, by name the machine to name: not this machine's to put online. None without the server's matches."""
+    if not found or not active(files.root(found[0])):
+        return {}
+    known = listing(files.root(found[0]))
+    out = {}
+    for match in found:
+        claim = known.get(match.name)
+        if claim and (claim.get("owner") not in (None, machine()) or claim.get("version") != local(match)["version"]):
+            out[match.name] = shown(claim, match)["machine"]
+    return out
+
+
 def listing(outputs: Path) -> dict[str, dict]:
     """The matches with a copy on the server: their day, claim and version. Empty without a server."""
     config = server(outputs)

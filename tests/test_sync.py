@@ -146,3 +146,28 @@ class TestAuto:
         (tmp_path / sync.SERVER).unlink()
         sync.set_auto(tmp_path, True)
         assert sync.active(tmp_path)
+
+
+class TestElsewhere:
+    def test_names_the_matches_another_machine_holds_or_newer_on_the_server(self, tmp_path, monkeypatch):
+        found = []
+        for name, version in (("mine", 3), ("theirs", 3), ("behind", 2), ("unsent", 0)):
+            match = tmp_path / "matches" / name
+            match.mkdir(parents=True)
+            sync.remember(match, version, (0, 0.0))
+            found.append(match)
+        listed = {
+            "mine": {"owner": "pc", "version": 3},
+            "theirs": {"owner": "mac", "version": 3},
+            "behind": {"owner": "pc", "version": 3, "pushedBy": "mac"},
+        }
+        monkeypatch.setattr(sync, "machine", lambda: "pc")
+        monkeypatch.setattr(sync, "listing", lambda outputs: listed)
+
+        assert sync.elsewhere(found) == {"theirs": "mac", "behind": "mac"}
+
+    def test_nothing_when_this_machine_keeps_no_match_on_the_server(self, tmp_path):
+        match = tmp_path / "matches" / "m"
+        match.mkdir(parents=True)
+
+        assert sync.elsewhere([match]) == {}
