@@ -94,8 +94,9 @@ the Mac, WSL2 being unreachable from outside), never through the server.
 
 Uploads with two machines: the site folder is first made what the server holds (`matches.mirror`, the video copies aside),
 so the pages the other machine put online stay; the upload sends only the rebuilt matches' video copies, and refuses if its dry
-run would delete another match's page, or the films of a match with no `films/` folder here (made on the other machine, not pulled since:
-the upload of 8 Nov from the PC took them offline).
+run would delete another match's page. The mirror brings the films too: a match with no `films/` folder here (made on the other
+machine, not pulled since) takes those online, names from the page (`matches.adopt_films`), so its rebuild keeps them; an upload
+that would still delete them refuses (the upload of 8 Nov from the PC took them offline).
 
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.

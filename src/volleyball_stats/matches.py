@@ -407,11 +407,11 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
 
 
 def mirror(config: dict) -> None:
-    """The site folder made what the server holds, the video copies aside: the pages another machine put online come
-    here, so that the upload (`host_all`) leaves them as they are."""
+    """The site folder made what the server holds, the video copies aside (the films come, a few MB each): the pages and
+    films another machine put online come here, so that the upload (`host_all`) leaves them as they are."""
     site = Path(config["site"]).expanduser()
     site.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["rsync", "-rt", "--delete", "--exclude=*.mp4", "-e", f"ssh -i {Path(config['key']).expanduser()}", config["upload"], f"{site}/"], check=True, capture_output=True)
+    subprocess.run(["rsync", "-rt", "--delete", "--include=*/video/films/*.mp4", "--exclude=*.mp4", "-e", f"ssh -i {Path(config['key']).expanduser()}", config["upload"], f"{site}/"], check=True, capture_output=True)
 
 
 def upload_command(config: dict, site: Path, rebuilt: list[str], dry: bool = False) -> list[str]:
@@ -427,6 +427,25 @@ def removed_pages(itemized: str, rebuilt: list[str]) -> list[str]:
     """The match folders, other than the `rebuilt` ones, whose page a dry run's output (--itemize-changes) deletes."""
     gone = [line.split(" ", 1)[1].strip() for line in itemized.splitlines() if line.startswith("*deleting ")]
     return sorted({path.split("/")[0] for path in gone if path.endswith("/data.js") and path.count("/") == 1} - set(rebuilt))
+
+
+def adopt_films(match: Path, page: Path) -> int:
+    """The films online in the hosted page folder `page` (mirrored) taken as `match`'s when this machine has none (made on
+    the other machine, not pulled since): the next build keeps them online. How many."""
+    films = match / "films"
+    if films.exists() or not (page / "data.js").exists():
+        return 0
+    found = {}
+    for name, address in (page_of(page).get("films") or {}).items():
+        file, _, query = address.removeprefix("films/").partition("?")
+        if (page / "films" / file).exists():
+            found[name] = {"hash": query.removeprefix("v="), "file": file, "made": "online"}
+    if found:
+        films.mkdir()
+        for e in found.values():
+            shutil.copy2(page / "films" / e["file"], films / e["file"])
+        files.write_text(films / "manifest.json", json.dumps(found, indent=1, ensure_ascii=False) + "\n")
+    return len(found)
 
 
 def removed_films(itemized: str, unmade: list[str]) -> list[str]:
@@ -483,6 +502,7 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
         ensure_review_page(match, video, court, theme)
         make_voice(match)
         if c["video"]:
+            adopt_films(match, folder / "video")
             path = lambda key: str(Path(c[key]).expanduser())  # noqa: E731
             web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}, folder / "video")
         else:
@@ -512,7 +532,7 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
     missing = removed_pages(dry.stdout, rebuilt)
     if missing:
         raise RuntimeError(f"online but not here: {', '.join(missing)}: not uploaded")
-    # Films made on another machine and not brought here stay online.
+    # Films made on another machine stay online (`adopt_films`); should one not come here, nothing goes up.
     unmade = [paths[match.name].rstrip("/") for match, *_ in hosted if not (match / "films").is_dir()]
     lost = removed_films(dry.stdout, unmade)
     if lost:

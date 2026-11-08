@@ -212,7 +212,7 @@ class TestHost:
             matches.host(*args)
 
         assert built == [("voice", Path("outputs/first")), ("full", None, site / "first" / "video"), ("none", "video/", site / "first")]
-        assert [c[:4] for c in ran] == [["rsync", "-rt", "--delete", "--exclude=*.mp4"]]
+        assert [c[:5] for c in ran] == [["rsync", "-rt", "--delete", "--include=*/video/films/*.mp4", "--exclude=*.mp4"]]
         ran.clear()
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
@@ -485,3 +485,28 @@ class TestRemovedFilms:
 
     def test_a_match_whose_films_are_here_may_lose_one(self):
         assert matches.removed_films(self.ITEMIZED, []) == []
+
+
+class TestAdoptFilms:
+    def page(self, tmp_path):
+        page = tmp_path / "site" / "m" / "video"
+        (page / "films").mkdir(parents=True)
+        films = {"*": "films/resume.mp4?v=aaa", "Loïck": "films/2-loick.mp4?v=bbb", "Gone": "films/1-gone.mp4?v=ccc"}
+        (page / "data.js").write_text("window.MATCH = " + json.dumps({"name": "m", "films": films}) + ";\n")
+        (page / "films" / "resume.mp4").write_bytes(b"r")
+        (page / "films" / "2-loick.mp4").write_bytes(b"l")
+        return page
+
+    def test_takes_the_films_online_with_their_names_when_this_machine_has_none(self, tmp_path):
+        match = tmp_path / "match"
+        match.mkdir()
+        assert matches.adopt_films(match, self.page(tmp_path)) == 2
+        made = json.loads((match / "films" / "manifest.json").read_text())
+        assert {n: (e["file"], e["hash"]) for n, e in made.items()} == {"*": ("resume.mp4", "aaa"), "Loïck": ("2-loick.mp4", "bbb")}
+        assert (match / "films" / "2-loick.mp4").read_bytes() == b"l"
+
+    def test_leaves_this_machines_own_films(self, tmp_path):
+        match = tmp_path / "match"
+        (match / "films").mkdir(parents=True)
+        assert matches.adopt_films(match, self.page(tmp_path)) == 0
+        assert not (match / "films" / "manifest.json").exists()
