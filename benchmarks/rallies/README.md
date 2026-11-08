@@ -378,3 +378,33 @@ The ball cannot tell play going on out of sight (-9.9 s: unseen 4 s, then 6 cont
   time. In a long rally the play itself is loud (+7-9 dB), and the out-of-sight ends bring no cheer.
 
 Left for ends: labels from another match (this referee whistles the go, hardly the dead ball), or a learned model.
+
+### 8 Nov: a learned play / no-play clip model
+
+`play.py` fine-tunes VideoMAE-base (`MCG-NJU/videomae-base-finetuned-kinetics`, licence CC BY-NC 4.0) on one match and
+predicts P(play) on the other every 0.25 s; `play_ends.py` moves the pipeline's ends with it and scores them. A clip is 16
+frames at 8 fps (2 s) of the whole width and the top 1920 rows, at 448x224, labelled by its middle. The review checks touches,
+not ends (one end answered on the two matches): the pages' ends are mostly the pipeline's, so play runs from a checked
+rally's serve to 0.5 s after its last player touch, no play from 3 s after it (or the window's end, when later), the rest
+left out (the labelled ends come 0.3-2.5 s after the last touch). 2000 steps of 8 clips, half play; 15 min a direction on the
+RTX 5080, the frames 8-9 min a match (NVDEC).
+
+| Trained on → tested on | AUC | Accuracy (sure labels) |
+| --- | --- | --- |
+| second → first | 0.991 | 96.1% of 14372 |
+| first → second | 0.994 | 97.6% of 18262 |
+
+Ends moved by the held-out P(play) (over 0.3, dips under 1 s bridged): a window's end carried on through play the model
+sees, when that is 1.5 s or more past it, up to 15 s and never into the next window. Cutting ends back to where P(play)
+falls too loses touches: the model's P falls before the ball lands, and the floor contact ending the rally falls out.
+
+| | 26:00-36:00 F1 ±1 s / ±2 s | 50:00-60:00 | Touches in windows M1 / M2 | Contacts no touch |
+| --- | --- | --- | --- | --- |
+| pipeline | 0.90 / 1.00 | 0.57 / 0.74 | 880 / 1103 | 66 / 94 |
+| ends carried on | 0.90 / 0.95 | **0.65 / 0.83** | **886 / 1114** | 68 / 99 |
+| ends carried on and cut back | 0.90 / 0.95 | 0.70 / 0.83 | 852 / – | 49 / – |
+
+The settings were picked on both labelled spans (none is held out for them); the touches are held out. On the 43 labelled
+rallies, 9 ends move with cuts, 7 closer (the +10 s tail to +1.0 s, a ball out of sight -3.0 to -0.6 s), 2 farther; the
+-9.9 s end (ball out of sight 4 s, then 6 contacts) gets to -7.8 s. Not in `match.py` yet: it needs the frames, the model
+(330 MB) on each machine and about 5 min of inference a match on the 5080.
