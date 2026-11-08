@@ -51,6 +51,6 @@ The pipeline's weak spots and what is left to do, most useful first.
     threshold near players, rules for made-up contacts and for floors that are touches.
 12. Done (8 Nov): "Placement en réception" and "Placement en défense" in the coach's corner ([match-page.md](match-page.md)),
     a picked player's usual places against the system's spots.
-13. Done (8 Nov): two machines. The review claims a match for one machine at a time on the server and refuses a copy over a
-    newer one (`sync.py`), the list downloads the matches only on the server, uploads keep the other machine's pages
+13. Done (8 Nov): two machines. Any machine works on any match: the review opens on the server's newer copy, asks which to keep
+    when both changed, and refuses a copy or an upload over a newer one (`sync.py`), the list downloads the matches only on the server, uploads keep the other machine's pages
     (`matches.mirror`, a dry run's guard), the videos go straight between the machines (`data_sync.py`). [hosting.md](hosting.md).

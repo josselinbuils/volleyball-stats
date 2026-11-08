@@ -722,12 +722,13 @@
     "setsN_other": "{{count, number}} sets"
   },
   "sync": {
-    "elsewhere": "Ouvert sur {{machine}}",
-    "copy": "Dernière copie à {{at}}.",
-    "aside": "Vos changements d'ici seront mis de côté.",
-    "take": "Reprendre ici",
-    "taking": "Reprise…",
-    "failed": "Reprise impossible : réessayez."
+    "conflict": "Modifié ici et sur {{machine}}",
+    "which": "Copie de {{machine}} à {{at}}. Laquelle garder ? L'autre reste sauvegardée.",
+    "whichNoTime": "Laquelle garder ? L'autre reste sauvegardée.",
+    "theirs": "Celle de {{machine}}",
+    "mine": "Celle d'ici",
+    "working": "Copie…",
+    "failed": "Échec : réessayez."
   },
   "season": {
     "title": "La saison",

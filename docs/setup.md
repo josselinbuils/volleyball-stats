@@ -15,8 +15,8 @@
 - **Tools:** [`uv`](https://docs.astral.sh/uv/) (it installs Python 3.12+), `ffmpeg` and `git`.
   Node.js 22 only to change the page: its build is committed.
 - Code can be written on any machine and run on the GPU machine over SSH (e.g. VS Code Remote-SSH).
-- **Two machines** (the Mac and the PC): the matches' results go through the hosting server (`sync`, the review claiming
-  each match for one machine at a time) and the videos straight between them (`data_sync`): [hosting.md](hosting.md).
+- **Two machines** (the Mac and the PC): the matches' results go through the hosting server (`sync`, the review opening
+  each match on its newest copy) and the videos straight between them (`data_sync`): [hosting.md](hosting.md).
   The code goes through git: pull before working. The committed build and `attribution_ranker.json` conflict when both
   machines change them: take either side, then rebuild or retrain.
 - Older repositories pinning older PyTorch or TensorFlow versions are ported to this environment

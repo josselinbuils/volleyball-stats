@@ -1,34 +1,41 @@
-"""The server's side of `sync`: each match's claim and version in `ROOT/claims/MATCH.json`, read and changed under a lock
-(the ssh command runs it under flock). Sent to the server's python3 (3.8) on stdin, so it imports nothing of the project.
+"""The server's side of `sync`: each match's version in `ROOT/claims/MATCH.json`, read and changed under a lock (the ssh
+command runs it under flock). Sent to the server's python3 (3.8) on stdin, so it imports nothing of the project.
 
     python3 - ROOT OP MATCH MACHINE [BASE] [FORCE]
 
-Prints the claim as JSON with `ok`: whether the operation went through.
+Prints the match's record as JSON with `ok`: whether the operation went through. No machine holds a match: a push goes
+from the server's version, and only one machine copies a match at a time (`pushing`, for COPY_S at most).
 """
 
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 
 DAY = re.compile(r"\d{4}-\d{2}-\d{2}$")
+# A copy that takes longer than this was cut off: another machine may copy then (backup.TIMEOUT_S).
+COPY_S = 3600
+# The server's copies a machine's "keep this one" replaced, kept here by hard links.
+ASIDE = "aside"
 
 
 def read(root, match):
     path = os.path.join(root, "claims", match + ".json")
-    if not os.path.exists(path):
-        return {"owner": None, "since": None, "version": 0, "pushed": None, "pushedBy": None}
-    with open(path) as f:
-        return json.load(f)
+    found = {"version": 0, "pushed": None, "pushedBy": None, "pushing": None}
+    if os.path.exists(path):
+        with open(path) as f:
+            found.update({k: v for k, v in json.load(f).items() if k in found})
+    return found
 
 
-def write(root, match, claim):
+def write(root, match, record):
     folder = os.path.join(root, "claims")
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, match + ".json")
     with open(path + ".tmp", "w") as f:
-        json.dump(claim, f)
+        json.dump({k: v for k, v in record.items() if k != "day"}, f)
     os.replace(path + ".tmp", path)
 
 
@@ -47,33 +54,34 @@ def newest(root):
 
 
 def run(root, op, match, machine, base=0, force=False):
-    """`claim` takes the match for `machine` if no other machine holds it, or with `force`; `begin` says whether
-    `machine` may push from `base`, taking a match nobody holds; `commit` moves the version past `base` after a push;
-    `list` gives every match with a copy, its day and claim."""
+    """`status` gives the match's record; `begin` says whether `machine` may copy the match from `base` (the server's
+    version, or any with `force`, the server's copy then set aside first) and marks it copying; `commit` moves the
+    version on after the copy; `list` gives every match with a copy, its day and record."""
     if op == "list":
         days = newest(root)
         return {"ok": True, "matches": {name: dict(read(root, name), day=day) for name, day in days.items()}}
-    claim = dict(read(root, match), day=newest(root).get(match))
-    free = claim["owner"] in (None, machine)
-    if op == "claim":
-        if free or force:
-            if claim["owner"] != machine:
-                claim.update(owner=machine, since=now())
-            write(root, match, {k: v for k, v in claim.items() if k != "day"})
-            return dict(claim, ok=True)
-        return dict(claim, ok=False)
+    record = dict(read(root, match), day=newest(root).get(match))
+    pushing = record["pushing"]
+    busy = bool(pushing and pushing["machine"] != machine and time.time() - pushing["at"] < COPY_S)
+    if op == "status":
+        return dict(record, ok=True, busy=busy)
     if op == "begin":
-        ok = free and claim["version"] == base
-        if ok and claim["owner"] is None:
-            claim.update(owner=machine, since=now())
-            write(root, match, {k: v for k, v in claim.items() if k != "day"})
-        return dict(claim, ok=ok)
+        if busy or (record["version"] != base and not force):
+            return dict(record, ok=False, busy=busy)
+        if record["version"] != base and record["day"]:
+            # "Keep this one": the server's copy stays, beside the dated ones.
+            aside = os.path.join(root, ASIDE, time.strftime("%Y%m%d-%H%M%S") + "-v" + str(record["version"]))
+            os.makedirs(aside, exist_ok=True)
+            subprocess.run(["cp", "-al", os.path.join(root, record["day"], match), aside], check=True)
+        record["pushing"] = {"machine": machine, "at": time.time()}
+        write(root, match, record)
+        return dict(record, ok=True, busy=False)
     if op == "commit":
-        if claim["owner"] == machine and claim["version"] == base:
-            claim.update(version=base + 1, pushed=now(), pushedBy=machine)
-            write(root, match, {k: v for k, v in claim.items() if k != "day"})
-            return dict(claim, ok=True)
-        return dict(claim, ok=False)
+        if not pushing or pushing["machine"] != machine:
+            return dict(record, ok=False, busy=busy)
+        record.update(version=record["version"] + 1, pushed=now(), pushedBy=machine, pushing=None)
+        write(root, match, record)
+        return dict(record, ok=True, busy=False)
     raise ValueError(op)
 
 

@@ -8,8 +8,8 @@ Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the m
 first from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
 from web/ with `npm run build`), its matches in matches.js. `host` rebuilds a match's two hosted pages
 and uploads the site, as the review does after each change when the match folder holds publish.json;
-`host_all` (`--all`) rebuilds every match online, each carrying the code as built, and uploads them at once; those another
-machine holds (`sync.elsewhere`) stay as they are online.
+`host_all` (`--all`) rebuilds every match online, each carrying the code as built, and uploads them at once; those with a
+newer copy on the server (`sync.behind`) stay as they are online.
 """
 
 import argparse
@@ -558,19 +558,19 @@ def main() -> None:
     from volleyball_stats import sync
 
     if args.host:
-        # A match another machine holds goes online from there: its page here may be behind.
-        held = sync.elsewhere([args.host])
-        if held:
-            raise SystemExit(f"open on {held[args.host.name]}: not uploaded")
+        # Never an older version online: the server has a newer copy of this match.
+        newer = sync.behind([args.host])
+        if newer:
+            raise SystemExit(f"newer on the server, from {newer[args.host.name]}: not uploaded")
         return host(args.host, args.video, args.court, args.theme, json.loads((args.host / PUBLISH).read_text()))
     if args.all:
         given = [json.loads(p.read_text()) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
         config = next((c for c in given if c.get("upload") and c.get("site")), None)
         found = online(args.all)
-        held = sync.elsewhere([m for m, *_ in found])
-        found = [h for h in found if h[0].name not in held]
-        for name, other in held.items():
-            print(f"{name}: open on {other}, left as it is online")
+        newer = sync.behind([m for m, *_ in found])
+        found = [h for h in found if h[0].name not in newer]
+        for name, other in newer.items():
+            print(f"{name}: newer on the server, from {other}: left as it is online")
         if not found:
             return None
         if config:

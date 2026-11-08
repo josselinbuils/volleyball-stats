@@ -80,21 +80,24 @@ and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside
 files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
-Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other. The review claims its
-match on opening once the machine keeps its matches there (`sync.active`: automatic copies on, `sync setup` run, or a match pushed
-or pulled; otherwise the review reaches the server only when asked) (`claims/MATCH.json` beside the copies: the machine and a version moved by each copy, under `flock`); a copy
-is refused when another machine holds the match or the server's is newer than the one this machine started from (`.sync.json`
-in the match's folder, never copied), and the review then shows "Ouvert sur MACHINE" until "Reprendre ici" pulls the server's
-copy (this machine's unpushed changes kept in `backup-sync-<time>/`) and takes the match. The list of matches offers those only
+Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other, and any machine works on
+any match (the owner's rule, 8 Nov: no machine holds one). The server keeps each match's version (`claims/MATCH.json` beside the
+copies, under `flock`: the version, which machine sent the last copy and when, and the one sending a copy now); a copy goes only from
+the server's version (`.sync.json` in the match's folder, never copied, says which this machine started from). Opening a match
+(once the machine keeps its matches there, `sync.active`: automatic copies on, `sync setup` run, or a match pushed or pulled;
+otherwise the review reaches the server only when asked), the review first brings the server's newer copy when nothing changed here
+(`sync.check`, 15 s at most). Changed on both sides (at opening, or a copy refused later), it asks which to keep, "Modifié ici et sur
+MACHINE": "Celle de MACHINE" pulls it (this machine's changes kept in `backup-sync-<time>/`), "Celle d'ici" sends this one, the
+server's set aside first in `aside/<time>-v<version>/` beside the dated copies (hard links). The list of matches offers those only
 on the server ("À télécharger"), asked once the page shows (`/matches/remote.json`: the ssh round trip takes a second). A pull also brings the courts, lens and sponsors this machine lacks, and the roster is joined,
-each match's names from the machine holding it. By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all |
+each match's names from this machine where its copy is not behind the server's. By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all |
 push outputs/matches/MATCH`; a machine with no match yet first `sync setup root@<OVH IP> ~/.ssh/id_ed25519_ovh` (the key
 copied there). The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting:
 the Mac, WSL2 being unreachable from outside), never through the server.
 
-Uploads with two machines: a match the other machine holds, or whose server copy is newer than this machine's, is left as it is
-online (`sync.elsewhere`: "Mettre à jour" refuses it, the update of every match skips it; on 8 Nov the PC's put the first match's
-older copy online while the Mac held it). The site folder is first made what the server holds (`matches.mirror`, the video copies aside),
+Uploads with two machines: never an older version online. A match whose server copy is newer than this machine's is left as it is
+online (`sync.behind`: "Mettre à jour" refuses it, the update of every match skips it; on 8 Nov the PC's put the first match's
+older copy online). The site folder is first made what the server holds (`matches.mirror`, the video copies aside),
 so the pages the other machine put online stay; the upload sends only the rebuilt matches' video copies, and refuses if its dry
 run would delete another match's page. The mirror brings the films too: a match with no `films/` folder here (made on the other
 machine, not pulled since) takes those online, names from the page (`matches.adopt_films`), so its rebuild keeps them; an upload

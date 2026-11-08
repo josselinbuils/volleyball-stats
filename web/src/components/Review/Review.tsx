@@ -144,7 +144,7 @@ export function Review({
     void readFailure().then(setFailure);
   }, []);
   const [elsewhere, setElsewhere] = useState<Claim | null>(null);
-  // Another machine may take the match while this page is open.
+  // Another machine may send a newer copy while this page is open: a push here then finds it.
   useEffect(() => {
     const read = () => void readElsewhere().then(setElsewhere);
     read();
@@ -472,7 +472,7 @@ export function Review({
             {t('review.error')}
           </p>
         )}
-        {elsewhere && <Elsewhere claim={elsewhere} />}
+        {elsewhere && <Elsewhere claim={elsewhere} onKept={() => setElsewhere(null)} />}
         {failure && (
           <RunFailure
             failure={failure}

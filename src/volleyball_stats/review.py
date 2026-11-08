@@ -1913,6 +1913,8 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
 
 
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
+    # First the server's newer copy, if nothing changed here (`sync.check`); changed on both sides, the page asks which to keep.
+    conflict = sync.check(match) if sync.active(files.root(match)) else None
     matches.ensure_publish(match, video, theme)
     site = match / "review"
     # Open at once: the pictures follow (`afterwards`), minutes if their scores are out of date.
@@ -1993,16 +1995,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     outputs = files.root(match)
     publish = json.loads((match / matches.PUBLISH).read_text()) if (match / matches.PUBLISH).exists() else {}
     can_back_up = bool(publish.get("upload") and publish.get("key"))
-    # Another machine holding this match, or a newer copy on the server (`sync.claim`): the page stops the review until
-    # it is taken here.
-    elsewhere: dict = {}
-    claimed = threading.Event()
-
-    def claiming() -> None:
-        try:
-            elsewhere.update(sync.claim(match) or {})
-        finally:
-            claimed.set()
+    # The match changed both here and on another machine since this one's copy (`sync.check`, a push refused): the page
+    # asks which to keep.
+    elsewhere: dict = dict(conflict or {})
 
     backup_lock = threading.Lock()
     # The files' signature at the last copy made, and the timer woken when automatic copies are switched on.
@@ -2023,7 +2018,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 copied[0] = now
                 backed.update(at=time.strftime("%H:%M"), error=None)
                 return True
-            except sync.Elsewhere as error:
+            except sync.Conflict as error:
                 elsewhere.update(error.claim)
                 backed.update(at=time.strftime("%H:%M"), error=str(error))
                 return False
@@ -2052,9 +2047,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         try:
             target = ["--all", str(match.parent)] if every else ["--host", str(match), "--video", str(video), "--court", str(court)]
             done = [m for m, *_ in matches.online(match.parent)] if every else [match]
-            # Those another machine holds are left as they are online (`matches.main`).
-            held = sync.elsewhere(done)
-            done = [m for m in done if m.name not in held]
+            # Those newer on the server are left as they are online (`matches.main`).
+            newer = sync.behind(done)
+            done = [m for m in done if m.name not in newer]
             # In its own process, with the code as it now is, whenever this server started.
             run = subprocess.run([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", theme], capture_output=True, text=True)
             if run.returncode:
@@ -2231,7 +2226,6 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if url.path == "/failure":
                 return self.send(json.dumps(failure).encode(), "application/json")
             if url.path == "/sync":
-                claimed.wait(30)
                 return self.send(json.dumps(elsewhere or None).encode(), "application/json")
             if url.path == "/more":
                 q = parse_qs(url.query)
@@ -2318,6 +2312,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if self.path == "/pull":
                 return self.send(*pulled(body, match.parent))
             if self.path == "/sync/take":
+                # The server's copy kept, this machine's set aside.
                 if progress:
                     return self.send(b'{"error":"busy"}', "application/json", 409)
                 with lock, backup_lock:
@@ -2329,6 +2324,18 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 # Everything read from the match's files again.
                 switch([sys.executable, "-m", "volleyball_stats.review", *[a for a in sys.argv[1:] if a != "--no-browser"], "--no-browser"], lock)
                 return None
+            if self.path == "/sync/keep":
+                # This machine's copy kept, the server's set aside there.
+                if progress:
+                    return self.send(b'{"error":"busy"}', "application/json", 409)
+                with lock, backup_lock:
+                    try:
+                        sync.keep(match)
+                    except (LookupError, OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+                        return self.send(json.dumps({"error": str(error) or type(error).__name__}).encode(), "application/json", 502)
+                elsewhere.clear()
+                backed.update(at=time.strftime("%H:%M"), error=None)
+                return self.send(b"{}", "application/json")
             if self.path == "/open":
                 if progress:
                     return self.send(b'{"error":"busy"}', "application/json", 409)
@@ -2589,11 +2596,6 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     threading.Thread(target=afterwards, daemon=True).start()
     if can_back_up:
         threading.Thread(target=backing, daemon=True).start()
-    # A machine not keeping its matches on the server never reaches it unasked.
-    if can_back_up and sync.active(outputs):
-        threading.Thread(target=claiming, daemon=True).start()
-    else:
-        claimed.set()
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
         webbrowser.open(url)

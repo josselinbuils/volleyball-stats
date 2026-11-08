@@ -264,11 +264,10 @@ export async function readFailure(): Promise<Failure | null> {
 
 export type Failure = { step: string; error: string };
 
-/** Another machine holding the match, or a newer copy on the server: by which machine, its copy's time, whether this
- * machine changed the match since its last copy. */
+/** The server's newer copy: the machine that sent it, its time, whether this machine changed the match since its last copy. */
 export type Claim = { machine: string; at: string | null; changed: boolean };
 
-/** The match's claim when it is not this machine's: null otherwise, or without a server. */
+/** The match changed here and on another machine since this one's copy: null otherwise, or without a server. */
 export async function readElsewhere(): Promise<Claim | null> {
   try {
     return (await (await fetch('sync')).json()) as Claim | null;
