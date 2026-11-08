@@ -76,6 +76,8 @@ RALLY_AROUND_S = 1.0
 ROSTER = Path("outputs/roster.json")
 # Beside a match's outputs: when its hosted page was last uploaded, and what it then showed (`page_stamp`).
 HOSTED = "hosted.json"
+# The page data and code the last upload sent (`page_content`): what changed since, when the online page is late.
+HOSTED_PAGE = "hosted_page.json"
 # What the identities were last computed from (`state`), to tell what an apply would change.
 APPLIED = "identity_applied.json"
 # Undo takes back the UNDOS latest of the CHANGES whole, then drops the last answer. Request bodies
@@ -1739,13 +1741,41 @@ def page_stamp(match: Path) -> str:
     """What the hosted page would show: the review's page data, as content (its keys in any order), and the page's code. Not
     the data's `v`, its address for the browser's cache, which each patch of the pictures moves (`web.patch_people`): a
     restart rebuilding the same page then patching it gave another, and the online page looked late."""
-    digest = hashlib.sha256()
-    data = page_data(match / "review") or {}
-    data.pop("v", None)
-    digest.update(json.dumps(data, sort_keys=True, ensure_ascii=False).encode())
+    digest = hashlib.sha256(json.dumps(page_content(match)["data"], sort_keys=True, ensure_ascii=False).encode())
     for path in (matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"):
         digest.update(path.read_bytes())
     return digest.hexdigest()[:16]
+
+
+def page_content(match: Path) -> dict:
+    """The review's page data without its `v` (`page_stamp`), and its code's stamp."""
+    data = page_data(match / "review") or {}
+    data.pop("v", None)
+    code = hashlib.sha256(b"".join(path.read_bytes() for path in (matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"))).hexdigest()[:16]
+    return {"data": data, "code": code}
+
+
+def page_changes(sent: dict, now: dict) -> list[dict]:
+    """What changed from the page content `sent` to `now` (`page_content`): each part of the data that differs, with how many of
+    its items changed, added or went (a list's, a mapping's), then "code" when the page's code did."""
+    out = []
+    old, new = sent["data"], now["data"]
+    for part in sorted(set(old) | set(new)):
+        a, b = old.get(part), new.get(part)
+        if a == b:
+            continue
+        if isinstance(a, list) and isinstance(b, list):
+            texts = lambda items: Counter(json.dumps(x, sort_keys=True) for x in items)  # noqa: E731
+            gone, came = texts(a) - texts(b), texts(b) - texts(a)
+            count = max(sum(gone.values()), sum(came.values()))
+        elif isinstance(a, dict) and isinstance(b, dict):
+            count = sum(a.get(k) != b.get(k) for k in set(a) | set(b))
+        else:
+            count = None
+        out.append({"part": part, "count": count})
+    if sent["code"] != now["code"]:
+        out.append({"part": "code", "count": None})
+    return out
 
 
 def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
@@ -1758,8 +1788,17 @@ def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
 
 
 def read_hosted(match: Path) -> dict:
-    path = match / HOSTED
-    return hosted_state(json.loads(path.read_text()) if path.exists() else None, page_stamp(match), date.today())
+    """`hosted_state`, with what changed since the last upload when the page is late and it kept what it sent (`changes`)."""
+    path, sent = match / HOSTED, match / HOSTED_PAGE
+    state = hosted_state(json.loads(path.read_text()) if path.exists() else None, page_stamp(match), date.today())
+    state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
+    return state
+
+
+def record_hosted(match: Path) -> None:
+    """The upload of `match`'s page just made: its time and stamp (HOSTED), and what it sent (HOSTED_PAGE)."""
+    files.write_text(match / HOSTED_PAGE, json.dumps(page_content(match), ensure_ascii=False) + "\n")
+    files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match)}) + "\n")
 
 
 def match_list(out: Path) -> list[dict]:
@@ -2061,7 +2100,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 raise RuntimeError((run.stderr.strip().splitlines() or [f"exit {run.returncode}"])[-1])
             for m in done:
                 if (m / "review" / "data.js").exists():
-                    files.write_text(m / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(m)}) + "\n")
+                    record_hosted(m)
             hosted.update(read_hosted(match))
         except Exception as error:  # noqa: BLE001
             # The answers stay applied: only the hosted page is behind.
@@ -2087,7 +2126,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 stale_photos.touch()
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
-            hosted["behind"] = read_hosted(match)["behind"]
+            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
 
         steps = [("review", own)]
         if (match / "page.json").exists():
@@ -2108,7 +2147,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         if built == generation[0]:
                             web.patch_people(match / "review", people)
                             stale_photos.unlink(missing_ok=True)
-                            hosted["behind"] = read_hosted(match)["behind"]
+                            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
                 questions.read_pictures(picture)
             except Exception:
                 traceback.print_exc()

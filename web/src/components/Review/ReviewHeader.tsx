@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useFormat } from '@/lib/format';
+import { changesLabel } from '@/lib/hostedChanges';
 import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
@@ -256,7 +257,7 @@ export function ReviewHeader({
           </span>
         )}
         {hosted && (
-          <Tip label={hosted.error ?? undefined}>
+          <Tip label={hosted.error ?? (hosted.behind ? changesLabel(hosted.changes, t) : undefined)}>
             <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')}>
               <Dot />
               {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}

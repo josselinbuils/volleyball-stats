@@ -1,4 +1,5 @@
 import i18n from 'i18next';
+import type { PageChange } from '@/lib/hostedChanges';
 import type { Group } from '@/lib/match';
 
 /** A piece of video with a player's box ([seconds, x1, y1, x2, y2] in video pixels) over it. */
@@ -186,7 +187,7 @@ export type Comparison = { before: Scores; after: Scores };
 /** By kind, how many films the match should have and the names of those missing or out of date. */
 export type FilmCounts = Record<'players' | 'highlights', { total: number; stale: string[] }>;
 
-export type Hosted = { chosen?: boolean; at: string | null; day?: string | null; error: string | null; behind: boolean };
+export type Hosted = { chosen?: boolean; at: string | null; day?: string | null; error: string | null; behind: boolean; changes?: PageChange[] | null };
 
 declare global {
   interface Window {

@@ -279,6 +279,17 @@
     "tabs": "Étape",
     "savedAt": "Sauvegardé à {{at}}",
     "hostedLate": "Page en ligne en retard",
+    "changed": {
+      "rallies": "Échanges",
+      "contacts": "Touches",
+      "people": "Joueurs",
+      "films": "Films",
+      "scores": "Score",
+      "teams": "Équipes",
+      "voice": "Commentaire",
+      "code": "Code de la page",
+      "other": "Autres données"
+    },
     "allMatches": "Tous les matchs",
     "tabMatch": "Match",
     "namesIntro": "Donnez un nom à chaque joueur ; le même nom à deux numéros les réunit. Le numéro de maillot est facultatif. Appliquez pour mettre la page à jour. Au clavier : ↑ ↓ changent de joueur, ← → d'image, Espace marque l'image (tapez le nom, Entrée), N nomme le joueur.",

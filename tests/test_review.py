@@ -1194,3 +1194,25 @@ class TestPageStamp:
         assert review.page_stamp(tmp_path) == first
         self.page(tmp_path, {"people": {}, "v": "b", "name": "n"})
         assert review.page_stamp(tmp_path) != first
+
+
+class TestPageChanges:
+    def test_each_changed_part_with_how_many_of_its_items_then_the_code(self):
+        from volleyball_stats.review import page_changes
+
+        sent = {"data": {"contacts": [{"f": 1}, {"f": 2}, {"f": 3}], "people": {"1": "Ana", "2": "Bob"}, "ball3d": True, "name": "m"}, "code": "a"}
+        now = {"data": {"contacts": [{"f": 1}, {"f": 2, "type": "set"}, {"f": 3}, {"f": 4}], "people": {"1": "Ana", "2": "Bobby", "3": "Cy"}, "ball3d": False, "name": "m"}, "code": "b"}
+
+        assert page_changes(sent, now) == [{"part": "ball3d", "count": None}, {"part": "contacts", "count": 2}, {"part": "people", "count": 2}, {"part": "code", "count": None}]
+        assert page_changes(sent, sent) == []
+
+    def test_a_late_page_says_what_changed_since_the_upload(self, tmp_path):
+        from volleyball_stats import review
+
+        TestPageStamp.page(tmp_path, {"name": "m", "contacts": [{"f": 1}], "v": "a"})
+        review.record_hosted(tmp_path)
+        assert review.read_hosted(tmp_path)["changes"] is None
+        TestPageStamp.page(tmp_path, {"name": "m", "contacts": [{"f": 1}, {"f": 2}], "v": "b"})
+
+        state = review.read_hosted(tmp_path)
+        assert state["behind"] and state["changes"] == [{"part": "contacts", "count": 1}]
