@@ -98,10 +98,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
       update({ title, clips, at });
-      const box = video?.getBoundingClientRect();
-      if (video && box && (box.top < 0 || box.bottom > innerHeight)) {
+      // The box holding the video and its controls, not the video, scaled by the zoom past that box. Only the page
+      // scrolls: scrollIntoView would also scroll that box's hidden overflow, moving the controls inside it.
+      const box = video?.parentElement?.getBoundingClientRect();
+      if (box && (box.top < 0 || box.bottom > innerHeight)) {
         const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-        video.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+        scrollTo({ top: scrollY + box.top + (box.height - innerHeight) / 2, behavior: smooth ? 'smooth' : 'auto' });
       }
     },
     [video, update],

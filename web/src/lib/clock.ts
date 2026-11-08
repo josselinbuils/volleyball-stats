@@ -1,6 +1,6 @@
 /** A clock standing in for the video when the page holds none: the video's controls and playlists
- * drive it the same way, and the court's top view follows its time. `element` is what it scrolls to
- * and puts full screen. */
+ * drive it the same way, and the court's top view follows its time. `element` is what the page scrolls
+ * to and puts full screen. */
 export class Clock extends EventTarget {
   #time = 0;
   #paused = true;
@@ -68,10 +68,6 @@ export class Clock extends EventTarget {
 
   getBoundingClientRect(): DOMRect {
     return this.element.getBoundingClientRect();
-  }
-
-  scrollIntoView(options?: ScrollIntoViewOptions): void {
-    this.element.scrollIntoView(options);
   }
 
   #tick = (now: number) => {
