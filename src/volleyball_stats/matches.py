@@ -384,6 +384,13 @@ def opens(url: str, key: str) -> bool:
         return False
 
 
+def ensure_review_page(match: Path, video: Path, court: Path, theme: str) -> None:
+    """MATCH/review/ built if missing, without new pictures: a match from the other machine comes without it (`backup.SKIP`),
+    and the voice reads it."""
+    if not (match / "review" / "data.js").exists():
+        web.review_page(match, video, court, theme, pictures=False)
+
+
 def make_voice(match: Path) -> None:
     """The commentary's missing audio (`voice.py`), which the build then takes; Kokoro is in the voice group only."""
     run = subprocess.run(["uv", "run", "--group", "voice", "python", "-m", "volleyball_stats.voice", str(match.resolve())], cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True)
@@ -467,6 +474,7 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
     # ponytail: one match at a time, ~13 s each (2 matches: 26 s); rebuild them in parallel if a season makes it long.
     for match, video, court, c in hosted:
         folder = hosted_folder(match, site) or site / match.name
+        ensure_review_page(match, video, court, theme)
         make_voice(match)
         if c["video"]:
             path = lambda key: str(Path(c[key]).expanduser())  # noqa: E731

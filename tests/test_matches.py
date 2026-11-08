@@ -185,6 +185,7 @@ class TestHost:
     @staticmethod
     def hosting(tmp_path, monkeypatch, **config):
         built, ran = [], []
+        monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match)))
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
@@ -283,6 +284,7 @@ class TestHostAll:
             (site / name).mkdir(parents=True)
             (site / name / "data.js").write_text(f"window.MATCH = {json.dumps({'name': name, 'rallies': []})};\n")
             hosted.append((match, tmp_path / f"{name}.mp4", Path("court.json"), config))
+        monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match.name)))
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[0].name, args[4]["footage"], args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "first/"}, {"name": "second", "path": "second/"}])
@@ -456,3 +458,14 @@ class TestKeyCommand:
         (service / "video_key.conf").write_text("")
 
         assert self.run(tmp_path, "m", "333").read_text() == '"m:333" 1;\n'
+
+
+def test_a_match_from_the_other_machine_gets_its_review_page_before_the_voice(tmp_path, monkeypatch):
+    built = []
+    monkeypatch.setattr(matches.web, "review_page", lambda match, video, court, theme, pictures: built.append((match, pictures)))
+    matches.ensure_review_page(tmp_path, Path("v.mp4"), Path("c.json"), "aspom")
+    (tmp_path / "review").mkdir()
+    (tmp_path / "review" / "data.js").write_text("window.MATCH = {};\n")
+    matches.ensure_review_page(tmp_path, Path("v.mp4"), Path("c.json"), "aspom")
+
+    assert built == [(tmp_path, False)]
