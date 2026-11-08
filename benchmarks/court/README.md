@@ -201,7 +201,9 @@ glare and the fisheye curvature all beat the two strongest white lines. Removed.
   (sideline, aligned with the net, 3.6 m high, a few meters back) and the lens JSON, the court's
   expected image position is known well enough to seed the snapping without clicks, or with one
   or two.
-- The lens JSON of the Osmo Action 3 (checkerboard), then this benchmark on a match filmed with it.
+- The snapping scored on the ASPOM footage, now that the Osmo Action 3's lens is calibrated
+  ([`lens_osmo_action3_standard_4k.json`](../../docs/lens_osmo_action3_standard_4k.json)): only `auto`
+  is checked there (above).
 - Prior art if clicks must go: a keypoint net on a Roboflow volleyball court dataset (CC BY 4.0,
   ~860 images) with RANSAC, which the literature puts at 0.1 m on broadcast frames but 0.5 m on gym
   images. The click-based 4-corner tool of

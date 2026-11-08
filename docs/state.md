@@ -2,17 +2,17 @@
 
 The pipeline's weak spots and what is left to do, most useful first.
 
-- Weak spots: touches and rally ends. On the first match: touches found 872 of 945, 863 of 909 real, types 778 of 872, named players 679 of 761,
-  checked winners 117 of 128. Rallies on its two labelled 10 minutes (`benchmarks/rallies`): pipeline F1 ±1 s 0.90 on the span the `served` fixes were
+- Weak spots: touches and rally ends. On the first match: touches found 890 of 955, 881 of 926 real, types 799 of 890, named players 678 of 769,
+  checked winners 117 of 128; the second, 1073 of 1199, 1065 of 1136, 956 of 1073, 832 of 932, 127 of 145 (7 Nov, `pipeline.md`). Rallies on its two labelled 10 minutes (`benchmarks/rallies`): pipeline F1 ±1 s 0.90 on the span the `served` fixes were
   tuned on, 0.58 on the other; the school match's held-out clip 0.86. How a rally ends (in, out, fault) is the least reliable measure.
-  Attribution is right 76-87% of the time on the labelled clips (held out on the first match's answers, the learned order 628 of 702, the rule 615): its
+  Attribution is right 76-87% of the time on the labelled clips (held out on the first match's answers, the learned order 622 of 691, the rule 603): its
   doubts, a player twice in a row and spot checks are asked in the review as "Qui a touché le ballon ?"; `benchmarks/attribution/answers.py` scores the
   picks. Identity IDF1 0.81-0.89. Free balls rest on one labelled example. The ball often leaves the frame (high serves and sets): the false touches
   that makes are dropped (`attribution.FAR`) and no net crossing is lost (`contacts.MAX_GAP`); carrying the flight across waits for a match where it shows.
 - Rally ends now carry on through contacts (`rallies.carried_on`); most touches still added by hand have no contact: the ball is unseen near the floor.
 - Attack jumps (`jumps.py`, 7 Nov): takeoff, landing, the hit and the run-up from the attacker's pose; on 40 labelled attacks
   takeoff within 2 frames for 22 of 24 jumps measured, landing 21, timing within 60 ms 22 (`benchmarks/jumps`). About two thirds
-  of attacks get one (a foot hidden loses the rest). It feeds "Le saut d'attaque" in the coach's corner and the 3D figures' jumps.
+  of attacks get one (a foot hidden loses the rest). It feeds "Le saut d'attaque" in the coach's corner, the "Détente" of "Mon match", the trophy "Le Ressort" and the 3D figures' jumps.
 - `docs/next_steps.md`: what is left in the pipeline, with the numbers; the plan for learning from the review (`learn`).
 
 ## Open
@@ -33,7 +33,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.
 7. On the owner's RTX 5080 PC: measure `speed.py`.
 8. `data/benchmarks/` holds the benchmark clips, `outputs/benchmarks/` their outputs.
-9. The owner's plan, nothing started, not before the second match is reviewed and its quality known: a helper they trust,
+9. The owner's plan, nothing started: a helper they trust,
    then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
    useful alone; then the VPS's system upgraded (2 vCPU, 3.7 GB, 18 GB free, Ubuntu 20.04), a login per person and the review on it, with
    the slow steps on the workers, a process per open match (`review.switch` restarts the only server) and crops prepared from the 4K.
@@ -44,6 +44,8 @@ The pipeline's weak spots and what is left to do, most useful first.
 11. Done (7 Nov): attack jumps measured (`jumps.py`, `benchmarks/jumps`), "Le saut d'attaque" in the coach's corner, the 3D
     figures' jumps, a pipeline stage posing the attackers, the review's screens their own script (the page 34 KB lighter).
     Measured, not on the page: blockers' jumps (`benchmarks/jumps/ground_truth/blocks.csv`), topping about when the ball
-    crosses the net (0.18 s after the attack's contact); a jump height per player, the owner to decide. Tried and dropped the same day, numbers in
+    crosses the net (0.18 s after the attack's contact). The jump height per player went on the page the same day ("Détente", "Le Ressort"). Tried and dropped the same day, numbers in
     `next_steps.md`: jumps as a touch-type cue, a learned retyping, the hitting height from the pose, a lower contact
     threshold near players, rules for made-up contacts and for floors that are touches.
+12. Done (8 Nov): "Placement en réception" and "Placement en défense" in the coach's corner ([match-page.md](match-page.md)),
+    a picked player's usual places against the system's spots.

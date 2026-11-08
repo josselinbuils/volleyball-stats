@@ -318,7 +318,7 @@ the player seen elsewhere. Every track cut between the rallies it spans, re-iden
 - Not tried: the ball's path (the player the ball leaves from) and the last ground position of a
   jumping player. The remaining errors are two players overlapping in the image, a depth question a
   2D outgoing direction does not settle; court positions (where mid-jump feet are wrong) are used
-  by no rule here. Worth trying with the 3D ball path.
+  by no rule here. The 3D ball's place is in the learned order since 2 Nov (`ball3d.flight_places`).
 
 ## Failures
 
@@ -346,13 +346,12 @@ the player seen elsewhere. Every track cut between the rallies it spans, re-iden
   pose model resolves wrists, which may change the reach and the pose verdicts.
 - Team is the median side of a track (`players.py`): a track whose identity crosses the net, or a
   contact typed on the wrong side (ball at the net), searches the wrong team.
-- The track is not the player: `players.py` swaps identities in crowds, so per-player counts need
-  the identity step (jersey numbers) on top of this.
+- The track is not the player: `players.py` swaps identities in crowds; per-player counts come from
+  the identity step on top of this ([identity benchmark](../identity/README.md)).
 
 ## Next steps
 
 - Detector recall at contact frames is the ceiling: rerun the detector at a lower threshold or on a
   zoomed crop around the ball when no candidate is near it, and let the tracker coast longer.
-- Depth for crowds: the ball's apparent size or its 3D path (parabola + calibration) puts it at one
-  player's depth.
-- A learned scorer over box, pose and ball features once a few hundred contacts are labelled.
+- Depth for crowds: the ball's apparent size. Its 3D path and a learned scorer over box, pose and
+  ball features are in the learned order ([above](#learned-order-rankerpy)).

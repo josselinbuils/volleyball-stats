@@ -4,7 +4,7 @@
 
 The page (site/, built from web/ with `npm run build` and copied as is) reads the match from data.js,
 a script rather than fetched JSON so it opens from the disk by double-clicking index.html, and the
-players' positions from a file a minute (positions/N.js), which it loads as the replay reaches them. Every
+players' positions from a file per 5 minutes (positions/N.js), which it loads as the replay reaches them. Every
 path is relative: the site directory serves as plain static files. The page holds no footage by
 default (`--footage none`): its moments replay on the top view of the court. `--footage full` adds
 the video, `blur-opponents` the video with the team other than the `--club` one blurred (blur.py),

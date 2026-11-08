@@ -26,8 +26,8 @@ From the video of a whole match, with no tagging by hand:
 - **Every moment replayable:** click a number, a dot or a trophy to watch those touches, in the video
   or on an animated court in 2D, 3D or a TV-style broadcast with commentary.
 - **The story of the match:** the score gap rally by rally, runs, comebacks and set points saved.
-- **Advice for the team:** what cost the most points and who sets whom, naming no one for a fault, and
-  trophies for what players did well.
+- **Advice for the team:** what cost the most points (naming no one for a fault), who sets whom, the
+  attack jump and the placement in reception and defence, and trophies for what players did well.
 - **My match:** each player picks their name and sees their own touches, best points and card.
 - **A page to share:** static files that open from disk or host anywhere, in French and English, light
   or dark. With no footage by default, so no player shows on video without their consent.

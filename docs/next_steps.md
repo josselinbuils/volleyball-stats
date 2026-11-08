@@ -75,8 +75,8 @@ In the code since 1 Nov:
 
 Left:
 
-1. Retrain the ranker and re-sweep `SHARPEN` after each review (both on the answers); a second match
-   to hold out whole.
+1. Retrain the ranker and re-sweep `SHARPEN` after each review (both on the answers): done on 5 Nov
+   with the second match, which the learned attribution trains on since.
 2. A settings search for the rallies' rules (serve lead, `no_play`, ends) on the rally answers and
    checked rallies.
 3. Asked of the owner: validate whole rallies (the unbiased labels) more than single questions.
@@ -123,7 +123,7 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
 3. **Contacts the ball track misses.** Of the 71 added touches (41 outside the old windows), 18 have the ball
    visible under half of ±0.4 s, and 20 have a velocity change under `contacts.THRESHOLD` (15.5 px
    a frame at 4K): the ball tracker's recall, not the contact rule. A lower threshold only where
-   players crowd the ball would find some; not tried.
+   a player is at the ball: tried and dropped (7 Nov, below).
 4. **Sets sent straight over.** 1 retyped as an attack, 4 seen and kept as sets (in touch questions,
    where the type is not asked), 20 never seen: ask the owner, or ask the type in the Match tab.
 5. **Empty windows.** 120243 (no contact, "no play") and 158580 (no contact, 0.4 s, "rally"): no
@@ -132,7 +132,7 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
    one touch, untested on other matches.
 6. **Same player twice in a row** at identity level (the next candidate when within 0.05-0.2): +1-2
    of 136, and identities do not exist when `match.py` attributes; only worth it inside the identity
-   step.
+   step. Tried as a fix of the review's flag (4 Nov, below): dropped.
 7. **Ties within 0.02 box heights** to the bigger box: 97 instead of 93 alone on the answers, one
    fewer detected contact on the tuning clips. Retry once a second match is answered.
 8. **Pose cost.** `by_wrists` runs YOLO11m-pose 3 times per touch below the head with 2+
@@ -149,7 +149,8 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
 11. **Winners on the first match.** The rally labels' notes (`benchmarks/rallies/ground_truth/
     first_match_*.csv`, "left serves", "right serves") give each rally's server, so the winner of
     the one before: a points benchmark on the 4K match (`benchmarks/points` has only the school
-    clips), now that 131 of 137 windows open on a serve.
+    clips), now that 131 of 137 windows open on a serve. Done another way: `learn` scores the winners on
+    the checked rallies (117 of 128).
 12. **Added serves' frames.** `unseen_serves` puts the serve where the server's stand ends, 0.1-0.5 s
     after the contact: the page's serve clips start that late. The ball's first sighting after
     the stand, or the window's first ball run, would place it closer.

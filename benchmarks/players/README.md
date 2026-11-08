@@ -201,7 +201,7 @@ A 10 s cut of `side_club` upscaled to 3840×2160 at 50 fps (HEVC, like the Osmo 
 | yolo11x 1280 | 9 | 11.5 h |
 
 The detector's input is 1280 px wide whatever the source, so the cost per frame barely depends on
-4K. The match pipeline runs on the RTX 5080, not measured here.
+4K. The RTX 5080 the matches are meant to run on is not measured yet.
 
 ## Limits
 
@@ -216,7 +216,7 @@ The detector's input is 1280 px wide whatever the source, so the cost per frame 
 - The lens is not corrected: on this camera the plain homography is 0.3-1.4 m off (court
   benchmark), more toward the frame edges, so court positions and the margins below carry that
   error. The feet error above compares boxes to labels in the same calibration and does not include
-  it. Fitting the court with the Osmo's lens JSON (`lens.py`) fixes most of it.
+  it. The ASPOM matches' courts are fitted with the Osmo's lens (`lens.py`), which fixes most of it.
 - Court filter: detections need their feet within 3 m of the end lines and 2 m of the sidelines,
   tracks their median feet within 1 m and 0.5 m. A player who runs out for a ball keeps a track; a
   substitute warming up at the end line, or a coach standing on the line, would be kept (none in
@@ -234,7 +234,5 @@ The detector's input is 1280 px wide whatever the source, so the cost per frame 
 - The first match at 4K50 with the lens JSON: label one sequence, rerun `track`, and try 1280 px
   against tiles of the 4K frame for the far side.
 - Feet during jumps: hold the last ground position while the box bottom rises (or use pose ankles).
-- Identity across occlusions and sets: jersey number OCR and re-ID over the tracks (pipeline
-  step 6); pose (wrists) for contact attribution.
 - Processing every second frame of 50 fps footage halves the cost; check the switches at 25 fps on
   real 50 fps footage first (these clips are 30 fps).

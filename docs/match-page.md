@@ -83,7 +83,7 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 ## Le coin du coach
 
 Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number, but in
-the defence placement and the attack jump (the owner's call, 7 Nov).
+the reception and defence placements and the attack jump (the owner's call).
 
 - what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
   team's last touch scoring), with the other team's count and a tip;
@@ -158,7 +158,7 @@ Without player tracks, everything counts each side of the net instead of each te
   section follows it, and the video's timeline then covers that set only.
 - **Theme:** a switch next to the language picks the light, dark or automatic theme (the system's,
   by default), remembered by the browser.
-- **Loading:** the players' positions come in one file a minute (`positions/N.js`), loaded as the replay reaches them, the next one a little ahead; the balls dropped between two players read theirs from `data.js`.
+- **Loading:** the players' positions come in one file per 5 minutes (`positions/N.js`), loaded as the replay reaches them, the next one a little ahead; the balls dropped between two players read theirs from `data.js`.
 
 ## Change the page
 

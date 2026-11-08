@@ -216,13 +216,14 @@ uv run python benchmarks/actions/relance.py \
 - Floor away from the camera rests on the rally's last contact: it fails when the window ends before
   the dead ball (a fault whistle, a ball run cut short), when a touch after the floor is detected
   (a catch), and on balls landing far out. The ball's height from its parabola and the calibration
-  (3D by physics, see [docs/literature.md](../../docs/literature.md)) would type every floor bounce.
+  (3D by physics, see [docs/literature.md](../../docs/literature.md)) was tried on the first match:
+  real floors fit up to 2 m (2 Nov, [plan.md](../../docs/plan.md)).
 - A ball into the net is only found after a serve. A rule at the net line (contact within a few
   pixels of it, ball then dropping without crossing) needs labelled examples: 2 today, both missed
   by the detector anyway.
-- Every touch from the third is an attack: a bump saving a bad set, or a free ball, too; an attack
-  on the second touch (setter dump) is a set. Pose or the ball's speed after the touch would split
-  them.
+- A touch from the third is an attack unless the pose makes it a relance ([Relances](#relances)) or,
+  on calibrated footage, its flight does ([below](#attack-or-relance-from-the-flight-2-nov)); an
+  attack on the second touch (setter dump) is a set.
 - Sides assume a camera in the net plane; quality grades, set types and attack zones are not typed.
 - 19 rallies, one match, one camera, one annotator; the tuning clips set the constants, and the
   held-out clip's 2 blocks and 1 net are too few to measure those rules.

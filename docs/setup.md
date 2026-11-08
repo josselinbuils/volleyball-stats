@@ -7,7 +7,8 @@
 ## Requirements
 
 - **A GPU.** Processing picks an NVIDIA GPU (CUDA) first, then Apple Silicon (MPS), then the CPU.
-  Tested on an RTX 5080 in WSL2 with Ubuntu, and on an Apple M4 Pro (slower).
+  Set up for an RTX 5080 in WSL2 with Ubuntu (its speed not measured yet), and run on an Apple M4 Pro
+  (slower).
 - **NVIDIA under WSL2:** the Windows NVIDIA driver covers WSL2: do not install a Linux driver. The
   locked PyTorch is the CUDA 13 build. It supports the RTX 50 series and needs a recent driver (R580
   or later).

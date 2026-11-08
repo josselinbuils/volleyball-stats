@@ -18,8 +18,8 @@ uv run --group bench python benchmarks/contacts/bench.py sweep <the two tuning p
 the parameters of the three candidates. The tracks come from `python -m volleyball_stats.ball VIDEO
 --stride 1 --out outputs/benchmarks/ball`. All clips are 29.97 fps with the net at x=612: on this side camera
 the net plane projects to x≈598 at the near post and x≈625 at the far post (measured on frame 0 of
-`side_club`; `side_holdout` is shifted by under 0.1 px); the court calibration module will provide
-that x later.
+`side_club`; `side_holdout` is shifted by under 0.1 px); on a match, `match.py` takes it from the court
+calibration.
 
 ## Ground truth
 
@@ -180,10 +180,11 @@ one annotator.
 - A contact needs 2 visible frames on each side within 0.17 s: a ball lost right after the hit
   (into the net, out of frame) is missed, and a ball leaving the frame fires.
 - The net plane is a vertical line at one x: a ball passing under the net or outside the
-  antennas counts as a crossing. The court calibration will give the net's extent.
-- Thresholds are in image pixels per second: the 4K 50 fps target camera needs the sweep rerun
-  (or thresholds in m/s once calibrated), and the perspective makes x velocities drift slowly
+  antennas counts as a crossing.
+- Thresholds are in image pixels per second at these clips' court size: a match scales them to its
+  court in the picture (`rallies.court_scale`), and on the first ASPOM match's checked rallies 360
+  and 0.17 s stay ([next steps](../../docs/next_steps.md)). The perspective makes x velocities drift slowly
   along a flight, which the window length absorbs here.
 - The detector runs on the whole track: dead time (ball held, rolling, warm-up balls on other
-  courts) produces contacts too, so the rally module should bound it.
+  courts) produces contacts too, which the rally windows bound (`match.rally_windows`).
 - 12 rallies from one match, labelled by one person from the track crops.

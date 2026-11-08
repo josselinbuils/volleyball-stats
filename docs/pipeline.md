@@ -22,20 +22,20 @@ How a video becomes statistics, step by step. Each step is scored against hand l
 
 ## Status
 
-Two real matches filmed in 4K at 50 fps and processed (October and November 2026). On the first one,
-against the 129 rallies checked by hand:
+Two real matches filmed in 4K at 50 fps, processed and reviewed (October and November 2026), against
+the rallies checked by hand (7 Nov):
 
-| Measure | Result |
-| --- | --- |
-| Touches found | 872 of 945 (92%) |
-| Touches found that are real | 863 of 909 (95%) |
-| Touch types right | 778 of 872 (89%) |
-| Touches given to the right named player | 679 of 761 (89%) |
-| Rally winners right | 117 of 128 (91%) |
+| Measure | First match (129 rallies) | Second match (150 rallies) |
+| --- | --- | --- |
+| Touches found | 890 of 955 (93%) | 1,073 of 1,199 (89%) |
+| Touches found that are real | 881 of 926 (95%) | 1,065 of 1,136 (94%) |
+| Touch types right | 799 of 890 (90%) | 956 of 1,073 (89%) |
+| Touches given to the right named player | 678 of 769 (88%) | 832 of 932 (89%) |
+| Rally winners right | 117 of 128 (91%) | 127 of 145 (88%) |
 
 The weak spots are rally ends and how a rally ends (in, out, fault), and the ball when it leaves the
-frame or stays unseen near the floor. Everything is tuned on the first match: the second one, held out,
-will tell how it carries over. For reference, a fixed-camera semi-automatic system reached 77% agreement
+frame or stays unseen near the floor. Most rules were tuned on the first match and the learned
+attribution trains on both: neither is a clean held-out test. For reference, a fixed-camera semi-automatic system reached 77% agreement
 with human scouting ([UFP thesis, 2026](https://bdigital.ufp.pt/bitstreams/9e2cbd9e-89d4-4191-a1bc-7a0533e97f9f/download)).
 
 What is next, with the numbers: [state.md](state.md), [next_steps.md](next_steps.md) and [plan.md](plan.md).
@@ -50,8 +50,8 @@ unreliable.
   action model.
 - [masouduut94/volleyball_analytics](https://github.com/masouduut94/volleyball_analytics)
   (GPL-2.0): ball and action detection.
-- [haotianxia/VolleyStats](https://github.com/haotianxia/VolleyStats) (Apache 2.0): stats on top of
-  [tprlab/vball](https://github.com/tprlab/vball).
+- [haotianxia/VolleyStats](https://github.com/haotianxia/VolleyStats) (no licence): stats on top of
+  [tprlab/vball](https://github.com/tprlab/vball) (Apache 2.0).
 - [SFU Volleyball dataset](https://github.com/mostafa-saad/deep-activity-rec): annotated frames
   with player actions.
 - [DL-Volleyball-Analysis](https://github.com/DL-Volleyball-Analysis/volleyball-analysis) (MIT):

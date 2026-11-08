@@ -212,6 +212,6 @@ Held out:
 
 ## Next steps
 
-- The first ASPOM match: real mixed kits, and changes of ends at timeouts if the teams make them. A
-  match between two ASPOM teams: real same kits, to check `KIT_GAP`.
+- Score this step on the two ASPOM matches, which ran through it with no score recorded: the first
+  two teams in one kit (the same-kit rule, `KIT_GAP`), the second two kits.
 - If long breaks fail on it: compare the players' re-ID embeddings instead of their colours.

@@ -216,7 +216,8 @@ is described in [The match page](match-page.md).
 
 ## 5. Host the matches
 
-The same files open from disk and host well (Lighthouse mobile performance 98 with gzip).
+The same files open from disk and host well (Lighthouse mobile performance 82 on a whole match without
+footage, desktop 99).
 
 The hosted page has no password, so it never carries real footage or player pictures (nor anything
 cut from them) without every player's consent. To host the matches:
