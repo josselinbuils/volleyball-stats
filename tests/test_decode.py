@@ -20,12 +20,14 @@ class TestScaled:
 
 class TestFrames:
     def video(self, tmp_path, count=12):
-        path = tmp_path / "clip.mp4"
-        writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 25, (64, 48))
+        raw, path = tmp_path / "raw.mp4", tmp_path / "clip.mp4"
+        writer = cv2.VideoWriter(str(raw), cv2.VideoWriter_fourcc(*"mp4v"), 25, (64, 48))
         rng = np.random.default_rng(0)
         for _ in range(count):
             writer.write(cv2.GaussianBlur(rng.integers(0, 255, (48, 64, 3), np.uint8), (5, 5), 0))
         writer.release()
+        # H.264, which every decoder gives bit for bit (NVDEC's MPEG-4 part 2 rounds otherwise).
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(raw), "-c:v", "libx264", "-crf", "0", "-pix_fmt", "yuv420p", str(path)], check=True)
         return path
 
     def test_gives_opencvs_pixels_for_every_frame(self, tmp_path):
@@ -81,6 +83,34 @@ class TestFrames:
 
         assert [index for index, _ in found] == [3, SEEK + 10, SEEK + 12]
         assert all(np.array_equal(image, expected[index]) for index, image in found)
+
+    def test_frames_at_selects_scattered_frames_in_one_run_and_after_a_seek(self, tmp_path):
+        path = self.video(tmp_path, 80)
+        expected = self.expected(path)
+        wanted = [0, 1, 2, 9, 30, 31, 79]
+
+        found = list(frames_at(path, wanted))
+
+        assert [index for index, _ in found] == wanted
+        assert all(np.array_equal(image, expected[index]) for index, image in found)
+        assert [index for index, _ in frames_at(path, [40, 42, 45])] == [40, 42, 45]
+        assert all(np.array_equal(image, expected[index]) for index, image in frames_at(path, [40, 42, 45]))
+
+    def test_frames_at_restarts_after_selected_runs(self, tmp_path, monkeypatch):
+        path = self.video(tmp_path, 30)
+        expected = self.expected(path)
+        monkeypatch.setattr(decode, "SELECTED", 2)
+        started, popen = [], subprocess.Popen
+        monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: started.append(popen(*args, **kwargs)) or started[-1])
+
+        found = list(frames_at(path, [1, 2, 5, 8, 9, 20]))
+
+        assert [index for index, _ in found] == [1, 2, 5, 8, 9, 20]
+        assert all(np.array_equal(image, expected[index]) for index, image in found)
+        assert len([p for p in started if "rawvideo" in p.args]) == 2
+
+    def test_frames_at_stops_at_the_video_s_end(self, tmp_path):
+        assert [index for index, _ in frames_at(self.video(tmp_path), [3, 11, 12, 13])] == [3, 11]
 
     def test_frames_at_goes_by_each_frame_s_own_timestamp(self, tmp_path):
         # A video whose frames do not fall on its average rate.

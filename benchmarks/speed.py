@@ -52,6 +52,22 @@ kept busy.
 
 The teams and identity steps each decode the video once more at full size for their crops, frames
 counted by ffmpeg, on top of identity's re-identification model.
+
+The steps after tracking on the RTX 5080, the first ASPOM match from its tracks, their caches removed,
+8 Nov (`match.py` sampled every second; outputs identical, `report.md`'s times aside). Before: the
+relance check one ffmpeg a frame, the wrists one a touch, and every frame between wanted ones
+converted and piped to Python; after: `decode.frames_at` lets ffmpeg's select filter drop them.
+
+| step | before | after | GPU busy | CPU cores (median) |
+| --- | --- | --- | --- | --- |
+| actions | 19.8 min | 3.5 min | 9% | 0.3 |
+| wrists | 11.7 min | 3.5 min | 26% | 0.5 |
+| teams | 26.5 min | 8.5 min | 15% | 2.0 |
+| jerseys | 64.0 min | 46.5 min | 2% | 15.1 (RapidOCR on the CPU) |
+| scoreboard | 9.7 min | 6.5 min | 0% | 12.6 (RapidOCR on the CPU) |
+| identity | 37.1 min | 29.9 min | 8% | 1.3 |
+| jumps | 5.9 min | 5.0 min | 26% | 1.7 |
+| all | 2 h 56 | 1 h 44 | | |
 """
 
 import argparse

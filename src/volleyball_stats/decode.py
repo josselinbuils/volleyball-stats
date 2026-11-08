@@ -5,6 +5,9 @@ yuv420p first, so that every decoder gives the same pixels as cv2.VideoCapture.
 On the real footage (4K HEVC, 100 Mb/s) on the M4 Pro, VideoToolbox decodes at 133 fps against 69 for
 ffmpeg on the CPU and 73 for OpenCV, and 84 against 50 and 51 with every core kept busy.
 
+Wanted frames close together are decoded in one pass, ffmpeg's select filter dropping the others
+before their conversion: on the first ASPOM match the wrists' 2517 frames took 419 s, now 198.
+
 A frame is reached by its timestamp, the camera's being slightly irregular. OpenCV's seek guesses it
 from the average frame rate: on the first ASPOM match it gives the frame before from frame 142115 on.
 """
@@ -26,6 +29,8 @@ import numpy as np
 WIDTH = 1280
 # ffmpeg restarts at a timestamp over gaps of more frames than this, rather than decoding through them.
 SEEK = 150
+# Runs of wanted frames one ffmpeg selects at most: its select filter tests each frame against them all.
+SELECTED = 64
 
 
 def size(video: Path) -> tuple[int, int]:
@@ -90,15 +95,18 @@ def timestamps(video: Path) -> np.ndarray:
     return found
 
 
-def piped(video: Path, width: int, height: int, fresh: bool = True, first: int = 0, count: int | None = None) -> Iterator[np.ndarray]:
+def piped(video: Path, width: int, height: int, fresh: bool = True, first: int = 0, count: int | None = None, kept: list[int] | None = None) -> Iterator[np.ndarray]:
     """The BGR frames of the video in order at this size, from index `first` (`count` of them, else to
-    the end); without `fresh` in one array, valid until the next frame."""
+    the end), or only those `kept` (sorted offsets from `first`): ffmpeg still decodes the others but
+    neither converts nor sends them. Without `fresh` in one array, valid until the next frame."""
     flags = hardware(video)
     # Half a frame early: ffmpeg drops what comes before the time asked, and no more.
     seek = ("-ss", f"{timestamps(video)[first] - 0.01:.6f}") if first else ()
+    select = f"select='{'+'.join(f'between(n,{a},{b})' for a, b in spans(kept))}'," if kept else ""
+    count = len(kept) if kept else count
     command = [
         "ffmpeg", "-v", "error", *flags, *seek, "-i", str(video), *(("-frames:v", str(count)) if count else ()), "-an", "-sn", "-dn",
-        "-vf", f"{'format=yuv420p,' if flags else ''}scale={width}:{height}:in_color_matrix=bt601:flags=bicubic", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "bgr24", "-",
+        "-vf", f"{select}{'format=yuv420p,' if flags else ''}scale={width}:{height}:in_color_matrix=bt601:flags=bicubic", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "bgr24", "-",
     ]
     with tempfile.TemporaryFile() as errors:
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors)
@@ -119,6 +127,17 @@ def piped(video: Path, width: int, height: int, fresh: bool = True, first: int =
             raise RuntimeError(f"ffmpeg could not decode {video}: {errors.read().decode(errors='replace').strip()}")
 
 
+def spans(sorted_: list[int]) -> list[tuple[int, int]]:
+    """Sorted integers as (first, last) runs of consecutive ones."""
+    out: list[tuple[int, int]] = []
+    for v in sorted_:
+        if out and v == out[-1][1] + 1:
+            out[-1] = (out[-1][0], v)
+        else:
+            out.append((v, v))
+    return out
+
+
 def frames(video: Path, width: int = WIDTH) -> Iterator[np.ndarray]:
     """Every BGR frame of the video in order, `scaled` to `width` pixels wide."""
     return piped(video, *scaled(*size(video), width))
@@ -126,28 +145,31 @@ def frames(video: Path, width: int = WIDTH) -> Iterator[np.ndarray]:
 
 def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndarray]]:
     """The video's full-size BGR frames at the `wanted` indices in order, decoded straight through
-    close ones and restarting at a timestamp over gaps of more than SEEK frames."""
-    ordered = sorted(set(wanted))
+    close ones (only those wanted converted and sent) and restarting at a timestamp over gaps of more
+    than SEEK frames or after SELECTED runs of consecutive frames."""
     runs: list[list[int]] = []
-    for frame in ordered:
-        if runs and frame - runs[-1][-1] <= SEEK:
+    selected = 0
+    for frame in sorted(set(wanted)):
+        follows = bool(runs) and frame == runs[-1][-1] + 1
+        if runs and frame - runs[-1][-1] <= SEEK and (follows or selected < SELECTED):
             runs[-1].append(frame)
+            selected += not follows
         else:
             runs.append([frame])
+            selected = 1
     width, height = size(video)
     for run in runs:
         if run[0] >= len(timestamps(video)):
             return
-        # A frame's copy: the caller may keep it, and the next frame overwrites this one.
-        kept = iter(run)
-        target = next(kept)
-        for index, image in enumerate(piped(video, width, height, False, run[0], run[-1] - run[0] + 1), run[0]):
-            if index == target:
-                yield index, image.copy()
-                target = next(kept, None)
-                if target is None:
-                    break
-        if target is not None:
+        found, decoded = 0, piped(video, width, height, True, run[0], kept=[f - run[0] for f in run])
+        try:
+            for index, image in zip(run, decoded):
+                yield index, image
+                found += 1
+        finally:
+            decoded.close()
+        # Past the video's end.
+        if found < len(run):
             return
 
 
