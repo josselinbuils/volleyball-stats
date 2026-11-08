@@ -1030,6 +1030,12 @@
         "arc": "En arc",
         "v": "En V"
       },
+      "depth": "Profondeur",
+      "depths": {
+        "short": "1 m plus court",
+        "normal": "Profondeur normale",
+        "deep": "1 m plus profond"
+      },
       "serve": "Service adverse",
       "net": "Au filet",
       "playing": "{{player}} en réception"

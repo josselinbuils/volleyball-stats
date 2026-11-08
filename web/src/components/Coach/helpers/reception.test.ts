@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Contact, Person } from '@/lib/match';
-import { assign, FORMATIONS, receivers, servesOn } from '@/components/Coach/helpers/reception';
+import { assign, deeper, FORMATIONS, receivers, servesOn } from '@/components/Coach/helpers/reception';
 
 vi.mock('@/lib/match', () => ({ match: {} }));
 
@@ -76,5 +76,14 @@ describe('receivers', () => {
         ],
       ),
     ).toEqual([1, 0]);
+  });
+
+  it('moves the receivers deeper or shorter, within the court', () => {
+    expect(deeper(FORMATIONS.v, 1).spots).toEqual([
+      [6, -3],
+      [8, 0],
+      [6, 3],
+    ]);
+    expect(deeper({ net: 3, spots: [[2, 0]] }, -1).spots).toEqual([[1.5, 0]]);
   });
 });

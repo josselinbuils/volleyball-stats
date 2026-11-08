@@ -114,7 +114,9 @@ the defence placement and the attack jump (the owner's call, 7 Nov).
   off a spot. The systems differ by the middle receiver's depth: a line 6 m off the net in 3 m lanes (the textbook's:
   two thirds back, a third of the width each), an arc (the owner's team on 2 Nov, centred: 5.5 m off the net 2.5 m
   aside, the middle 1 m deeper) and a V (the middle 2.5 m deeper). Sources give shapes, not depths: those depend on
-  the serve expected; the owner's team stood 0.3 m deeper against the fastest third of serves.
+  the serve expected; the owner's team stood 0.3 m deeper against the fastest third of serves. A depth picker moves
+  the receivers 1 m shorter or deeper, kept out of the 1.5 m by the net and the last metre before the end line, where few
+  serves land (`reception.deeper`).
 
 ## Statistics
 

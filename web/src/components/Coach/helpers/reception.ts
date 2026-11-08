@@ -43,6 +43,18 @@ export const FORMATIONS = {
 export type Mode = keyof typeof FORMATIONS;
 export const MODES = Object.keys(FORMATIONS) as Mode[];
 
+/** How far the receivers move from a system's spots, in metres away from the net. */
+export const DEPTHS = { short: -1, normal: 0, deep: 1 } as const;
+export type Depth = keyof typeof DEPTHS;
+// The receivers stay out of the 1.5 m by the net and the last metre inside the end line: few serves land there.
+const NEAREST_M = 1.5;
+const DEEPEST_M = 8;
+
+/** `formation` with its receivers `by` metres deeper, kept between NEAREST_M and DEEPEST_M off the net. */
+export function deeper(formation: Formation, by: number): Formation {
+  return { ...formation, spots: formation.spots.map(([depth, across]): Spot => [Math.min(DEEPEST_M, Math.max(NEAREST_M, depth + by)), across]) };
+}
+
 /** Where a player stood at one of a formation's spots, or at the net (`spot` null): their usual place from FROM serves,
  * and the serves they stood OFF_M or more off the spot. */
 export interface Taken {

@@ -1030,6 +1030,12 @@
         "arc": "In an arc",
         "v": "In a V"
       },
+      "depth": "Depth",
+      "depths": {
+        "short": "1 m shorter",
+        "normal": "Normal depth",
+        "deep": "1 m deeper"
+      },
       "serve": "Opponent's serve",
       "net": "At the net",
       "playing": "{{player}} receiving"

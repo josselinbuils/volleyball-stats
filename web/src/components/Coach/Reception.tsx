@@ -8,7 +8,7 @@ import { usePlayer } from '@/lib/player';
 import { contactClips } from '@/lib/playlist';
 import { Section } from '@/components/Coach/Section';
 import { Arrow, DOT, Glyph, HalfCourt } from '@/components/Coach/CourtMarks';
-import { FORMATIONS, MODES, receivers, type Formation, type Mode, type Taken } from '@/components/Coach/helpers/reception';
+import { deeper, DEPTHS, FORMATIONS, MODES, receivers, type Depth, type Formation, type Mode, type Taken } from '@/components/Coach/helpers/reception';
 import { Tip } from '@/components/Tip';
 
 // The player select's value for nobody.
@@ -16,12 +16,13 @@ const NOBODY = 'nobody';
 // Where the players staying at the net stand, [x, y, width, height] in metres, drawn as one zone.
 const NET_ZONE = [-2.25, 0.2, 4.5, 2.6] as const;
 
-/** A reception system and, if picked, one of `g`'s players; one card with the system's spots and, where the player took
+/** A reception system, how deep and, if picked, one of `g`'s players; one card with the system's spots and, where the player took
  * them, their usual place at each, and at the net. */
 export function Reception({ g, contacts }: { g: Group; contacts: Contact[] }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>('arc');
-  const formation = FORMATIONS[mode];
+  const [depth, setDepth] = useState<Depth>('normal');
+  const formation = useMemo(() => deeper(FORMATIONS[mode], DEPTHS[depth]), [mode, depth]);
   const found = useMemo(() => receivers(contacts, g, match.people, formation), [contacts, g, formation]);
   const players = useMemo(() => found.map((r) => ({ ...r, label: playerLabel(t, r.person) ?? r.key })).sort((a, b) => a.label.localeCompare(b.label)), [found, t]);
   const [key, setKey] = useState<string | null>(null);
@@ -37,6 +38,18 @@ export function Reception({ g, contacts }: { g: Group; contacts: Contact[] }) {
             {MODES.map((m) => (
               <SelectItem key={m} value={m}>
                 {t(`coach.reception.modes.${m}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={depth} onValueChange={(v) => setDepth(v as Depth)}>
+          <SelectTrigger aria-label={t('coach.reception.depth')} className="w-full bg-card sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(DEPTHS) as Depth[]).map((d) => (
+              <SelectItem key={d} value={d}>
+                {t(`coach.reception.depths.${d}`)}
               </SelectItem>
             ))}
           </SelectContent>
