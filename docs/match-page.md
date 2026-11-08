@@ -97,12 +97,11 @@ the defence placement and the attack jump (the owner's call, 7 Nov).
   six players seen (`web.received`, their places at the hit), the three nearest the net stay there and the others go to
   the spots by the least total distance (`reception.receivers`). With a player, each spot they took from 3 serves adds
   their usual place and an arrow, and their place at the net a dot alone; the card replays the serves they stood 1 m
-  off a spot. The systems differ by the middle receiver's depth: a line 6 m off the net in 3 m lanes (the textbook's:
-  two thirds back, a third of the width each), an arc (the owner's team on 2 Nov, centred: 5.5 m off the net 2.5 m
-  aside, the middle 1 m deeper) and a V (the middle 2.5 m deeper). Sources give shapes, not depths: those depend on
-  the serve expected; the owner's team stood 0.3 m deeper against the fastest third of serves. A depth picker moves
-  the receivers 1 m shorter or deeper, kept out of the 1.5 m by the net and the last metre before the end line, where few
-  serves land (`reception.deeper`).
+  off a spot. The systems differ by the middle receiver's depth only, the side ones where the owner's team stood on 2
+  Nov, centred (5.5 m off the net, 2.5 m aside): as deep as them in a line, 1 m deeper in an arc (theirs), 2 m in a V.
+  Sources give shapes, not depths: those depend on the serve expected; the owner's team stood 0.3 m deeper against the
+  fastest third of serves. A depth picker moves the receivers 1 m shorter or deeper, kept out of the 1.5 m by the net
+  and the last metre before the end line, where few serves land (`reception.deeper`).
 - "Placement en défense": a defence system, the setter's position (at 2, the team's, or at 3) and, if picked, a player
   (nobody at first). A card per side the other team attacks from (left, middle, right) and block (one blocker, then
   two), its court showing the attacker 1 m off the net, 3 m aside or in the middle (`defense.ATTACKERS`), and every

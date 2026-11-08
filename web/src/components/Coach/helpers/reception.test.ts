@@ -80,9 +80,9 @@ describe('receivers', () => {
 
   it('moves the receivers deeper or shorter, within the court', () => {
     expect(deeper(FORMATIONS.v, 1).spots).toEqual([
-      [6, -3],
+      [6.5, -2.5],
       [8, 0],
-      [6, 3],
+      [6.5, 2.5],
     ]);
     expect(deeper({ net: 3, spots: [[2, 0]] }, -1).spots).toEqual([[1.5, 0]]);
   });

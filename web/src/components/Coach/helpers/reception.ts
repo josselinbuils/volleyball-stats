@@ -6,40 +6,22 @@ import { FROM, OFF_M, type Spot } from '@/components/Coach/helpers/defense';
 /** The players a serve's reception reads: a whole team seen, else who stands at the net is unsure. */
 const TEAM = 6;
 
-/** A reception system: how many players stay at the net, the others receiving at `spots`. Three receivers, the middle
- * one as deep as the others in a line, 1 m deeper in an arc (the owner's team on 2 Nov, centred) and 2.5 m in a V; the
- * line 6 m off the net (two thirds back) in 3 m lanes, the textbook's. */
+/** A reception system: how many players stay at the net, the others receiving at `spots`. Three receivers, the sides
+ * where the owner's team stood on 2 Nov (centred), the middle one as deep as them in a line, 1 m deeper in an arc
+ * (theirs) and 2 m in a V. */
 export interface Formation {
   net: number;
   spots: Spot[];
 }
 
-export const FORMATIONS = {
-  line: {
-    net: 3,
-    spots: [
-      [6, -3],
-      [6, 0],
-      [6, 3],
-    ],
-  },
-  arc: {
-    net: 3,
-    spots: [
-      [5.5, -2.5],
-      [6.5, 0],
-      [5.5, 2.5],
-    ],
-  },
-  v: {
-    net: 3,
-    spots: [
-      [5, -3],
-      [7.5, 0],
-      [5, 3],
-    ],
-  },
-} satisfies Record<string, Formation>;
+// The side receivers' spot on the right, mirrored on the left, and the middle one's depth in each system.
+const SIDE: Spot = [5.5, 2.5];
+const three = (middle: number): Formation => ({
+  net: 3,
+  spots: [[SIDE[0], -SIDE[1]], [middle, 0], SIDE],
+});
+
+export const FORMATIONS = { line: three(5.5), arc: three(6.5), v: three(7.5) };
 export type Mode = keyof typeof FORMATIONS;
 export const MODES = Object.keys(FORMATIONS) as Mode[];
 
