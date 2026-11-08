@@ -33,7 +33,7 @@ The pipeline's weak spots and what is left to do, most useful first.
    no feature apart from real rallies: review questions.
 6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.
 7. Done (8 Nov, `benchmarks/speed.py`): tracking on the RTX 5080 runs at 26 fps, 3.9 h for a 2-hour 4K match (7.8 h on the M4 Pro);
-   one frame at a time, the card waits on Python. Left: the pose's cost per touch there (`next_steps.md` item 8).
+   what holds it there is not measured. Left: the pose's cost per touch there (`next_steps.md` item 8).
 8. `data/benchmarks/` holds the benchmark clips, `outputs/benchmarks/` their outputs.
 9. The owner's plan, nothing started: a helper they trust,
    then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),

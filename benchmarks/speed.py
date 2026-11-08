@@ -31,7 +31,8 @@ On the RTX 5080 (WSL2, NVDEC), 60 s of the second ASPOM match's 4K 50 fps footag
 | **before**: ball, then players | 22.8 | 4.4 h |
 | **now**: both in one ffmpeg pass | 26.0 | 3.9 h (88% of before) |
 
-Twice the M4 Pro: the models run one frame at a time, so the card waits on Python between frames.
+Twice the M4 Pro; a second run of the pass alone gave 28.6 fps. What holds it there (the card, the players' model, Python) is not
+measured yet.
 
 The real footage decodes slower than this copy; `decode.py` has its numbers. Tracking it, 60 s:
 12.6 fps with ffmpeg on the CPU, 12.6 on VideoToolbox (same tracks); 10.0 and 10.4 with every core
