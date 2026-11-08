@@ -9,7 +9,7 @@ import { seasonTeams } from '@/components/Season/helpers/season';
 import { Swatch } from '@/components/Swatch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useFormat } from '@/lib/format';
-import { openMatch } from '@/lib/openMatch';
+import { openMatch, pullMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import type { Brand, Team } from '@/lib/match';
 
@@ -28,6 +28,10 @@ export interface ListedMatch {
   v?: string | null;
   /** In the review: whether its pipeline has ended, so that it can be opened. */
   ready?: boolean;
+  /** In the review: only on the server, to download. */
+  remote?: boolean;
+  /** In the review: its video is not on this machine. */
+  missing?: 'video';
 }
 
 export interface MatchList {
@@ -45,15 +49,15 @@ export function Matches({ matches, brand, review = false }: MatchList) {
   const { t } = useTranslation();
   const f = useFormat();
   const [opening, setOpening] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
   const hasSeason = seasonTeams(matches).length > 0;
   const [view, setView] = useState<'matches' | 'season'>(() => (hasSeason && location.hash === SEASON ? 'season' : 'matches'));
-  const open = (name: string) => {
+  const open = (name: string, remote = false) => {
     setOpening(name);
-    setFailed(false);
-    openMatch(name).catch(() => {
+    setFailed(null);
+    (remote ? pullMatch(name) : openMatch(name)).catch(() => {
       setOpening(null);
-      setFailed(true);
+      setFailed(remote ? 'pull' : 'open');
     });
   };
   const heading = t('matches.title');
@@ -70,7 +74,7 @@ export function Matches({ matches, brand, review = false }: MatchList) {
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
             {failed && (
               <p className="mt-1 text-sm text-destructive" role="alert">
-                {t('matches.openFailed')}
+                {t(failed === 'pull' ? 'matches.pullFailed' : 'matches.openFailed')}
               </p>
             )}
           </div>
@@ -106,18 +110,22 @@ export function Matches({ matches, brand, review = false }: MatchList) {
                 <li key={m.path}>
                   <a
                     href={location.protocol === 'file:' ? `${m.path}index.html` : m.path}
-                    aria-disabled={review && (!m.ready || opening !== null)}
+                    aria-disabled={review && (!(m.ready || m.remote) || opening !== null)}
                     onClick={
                       review
                         ? (event) => {
                             event.preventDefault();
-                            if (m.ready && opening === null) {
-                              open(m.path);
+                            if ((m.ready || m.remote) && opening === null) {
+                              open(m.path, m.remote);
                             }
                           }
                         : undefined
                     }
-                    className={cn('group block h-full rounded-[10px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50', review && !m.ready && 'cursor-default opacity-60')}
+                    className={cn(
+                      'group block h-full rounded-[10px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                      review && !m.ready && 'opacity-60',
+                      review && !m.ready && !m.remote && 'cursor-default',
+                    )}
                   >
                     <Card className="h-full gap-1.5 px-4 py-3.5 transition-colors group-hover:bg-muted">
                       {m.date && (
@@ -143,8 +151,9 @@ export function Matches({ matches, brand, review = false }: MatchList) {
                           m.sets > 0 && t('matches.setsN', { count: m.sets }),
                           m.rallies > 0 && t('ralliesN', { count: m.rallies }),
                           scores.length > 0 && scores.join(' · '),
-                          opening === m.path && t('matches.opening'),
-                          review && !m.ready && t('matches.processing'),
+                          opening === m.path && t(m.remote ? 'matches.pulling' : 'matches.opening'),
+                          review && opening !== m.path && m.remote && t('matches.toPull'),
+                          review && !m.ready && !m.remote && t(m.missing === 'video' ? 'matches.noVideo' : 'matches.processing'),
                         ]
                           .filter(Boolean)
                           .join(' · ')}

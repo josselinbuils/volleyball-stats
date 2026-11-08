@@ -711,8 +711,20 @@
     "opening": "Ouverture…",
     "openFailed": "Ouverture impossible : réessayez.",
     "processing": "En cours de traitement",
+    "toPull": "À télécharger",
+    "pulling": "Téléchargement…",
+    "pullFailed": "Téléchargement impossible : réessayez.",
+    "noVideo": "Vidéo absente",
     "setsN_one": "{{count, number}} set",
     "setsN_other": "{{count, number}} sets"
+  },
+  "sync": {
+    "elsewhere": "Ouvert sur {{machine}}",
+    "copy": "Dernière copie à {{at}}.",
+    "aside": "Vos changements d'ici seront mis de côté.",
+    "take": "Reprendre ici",
+    "taking": "Reprise…",
+    "failed": "Reprise impossible : réessayez."
   },
   "season": {
     "title": "La saison",

@@ -399,6 +399,29 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
     host_all([(match, video, court, config)], theme)
 
 
+def mirror(config: dict) -> None:
+    """The site folder made what the server holds, the video copies aside: the pages another machine put online come
+    here, so that the upload (`host_all`) leaves them as they are."""
+    site = Path(config["site"]).expanduser()
+    site.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["rsync", "-rt", "--delete", "--exclude=*.mp4", "-e", f"ssh -i {Path(config['key']).expanduser()}", config["upload"], f"{site}/"], check=True, capture_output=True)
+
+
+def upload_command(config: dict, site: Path, rebuilt: list[str], dry: bool = False) -> list[str]:
+    """The site's upload, new files put in place together; the video copies only those of the `rebuilt` folders."""
+    return [
+        "rsync", "-rt", "--delete", "--delay-updates", *(["--dry-run", "--itemize-changes"] if dry else []),
+        *[f"--include=/{name}/**.mp4" for name in rebuilt], "--exclude=*.mp4",
+        "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"],
+    ]  # fmt: skip
+
+
+def removed_pages(itemized: str, rebuilt: list[str]) -> list[str]:
+    """The match folders, other than the `rebuilt` ones, whose page a dry run's output (--itemize-changes) deletes."""
+    gone = [line.split(" ", 1)[1].strip() for line in itemized.splitlines() if line.startswith("*deleting ")]
+    return sorted({path.split("/")[0] for path in gone if path.endswith("/data.js") and path.count("/") == 1} - set(rebuilt))
+
+
 def hosted_folder(match: Path, site: Path) -> Path | None:
     """The folder of `site` holding `match`'s page, under its name or one it had."""
     known = {match.name, *files.aliases(match)}
@@ -416,10 +439,10 @@ def online(folder: Path) -> list[tuple[Path, Path, Path, dict]]:
     return found
 
 
-def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str) -> None:
-    """Each match of `hosted` (match, video, court, publish.json) rebuilt as `host` says, then the site uploaded once,
-    its new files put in place together at the end. Nothing goes up when one cannot be rebuilt; among several, the error
-    names the match."""
+def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool = False) -> None:
+    """Each match of `hosted` (match, video, court, publish.json) rebuilt as `host` says, in the site as the server holds
+    it (`mirror`, unless already `mirrored`), then the site uploaded once, its new files put in place together at the end.
+    Nothing goes up when one cannot be rebuilt; among several, the error names the match."""
     if not hosted:
         raise RuntimeError("no match online")
     config = hosted[0][3]
@@ -439,6 +462,8 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str) -> None:
             raise RuntimeError(f"{named(match)}the video has no password")
         if not video.exists():
             raise RuntimeError(f"{named(match)}video not found: {video}")
+    if not mirrored:
+        mirror(config)
     # ponytail: one match at a time, ~13 s each (2 matches: 26 s); rebuild them in parallel if a season makes it long.
     for match, video, court, c in hosted:
         folder = hosted_folder(match, site) or site / match.name
@@ -467,7 +492,13 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str) -> None:
     outside = unguarded_videos(site)
     if outside:
         raise RuntimeError(f"videos outside a password's folder: {', '.join(p.name for p in outside)}: not uploaded")
-    subprocess.run(["rsync", "-rt", "--delete", "--delay-updates", "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"]], check=True, capture_output=True)
+    rebuilt = [paths[match.name].rstrip("/") for match, *_ in hosted]
+    # Pages another machine put online since the mirror (`mirror`) stay.
+    dry = subprocess.run(upload_command(config, site, rebuilt, dry=True), check=True, capture_output=True, text=True)
+    missing = removed_pages(dry.stdout, rebuilt)
+    if missing:
+        raise RuntimeError(f"online but not here: {', '.join(missing)}: not uploaded")
+    subprocess.run(upload_command(config, site, rebuilt), check=True, capture_output=True)
     for page, key in guarded:
         if not opens(page, key):
             raise RuntimeError(f"{page} does not open with its password")
@@ -487,7 +518,11 @@ def main() -> None:
     if args.host:
         return host(args.host, args.video, args.court, args.theme, json.loads((args.host / PUBLISH).read_text()))
     if args.all:
-        return host_all(online(args.all), args.theme)
+        given = [json.loads(p.read_text()) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
+        config = next((c for c in given if c.get("upload") and c.get("site")), None)
+        if config:
+            mirror(config)
+        return host_all(online(args.all), args.theme, mirrored=config is not None)
     if not args.site:
         parser.error("site or --host")
     matches = build(args.site, args.theme, args.url)

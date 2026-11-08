@@ -188,7 +188,7 @@ class TestHost:
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match)))
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
-        monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
+        monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
         monkeypatch.setattr(matches, "opens", lambda url, key: True)
         site = tmp_path / "site"
         site.mkdir()
@@ -210,11 +210,15 @@ class TestHost:
         with pytest.raises(RuntimeError):
             matches.host(*args)
 
-        assert built == [("voice", Path("outputs/first")), ("full", None, site / "first" / "video"), ("none", "video/", site / "first")] and ran == []
+        assert built == [("voice", Path("outputs/first")), ("full", None, site / "first" / "video"), ("none", "video/", site / "first")]
+        assert [c[:4] for c in ran] == [["rsync", "-rt", "--delete", "--exclude=*.mp4"]]
+        ran.clear()
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
-        assert ran[0][0] == "ssh" and '"2026-10-29-a-vs-b:abc" 1;' in ran[0][-1]
-        assert ran[1][:4] == ["rsync", "-rt", "--delete", "--delay-updates"] and ran[1][-2:] == [f"{site}/", "host:/srv/service/site/"]
+        assert ran[0][-2:] == ["host:/srv/service/site/", f"{site}/"]
+        assert ran[1][0] == "ssh" and '"2026-10-29-a-vs-b:abc" 1;' in ran[1][-1]
+        assert "--dry-run" in ran[2] and "--dry-run" not in ran[3]
+        assert ran[3][:4] == ["rsync", "-rt", "--delete", "--delay-updates"] and ran[3][-2:] == [f"{site}/", "host:/srv/service/site/"]
 
     def test_says_so_when_its_password_does_not_open_it(self, tmp_path, monkeypatch):
         args, _, _, _ = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **self.copies(tmp_path))
@@ -232,7 +236,7 @@ class TestHost:
         matches.host(*args)
 
         assert built == [("voice", Path("outputs/first")), ("none", None, site / "first")] and not old.exists()
-        assert [command[0] for command in ran] == ["rsync"]
+        assert [command[0] for command in ran] == ["rsync", "rsync", "rsync"]
 
     def test_refuses_without_a_choice(self, tmp_path, monkeypatch):
         args, built, ran, _ = self.hosting(tmp_path, monkeypatch)
@@ -282,7 +286,7 @@ class TestHostAll:
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match.name)))
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[0].name, args[4]["footage"], args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "first/"}, {"name": "second", "path": "second/"}])
-        monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command))
+        monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
         monkeypatch.setattr(matches, "protected", lambda url: True)
         monkeypatch.setattr(matches, "opens", lambda url, key: True)
         return hosted, built, ran, site
@@ -301,7 +305,8 @@ class TestHostAll:
         matches.host_all(hosted, "aspom")
 
         assert built == [("voice", "first"), ("first", "full", site / "first" / "video"), ("first", "none", site / "first"), ("voice", "second"), ("second", "none", site / "second")]
-        assert [command[0] for command in ran] == ["ssh", "rsync"] and "--delay-updates" in ran[1]
+        assert [command[0] for command in ran] == ["rsync", "ssh", "rsync", "rsync"] and "--delay-updates" in ran[3]
+        assert "--include=/first/**.mp4" in ran[3] and "--include=/second/**.mp4" in ran[3]
 
     def test_nothing_is_built_nor_sent_when_a_match_cannot_be(self, tmp_path, monkeypatch):
         hosted, built, ran, _ = self.matches_of(tmp_path, monkeypatch)

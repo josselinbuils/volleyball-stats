@@ -79,5 +79,20 @@ and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside
 files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
+Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other. The review claims its
+match on opening (`claims/MATCH.json` beside the copies: the machine and a version moved by each copy, under `flock`); a copy
+is refused when another machine holds the match or the server's is newer than the one this machine started from (`.sync.json`
+in the match's folder, never copied), and the review then shows "Ouvert sur MACHINE" until "Reprendre ici" pulls the server's
+copy (this machine's unpushed changes kept in `backup-sync-<time>/`) and takes the match. The list of matches offers those only
+on the server ("À télécharger"). A pull also brings the courts, lens and sponsors this machine lacks, and the roster is joined,
+each match's names from the machine holding it. By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all |
+push outputs/matches/MATCH`; a machine with no match yet first `sync setup root@<OVH IP> ~/.ssh/id_ed25519_ovh` (the key
+copied there). The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting:
+the Mac, WSL2 being unreachable from outside), never through the server.
+
+Uploads with two machines: the site folder is first made what the server holds (`matches.mirror`, the video copies aside),
+so the pages the other machine put online stay; the upload sends only the rebuilt matches' video copies, and refuses if its dry
+run would delete another match's page.
+
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.

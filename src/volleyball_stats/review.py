@@ -39,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, contacts, decode, feedback, film, files, identity, jerseys, matches, rallies, rename, scoreboard, timeouts, web
+from volleyball_stats import attribution, backup, contacts, decode, feedback, film, files, identity, jerseys, matches, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
@@ -1770,8 +1770,21 @@ def match_list(out: Path) -> list[dict]:
             item = {"name": folder.name, "date": saved.get("date"), "title": saved.get("title"), "teams": saved.get("teams"), "scores": scores, "sets": sum(map(bool, scores)), "rallies": 0}
         item["path"] = folder.name
         item["ready"] = all(p.exists() for p in (folder / "report.md", Path(given["video"]), Path(given["court"])))
+        if not Path(given["video"]).exists():
+            item["missing"] = "video"
         found.append(item)
     return sorted(found, key=lambda m: (m["date"] or "", m["path"]), reverse=True)
+
+
+def on_server(out: Path, listed: list[dict]) -> list[dict]:
+    """The matches with a copy on the server and none here, to download; none when the server cannot be reached."""
+    try:
+        found = sync.listing(out.parent)
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        return []
+    here = {m["path"] for m in listed}
+    dated = lambda name: name[:10] if re.match(r"\d{4}-\d{2}-\d{2}", name) else None  # noqa: E731
+    return [{"name": n, "path": n, "date": dated(n), "title": None, "teams": None, "scores": [], "sets": 0, "rallies": 0, "ready": False, "remote": True} for n in sorted(found) if n not in here]
 
 
 def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
@@ -1783,7 +1796,9 @@ def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
         club = matches.brand(theme, site)
         if club:
             club.pop("sponsors")
-        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': match_list(out), 'brand': club, 'review': True}, ensure_ascii=False)};\n")
+        listed = match_list(out)
+        listed = sorted(listed + on_server(out, listed), key=lambda m: (m["date"] or "", m["path"]), reverse=True)
+        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'brand': club, 'review': True}, ensure_ascii=False)};\n")
         return (site / "matches.html").read_bytes(), "text/html; charset=utf-8"
     parts = Path(unquote(path).removeprefix("/matches/")).parts
     file = site.joinpath(*parts)
@@ -1820,6 +1835,15 @@ def switch(command: list[str], lock: threading.Lock) -> None:
         os.execv(command[0], command)
 
     threading.Thread(target=replace, daemon=True).start()
+
+
+def pulled(body, out: Path) -> tuple[bytes, str, int]:
+    """The response to the list's /pull: the match `name` brought from the server."""
+    try:
+        sync.pull(str(body["name"]), out.parent)
+    except (LookupError, TypeError, OSError, RuntimeError, subprocess.SubprocessError) as error:
+        return json.dumps({"error": str(error) or type(error).__name__}).encode(), "application/json", 400
+    return b"{}", "application/json", 200
 
 
 def same_site(headers, port: int) -> bool:
@@ -1862,8 +1886,10 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             self.send(*(page or (b"Not found", "text/plain", 404)))
 
         def do_POST(self) -> None:
-            if not same_site(self.headers, port) or self.path != "/open" or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+            if not same_site(self.headers, port) or self.path not in ("/open", "/pull") or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
+            if self.path == "/pull":
+                return self.send(*pulled(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0)))), out))
             try:
                 command = reopening(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))["name"], out, theme, port, roster)
             except (LookupError, TypeError, ValueError):
@@ -1959,6 +1985,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # The last fetch of the viewers' reports from the hosting: when, and how many for this match.
     fetched_log: dict = {}
     backed: dict = {}
+    # Another machine holding this match, or a newer copy on the server (`sync.claim`): the page stops the review until
+    # it is taken here.
+    elsewhere: dict = {}
+    claimed = threading.Event()
+
+    def claiming() -> None:
+        try:
+            elsewhere.update(sync.claim(match) or {})
+        finally:
+            claimed.set()
 
     backup_lock = threading.Lock()
 
@@ -1967,9 +2003,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         can ask for one while the timer makes another."""
         with backup_lock:
             try:
-                backup.backup(match)
+                sync.push(match)
                 backed.update(at=time.strftime("%H:%M"), error=None)
                 return True
+            except sync.Elsewhere as error:
+                elsewhere.update(error.claim)
+                backed.update(at=time.strftime("%H:%M"), error=str(error))
+                return False
             except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
                 backed.update(at=time.strftime("%H:%M"), error=str(error) or type(error).__name__)
                 print(f"backup failed: {backed['error']}", flush=True)
@@ -2169,6 +2209,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(json.dumps(eta(state, took, time.time()) if state else {}).encode(), "application/json")
             if url.path == "/failure":
                 return self.send(json.dumps(failure).encode(), "application/json")
+            if url.path == "/sync":
+                claimed.wait(30)
+                return self.send(json.dumps(elsewhere or None).encode(), "application/json")
             if url.path == "/more":
                 q = parse_qs(url.query)
                 team, number = int(q["team"][0]), int(q["identity"][0])
@@ -2243,6 +2286,20 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if self.path == "/backup":
                 back_up()
                 return self.send(json.dumps(backed).encode(), "application/json")
+            if self.path == "/pull":
+                return self.send(*pulled(body, match.parent))
+            if self.path == "/sync/take":
+                if progress:
+                    return self.send(b'{"error":"busy"}', "application/json", 409)
+                with lock, backup_lock:
+                    try:
+                        sync.take(match)
+                    except (LookupError, OSError, RuntimeError, subprocess.SubprocessError) as error:
+                        return self.send(json.dumps({"error": str(error) or type(error).__name__}).encode(), "application/json", 502)
+                self.send(b"{}", "application/json")
+                # Everything read from the match's files again.
+                switch([sys.executable, "-m", "volleyball_stats.review", *[a for a in sys.argv[1:] if a != "--no-browser"], "--no-browser"], lock)
+                return None
             if self.path == "/open":
                 if progress:
                     return self.send(b'{"error":"busy"}', "application/json", 409)
@@ -2502,7 +2559,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     threading.Thread(target=warm, daemon=True).start()
     threading.Thread(target=afterwards, daemon=True).start()
     if (match / matches.PUBLISH).exists():
+        threading.Thread(target=claiming, daemon=True).start()
         threading.Thread(target=backing, daemon=True).start()
+    else:
+        claimed.set()
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
         webbrowser.open(url)

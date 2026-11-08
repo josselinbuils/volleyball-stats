@@ -9,7 +9,9 @@ import { Swatch } from '@/components/Swatch';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import {
+  readElsewhere,
   readFailure,
+  type Claim,
   type Failure,
   allMarked,
   post,
@@ -32,6 +34,7 @@ import { Pictures } from '@/components/Review/Pictures';
 import { Conflicts } from '@/components/Review/Conflicts';
 import { PieceConflict } from '@/components/Review/PieceConflict';
 import { RunFailure } from '@/components/Review/RunFailure';
+import { Elsewhere } from '@/components/Review/Elsewhere';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
@@ -44,6 +47,7 @@ import { ReviewTabs } from '@/components/Review/ReviewTabs';
 /** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
 const NOTICE_MS = 4000;
+const ELSEWHERE_EVERY_MS = 60_000;
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
@@ -137,6 +141,14 @@ export function Review({
   const [failure, setFailure] = useState<Failure | null>(null);
   useEffect(() => {
     void readFailure().then(setFailure);
+  }, []);
+  const [elsewhere, setElsewhere] = useState<Claim | null>(null);
+  // Another machine may take the match while this page is open.
+  useEffect(() => {
+    const read = () => void readElsewhere().then(setElsewhere);
+    read();
+    const timer = setInterval(read, ELSEWHERE_EVERY_MS);
+    return () => clearInterval(timer);
   }, []);
   // What the last action did, shown for NOTICE_MS.
   const [notice, setNotice] = useState<string | null>(null);
@@ -450,6 +462,7 @@ export function Review({
             {t('review.error')}
           </p>
         )}
+        {elsewhere && <Elsewhere claim={elsewhere} />}
         {failure && (
           <RunFailure
             failure={failure}

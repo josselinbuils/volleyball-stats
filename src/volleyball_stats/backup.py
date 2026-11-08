@@ -22,7 +22,9 @@ from volleyball_stats import files, matches
 ROOT = "/root/backups/volleyball-stats"
 # Old copies of the results, the pages built from them (the review's links the video), half-written files, the review's
 # marker of a page waiting for its pictures (review.STALE_PHOTOS), made and removed as it builds.
-SKIP = ("backup-*", "review", "site", "films", "photo_moments", ".*.tmp", "photos_stale")
+# Per machine (`sync`): the server's version of the match this machine's copy started from.
+STATE = ".sync.json"
+SKIP = ("backup-*", "review", "site", "films", "photo_moments", ".*.tmp", "photos_stale", STATE)
 SPONSORS = Path("branding/aspom/sponsors")
 KEEP = 30
 # Under this, no copy: the server also runs the owner's websites.
@@ -76,8 +78,7 @@ def rsync_command(paths: list[Path], host: str, ssh: list[str], root: str, day: 
 
 def backup(match: Path, day: str | None = None, root: str = ROOT) -> None:
     """Copies `match` to the server of its publish.json; raises what went wrong."""
-    config = json.loads((match / matches.PUBLISH).read_text())
-    host, ssh = config["upload"].split(":")[0], ["ssh", "-i", str(Path(config["key"]).expanduser()), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10"]
+    host, ssh = connection(json.loads((match / matches.PUBLISH).read_text()))
     day = day or time.strftime("%Y-%m-%d")
 
     def remote(command: str) -> str:
@@ -98,20 +99,28 @@ def backup(match: Path, day: str | None = None, root: str = ROOT) -> None:
         remote("rm -rf " + " ".join(f"{root}/{d}" for d in old))
 
 
+def connection(config: dict) -> tuple[str, list[str]]:
+    """The server's host and the ssh command reaching it, from a publish.json's `upload` and `key`."""
+    return config["upload"].split(":")[0], ["ssh", "-i", str(Path(config["key"]).expanduser()), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10"]
+
+
 def rename_copies(match: Path, old: str, root: str = ROOT) -> None:
     """The copies of the match `old`, now `match`, under its new name, for the next copy to link to their files; none without a
     publish.json, which backups need."""
     path = match / matches.PUBLISH
     if not path.exists():
         return
-    config = json.loads(path.read_text())
-    ssh = ["ssh", "-i", str(Path(config["key"]).expanduser()), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", config["upload"].split(":")[0]]
-    subprocess.run([*ssh, rename_command(root, old, match.name)], check=True, capture_output=True, text=True, timeout=120)
+    host, ssh = connection(json.loads(path.read_text()))
+    subprocess.run([*ssh, host, rename_command(root, old, match.name)], check=True, capture_output=True, text=True, timeout=120)
 
 
 def rename_command(root: str, old: str, new: str) -> str:
-    """The shell command moving each dated copy's folder `old` to `new`."""
-    return f"for d in {shlex.quote(root)}/*/; do if [ -d \"$d\"{shlex.quote(old)} ] && [ ! -e \"$d\"{shlex.quote(new)} ]; then mv \"$d\"{shlex.quote(old)} \"$d\"{shlex.quote(new)}; fi; done"
+    """The shell command moving each dated copy's folder `old` to `new`, and its claim (`sync`)."""
+    claims = shlex.quote(f"{root}/claims/")
+    return (
+        f"for d in {shlex.quote(root)}/*/; do if [ -d \"$d\"{shlex.quote(old)} ] && [ ! -e \"$d\"{shlex.quote(new)} ]; then mv \"$d\"{shlex.quote(old)} \"$d\"{shlex.quote(new)}; fi; done"
+        f"; if [ -e {claims}{shlex.quote(old + '.json')} ] && [ ! -e {claims}{shlex.quote(new + '.json')} ]; then mv {claims}{shlex.quote(old + '.json')} {claims}{shlex.quote(new + '.json')}; fi"
+    )
 
 
 def main() -> None:

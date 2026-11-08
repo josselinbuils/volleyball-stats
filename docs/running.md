@@ -2,6 +2,9 @@
 
 ## A match
 
+- The videos from the other machine, both on the same network: `uv run python -m volleyball_stats.data_sync` on the Mac (it
+  waits and shows a command with a code), that command on the PC. Each gets what only the other has; a cut copy resumes. The
+  results come through the review's list ("À télécharger") or `sync pull` ([hosting.md](hosting.md)).
 - A new match starts with `import_match` ([processing.md](processing.md)): `data/matches/MATCH/MATCH.mp4` and `outputs/matches/MATCH/`, named like its hosted page, everything of a match in those two folders.
 - `match` refuses to track at a low priority or on a busy machine (`slow_run_reasons`, `--anyway`): tell the owner what it lists, stopping their work
   (Docker, Kili sandboxes) is their call. To correct a running job: `sudo renice 0 -p PID...` in their own terminal (`renice -n 0` changes nothing on

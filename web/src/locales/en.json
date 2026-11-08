@@ -711,8 +711,20 @@
     "opening": "Opening…",
     "openFailed": "Could not open it: try again.",
     "processing": "Being processed",
+    "toPull": "To download",
+    "pulling": "Downloading…",
+    "pullFailed": "Could not download it: try again.",
+    "noVideo": "Video missing",
     "setsN_one": "{{count, number}} set",
     "setsN_other": "{{count, number}} sets"
+  },
+  "sync": {
+    "elsewhere": "Open on {{machine}}",
+    "copy": "Last copy at {{at}}.",
+    "aside": "Your changes here will be set aside.",
+    "take": "Take it here",
+    "taking": "Taking it…",
+    "failed": "Could not take it: try again."
   },
   "season": {
     "title": "The season",
