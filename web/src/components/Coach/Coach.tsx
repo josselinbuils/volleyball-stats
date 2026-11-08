@@ -22,7 +22,7 @@ import { servesOn } from '@/components/Coach/helpers/reception';
 import { Tip } from '@/components/Tip';
 
 /** What a coach reads for one team: what cost it points, who sets whom, each attacker's advice on their jumps and each
- * player's places in defence and in reception, those the only parts naming a player for a weak point (the owner's call). */
+ * player's places in reception and in defence, those the only parts naming a player for a weak point (the owner's call). */
 export function Coach() {
   const { t } = useTranslation();
   const { contacts, rallies } = useSet();
@@ -84,8 +84,8 @@ export function Coach() {
         )}
         {setting.length > 0 && <Setters setters={setting} />}
         {jumping.length > 0 && <Jumps jumpers={jumping} />}
-        {defended && <Placement key={picked} g={picked} contacts={contacts} />}
         {received && <Reception key={picked} g={picked} contacts={contacts} />}
+        {defended && <Placement key={picked} g={picked} contacts={contacts} />}
       </CardContent>
     </Card>
   );
