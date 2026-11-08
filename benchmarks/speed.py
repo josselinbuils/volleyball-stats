@@ -31,7 +31,7 @@ On the RTX 5080 (WSL2, NVDEC), 60 s of the second ASPOM match's 4K 50 fps footag
 | **before**: ball, then players | 22.8 | 4.4 h |
 | **now**: both in one ffmpeg pass | 26.0 | 3.9 h (88% of before) |
 
-Twice the M4 Pro; the pass alone gives 28.6-31.3 fps. What holds it (8 Nov, 1500 frames under cProfile, GPU sampled every
+(The "now" row before `side_by_side`.) Twice the M4 Pro; the pass alone gives 28.6-31.3 fps. What holds it (8 Nov, 1500 frames under cProfile, GPU sampled every
 0.2 s): one Python thread runs everything in turn at 100% of a core (of 16) while the card is busy 51% of the time. Of 48 s,
 the players' YOLO11m one frame per call 23.5 s (its forward 18.5 s, the tracker ~3 s), the ball's model 11.9 s (9 s running
 and waiting for its heatmaps, 3.6 s preparing frames), decoding 1.3 s. Measured ways out:
@@ -40,6 +40,7 @@ and waiting for its heatmaps, 3.6 s preparing frames), decoding 1.3 s. Measured 
 | --- | --- | --- |
 | the pass as it is | 30.4 | |
 | ball and players in two threads, the same frames | 37.9 | identical (600 of 600 frames) |
+| `match.side_by_side`, as the pipeline now runs it | 36.7 (one thread 29.2) | identical (1500 of 1500 frames) |
 | players' YOLO alone, a frame a call (FP32) | 61 | |
 | batches of 8 frames | 92 | boxes within 1 px on 141 of 160 frames |
 | one frame, half precision | 81 | within 1 px on 57 of 160 |

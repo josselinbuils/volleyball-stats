@@ -14,13 +14,15 @@ for its first open to be quick (--no-page to leave them to the review).
 import argparse
 import csv
 import os
+import queue
 import subprocess
 import sys
+import threading
 import time
 from collections import Counter
 from collections.abc import Callable, Iterator
 from datetime import datetime
-from itertools import repeat, tee
+from itertools import repeat
 from pathlib import Path
 
 import cv2
@@ -41,15 +43,100 @@ BUSY_LOAD = 0.5
 STAGE = "::stage "
 
 
+# Frames a step may run ahead of the other (`side_by_side`): over the ball's lag (ball.BATCH * stride + WINDOW frames).
+AHEAD = 64
+_END = object()
+
+
+class _Failed:
+    def __init__(self, error: BaseException):
+        self.error = error
+
+
+def side_by_side(frames: Iterator, steps: list[Callable[[Iterator], Iterator]]) -> Iterator[tuple]:
+    """Each step's result per frame, together: every step reads every frame and yields one result per frame, each but
+    the first in a thread of its own, so that one model runs while the other's Python prepares its next frame (one
+    thread ran them in turn on the RTX 5080: a core at 100%, the card half idle; `benchmarks/speed.py`). The results
+    are those the steps give one after the other. A step's error is raised here; stopping early stops them all."""
+    feeds = [queue.Queue(AHEAD) for _ in steps]
+    outs = [queue.Queue(AHEAD) for _ in steps[1:]]
+    stop = threading.Event()
+
+    def put(q: queue.Queue, item) -> bool:
+        while not stop.is_set():
+            try:
+                q.put(item, timeout=0.2)
+                return True
+            except queue.Full:
+                pass
+        return False
+
+    def take(q: queue.Queue):
+        while not stop.is_set():
+            try:
+                item = q.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if isinstance(item, _Failed):
+                raise item.error
+            return item
+        return _END
+
+    def read(q: queue.Queue) -> Iterator:
+        while (item := take(q)) is not _END:
+            yield item
+
+    def feed() -> None:
+        try:
+            for frame in frames:
+                if not all(put(q, frame) for q in feeds):
+                    return
+            for q in feeds:
+                put(q, _END)
+        except BaseException as error:  # noqa: BLE001
+            for q in feeds:
+                put(q, _Failed(error))
+        finally:
+            # In this thread: ends a decoder stopped early (ffmpeg).
+            getattr(frames, "close", lambda: None)()
+
+    def run(step: Callable[[Iterator], Iterator], source: queue.Queue, out: queue.Queue) -> None:
+        try:
+            for result in step(read(source)):
+                if not put(out, result):
+                    return
+            put(out, _END)
+        except BaseException as error:  # noqa: BLE001
+            put(out, _Failed(error))
+
+    threads = [threading.Thread(target=feed, daemon=True)]
+    threads += [threading.Thread(target=run, args=(step, source, out), daemon=True) for step, source, out in zip(steps[1:], feeds[1:], outs)]
+    for thread in threads:
+        thread.start()
+    try:
+        for first in steps[0](read(feeds[0])):
+            others = [take(out) for out in outs]
+            if any(o is _END for o in others):
+                raise RuntimeError("a step gave fewer results than frames")
+            yield (first, *others)
+        if any(take(out) is not _END for out in outs):
+            raise RuntimeError("a step gave more results than frames")
+    finally:
+        stop.set()
+
+
 def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float) -> Iterator[tuple[ball.Position, list[players.Row]]]:
     """Per frame, the ball's position (None when not found or not tracked) and the players' rows
     (none when not tracked), from one decoding pass of the video at `fps`; `with_ball` or
-    `with_players`."""
+    `with_players`, both side by side."""
     device, native = ball.default_device(), decode.size(video)
-    branches = iter(tee(decode.frames(video), with_ball + with_players))
-    balls = (p for _, p in ball.track_frames(next(branches), ball.load_model(device), device, size=native)) if with_ball else repeat(None)
-    found = players.track_frames(next(branches), calibration, players.load_model(), device, size=native, fps=fps) if with_players else repeat([])
-    return zip(balls, found)
+    balls = lambda frames: (p for _, p in ball.track_frames(frames, ball.load_model(device), device, size=native))  # noqa: E731
+    found = lambda frames: players.track_frames(frames, calibration, players.load_model(), device, size=native, fps=fps)  # noqa: E731
+    if with_ball and with_players:
+        # The players first, in this thread: they yield frame by frame, the ball in batches.
+        return ((b, p) for p, b in side_by_side(decode.frames(video), [found, balls]))
+    frames = decode.frames(video)
+    return zip(balls(frames) if with_ball else repeat(None), found(frames) if with_players else repeat([]))
 
 
 def track(video: Path, calibration: court.Calibration | None, fps: float, ball_path: Path | None, players_path: Path | None) -> None:

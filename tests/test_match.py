@@ -1,7 +1,10 @@
+import time
 from pathlib import Path
 
+import pytest
+
 from volleyball_stats import decode, jerseys, web
-from volleyball_stats.match import busiest, in_rallies, read_jerseys, report, review_page, settled_teams, slow_run_reasons, unseen_serves
+from volleyball_stats.match import busiest, in_rallies, read_jerseys, report, review_page, settled_teams, side_by_side, slow_run_reasons, unseen_serves
 from volleyball_stats.players import Row
 
 
@@ -158,3 +161,49 @@ class TestReviewPage:
         review_page(tmp_path, tmp_path / "video.mp4", tmp_path / "court.json")
 
         assert "no pictures" in capsys.readouterr().err
+
+
+class TestSideBySide:
+    @staticmethod
+    def batched(frames):
+        # Like the ball's step: results come in bursts, after their frames.
+        held = []
+        for f in frames:
+            held.append(f * 10)
+            if len(held) == 5:
+                yield from held
+                held.clear()
+        yield from held
+
+    def test_each_frames_results_together_in_order(self):
+        out = list(side_by_side(iter(range(23)), [lambda fs: (f + 1 for f in fs), self.batched]))
+
+        assert out == [(f + 1, f * 10) for f in range(23)]
+
+    def test_a_steps_error_is_raised(self):
+        def broken(frames):
+            for f in frames:
+                if f == 7:
+                    raise ValueError("broken")
+                yield f
+
+        with pytest.raises(ValueError, match="broken"):
+            list(side_by_side(iter(range(50)), [lambda fs: iter(fs), broken]))
+
+    def test_stopping_early_ends_the_frames(self):
+        closed = []
+
+        def frames():
+            try:
+                yield from range(10_000)
+            finally:
+                closed.append(True)
+
+        out = side_by_side(frames(), [lambda fs: iter(fs), self.batched])
+        assert [next(out) for _ in range(3)] == [(0, 0), (1, 10), (2, 20)]
+        out.close()
+        for _ in range(50):
+            if closed:
+                break
+            time.sleep(0.05)
+        assert closed
