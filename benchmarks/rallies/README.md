@@ -406,5 +406,5 @@ falls too loses touches: the model's P falls before the ball lands, and the floo
 
 The settings were picked on both labelled spans (none is held out for them); the touches are held out. On the 43 labelled
 rallies, 9 ends move with cuts, 7 closer (the +10 s tail to +1.0 s, a ball out of sight -3.0 to -0.6 s), 2 farther; the
--9.9 s end (ball out of sight 4 s, then 6 contacts) gets to -7.8 s. Not in `match.py` yet: it needs the frames, the model
-(330 MB) on each machine and about 5 min of inference a match on the 5080.
+-9.9 s end (ball out of sight 4 s, then 6 contacts) gets to -7.8 s. Left out of `match.py` (8 Nov): the pipeline stays the same
+on both machines, and it would need the frames, the model (330 MB) on each and about 14 min a match on the 5080, an hour on the Mac (estimated).

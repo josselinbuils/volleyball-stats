@@ -158,7 +158,10 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
     same for `action` types (`actions.classify_rally` on `actions.csv`'s contacts against the
     owner's types) and `rally` verdicts would score those steps without labels.
 14. **A learned play / no-play clip model for rally ends** (tried 8 Nov, `benchmarks/rallies/README.md`: AUC 0.99 held out both ways;
-    ends carried on through its play 50:00-60:00 F1 ±1 s 0.57 -> 0.65, touches in windows +6 and +11; not in `match.py` yet). Ends with the ball out of sight or
+    ends carried on through its play 50:00-60:00 F1 ±1 s 0.57 -> 0.65, touches in windows +6 and +11). Left out for now (the
+    owner, 8 Nov): one pipeline on both machines, and on the Mac it would add about an hour a match (frames ~25 min, VideoMAE
+    on MPS ~25-40 min, estimated; 14 min on the 5080) plus the 330 MB model on each, for 1 in 10 of the touches missed outside
+    windows. Retry when more checked matches can train it, or if it gains more. Ends with the ball out of sight or
     another court's whistle: 50:00-60:00 F1 ±1 s 0.58, every hand-made cue tried dropped. Recipe from
     [volleyball-ml-models](https://github.com/masouduut94/volleyball-ml-models) (MIT; `literature.md` §1): VideoMAE-base,
     16 frames at 224 px, service / play / no play. Their weights are broadcast-only: fine-tune on the two matches' checked
