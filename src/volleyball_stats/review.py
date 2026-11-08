@@ -54,8 +54,10 @@ KINDS = ("same", "different", "not_player", "cut", "team", "touch", "rally", "re
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
-# Pieces looking most like a player offered to confirm at once, at least MORE_S long.
-MORE, MORE_S = 24, 1.0
+# Pieces looking most like a player offered to confirm at once, at least MORE_S long and as like
+# the card as MORE_LIKE (cosine): on the 6 batches answered over both ASPOM matches, 56 of the 70
+# right and 8 of the 70 wrong reach it (4 right and 0 wrong of 48 on a mixed card).
+MORE, MORE_S, MORE_LIKE = 24, 1.0, 0.90
 # Pictures spread over a piece in a conflict, to see whether the tracking swapped players.
 STRIP = 24
 # Doubts under MIN_IMPACT (seconds of play, a touch counting as 10, times the doubt: identity.doubts)
@@ -466,6 +468,7 @@ class Questions:
             if t != team or n == number or key not in vectors or (end - start + 1) < MORE_S * self.fps or key in seen | self.avoid or np.any((starts <= end) & (start <= ends)):
                 continue
             ranked.append((float(vectors[key] @ look) / max(float(np.linalg.norm(vectors[key])), 1e-9), track, start, end))
+        ranked = [r for r in ranked if r[0] >= MORE_LIKE]
         out = []
         for _, track, start, end in sorted(ranked, reverse=True)[:MORE]:
             frame = self.clear(track, start, end)

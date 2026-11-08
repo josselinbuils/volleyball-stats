@@ -1216,3 +1216,20 @@ class TestPageChanges:
 
         state = review.read_hosted(tmp_path)
         assert state["behind"] and state["changes"] == [{"part": "contacts", "count": 1}]
+
+
+class TestMore:
+    def test_only_pieces_as_like_the_card_as_more_like_are_offered(self, tmp_path):
+        from volleyball_stats.review import MORE_LIKE, Questions
+
+        q = object.__new__(Questions)
+        q.match, q.fps, q.avoid = tmp_path, 50.0, set()
+        # The card (identity 1) and two pieces of identity 2, after it: one alike, one not.
+        q.table = [(1, 0, 99, 1, 1), (2, 200, 299, 1, 2), (3, 200, 299, 1, 2)]
+        q.clear = lambda track, start, end: start
+        q.crop = lambda track, frame: f"{track}"
+        far = np.cos(np.arccos(MORE_LIKE) + 0.05)
+        vectors = np.array([[1.0, 0.0], [0.99, np.sqrt(1 - 0.99**2)], [far, np.sqrt(1 - far**2)]])
+        np.savez(tmp_path / "embeddings.npz", keys=np.array([[1, 0, 99], [2, 200, 299], [3, 200, 299]]), vectors=vectors)
+
+        assert [p["track"] for p in q.more(1, 1, set())] == [2]
