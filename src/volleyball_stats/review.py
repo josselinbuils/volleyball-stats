@@ -1736,9 +1736,11 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
 
 
 def page_stamp(match: Path) -> str:
-    """What the hosted page would show: the review's page data and the page's code."""
+    """What the hosted page would show: the review's page data and the page's code. Not the data's `v`, which each patch of the
+    pictures moves (`web.patch_people`), the same page rebuilt by a restart then patched getting another."""
     digest = hashlib.sha256()
-    for path in (match / "review" / "data.js", matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"):
+    digest.update(re.sub(rb'"v":"[0-9a-f]+"', b"", (match / "review" / "data.js").read_bytes()))
+    for path in (matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"):
         digest.update(path.read_bytes())
     return digest.hexdigest()[:16]
 

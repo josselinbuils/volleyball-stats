@@ -1163,3 +1163,17 @@ class TestServer:
             assert "bad answer" in capsys.readouterr().err
         finally:
             server.server_close()
+
+
+class TestPageStamp:
+    def test_the_pages_version_tag_alone_is_no_change(self, tmp_path, monkeypatch):
+        from volleyball_stats import review
+
+        (tmp_path / "review").mkdir()
+        page = tmp_path / "review" / "data.js"
+        page.write_text('window.MATCH = {"name":"m","people":{},"v":"01e892555b"};\n')
+        first = review.page_stamp(tmp_path)
+        page.write_text('window.MATCH = {"name":"m","people":{},"v":"7f3a0c11d2"};\n')
+        assert review.page_stamp(tmp_path) == first
+        page.write_text('window.MATCH = {"name":"n","people":{},"v":"7f3a0c11d2"};\n')
+        assert review.page_stamp(tmp_path) != first
