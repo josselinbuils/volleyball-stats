@@ -219,18 +219,20 @@ def by_wrists(
     by_track, gap = tracks(rows), round(GAP_S * fps)
     feet = feet_on_court(rows) if places else {}
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
-    model, out = None, []
+    posed = lambda kind, found: len(found) >= 2 and (learned is not None or kind in BELOW_HEAD)  # noqa: E731
+    wanted = [(frame, x, y) for (frame, x, y, kind, _), found in zip(typed, candidates) if posed(kind, found) and f"{frame}:{x}:{y}" not in kept]
+    if wanted:
+        from ultralytics import YOLO
+
+        kept.update(poses_of(YOLO(str(POSE_MODEL)), video, wanted))
+        if cache:
+            files.write_text(cache, json.dumps(kept, separators=(",", ":")))
+    out = []
     for (frame, x, y, kind, side), found in zip(typed, candidates):
-        if len(found) < 2 or (learned is None and kind not in BELOW_HEAD):
+        if not posed(kind, found):
             out.append(found)
             continue
         key = f"{frame}:{x}:{y}"
-        if key not in kept:
-            if model is None:
-                from ultralytics import YOLO
-
-                model = YOLO(str(POSE_MODEL))
-            kept[key] = poses_at(model, video, frame, x, y)
         poses = [[(tuple(b), np.array(k)) for b, k in f] for f in kept[key]]
         boxes = {c[2]: box_at(by_track[c[2]][1], frame, gap) for c in found}
         wrists = {c[2]: wrist_distance((x, y), boxes[c[2]], poses) for c in found}
@@ -244,25 +246,39 @@ def by_wrists(
             for k, c in enumerate(found)
         ])
         out.append([found[k] for k in np.argsort(-ranker.scores(learned, x_), kind="stable")])
-    if model is not None:
-        if cache:
-            files.write_text(cache, json.dumps(kept, separators=(",", ":")))
     return out
 
 
-def poses_at(model, video: Path, frame: int, x: int, y: int) -> list[list[tuple[list[float], list[list[float]]]]]:
-    """YOLO pose on a crop around the ball (`x`, `y`) in frames `frame` - 1 to + 1: each frame's
-    boxes and 17 keypoints (x, y, confidence), in the frame's pixels."""
-    poses = []
-    for _, image in decode.frames_at(video, range(max(0, frame - 1), frame + 2)):
-        height, width = image.shape[:2]
-        side = min(round(POSE_CROP * height), width, height)
-        x0, y0 = min(max(0, x - side // 2), width - side), min(max(0, y - side // 2), height - side)
-        result = model.predict(image[y0:y0 + side, x0:x0 + side], imgsz=1280, conf=0.1, verbose=False)[0]
-        keypoints = result.keypoints.data.cpu().numpy() + np.array([x0, y0, 0])
-        boxes = result.boxes.xyxy.cpu().numpy() + np.array([x0, y0, x0, y0])
-        poses.append([(np.round(b, 1).tolist(), np.round(k, 2).tolist()) for b, k in zip(boxes, keypoints)])
-    return poses
+def poses_of(model, video: Path, wanted: list[tuple[int, int, int]]) -> dict[str, list]:
+    """`poses_at` of each (frame, ball x, y) in `wanted`, by "frame:x:y", the video decoded in one
+    pass: one ffmpeg a touch cost 0.7 s each in 4K."""
+    pending, images, out = sorted(set(wanted)), {}, {}
+
+    def ready(last: float) -> None:
+        while pending and pending[0][0] + 1 <= last:
+            frame, x, y = pending.pop(0)
+            out[f"{frame}:{x}:{y}"] = [poses_in(model, images[f], x, y) for f in range(max(0, frame - 1), frame + 2) if f in images]
+            for f in [f for f in images if not pending or f < pending[0][0] - 1]:
+                del images[f]
+
+    for index, image in decode.frames_at(video, {f for frame, _, _ in pending for f in range(max(0, frame - 1), frame + 2)}):
+        images[index] = image
+        ready(index)
+    # Past the video's end: what it has.
+    ready(float("inf"))
+    return out
+
+
+def poses_in(model, image: np.ndarray, x: int, y: int) -> list[tuple[list[float], list[list[float]]]]:
+    """YOLO pose on a crop of `image` around the ball (`x`, `y`): its boxes and 17 keypoints (x, y,
+    confidence), in the frame's pixels."""
+    height, width = image.shape[:2]
+    side = min(round(POSE_CROP * height), width, height)
+    x0, y0 = min(max(0, x - side // 2), width - side), min(max(0, y - side // 2), height - side)
+    result = model.predict(image[y0:y0 + side, x0:x0 + side], imgsz=1280, conf=0.1, verbose=False)[0]
+    keypoints = result.keypoints.data.cpu().numpy() + np.array([x0, y0, 0])
+    boxes = result.boxes.xyxy.cpu().numpy() + np.array([x0, y0, x0, y0])
+    return [(np.round(b, 1).tolist(), np.round(k, 2).tolist()) for b, k in zip(boxes, keypoints)]
 
 
 def wrist_order(found: list[Candidate], wrists: dict[int, float | None]) -> list[Candidate]:

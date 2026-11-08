@@ -336,6 +336,8 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     model, fresh = None, False
     reach = UNDER_PX * decode.size(video)[1] / 720
+    # The frames an attack may look at, decoded in one pass: one ffmpeg a frame cost 0.7 s each in 4K.
+    images: dict[int, np.ndarray] = {}
 
     def boxes_at(frame: int) -> np.ndarray:
         nonlocal model, fresh
@@ -344,7 +346,7 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
                 from ultralytics import YOLO
 
                 model = YOLO(str(POSE_MODEL))
-            image = decode.frame_at(video, frame)
+            image = images.get(frame)
             found = model.predict(image, imgsz=1280, conf=0.25, verbose=False)[0].boxes.xyxy.cpu().numpy() if image is not None else np.empty((0, 4))
             kept[str(frame)], fresh = np.round(found, 1).tolist(), True
         return np.array(kept[str(frame)], dtype=float).reshape(-1, 4)
@@ -352,6 +354,8 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
     relances = set()
     step = max(1, round(0.1 * fps))
     for frame, x, y, _, _ in attacks:
+        images.clear()
+        images.update(decode.frames_at(video, [f for f in range(frame, frame - round(LIFT_S * fps) - 1, -step) if f >= 0 and str(f) not in kept]))
         boxes = boxes_at(frame)
         i = player_under((x, y), boxes, reach)
         if i is None:

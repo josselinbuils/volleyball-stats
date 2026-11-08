@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import numpy as np
 from volleyball_stats.attribution import COURT_MAX_M, CROSS_M, FAR, GAP_S, REACH, SIDE_M, WRIST_CONF, attribute, box_at, by_wrists, court_metres, distance, gap_to_next, ranked, read_players, unreached, wrist_distance, wrist_order
@@ -187,6 +188,18 @@ class TestByWrists:
         out = by_wrists(tmp_path / "none.mp4", [(10, 135, 250, "pass", "left")], [[(0.0, 0.0, 1), (0.0, 0.0, 2)]], rows, 50.0, cache)
 
         assert [c[2] for c in out[0]] == [2, 1]
+
+    def test_one_pass_poses_each_touch_on_its_three_frames(self, monkeypatch):
+        from volleyball_stats import attribution
+
+        # Frames 0 to 11 only; each image holds its index, which the fake pose gives back.
+        monkeypatch.setattr(attribution.decode, "frames_at", lambda video, wanted: ((f, np.full((20, 20, 3), f, np.uint8)) for f in sorted(wanted) if f < 12))
+        monkeypatch.setattr(attribution, "poses_in", lambda model, image, x, y: [([float(image[0, 0, 0])], [[x, y]])])
+
+        out = attribution.poses_of(None, Path("v.mp4"), [(5, 1, 2), (0, 3, 4), (6, 1, 2), (11, 5, 6)])
+
+        frames = {k: [p[0][0][0] for p in v] for k, v in out.items()}
+        assert frames == {"0:3:4": [0, 1], "5:1:2": [4, 5, 6], "6:1:2": [5, 6, 7], "11:5:6": [10, 11]}
 
 
 class TestReadPlayers:
