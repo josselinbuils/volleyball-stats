@@ -49,7 +49,7 @@ unreliable.
 - [Shaamallow/VolleyVision](https://github.com/Shaamallow/VolleyVision): ball tracking, YOLOv8
   action model.
 - [masouduut94/volleyball_analytics](https://github.com/masouduut94/volleyball_analytics)
-  (GPL-2.0): ball and action detection.
+  (GPL-2.0, models MIT): ball and action detection, a play / no-play clip classifier.
 - [haotianxia/VolleyStats](https://github.com/haotianxia/VolleyStats) (no licence): stats on top of
   [tprlab/vball](https://github.com/tprlab/vball) (Apache 2.0).
 - [SFU Volleyball dataset](https://github.com/mostafa-saad/deep-activity-rec): annotated frames

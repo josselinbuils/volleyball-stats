@@ -237,3 +237,12 @@ page's touches keep the contact frame (the answers name them by it); the jump ti
 search of the ball nearest the hands (`film.touch_time`).
 Also found: of the touches with a clear ball turn but no contact, most sit outside the windows of the matches' outputs, which
 predate the 5 Nov rally fixes (59 of 64 on M2); today's code: 869 → 880 of 945, 1074 → 1103 of 1199 touches in windows.
+
+## Tried and dropped (8 Nov): an image action model for the types
+
+VolleyVision's YOLOv8m (block, defense, serve, set, spike; AGPL-3.0, broadcast images) on 4K crops around the ball at each
+touch of the checked rallies, ±2 frames, both matches (1,953 touches): a detection on 879. Attacks seen as spikes 203 of 312,
+but so are 78 of 440 sets and 34 of 129 relances; passes and digs never seen as defense (0 of 565), sets as sets 7 of 440.
+On the rules' confusions: a set retyped attack when it says spike fixes 15 for 68 broken (13 for 39 at confidence 0.5), a
+relance 8 for 20 (8 for 8). Fine-tuning on the owner's types would be the next try; the arm's shape needs more than this model.
+

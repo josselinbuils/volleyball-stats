@@ -84,7 +84,8 @@ research training, not for anything sold.
    ambiguity, other balls and busy backgrounds: exactly this project's gym.
 9. **Licences to avoid in code:** PnLCalib (GPL-2.0), jersey-number-pipeline (CC BY-NC 3.0),
    deepsport (CC BY-NC-ND), COMPOSER and Sportlight calibration (no licence), VolleyStats (no
-   licence), volleyball_analytics (GPL-2.0). sn-gamestate is GPL-3.0: combinable, keep separate.
+   licence), volleyball_analytics's own repo (GPL-2.0; its models and annotation tool are MIT).
+   sn-gamestate is GPL-3.0: combinable, keep separate.
 
 ## 1. Rally / point segmentation
 
@@ -122,6 +123,10 @@ research training, not for anything sold.
   Rally classifier on court, player and ball cues trained on three fixed-camera matches labelled
   from the on-screen score (405 points): F1 0.742 on broadcast, 0.76 on six fixed-camera clips.
   **Use** as the baseline to beat.
+- [volleyball-ml-models](https://github.com/masouduut94/volleyball-ml-models) (MIT, §4):
+  VideoMAE-base on 16 frames at 224 px, service / play / no play, broadcast clips. **Adapt** for
+  ends with the ball out of sight: fine-tune on the checked rallies, one match held out, its
+  P(play) closing a ball run beside the whistle.
 - Whistle detection. No learned sports-whistle detector with code was found; classical band-pass
   energy detectors report ~80% ([Amrita, 2011](https://www.amrita.edu/publication/automated-referee-whistle-sound-detection-for-extraction-of-highlights-from-sports-video/),
   *(abstract only)*). AudioSet models carry the class:
@@ -313,6 +318,7 @@ Datasets:
   [DL-Volleyball-Analysis](https://github.com/DL-Volleyball-Analysis/volleyball-analysis):
   YOLO26s-cls on player crops weighted by ball position, macro-F1 0.678 (block, receive, set,
   spike). **Use** as weak baselines; frame-level crops ignore the contact order this project has.
+  VolleyVision's weights on the two matches (8 Nov, `next_steps.md`): spikes found, defense and sets not; no gain.
 
 Methods:
 
@@ -412,7 +418,11 @@ Methods:
   [Chen et al. 2012](https://doi.org/10.1007/s11042-011-0833-y) (indoor broadcast, §2): the two
   older single-camera volleyball systems; both document how far pure vision falls short.
 - [masouduut94/volleyball_analytics](https://github.com/masouduut94/volleyball_analytics)
-  (GPL-2.0): YOLOv8 actions + ball + game-state classifier. **Reference only** (licence).
+  (GPL-2.0; its [models](https://github.com/masouduut94/volleyball-ml-models) and
+  [annotation tool](https://github.com/masouduut94/volleyball-annotation-tool) are MIT): YOLOv8
+  actions + ball, and a VideoMAE classifier of 16-frame clips (service, play, no play; 0.99 on a
+  split of broadcast clips). Its weights are broadcast-only. **Adapt** the clip classifier as a
+  rally-end signal, fine-tuned on the checked rallies (§1).
 - Balltime ([Hudl](https://www.hudl.com/products/balltime)): uploads processed within an hour,
   touches and players tagged, downtime removed, ball trajectory, serve speed, jump height;
   acquired by Hudl in 2025. No publications or accuracy figures. **Skip** as a source; it fixes
