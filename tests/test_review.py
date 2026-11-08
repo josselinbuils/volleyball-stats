@@ -1166,14 +1166,31 @@ class TestServer:
 
 
 class TestPageStamp:
-    def test_the_pages_version_tag_alone_is_no_change(self, tmp_path, monkeypatch):
+    @staticmethod
+    def page(tmp_path, data: dict):
+        site = tmp_path / "review"
+        site.mkdir(exist_ok=True)
+        (site / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+        (site / "index.html").write_text(f'<script src="data.js?v={data["v"]}"></script>')
+        return site
+
+    def test_the_same_page_patched_with_the_same_pictures_is_no_change(self, tmp_path):
+        from volleyball_stats import review, web
+
+        site = self.page(tmp_path, {"name": "m", "people": {"1": {"photo": "players/a.webp?v=1"}}, "v": "01e892555b"})
+        first = review.page_stamp(tmp_path)
+        # What a restart does: the page rebuilt, then the pictures patched in, moving its `v`.
+        web.patch_people(site, {"1": {"photo": "players/a.webp?v=1"}})
+
+        assert review.page_data(site)["v"] != "01e892555b"
+        assert review.page_stamp(tmp_path) == first
+
+    def test_the_order_of_the_datas_keys_is_no_change_its_content_is(self, tmp_path):
         from volleyball_stats import review
 
-        (tmp_path / "review").mkdir()
-        page = tmp_path / "review" / "data.js"
-        page.write_text('window.MATCH = {"name":"m","people":{},"v":"01e892555b"};\n')
+        self.page(tmp_path, {"name": "m", "people": {}, "v": "a"})
         first = review.page_stamp(tmp_path)
-        page.write_text('window.MATCH = {"name":"m","people":{},"v":"7f3a0c11d2"};\n')
+        self.page(tmp_path, {"people": {}, "v": "b", "name": "m"})
         assert review.page_stamp(tmp_path) == first
-        page.write_text('window.MATCH = {"name":"n","people":{},"v":"7f3a0c11d2"};\n')
+        self.page(tmp_path, {"people": {}, "v": "b", "name": "n"})
         assert review.page_stamp(tmp_path) != first
