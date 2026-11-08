@@ -469,3 +469,19 @@ def test_a_match_from_the_other_machine_gets_its_review_page_before_the_voice(tm
     matches.ensure_review_page(tmp_path, Path("v.mp4"), Path("c.json"), "aspom")
 
     assert built == [(tmp_path, False)]
+
+
+class TestRemovedFilms:
+    ITEMIZED = "\n".join([
+        "*deleting   a/video/films/1-manon.mp4",
+        "*deleting   a/video/films/manifest.json",
+        "*deleting   b/video/films/2-sylvain.mp4",
+        "*deleting   c/video/old.mp4",
+        "<f+++++++++ a/data.js",
+    ])  # fmt: skip
+
+    def test_names_the_matches_with_no_films_here_whose_films_an_upload_deletes(self):
+        assert matches.removed_films(self.ITEMIZED, ["a", "c"]) == ["a"]
+
+    def test_a_match_whose_films_are_here_may_lose_one(self):
+        assert matches.removed_films(self.ITEMIZED, []) == []

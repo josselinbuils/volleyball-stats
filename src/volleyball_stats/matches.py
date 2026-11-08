@@ -429,6 +429,12 @@ def removed_pages(itemized: str, rebuilt: list[str]) -> list[str]:
     return sorted({path.split("/")[0] for path in gone if path.endswith("/data.js") and path.count("/") == 1} - set(rebuilt))
 
 
+def removed_films(itemized: str, unmade: list[str]) -> list[str]:
+    """The `unmade` match folders (no films on this machine) whose films a dry run's output (--itemize-changes) deletes."""
+    gone = [line.split(" ", 1)[1].strip() for line in itemized.splitlines() if line.startswith("*deleting ")]
+    return sorted({path.split("/")[0] for path in gone if path.endswith(".mp4") and "/films/" in path} & set(unmade))
+
+
 def hosted_folder(match: Path, site: Path) -> Path | None:
     """The folder of `site` holding `match`'s page, under its name or one it had."""
     known = {match.name, *files.aliases(match)}
@@ -506,6 +512,11 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
     missing = removed_pages(dry.stdout, rebuilt)
     if missing:
         raise RuntimeError(f"online but not here: {', '.join(missing)}: not uploaded")
+    # Films made on another machine and not brought here stay online.
+    unmade = [paths[match.name].rstrip("/") for match, *_ in hosted if not (match / "films").is_dir()]
+    lost = removed_films(dry.stdout, unmade)
+    if lost:
+        raise RuntimeError(f"films online but not here: {', '.join(lost)}: not uploaded")
     subprocess.run(upload_command(config, site, rebuilt), check=True, capture_output=True)
     for page, key in guarded:
         if not opens(page, key):

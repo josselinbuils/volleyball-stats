@@ -21,10 +21,11 @@ from volleyball_stats import files, matches
 
 ROOT = "/root/backups/volleyball-stats"
 # Old copies of the results, the pages built from them (the review's links the video), half-written files, the review's
-# marker of a page waiting for its pictures (review.STALE_PHOTOS), made and removed as it builds.
+# marker of a page waiting for its pictures (review.STALE_PHOTOS), made and removed as it builds. The films go (a few MB each):
+# a machine that pulls the match gets them, and its upload keeps them online.
 # Per machine (`sync`): the server's version of the match this machine's copy started from.
 STATE = ".sync.json"
-SKIP = ("backup-*", "review", "site", "films", "photo_moments", ".*.tmp", "photos_stale", STATE)
+SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE)
 SPONSORS = Path("branding/aspom/sponsors")
 KEEP = 30
 # Under this, no copy: the server also runs the owner's websites.

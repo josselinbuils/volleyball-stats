@@ -49,7 +49,7 @@ to the page with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Cont
 no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading a
 video. The copies keep their source's date, so an upload skips an unchanged video.
 
-The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films de joueurs" and "Créer les highlights" each make those of their kind whose `plan` changed, never an apply, and a player's card in "Noms" makes their film alone when it is out of date (a rename, `/film`); only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/matches/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/matches/MATCH/films/`, outside the backup; a film of a name no longer on the page (a renamed player's) is deleted at the next page build (`web.copy_films`).
+The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films de joueurs" and "Créer les highlights" each make those of their kind whose `plan` changed, never an apply, and a player's card in "Noms" makes their film alone when it is out of date (a rename, `/film`); only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password. `uv run python -m volleyball_stats.film outputs/matches/MATCH --video VIDEO --court COURT [--names A,B]` does the same. Files in `outputs/matches/MATCH/films/`, in the backup (a pull brings them); a film of a name no longer on the page (a renamed player's) is deleted at the next page build (`web.copy_films`).
 
 The commentary's voice: each upload first makes the missing audio in `outputs/matches/MATCH/voice/` (`matches.make_voice`), the build
 takes it (a line no longer true of the match is left out).
@@ -94,7 +94,8 @@ the Mac, WSL2 being unreachable from outside), never through the server.
 
 Uploads with two machines: the site folder is first made what the server holds (`matches.mirror`, the video copies aside),
 so the pages the other machine put online stay; the upload sends only the rebuilt matches' video copies, and refuses if its dry
-run would delete another match's page.
+run would delete another match's page, or the films of a match with no `films/` folder here (made on the other machine, not pulled since:
+the upload of 8 Nov from the PC took them offline).
 
 Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
 hosted page's build reads them from this machine.
