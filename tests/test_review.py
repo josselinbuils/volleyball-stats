@@ -1,4 +1,5 @@
 import json
+import os
 from collections import Counter
 from datetime import date
 from types import SimpleNamespace
@@ -688,6 +689,14 @@ class TestWaiting:
         assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": []}
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
         assert waiting(tmp_path, log)["changed"]
+
+    def test_jersey_numbers_copied_through_the_server_to_the_second_are_no_change(self, tmp_path):
+        (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
+        os.utime(tmp_path / "jerseys.csv", (1793733733.7316, 1793733733.7316))
+        (tmp_path / APPLIED).write_text(json.dumps({**state(tmp_path, []), "jerseys": 1793733733.7316}))
+        os.utime(tmp_path / "jerseys.csv", (1793733733.0, 1793733733.0))
+
+        assert not waiting(tmp_path, [])["changed"]
 
 
 class TestReportCorrections:

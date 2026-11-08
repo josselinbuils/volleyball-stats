@@ -1508,10 +1508,10 @@ def load_log(path: Path) -> list[dict]:
 
 def state(match: Path, log: list[dict]) -> dict:
     """What the identities are computed from: the answers' constraints, the names and the date of
-    the jersey numbers, as JSON gives them back."""
+    the jersey numbers (to the second), as JSON gives them back."""
     read = match / jerseys.FILE
     # The winners pinned change no identity nor the page.
-    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind not in ("pinned", "locked")}, **({"end": match_end(match)} if match_end(match) is not None else {}), "names": identity.read_names(match), "jerseys": read.stat().st_mtime if read.exists() else None}
+    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind not in ("pinned", "locked")}, **({"end": match_end(match)} if match_end(match) is not None else {}), "names": identity.read_names(match), "jerseys": int(read.stat().st_mtime) if read.exists() else None}
     # No "team" answer leaves the state of earlier applies as it was.
     if not found["answers"]["team"]:
         del found["answers"]["team"]
@@ -1705,7 +1705,8 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
     now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
     return {
         "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
-        "changed": (now["answers"], now["jerseys"]) != (then.get("answers"), then.get("jerseys")),
+        # The jersey numbers' time to the second: a copy through the server (`sync`) keeps no less.
+        "changed": (now["answers"], now["jerseys"]) != (then.get("answers"), None if then.get("jerseys") is None else int(then["jerseys"])),
         "namesPending": now["names"] != then.get("names"),
         "corrections": corrections(log, shown),
         "checked": checked(log),
