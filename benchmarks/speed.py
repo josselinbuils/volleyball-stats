@@ -20,6 +20,19 @@ Results on the M4 Pro (MPS, ffmpeg then decoding on the CPU), 2 min of side_hold
 The models set the pace on MPS: the pass saved is a decode the CPU runs beside them. On a 720p
 video the outputs are byte for byte the old ones (same pixels, same frames).
 
+On the RTX 5080 (WSL2, NVDEC), 60 s of the second ASPOM match's 4K 50 fps footage, 8 Nov, a short upload running at the start:
+
+| step | fps | 2-hour match |
+| --- | --- | --- |
+| decode, OpenCV, full size | 61.1 | 1.6 h |
+| decode, ffmpeg on the NVDEC, 1280x720 | 346.0 | 0.3 h |
+| ball, OpenCV frames | 47.7 | 2.1 h |
+| players, OpenCV frames | 43.6 | 2.3 h |
+| **before**: ball, then players | 22.8 | 4.4 h |
+| **now**: both in one ffmpeg pass | 26.0 | 3.9 h (88% of before) |
+
+Twice the M4 Pro: the models run one frame at a time, so the card waits on Python between frames.
+
 The real footage decodes slower than this copy; `decode.py` has its numbers. Tracking it, 60 s:
 12.6 fps with ffmpeg on the CPU, 12.6 on VideoToolbox (same tracks); 10.0 and 10.4 with every core
 kept busy.
