@@ -9,6 +9,8 @@ dependencies = [
     "numpy",
     "opencv-python",
     "rapidocr-onnxruntime>=1.4.4",
+    # RapidOCR on the NVIDIA GPU, sharing torch's CUDA 13 libraries; elsewhere its own onnxruntime.
+    "onnxruntime-gpu[cuda,cudnn]==1.31.0; sys_platform == 'linux'",
     "spandrel>=0.4.2",
     "torch",
     "ultralytics",
@@ -24,6 +26,10 @@ voice = [
     "phonemizer-fork>=3.3.2",
     "soundfile>=0.14.0",
 ]
+
+[tool.uv]
+# One onnxruntime per machine: both packages install the same module.
+override-dependencies = ["onnxruntime; sys_platform != 'linux'"]
 
 [build-system]
 requires = ["hatchling"]

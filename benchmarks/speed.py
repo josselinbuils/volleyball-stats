@@ -68,6 +68,9 @@ converted and piped to Python; after: `decode.frames_at` lets ffmpeg's select fi
 | identity | 37.1 min | 29.9 min | 8% | 1.3 |
 | jumps | 5.9 min | 5.0 min | 26% | 1.7 |
 | all | 2 h 56 | 1 h 44 | | |
+
+RapidOCR then on the GPU (onnxruntime-gpu, 8 Nov, the two steps alone): jerseys 45.1 -> 23.5 min,
+the same number on 301 of 303 pieces; scoreboard 6.6 -> 3.1 min, the same scores (22 of 22).
 """
 
 import argparse

@@ -54,6 +54,8 @@ The models (ball, players, re-identification) download on their first use.
 - **One reading of the video:** `ffmpeg` decodes it once for both the ball and the players, on the
   graphics card (NVDEC) when it can, shrinking the frames to 1280 px before the models.
   `sudo apt install ffmpeg` in WSL2 is enough for NVDEC.
+- **Numbers read on the graphics card:** the jerseys and the score board (RapidOCR) run on it through
+  `onnxruntime-gpu`, which `uv sync` installs on Linux in place of `onnxruntime`, with torch's CUDA libraries.
 - **Processing time:** `speed.py` compares that reading with the old two readings and projects both
   over a 2-hour match. On the M4 Pro the models set the pace (7.8 h instead of 8.4 h for 2 hours of
   4K 50 fps). The RTX 5080 should run them several times faster, so the saved reading matters more

@@ -38,6 +38,22 @@ READINGS_AGREE = 2
 RARE = 0.02
 
 
+def reader():
+    """RapidOCR, on the NVIDIA GPU when onnxruntime has one (onnxruntime-gpu, on Linux). First ASPOM
+    match on the RTX 5080: jerseys 45.1 -> 23.5 min, the same number on 301 of 303 pieces (readings at
+    the edge of CONFIDENCE tip over); the scoreboard 6.6 -> 3.1 min, its scores the same."""
+    import onnxruntime
+    from rapidocr_onnxruntime import RapidOCR
+
+    # Under WSL2 it finds no PCI entry for the card and says so at each session, to no effect.
+    onnxruntime.set_default_logger_severity(3)
+    cuda = "CUDAExecutionProvider" in onnxruntime.get_available_providers()
+    if cuda:
+        # The CUDA libraries of the nvidia packages, torch's: onnxruntime does not look there itself.
+        onnxruntime.preload_dlls()
+    return RapidOCR(det_use_cuda=cuda, cls_use_cuda=cuda, rec_use_cuda=cuda)
+
+
 def torso(image: np.ndarray, box: tuple[float, float, float, float]) -> np.ndarray:
     x1, y1, x2, y2 = box
     h = y2 - y1
@@ -58,9 +74,7 @@ def agreed(readings: list[int]) -> int | None:
 
 def read(match: Path, video: Path) -> list[tuple[int, int, int]]:
     """(frame, track, number) of the boxes read on pieces whose number is agreed."""
-    from rapidocr_onnxruntime import RapidOCR
-
-    reader = RapidOCR()
+    ocr = reader()
     rows = read_players(match / "players.csv")
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     cover = identity.covers(rows)
@@ -74,7 +88,7 @@ def read(match: Path, video: Path) -> list[tuple[int, int, int]]:
     readings: dict[int, list[tuple[int, int, int]]] = {}
     for frame, image in decode.frames_at(video, wanted):
         for k, track in wanted[frame]:
-            n = number(reader(torso(image, boxes[frame, track]))[0])
+            n = number(ocr(torso(image, boxes[frame, track]))[0])
             if n is not None:
                 readings.setdefault(k, []).append((frame, track, n))
     return [r for found in readings.values() if agreed([n for _, _, n in found]) is not None for r in found]
@@ -103,14 +117,12 @@ def read_pictures(match: Path, pictures: Iterable[tuple[int, tuple[int, ...]]], 
     new = [(f, b) for f, b in dict.fromkeys(pictures) if picture_key(f, b) not in seen]
     if not new:
         return
-    from rapidocr_onnxruntime import RapidOCR
-
-    reader = RapidOCR()
+    ocr = reader()
     for frame, box in new:
         raw = image(frame, box)
         picture = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR) if raw else None
         if picture is not None:
-            seen[picture_key(frame, box)] = number(reader(torso(picture, (0, 0, picture.shape[1], picture.shape[0])))[0])
+            seen[picture_key(frame, box)] = number(ocr(torso(picture, (0, 0, picture.shape[1], picture.shape[0])))[0])
     files.write_text(path, json.dumps({"stamp": stamp, "read": seen}) + "\n")
 
 

@@ -109,9 +109,9 @@ def run(match: Path, video: Path) -> None:
     wanted = {f for a, b, _ in gaps(rallies) for f in grid(a, b, fps)} - texts.keys()
     if not wanted:
         return
-    from rapidocr_onnxruntime import RapidOCR
+    from volleyball_stats.jerseys import reader as ocr
 
-    reader = RapidOCR()
+    reader = ocr()
     for frame, image in decode.frames_at(video, wanted):
         found = reader(image[int(image.shape[0] * LOW) :])[0] or []
         texts[frame] = [t.replace(" ", "") for _, t, confidence in found if confidence >= CONFIDENCE and t.replace(" ", "").isdigit()]
