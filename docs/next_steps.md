@@ -157,6 +157,14 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
 13. **The review's answers as benchmarks.** `answers.py --rerank` scores attribution on them; the
     same for `action` types (`actions.classify_rally` on `actions.csv`'s contacts against the
     owner's types) and `rally` verdicts would score those steps without labels.
+14. **A learned play / no-play clip model for rally ends** (next, owner on the PC, 8 Nov). Ends with the ball out of sight or
+    another court's whistle: 50:00-60:00 F1 ±1 s 0.58, every hand-made cue tried dropped. Recipe from
+    [volleyball-ml-models](https://github.com/masouduut94/volleyball-ml-models) (MIT; `literature.md` §1): VideoMAE-base,
+    16 frames at 224 px, service / play / no play. Their weights are broadcast-only: fine-tune on the two matches' checked
+    rallies (about 270, clips at a 0.5 s stride inside and between them), one match held out, then the other way round.
+    Its P(play) closes a ball run in `rallies.py` beside the whistle, not instead. Score with `benchmarks/rallies/bench.py`
+    (50:00-60:00 and `side_holdout`) and `checked.py`. A match is about 11k clips. Needs `transformers` declared in
+    `pyproject.toml` (in the lock already, through another package; the owner's OK given).
 
 ## Tried and dropped (1 Nov)
 

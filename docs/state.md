@@ -27,7 +27,8 @@ The pipeline's weak spots and what is left to do, most useful first.
    2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Apprendre de mes réponses".
    12 of the second match's 18 wrong winners are rallies with no window. Left: ends with the ball out of sight or another court's
    whistle (50:00-60:00 F1 ±1 s 0.58; four end rules tried, none gains; 7 Nov, the players' speed and the cheer after a
-   point dropped too), then how rallies end (in, out, fault). Next step for ends: labels from the second match.
+   point dropped too), then how rallies end (in, out, fault). Next steps for ends: a learned play / no-play clip model
+   (`next_steps.md` item 14, on the PC), labels from the second match.
 5. Done (5 Nov): the checked rallies as labels (`checked.py` scores `match.py`'s windows). The 6 false windows left have
    no feature apart from real rallies: review questions.
 6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.
