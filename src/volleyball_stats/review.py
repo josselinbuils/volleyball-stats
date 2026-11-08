@@ -1796,10 +1796,13 @@ def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
         club = matches.brand(theme, site)
         if club:
             club.pop("sponsors")
+        # The server's matches come after (`/matches/remote.json`): reaching it takes a second, or ssh's timeout.
         listed = match_list(out)
-        listed = sorted(listed + on_server(out, listed), key=lambda m: (m["date"] or "", m["path"]), reverse=True)
         (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'brand': club, 'review': True}, ensure_ascii=False)};\n")
         return (site / "matches.html").read_bytes(), "text/html; charset=utf-8"
+    if path == "/matches/remote.json":
+        found = on_server(out, match_list(out)) if sync.active(out.parent) else []
+        return json.dumps(found, ensure_ascii=False).encode(), "application/json"
     parts = Path(unquote(path).removeprefix("/matches/")).parts
     file = site.joinpath(*parts)
     # The season reads each match's data.
@@ -1984,7 +1987,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     filmed: dict = {"error": None}
     # The last fetch of the viewers' reports from the hosting: when, and how many for this match.
     fetched_log: dict = {}
-    backed: dict = {}
+    # The last copy on the hosting server: when, why it failed.
+    backed: dict = {"at": None, "error": None}
+    outputs = files.root(match)
+    publish = json.loads((match / matches.PUBLISH).read_text()) if (match / matches.PUBLISH).exists() else {}
+    can_back_up = bool(publish.get("upload") and publish.get("key"))
     # Another machine holding this match, or a newer copy on the server (`sync.claim`): the page stops the review until
     # it is taken here.
     elsewhere: dict = {}
@@ -1997,13 +2004,22 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             claimed.set()
 
     backup_lock = threading.Lock()
+    # The files' signature at the last copy made, and the timer woken when automatic copies are switched on.
+    copied: list = [None]
+    wake = threading.Event()
+
+    def backup_state() -> dict | None:
+        """What the page shows of the copies on the server; None without one."""
+        return {**backed, "auto": sync.auto(outputs)} if can_back_up else None
 
     def back_up() -> bool:
         """A copy on the hosting server now, its time or failure for the page; whether it was made. One at a time: the page
         can ask for one while the timer makes another."""
         with backup_lock:
             try:
+                now = backup.signature(backup.sources(match))
                 sync.push(match)
+                copied[0] = now
                 backed.update(at=time.strftime("%H:%M"), error=None)
                 return True
             except sync.Elsewhere as error:
@@ -2016,17 +2032,18 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return False
 
     def backing() -> None:
-        """A copy whenever something changed."""
-        last = None
+        """A copy whenever something changed, while this machine wants them."""
         while True:
-            try:
-                now = backup.signature(backup.sources(match))
-            except OSError:
-                # A file gone while it was read: the next round reads them again.
-                now = None
-            if now is not None and now != last and back_up():
-                last = now
-            time.sleep(BACKUP_EVERY_S)
+            if sync.auto(outputs):
+                try:
+                    now = backup.signature(backup.sources(match))
+                except OSError:
+                    # A file gone while it was read: the next round reads them again.
+                    now = None
+                if now is not None and now != copied[0]:
+                    back_up()
+            wake.wait(BACKUP_EVERY_S)
+            wake.clear()
 
 
     def hosting(every: bool = False) -> None:
@@ -2155,7 +2172,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             "learning": pooled_runs(match.parent),
             "comparison": last_comparison(match),
             "fetched": fetched_log or None,
-            "backup": backed or None,
+            "backup": backup_state(),
             "filmsError": filmed["error"],
         }
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
@@ -2284,8 +2301,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 failure.clear()
                 return self.send(b"{}", "application/json")
             if self.path == "/backup":
+                if not can_back_up:
+                    return self.send(b'{"error":"no server"}', "application/json", 400)
                 back_up()
-                return self.send(json.dumps(backed).encode(), "application/json")
+                return self.send(json.dumps(backup_state()).encode(), "application/json")
+            if self.path == "/autoBackup":
+                if not can_back_up or not isinstance(body.get("on"), bool):
+                    return self.send(b'{"error":"no server"}', "application/json", 400)
+                sync.set_auto(outputs, body["on"])
+                wake.set()
+                return self.send(json.dumps(backup_state()).encode(), "application/json")
             if self.path == "/pull":
                 return self.send(*pulled(body, match.parent))
             if self.path == "/sync/take":
@@ -2558,9 +2583,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     url = f"http://127.0.0.1:{port}/review"
     threading.Thread(target=warm, daemon=True).start()
     threading.Thread(target=afterwards, daemon=True).start()
-    if (match / matches.PUBLISH).exists():
-        threading.Thread(target=claiming, daemon=True).start()
+    if can_back_up:
         threading.Thread(target=backing, daemon=True).start()
+    # A machine not keeping its matches on the server never reaches it unasked.
+    if can_back_up and sync.active(outputs):
+        threading.Thread(target=claiming, daemon=True).start()
     else:
         claimed.set()
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)

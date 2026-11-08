@@ -16,6 +16,7 @@ import {
   allMarked,
   post,
   type Conflict,
+  type Backup,
   type FilmCounts,
   type Hosted,
   type Comparison,
@@ -103,7 +104,7 @@ export function Review({
   learning?: LearnRun[];
   comparison?: Comparison | null;
   fetched?: { at: string; count: number; error: string | null } | null;
-  backup?: { at: string; error: string | null } | null;
+  backup?: Backup | null;
   films?: FilmCounts;
   filmsError?: string | null;
 }) {
@@ -222,16 +223,24 @@ export function Review({
 
   const [backup, setBackup] = useState(savedBackup);
   const [backingUp, setBackingUp] = useState(false);
-  const retryBackup = async () => {
+  const backUp = async () => {
     setBackingUp(true);
     try {
       // The server answers with the copy's time or failure.
-      setBackup((await post('backup')) as unknown as { at: string; error: string | null });
+      setBackup((await post('backup')) as unknown as Backup);
       setError(false);
     } catch {
       setError(true);
     } finally {
       setBackingUp(false);
+    }
+  };
+  const setAutoBackup = async (on: boolean) => {
+    try {
+      setBackup((await post('autoBackup', { on })) as unknown as Backup);
+      setError(false);
+    } catch {
+      setError(true);
     }
   };
 
@@ -419,7 +428,8 @@ export function Review({
           hosted={hosted}
           backup={backup}
           backingUp={backingUp}
-          onBackup={() => void retryBackup()}
+          onBackup={() => void backUp()}
+          onAutoBackup={(on) => void setAutoBackup(on)}
           fetched={fetched}
           filmsError={filmsError}
           films={films}

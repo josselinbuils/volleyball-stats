@@ -169,9 +169,11 @@ interface ReviewData {
   comparison?: Comparison | null;
   /** The last fetch of the viewers' reports from the hosting: when, how many for this match, why it failed. */
   fetched?: { at: string; count: number; error: string | null } | null;
-  /** The last copy of the data on the hosting server: when, why it failed. */
-  backup?: { at: string; error: string | null } | null;
+  /** The copies of the data on the hosting server (none without one): the last one's time and failure, whether the review makes them by itself. */
+  backup?: Backup | null;
 }
+
+export type Backup = { at: string | null; error: string | null; auto: boolean };
 
 export type Scores = Record<string, [number, number]>;
 
@@ -281,6 +283,7 @@ export async function post(
     | 'comment'
     | 'pick'
     | 'backup'
+    | 'autoBackup'
     | 'timeout'
     | 'name'
     | 'odd'

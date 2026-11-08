@@ -1,6 +1,6 @@
 """The matches kept in step between machines through the hosting server, outside its website, the videos aside
-(`data_sync`). A push is the backup (`backup.py`); one machine works on a match at a time: the review claims it on
-opening, and a push is refused when another machine holds it or the server's copy is newer than the one this machine
+(`data_sync`). A push is the backup (`backup.py`), the review's own every 10 minutes only when this machine chose it (`auto`); one
+machine works on a match at a time: the review claims it on opening (once this machine keeps its matches there, `active`), and a push is refused when another machine holds it or the server's copy is newer than the one this machine
 started from. Pulling a match brings its newest copy, this machine's unpushed changes kept aside in `backup-sync-*`,
 and what the outputs folder lacks of the courts, lens, sponsors and roster.
 
@@ -25,6 +25,8 @@ from volleyball_stats import backup, files, matches
 # Per machine, not copied: the server's version this machine's copy started from, and its files' signature then.
 STATE = backup.STATE
 SERVER = "server.json"
+# This machine's choice of automatic copies (`auto`).
+BACKUP = "backup.json"
 REMOTE = Path(__file__).with_name("sync_remote.py")
 DEFAULT_OUTPUTS = Path("outputs")
 
@@ -50,6 +52,22 @@ def server(outputs: Path) -> dict | None:
         if config.get("upload") and config.get("key"):
             return {"upload": config["upload"], "key": config["key"]}
     return None
+
+
+def auto(outputs: Path) -> bool:
+    """Whether the review copies its match to the server by itself: this machine's choice (`outputs/backup.json`), off by default."""
+    path = outputs / BACKUP
+    return path.exists() and json.loads(path.read_text()).get("auto") is True
+
+
+def set_auto(outputs: Path, on: bool) -> None:
+    files.write_text(outputs / BACKUP, json.dumps({"auto": on}) + "\n")
+
+
+def active(outputs: Path) -> bool:
+    """Whether this machine keeps its matches on the server: automatic copies on, `sync setup` run, or a match pushed or
+    pulled. Otherwise the review reaches the server only when asked."""
+    return auto(outputs) or (outputs / SERVER).exists() or any((outputs / "matches").glob(f"*/{STATE}"))
 
 
 def remote(config: dict, op: str, match: str = "-", base: int = 0, force: bool = False, root: str = backup.ROOT) -> dict:

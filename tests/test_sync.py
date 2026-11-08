@@ -125,3 +125,24 @@ class TestPush:
         sync.push(match)
 
         assert calls == [("begin", 0), ("backup", None), ("commit", 0)] and sync.local(match)["version"] == 1
+
+
+class TestAuto:
+    def test_off_until_this_machine_chooses_it(self, tmp_path):
+        assert not sync.auto(tmp_path)
+        sync.set_auto(tmp_path, True)
+        assert sync.auto(tmp_path)
+        sync.set_auto(tmp_path, False)
+        assert not sync.auto(tmp_path)
+
+    def test_a_machine_keeps_its_matches_on_the_server_once_it_chose_to(self, tmp_path):
+        (tmp_path / "matches" / "m").mkdir(parents=True)
+        assert not sync.active(tmp_path)
+        (tmp_path / "matches" / "m" / sync.STATE).write_text("{}")
+        assert sync.active(tmp_path)
+        (tmp_path / "matches" / "m" / sync.STATE).unlink()
+        (tmp_path / sync.SERVER).write_text("{}")
+        assert sync.active(tmp_path)
+        (tmp_path / sync.SERVER).unlink()
+        sync.set_auto(tmp_path, True)
+        assert sync.active(tmp_path)

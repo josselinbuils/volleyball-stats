@@ -10,6 +10,7 @@ import { Swatch } from '@/components/Swatch';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { useFormat } from '@/lib/format';
 import { openMatch, pullMatch } from '@/lib/openMatch';
+import { withRemote } from '@/lib/remoteMatches';
 import { cn } from '@/lib/utils';
 import type { Brand, Team } from '@/lib/match';
 
@@ -45,9 +46,20 @@ export interface MatchList {
 // The season's own address: the list's with this hash.
 const SEASON = '#saison';
 
-export function Matches({ matches, brand, review = false }: MatchList) {
+export function Matches({ matches: here, brand, review = false }: MatchList) {
   const { t } = useTranslation();
   const f = useFormat();
+  // In the review, the matches only on the server, asked after the page shows: reaching it takes a second.
+  const [remote, setRemote] = useState<ListedMatch[]>([]);
+  useEffect(() => {
+    if (review) {
+      fetch('remote.json')
+        .then((r) => (r.ok ? (r.json() as Promise<ListedMatch[]>) : []))
+        .then(setRemote)
+        .catch(() => setRemote([]));
+    }
+  }, [review]);
+  const matches = remote.length ? withRemote(here, remote) : here;
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
   const hasSeason = seasonTeams(matches).length > 0;

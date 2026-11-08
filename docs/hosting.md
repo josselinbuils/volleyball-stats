@@ -73,18 +73,20 @@ Link previews: `matches.build` with a `url` tags the list and each match page (`
 
 Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bot` list (search engines, AI scrapers, SEO tools; link previews stay) and sends `X-Robots-Tag: noindex` on all, the pages carry the same meta tag. A bot lying about its name gets through; the domain's `robots.txt` has no rule, Cloudflare's bot settings are the owner's. A change of a mounted config from `git pull` needs `docker compose up -d --force-recreate --no-deps volleyballstats`: the running container keeps the old file.
 
-Backup: while the review runs, every 10 minutes if something changed (and `uv run python -m volleyball_stats.backup
-outputs/matches/MATCH`), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
+Backup: the review's "Sauvegarder sur le serveur" ("..." menu, and `uv run python -m volleyball_stats.backup
+outputs/matches/MATCH`), and with "Sauvegarde automatique" ticked every 10 minutes if something changed (this machine's
+choice, `outputs/backup.json`, off by default: few users keep a server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
 and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
 files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
 Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other. The review claims its
-match on opening (`claims/MATCH.json` beside the copies: the machine and a version moved by each copy, under `flock`); a copy
+match on opening once the machine keeps its matches there (`sync.active`: automatic copies on, `sync setup` run, or a match pushed
+or pulled; otherwise the review reaches the server only when asked) (`claims/MATCH.json` beside the copies: the machine and a version moved by each copy, under `flock`); a copy
 is refused when another machine holds the match or the server's is newer than the one this machine started from (`.sync.json`
 in the match's folder, never copied), and the review then shows "Ouvert sur MACHINE" until "Reprendre ici" pulls the server's
 copy (this machine's unpushed changes kept in `backup-sync-<time>/`) and takes the match. The list of matches offers those only
-on the server ("À télécharger"). A pull also brings the courts, lens and sponsors this machine lacks, and the roster is joined,
+on the server ("À télécharger"), asked once the page shows (`/matches/remote.json`: the ssh round trip takes a second). A pull also brings the courts, lens and sponsors this machine lacks, and the roster is joined,
 each match's names from the machine holding it. By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all |
 push outputs/matches/MATCH`; a machine with no match yet first `sync setup root@<OVH IP> ~/.ssh/id_ed25519_ovh` (the key
 copied there). The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting:

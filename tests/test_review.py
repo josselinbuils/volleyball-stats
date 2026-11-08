@@ -85,6 +85,20 @@ class TestMatchList:
         assert list_page("/matches/m/data.js", tmp_path, "none")[0] == b"window.MATCH = {};"
         assert list_page("/matches/other/data.js", tmp_path, "none") is None
 
+    def test_the_server_s_matches_come_apart_and_only_for_a_machine_keeping_its_matches_there(self, tmp_path, monkeypatch):
+        out = tmp_path / "matches"
+        self.folder(out, "m", "2026-10-29")
+        reached = []
+        monkeypatch.setattr("volleyball_stats.sync.listing", lambda outputs: reached.append(outputs) or {"m": {}, "2026-11-02-x": {}})
+
+        list_page("/matches/", out, "none")
+        assert json.loads(list_page("/matches/remote.json", out, "none")[0]) == []
+        assert not reached
+        (tmp_path / "server.json").write_text("{}")
+        found = json.loads(list_page("/matches/remote.json", out, "none")[0])
+
+        assert [(m["path"], m["date"], m["remote"]) for m in found] == [("2026-11-02-x", "2026-11-02", True)]
+
 
 class TestConstraints:
     piece = {"track": 7, "frame": 100}

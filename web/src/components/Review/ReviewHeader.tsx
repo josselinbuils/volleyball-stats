@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Check, ChevronDown, Clapperboard, CloudDownload, CloudUpload, Ellipsis, ExternalLink, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
+import { Check, ChevronDown, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
-import type { FilmCounts, Hosted } from '@/lib/review';
+import type { Backup, FilmCounts, Hosted } from '@/lib/review';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { Tip } from '@/components/Tip';
 
@@ -87,6 +87,7 @@ export function ReviewHeader({
   backup,
   backingUp = false,
   onBackup,
+  onAutoBackup,
   fetched,
   filmsError,
   films,
@@ -99,11 +100,14 @@ export function ReviewHeader({
   title: string;
   answered: number;
   hosted?: Hosted | null;
-  backup?: { at: string; error: string | null } | null;
+  /** The copies on the hosting server, none without one. */
+  backup?: Backup | null;
   /** A copy asked for is being made. */
   backingUp?: boolean;
   /** Makes a copy now. */
   onBackup?: () => void;
+  /** Switches the copies every 10 minutes on or off. */
+  onAutoBackup?: (on: boolean) => void;
   fetched?: { at: string; count: number; error: string | null } | null;
   filmsError?: string | null;
   films: FilmCounts;
@@ -179,6 +183,19 @@ export function ReviewHeader({
                   {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
                 </DropdownMenuItem>
               )}
+              {backup && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={backingUp} onSelect={onBackup}>
+                    <DatabaseBackup aria-hidden />
+                    {t('review.backUp')}
+                  </DropdownMenuItem>
+                  <DropdownMenuCheckboxItem checked={backup.auto} onCheckedChange={(on) => onAutoBackup?.(on === true)}>
+                    <History aria-hidden />
+                    {t('review.autoBackup')}
+                  </DropdownMenuCheckboxItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           {toApply || busy === 'apply' ? (
@@ -202,11 +219,11 @@ export function ReviewHeader({
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground max-sm:gap-x-3" aria-live="polite">
         <span>{t('review.answers', { count: answered })}</span>
-        {backup && (
+        {backup && (backingUp || backup.at) && (
           <Tip label={backup.error ?? undefined}>
-            <span className={cn('inline-flex items-center gap-1.5', backup.error && 'text-destructive')}>
+            <span className={cn('inline-flex items-center gap-1.5', backup.error && !backingUp && 'text-destructive')}>
               <Dot />
-              {backingUp ? t('review.backingUp') : backup.error ? t('review.backupFailed', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
+              {backingUp ? t('review.backingUp') : backup.error ? t(backup.auto ? 'review.backupFailed' : 'review.backupFailedOnce', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
               {backup.error && onBackup && (
                 <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={backingUp} onClick={onBackup}>
                   <RefreshCw aria-hidden />
