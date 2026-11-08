@@ -96,7 +96,7 @@ the defence placement and the attack jump (the owner's call, 7 Nov).
   (nobody at first). A card per side the other team attacks from (left, middle, right) and block (one blocker, then
   two), its court showing the attacker 1 m off the net, 3 m aside or in the middle (`defense.ATTACKERS`), and every
   position's spot in the system against them (green dots, numbered, `defense.table`). With a player, each position they
-  defended there from 4 attacks adds their usual place at the hit (a dot in the team's colour, numbered too) and an
+  defended there from 3 attacks adds their usual place at the hit (a dot in the team's colour, numbered too) and an
   arrow to its spot where the two dots part; the card replays the attacks they stood 1 m off. The systems: the perimeter
   the owner's team plays (its corners 2 m inside the sidelines 6 m off the net, 6 at 7 m: the owner's), Laëticia's
   version of it (a teammate's diagrams: the block inside the attacker, the off-blocker in the middle short, the line

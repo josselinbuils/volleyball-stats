@@ -3,7 +3,7 @@ import { median } from '@/helpers/median';
 import { playerKey } from '@/helpers/players';
 
 // A usual place from this many attacks at a position against one side and block; a place this far off its spot is off.
-const FROM = 4;
+const FROM = 3;
 const OFF_M = 1;
 // An attack this near the court's long axis comes through the middle (`defense.MIDDLE_M`).
 const MIDDLE_M = 1.5;

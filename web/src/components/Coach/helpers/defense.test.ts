@@ -42,12 +42,12 @@ describe('defenders', () => {
     }) as Contact;
   const times = (n: number, make: (k: number) => Contact) => Array.from({ length: n }, (_, k) => make(k));
 
-  it('gives where a player defended each position, by court order, side and block, from 4 attacks', () => {
+  it('gives where a player defended each position, by court order, side and block, from 3 attacks', () => {
     const contacts = [
-      // From the right: at 2 4 times; 3 times at 6, too few; at 1 4 times under a single block, 4 under a double one;
+      // From the right: at 2 3 times; 2 times at 6, too few; at 1 4 times under a single block, 4 under a double one;
       // at 1 from the left 4 times.
-      ...times(4, () => attack(3, [1, 0.6, 3, 2])),
-      ...times(3, () => attack(3, [1, 6, 0, 6])),
+      ...times(3, () => attack(3, [1, 0.6, 3, 2])),
+      ...times(2, () => attack(3, [1, 6, 0, 6])),
       ...times(4, (k) => attack(3, [1, 5, 2 + k * 0.5, 1])),
       ...times(4, () => ({ ...attack(3, [1, 5, 3, 1]), block: 2 })),
       ...times(4, () => attack(-3, [1, 6, 2.5, 1])),
