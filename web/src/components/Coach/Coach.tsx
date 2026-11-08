@@ -84,8 +84,8 @@ export function Coach() {
         )}
         {setting.length > 0 && <Setters setters={setting} />}
         {jumping.length > 0 && <Jumps jumpers={jumping} />}
-        {received && <Reception key={picked} g={picked} contacts={contacts} />}
-        {defended && <Placement key={picked} g={picked} contacts={contacts} />}
+        {received && <Reception key={`reception ${picked}`} g={picked} contacts={contacts} />}
+        {defended && <Placement key={`defence ${picked}`} g={picked} contacts={contacts} />}
       </CardContent>
     </Card>
   );
