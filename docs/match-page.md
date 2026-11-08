@@ -106,13 +106,15 @@ the defence placement and the attack jump (the owner's call, 7 Nov).
   covering behind) or a double one (3 and 2, or 4 and 3) in front of the attacker; the perimeter's spots go to the
   defenders by the least total distance: a position is the perimeter spot defended, not the rotation's, the same in
   every system, which moves its spot only. `benchmarks/defense/bench.py` scores the systems.
-- "Placement en réception": a reception system (3, 4 or 5 receivers in a W) and, if picked, a player. One card, its
-  court showing the system's receiving spots (green dots) and the zone at the net where the others stand. At each serve
-  with the six receivers seen (`web.received`, their places at the hit), the 3, 2 or 1 nearest the net stay there and
-  the others go to the spots by the least total distance (`reception.receivers`). With a player, each spot they took
-  from 3 serves adds their usual place and an arrow, and their place at the net a dot alone; the card replays the
-  serves they stood 1 m off a spot. The spots at 3 are where the owner's team stood on 2 Nov, centred (5.5 m off the net
-  2.5 m aside, 6.5 m in the middle); at 4 and 5, textbook ones.
+- "Placement en réception": a reception system with 3 receivers and, if picked, a player. One card, its court showing
+  the system's receiving spots (green dots) and the zone at the net where the other three stand. At each serve with the
+  six players seen (`web.received`, their places at the hit), the three nearest the net stay there and the others go to
+  the spots by the least total distance (`reception.receivers`). With a player, each spot they took from 3 serves adds
+  their usual place and an arrow, and their place at the net a dot alone; the card replays the serves they stood 1 m
+  off a spot. The systems differ by the middle receiver's depth: a line 6 m off the net in 3 m lanes (the textbook's:
+  two thirds back, a third of the width each), an arc (the owner's team on 2 Nov, centred: 5.5 m off the net 2.5 m
+  aside, the middle 1 m deeper) and a V (the middle 2.5 m deeper). Sources give shapes, not depths: those depend on
+  the serve expected; the owner's team stood 0.3 m deeper against the fastest third of serves.
 
 ## Statistics
 

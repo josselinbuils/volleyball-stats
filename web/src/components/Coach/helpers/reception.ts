@@ -6,15 +6,24 @@ import { FROM, OFF_M, type Spot } from '@/components/Coach/helpers/defense';
 /** The players a serve's reception reads: a whole team seen, else who stands at the net is unsure. */
 const TEAM = 6;
 
-/** A reception system: how many players stay at the net, the others receiving at `spots`. The owner's team's at 3
- * from where it stood on 2 Nov, centred; the others textbook. */
+/** A reception system: how many players stay at the net, the others receiving at `spots`. Three receivers, the middle
+ * one as deep as the others in a line, 1 m deeper in an arc (the owner's team on 2 Nov, centred) and 2.5 m in a V; the
+ * line 6 m off the net (two thirds back) in 3 m lanes, the textbook's. */
 export interface Formation {
   net: number;
   spots: Spot[];
 }
 
 export const FORMATIONS = {
-  three: {
+  line: {
+    net: 3,
+    spots: [
+      [6, -3],
+      [6, 0],
+      [6, 3],
+    ],
+  },
+  arc: {
     net: 3,
     spots: [
       [5.5, -2.5],
@@ -22,23 +31,12 @@ export const FORMATIONS = {
       [5.5, 2.5],
     ],
   },
-  four: {
-    net: 2,
+  v: {
+    net: 3,
     spots: [
-      [4.5, -3],
-      [4.5, 3],
-      [7, -1.5],
-      [7, 1.5],
-    ],
-  },
-  w: {
-    net: 1,
-    spots: [
-      [4.5, -3],
-      [4.5, 0],
-      [4.5, 3],
-      [7.5, -1.5],
-      [7.5, 1.5],
+      [5, -3],
+      [7.5, 0],
+      [5, 3],
     ],
   },
 } satisfies Record<string, Formation>;

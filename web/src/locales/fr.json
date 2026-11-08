@@ -1026,9 +1026,9 @@
       "caption": "Où se placer au service adverse.",
       "system": "Système de réception",
       "modes": {
-        "three": "À 3",
-        "four": "À 4",
-        "w": "À 5 (en W)"
+        "line": "En ligne",
+        "arc": "En arc",
+        "v": "En V"
       },
       "serve": "Service adverse",
       "net": "Au filet",

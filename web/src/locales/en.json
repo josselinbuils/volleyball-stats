@@ -1026,9 +1026,9 @@
       "caption": "Where to stand when the other team serves.",
       "system": "Reception system",
       "modes": {
-        "three": "3 passers",
-        "four": "4 passers",
-        "w": "5 passers (W)"
+        "line": "In a line",
+        "arc": "In an arc",
+        "v": "In a V"
       },
       "serve": "Opponent's serve",
       "net": "At the net",

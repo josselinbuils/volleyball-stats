@@ -20,7 +20,7 @@ const NET_ZONE = [-2.25, 0.2, 4.5, 2.6] as const;
  * them, their usual place at each, and at the net. */
 export function Reception({ g, contacts }: { g: Group; contacts: Contact[] }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<Mode>('three');
+  const [mode, setMode] = useState<Mode>('arc');
   const formation = FORMATIONS[mode];
   const found = useMemo(() => receivers(contacts, g, match.people, formation), [contacts, g, formation]);
   const players = useMemo(() => found.map((r) => ({ ...r, label: playerLabel(t, r.person) ?? r.key })).sort((a, b) => a.label.localeCompare(b.label)), [found, t]);

@@ -32,7 +32,7 @@ describe('receivers', () => {
   it("gives each player's usual place at the spots they took and at the net, and the serves they stood off", () => {
     const contacts = [usual(), usual(), usual(-4)];
 
-    const found = receivers(contacts, 1, people, FORMATIONS.three);
+    const found = receivers(contacts, 1, people, FORMATIONS.arc);
 
     expect(found.find((r) => r.person === 1)?.taken.map((x) => [x.spot, x.usual, x.off.length])).toEqual([[0, [5.5, -2.5], 1]]);
     expect(found.find((r) => r.person === 2)?.taken.map((x) => [x.spot, x.off.length])).toEqual([[1, 0]]);
@@ -40,16 +40,26 @@ describe('receivers', () => {
   });
 
   it('keeps the nearest the net there as the formation says, and needs FROM serves', () => {
-    // In a W only the nearest stays at the net: 4 and 6 receive in front.
-    const w = receivers([usual(), usual(), usual()], 1, people, FORMATIONS.w);
+    // With one at the net, only the nearest stays there: 4 and 6 receive in front.
+    const five = {
+      net: 1,
+      spots: [
+        [4.5, -3],
+        [4.5, 0],
+        [4.5, 3],
+        [7.5, -1.5],
+        [7.5, 1.5],
+      ] as [number, number][],
+    };
+    const w = receivers([usual(), usual(), usual()], 1, people, five);
     expect(w.filter((r) => r.taken.some((x) => x.spot === null)).map((r) => r.person)).toEqual([4]);
-    expect(receivers([usual(), usual()], 1, people, FORMATIONS.three)).toEqual([]);
+    expect(receivers([usual(), usual()], 1, people, FORMATIONS.arc)).toEqual([]);
   });
 
   it("joins a player's identities and leaves out serves missing a player or the team's own", () => {
     const swapped = serve([7, 5.5, -2.5, 2, 6.5, 0, 3, 5.5, 2.5, 4, 1, -1, 5, 1.5, 0, 6, 1, 1]);
 
-    expect(receivers([usual(), usual(), swapped], 1, people, FORMATIONS.three).find((r) => r.person === 1)?.taken[0].usual).toEqual([5.5, -2.5]);
+    expect(receivers([usual(), usual(), swapped], 1, people, FORMATIONS.arc).find((r) => r.person === 1)?.taken[0].usual).toEqual([5.5, -2.5]);
     expect(servesOn([serve([1, 5, 0]), { ...usual(), g: 1 }, usual()], 1)).toHaveLength(1);
   });
 
