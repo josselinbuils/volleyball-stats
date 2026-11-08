@@ -45,6 +45,8 @@ export interface Contact {
   block?: number;
   /** On an attack, the other team's defenders then, flat [person, depth, across, position, ...] in the same frame. */
   defense?: number[];
+  /** On a serve, the receiving team's players then, flat [person, depth, across, ...] in their frame as `defense`. */
+  receive?: number[];
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */
   receiver?: number | null;

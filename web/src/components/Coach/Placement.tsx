@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,11 +9,8 @@ import { contactClips } from '@/lib/playlist';
 import { Section } from '@/components/Coach/Section';
 import { BLOCKS, defenders, SIDES, spotsOf, type Played, type Side } from '@/components/Coach/helpers/defense';
 import { Tip } from '@/components/Tip';
+import { Arrow, DOT, Glyph, HalfCourt as Court } from '@/components/Coach/CourtMarks';
 
-const DOT = 0.45;
-// An arrowhead's length and half width.
-const HEAD = 0.35;
-const WING = 0.2;
 // The attacker 1 m off the net, across as `match.defense` puts them, the spots drawn against them.
 const HIT_DEPTH = -1;
 // The player select's value for nobody.
@@ -108,17 +105,6 @@ export function Placement({ g, contacts }: { g: Group; contacts: Contact[] }) {
   );
 }
 
-function Glyph({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <svg aria-hidden viewBox="-1 -1 2 2" className="size-3">
-        {children}
-      </svg>
-      {label}
-    </span>
-  );
-}
-
 /** A side and block's court, replaying the attacks the picked player stood 1 m or more off their spot. */
 function Card({ side, block, mode, setter, played, person, g }: { side: Side; block: number; mode: number; setter: number; played: Played[]; person: number | null; g: Group }) {
   const { t } = useTranslation();
@@ -165,10 +151,8 @@ function Card({ side, block, mode, setter, played, person, g }: { side: Side; bl
   );
 }
 
-/** One half seen from behind its end line, the net at the top and 2 m of the other side beyond it: the attacker, every
- * position's spot a green dot numbered and, for each position the player defended there, their usual place a dot in the
- * team's colour numbered too, an arrow from it to the spot. One unit is a metre: x toward the defenders' right, y away
- * from the net. */
+/** A half court (`Court`): the attacker, every position's spot a green dot numbered and, for each position the player
+ * defended there, their usual place a dot in the team's colour numbered too, an arrow from it to the spot. */
 function HalfCourt({ side, block, mode, setter, played, g }: { side: Side; block: number; mode: number; setter: number; played: Played[]; g: Group }) {
   const them = (3 - g) as Group;
   const spots = spotsOf(mode, side, block, setter);
@@ -178,12 +162,7 @@ function HalfCourt({ side, block, mode, setter, played, g }: { side: Side; block
     </text>
   );
   return (
-    <svg aria-hidden viewBox="-5 -2.2 10 11.7" className="block h-auto max-h-72 w-full">
-      <rect x={-4.5} y={-2} width={9} height={2} className="fill-court opacity-50" />
-      <rect x={-4.5} y={0} width={9} height={9} className="fill-court" />
-      <rect x={-4.5} y={0} width={9} height={9} className="court-line" />
-      <line x1={-4.5} x2={4.5} y1={3} y2={3} className="court-line" />
-      <line x1={-5} x2={5} y1={0} y2={0} stroke="var(--muted-foreground)" strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    <Court>
       <circle cx={match.defense?.attackers[side] ?? 0} cy={HIT_DEPTH} r={DOT} fill={teamColor(them)} stroke={teamEdge(them)} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
       {played.map(({ position, usual: [uy, ux] }) => (
         <g key={position}>
@@ -199,24 +178,8 @@ function HalfCourt({ side, block, mode, setter, played, g }: { side: Side; block
       ))}
       {played.map(({ position, usual: [uy, ux] }) => {
         const [sy, sx] = (spots.find((s) => s.position === position) as { spot: [number, number] }).spot;
-        const far = Math.hypot(sx - ux, sy - uy);
-        // Two dots apart only: on each other the player is in place.
-        if (far < 2 * DOT + 0.05) {
-          return null;
-        }
-        const [dx, dy] = [(sx - ux) / far, (sy - uy) / far];
-        // The head on the green dot's edge with a line behind it where the gap holds both, else the head alone across the gap.
-        const gap = far - 2 * DOT;
-        const reach = gap >= HEAD ? far - DOT : DOT + (gap + HEAD) / 2;
-        const [tx, ty] = [ux + dx * reach, uy + dy * reach];
-        const [bx, by] = [tx - dx * HEAD, ty - dy * HEAD];
-        return (
-          <g key={position}>
-            {gap > HEAD && <line x1={ux + dx * DOT} y1={uy + dy * DOT} x2={bx} y2={by} stroke="var(--foreground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
-            <polygon points={`${tx},${ty} ${bx - dy * WING},${by + dx * WING} ${bx + dy * WING},${by - dx * WING}`} fill="var(--foreground)" />
-          </g>
-        );
+        return <Arrow key={position} from={[ux, uy]} to={[sx, sy]} />;
       })}
-    </svg>
+    </Court>
   );
 }

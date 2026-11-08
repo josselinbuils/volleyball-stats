@@ -1020,6 +1020,19 @@
       "blocks_one": "single block",
       "blocks_other": "double block",
       "playing": "{{player}} in defence"
+    },
+    "reception": {
+      "title": "Serve-receive positioning",
+      "caption": "Where to stand when the other team serves.",
+      "system": "Reception system",
+      "modes": {
+        "three": "3 passers",
+        "four": "4 passers",
+        "w": "5 passers (W)"
+      },
+      "serve": "Opponent's serve",
+      "net": "At the net",
+      "playing": "{{player}} receiving"
     }
   },
   "broadcast": {

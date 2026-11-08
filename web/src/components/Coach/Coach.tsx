@@ -13,14 +13,16 @@ import { useSet } from '@/lib/sets';
 import { Section } from '@/components/Coach/Section';
 import { Setters } from '@/components/Coach/Setters';
 import { Placement } from '@/components/Coach/Placement';
+import { Reception } from '@/components/Coach/Reception';
 import { Jumps } from '@/components/Coach/Jumps';
 import { setters, things, type Thing } from '@/components/Coach/helpers/coach';
 import { attacksOn } from '@/components/Coach/helpers/defense';
 import { jumpers } from '@/components/Coach/helpers/jumps';
+import { servesOn } from '@/components/Coach/helpers/reception';
 import { Tip } from '@/components/Tip';
 
 /** What a coach reads for one team: what cost it points, who sets whom, each attacker's advice on their jumps and each
- * player's places in defence, those two the only parts naming a player for a weak point (the owner's call). */
+ * player's places in defence and in reception, those the only parts naming a player for a weak point (the owner's call). */
 export function Coach() {
   const { t } = useTranslation();
   const { contacts, rallies } = useSet();
@@ -32,13 +34,14 @@ export function Coach() {
         setters: setters(contacts, g, match.people),
         jumpers: jumpers(contacts, g, match.people),
         defended: attacksOn(contacts, g).length > 0,
+        received: servesOn(contacts, g).length > 0,
       })),
     [contacts, rallies],
   );
-  if (!hasTeams || read.every((r) => !r.things.found.length && !r.setters.length && !r.jumpers.length && !r.defended)) {
+  if (!hasTeams || read.every((r) => !r.things.found.length && !r.setters.length && !r.jumpers.length && !r.defended && !r.received)) {
     return null;
   }
-  const { things: lost, setters: setting, jumpers: jumping, defended } = read[picked - 1];
+  const { things: lost, setters: setting, jumpers: jumping, defended, received } = read[picked - 1];
   return (
     <Card>
       <CardHeader>
@@ -82,6 +85,7 @@ export function Coach() {
         {setting.length > 0 && <Setters setters={setting} />}
         {jumping.length > 0 && <Jumps jumpers={jumping} />}
         {defended && <Placement key={picked} g={picked} contacts={contacts} />}
+        {received && <Reception key={picked} g={picked} contacts={contacts} />}
       </CardContent>
     </Card>
   );

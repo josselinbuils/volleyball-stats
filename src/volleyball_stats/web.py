@@ -985,6 +985,19 @@ def jumped(found: list[dict], table: dict[int, dict], find: Callable, by_frame: 
             c["drift"] = got["drift_m"]
 
 
+def other_half(c: dict, rallies: list[dict], players: dict, fps: float, people: dict, back: int) -> dict[int, tuple[float, float]] | None:
+    """The players of the team across the net from touch `c` in their half then, (depth, across) in their frame: metres
+    from the net and toward their right as they face it; None without teams."""
+    left = rallies[c["rally"]]["left"]
+    if not left:
+        return None
+    # They face the net from the other half: on the right half their right is the far sideline.
+    sign = 1 if c["side"] == "left" else -1
+    team = 3 - left if sign > 0 else left
+    seen = places_at(players, c["t"], fps, back)
+    return {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
+
+
 def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
     """`contacts` with, on each attack, where it was hit in `hit` [depth, across], its `block` (1 or 2
     blockers, `defense.doubled`) and the other half's defenders then in `defense`, flat [person, depth, across, position,
@@ -994,20 +1007,26 @@ def defended(contacts: list[dict], rallies: list[dict], players: dict, fps: floa
     back = round(HOLD_S * fps / players["step"])
     out = []
     for k, c in enumerate(contacts):
-        left = rallies[c["rally"]]["left"]
-        if c["type"] != "attack" or c.get("x") is None or c.get("y") is None or not left:
+        here = other_half(c, rallies, players, fps, people, back) if c["type"] == "attack" and c.get("x") is not None and c.get("y") is not None else None
+        if here is None:
             out.append(c)
             continue
-        # The defenders face the net from the other half: on the right half their right is the far sideline.
-        sign = 1 if c["side"] == "left" else -1
-        team = 3 - left if sign > 0 else left
-        seen = places_at(players, c["t"], fps, back)
-        here = {person: (sign * x, -sign * y) for person, (x, y) in seen.items() if (people.get(person) or people.get(str(person)) or {}).get("team") == team and sign * x > 0}
         start, _, _ = defense.flight(contacts, k)
         double = defense.doubled(here)
         found = defense.assign(defense.layout("perimeter", start[1], double), here)
         flat = [round(v, 1) for person, (_, _, p) in found.items() for v in (person, *here[person], p)]
         out.append({**c, "hit": [round(v, 1) for v in start], "block": 2 if double else 1, **({"defense": flat} if found else {})})
+    return out
+
+
+def received(contacts: list[dict], rallies: list[dict], players: dict, fps: float, people: dict) -> list[dict]:
+    """`contacts` with, on each serve, the receiving team's players at the hit in `receive`, flat [person, depth, across,
+    ...] in their frame as `defended`'s. The players held as in `with_landings`."""
+    back = round(HOLD_S * fps / players["step"])
+    out = []
+    for c in contacts:
+        here = other_half(c, rallies, players, fps, people, back) if c["type"] == "serve" else None
+        out.append({**c, "receive": [round(v, 1) for person, place in here.items() for v in (person, *place)]} if here else c)
     return out
 
 
@@ -1150,6 +1169,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
         if data.get("teams"):
             data["contacts"] = defended(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
+            data["contacts"] = received(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
             data["defense"] = {"modes": list(defense.MODES), **defense.table()}
     (site / "ball.js").unlink(missing_ok=True)
     ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"

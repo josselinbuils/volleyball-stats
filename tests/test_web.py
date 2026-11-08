@@ -996,7 +996,27 @@ class TestDefended:
         assert sorted(found[k + 3] for k in range(0, len(found), 4)) == [1, 2, 3, 4, 5, 6]
 
 
-class TestJumped:
+class TestReceived:
+    # Team 1 on the left, team 2 on the right; a team 1 player on the wrong half.
+    players = {"step": 1, "samples": [[1, 6.0, 3.5, 2, -6.0, 1.0, 3, 2.0, 0.0]]}
+    people = {"1": {"team": 2}, "2": {"team": 1}, "3": {"team": 1}}
+    rallies = [{"left": 1}, {"left": None}]
+
+    @staticmethod
+    def serve(side: str = "left", rally: int = 0, kind: str = "serve") -> dict:
+        return {"type": kind, "side": side, "rally": rally, "t": 0.0, "x": -10.0 if side == "left" else 10.0, "y": 3.0, "result": "play"}
+
+    def test_gives_a_serve_the_receiving_teams_places_in_their_frame(self):
+        # Served from the left, team 2 receives on the right half, their right the far sideline (y < 0).
+        assert web.received([self.serve()], self.rallies, self.players, 10.0, self.people)[0]["receive"] == [1, 6.0, -3.5]
+        assert web.received([self.serve(side="right")], self.rallies, self.players, 10.0, self.people)[0]["receive"] == [2, 6.0, 1.0]
+
+    def test_leaves_other_touches_and_a_serve_without_teams(self):
+        for contact in (self.serve(kind="attack"), self.serve(rally=1)):
+            assert "receive" not in web.received([contact], self.rallies, self.players, 10.0, self.people)[0]
+
+
+
     def test_measures_each_attack_on_the_track_showing_its_player(self, monkeypatch, tmp_path):
         # Person 0 is team 1's identity 7, on track 3 at frame 100; person 1 has no identity.
         table = {0: {"team": 1, "number": 7}, 1: {"team": 2, "number": None}}

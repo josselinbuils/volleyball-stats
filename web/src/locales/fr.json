@@ -1020,6 +1020,19 @@
       "blocks_one": "contre à un",
       "blocks_other": "contre à deux",
       "playing": "{{player}} en défense"
+    },
+    "reception": {
+      "title": "Placement en réception",
+      "caption": "Où se placer au service adverse.",
+      "system": "Système de réception",
+      "modes": {
+        "three": "À 3",
+        "four": "À 4",
+        "w": "À 5 (en W)"
+      },
+      "serve": "Service adverse",
+      "net": "Au filet",
+      "playing": "{{player}} en réception"
     }
   },
   "broadcast": {
