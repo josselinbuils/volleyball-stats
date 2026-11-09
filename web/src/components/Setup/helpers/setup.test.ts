@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LANDMARKS, nextLandmark, parseTime, teamNames, validName } from './setup';
+import { LANDMARKS, importError, nextLandmark, parseTime, teamNames, validName } from './setup';
 
 describe('setup', () => {
   it('reads times as m:ss or h:mm:ss', () => {
@@ -21,6 +21,13 @@ describe('setup', () => {
     expect(nextLandmark(0)).toBe('corner_left_far');
     expect(nextLandmark(LANDMARKS.length - 1)).toBe('post_near');
     expect(nextLandmark(LANDMARKS.length)).toBeNull();
+  });
+
+  it('says why an import was refused', () => {
+    expect(importError('unreadable:DJI_0003.MP4')).toEqual(['app.import.unreadable', { name: 'DJI_0003.MP4' }]);
+    expect(importError('disk:120')).toEqual(['app.import.disk', { gb: '120' }]);
+    expect(importError('running')).toEqual(['app.import.running', {}]);
+    expect(importError('boom')).toEqual(['app.import.failed', { error: 'boom' }]);
   });
 
   it('names the teams only when both have a name', () => {

@@ -8,7 +8,11 @@
   other machine (`data_sync`) and the update (`git pull --ff-only --autostash`, `uv sync --inexact`, a restart; refused
   while a job or an apply runs). The long ones are jobs (`jobs.py`): a process of their own in a new session, their
   record and log in `outputs/jobs/`, so they outlive the server's restarts; `match` prints `::progress` while tracking.
-  A match being prepared shows above the list until its `report.md` exists. A second start only opens the page.
+  A match being prepared shows above the list until its `report.md` exists; one whose pipeline a command ran and no
+  process runs any more is offered to run again. A job is the runner's process number and start time (`ps lstart`):
+  after a restart, a reused number is no job. Under WSL2 the import lists Windows' drives, a card plugged in after WSL
+  started mounted when picked (`wsl.exe -u root mount -t drvfs`, no password), and the Windows downloads. A second start
+  only opens the page.
   "Habillage du club" (on the list and in the review's "..." menu, `branding.py`) edits the one branding every page
   shows; saved from a review, that match's pages are rebuilt at once, the others at their next build.
 - Every `python -m volleyball_stats.X` command fetches in the background and warns when the branch is behind its remote

@@ -34,7 +34,7 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
         </DialogHeader>
         {job?.running ? (
           <div className="grid gap-3">
-            {job.code ? (
+            {job.code && !job.copying ? (
               <>
                 <p>{t('app.videos.waiting')}</p>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">

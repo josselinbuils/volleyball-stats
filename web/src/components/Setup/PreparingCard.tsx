@@ -43,11 +43,12 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
       : null;
   const status = {
     importing: t('app.state.importing'),
-    court: item.searching ? t('app.state.searching') : t('app.state.court'),
+    court: item.searching ? t('app.state.searching') : item.placing ? t('app.state.placing') : item.fitFailed ? t('app.state.fitFailed') : t('app.state.court'),
     check: t('app.state.check'),
     running: [t('app.state.running'), job?.stage && t(`review.stage.${job.stage}`, { defaultValue: job.stage })].filter(Boolean).join(' · '),
     failed: t(job?.error === 'stopped' ? 'app.state.stopped' : 'app.state.failed', { step: t(`app.step.${job?.failed}`, { defaultValue: job?.failed }) }),
     elsewhere: t('app.state.elsewhere'),
+    stalled: t('app.state.stalled'),
   }[item.state];
   const fraction = job?.running ? (job.progress ?? null) : null;
 
@@ -68,7 +69,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           </Button>
         )}
       </div>
-      <p className={item.state === 'failed' ? 'text-destructive' : undefined}>{status}</p>
+      <p className={item.state === 'failed' || item.fitFailed ? 'text-destructive' : undefined}>{status}</p>
       {item.state === 'failed' && job?.error && !['stopped', 'interrupted'].includes(job.error) && <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">{job.error}</p>}
       {job?.running && (
         <div className="grid gap-1">
@@ -127,13 +128,13 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        {item.state === 'court' && !item.searching && (
+        {item.state === 'court' && !job?.running && (
           <Button onClick={() => setPlacing(true)}>
             <Crosshair aria-hidden />
             {t('app.court.open')}
           </Button>
         )}
-        {(item.state === 'check' || (item.state === 'failed' && job?.failed === 'pipeline')) && (
+        {(item.state === 'check' || item.state === 'stalled' || (item.state === 'failed' && job?.failed === 'pipeline')) && (
           <Button onClick={() => void act('run', { anyway: !!busy })}>
             {item.state === 'check' ? <Play aria-hidden /> : <RotateCcw aria-hidden />}
             {busy ? t('app.runAnyway') : item.state === 'check' ? t('app.run') : t('app.retry')}

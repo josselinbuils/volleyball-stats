@@ -732,7 +732,8 @@
     "pullFailed": "Téléchargement impossible : réessayez.",
     "noVideo": "Vidéo absente",
     "setsN_one": "{{count, number}} set",
-    "setsN_other": "{{count, number}} sets"
+    "setsN_other": "{{count, number}} sets",
+    "noCourt": "Terrain absent"
   },
   "sync": {
     "conflict": "Modifié ici et sur {{machine}}",
@@ -1176,7 +1177,10 @@
       "running": "Analyse en cours",
       "failed": "Échec : {{step}}",
       "stopped": "Arrêté : {{step}}",
-      "elsewhere": "Analyse en cours dans un autre terminal ou sur l'autre ordinateur"
+      "elsewhere": "Analyse en cours dans un autre terminal ou sur l'autre ordinateur",
+      "placing": "Placement du terrain…",
+      "fitFailed": "Ces clics ne donnent pas de terrain : replacez-le en cliquant plus près des lignes.",
+      "stalled": "Analyse arrêtée avant la fin"
     },
     "step": {
       "import": "copie de la vidéo",
@@ -1212,7 +1216,10 @@
       "exists": "Ce match est déjà importé.",
       "disk": "Pas assez de place : {{gb}} Go libres nécessaires.",
       "badTimes": "Le début est après la fin.",
-      "failed": "Import impossible : {{error}}"
+      "failed": "Import impossible : {{error}}",
+      "unreadable": "Vidéo illisible : {{name}}. Elle a peut-être été coupée (batterie vide).",
+      "running": "Ce match est déjà en cours d'import.",
+      "mountFailed": "Lecteur inaccessible : vérifiez que la carte est bien insérée."
     },
     "court": {
       "open": "Placer le terrain",
@@ -1239,7 +1246,8 @@
         "corner_right_near": "coin de devant à droite",
         "post_far": "pied du poteau du fond",
         "post_near": "pied du poteau de devant"
-      }
+      },
+      "noPicture": "Image du terrain illisible : la vidéo est-elle complète ?"
     },
     "videos": {
       "open": "Vidéos de l'autre ordinateur",
@@ -1337,6 +1345,7 @@
       "removeSponsor": "Retirer ce sponsor",
       "addSponsor": "Ajouter un sponsor",
       "save": "Enregistrer"
-    }
+    },
+    "noAnswer": "Pas de réponse de l'app : vérifiez qu'elle tourne toujours."
   }
 }

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
-import { parseTime, validName, type Recording, type Source } from './helpers/setup';
+import { importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
 
 interface TeamField {
   name: string;
@@ -39,15 +39,26 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
       .catch(() => setSources([]));
   }, []);
 
-  const scan = async (source: string) => {
+  const refuse = (error: string | undefined) => {
+    const [key, values] = importError(error);
+    setError(t(key, values));
+  };
+  const scan = async (source: string, drive?: string) => {
     setPath(source);
     setScanning(true);
     setError(null);
     setFound(null);
+    // A Windows drive is mounted first (WSL2).
+    const mounted = drive ? await call('mount', { drive }) : null;
+    if (mounted && !mounted.ok) {
+      setScanning(false);
+      refuse(mounted.error);
+      return;
+    }
     const r = await call<{ source: string; recordings: Recording[] }>('scan', { source });
     setScanning(false);
     if (!r.ok) {
-      setError(t(r.error === 'missing' ? 'app.import.noFolder' : 'app.import.noVideo'));
+      refuse(r.error);
       return;
     }
     setFound(r);
@@ -75,14 +86,8 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
     setSending(false);
     if (r.ok) {
       onClose(true);
-    } else if (r.error === 'exists') {
-      setError(t('app.import.exists'));
-    } else if (r.error?.startsWith('disk:')) {
-      setError(t('app.import.disk', { gb: r.error.slice(5) }));
-    } else if (r.error === 'times') {
-      setError(t('app.import.badTimes'));
     } else {
-      setError(t('app.import.failed', { error: r.error ?? r.status }));
+      refuse(r.error);
     }
   };
 
@@ -95,7 +100,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
         </DialogHeader>
         <div className="grid gap-2">
           {sources?.map((source) => (
-            <Button key={source.path} variant={path === source.path ? 'secondary' : 'outline'} className="justify-start" onClick={() => void scan(source.path)}>
+            <Button key={source.path} variant={path === source.path ? 'secondary' : 'outline'} className="justify-start" onClick={() => void scan(source.path, source.drive)}>
               {source.card ? <HardDrive aria-hidden /> : <Folder aria-hidden />}
               <span className="truncate">{source.card ? t('app.import.card', { name: source.name }) : source.name}</span>
             </Button>

@@ -37,8 +37,11 @@ class TestApp:
         self.job(place, "e", failed="court", error="No stored court matches")
         self.match(place, "f", app.COURT)
         self.job(place, "f", kind="pipeline", failed="pipeline", error="boom")
-        found = {m["name"]: m["state"] for m in app.preparing([{"path": "d", "ready": True}])}
-        assert found == {"a": "court", "b": "check", "c": "elsewhere", "e": "court", "f": "failed"}
+        self.match(place, "g")
+        self.job(place, "g", kind="court", failed="court", error="no fit", manual=True)
+        found = {m["name"]: m for m in app.preparing([{"path": "d", "ready": True}])}
+        assert {k: m["state"] for k, m in found.items()} == {"a": "court", "b": "check", "c": "stalled", "e": "court", "f": "failed", "g": "court"}
+        assert found["g"]["fitFailed"] and not found["e"]["fitFailed"]
 
     def test_swaps_the_sides(self, place):
         folder = self.match(place, "a")
@@ -62,8 +65,14 @@ class TestApp:
 
     def test_refuses_paths_out_of_the_matches(self, place):
         assert app.handle("POST", "/app/swap", "", {"match": "../x"}, list)[2] == 400
+        assert app.handle("POST", "/app/forget", "", {"id": "../roster"}, list)[2] == 400
         assert app.handle("GET", "/app/image", "match=..&kind=start", {}, list)[2] == 404
         assert app.handle("GET", "/other", "", {}, list) is None
+
+    def test_answers_an_unreadable_video(self, tmp_path):
+        (tmp_path / "DJI_cut.mp4").write_bytes(b"not a video")
+        answer = app.handle("POST", "/app/scan", "", {"source": str(tmp_path)}, list)
+        assert answer[2] == 400 and json.loads(answer[0])["error"] == "unreadable:DJI_cut.mp4"
 
     def test_estimates_the_time_left(self):
         tracking = {"started": 0.0, "stepStarted": 0.0, "step": "pipeline", "stage": "tracking", "progress": 0.5, "duration": app.TOOK_VIDEO_S}

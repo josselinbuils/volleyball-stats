@@ -85,6 +85,8 @@ APPLIED = "identity_applied.json"
 # Undo takes back the UNDOS latest of the CHANGES whole, then drops the last answer. Request bodies
 # are at most MAX_BODY bytes.
 UNDOS, MAX_BODY = 100, 1 << 20
+# The club's branding carries its pictures.
+BRAND_BODY = 16 << 20
 # Where the review's copy of the match page keeps the reports of what is wrong in a moment.
 FEEDBACK = "feedback.log"
 BACKUP_EVERY_S = 600
@@ -1835,6 +1837,8 @@ def match_list(out: Path) -> list[dict]:
         item["ready"] = all(p.exists() for p in (folder / "report.md", Path(given["video"]), Path(given["court"])))
         if not Path(given["video"]).exists():
             item["missing"] = "video"
+        elif not Path(given["court"]).exists() and (folder / "report.md").exists():
+            item["missing"] = "court"
         found.append(item)
     return sorted(found, key=lambda m: (m["date"] or "", m["path"]), reverse=True)
 
@@ -1958,7 +1962,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             if not same_site(self.headers, port) or not known or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
             size = int(self.headers.get("Content-Length", 0))
-            if not 0 <= size <= MAX_BODY:
+            if not 0 <= size <= (BRAND_BODY if self.path == "/app/brand" else MAX_BODY):
                 return self.send(b'{"error":"body too large"}', "application/json", 413)
             try:
                 body = json.loads(self.rfile.read(size) or b"{}")
@@ -2373,7 +2377,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if not self.ours() or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
             size = int(self.headers.get("Content-Length", 0))
-            if not 0 <= size <= MAX_BODY:
+            if not 0 <= size <= (BRAND_BODY if self.path == "/app/brand" else MAX_BODY):
                 return self.send(b'{"error":"body too large"}', "application/json", 413)
             raw = self.rfile.read(size)
             # A report of what is wrong in a moment, from the review's copy of the match page: kept as

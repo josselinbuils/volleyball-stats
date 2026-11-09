@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
-import { brandFile, shrink, type BrandForm, type BrandState } from '@/helpers/brand';
+import { brandFile, shrink, type BrandForm, type BrandState } from '@/components/helpers/brand';
 
 const NEW: BrandForm = { name: '', url: '', accent: '#1f6bc4', header: '#111111', logo: null, sponsors: [] };
 const LOGO_PX = 256;

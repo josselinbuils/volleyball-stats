@@ -42,3 +42,10 @@ document.documentElement.lang = i18n.language;
 i18n.on('languageChanged', (lang) => {
   document.documentElement.lang = lang;
 });
+// The list and the app's screens are two scripts, each its own i18next: one follows the language the other switches to.
+new MutationObserver(() => {
+  const lang = document.documentElement.lang;
+  if (lang in LANGUAGES && lang !== i18n.language) {
+    void i18n.changeLanguage(lang);
+  }
+}).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });

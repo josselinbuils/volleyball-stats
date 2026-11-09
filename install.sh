@@ -4,7 +4,7 @@
 #   curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
 #
 # macOS, Linux or Windows' Ubuntu (WSL2). It installs what is missing (Homebrew on a Mac, then git, ffmpeg and uv), the
-# code in ~/volleyball-stats, a shortcut on the desktop, and opens the app in the browser.
+# code in ~/volleyball-stats, a shortcut on the desktop (a Mac's, or Windows' for WSL2), and opens the app in the browser.
 set -e
 
 REPO=https://github.com/josselinbuils/volleyball-stats.git
@@ -65,19 +65,29 @@ fi
 cd "$DIR"
 UV=$(command -v uv)
 
-# The shortcut: on the desktop (a Mac's, or Windows' for WSL2), and the command `volleyball-stats` in a terminal.
+# The launcher, with the PATH this script found the tools on (a shortcut opens with the system's default one, which
+# lacks Homebrew's /opt/homebrew/bin on Apple chips), then the shortcut on the desktop.
 mkdir -p "$HOME/.local/bin"
-printf '#!/bin/sh\ncd "%s" && exec "%s" run volleyball-stats "$@"\n' "$DIR" "$UV" >"$HOME/.local/bin/volleyball-stats"
-chmod +x "$HOME/.local/bin/volleyball-stats"
+launcher=$HOME/.local/bin/volleyball-stats
+printf '#!/bin/sh\nexport PATH="%s:$PATH"\ncd "%s" && exec "%s" run volleyball-stats "$@"\n' "$PATH" "$DIR" "$UV" >"$launcher"
+chmod +x "$launcher"
+shortcut=""
 if [ "$(uname -s)" = Darwin ] && [ -d "$HOME/Desktop" ]; then
-  cp "$HOME/.local/bin/volleyball-stats" "$HOME/Desktop/Volleyball Stats.command"
+  cp "$launcher" "$HOME/Desktop/Volleyball Stats.command"
+  shortcut=yes
 elif [ -n "$WSL_DISTRO_NAME" ] && command -v cmd.exe >/dev/null 2>&1; then
-  profile=$(cd /mnt/c 2>/dev/null && cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')
+  profile=$(cd /mnt/c 2>/dev/null && cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null </dev/null | tr -d '\r')
   desktop=$(wslpath "$profile" 2>/dev/null)/Desktop
   if [ -n "$profile" ] && [ -d "$desktop" ]; then
-    printf '@echo off\r\nwsl.exe -d %s -- "%s"\r\n' "$WSL_DISTRO_NAME" "$HOME/.local/bin/volleyball-stats" >"$desktop/Volleyball Stats.bat"
+    printf '@echo off\r\nwsl.exe -d %s -- "%s"\r\n' "$WSL_DISTRO_NAME" "$launcher" >"$desktop/Volleyball Stats.bat"
+    shortcut=yes
   fi
 fi
 
-say "Starting volleyball-stats: the first start takes a few minutes. Next time, open \"Volleyball Stats\" on the desktop."
+if [ -n "$shortcut" ]; then
+  next="open \"Volleyball Stats\" on the desktop"
+else
+  next="run this same line again"
+fi
+say "Starting volleyball-stats: the first start takes a few minutes. Next time, $next."
 exec "$UV" run volleyball-stats

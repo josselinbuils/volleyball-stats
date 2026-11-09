@@ -22,20 +22,38 @@ PROGRESS, STAGE = "::progress ", "::stage "
 # ffmpeg's -stats line: how far it went in the output.
 FFMPEG_TIME = re.compile(r"time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
 TAIL_BYTES = 64 << 10
+# A job's id, a file name in FOLDER.
+JOB_ID = re.compile(r"[\w.-]+")
+
+
+class Running(RuntimeError):
+    """The job asked for still runs."""
 
 
 def folder(outputs: Path) -> Path:
     return outputs / FOLDER
 
 
+def record_of(outputs: Path, job_id: str) -> Path:
+    """The record of the job `job_id`; ValueError for an id that is no file name of FOLDER."""
+    if not JOB_ID.fullmatch(job_id) or job_id.strip(".") == "":
+        raise ValueError(job_id)
+    return folder(outputs) / f"{job_id}.json"
+
+
+def is_running(outputs: Path, job_id: str) -> bool:
+    record = record_of(outputs, job_id)
+    return record.exists() and running(json.loads(record.read_text()))
+
+
 def start(outputs: Path, job_id: str, kind: str, steps: list[tuple[str, list[str]]], **extra) -> dict:
-    """Starts the `steps` (name, command arguments after `python -m`) one after the other; RuntimeError when the job
+    """Starts the `steps` (name, command arguments after `python -m`) one after the other; Running when the job
     `job_id` still runs."""
-    jobs = folder(outputs)
-    jobs.mkdir(parents=True, exist_ok=True)
-    record = jobs / f"{job_id}.json"
-    if record.exists() and running(json.loads(record.read_text())):
-        raise RuntimeError(f"{job_id} is running")
+    record = record_of(outputs, job_id)
+    record.parent.mkdir(parents=True, exist_ok=True)
+    jobs = record.parent
+    if is_running(outputs, job_id):
+        raise Running(job_id)
     job = {"id": job_id, "kind": kind, "steps": [{"name": n, "args": a} for n, a in steps], "started": time.time(), **extra}
     files.write_text(record, json.dumps(job, indent=1))
     log = open(jobs / f"{job_id}.log", "w")
@@ -44,8 +62,8 @@ def start(outputs: Path, job_id: str, kind: str, steps: list[tuple[str, list[str
         stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
     log.close()
-    job["pid"] = process.pid
-    update(record, pid=process.pid)
+    job.update(pid=process.pid, pidStarted=started_at(process.pid))
+    update(record, pid=job["pid"], pidStarted=job["pidStarted"])
     return job
 
 
@@ -55,7 +73,17 @@ def update(record: Path, **fields) -> None:
     files.write_text(record, json.dumps(job, indent=1))
 
 
-def alive(pid: int | None) -> bool:
+def started_at(pid: int) -> str | None:
+    """When the process `pid` started, as `ps` tells it: another process given the same number later starts later."""
+    try:
+        found = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return found or None
+
+
+def alive(pid: int | None, since: str | None = None) -> bool:
+    """Whether the process `pid` runs, and is the one started at `since` when given (a restart reuses numbers)."""
     if not pid:
         return False
     try:
@@ -67,13 +95,15 @@ def alive(pid: int | None) -> bool:
     # A child of this process that ended stays a zombie until waited for.
     try:
         done, _ = os.waitpid(pid, os.WNOHANG)
-        return done == 0
+        if done:
+            return False
     except ChildProcessError:
-        return True
+        pass
+    return since is None or started_at(pid) == since
 
 
 def running(job: dict) -> bool:
-    return "ended" not in job and alive(job.get("pid"))
+    return "ended" not in job and alive(job.get("pid"), job.get("pidStarted"))
 
 
 def tail(path: Path) -> str:
@@ -131,7 +161,7 @@ def state(outputs: Path) -> list[dict]:
 
 def stop(outputs: Path, job_id: str) -> None:
     """Stops a running job and the commands it started."""
-    record = folder(outputs) / f"{job_id}.json"
+    record = record_of(outputs, job_id)
     job = json.loads(record.read_text())
     if running(job):
         try:
@@ -142,8 +172,9 @@ def stop(outputs: Path, job_id: str) -> None:
 
 
 def forget(outputs: Path, job_id: str) -> None:
-    for suffix in (".json", ".log"):
-        (folder(outputs) / f"{job_id}{suffix}").unlink(missing_ok=True)
+    record = record_of(outputs, job_id)
+    for path in (record, record.with_suffix(".log")):
+        path.unlink(missing_ok=True)
 
 
 def run(record: Path) -> None:

@@ -1,6 +1,8 @@
 import json
 import time
 
+import pytest
+
 from volleyball_stats import jobs
 
 
@@ -32,6 +34,17 @@ class TestJobs:
         log.write_text("start\nframe=1 time=00:00:01\rframe=2 time=00:00:02\nerror: no court\n")
         assert jobs.tail(log).split("\n")[1] == "frame=2 time=00:00:02"
         assert jobs.error_of(jobs.tail(log)) == "error: no court"
+
+    def test_refuses_ids_out_of_its_folder(self, tmp_path):
+        for job_id in ("../roster", "a/b", "..", ""):
+            with pytest.raises(ValueError):
+                jobs.forget(tmp_path, job_id)
+
+    def test_a_number_given_to_another_process_is_not_the_job(self, tmp_path):
+        import os
+
+        assert jobs.alive(os.getpid(), jobs.started_at(os.getpid()))
+        assert not jobs.alive(os.getpid(), "Mon Jan  1 00:00:00 2001")
 
     def test_a_dead_runner_is_interrupted(self, tmp_path):
         folder = jobs.folder(tmp_path)

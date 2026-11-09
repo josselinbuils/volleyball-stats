@@ -16,6 +16,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 import urllib.request
 import webbrowser
 from pathlib import Path
@@ -30,7 +31,7 @@ COURTS = OUTPUTS / "courts"
 COURT, BACKGROUND = "court.json", "background.png"
 IMAGES = {"start": ("start.jpg", "image/jpeg"), "court": ("court.jpg", "image/jpeg"), "background": (BACKGROUND, "image/png")}
 # Where a camera's card or a video folder may be.
-MOUNTS = {"mac": ["/Volumes"], "linux": ["/media/{user}", "/run/media/{user}"], "wsl": ["/mnt"]}
+MOUNTS = {"mac": ["/Volumes"], "linux": ["/media/{user}", "/run/media/{user}"]}
 NAME = re.compile(r"[^,:]+")
 # The length of the video review.TOOK's durations were measured on.
 TOOK_VIDEO_S = 4013.0
@@ -63,16 +64,66 @@ def restart_command() -> list[str]:
     return [sys.executable, "-m", "volleyball_stats.review", *args]
 
 
+def windows_drives() -> list[str]:
+    """Under WSL2, Windows' drive letters but C (a card plugged in after WSL started has no /mnt/ folder yet)."""
+    try:
+        roots = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command", "(Get-PSDrive -PSProvider FileSystem).Name"], capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL, cwd="/mnt/c" if Path("/mnt/c").exists() else None
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return sorted({d.strip().upper() for d in roots.split() if re.fullmatch(r"[A-Za-z]", d.strip()) and d.strip().upper() != "C"})
+
+
+def windows_home() -> Path | None:
+    """Under WSL2, the Windows user's folder, where the downloads are."""
+    try:
+        profile = subprocess.run(["cmd.exe", "/c", "echo %USERPROFILE%"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, cwd="/mnt/c").stdout.strip()
+        found = subprocess.run(["wslpath", profile], capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return Path(found) if found and Path(found).is_dir() else None
+
+
+def mount(drive: str) -> Path:
+    """Windows' drive `drive` (a letter) seen under /mnt/, as root through wsl.exe: no password to type."""
+    if doctor.system() != "wsl" or not re.fullmatch(r"[A-Za-z]", drive) or drive.upper() == "C":
+        raise ValueError(drive)
+    target = Path("/mnt") / drive.lower()
+    if not os.path.ismount(target):
+        run = subprocess.run(
+            ["wsl.exe", *(["-d", os.environ["WSL_DISTRO_NAME"]] if os.environ.get("WSL_DISTRO_NAME") else []), "-u", "root", "--", "sh", "-c", f"mkdir -p {target} && mount -t drvfs {drive.upper()}: {target}"],
+            capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, cwd="/mnt/c",
+        )
+        if run.returncode or not os.path.ismount(target):
+            raise RuntimeError("mount")
+    return target
+
+
 def sources() -> list[dict]:
-    """The folders where a match's video may be: the cards and drives mounted, those with a camera's DCIM first."""
+    """The folders where a match's video may be: the cards and drives mounted, those with a camera's DCIM first; under
+    WSL2, each Windows drive (mounted when picked) and the Windows downloads."""
     user = os.environ.get("USER", "")
     found = []
-    for mount in MOUNTS[doctor.system()]:
-        base = Path(mount.format(user=user))
+    if doctor.system() == "wsl":
+        for drive in windows_drives():
+            path = Path("/mnt") / drive.lower()
+            mounted = os.path.ismount(path)
+            try:
+                card = mounted and (path / "DCIM").is_dir()
+            except OSError:
+                card = False
+            found.append({"path": str(path), "name": f"{drive}:", "card": card, **({} if mounted else {"drive": drive})})
+        home = windows_home()
+        for name in ("Downloads", "Videos", "Desktop"):
+            if home and (home / name).is_dir():
+                found.append({"path": str(home / name), "name": name, "card": False})
+    for mount_point in MOUNTS[doctor.system()] if doctor.system() != "wsl" else []:
+        base = Path(mount_point.format(user=user))
         if not base.is_dir():
             continue
         for path in sorted(base.iterdir()):
-            if path.name.startswith(".") or path.name in ("Macintosh HD", "c", "wsl", "wslg") or not path.is_dir():
+            if path.name.startswith(".") or path.name == "Macintosh HD" or not path.is_dir():
                 continue
             try:
                 card = (path / "DCIM").is_dir()
@@ -85,6 +136,20 @@ def sources() -> list[dict]:
     return sorted(found, key=lambda s: not s["card"])
 
 
+def probed(videos: list[Path]) -> list:
+    """Each video's length (import_match.probe); LookupError "unreadable:NAME" for one ffprobe cannot read (a chapter
+    cut short by an empty battery)."""
+    from volleyball_stats import import_match
+
+    found = []
+    for video in videos:
+        try:
+            found.append(import_match.probe(video))
+        except (subprocess.CalledProcessError, KeyError, ValueError, IndexError) as error:
+            raise LookupError(f"unreadable:{video.name}") from error
+    return found
+
+
 def scan(source: str) -> dict:
     """The recordings of a card or folder, each with its start, length and the match day it gives."""
     from volleyball_stats import import_match
@@ -95,7 +160,7 @@ def scan(source: str) -> dict:
     found = import_match.videos(path)
     if not found:
         raise LookupError("empty")
-    groups = import_match.recordings([import_match.probe(p) for p in found])
+    groups = import_match.recordings(probed(found))
     return {
         "source": str(path),
         "recordings": [
@@ -127,7 +192,7 @@ def import_steps(body: dict) -> tuple[str, str, list, float]:
     from volleyball_stats import import_match, teams
 
     flag = team_flag(body["teams"])
-    groups = import_match.recordings([import_match.probe(p) for p in import_match.videos(Path(body["source"]).expanduser())])
+    groups = import_match.recordings(probed(import_match.videos(Path(body["source"]).expanduser())))
     recording = int(body.get("recording") or 1)
     chapters = groups[recording - 1]
     start, end = [teams.seconds(body[k]) if body.get(k) else None for k in ("from", "to")]
@@ -169,8 +234,9 @@ def video_of(name: str) -> Path:
 
 
 def preparing(listed: list[dict]) -> list[dict]:
-    """The matches not ready for the review, with what they wait for: `importing`, `court` (to map by hand), `check`
-    (to look at, then start), `running`, `failed`, or `elsewhere` (run by a command, or on the other machine)."""
+    """The matches not ready for the review, with what they wait for: `importing`, `court` (to map by hand, `fitFailed`
+    when the clicks did not fit), `check` (to look at, then start), `running`, `failed`, `elsewhere` (run by a command
+    on this machine) or `stalled` (a run by a command that stopped, or one on the other machine)."""
     ready = {m["path"] for m in listed if m.get("ready") or m.get("missing")}
     by_match = {j["id"]: j for j in jobs.state(OUTPUTS) if j["kind"] in ("import", "court", "pipeline")}
     names = {p.parent.name for p in MATCHES.glob("*/teams.json") if not (p.parent / "report.md").exists()} | set(by_match)
@@ -181,14 +247,16 @@ def preparing(listed: list[dict]) -> list[dict]:
         item = {"name": name, "date": saved.get("date"), "teams": saved.get("teams"), "job": job, "start": (folder / "start.jpg").exists(), "court": (folder / "court.jpg").exists()}
         if job and job["running"]:
             item["state"] = "importing" if job.get("step") == "import" else "running" if job.get("step") == "pipeline" else "court"
-            item["searching"] = job.get("step") == "court"
+            item["searching"] = job.get("step") == "court" and not job.get("manual")
+            item["placing"] = job.get("step") == "court" and bool(job.get("manual"))
             item["left"] = time_left(job, time.time())
         elif job and job.get("failed") == "court" and job.get("error") not in ("stopped", "interrupted") and not (folder / COURT).exists():
             item["state"] = "court"
+            item["fitFailed"] = bool(job.get("manual"))
         elif job and job.get("failed"):
             item["state"] = "failed"
         elif (folder / files.SOURCE).exists() and not job:
-            item["state"] = "elsewhere"
+            item["state"] = "elsewhere" if name in commands_running() else "stalled"
         elif (folder / COURT).exists():
             item["state"] = "check"
         elif folder.exists():
@@ -197,6 +265,23 @@ def preparing(listed: list[dict]) -> list[dict]:
             continue
         found.append(item)
     return found
+
+
+def commands_running() -> str:
+    """The pipelines running on this machine, their command lines: a match's name in it runs."""
+    try:
+        lines = subprocess.run(["ps", "-Ao", "command="], capture_output=True, text=True, timeout=5).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return "\n".join(line for line in lines if "volleyball_stats.match " in line)
+
+
+def court_of(name: str) -> Path:
+    """The match's court: the app's, else the one its pipeline last ran with (source.json)."""
+    court, source = MATCHES / name / COURT, MATCHES / name / files.SOURCE
+    if not court.exists() and source.exists():
+        return Path(json.loads(source.read_text())["court"])
+    return court
 
 
 def time_left(job: dict, now: float) -> float | None:
@@ -222,7 +307,7 @@ def run_pipeline(name: str, anyway: bool) -> dict | None:
     busy = doctor.busy()
     if busy["status"] != "ok" and not anyway:
         return busy
-    court = MATCHES / name / COURT
+    court = court_of(name)
     if not court.exists():
         raise LookupError(name)
     from volleyball_stats import import_match
@@ -264,8 +349,10 @@ def fit_court(name: str, clicks: dict, court_name: str) -> None:
     command = ["volleyball_stats.court", "fit", str(folder / "court_clicks.json"), str(video_of(name)), "--court", slug, "--courts", str(COURTS), "--out", str(folder / COURT)]
     if (folder / BACKGROUND).exists():
         command += ["--background", str(folder / BACKGROUND)]
+    if jobs.is_running(OUTPUTS, name):
+        raise jobs.Running(name)
     (folder / COURT).unlink(missing_ok=True)
-    jobs.start(OUTPUTS, name, "court", [("court", command)])
+    jobs.start(OUTPUTS, name, "court", [("court", command)], manual=True)
 
 
 def videos_state() -> dict | None:
@@ -275,7 +362,7 @@ def videos_state() -> dict | None:
         return None
     text = jobs.tail(jobs.folder(OUTPUTS) / f"{VIDEOS}.log")
     found = re.search(r"data_sync (\S+):(\d+) (\w+)", text)
-    return {**job, "address": found and found[1], "port": found and int(found[2]), "code": found and found[3]}
+    return {**job, "address": found and found[1], "port": found and int(found[2]), "code": found and found[3], "copying": "::stage copying" in text}
 
 
 def models_state() -> dict | None:
@@ -287,12 +374,12 @@ def update() -> None:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     pull = subprocess.run(["git", "-C", str(git_check.ROOT), "pull", "--ff-only", "--autostash"], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, timeout=120)
     if pull.returncode:
-        raise RuntimeError((pull.stderr.strip() or pull.stdout.strip()).splitlines()[-1])
+        raise RuntimeError(((pull.stderr.strip() or pull.stdout.strip()).splitlines() or [f"git pull: exit {pull.returncode}"])[-1])
     tool = uv()
     if tool:
         sync = subprocess.run([tool, "sync", "--inexact", "--project", str(git_check.ROOT)], capture_output=True, text=True, timeout=1800)
         if sync.returncode:
-            raise RuntimeError(sync.stderr.strip().splitlines()[-1])
+            raise RuntimeError((sync.stderr.strip().splitlines() or [f"uv sync: exit {sync.returncode}"])[-1])
 
 
 def state(listed: list[dict]) -> dict:
@@ -337,6 +424,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         name = str(body.get("match", ""))
         if name and ("/" in name or ".." in name):
             raise ValueError(name)
+        if route == "mount":
+            return reply({"path": str(mount(str(body["drive"])))})
         if route == "scan":
             return reply(scan(str(body["source"])))
         if route == "import":
@@ -389,12 +478,18 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply({"error": "busy", "running": running}, 409)
             update()
             return reply({})
+    except jobs.Running:
+        return reply({"error": "running"}, 409)
     except FileExistsError as error:
         return reply({"error": "exists", "match": str(error)}, 409)
     except (RuntimeError, OSError) as error:
         return reply({"error": str(error) or type(error).__name__}, 409)
     except (LookupError, TypeError, ValueError, AttributeError) as error:
         return reply({"error": str(error) or type(error).__name__}, 400)
+    except Exception as error:  # noqa: BLE001
+        # A video ffprobe cannot read, a page build failing...: the page says it instead of waiting for good.
+        traceback.print_exc()
+        return reply({"error": str(error) or type(error).__name__}, 500)
     return None
 
 

@@ -19,6 +19,7 @@ EXAMPLE = PRESETS / "brand.example.json"
 DATA_URL = re.compile(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)")
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
 MAX_SPONSORS = 12
+PICTURES = (".png", ".jpg", ".jpeg", ".webp")
 
 
 def presets() -> list[dict]:
@@ -96,8 +97,8 @@ def save(body: dict, folder: Path = BRAND) -> None:
     previous = json.loads(path.read_text()) if path.exists() else None
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "sponsors").mkdir(exist_ok=True)
-    kept = {p.name for p in folder.iterdir() if p.is_file()}
-    kept_sponsors = {p.name for p in (folder / "sponsors").iterdir() if p.is_file()}
+    kept = {p.name for p in folder.iterdir() if p.is_file() and p.suffix.lower() in PICTURES}
+    kept_sponsors = {p.name for p in (folder / "sponsors").iterdir() if p.is_file() and p.suffix.lower() in PICTURES}
     light, dark = colours(previous, accent, header)
     logo = picture(body.get("logo"), folder, "logo", kept)
     listed = []
@@ -135,7 +136,7 @@ def use(preset: str, folder: Path = BRAND) -> None:
 def file(rel: str, folder: Path = BRAND) -> Path | None:
     """A picture of the branding by its path in `folder`, for the app to show; None for anything else."""
     parts = Path(rel).parts
-    if not parts or len(parts) > 2 or any(p in ("", ".", "..") or p.startswith(".") for p in parts):
+    if not parts or len(parts) > 2 or Path(rel).is_absolute() or any(p in ("", ".", "..") or p.startswith((".", "/", "\\")) for p in parts):
         return None
     path = folder.joinpath(*parts)
-    return path if path.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp") and path.is_file() else None
+    return path if path.suffix.lower() in PICTURES and path.is_file() and path.resolve().is_relative_to(folder.resolve()) else None

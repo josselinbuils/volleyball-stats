@@ -101,6 +101,8 @@ def serving(root: Path, code: str, host: str = "0.0.0.0", port: int = PORT) -> T
     """The waiting side's server for `root`, not started."""
     hashes: dict[str, tuple[int, float, str]] = {}
     wrong = [0]
+    # The app shows the copy once the other machine is in (`app.videos_state`).
+    joined = [False]
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_) -> None:
@@ -115,6 +117,9 @@ def serving(root: Path, code: str, host: str = "0.0.0.0", port: int = PORT) -> T
 
         def allowed(self) -> bool:
             if secrets.compare_digest(self.headers.get("X-Code", ""), code):
+                if not joined[0]:
+                    joined[0] = True
+                    print("::stage copying", flush=True)
                 return True
             wrong[0] += 1
             self.reply(403)

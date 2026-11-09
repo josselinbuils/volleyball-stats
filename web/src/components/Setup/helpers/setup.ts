@@ -41,8 +41,12 @@ export interface Preparing {
   job: Job | null;
   start: boolean;
   court: boolean;
-  state: 'importing' | 'court' | 'check' | 'running' | 'failed' | 'elsewhere';
+  state: 'importing' | 'court' | 'check' | 'running' | 'failed' | 'elsewhere' | 'stalled';
+  /** The court being found among the known gyms; `placing`, from the clicks. */
   searching?: boolean;
+  placing?: boolean;
+  /** The clicks gave no court. */
+  fitFailed?: boolean;
   left?: number | null;
 }
 
@@ -50,6 +54,8 @@ export interface VideosJob extends Job {
   address: string | null;
   port: number | null;
   code: string | null;
+  /** The other machine came in: the copy runs. */
+  copying: boolean;
 }
 
 export interface AppState {
@@ -63,6 +69,8 @@ export interface Source {
   path: string;
   name: string;
   card: boolean;
+  /** Under WSL2, a Windows drive to mount before reading it. */
+  drive?: string;
 }
 
 export interface Recording {
@@ -119,4 +127,24 @@ export function parseTime(text: string): number | null {
 /** Whether a team's name can be imported: the command line separates the teams with "," and the colour with ":". */
 export function validName(name: string): boolean {
   return /^[^,:]+$/.test(name.trim());
+}
+
+/** The text key and values saying why an import or a scan was refused (app.py's errors). */
+export function importError(error: string | undefined): [string, Record<string, string>] {
+  if (error?.startsWith('unreadable:')) {
+    return ['app.import.unreadable', { name: error.slice('unreadable:'.length) }];
+  }
+  if (error?.startsWith('disk:')) {
+    return ['app.import.disk', { gb: error.slice('disk:'.length) }];
+  }
+  const known: Record<string, string> = {
+    missing: 'app.import.noFolder',
+    empty: 'app.import.noVideo',
+    exists: 'app.import.exists',
+    times: 'app.import.badTimes',
+    running: 'app.import.running',
+    mount: 'app.import.mountFailed',
+    network: 'app.noAnswer',
+  };
+  return error && known[error] ? [known[error], {}] : ['app.import.failed', { error: error ?? '' }];
 }

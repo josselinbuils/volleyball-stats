@@ -22,6 +22,7 @@ export function CourtDialog({ match, onClose }: { match: string; onClose: (place
   // Each landmark in order: its place in the picture's pixels, or null when hidden.
   const [done, setDone] = useState<([number, number] | null)[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [unreadable, setUnreadable] = useState(false);
   const [lens, setLens] = useState<{ x: number; y: number } | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState(false);
@@ -80,12 +81,13 @@ export function CourtDialog({ match, onClose }: { match: string; onClose: (place
           </div>
         </div>
         <div className="relative">
-          {!loaded && <p className="py-12 text-center text-muted-foreground">{t('app.court.loading')}</p>}
+          {!loaded && <p className={cn('py-12 text-center', unreadable ? 'text-destructive' : 'text-muted-foreground')}>{t(unreadable ? 'app.court.noPicture' : 'app.court.loading')}</p>}
           <img
             ref={image}
             src={imageUrl(match, 'background')}
             alt={t('app.court.picture')}
             onLoad={() => setLoaded(true)}
+            onError={() => setUnreadable(true)}
             onClick={place}
             onMouseMove={(e) => {
               const box = e.currentTarget.getBoundingClientRect();

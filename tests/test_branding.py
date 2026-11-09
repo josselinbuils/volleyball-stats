@@ -67,3 +67,10 @@ class TestBranding:
         branding.save({"name": "Club", "accent": "#e30613", "header": "#111111", "logo": self.png()}, tmp_path / "brand")
         shown = web.brand(web.CLUB, tmp_path / "site")
         assert shown["name"] == "Club" and (tmp_path / "site" / shown["logo"]).exists()
+
+    def test_refuses_its_own_files_as_pictures(self, tmp_path):
+        folder = tmp_path / "brand"
+        branding.save({"name": "Club", "accent": "#e30613", "header": "#111111"}, folder)
+        with pytest.raises(ValueError):
+            branding.save({"name": "Club", "accent": "#e30613", "header": "#111111", "logo": "brand.json"}, folder)
+        assert branding.file("/etc/x.png", folder) is None

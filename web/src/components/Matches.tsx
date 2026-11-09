@@ -33,7 +33,7 @@ export interface ListedMatch {
   /** In the review: only on the server, to download. */
   remote?: boolean;
   /** In the review: its video is not on this machine. */
-  missing?: 'video';
+  missing?: 'video' | 'court';
 }
 
 export interface MatchList {
@@ -189,7 +189,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
                           scores.length > 0 && scores.join(' · '),
                           opening === m.path && t(m.remote ? 'matches.pulling' : 'matches.opening'),
                           review && opening !== m.path && m.remote && t('matches.toPull'),
-                          review && m.missing === 'video' && t('matches.noVideo'),
+                          review && m.missing && t(m.missing === 'video' ? 'matches.noVideo' : 'matches.noCourt'),
                         ]
                           .filter(Boolean)
                           .join(' · ')}
