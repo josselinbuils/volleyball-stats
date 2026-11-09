@@ -96,7 +96,9 @@ export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Mom
         ))}
         {pauses.length > 0 && (
           <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-3 border-l-2 border-dashed border-foreground/60" />
+            <svg aria-hidden viewBox="0 0 2 12" className="h-3 w-0.5 overflow-visible">
+              <line x1="1" x2="1" y1="0" y2="12" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2" />
+            </svg>
             {t('timeout')}
           </span>
         )}
