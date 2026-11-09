@@ -75,10 +75,11 @@ shortcut=""
 if [ "$(uname -s)" = Darwin ] && [ -d "$HOME/Desktop" ]; then
   cp "$launcher" "$HOME/Desktop/Volleyball Stats.command"
   shortcut=yes
-elif [ -n "$WSL_DISTRO_NAME" ] && command -v cmd.exe >/dev/null 2>&1; then
-  profile=$(cd /mnt/c 2>/dev/null && cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null </dev/null | tr -d '\r')
-  desktop=$(wslpath "$profile" 2>/dev/null)/Desktop
-  if [ -n "$profile" ] && [ -d "$desktop" ]; then
+elif [ -n "$WSL_DISTRO_NAME" ] && command -v powershell.exe >/dev/null 2>&1; then
+  # The desktop Windows shows, which OneDrive often moves out of the user's folder.
+  windows=$(cd /mnt/c 2>/dev/null && powershell.exe -NoProfile -Command "[Environment]::GetFolderPath('Desktop')" 2>/dev/null </dev/null | tr -d '\r')
+  desktop=$(wslpath "$windows" 2>/dev/null || true)
+  if [ -n "$windows" ] && [ -n "$desktop" ] && [ -d "$desktop" ]; then
     printf '@echo off\r\nwsl.exe -d %s -- "%s"\r\n' "$WSL_DISTRO_NAME" "$launcher" >"$desktop/Volleyball Stats.bat"
     shortcut=yes
   fi
