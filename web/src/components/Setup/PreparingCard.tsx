@@ -6,7 +6,8 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFormat } from '@/lib/format';
 import { CourtDialog } from './CourtDialog';
-import { call, imageUrl, teamNames, type Check, type Preparing } from './helpers/setup';
+import { call } from '@/lib/app';
+import { imageUrl, teamNames, type Check, type Preparing } from './helpers/setup';
 
 /** A match on its way to the review: the copy, the court, a look at both before the analysis, the analysis, or why it
  * stopped. */

@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
+import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, Palette, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -9,6 +9,7 @@ import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import { review, type Backup, type FilmCounts, type Hosted } from '@/lib/review';
+import { BrandDialog } from '@/components/BrandDialog';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { Tip } from '@/components/Tip';
 
@@ -192,6 +193,7 @@ export function ReviewHeader({
   }
   // The menu's groups: the match's end on the Match tab, the uploads and films, the copies.
   const shared = !!hosted || films.players.total > 0 || films.highlights.total > 0;
+  const [branding, setBranding] = useState(false);
   return (
     <header className="grid gap-1.5 px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -211,70 +213,73 @@ export function ReviewHeader({
               <Undo2 aria-hidden />
             </Button>
           </Tip>
-          {(end || shared || backup) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Tip label={t('review.more')}>
-                  <Button variant="ghost" size="icon" aria-label={t('review.more')} disabled={busy !== null}>
-                    <Ellipsis aria-hidden />
-                  </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Tip label={t('review.more')}>
+                <Button variant="ghost" size="icon" aria-label={t('review.more')} disabled={busy !== null}>
+                  <Ellipsis aria-hidden />
+                </Button>
+              </Tip>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {end && (
+                <>
+                  <MatchEndItem at={end.at} onEnd={end.onEnd} />
+                  {review?.matchEnd && (
+                    <DropdownMenuItem onSelect={() => end.onEnd('')}>
+                      <Undo2 aria-hidden />
+                      {t('review.matchEndRemove', { time: review.matchEnd })}
+                    </DropdownMenuItem>
+                  )}
+                  {shared && <DropdownMenuSeparator />}
+                </>
+              )}
+              {hosted && (
+                <Tip label={t('review.fetchNote')}>
+                  <DropdownMenuItem onSelect={() => run('reports')}>
+                    <CloudDownload aria-hidden />
+                    {t('review.fetch')}
+                  </DropdownMenuItem>
                 </Tip>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {end && (
-                  <>
-                    <MatchEndItem at={end.at} onEnd={end.onEnd} />
-                    {review?.matchEnd && (
-                      <DropdownMenuItem onSelect={() => end.onEnd('')}>
-                        <Undo2 aria-hidden />
-                        {t('review.matchEndRemove', { time: review.matchEnd })}
-                      </DropdownMenuItem>
-                    )}
-                    {shared && <DropdownMenuSeparator />}
-                  </>
-                )}
-                {hosted && (
-                  <Tip label={t('review.fetchNote')}>
-                    <DropdownMenuItem onSelect={() => run('reports')}>
-                      <CloudDownload aria-hidden />
-                      {t('review.fetch')}
-                    </DropdownMenuItem>
-                  </Tip>
-                )}
-                {hosted?.chosen && (
-                  <DropdownMenuItem onSelect={() => run('hostAll')}>
-                    <CloudUpload aria-hidden />
-                    {t('review.hostAll')}
+              )}
+              {hosted?.chosen && (
+                <DropdownMenuItem onSelect={() => run('hostAll')}>
+                  <CloudUpload aria-hidden />
+                  {t('review.hostAll')}
+                </DropdownMenuItem>
+              )}
+              {films.players.total > 0 && (
+                <DropdownMenuItem disabled={!films.players.stale.length} onSelect={() => run('films')}>
+                  <Clapperboard aria-hidden />
+                  {films.players.stale.length ? t('review.films', { count: films.players.stale.length }) : t('review.filmsDone')}
+                </DropdownMenuItem>
+              )}
+              {films.highlights.total > 0 && (
+                <DropdownMenuItem disabled={!films.highlights.stale.length} onSelect={() => run('highlights')}>
+                  <Sparkles aria-hidden />
+                  {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
+                </DropdownMenuItem>
+              )}
+              {(end || shared) && <DropdownMenuSeparator />}
+              <DropdownMenuItem onSelect={() => setBranding(true)}>
+                <Palette aria-hidden />
+                {t('app.brand.open')}
+              </DropdownMenuItem>
+              {backup && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={backingUp} onSelect={onBackup}>
+                    <DatabaseBackup aria-hidden />
+                    {t('review.backUp')}
                   </DropdownMenuItem>
-                )}
-                {films.players.total > 0 && (
-                  <DropdownMenuItem disabled={!films.players.stale.length} onSelect={() => run('films')}>
-                    <Clapperboard aria-hidden />
-                    {films.players.stale.length ? t('review.films', { count: films.players.stale.length }) : t('review.filmsDone')}
-                  </DropdownMenuItem>
-                )}
-                {films.highlights.total > 0 && (
-                  <DropdownMenuItem disabled={!films.highlights.stale.length} onSelect={() => run('highlights')}>
-                    <Sparkles aria-hidden />
-                    {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
-                  </DropdownMenuItem>
-                )}
-                {backup && (
-                  <>
-                    {(end || shared) && <DropdownMenuSeparator />}
-                    <DropdownMenuItem disabled={backingUp} onSelect={onBackup}>
-                      <DatabaseBackup aria-hidden />
-                      {t('review.backUp')}
-                    </DropdownMenuItem>
-                    <DropdownMenuCheckboxItem checked={backup.auto} onCheckedChange={(on) => onAutoBackup?.(on === true)}>
-                      <History aria-hidden />
-                      {t('review.autoBackup')}
-                    </DropdownMenuCheckboxItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+                  <DropdownMenuCheckboxItem checked={backup.auto} onCheckedChange={(on) => onAutoBackup?.(on === true)}>
+                    <History aria-hidden />
+                    {t('review.autoBackup')}
+                  </DropdownMenuCheckboxItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {toApply || busy === 'apply' ? (
             <Button disabled={busy !== null} onClick={() => run('apply')}>
               <Check aria-hidden />
@@ -313,6 +318,7 @@ export function ReviewHeader({
           onCancel={() => setChoosing(false)}
         />
       )}
+      {branding && <BrandDialog onClose={() => setBranding(false)} />}
     </header>
   );
 }

@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { INPUT, LANDMARKS, MIN_CLICKS, call, imageUrl, nextLandmark } from './helpers/setup';
+import { INPUT, call } from '@/lib/app';
+import { LANDMARKS, MIN_CLICKS, imageUrl, nextLandmark } from './helpers/setup';
 
 // The magnifier: its radius in screen pixels and how much it enlarges the picture as shown.
 const LENS = 70;

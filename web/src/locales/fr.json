@@ -1316,6 +1316,27 @@
         "ok": "Disponible.",
         "busy": "Occupé (charge {{load}} sur {{cores}} cœurs) : une analyse serait plus lente."
       }
+    },
+    "brand": {
+      "open": "Habillage du club",
+      "title": "Habillage du club",
+      "intro": "Le même sur la liste, la vérification et les pages des matchs.",
+      "from": "Partir de :",
+      "none": "Aucun habillage",
+      "name": "Nom du club",
+      "url": "Site du club",
+      "logo": "Logo",
+      "changePicture": "Changer",
+      "removePicture": "Retirer l'image",
+      "accent": "Couleur principale",
+      "header": "Bandeau",
+      "sponsors": "Sponsors (panneaux de la vue 3D)",
+      "sponsorName": "Nom",
+      "sponsorLogo": "Logo",
+      "board": "Couleur du panneau",
+      "removeSponsor": "Retirer ce sponsor",
+      "addSponsor": "Ajouter un sponsor",
+      "save": "Enregistrer"
     }
   }
 }

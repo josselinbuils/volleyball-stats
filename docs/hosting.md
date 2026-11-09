@@ -103,5 +103,6 @@ run would delete another match's page. The mirror brings the films too: a match 
 machine, not pulled since) takes those online, names from the page (`matches.adopt_films`), so its rebuild keeps them; an upload
 that would still delete them refuses (the upload of 8 Nov from the PC took them offline).
 
-Sponsors live in `branding/aspom/sponsors/`, git-ignored: brands stay off GitHub, the
-hosted page's build reads them from this machine.
+The club's branding, sponsors included, is the app's "Habillage du club" (`branding.py`), in `outputs/brand/`: off
+GitHub, each machine its own (set the other one alike, e.g. from the same theme). The hosted pages' build reads it
+from this machine.

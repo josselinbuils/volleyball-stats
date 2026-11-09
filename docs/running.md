@@ -9,6 +9,8 @@
   while a job or an apply runs). The long ones are jobs (`jobs.py`): a process of their own in a new session, their
   record and log in `outputs/jobs/`, so they outlive the server's restarts; `match` prints `::progress` while tracking.
   A match being prepared shows above the list until its `report.md` exists. A second start only opens the page.
+  "Habillage du club" (on the list and in the review's "..." menu, `branding.py`) edits the one branding every page
+  shows; saved from a review, that match's pages are rebuilt at once, the others at their next build.
 - Every `python -m volleyball_stats.X` command fetches in the background and warns when the branch is behind its remote
   (`git_check.py`; once per command, not in the ones it starts). The review and its list say it too, with "Mettre à
   jour" (`/app/update`).

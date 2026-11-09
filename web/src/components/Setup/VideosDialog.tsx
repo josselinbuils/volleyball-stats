@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { INPUT, call, type AppState, type VideosJob } from './helpers/setup';
+import { INPUT, call } from '@/lib/app';
+import { type AppState, type VideosJob } from './helpers/setup';
 
 /** The videos copied straight between this machine and the other one on the same network (data_sync.py): one waits and
  * shows an address and a code, the other types them. Each gets the videos only the other has. */

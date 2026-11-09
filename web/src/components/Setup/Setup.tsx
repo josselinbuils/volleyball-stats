@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Download, FolderInput, Stethoscope, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, Download, FolderInput, Palette, Stethoscope, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { BrandDialog } from '@/components/BrandDialog';
 import { Doctor, checkText } from './Doctor';
 import { ImportDialog } from './ImportDialog';
 import { PreparingCard } from './PreparingCard';
 import { VideosDialog } from './VideosDialog';
-import { call, type AppState, type Check } from './helpers/setup';
+import { call } from '@/lib/app';
+import { type AppState, type Check } from './helpers/setup';
 
 // Polled faster while something runs.
 const BUSY_MS = 3000;
@@ -19,7 +21,7 @@ export function Setup() {
   const { t } = useTranslation();
   const [state, setState] = useState<AppState | null>(null);
   const [checks, setChecks] = useState<Check[] | null>(null);
-  const [dialog, setDialog] = useState<'import' | 'doctor' | 'videos' | null>(null);
+  const [dialog, setDialog] = useState<'import' | 'doctor' | 'videos' | 'brand' | null>(null);
   const refresh = useCallback(async () => {
     try {
       const found = await call<AppState>('state');
@@ -96,6 +98,10 @@ export function Setup() {
           <ArrowLeftRight aria-hidden />
           {t('app.videos.open')}
         </Button>
+        <Button variant="outline" className="bg-card" onClick={() => setDialog('brand')}>
+          <Palette aria-hidden />
+          {t('app.brand.open')}
+        </Button>
         <Button variant="outline" className="bg-card" onClick={() => setDialog('doctor')}>
           <Stethoscope aria-hidden />
           {t('app.doctor.open')}
@@ -123,6 +129,7 @@ export function Setup() {
           }}
         />
       )}
+      {dialog === 'brand' && <BrandDialog onClose={() => setDialog(null)} />}
       {dialog === 'doctor' && <Doctor checks={checks} onRecheck={recheck} onClose={() => setDialog(null)} />}
       {dialog === 'videos' && state && <VideosDialog job={state.videos} system={state.system} onChange={refresh} onClose={() => setDialog(null)} />}
     </section>

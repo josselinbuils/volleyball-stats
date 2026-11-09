@@ -207,9 +207,12 @@ is described in [The match page](match-page.md).
   copy is kept beside the outputs.
 - **`--pictures`** puts your team's players' pictures on their cards. Without it, the cards show a
   silhouette.
-- **`--theme`** picks a club theme, `branding/NAME/brand.json` with its logo (default `aspom`, `none`
-  for the neutral one; see [`branding/brand.example.json`](../branding/brand.example.json)): logo and
-  club name in a band at the top linking to `url`, accent colours, page and card styles per colour scheme.
+- **`--theme`** picks the club's branding: by default `club`, the app's "Habillage du club" (`outputs/brand/`,
+  none until set; the list, the review and the match pages share it), else a theme of `branding/NAME/brand.json`
+  with its logo, or `none` (see [`branding/brand.example.json`](../branding/brand.example.json)): logo and club name
+  in a band at the top linking to `url`, accent colours, page and card styles per colour scheme, the sponsors on the
+  3D view's boards. The app edits the name, site, logo, two colours (the others follow) and sponsors, or starts from a
+  theme of `branding/`.
 - **Choices are saved** in `outputs/matches/VIDEO/page.json`: rebuild with only the flag to change
   (`--no-pictures`, `--footage none`...). A build with `--out` (to host) neither reads nor saves
   them: no video nor pictures unless its own flags ask.

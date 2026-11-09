@@ -2167,6 +2167,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
         return steps
 
+    def rebrand() -> None:
+        """The pages rebuilt with the club's new branding, before the page reloads."""
+        with lock:
+            run_steps(pages())
+
     def afterwards() -> None:
         """What an apply leaves for later, one run at a time, once more when asked during one: the
         players' pictures, kept on the page if no build came since, then the numbers they read."""
@@ -2379,7 +2384,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
             if self.path.startswith("/app/"):
-                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress)) or (b"Not found", "text/plain", 404)
+                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), rebrand) or (b"Not found", "text/plain", 404)
                 self.send(*answer)
                 if self.path == "/app/update" and answer[2] == 200:
                     app.restart_after(lock)
@@ -2702,7 +2707,7 @@ def main() -> None:
     parser.add_argument("--video", type=Path, help="Default: the match's source.json")
     parser.add_argument("--court", type=Path, help="Court calibration JSON the match was run with. Default: the match's source.json")
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2")
-    parser.add_argument("--theme", default="aspom", help="Club theme of the match page (web.py)")
+    parser.add_argument("--theme", default=web.CLUB, help="Club theme of the pages (web.py): the app's by default")
     parser.add_argument("--roster", type=Path, default=ROSTER, help=f"The club's named players across matches (default: {ROSTER})")
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-browser", action="store_true", help="Do not open the page in the browser")

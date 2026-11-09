@@ -1316,6 +1316,27 @@
         "ok": "Available.",
         "busy": "Busy (load {{load}} on {{cores}} cores): an analysis would be slower."
       }
+    },
+    "brand": {
+      "open": "Club branding",
+      "title": "Club branding",
+      "intro": "The same on the list, the review and the match pages.",
+      "from": "Start from:",
+      "none": "No branding",
+      "name": "Club name",
+      "url": "Club website",
+      "logo": "Logo",
+      "changePicture": "Change",
+      "removePicture": "Remove the picture",
+      "accent": "Main colour",
+      "header": "Header",
+      "sponsors": "Sponsors (boards of the 3D view)",
+      "sponsorName": "Name",
+      "sponsorLogo": "Logo",
+      "board": "Board colour",
+      "removeSponsor": "Remove this sponsor",
+      "addSponsor": "Add a sponsor",
+      "save": "Save"
     }
   }
 }

@@ -30,8 +30,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import files, video_copies, web
-from volleyball_stats.web import BRANDING, brand
+from volleyball_stats import branding, files, video_copies, web
+from volleyball_stats.web import BRANDING, CLUB, brand
 
 TEMPLATE = Path(__file__).with_name("matches_site")
 APP_JS = "app.js"
@@ -198,7 +198,7 @@ def share_match(folder: Path, url: str) -> None:
     share(folder, url, title, description, match_card(data, logo), club.get("name"))
 
 
-def build(site: Path, theme: str = "aspom", url: str | None = None) -> list[dict]:
+def build(site: Path, theme: str = CLUB, url: str | None = None) -> list[dict]:
     """SITE/index.html and matches.js listing SITE/*/'s match pages, tagged for link previews at `url`, the
     list's address, when given (`share`), a page whose address changed still found at its old one (`write_redirects`), the site's
     text files compressed (`compress`); returns them."""
@@ -316,10 +316,13 @@ def imported(match: Path, video: Path) -> bool:
 
 
 def club_team(match: Path, theme: str) -> int:
-    """The team of the `theme` club: the first if both or neither are."""
+    """The team of the `theme` club, its name's first word for the app's (CLUB): the first if both or neither are."""
     path = match / "teams.json"
     names = [team["name"] or "" for team in json.loads(path.read_text())["teams"]] if path.exists() else []
-    return next((k for k, name in enumerate(names, 1) if slug(name).startswith(slug(theme))), 1)
+    if theme == CLUB:
+        club = branding.read()
+        theme = (club["name"].split() or [""])[0] if club else ""
+    return next((k for k, name in enumerate(names, 1) if theme and slug(name).startswith(slug(theme))), 1)
 
 
 def ensure_publish(match: Path, video: Path, theme: str) -> None:
@@ -554,7 +557,7 @@ def main() -> None:
     parser.add_argument("--all", type=Path, help="Rebuild every match of this folder whose page is online (outputs/matches), then upload them at once")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--court", type=Path)
-    parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
+    parser.add_argument("--theme", default=CLUB, help=f"Club theme: {CLUB} (the app's), one of branding/NAME/brand.json ({', '.join(themes)}) or none (default: {CLUB})")
     parser.add_argument("--url", help="The list's address, to tag the pages for link previews")
     args = parser.parse_args()
     from volleyball_stats import sync

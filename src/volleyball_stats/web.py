@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, defense, files, framing, jumps, timeouts
+from volleyball_stats import branding, decode, defense, files, framing, jumps, timeouts
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -46,6 +46,8 @@ from volleyball_stats.teams import match_end, parse_colour, parse_date, recordin
 
 TEMPLATE = Path(__file__).with_name("site")
 BRANDING = Path("branding")
+# The club's own branding, edited in the app (branding.py): the default theme.
+CLUB = "club"
 # Player positions are kept every STEP_S seconds over the whole video, to the centimetre.
 STEP_S = 0.1
 # A player is on the court with their feet within SERVE_M behind an end line (serving) and SIDE_M
@@ -465,13 +467,14 @@ def read_teams(match: Path) -> dict | None:
 def brand(name: str, site: Path) -> dict | None:
     """The club theme branding/NAME/brand.json with its logo copied into the site, and its sponsors from
     branding/NAME/sponsors/sponsors.json (git-ignored: brands stay off the repository) with their
-    pictures inlined (the 3D view paints them, which a file:// page cannot do from a file); None for `none`."""
-    if name == "none":
+    pictures inlined (the 3D view paints them, which a file:// page cannot do from a file); None for `none`. CLUB is the
+    app's (branding.BRAND), none until it has one."""
+    if name == "none" or (name == CLUB and not (branding.BRAND / "brand.json").exists()):
         return None
-    path = BRANDING / name / "brand.json"
+    path = branding.BRAND / "brand.json" if name == CLUB else BRANDING / name / "brand.json"
     if not path.exists():
         themes = sorted(p.parent.name for p in BRANDING.glob("*/brand.json"))
-        raise SystemExit(f"Unknown theme {name!r}: available themes are {', '.join(themes + ['none'])}")
+        raise SystemExit(f"Unknown theme {name!r}: available themes are {', '.join([CLUB, *themes, 'none'])}")
     data = json.loads(path.read_text())
     if data.get("logo"):
         (site / "brand").mkdir(parents=True, exist_ok=True)
@@ -1574,7 +1577,7 @@ def build(
     court: Path,
     site: Path,
     copy: bool = False,
-    theme: str = "aspom",
+    theme: str = CLUB,
     footage: str = "none",
     club: int | str | None = None,
     pictured: set[int] = frozenset(),
@@ -1617,7 +1620,7 @@ def build(
     return data
 
 
-def review_page(match: Path, video: Path, court: Path, theme: str = "aspom", pictures: bool = True) -> dict:
+def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictures: bool = True) -> dict:
     """The review's own page in MATCH/review/, with the video and every picture: the published one
     stays as it was built. Without `pictures`, each player keeps their last one (`refresh_photos`)."""
     return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True)
@@ -1696,7 +1699,7 @@ def main() -> None:
     parser.add_argument("--small-video", type=Path, help="A 720p H.264 copy of --video on its timeline that the page plays while its player is small (not full screen, no zoom on the ball)")
     parser.add_argument("--feedback", help="Where viewers report what is wrong in a moment (e.g. /volleyball/feedback, the hosting's nginx keeps them); none asks nothing")
     parser.add_argument("--video-page", help="On a page without the video, a link to the same page with it, behind a password (e.g. video/)")
-    parser.add_argument("--theme", default="aspom", help=f"Club theme from branding/NAME/brand.json: {', '.join(themes + ['none'])} (default: aspom)")
+    parser.add_argument("--theme", default=CLUB, help=f"Club theme: {CLUB} (the app's), one of branding/NAME/brand.json ({', '.join(themes)}) or none (default: {CLUB})")
     args = parser.parse_args()
     try:
         data, settings = publish(args.match, args.video, args.court, args.theme, {"footage": args.footage, "club": args.club, "pictures": args.pictures, "copy": args.copy_video, "light": args.light_video and str(args.light_video), "av1": args.av1_video and str(args.av1_video), "small": args.small_video and str(args.small_video), "link": args.video_page, "feedback": args.feedback}, args.out)

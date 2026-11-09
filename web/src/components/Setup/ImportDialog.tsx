@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { INPUT, call, parseTime, validName, type Recording, type Source } from './helpers/setup';
+import { INPUT, call } from '@/lib/app';
+import { parseTime, validName, type Recording, type Source } from './helpers/setup';
 
 interface TeamField {
   name: string;

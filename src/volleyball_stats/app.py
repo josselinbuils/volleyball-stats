@@ -21,7 +21,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import doctor, files, git_check, jobs
+from volleyball_stats import branding, doctor, files, git_check, jobs
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -299,9 +299,9 @@ def state(listed: list[dict]) -> dict:
     return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system()}
 
 
-def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False) -> tuple[bytes, str, int] | None:
+def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False, rebranded=lambda: None) -> tuple[bytes, str, int] | None:
     """The response to an /app/ request; None when `path` is not one. `listed` gives the review's list of the matches,
-    `busy` whether the server is applying answers (no update then)."""
+    `busy` whether the server is applying answers (no update then), `rebranded` is told the branding changed."""
     if not path.startswith("/app/"):
         return None
     reply = lambda data, status=200: (json.dumps(data, ensure_ascii=False).encode(), "application/json", status)  # noqa: E731
@@ -314,6 +314,13 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply(doctor.checks(DATA.parent))
             if route == "sources":
                 return reply(sources())
+            if route == "brand":
+                return reply({"brand": branding.read(), "presets": branding.presets()})
+            if route == "brand/file":
+                found = branding.file(parse_qs(query).get("path", [""])[0])
+                if not found:
+                    return reply({"error": "missing"}, 404)
+                return found.read_bytes(), {".png": "image/png", ".webp": "image/webp"}.get(found.suffix.lower(), "image/jpeg"), 200
             if route == "image":
                 q = parse_qs(query)
                 file, kind = IMAGES[q["kind"][0]]
@@ -342,6 +349,13 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "court/fit":
             fit_court(name, body["clicks"], str(body["court"]))
             return reply({})
+        if route in ("brand", "brand/preset"):
+            if route == "brand":
+                branding.save(body)
+            else:
+                branding.use(str(body["id"]))
+            rebranded()
+            return reply({"brand": branding.read()})
         if route == "swap":
             swap(name)
             return reply({})

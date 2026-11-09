@@ -612,7 +612,7 @@ class TestSettle:
 class TestBrand:
     def test_copies_a_themes_logo_into_the_site_shrunk_and_lists_the_themes_for_an_unknown_name(self, tmp_path, monkeypatch):
         monkeypatch.setattr(web, "BRANDING", tmp_path / "branding")
-        theme = tmp_path / "branding" / "club"
+        theme = tmp_path / "branding" / "myclub"
         theme.mkdir(parents=True)
         cv2.imwrite(str(theme / "logo.png"), np.zeros((500, 400, 4), np.uint8))
         (theme / "sponsors").mkdir()
@@ -620,7 +620,7 @@ class TestBrand:
         (theme / "sponsors" / "sponsors.json").write_text('[{"name": "Shop", "logo": "sponsor.png"}, {"name": "Bakery"}]')
         (theme / "brand.json").write_text('{"name": "Club", "logo": "logo.png", "light": {}, "dark": {}}')
 
-        data = brand("club", tmp_path / "site")
+        data = brand("myclub", tmp_path / "site")
 
         assert data["logo"] == "brand/logo.webp"
         assert cv2.imread(str(tmp_path / "site" / "brand" / "logo.webp"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
