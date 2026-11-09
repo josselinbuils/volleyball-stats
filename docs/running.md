@@ -2,6 +2,8 @@
 
 ## A match
 
+- Every `python -m volleyball_stats.X` command fetches in the background and warns when the branch is behind its remote
+  (`git_check.py`; once per command, not in the ones it starts).
 - The videos from the other machine, both on the same network: `uv run python -m volleyball_stats.data_sync` on the Mac (it
   waits and shows a command with a code), that command on the PC. Each gets what only the other has; a cut copy resumes. The
   results come through the review's list ("À télécharger") or `sync pull` ([hosting.md](hosting.md)).
