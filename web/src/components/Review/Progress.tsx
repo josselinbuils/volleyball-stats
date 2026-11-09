@@ -1,7 +1,9 @@
 import { Fragment, useState } from 'react';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { compared } from '@/components/Review/helpers/comparison';
+import { Tip } from '@/components/Tip';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFormat } from '@/lib/format';
 import type { Comparison, LearnRun } from '@/lib/review';
@@ -54,22 +56,37 @@ const PAD = 6;
 
 /** The last run against the results it replaced, then in a history each step's share right on the
  * answers of all the matches over the analysis runs (learn.json, each counting every match so far):
- * the last run, its change since the one before and a curve of every run, then a table of all of them. */
-export function Progress({ runs, comparison }: { runs: LearnRun[]; comparison: Comparison | null }) {
+ * the last run, its change since the one before and a curve of every run, then a table of all of them;
+ * above them the button making a new run (`onLearn`), `reviewed` saying it leaves the match as it is. */
+export function Progress({ runs, comparison, reviewed, busy, onLearn }: { runs: LearnRun[]; comparison: Comparison | null; reviewed: boolean; busy: boolean; onLearn: () => void }) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
   const stamp = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   // learn.json's local time, yyyy-mm-dd hh:mm.
   const when = (run: LearnRun) => stamp.format(new Date(run.time.replace(' ', 'T')));
 
+  const learn = (
+    <Tip label={t(reviewed ? 'review.rerunNoteReviewed' : 'review.rerunNote')}>
+      <Button variant="outline" className="justify-self-start bg-card" disabled={busy} onClick={() => window.confirm(t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm')) && onLearn()}>
+        <RefreshCw aria-hidden />
+        {t('review.rerun')}
+      </Button>
+    </Tip>
+  );
   if (!runs.length) {
-    return <p className="rounded-lg border bg-card px-4 py-3 text-muted-foreground">{t('review.progress.none')}</p>;
+    return (
+      <div className="grid gap-6">
+        {learn}
+        <p className="m-0 rounded-lg border bg-card px-4 py-3 text-muted-foreground">{t('review.progress.none')}</p>
+      </div>
+    );
   }
   const last = runs[runs.length - 1];
   const checked = last.scores['checked: rallies']?.[0];
   const matches = new Set(runs.map((r) => r.match)).size;
   return (
     <div className="grid gap-6">
+      {learn}
       <p className="m-0 px-1 text-sm text-muted-foreground">
         {t('review.progress.runs', { count: runs.length, last: when(last), commit: last.commit })}
         {checked ? ` ${t('review.progress.checked', { count: checked })}` : ''}

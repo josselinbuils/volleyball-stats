@@ -59,3 +59,6 @@ The pipeline's weak spots and what is left to do, most useful first.
 13. Done (8 Nov): two machines. Any machine works on any match: the review opens on the server's newer copy, asks which to keep
     when both changed, and refuses a copy or an upload over a newer one (`sync.py`), the list downloads the matches only on the server, uploads keep the other machine's pages
     (`matches.mirror`, a dry run's guard), the videos go straight between the machines (`data_sync.py`). [hosting.md](hosting.md).
+14. For later (the owner's, 9 Nov): the review's Match tab saves in four ways: touches, winner, join, end, wrong call and replay
+    wait for "Valider"; stars, timeouts and "Supprimer" at once; comments on leaving the field; the match's end with an apply.
+    Saving every edit at once, "Valider" only checking, would end the corrections not saved (a guard asks before losing them now).

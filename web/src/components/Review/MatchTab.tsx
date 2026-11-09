@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Maximize, Minimize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,8 @@ export function MatchTab({
   onSaveUnchecked,
   onUncheck,
   onHandled,
-  onEnd,
+  timeRef: clipTime,
+  onUnsaved,
 }: {
   width: number;
   height: number;
@@ -57,10 +58,12 @@ export function MatchTab({
   onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<void>;
   onUncheck: (rally: number) => Promise<void>;
   onHandled: (report: Question, changes: ReportChanges) => Promise<void>;
-  onEnd: (time: string) => void;
+  /** Where the video stands, to the frame. */
+  timeRef: RefObject<number>;
+  /** How many rallies have corrections not saved yet. */
+  onUnsaved: (count: number) => void;
 }) {
   const { t } = useTranslation();
-  const clipTime = useRef(0);
   const [now, setNow] = useState(0);
   const [seek, setSeek] = useState<{ time: number; n: number; play?: boolean }>();
   const [caption, setCaption] = useState<{ team: Group; text: string } | null>(null);
@@ -84,6 +87,10 @@ export function MatchTab({
   // Checked, with no report open on it nor corrections not saved since.
   const open = new Set(live.map((q) => q.rally));
   const [unsaved, setUnsaved] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    onUnsaved(unsaved.size);
+  }, [unsaved]);
+  useEffect(() => () => onUnsaved(0), []);
   const green = new Set(checked.filter((k) => !open.has(k) && !unsaved.has(k)));
   const warned = new Set(found.warned);
   // The automatic reports the editor's warnings do not already show.
@@ -145,7 +152,6 @@ export function MatchTab({
           <ReportEditor
             key={round}
             place={listPlace}
-            onEnd={onEnd}
             onWarnings={setFound}
             onUnsaved={(keys) => setUnsaved(new Set(keys))}
             reports={seen}

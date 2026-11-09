@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, HelpCircle, PenLine, Scissors, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, PenLine, Scissors, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BrandBar } from '@/components/BrandBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
+import { Tip } from '@/components/Tip';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import {
@@ -45,7 +46,7 @@ import { matchFinished } from '@/components/Review/helpers/report';
 import { ReviewHeader } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
 
-/** One answer per key: 1, 2 the choices, 3 someone else, X not a player, S don't know. */
+/** One answer per key: X not a player, C cut, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
 const NOTICE_MS = 4000;
 const ELSEWHERE_EVERY_MS = 60_000;
@@ -177,7 +178,35 @@ export function Review({
   const open = questions.filter((q) => q.kind !== 'report' && !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
   const question = open[0];
   const reports = questions.filter((q) => q.kind === 'report');
+  // Rallies whose corrections are not saved: a reload or leaving the Match tab loses them.
+  const [unsaved, setUnsaved] = useState(0);
+  // Losing them was agreed to: the page may go.
+  const leaving = useRef(false);
+  const mayLeave = () => {
+    if (unsaved && !window.confirm(t('review.unsaved'))) {
+      return false;
+    }
+    leaving.current = true;
+    return true;
+  };
+  useEffect(() => {
+    if (!unsaved) {
+      return;
+    }
+    const onLeave = (event: BeforeUnloadEvent) => {
+      if (!leaving.current) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [unsaved]);
+  const matchTime = useRef(0);
   const show = (next: Tab) => {
+    if (next !== tab && !mayLeave()) {
+      return;
+    }
+    leaving.current = false;
     setTab(next);
     history.replaceState(null, '', HASHES[next] || location.pathname);
   };
@@ -366,11 +395,13 @@ export function Review({
         setDone((d) => d.slice(0, -1));
         onSaved(saved);
         setBusy(null);
+        leaving.current = false;
         return;
       }
       location.reload();
     } catch {
       window.clearInterval(poll);
+      leaving.current = false;
       setProgress(null);
       setBusy(null);
       const failed = await readFailure();
@@ -380,6 +411,9 @@ export function Review({
   };
 
   const split = async ({ team, identity }: Conflict) => {
+    if (!mayLeave()) {
+      return;
+    }
     try {
       await post('separate', { team, identity });
       await reload('apply');
@@ -388,6 +422,9 @@ export function Review({
     }
   };
   const saveEnd = async (time: string) => {
+    if (!mayLeave()) {
+      return;
+    }
     try {
       await post('end', { time });
       await reload('apply');
@@ -413,6 +450,9 @@ export function Review({
     return () => window.removeEventListener('keydown', onKey);
   }, [question, answer, busy, conflict, tab]);
 
+  const matchDone = matchFinished(keys, checked, reports.length);
+  // Where to go once the questions are done: the next step with something left.
+  const next: Tab | null = !matchDone ? 'match' : players.length > 0 && named < players.length ? 'names' : null;
   const title = matchTitle(t) ?? match.name;
   useEffect(() => {
     document.title = `${t('review.title')} · ${title}`;
@@ -434,10 +474,18 @@ export function Review({
           filmsError={filmsError}
           films={films}
           pending={pending}
-          reviewed={reviewed}
           busy={busy}
-          run={(action, body) => void reload(action, body)}
-          onFailed={() => setError(true)}
+          run={(action, body) => {
+            if (mayLeave()) {
+              void reload(action, body);
+            }
+          }}
+          mayLeave={mayLeave}
+          end={tab === 'match' ? { at: () => matchTime.current, onEnd: (time) => void saveEnd(time) } : undefined}
+          onFailed={() => {
+            leaving.current = false;
+            setError(true);
+          }}
         />
         {progress && (
           <div role="progressbar" aria-label={t('review.applying')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.fraction * 100)} className="grid gap-1 px-1">
@@ -460,11 +508,16 @@ export function Review({
             </p>
           </div>
         )}
-        {players.length > 0 && (
-          <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchFinished(keys, checked, reports.length)} />
-        )}
+        {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchDone} />}
         <p className="px-1 text-muted-foreground">
           {t({ names: 'review.namesIntro', questions: reviewed ? 'review.introReviewed' : 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}
+          {tab === 'names' && (
+            <Tip label={t('review.keys')}>
+              <span role="img" tabIndex={0} aria-label={t('review.keys')} className="ml-1.5 inline-flex rounded-sm align-middle outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                <Keyboard aria-hidden className="size-4" />
+              </span>
+            </Tip>
+          )}
         </p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />
         {error && (
@@ -503,7 +556,7 @@ export function Review({
           />
         )}
         {tab === 'progress' ? (
-          <Progress runs={learning} comparison={comparison} />
+          <Progress runs={learning} comparison={comparison} reviewed={reviewed} busy={busy !== null} onLearn={() => void reload('rerun')} />
         ) : tab === 'names' ? (
           <Names
             players={players}
@@ -517,7 +570,6 @@ export function Review({
           />
         ) : tab === 'match' ? (
           <MatchTab
-            onEnd={(time) => void saveEnd(time)}
             width={width}
             height={height}
             players={current}
@@ -535,6 +587,8 @@ export function Review({
             onSaveUnchecked={saveUnchecked}
             onUncheck={uncheck}
             onHandled={handled}
+            timeRef={matchTime}
+            onUnsaved={setUnsaved}
           />
         ) : question ? (
           <Card>
@@ -662,10 +716,10 @@ export function Review({
             <CardContent className="py-10 text-center">
               <p className="text-lg font-semibold">{t('review.done')}</p>
               <p className="mt-1 text-muted-foreground">{t(pending.changed || pending.names ? 'review.doneApply' : 'review.doneNothing')}</p>
-              {players.length > 0 && (
-                <Button className="mt-4" onClick={() => show('names')}>
-                  <PenLine aria-hidden />
-                  {t('review.goNames')}
+              {next && (
+                <Button className="mt-4" onClick={() => show(next)}>
+                  {next === 'match' ? <ListChecks aria-hidden /> : <PenLine aria-hidden />}
+                  {t(next === 'match' ? 'review.goMatch' : 'review.goNames')}
                 </Button>
               )}
             </CardContent>

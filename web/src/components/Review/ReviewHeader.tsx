@@ -1,35 +1,43 @@
-import { useState } from 'react';
-import { Check, ChevronDown, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
+import { Fragment, useState, type ReactNode } from 'react';
+import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useFormat } from '@/lib/format';
+import { clock, useFormat } from '@/lib/format';
 import { changesLabel } from '@/lib/hostedChanges';
 import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
-import type { Backup, FilmCounts, Hosted } from '@/lib/review';
+import { review, type Backup, type FilmCounts, type Hosted } from '@/lib/review';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { Tip } from '@/components/Tip';
 
 type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
-// What the status line says while an action runs.
-const RUNNING: Partial<Record<Action, string>> = {
-  rerun: 'review.rerunning',
-  reports: 'review.fetching',
-  films: 'review.filmsMaking',
-  film: 'review.filmMaking',
-  highlights: 'review.highlightsMaking',
-};
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
 
 /** Between two items of the status line, which wraps on a phone. */
 function Dot() {
-  return <span className="mr-1.5 max-sm:hidden">·</span>;
+  return (
+    <span aria-hidden className="max-sm:hidden">
+      ·
+    </span>
+  );
+}
+
+/** Ends the match where the video stood when the menu opened. */
+function MatchEndItem({ at, onEnd }: { at: () => number; onEnd: (time: string) => void }) {
+  const { t } = useTranslation();
+  const [time] = useState(() => clock(at()));
+  return (
+    <DropdownMenuItem onSelect={() => window.confirm(t('review.matchEndAsk', { time })) && onEnd(time)}>
+      <CircleStop aria-hidden />
+      {t('review.matchEndAt', { time })}
+    </DropdownMenuItem>
+  );
 }
 
 /** The match's name, opening the list of the others to go to one of them. */
-function MatchSwitch({ title, disabled, onFailed }: { title: string; disabled: boolean; onFailed: () => void }) {
+function MatchSwitch({ title, disabled, mayLeave, onFailed }: { title: string; disabled: boolean; mayLeave: () => boolean; onFailed: () => void }) {
   const { t } = useTranslation();
   const f = useFormat();
   const [matches, setMatches] = useState<Listed[] | null>(null);
@@ -43,6 +51,9 @@ function MatchSwitch({ title, disabled, onFailed }: { title: string; disabled: b
     }
   };
   const go = (path: string) => {
+    if (!mayLeave()) {
+      return;
+    }
     setOpening(true);
     openMatch(path).catch(() => {
       setOpening(false);
@@ -93,9 +104,10 @@ export function ReviewHeader({
   filmsError,
   films,
   pending,
-  reviewed,
   busy,
   run,
+  mayLeave,
+  end,
   onFailed,
 }: {
   title: string;
@@ -113,22 +125,78 @@ export function ReviewHeader({
   filmsError?: string | null;
   films: FilmCounts;
   pending: { answers: number; changed: boolean; names: boolean };
-  /** Every rally checked: learning leaves the match as it is. */
-  reviewed: boolean;
   busy: Action | null;
   run: (action: Action, body?: object) => void;
+  /** Whether the page may go, corrections not saved being lost. */
+  mayLeave: () => boolean;
+  /** On the Match tab: where the video stands, and ending the match there (taken away with ''). */
+  end?: { at: () => number; onEnd: (time: string) => void };
   onFailed: () => void;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
   const [choosing, setChoosing] = useState(false);
   const toApply = pending.changed || pending.names;
-  const running = busy && RUNNING[busy] ? t(RUNNING[busy]) : null;
+  // Where things stand, each item only while it has something to say.
+  const status: ReactNode[] = [];
+  if (backup && (backingUp || backup.at)) {
+    status.push(
+      <Tip label={backup.error ?? undefined}>
+        <span className={cn('inline-flex items-center gap-1.5', backup.error && !backingUp && 'text-destructive')}>
+          {backingUp ? t('review.backingUp') : backup.error ? t(backup.auto ? 'review.backupFailed' : 'review.backupFailedOnce', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
+          {backup.error && onBackup && (
+            <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={backingUp} onClick={onBackup}>
+              <RefreshCw aria-hidden />
+              {t('review.backupRetry')}
+            </Button>
+          )}
+        </span>
+      </Tip>,
+    );
+  }
+  if (fetched) {
+    status.push(
+      <Tip label={fetched.error ?? undefined}>
+        <span className={cn(fetched.error && 'text-destructive')}>{fetched.error ? t('review.fetchFailed', { at: fetched.at }) : t('review.fetched', { count: fetched.count, at: fetched.at })}</span>
+      </Tip>,
+    );
+  }
+  if (filmsError) {
+    status.push(
+      <Tip label={filmsError}>
+        <span className="text-destructive">{t('review.filmsFailed')}</span>
+      </Tip>,
+    );
+  }
+  if (hosted) {
+    status.push(
+      <Tip label={hosted.error ?? (hosted.behind ? changesLabel(hosted.changes, t) : undefined)}>
+        <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')}>
+          {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
+          {hosted.error
+            ? t('review.hostedFailed', { at: hosted.at })
+            : hosted.behind
+              ? t('review.hostedLate')
+              : hosted.day
+                ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at })
+                : t('review.hosted', { at: hosted.at })}
+          {(hosted.behind || hosted.error) && (
+            <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
+              <CloudUpload aria-hidden />
+              {busy === 'host' ? t('review.hosting') : t('review.host')}
+            </Button>
+          )}
+        </span>
+      </Tip>,
+    );
+  }
+  // The menu's groups: the match's end on the Match tab, the uploads and films, the copies.
+  const shared = !!hosted || films.players.total > 0 || films.highlights.total > 0;
   return (
     <header className="grid gap-1.5 px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div className="flex min-w-0 items-center gap-1">
-          <MatchSwitch title={title} disabled={busy !== null} onFailed={onFailed} />
+          <MatchSwitch title={title} disabled={busy !== null} mayLeave={mayLeave} onFailed={onFailed} />
           <Button variant="ghost" size="icon" asChild>
             <Tip label={t('review.matchPage')}>
               <a href="./" aria-label={t('review.matchPage')}>
@@ -143,62 +211,70 @@ export function ReviewHeader({
               <Undo2 aria-hidden />
             </Button>
           </Tip>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Tip label={t('review.more')}>
-                <Button variant="ghost" size="icon" aria-label={t('review.more')} disabled={busy !== null}>
-                  <Ellipsis aria-hidden />
-                </Button>
-              </Tip>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <Tip label={t(reviewed ? 'review.rerunNoteReviewed' : 'review.rerunNote')}>
-                <DropdownMenuItem onSelect={() => window.confirm(t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm')) && run('rerun')}>
-                  <RefreshCw aria-hidden />
-                  {t('review.rerun')}
-                </DropdownMenuItem>
-              </Tip>
-              {hosted && (
-                <Tip label={t('review.fetchNote')}>
-                  <DropdownMenuItem onSelect={() => run('reports')}>
-                    <CloudDownload aria-hidden />
-                    {t('review.fetch')}
-                  </DropdownMenuItem>
+          {(end || shared || backup) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Tip label={t('review.more')}>
+                  <Button variant="ghost" size="icon" aria-label={t('review.more')} disabled={busy !== null}>
+                    <Ellipsis aria-hidden />
+                  </Button>
                 </Tip>
-              )}
-              {hosted?.chosen && (
-                <DropdownMenuItem onSelect={() => run('hostAll')}>
-                  <CloudUpload aria-hidden />
-                  {t('review.hostAll')}
-                </DropdownMenuItem>
-              )}
-              {films.players.total > 0 && (
-                <DropdownMenuItem disabled={!films.players.stale.length} onSelect={() => run('films')}>
-                  <Clapperboard aria-hidden />
-                  {films.players.stale.length ? t('review.films', { count: films.players.stale.length }) : t('review.filmsDone')}
-                </DropdownMenuItem>
-              )}
-              {films.highlights.total > 0 && (
-                <DropdownMenuItem disabled={!films.highlights.stale.length} onSelect={() => run('highlights')}>
-                  <Sparkles aria-hidden />
-                  {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
-                </DropdownMenuItem>
-              )}
-              {backup && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem disabled={backingUp} onSelect={onBackup}>
-                    <DatabaseBackup aria-hidden />
-                    {t('review.backUp')}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {end && (
+                  <>
+                    <MatchEndItem at={end.at} onEnd={end.onEnd} />
+                    {review?.matchEnd && (
+                      <DropdownMenuItem onSelect={() => end.onEnd('')}>
+                        <Undo2 aria-hidden />
+                        {t('review.matchEndRemove', { time: review.matchEnd })}
+                      </DropdownMenuItem>
+                    )}
+                    {shared && <DropdownMenuSeparator />}
+                  </>
+                )}
+                {hosted && (
+                  <Tip label={t('review.fetchNote')}>
+                    <DropdownMenuItem onSelect={() => run('reports')}>
+                      <CloudDownload aria-hidden />
+                      {t('review.fetch')}
+                    </DropdownMenuItem>
+                  </Tip>
+                )}
+                {hosted?.chosen && (
+                  <DropdownMenuItem onSelect={() => run('hostAll')}>
+                    <CloudUpload aria-hidden />
+                    {t('review.hostAll')}
                   </DropdownMenuItem>
-                  <DropdownMenuCheckboxItem checked={backup.auto} onCheckedChange={(on) => onAutoBackup?.(on === true)}>
-                    <History aria-hidden />
-                    {t('review.autoBackup')}
-                  </DropdownMenuCheckboxItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                )}
+                {films.players.total > 0 && (
+                  <DropdownMenuItem disabled={!films.players.stale.length} onSelect={() => run('films')}>
+                    <Clapperboard aria-hidden />
+                    {films.players.stale.length ? t('review.films', { count: films.players.stale.length }) : t('review.filmsDone')}
+                  </DropdownMenuItem>
+                )}
+                {films.highlights.total > 0 && (
+                  <DropdownMenuItem disabled={!films.highlights.stale.length} onSelect={() => run('highlights')}>
+                    <Sparkles aria-hidden />
+                    {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
+                  </DropdownMenuItem>
+                )}
+                {backup && (
+                  <>
+                    {(end || shared) && <DropdownMenuSeparator />}
+                    <DropdownMenuItem disabled={backingUp} onSelect={onBackup}>
+                      <DatabaseBackup aria-hidden />
+                      {t('review.backUp')}
+                    </DropdownMenuItem>
+                    <DropdownMenuCheckboxItem checked={backup.auto} onCheckedChange={(on) => onAutoBackup?.(on === true)}>
+                      <History aria-hidden />
+                      {t('review.autoBackup')}
+                    </DropdownMenuCheckboxItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {toApply || busy === 'apply' ? (
             <Button disabled={busy !== null} onClick={() => run('apply')}>
               <Check aria-hidden />
@@ -218,67 +294,16 @@ export function ReviewHeader({
           )}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground max-sm:gap-x-3" aria-live="polite">
-        <span>{t('review.answers', { count: answered })}</span>
-        {backup && (backingUp || backup.at) && (
-          <Tip label={backup.error ?? undefined}>
-            <span className={cn('inline-flex items-center gap-1.5', backup.error && !backingUp && 'text-destructive')}>
-              <Dot />
-              {backingUp ? t('review.backingUp') : backup.error ? t(backup.auto ? 'review.backupFailed' : 'review.backupFailedOnce', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
-              {backup.error && onBackup && (
-                <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={backingUp} onClick={onBackup}>
-                  <RefreshCw aria-hidden />
-                  {t('review.backupRetry')}
-                </Button>
-              )}
-            </span>
-          </Tip>
-        )}
-        {fetched && (
-          <Tip label={fetched.error ?? undefined}>
-            <span className={cn(fetched.error && 'text-destructive')}>
-              <Dot />
-              {fetched.error ? t('review.fetchFailed', { at: fetched.at }) : t('review.fetched', { count: fetched.count, at: fetched.at })}
-            </span>
-          </Tip>
-        )}
-        {filmsError && (
-          <Tip label={filmsError}>
-            <span className="text-destructive">
-              <Dot />
-              {t('review.filmsFailed')}
-            </span>
-          </Tip>
-        )}
-        {running && (
-          <span>
-            <Dot />
-            {running}
-          </span>
-        )}
-        {hosted && (
-          <Tip label={hosted.error ?? (hosted.behind ? changesLabel(hosted.changes, t) : undefined)}>
-            <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')}>
-              <Dot />
-              {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
-              {hosted.error
-                ? t('review.hostedFailed', { at: hosted.at })
-                : hosted.behind
-                  ? t('review.hostedLate')
-                  : hosted.day
-                    ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at })
-                    : t('review.hosted', { at: hosted.at })}
-
-              {(hosted.behind || hosted.error) && (
-                <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
-                  <CloudUpload aria-hidden />
-                  {busy === 'host' ? t('review.hosting') : t('review.host')}
-                </Button>
-              )}
-            </span>
-          </Tip>
-        )}
-      </div>
+      {status.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground max-sm:gap-x-3" aria-live="polite">
+          {status.map((item, k) => (
+            <Fragment key={k}>
+              {k > 0 && <Dot />}
+              {item}
+            </Fragment>
+          ))}
+        </div>
+      )}
       {choosing && (
         <HostChoice
           onChoose={(body) => {

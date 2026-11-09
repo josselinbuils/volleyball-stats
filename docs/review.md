@@ -3,7 +3,7 @@
 How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 - A match's review: `uv run python -m volleyball_stats.review outputs/matches/MATCH` (http://127.0.0.1:8765, `/review#questions`, `/review#match`). Each apply
-  rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password, or without it (`outputs/matches/MATCH/publish.json`); "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds every match online and uploads them at once; "Apprendre de mes réponses"
+  rebuilds the pages, its "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password, or without it (`outputs/matches/MATCH/publish.json`); "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds every match online and uploads them at once; "Apprendre de mes réponses" (the Progrès tab)
   retrains the learned attribution and reruns the pipeline (`learn --rerun`: 3 min on the M4 with the poses cached, 40 without), moving the answers onto
   the new windows itself (`learn.rerun`, `rekey`; a rally the review added that the pipeline now finds moves onto its window). On a match whose every
   rally is checked it only retrains and measures (`learn.retrain`, shown in "Progrès"): the match stays as reviewed (`review.reviewed`), and the review asks only what teaches the next
@@ -33,7 +33,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   none), their players and actions (`touch`, `action`); no question its check answers is asked; unchecking
   unlocks it. A rally's winner follows its last touch (`web.followed`). "Valider"
   in a rally's header saves and checks it: green, its reports handled, until a new report; the button then
-  becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections. On a rally with no touch and no end said, "Supprimer" takes its place: saved at once, no play (`play`), or its split undone if the review started it; "Rétablir" takes it back until the apply. Saved corrections not yet in the review's page show in the editor (the
+  becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections. Any rally not joined can be deleted (the bin in its header; on one with no touch and no end said, "Supprimer" takes the place of "Valider"): saved at once, no play (`play`), or its split undone if the review started it; "Rétablir" takes it back until the apply. Corrections not validated are lost by a reload, an action that reloads or leaving the tab: the review asks first. "Fin du match à …" (the video's moment) and taking it back are in the "..." menu on the Match tab. Saved corrections not yet in the review's page show in the editor (the
   last report answer carries them all, `review.superseded`). Automatic reports (`review.unusual`)
   flag no serve first, two serves, a reception not right after a serve, a serve not followed by a
   reception, four touches in a row, the wrong server, no touch, no winner, a set ending off the

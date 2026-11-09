@@ -81,7 +81,7 @@ set break, as the rules say, and only then.
 | Title | The match's title | "Match NAME_1 vs NAME_2", translated on the page |
 | Set starts | `"m:ss"`, the first set 1's: the rallies before it (the warm-up) are left out | The detected set starts, the first `"0:00"` |
 | Final scores | `"25-21"`, team 1 first | Unknown |
-| `end` | `"m:ss"`, the end of the match ("Fin du match" in the review's Match tab): what follows is left out | The end of the video |
+| `end` | `"m:ss"`, the end of the match ("Fin du match", the "..." menu of the review's Match tab): what follows is left out | The end of the video |
 
 The first run writes it, from the first source available:
 

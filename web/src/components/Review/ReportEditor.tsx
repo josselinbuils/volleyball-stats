@@ -8,7 +8,7 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { railAt, shiftOf, topOf } from '@/components/Review/helpers/timeline';
-import { review, type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
+import { type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
 import { ReportRow } from '@/components/Review/ReportRow';
@@ -75,11 +75,10 @@ const RAIL_EDGE_PX = 64;
 
 /** The match's touches beside its video: those of the rallies around where the video stands, the
  * one it plays centred, to correct (player of either team, action, result), remove or add at the
- * video's moment, or start a rally there (one missed, or the second of two taken for one); under it
- * the winner or to replay, no play, end and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
+ * video's moment, or start a rally there (one missed, or the second of two taken for one), or delete a
+ * rally; under it the winner or to replay, end and joining with the next one of the rally it is in (or just ended). It starts from the corrections saved and not applied yet (`saved`), marked as
  * such; saving sends them all, with the new ones. */
 export function ReportEditor({
-  onEnd,
   reports,
   players,
   nameOf,
@@ -106,8 +105,6 @@ export function ReportEditor({
   onTimeout,
   place,
 }: {
-  /** The end of the match given, or taken away for an empty one. */
-  onEnd: (time: string) => void;
   /** The moments viewers reported: their touches are flagged. */
   reports: { time: number }[];
   players: Named[];
@@ -290,11 +287,6 @@ export function ReportEditor({
     }
     onPause(frame / match.fps);
   };
-  const unsplit = (k: number) => {
-    const key = keyOf(k);
-    setSplits((all) => all.filter((f) => f !== key));
-    setRallyFixes((all) => Object.fromEntries(Object.entries(all).filter(([k]) => Number(k) !== key)));
-  };
 
   // The list follows the video, its touch (else its rally) centred, except while a field in it is
   // being filled or shortly after the user scrolled it.
@@ -441,8 +433,10 @@ export function ReportEditor({
   const whole = joinStart(here, joins);
   const winner = rally ? winnerOf(whole) : null;
   const isEmpty = (k: number) => !mineOf(k).length && !joins(k) && !joins(k - 1);
-  const isDeleted = (k: number) => isEmpty(k) && fixOf(k)?.play === false;
-  // A touchless rally whose end was said explains a point: it stays.
+  const isDeleted = (k: number) => fixOf(k)?.play === false;
+  // Joined, rallies are deleted once taken apart.
+  const deletable = (k: number) => !joins(k) && !joins(k - 1);
+  // A touchless rally whose end was said explains a point: it is validated, not deleted at once.
   const canDelete = (k: number) => isEmpty(k) && fixOf(k)?.play !== false && fixOf(k)?.winner === undefined && !toReplay(k) && !calledWrong(k);
   const otherRallies = (key: number) => (changes.rallies ?? []).filter((r) => r.start !== key);
   // A rally the review started goes away; one of the page's is said no play.
@@ -543,25 +537,6 @@ export function ReportEditor({
               <Hand aria-hidden />
               {t('review.timeoutAdd', { time: clock(now) })}
             </Button>
-            <Button
-              variant="outline"
-              className="flex-1 bg-card"
-              onClick={() => {
-                const time = clock(timeOf());
-                if (window.confirm(t('review.matchEndAsk', { time }))) {
-                  onEnd(time);
-                }
-              }}
-            >
-              <CircleStop aria-hidden />
-              {t('review.matchEndAt', { time: clock(now) })}
-            </Button>
-            {review?.matchEnd && (
-              <Button variant="outline" className="flex-1 bg-card" onClick={() => onEnd('')}>
-                <Undo2 aria-hidden />
-                {t('review.matchEndRemove', { time: review.matchEnd })}
-              </Button>
-            )}
           </div>
           <ol
             ref={list}
@@ -637,33 +612,44 @@ export function ReportEditor({
                         {t('review.restore')}
                       </Button>
                     </Tip>
-                  ) : checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
-                    <Tip label={t('review.uncheckRally', { n: k + 1 })}>
-                      <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.uncheckRally', { n: k + 1 })} onClick={() => onUncheck(keyOf(k))}>
-                        <CircleOff aria-hidden />
-                        {t('review.uncheck')}
-                      </Button>
-                    </Tip>
-                  ) : canDelete(k) ? (
-                    <Tip label={t('review.deleteRally', { n: k + 1 })}>
-                      <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.deleteRally', { n: k + 1 })} onClick={() => deleteRally(k)}>
-                        <Trash2 aria-hidden />
-                        {t('review.delete')}
-                      </Button>
-                    </Tip>
                   ) : (
-                    <Tip label={t('review.validateRally', { n: k + 1 })}>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        className="mr-1 shrink-0 bg-card text-foreground"
-                        aria-label={t('review.validateRally', { n: k + 1 })}
-                        onClick={() => onSave(changes, keyOf(k), k === here)}
-                      >
-                        <Check aria-hidden />
-                        {t('review.validate')}
-                      </Button>
-                    </Tip>
+                    <>
+                      {!canDelete(k) && deletable(k) && (
+                        <Tip label={t('review.deleteRally', { n: k + 1 })}>
+                          <Button variant="ghost" size="icon-xs" className="mr-1 shrink-0 text-foreground" aria-label={t('review.deleteRally', { n: k + 1 })} onClick={() => deleteRally(k)}>
+                            <Trash2 aria-hidden />
+                          </Button>
+                        </Tip>
+                      )}
+                      {checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
+                        <Tip label={t('review.uncheckRally', { n: k + 1 })}>
+                          <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.uncheckRally', { n: k + 1 })} onClick={() => onUncheck(keyOf(k))}>
+                            <CircleOff aria-hidden />
+                            {t('review.uncheck')}
+                          </Button>
+                        </Tip>
+                      ) : canDelete(k) ? (
+                        <Tip label={t('review.deleteRally', { n: k + 1 })}>
+                          <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.deleteRally', { n: k + 1 })} onClick={() => deleteRally(k)}>
+                            <Trash2 aria-hidden />
+                            {t('review.delete')}
+                          </Button>
+                        </Tip>
+                      ) : (
+                        <Tip label={t('review.validateRally', { n: k + 1 })}>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            className="mr-1 shrink-0 bg-card text-foreground"
+                            aria-label={t('review.validateRally', { n: k + 1 })}
+                            onClick={() => onSave(changes, keyOf(k), k === here)}
+                          >
+                            <Check aria-hidden />
+                            {t('review.validate')}
+                          </Button>
+                        </Tip>
+                      )}
+                    </>
                   )}
                 </div>
               </li>,
@@ -874,12 +860,6 @@ export function ReportEditor({
                 </Tip>
               </ToggleGroup>
             </span>
-            {!canDelete(here) && !isDeleted(here) && (
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={fix.play === false} onChange={(e) => editRally(here, { play: e.target.checked ? false : undefined })} />
-                {t('review.notPlay')}
-              </label>
-            )}
             <Tip label={t('review.reportWrongCallHelp')}>
               <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')}>
                 <input type="checkbox" checked={calledWrong(whole)} disabled={winner === null} onChange={(e) => markWrongCall(whole, e.target.checked)} />
@@ -903,12 +883,6 @@ export function ReportEditor({
               )}
               {end !== undefined && fix.end !== undefined && <span className="text-muted-foreground">{t('review.reportEndMoved', { time: clock(end) })}</span>}
             </span>
-            {splits.includes(rally.key) && (
-              <Button variant="ghost" size="sm" onClick={() => unsplit(here)}>
-                <Undo2 aria-hidden />
-                {t('review.reportStartUndo')}
-              </Button>
-            )}
             {/* Typing stops the video: it would carry on to another rally's note. */}
             <RallyComment key={rally.key} text={comments[rally.key] ?? ''} onFocus={() => onPause(timeOf())} onSave={(text) => onComment(rally.key, text)} />
           </div>
