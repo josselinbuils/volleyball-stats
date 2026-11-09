@@ -1,4 +1,4 @@
-import type { Contact, Group, Rally } from '@/lib/match';
+import type { Contact, Group, Rally, Timeout } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
 import { longestRally, scoringTouch } from '@/helpers/plays';
 
@@ -9,6 +9,11 @@ const COMEBACK = 4;
 const TIGHT = 3;
 const ONE_SIDED = 8;
 const SET_POINTS = 25;
+// A timeout tells in the story when it follows this many points in a row for the other team, and its team wins
+// TIMEOUT_WON of the TIMEOUT_NEXT points after it.
+const TIMEOUT_AFTER_RUN = 3;
+const TIMEOUT_NEXT = 6;
+const TIMEOUT_WON = 4;
 // The share of a run's serves one player must hold to be named.
 const SERVER_SHARE = 0.75;
 
@@ -17,13 +22,15 @@ export type Score = [number, number];
 /** A moment of a set: its `rallies` (indexes on the page), `team` the one it is about, the scores
  * team-first: `from` before its first rally, `to` after its last. */
 export interface Moment {
-  kind: 'run' | 'comeback' | 'setPoints' | 'longest';
+  kind: 'run' | 'comeback' | 'setPoints' | 'longest' | 'timeout';
   rallies: number[];
   team: Group | null;
   from: Score;
   to: Score;
-  /** Points of a run, points caught up, set points saved, or a longest rally's touches. */
+  /** Points of a run, points caught up, set points saved, a longest rally's touches, or points won after a timeout. */
   n: number;
+  /** The points after a timeout. */
+  of?: number;
   /** A run's server, a longest rally's scorer, when known. */
   person: number | null;
   /** A longest rally's seconds. */
@@ -43,6 +50,9 @@ export interface Chapter {
   /** The player with the most points of the set, 3 or more. */
   top: { person: number; points: number } | null;
   points: { rally: number; gap: number }[];
+  /** The timeouts, each after the rally `after` (an index on the page), at `score` (team 1 first), `next` the rallies of
+   * the points that followed. */
+  timeouts: { after: number; team: Group | null; score: Score; next: number[] }[];
   moments: Moment[];
 }
 
@@ -191,6 +201,44 @@ function longest(rallies: Rally[]): Moment | null {
   };
 }
 
+/** The timeouts within a set's rallies `of`, placed in its points `all`, and those that turned it as moments. */
+function breaks(of: Rally[], all: Step[], timeouts: Timeout[]): { placed: Chapter['timeouts']; moments: Moment[] } {
+  const placed: Chapter['timeouts'] = [];
+  const moments: Moment[] = [];
+  for (const o of timeouts) {
+    const before = of.filter((r) => r.end <= o.start + 0.5).at(-1);
+    if (!before || !of.some((r) => r.start >= o.start)) {
+      continue;
+    }
+    const k = all.filter((s) => s.rally.i <= before.i).length;
+    const score: Score = k ? all[k - 1].after : [0, 0];
+    const next = all.slice(k, k + TIMEOUT_NEXT);
+    placed.push({ after: before.i, team: o.team, score, next: next.map((s) => s.rally.i) });
+    if (o.team === null || !next.length) {
+      continue;
+    }
+    let run = 0;
+    while (run < k && all[k - 1 - run].won === other(o.team)) {
+      run++;
+    }
+    const won = next.filter((s) => s.won === o.team).length;
+    if (run >= TIMEOUT_AFTER_RUN && won >= TIMEOUT_WON) {
+      moments.push({
+        kind: 'timeout',
+        rallies: next.map((s) => s.rally.i),
+        team: o.team,
+        from: teamFirst(score, o.team),
+        to: teamFirst(next[next.length - 1].after, o.team),
+        n: won,
+        of: next.length,
+        person: null,
+        seconds: 0,
+      });
+    }
+  }
+  return { placed, moments };
+}
+
 function topScorer(rallies: Rally[], key: (person: number) => string | null): Chapter['top'] {
   const counts = new Map<string, { person: number; points: number }>();
   for (const c of rallies.flatMap((r) => r.contacts)) {
@@ -205,8 +253,8 @@ function topScorer(rallies: Rally[], key: (person: number) => string | null): Ch
 }
 
 /** The story of `rallies`, one chapter per set, `finals` each set's final score (team 1, team 2),
- * `key` naming a player whatever their identity. The longest rally is told once, in its set. */
-export function story(rallies: Rally[], finals: { set: number; score: Score }[], key: (person: number) => string | null): Chapter[] {
+ * `key` naming a player whatever their identity, with the match's `timeouts`. The longest rally is told once, in its set. */
+export function story(rallies: Rally[], finals: { set: number; score: Score }[], key: (person: number) => string | null, timeouts: Timeout[] = []): Chapter[] {
   const longestOne = longest(rallies);
   return [...new Set(rallies.map((r) => r.set))]
     .sort((a, b) => a - b)
@@ -222,7 +270,8 @@ export function story(rallies: Rally[], finals: { set: number; score: Score }[],
       const streaks = runs(all);
       // A comeback made within one run: the run tells it.
       const caughtUp = comebacks(all).filter((c) => !streaks.some((r) => r.team === c.team && c.rallies.every((i) => r.rallies.includes(i))));
-      const moments = [...streaks, ...caughtUp, ...setPoints(all, Math.min(SET_POINTS, Math.max(...final)))];
+      const paused = breaks(of, all, timeouts);
+      const moments = [...streaks, ...caughtUp, ...setPoints(all, Math.min(SET_POINTS, Math.max(...final))), ...paused.moments];
       if (longestOne && of.some((r) => r.i === longestOne.rallies[0])) {
         moments.push(longestOne);
       }
@@ -237,6 +286,7 @@ export function story(rallies: Rally[], finals: { set: number; score: Score }[],
           deficit,
           top: topScorer(of, key),
           points: all.map((s) => ({ rally: s.rally.i, gap: s.after[0] - s.after[1] })),
+          timeouts: paused.placed,
           moments: moments.sort((a, b) => a.rallies[a.rallies.length - 1] - b.rallies[b.rallies.length - 1]),
         },
       ];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Rally } from '@/lib/match';
-import { broadcastClips, idleCamera, rallyCamera, replayAt, replayCamera, replays, REPLAY_S } from '@/components/Watch/helpers/director';
+import { broadcastClips, idleCamera, rallyCamera, replayAt, replayCamera, replays, REPLAY_S, TIMEOUT_CARD_S } from '@/components/Watch/helpers/director';
 
 describe('director', () => {
   function touch(t: number, type: Contact['type'], g: 1 | 2, result: Contact['result'] = 'play', x = g === 1 ? -5 : 5): Contact {
@@ -70,6 +70,13 @@ describe('director', () => {
       const none = broadcastClips(rallies, new Map(), 1000);
       expect(none[0]).toMatchObject({ start: 0, end: 9.2 });
       expect(none[1]).toMatchObject({ start: 39, end: 50.5 });
+    });
+
+    it('holds a rally followed by a timeout for its card', () => {
+      const rallies = apart(2);
+      const clips = broadcastClips(rallies, new Map(), 1000, [{ start: 5, end: 30, team: 1 }]);
+      expect(clips[0].end).toBe(9.2 + TIMEOUT_CARD_S);
+      expect(clips[1].end).toBe(50.5);
     });
 
     it('stays within the video', () => {

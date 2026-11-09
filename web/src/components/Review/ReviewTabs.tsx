@@ -13,6 +13,7 @@ export function ReviewTabs({
   questions,
   reports,
   matchDone,
+  learned,
 }: {
   tab: Tab;
   show: (tab: Tab) => void;
@@ -21,13 +22,15 @@ export function ReviewTabs({
   questions: number;
   reports: number;
   matchDone: boolean;
+  /** The last learning run saw every answer: nothing new to learn. */
+  learned: boolean;
 }) {
   const { t } = useTranslation();
   const tabs: { id: Tab; label: string; left?: number | string; done?: boolean }[] = [
     { id: 'names', label: t('review.tabNames'), left: named < players ? `${named}/${players}` : undefined, done: named === players },
     { id: 'questions', label: t('review.tabQuestions'), left: questions || undefined, done: !questions },
     { id: 'match', label: t('review.tabMatch'), left: reports || undefined, done: matchDone },
-    { id: 'progress', label: t('review.tabProgress') },
+    { id: 'progress', label: t('review.tabProgress'), done: learned },
   ];
   return (
     <Tabs

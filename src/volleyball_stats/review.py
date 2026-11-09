@@ -1513,10 +1513,11 @@ def load_log(path: Path) -> list[dict]:
 
 def state(match: Path, log: list[dict]) -> dict:
     """What the identities are computed from: the answers' constraints, the names and the date of
-    the jersey numbers (to the second), as JSON gives them back."""
+    the jersey numbers (to the second), as JSON gives them back; with the timeouts given, which
+    the page shows."""
     read = match / jerseys.FILE
     # The winners pinned change no identity nor the page.
-    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind not in ("pinned", "locked")}, **({"end": match_end(match)} if match_end(match) is not None else {}), "names": identity.read_names(match), "jerseys": int(read.stat().st_mtime) if read.exists() else None}
+    found = {"answers": {kind: [x for e in log for x in e.get(kind, [])] for kind in KINDS if kind not in ("pinned", "locked")}, **({"end": match_end(match)} if match_end(match) is not None else {}), "names": identity.read_names(match), "jerseys": int(read.stat().st_mtime) if read.exists() else None, "timeouts": timeouts.read_answers(match)}
     # No "team" answer leaves the state of earlier applies as it was.
     if not found["answers"]["team"]:
         del found["answers"]["team"]
@@ -1704,19 +1705,33 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
     """What an apply would take in: the answers saying something not applied yet (those saved
     before the flag were), whether the answers or the jersey numbers, and the names, differ from
     what the identities were computed from (APPLIED); the reports' `corrections` the review's
-    page does not show yet (`shown`: the answers it was built with), the rallies `checked` and the
-    `films` to make, players' and highlights."""
+    page does not show yet (`shown`: the answers it was built with), the rallies `checked`, the
+    `films` to make, players' and highlights, and whether the last learning run saw these answers."""
     computed = match / APPLIED
     now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
     return {
         "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
         # The jersey numbers' time to the second: a copy through the server (`sync`) keeps no less.
-        "changed": (now["answers"], now["jerseys"]) != (then.get("answers"), None if then.get("jerseys") is None else int(then["jerseys"])),
+        "changed": (now["answers"], now["jerseys"], now["timeouts"]) != (then.get("answers"), None if then.get("jerseys") is None else int(then["jerseys"]), then.get("timeouts", [])),
         "namesPending": now["names"] != then.get("names"),
         "corrections": corrections(log, shown),
         "checked": checked(log),
         "films": film.status(match),
+        "learned": learned(match, log),
     }
+
+
+def answers_stamp(log: list[dict]) -> str:
+    """What the answers say, applied or not: kept with each learning run (learn.json)."""
+    said = [{k: v for k, v in e.items() if k != "applied"} for e in log]
+    return hashlib.sha256(json.dumps(said, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def learned(match: Path, log: list[dict]) -> bool:
+    """Whether the match's last learning run (learn.json) saw the answers as they stand."""
+    path = match / "learn.json"
+    runs = json.loads(path.read_text()) if path.exists() else []
+    return bool(runs) and runs[-1].get("answers") == answers_stamp(log)
 
 
 def undo(log: list[dict], history: list[dict]) -> tuple[list[dict], list[dict] | None, str | None, bool]:
@@ -2453,7 +2468,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     film.write_picks(match, picks | {frame} if body["picked"] else picks - {frame})
                     return self.send(b"{}", "application/json")
                 if self.path == "/timeout":
-                    return self.send(json.dumps({"timeouts": timeouts.answer(match, questions.fps, body)}).encode(), "application/json")
+                    # The page shows them: an apply takes them in.
+                    return self.send(json.dumps({"timeouts": timeouts.answer(match, questions.fps, body), **waiting(match, log, shown)}).encode(), "application/json")
                 if self.path == "/answer":
                     _, refs = questions.build({entry["id"] for entry in log})
                     # Corrections saved from the match tab, about no question.

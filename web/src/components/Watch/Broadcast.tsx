@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ofName } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { groupName, match, playerLabel, rallies as allRallies, sets, versioned } from '@/lib/match';
+import { groupName, match, playerLabel, rallies as allRallies, sets, teamColor, teamRing, timeoutAt, timeoutLabel, timeouts, versioned } from '@/lib/match';
+import { Swatch } from '@/components/Swatch';
 import { lineStarting, loadVoice, useRecorded } from '@/lib/voice';
 import { usePlayer } from '@/lib/player';
 import { useSet } from '@/lib/sets';
@@ -19,7 +20,7 @@ const LOADED_AHEAD = 3;
 
 const speaks = () => typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
 
-/** What the TV view shows over the picture: the score, the replay's tag and the commentary. */
+/** What the TV view shows over the picture: the score, the replay's tag, a timeout's card and the commentary. */
 export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: number; rally: number | null; replay: ReplayMoment | null; score: Score | null; voice: boolean }) {
   const { t, i18n } = useTranslation();
   const { video } = usePlayer();
@@ -27,6 +28,7 @@ export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: 
   const said = useMemo(() => commentary(allRallies, names, sets.length), [names]);
   const line = replay ? null : rally === null ? null : lineAt(said.get(rally), time);
   const who = replay && playerLabel(t, replay.contact.person);
+  const pause = replay ? null : timeoutAt(time);
   const text = replay ? (who ? t('broadcast.replayOf', { name: who, ofName: ofName(who) }) : t('broadcast.replay')) : line && t(`broadcast.lines.${line.key}`, line.vars);
   const spoken = useRef<string | null>(null);
   // The match's recorded French voice where there is one, else the browser's.
@@ -149,6 +151,12 @@ export function BroadcastOverlay({ time, rally, replay, score, voice }: { time: 
           <span className="font-normal text-white/70">{t('set', { n: score.set })}</span>
         </p>
       )}
+      {pause && (
+        <p className="absolute top-1/2 left-1/2 m-0 flex -translate-1/2 items-center gap-2 rounded-md bg-black/75 px-4 py-2 font-bold tracking-wide whitespace-nowrap text-white uppercase sm:text-lg">
+          {pause.team && <Swatch color={teamColor(pause.team)} ring={teamRing(pause.team)} />}
+          {timeoutLabel(t, pause)}
+        </p>
+      )}
       {replay && <p className="absolute top-2 right-2 m-0 rounded-md bg-primary px-2 py-1 text-xs font-bold tracking-wide text-primary-foreground uppercase">{t('broadcast.replayTag')}</p>}
       <p
         aria-live="off"
@@ -169,7 +177,7 @@ export function BroadcastControls({ voice, onVoice }: { voice: boolean; onVoice:
   const { play } = usePlayer();
   const { rallies } = useSet();
   const chosen = useMemo(() => replays(allRallies), []);
-  const clips = useMemo(() => broadcastClips(rallies, chosen, match.duration), [rallies, chosen]);
+  const clips = useMemo(() => broadcastClips(rallies, chosen, match.duration, timeouts), [rallies, chosen]);
   const [canSpeak] = useState(() => match.voice || speaks());
   return (
     <div className="mt-3 grid gap-2">

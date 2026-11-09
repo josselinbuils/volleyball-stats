@@ -1,4 +1,4 @@
-import type { Contact, Rally } from '@/lib/match';
+import type { Contact, Rally, Timeout } from '@/lib/match';
 import type { Clip } from '@/lib/playlist';
 import { isTouch } from '@/helpers/contacts';
 import { scoringTouch } from '@/helpers/plays';
@@ -27,6 +27,8 @@ const BEFORE_S = 1.8;
 const AFTER_S = 1;
 const SLOW = 0.4;
 export const REPLAY_S = (BEFORE_S + AFTER_S) / SLOW;
+// A timeout after a rally shows its card this long.
+export const TIMEOUT_CARD_S = 3;
 // Worth a replay at any time: from this many touches in the rally. Otherwise a winning attack, no more often than this.
 const LONG_RALLY = 6;
 const SPACING = 4;
@@ -87,13 +89,15 @@ export function replayAt(rallies: Rally[], chosen: Map<number, Contact>, time: n
 }
 
 /** Each of `rallies` to watch one after another: from just before its serve to the end of its replay when it has one, else to
- * the end of its score being told. */
-export function broadcastClips(rallies: Rally[], chosen: Map<number, Contact>, duration: number): Clip[] {
+ * the end of its score being told; a rally followed by one of `timeouts` then shows its card. */
+export function broadcastClips(rallies: Rally[], chosen: Map<number, Contact>, duration: number, timeouts: Timeout[] = []): Clip[] {
   return rallies.map((r, k) => {
     const after = told(r, rallies[k + 1]);
+    const end = r.end + after + (chosen.has(r.i) ? REPLAY_S : 0);
+    const pause = timeouts.find((o) => o.start >= r.end - 1 && o.start < (rallies[k + 1]?.start ?? Infinity));
     return {
       start: Math.max(0, r.start - 1),
-      end: Math.min(duration, r.end + after + (chosen.has(r.i) ? REPLAY_S : 0)),
+      end: Math.min(duration, pause ? Math.min(pause.end, Math.max(end, pause.start) + TIMEOUT_CARD_S) : end),
       rally: r.i,
       time: r.start,
       length: r.end - r.start,

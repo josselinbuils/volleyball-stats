@@ -32,6 +32,8 @@
   "rally": "Échange {{n}}",
   "rallyLower": "échange {{n}}",
   "betweenRallies": "Entre deux échanges",
+  "timeout": "Temps mort",
+  "timeoutOf": "Temps mort {{ofTeam}}",
   "lastTouch": "dernière touche : {{type}}, {{who}}",
   "rallies": "Échanges",
   "watchRally": "Revoir cet échange, puis les suivants",
@@ -283,6 +285,7 @@
       "teams": "Équipes",
       "voice": "Commentaire",
       "code": "Code de la page",
+      "timeouts": "Temps morts",
       "other": "Autres données"
     },
     "allMatches": "Tous les matchs",
@@ -856,7 +859,8 @@
     "setPoints_other": "{{team}} sauve {{count}} balles de set, de {{from}} à {{to}}.",
     "longest": "L'échange le plus long : {{n}} touches en {{seconds}}.",
     "longestScorer": "L'échange le plus long : {{n}} touches en {{seconds}}, conclu par {{name}}.",
-    "replay": "Revoir ce moment"
+    "replay": "Revoir ce moment",
+    "timeout": "{{team}} prend un temps mort à {{from}} et gagne {{n}} des {{of}} points suivants."
   },
   "myMatch": {
     "film": {

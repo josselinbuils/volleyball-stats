@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import leftovers, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import answers_stamp, leftovers, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -683,12 +683,29 @@ class TestWaiting:
         log = [{**self.entry, "applied": True}]
         (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
 
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": []}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "learned": False}
         assert waiting(tmp_path, [])["changed"]
         write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Julie", "jersey": None}])
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": []}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "learned": False}
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
         assert waiting(tmp_path, log)["changed"]
+
+    def test_a_timeout_given_since_the_last_apply_is_a_change(self, tmp_path):
+        (tmp_path / APPLIED).write_text(json.dumps({k: v for k, v in state(tmp_path, []).items() if k != "timeouts"}))
+        assert not waiting(tmp_path, [])["changed"]
+
+        (tmp_path / "timeouts.json").write_text(json.dumps([{"start": 100, "end": 2000, "team": 1}]))
+        assert waiting(tmp_path, [])["changed"]
+
+    def test_learned_while_the_last_learning_run_saw_the_answers_as_they_stand(self, tmp_path):
+        log = [{**self.entry, "applied": False}]
+        assert not waiting(tmp_path, log)["learned"]
+
+        (tmp_path / "learn.json").write_text(json.dumps([{"time": "2026-11-09 10:00", "answers": answers_stamp(log)}]))
+        assert waiting(tmp_path, log)["learned"]
+        # Applying changes nothing the run saw; another answer does.
+        assert waiting(tmp_path, [{**self.entry, "applied": True}])["learned"]
+        assert not waiting(tmp_path, log + [{"id": "piece:3:0", "choice": "skip"}])["learned"]
 
     def test_jersey_numbers_copied_through_the_server_to_the_second_are_no_change(self, tmp_path):
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")

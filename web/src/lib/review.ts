@@ -225,6 +225,8 @@ export interface Saved {
   /** The match's new name, after a team's: the server is restarting on it. */
   renamed?: string;
   timeouts?: Timeout[];
+  /** The last learning run saw the answers as they stand. */
+  learned?: boolean;
 }
 
 // The requests to the review server under way, by kind, for the page's indicator.

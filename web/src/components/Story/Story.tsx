@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { SetBadge } from '@/components/SetBadge';
 import { setScores, setsWon } from '@/components/Header/helpers/score';
 import { useFormat } from '@/lib/format';
-import { groupName, hasTeams, match, playerLabel, rallies as allRallies } from '@/lib/match';
+import { groupName, hasTeams, match, playerLabel, rallies as allRallies, timeouts } from '@/lib/match';
 import { playerKey } from '@/helpers/players';
 import { usePlayer } from '@/lib/player';
 import { rallyClips } from '@/lib/playlist';
@@ -22,7 +22,7 @@ export function Story() {
   const { t } = useTranslation();
   const { set, rallies } = useSet();
   const finals = useMemo(() => setScores(allRallies, match.scores), []);
-  const chapters = useMemo(() => story(rallies, finals, (p) => playerKey(p, match.people)), [rallies, finals]);
+  const chapters = useMemo(() => story(rallies, finals, (p) => playerKey(p, match.people), timeouts), [rallies, finals]);
   if (!hasTeams || !chapters.length) {
     return null;
   }

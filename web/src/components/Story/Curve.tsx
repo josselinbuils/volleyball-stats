@@ -1,9 +1,10 @@
 import { Fragment, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Swatch } from '@/components/Swatch';
+import { Tip } from '@/components/Tip';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormat } from '@/lib/format';
-import { groupName, match, rallies as allRallies, teamColor, teamRing } from '@/lib/match';
+import { groupName, match, rallies as allRallies, teamColor, teamRing, timeoutLabel } from '@/lib/match';
 import { usePlayer, useVideoTime } from '@/lib/player';
 import { rallyAt, rallyClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
@@ -21,7 +22,8 @@ const MARK_OFF = 14;
 const MARK_STEP = 26;
 
 /** The score gap after each rally, set after set: above the line team 1 leads, below team 2, with
- * the moments' numbered marks; a rally replays from where it is clicked. */
+ * the moments' numbered marks and the timeouts' dashed lines; a rally replays from where it is clicked, a
+ * timeout the points after it. */
 export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Moment[] }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -54,6 +56,13 @@ export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Mom
     return { set: c.set, start, end: of[of.length - 1]?.x ?? start, line: line.join(' ') };
   });
   const byRally = new Map(placed.map((p) => [p.rally, p]));
+  // Each timeout between the points around it.
+  const pauses = chapters.flatMap((c, k) =>
+    c.timeouts.map((o) => {
+      const before = placed.filter((p) => p.set === c.set && p.rally <= o.after).at(-1);
+      return { ...o, set: c.set, x: (before?.x ?? paths[k].start) + 0.5 };
+    }),
+  );
   const playAt = (rally: number) => {
     const k = rallies.findIndex((r) => r.i === rally);
     play((tr) => (set === null ? tr('rallies') : tr('set', { n: set })), rallyClips(rallies, match.duration), k);
@@ -85,6 +94,12 @@ export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Mom
             {t('story.ahead', { team: groupName(t, g) })}
           </span>
         ))}
+        {pauses.length > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="h-3 border-l-2 border-dashed border-foreground/60" />
+            {t('timeout')}
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 text-xs text-muted-foreground tabular-nums">
         <div aria-hidden className="col-start-2 relative mx-3 h-4">
@@ -142,6 +157,36 @@ export function Curve({ chapters, moments }: { chapters: Chapter[]; moments: Mom
                 </TooltipTrigger>
                 <TooltipContent>{t('story.point', { n: p.rally + 1, score: score(p.rally) })}</TooltipContent>
               </Tooltip>
+            );
+          })}
+          {pauses.map((o) => {
+            const label = `${timeoutLabel(t, o)} · ${o.score.join('-')}`;
+            return (
+              <Tip key={`${o.set}:${o.after}:${o.x}`} label={label}>
+                <button
+                  type="button"
+                  aria-label={label}
+                  disabled={!o.next.length}
+                  onClick={() =>
+                    play(
+                      (tr) => `${timeoutLabel(tr, o)} · ${o.score.join('-')}`,
+                      rallyClips(
+                        allRallies.filter((r) => o.next.includes(r.i)),
+                        match.duration,
+                      ),
+                    )
+                  }
+                  className="absolute inset-y-0 w-2 -translate-x-1/2 cursor-pointer rounded-sm outline-none hover:bg-foreground/10 focus-visible:ring-3 focus-visible:ring-ring/60"
+                  style={{ left: `${px(o.x)}%` }}
+                >
+                  <span aria-hidden className="absolute inset-y-0 left-1/2 border-l-2 border-dashed border-foreground/60" />
+                  {o.team && (
+                    <span aria-hidden className="absolute -top-2 left-1/2 -translate-x-1/2">
+                      <Swatch color={teamColor(o.team)} ring={teamRing(o.team)} />
+                    </span>
+                  )}
+                </button>
+              </Tip>
             );
           })}
           {marks.map(({ moment, n, left, y }) => (

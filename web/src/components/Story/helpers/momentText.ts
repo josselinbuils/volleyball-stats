@@ -13,6 +13,9 @@ export function momentText(tr: TFunction, m: Moment, seconds: (s: number) => str
   if (m.kind === 'comeback') {
     return tr('story.comeback', { team, n: m.n, ...scores });
   }
+  if (m.kind === 'timeout') {
+    return tr('story.timeout', { team, n: m.n, of: m.of, from: scores.from });
+  }
   if (m.kind === 'setPoints') {
     return tr('story.setPoints', { team, count: m.n, ...scores });
   }

@@ -85,6 +85,7 @@ export function Review({
   backup: savedBackup,
   films: savedFilms,
   filmsError,
+  learned: wasLearned = false,
 }: {
   width: number;
   height: number;
@@ -108,6 +109,7 @@ export function Review({
   backup?: Backup | null;
   films?: FilmCounts;
   filmsError?: string | null;
+  learned?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
@@ -122,7 +124,11 @@ export function Review({
   const [comments, setComments] = useState(savedComments);
   const [picks, setPicks] = useState(() => new Set(savedPicks));
   const [timeouts, setTimeouts] = useState(savedTimeouts);
+  const [learned, setLearned] = useState(wasLearned);
   const onSaved = (saved: Saved) => {
+    if (saved.learned !== undefined) {
+      setLearned(saved.learned);
+    }
     if (saved.corrections !== undefined) {
       setCorrections(saved.corrections);
     }
@@ -297,6 +303,7 @@ export function Review({
       if (saved.timeouts) {
         setTimeouts(saved.timeouts);
       }
+      onSaved(saved);
       setError(false);
     } catch {
       setError(true);
@@ -508,7 +515,7 @@ export function Review({
             </p>
           </div>
         )}
-        {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchDone} />}
+        {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchDone} learned={learned} />}
         <p className="px-1 text-muted-foreground">
           {t({ names: 'review.namesIntro', questions: reviewed ? 'review.introReviewed' : 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}
           {tab === 'names' && (

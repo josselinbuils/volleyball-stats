@@ -4,7 +4,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { Court, Legend } from '@/components/Court';
 import { Swatch } from '@/components/Swatch';
-import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerMark, rallies, teamColor, teamEdge, teamRing, type Group } from '@/lib/match';
+import { GROUPS, groupName, hasNames, hasTeams, match, playerLabel, playerMark, rallies, teamColor, teamEdge, teamRing, timeoutAt, timeoutLabel, type Group } from '@/lib/match';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { isTouch } from '@/helpers/contacts';
 import { playerKey, playersAt } from '@/helpers/players';
@@ -98,7 +98,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
   const hovered = dots.find((d) => d.person === hover);
   const tip = hovered && playerLabel(t, hovered.person);
-  let now = playing ? t('rally', { n: playing.i + 1 }) : t('betweenRallies');
+  const pause = playing ? null : timeoutAt(time);
+  let now = playing ? t('rally', { n: playing.i + 1 }) : pause ? timeoutLabel(t, pause) : t('betweenRallies');
   if (last) {
     const who = [groupName(t, last.g), playerLabel(t, last.person)].filter(Boolean).join(', ');
     now += ` · ${t('lastTouch', { type: t(`types.${last.type}`).toLowerCase(), who })}`;

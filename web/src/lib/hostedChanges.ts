@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 /** A part of the page that changed since the last upload, with how many of its items (`review.page_changes`). */
 export type PageChange = { part: string; count: number | null };
 
-const NAMED = ['rallies', 'contacts', 'people', 'films', 'scores', 'teams', 'voice', 'code'];
+const NAMED = ['rallies', 'contacts', 'people', 'films', 'scores', 'teams', 'timeouts', 'voice', 'code'];
 
 /** What changed since the last upload, for the tip on the late online page: the parts a viewer knows by name, with their
  * count, then one word for the rest. Undefined when nothing is known. */

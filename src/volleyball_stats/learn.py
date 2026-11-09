@@ -274,7 +274,9 @@ def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | N
     history = json.loads(path.read_text()) if path.exists() else []
     now = scores(match, video, court)
     print(report(now, history[-1]["scores"] if history else None))
-    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now, **({"before": replaced} if replaced else {})})
+    # The answers it saw: the review asks for another run once they change.
+    stamp = review.answers_stamp(review.load_log(match / "identity_answers.json"))
+    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now, "answers": stamp, **({"before": replaced} if replaced else {})})
     files.write_text(path, json.dumps(history, indent=1) + "\n")
     return now
 

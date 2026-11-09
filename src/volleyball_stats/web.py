@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, defense, files, framing, jumps
+from volleyball_stats import decode, defense, files, framing, jumps, timeouts
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -802,6 +802,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     brief(found, actions, table, times, said, missed)
     if with_teams:
         jumped(found, table, finder(identities), by_frame, match, video, calibration, fps)
+    stop = match_end(match)
     data = {
         "name": video.stem,
         "aliases": files.aliases(match),
@@ -816,6 +817,12 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
         "contacts": found,
         "zones": zone_cells(),
         "scores": teams and teams.get("scores"),
+        # The timeouts found or given, in seconds, those past the end given left out; sets come with teams.
+        "timeouts": [
+            {"start": round(t["start"] / fps, 2), "end": round(t["end"] / fps, 2), "team": t["team"]}
+            for t in (timeouts.shown(match, fps) if teams else [])
+            if stop is None or t["start"] / fps < stop
+        ],
     }
     for p, seconds in times.items():
         if p in table:

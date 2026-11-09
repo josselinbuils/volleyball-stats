@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { SetBadge } from '@/components/SetBadge';
 import { loadBall, useBall } from '@/lib/ball';
 import { useFormat } from '@/lib/format';
-import { match } from '@/lib/match';
+import { match, timeoutAt, timeoutLabel } from '@/lib/match';
 import { Clock } from '@/lib/clock';
-import { togglePlay, usePlayer } from '@/lib/player';
+import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import type { Clip } from '@/lib/playlist';
 import { Feedback } from '@/components/Watch/Feedback';
 import { PlaylistBar } from '@/components/Watch/PlaylistBar';
@@ -40,6 +40,7 @@ export function Watch() {
   const { t } = useTranslation();
   const f = useFormat();
   const { video, setVideo, playlist } = usePlayer();
+  const pause = useVideoTime(timeoutAt);
   const court = useRef<HTMLDivElement>(null);
   // The automatic zoom, on from the start where the match has views, frames the players as the review does, moving only
   // to keep the ball in; the view springs to it each frame, back to the whole picture when off.
@@ -207,13 +208,13 @@ export function Watch() {
               <div className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
                 {full && <Feedback />}
                 {!LOCAL && playlist && reached === playlist.clips && playlist.at + 1 < playlist.clips.length && <Preload src={src} clips={playlist.clips} at={playlist.at} />}
-                {/* What plays, over the video: the bar below is out of sight from the stats and in full screen. */}
-                {playlist && (
+                {/* What plays, over the video: the bar below is out of sight from the stats and in full screen; else a timeout. */}
+                {(playlist || pause) && (
                   <span
                     aria-hidden
                     className="pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-8.5rem)] truncate rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm"
                   >
-                    {`${playlist.title(t)} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}`}
+                    {playlist ? `${playlist.title(t)} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}` : pause && timeoutLabel(t, pause)}
                   </span>
                 )}
                 {/* Nothing loads before the video is first played or moved (`seek`). */}

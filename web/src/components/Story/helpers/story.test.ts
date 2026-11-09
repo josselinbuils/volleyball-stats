@@ -22,6 +22,24 @@ describe('story', () => {
     expect(chapter.moments.filter((m) => m.kind === 'run')).toEqual([expect.objectContaining({ team: 1, n: 5, from: [0, 0], to: [5, 0], person: 7, rallies: [0, 1, 2, 3, 4] })]);
   });
 
+  it('places a timeout after its rally, a moment when it stops a run and turns the points after it', () => {
+    // Team 2 scores 3 in a row, team 1 calls a timeout at 1-3 and wins 4 of the next 6.
+    const rallies = played(repeat([1, 1], [2, 3], [1, 3], [2, 1], [1, 1], [2, 1]));
+    const [chapter] = story(rallies, finals(rallies), key, [{ start: rallies[3].end, end: rallies[4].start, team: 1 }]);
+    expect(chapter.timeouts).toEqual([{ after: 3, team: 1, score: [1, 3], next: [4, 5, 6, 7, 8, 9] }]);
+    expect(chapter.moments.find((m) => m.kind === 'timeout')).toMatchObject({ team: 1, from: [1, 3], to: [5, 5], n: 4, of: 6, rallies: [4, 5, 6, 7, 8, 9] });
+  });
+
+  it('tells no moment for a timeout that changed nothing, nor one with no team', () => {
+    const rallies = played(repeat([1, 1], [2, 3], [2, 3]));
+    const at = { start: rallies[3].end, end: rallies[4].start };
+    expect(story(rallies, finals(rallies), key, [{ ...at, team: 1 }])[0].moments.filter((m) => m.kind === 'timeout')).toEqual([]);
+    const turned = played(repeat([1, 1], [2, 3], [1, 4]));
+    const [chapter] = story(turned, finals(turned), key, [{ start: turned[3].end, end: turned[4].start, team: null }]);
+    expect(chapter.timeouts).toHaveLength(1);
+    expect(chapter.moments.filter((m) => m.kind === 'timeout')).toEqual([]);
+  });
+
   it('tells the scores of a run from the running team', () => {
     const rallies = played(repeat([1, 2], [2, 5]));
     const [chapter] = story(rallies, finals(rallies), key);

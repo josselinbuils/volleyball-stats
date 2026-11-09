@@ -32,6 +32,8 @@
   "rally": "Rally {{n}}",
   "rallyLower": "rally {{n}}",
   "betweenRallies": "Between rallies",
+  "timeout": "Timeout",
+  "timeoutOf": "{{team}} timeout",
   "lastTouch": "last touch: {{type}}, {{who}}",
   "rallies": "Rallies",
   "watchRally": "Watch this rally, then the next ones",
@@ -283,6 +285,7 @@
       "teams": "Teams",
       "voice": "Commentary",
       "code": "Page code",
+      "timeouts": "Timeouts",
       "other": "Other data"
     },
     "allMatches": "All matches",
@@ -856,7 +859,8 @@
     "setPoints_other": "{{team}} saves {{count}} set points, from {{from}} to {{to}}.",
     "longest": "The longest rally: {{n}} touches in {{seconds}}.",
     "longestScorer": "The longest rally: {{n}} touches in {{seconds}}, finished by {{name}}.",
-    "replay": "Watch this moment"
+    "replay": "Watch this moment",
+    "timeout": "{{team}} calls a timeout at {{from}} and wins {{n}} of the next {{of}} points."
   },
   "myMatch": {
     "film": {

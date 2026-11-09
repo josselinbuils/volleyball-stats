@@ -17,7 +17,8 @@ moments.
 - The match's title and date head the page.
 - Every number and chart element plays its moments in the video or on the animated court.
 - Above the video: the set and its score (estimated, or the final score you gave once the set is
-  over).
+  over). During a timeout, "Temps mort" and its team over the video and beside the court; in TV mode its card, the
+  rally before it held 3 s for it.
 - The video player skips 10 s back or forward. Its "Zoom auto", on from the start where the match has views, frames the players as the review's
   (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
@@ -47,7 +48,9 @@ moments.
 to replay, their best points, their run on serve, who sets whom and their card to save. Their measures: the fastest
 serve and the usual speed, the hitting height and the "Détente" (their median jump, from 5 measured jumps). "L'histoire du
 match": the score gap rally by rally, a few plain sentences per set and the key moments (runs of 5 points,
-deficits of 4 caught up, set points saved, the longest rally), each replaying. Both follow the set filter.
+deficits of 4 caught up, set points saved, the longest rally, a timeout after 3 points in a row against its team that
+wins it 4 of the next 6), each replaying; the timeouts (`timeouts.py`, the review's) as dashed lines on the curve, each
+replaying the 6 points after it. Both follow the set filter.
 
 ## Les trophées
 

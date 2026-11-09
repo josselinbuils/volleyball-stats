@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import { playerMarks } from '@/helpers/players';
+import { ofName } from '@/lib/format';
 
 /** `fault`: a playing fault, made without the ball (net, centre line, rotation); only the review adds it. */
 export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault', 'floor', 'net'] as const;
@@ -10,6 +11,8 @@ export type ActionType = (typeof TYPES)[number];
 export type Side = 'left' | 'right';
 export type Group = (typeof GROUPS)[number];
 export type Result = 'point' | 'error' | 'play';
+/** A timeout, in seconds of the video, `team` the one that called it when known. */
+export type Timeout = { start: number; end: number; team: Group | null };
 
 /** One touch of the ball, `i` its index in `contacts`, `g` its team (its side without teams). */
 export interface Contact {
@@ -172,6 +175,8 @@ export interface Data {
   positions?: { step: number; every: number; files: number; cm: number } | null;
   /** Each set's final score as the user gave it, "25-21" team 1 first, null when unknown. */
   scores?: (string | null)[] | null;
+  /** The timeouts, by start. */
+  timeouts?: Timeout[];
   brand?: Brand | null;
   /** yyyy-mm-dd, with teams. */
   date?: string | null;
@@ -241,6 +246,9 @@ export const contacts: Contact[] = data.contacts.map((c, i) => ({
 for (const c of contacts) {
   rallies[c.rally].contacts.push(c);
 }
+export const timeouts: Timeout[] = data.timeouts ?? [];
+/** The timeout `time` falls in, null between two rallies played on. */
+export const timeoutAt = (time: number): Timeout | null => timeouts.find((o) => o.start <= time && time < o.end) ?? null;
 /** The set numbers of the match, in order. */
 export const sets = [...new Set(rallies.map((r) => r.set))].sort((a, b) => a - b);
 
@@ -248,6 +256,11 @@ export type Placed = Contact & { x: number; y: number };
 
 export function placed(c: Contact): c is Placed {
   return c.x !== null && c.y !== null;
+}
+
+/** "Temps mort" with the team that called it when known. */
+export function timeoutLabel(t: TFunction, o: Pick<Timeout, 'team'>): string {
+  return o.team ? t('timeoutOf', { team: groupName(t, o.team), ofTeam: ofName(groupName(t, o.team)) }) : t('timeout');
 }
 
 /** A team's name (a side's without teams). */
