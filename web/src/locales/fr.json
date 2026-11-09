@@ -225,6 +225,8 @@
     },
     "failed": "Échec : {{step}}",
     "failedClose": "Fermer",
+    "behind_one": "Code en retard d'un commit : git pull, puis relancez la revue.",
+    "behind_other": "Code en retard de {{count}} commits : git pull, puis relancez la revue.",
     "error": "Échec : réessayez. Le détail est dans le journal du serveur.",
     "who": "Qui est entouré en jaune ?",
     "mergeQuestion": "Le n° {{a}} et le n° {{b}} sont-ils la même personne ?",

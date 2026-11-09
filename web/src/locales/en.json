@@ -225,6 +225,8 @@
     },
     "failed": "Failed: {{step}}",
     "failedClose": "Close",
+    "behind_one": "Code one commit behind: git pull, then restart the review.",
+    "behind_other": "Code {{count}} commits behind: git pull, then restart the review.",
     "error": "Failed: try again. The details are in the server's log.",
     "who": "Who is outlined in yellow?",
     "mergeQuestion": "Are no. {{a}} and no. {{b}} the same person?",

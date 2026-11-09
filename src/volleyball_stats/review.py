@@ -39,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, contacts, decode, feedback, film, files, identity, jerseys, matches, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, matches, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
@@ -2289,6 +2289,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(json.dumps(failure).encode(), "application/json")
             if url.path == "/sync":
                 return self.send(json.dumps(elsewhere or None).encode(), "application/json")
+            if url.path == "/git":
+                return self.send(json.dumps(git_check.behind(git_check.ROOT)).encode(), "application/json")
             if url.path == "/more":
                 q = parse_qs(url.query)
                 team, number = int(q["team"][0]), int(q["identity"][0])

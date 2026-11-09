@@ -17,8 +17,8 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True, env=env)
 
 
-def behind_warning(root: Path) -> str | None:
-    """Fetch, then the warning when the current branch is behind its upstream."""
+def behind(root: Path) -> dict | None:
+    """Fetch, then how far the current branch is behind its upstream: None when it is not."""
     try:
         upstream = _git(root, "rev-parse", "--abbrev-ref", "@{u}")
         if upstream.returncode != 0:
@@ -33,11 +33,18 @@ def behind_warning(root: Path) -> str | None:
         return None
     if counts.returncode != 0:
         return None
-    ahead, behind = (int(n) for n in counts.stdout.split())
-    if not behind:
+    ahead, late = (int(n) for n in counts.stdout.split())
+    return {"branch": branch, "upstream": upstream.stdout.strip(), "behind": late, "ahead": ahead} if late else None
+
+
+def behind_warning(root: Path) -> str | None:
+    """`behind`'s warning for the terminal."""
+    state = behind(root)
+    if not state:
         return None
-    diverged = f" and {ahead} ahead" if ahead else ""
-    return f"Warning: {branch} is {behind} commit{'s' if behind > 1 else ''} behind {upstream.stdout.strip()}{diverged}: run git pull --rebase."
+    n = state["behind"]
+    diverged = f" and {state['ahead']} ahead" if state["ahead"] else ""
+    return f"Warning: {state['branch']} is {n} commit{'s' if n > 1 else ''} behind {state['upstream']}{diverged}: run git pull --rebase."
 
 
 def _warn() -> None:

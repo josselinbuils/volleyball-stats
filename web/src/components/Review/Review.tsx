@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, PenLine, Scissors, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, PenLine, Scissors, TriangleAlert, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Tip } from '@/components/Tip';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import {
+  readBehind,
   readElsewhere,
   readFailure,
   type Claim,
@@ -50,6 +51,7 @@ import { ReviewTabs } from '@/components/Review/ReviewTabs';
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
 const NOTICE_MS = 4000;
 const ELSEWHERE_EVERY_MS = 60_000;
+const BEHIND_EVERY_MS = 10 * 60_000;
 const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: 'skip' };
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
@@ -156,6 +158,13 @@ export function Review({
     const read = () => void readElsewhere().then(setElsewhere);
     read();
     const timer = setInterval(read, ELSEWHERE_EVERY_MS);
+    return () => clearInterval(timer);
+  }, []);
+  const [behind, setBehind] = useState(0);
+  useEffect(() => {
+    const read = () => void readBehind().then(setBehind);
+    read();
+    const timer = setInterval(read, BEHIND_EVERY_MS);
     return () => clearInterval(timer);
   }, []);
   // What the last action did, shown for NOTICE_MS.
@@ -530,6 +539,12 @@ export function Review({
         {error && (
           <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
             {t('review.error')}
+          </p>
+        )}
+        {behind > 0 && (
+          <p role="alert" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+            <TriangleAlert aria-hidden className="size-4 shrink-0" />
+            {t('review.behind', { count: behind })}
           </p>
         )}
         {elsewhere && <Elsewhere claim={elsewhere} onKept={() => setElsewhere(null)} />}
