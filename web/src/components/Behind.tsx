@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { readBehind } from '@/lib/review';
 
 const EVERY_MS = 10 * 60_000;
@@ -18,10 +19,10 @@ export function Behind() {
 
   return (
     behind > 0 && (
-      <p role="alert" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-        <TriangleAlert aria-hidden className="size-4 shrink-0" />
-        {t('review.behind', { count: behind })}
-      </p>
+      <Alert variant="warning">
+        <TriangleAlert aria-hidden />
+        <AlertDescription>{t('review.behind', { count: behind })}</AlertDescription>
+      </Alert>
     )
   );
 }
