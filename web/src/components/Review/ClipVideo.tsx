@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pause, Play, Search, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { Pause, Play, ScanSearch, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SkipIcon } from '@/components/SkipIcon';
 import { Swatch } from '@/components/Swatch';
@@ -519,7 +519,7 @@ export function ClipVideo({
                   aria-pressed={autoShown}
                   onClick={toggleAuto}
                 >
-                  <Search aria-hidden />
+                  <ScanSearch aria-hidden />
                   {t('review.auto')}
                 </Button>
               </Tip>

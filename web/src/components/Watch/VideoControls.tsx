@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Maximize, Minimize, Pause, Play, Repeat1, Search, Snail, Volume2, VolumeX } from 'lucide-react';
+import { Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { Tip } from '@/components/Tip';
@@ -236,7 +236,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       {onFollow && (
         <Tip label={t('autoZoom')}>
           <button type="button" className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={follow} aria-label={t('autoZoom')} onClick={onFollow}>
-            <Search aria-hidden />
+            <ScanSearch aria-hidden />
           </button>
         </Tip>
       )}
