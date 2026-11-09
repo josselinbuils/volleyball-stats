@@ -282,7 +282,7 @@ export async function readElsewhere(): Promise<Claim | null> {
 /** How many commits the code lacks from its remote: 0 when up to date or unknown. */
 export async function readBehind(): Promise<number> {
   try {
-    return ((await (await fetch('git')).json()) as { behind: number } | null)?.behind ?? 0;
+    return ((await (await fetch('/git')).json()) as { behind: number } | null)?.behind ?? 0;
   } catch {
     return 0;
   }

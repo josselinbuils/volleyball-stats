@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
+import { Behind } from '@/components/Behind';
 import { BrandBar } from '@/components/BrandBar';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { Season } from '@/components/Season/Season';
@@ -95,6 +96,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
             <LanguageSwitch />
           </div>
         </header>
+        {review && <Behind />}
         {hasSeason && (
           <Tabs
             label={t('season.view')}
