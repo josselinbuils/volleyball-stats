@@ -34,6 +34,7 @@ from volleyball_stats import files, video_copies, web
 from volleyball_stats.web import BRANDING, brand
 
 TEMPLATE = Path(__file__).with_name("matches_site")
+APP_JS = "app.js"
 # The list's own folders, which no match folder may take.
 RESERVED = ("assets", "brand")
 REDIRECTS = "redirects.json"
@@ -218,7 +219,8 @@ def build(site: Path, theme: str = "aspom", url: str | None = None) -> list[dict
     matches = sorted((listed(p.parent) for p in site.glob("*/data.js")), key=lambda m: (m["date"] or "", m["path"]), reverse=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.rmtree(site / "brand", ignore_errors=True)
-    shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
+    # The app's screens (app.js) are the review server's only.
+    shutil.copytree(TEMPLATE, site, dirs_exist_ok=True, ignore=shutil.ignore_patterns(APP_JS))
     (site / "matches.html").replace(site / "index.html")
     club = brand(theme, site)
     if club:

@@ -2,8 +2,16 @@
 
 ## A match
 
+- `uv run volleyball-stats` (`app.py`) is the review server on the list of the matches, its `/app/` routes doing what
+  used to need a command: `doctor.py`'s checks, the import, the court (`court auto --background`, else clicks and
+  `court fit --out`), the pipeline (`match --players --anyway`, after the app's own busy check), the videos with the
+  other machine (`data_sync`) and the update (`git pull --ff-only --autostash`, `uv sync --inexact`, a restart; refused
+  while a job or an apply runs). The long ones are jobs (`jobs.py`): a process of their own in a new session, their
+  record and log in `outputs/jobs/`, so they outlive the server's restarts; `match` prints `::progress` while tracking.
+  A match being prepared shows above the list until its `report.md` exists. A second start only opens the page.
 - Every `python -m volleyball_stats.X` command fetches in the background and warns when the branch is behind its remote
-  (`git_check.py`; once per command, not in the ones it starts).
+  (`git_check.py`; once per command, not in the ones it starts). The review and its list say it too, with "Mettre à
+  jour" (`/app/update`).
 - The videos from the other machine, both on the same network: `uv run python -m volleyball_stats.data_sync` on the Mac (it
   waits and shows a command with a code), that command on the PC. Each gets what only the other has; a cut copy resumes. The
   results come through the review's list ("À télécharger") or `sync pull` ([hosting.md](hosting.md)).

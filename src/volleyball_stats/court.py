@@ -445,6 +445,17 @@ def overlay(image: np.ndarray, calibration: Calibration) -> np.ndarray:
     return out
 
 
+def check_image(image: np.ndarray, calibration: Calibration, width: int = 1280) -> np.ndarray:
+    """`overlay` on a copy `width` pixels wide, its lines thick enough to see there."""
+    scale = width / image.shape[1]
+    out = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    for line in LINES:
+        for a, b in zip(line, line[1:]):
+            path = calibration.to_image(np.linspace(LANDMARKS[a], LANDMARKS[b], 40)) * scale
+            cv2.polylines(out, [path.astype(np.int32)], False, (0, 255, 255), 2, cv2.LINE_AA)
+    return out
+
+
 class Clicks:
     """Landmarks named one by one: a click places the current one, skip and undo move along."""
 
@@ -597,11 +608,13 @@ def main() -> None:
     fit_parser.add_argument("--lens", type=Path)
     fit_parser.add_argument("--court", help="Name in the court library, defaults to the video name")
     fit_parser.add_argument("--courts", type=Path, default=COURTS)
-    fit_parser.add_argument("--out", type=Path, help="Instead of the court library")
+    fit_parser.add_argument("--out", type=Path, help="Instead of the court library, or beside it with --court; its lines drawn on a .jpg beside it")
+    fit_parser.add_argument("--background", type=Path, help="The median frame `auto --background` saved, instead of reading the video again")
     auto_parser = sub.add_parser("auto", help="Calibrate a video from the stored courts")
     auto_parser.add_argument("video", type=Path)
     auto_parser.add_argument("--courts", type=Path, default=COURTS)
     auto_parser.add_argument("--out", type=Path, help="Defaults to outputs/court/VIDEO.json")
+    auto_parser.add_argument("--background", type=Path, help="Where to save the median frame, for `fit` should no court match")
     grid_parser = sub.add_parser("grid", help="Write a frame with a labelled pixel grid")
     grid_parser.add_argument("video", type=Path)
     grid_parser.add_argument("--frame", type=int, default=0)
@@ -619,7 +632,8 @@ def main() -> None:
     elif args.command == "fit":
         clicks = {n: tuple(p) for n, p in json.loads(args.clicks.read_text()).items()}
         lens = json.loads(args.lens.read_text()) if args.lens else None
-        calibration = calibrate(background(args.video), clicks, lens)
+        image = cv2.imread(str(args.background)) if args.background and args.background.exists() else background(args.video)
+        calibration = calibrate(image, clicks, lens)
         reprojected = calibration.to_image(np.array([LANDMARKS[name] for name in clicks]))
         print(f"{'landmark':20} {'snapped':>7} {'residual':>8}")
         for (name, click), back in zip(clicks.items(), reprojected):
@@ -627,11 +641,16 @@ def main() -> None:
             moved = f"{np.hypot(*np.subtract(point, click)):5.1f}px" if point else "   kept"
             print(f"{name:20} {moved} {np.hypot(*(back - (point or click))):8.1f}")
         print(f"{len(calibration.points)}/{len(clicks)} snapped to the lines, RMS {calibration.error:.1f} px")
-        out = args.out or args.courts / f"{args.court or args.video.stem}.json"
-        calibration.save(out)
-        print(out)
+        for out in [args.courts / f"{args.court or args.video.stem}.json"] * bool(args.court or not args.out) + [args.out] * bool(args.out):
+            calibration.save(out)
+            print(out)
+        if args.out:
+            cv2.imwrite(str(args.out.with_suffix(".jpg")), check_image(image, calibration))
     elif args.command == "auto":
         image = background(args.video)
+        if args.background:
+            args.background.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(args.background), image)
         best, best_found = None, 0.0
         for path in sorted(args.courts.glob("*.json")):
             court = Calibration.load(path)
@@ -650,7 +669,7 @@ def main() -> None:
         out = args.out or Path("outputs/court") / f"{args.video.stem}.json"
         best.save(out)
         check = out.with_suffix(".jpg")
-        cv2.imwrite(str(check), overlay(image, best))
+        cv2.imwrite(str(check), check_image(image, best))
         print(f"{out}\nCheck the lines on {check}")
     else:
         frame = read_frame(args.video, args.frame)

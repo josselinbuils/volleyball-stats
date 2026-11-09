@@ -225,8 +225,8 @@
     },
     "failed": "Échec : {{step}}",
     "failedClose": "Fermer",
-    "behind_one": "Code en retard d'un commit : git pull, puis relancez la revue.",
-    "behind_other": "Code en retard de {{count}} commits : git pull, puis relancez la revue.",
+    "behind_one": "Une mise à jour disponible.",
+    "behind_other": "{{count}} mises à jour disponibles.",
     "error": "Échec : réessayez. Le détail est dans le journal du serveur.",
     "who": "Qui est entouré en jaune ?",
     "mergeQuestion": "Le n° {{a}} et le n° {{b}} sont-ils la même personne ?",
@@ -504,7 +504,11 @@
     "lookAlikes": "Plus d'images {{ofName}}",
     "unsaved": "Des corrections ne sont pas validées : les perdre ?",
     "goMatch": "Vérifier le match",
-    "keys": "Clavier : ↑ ↓ changent de joueur, ← → d'image, Espace marque l'image (tapez le nom, Entrée), N nomme le joueur."
+    "keys": "Clavier : ↑ ↓ changent de joueur, ← → d'image, Espace marque l'image (tapez le nom, Entrée), N nomme le joueur.",
+    "update": "Mettre à jour",
+    "updating": "Mise à jour…",
+    "updateBusy": "Une analyse ou une mise à jour de la page est en cours : réessayez après.",
+    "updateFailed": "Mise à jour impossible : {{error}}"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
@@ -1146,5 +1150,172 @@
       "faultFaultNamedSet": "Faute de jeu {{ofName}}. {{team}} remporte le set {{score}}."
     },
     "voiceCredit": "Voix de synthèse : Kokoro, corpus SIWIS (CC BY 4.0)."
+  },
+  "app": {
+    "setup": "Préparer un match",
+    "preparing": "En préparation",
+    "hours": "{{h}} h {{m}} min",
+    "left": "Reste environ {{left}} · fin vers {{end}}",
+    "busy": "L'ordinateur est occupé (charge {{load}} sur {{cores}} cœurs) : l'analyse serait bien plus lente. Fermez les autres logiciels ou lancez-la quand même.",
+    "busyNice": "L'app tourne en priorité basse : l'analyse serait bien plus lente. Relancez-la au premier plan, ou lancez quand même.",
+    "run": "Lancer l'analyse",
+    "runAnyway": "Lancer quand même",
+    "retry": "Réessayer",
+    "stop": "Arrêter",
+    "stopTitle": "Arrêter ?",
+    "stopText": "Le travail fait est perdu : il faudra tout relancer.",
+    "delete": "Supprimer",
+    "deleteTitle": "Supprimer ce match ?",
+    "deleteText": "Sa vidéo copiée et tout ce qui a été calculé sont effacés. La carte de la caméra n'est pas touchée.",
+    "cancel": "Annuler",
+    "state": {
+      "importing": "Copie de la vidéo…",
+      "searching": "Recherche du terrain…",
+      "court": "Terrain inconnu : placez-le une fois pour ce gymnase.",
+      "check": "Vérifiez les deux images, puis lancez l'analyse (plusieurs heures).",
+      "running": "Analyse en cours",
+      "failed": "Échec : {{step}}",
+      "stopped": "Arrêté : {{step}}",
+      "elsewhere": "Analyse en cours dans un autre terminal ou sur l'autre ordinateur"
+    },
+    "step": {
+      "import": "copie de la vidéo",
+      "court": "recherche du terrain",
+      "pipeline": "analyse"
+    },
+    "check": {
+      "sides": "{{left}} à gauche au premier échange, {{right}} à droite ?",
+      "swap": "Inverser",
+      "court": "Les lignes jaunes suivent-elles celles du terrain ?",
+      "replace": "Replacer le terrain"
+    },
+    "import": {
+      "open": "Importer un match",
+      "title": "Importer un match",
+      "where": "Où est la vidéo ? La carte de la caméra n'est que lue.",
+      "card": "Carte {{name}}",
+      "path": "Ou un dossier, une vidéo",
+      "look": "Chercher",
+      "scanning": "Lecture des vidéos…",
+      "noFolder": "Dossier introuvable.",
+      "noVideo": "Aucune vidéo ici.",
+      "recording": "Enregistrement",
+      "recordingN": "Enregistrement {{n}}",
+      "left": "Équipe à gauche au premier échange",
+      "right": "Équipe à droite",
+      "colour": "Couleur du maillot",
+      "date": "Date du match",
+      "cut": "Couper la vidéo",
+      "from": "Début",
+      "to": "Fin",
+      "start": "Importer",
+      "exists": "Ce match est déjà importé.",
+      "disk": "Pas assez de place : {{gb}} Go libres nécessaires.",
+      "badTimes": "Le début est après la fin.",
+      "failed": "Import impossible : {{error}}"
+    },
+    "court": {
+      "open": "Placer le terrain",
+      "title": "Placer le terrain",
+      "intro": "Cliquez sur chaque point montré sur le petit terrain, à peu près : les lignes sont trouvées autour. Un point caché se passe.",
+      "click": "Cliquez : {{point}}",
+      "allDone": "Tous les points sont placés.",
+      "hidden": "Point caché",
+      "undo": "Annuler le dernier",
+      "loading": "Préparation de l'image…",
+      "picture": "Le terrain filmé",
+      "name": "Nom du gymnase (reconnu seul aux prochains matchs)",
+      "save": "Valider",
+      "point": {
+        "corner_left_far": "coin du fond à gauche",
+        "attack_left_far": "ligne des 3 m de gauche, au fond",
+        "center_far": "ligne centrale, au fond (sous le filet)",
+        "attack_right_far": "ligne des 3 m de droite, au fond",
+        "corner_right_far": "coin du fond à droite",
+        "corner_left_near": "coin de devant à gauche",
+        "attack_left_near": "ligne des 3 m de gauche, devant",
+        "center_near": "ligne centrale, devant (sous le filet)",
+        "attack_right_near": "ligne des 3 m de droite, devant",
+        "corner_right_near": "coin de devant à droite",
+        "post_far": "pied du poteau du fond",
+        "post_near": "pied du poteau de devant"
+      }
+    },
+    "videos": {
+      "open": "Vidéos de l'autre ordinateur",
+      "title": "Vidéos de l'autre ordinateur",
+      "intro": "Les deux ordinateurs sur le même réseau s'échangent les vidéos que l'autre n'a pas.",
+      "wait": "Attendre l'autre ordinateur",
+      "waiting": "Sur l'autre ordinateur, ouvrez cette fenêtre et entrez :",
+      "address": "Adresse",
+      "code": "Code",
+      "copying": "Échange des vidéos…",
+      "joinTitle": "Rejoindre l'autre ordinateur",
+      "join": "Rejoindre",
+      "done": "Échange terminé.",
+      "failed": "Échec de l'échange : {{error}}"
+    },
+    "doctor": {
+      "open": "Installation",
+      "title": "Installation",
+      "checking": "Vérification…",
+      "again": "Vérifier à nouveau",
+      "failed": "Vérification impossible : {{detail}}",
+      "download": "Télécharger",
+      "downloading": "Téléchargement…",
+      "downloadFailed": "Téléchargement impossible : vérifiez la connexion à internet.",
+      "status": {
+        "ok": "Bon",
+        "warn": "À regarder",
+        "error": "À corriger"
+      },
+      "name": {
+        "tools": "Outils",
+        "gpu": "Carte graphique",
+        "memory": "Mémoire",
+        "disk": "Espace disque",
+        "models": "Modèles",
+        "code": "Version",
+        "busy": "Charge de l'ordinateur"
+      },
+      "tools": {
+        "ok": "ffmpeg et git sont installés.",
+        "missing": "Manquant : {{tools}}. Installez-le dans un terminal :"
+      },
+      "gpu": {
+        "cuda": "{{name}} : analyse rapide.",
+        "mps": "{{name}} : analyse possible, plus lente qu'avec une carte NVIDIA.",
+        "cpu": "Aucune carte graphique utilisable : l'analyse d'un match prendrait des jours.",
+        "driver": "Carte NVIDIA présente mais inutilisable : mettez à jour son pilote Windows, puis redémarrez.",
+        "torch": "PyTorch manque : relancez l'installation."
+      },
+      "memory": {
+        "ok": "{{gb}} Go.",
+        "warn": "{{gb}} Go : juste assez pour un match de 2 h.",
+        "error": "{{gb}} Go : trop peu pour un match de 2 h (12 Go au moins).",
+        "warnWsl": "{{gb}} Go donnés à WSL : juste assez. Donnez-lui plus de mémoire dans .wslconfig.",
+        "errorWsl": "{{gb}} Go donnés à WSL : trop peu. Donnez-lui au moins 12 Go dans .wslconfig, puis wsl --shutdown."
+      },
+      "disk": {
+        "ok": "{{gb}} Go libres.",
+        "warn": "{{gb}} Go libres : de quoi importer un ou deux matchs.",
+        "error": "{{gb}} Go libres : trop peu pour importer un match (60 Go par match en 4K).",
+        "slow": "{{gb}} Go libres, mais sur le disque de Windows : la lecture y est bien plus lente. Installez dans le dossier Ubuntu."
+      },
+      "models": {
+        "ok": "Téléchargés.",
+        "missing_one": "{{count}} modèle à télécharger avant la première analyse.",
+        "missing_other": "{{count}} modèles à télécharger avant la première analyse."
+      },
+      "code": {
+        "ok": "À jour.",
+        "behind_one": "Une mise à jour disponible.",
+        "behind_other": "{{count}} mises à jour disponibles."
+      },
+      "busy": {
+        "ok": "Disponible.",
+        "busy": "Occupé (charge {{load}} sur {{cores}} cœurs) : une analyse serait plus lente."
+      }
+    }
   }
 }

@@ -24,6 +24,12 @@
 
 ## Install
 
+`install.sh` does it all and starts the app (`curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh`,
+or `./install.sh` in a copy): Homebrew on a Mac, git, ffmpeg and uv when missing, the code in `~/volleyball-stats`
+(`VOLLEYBALL_STATS_DIR` for another place), `~/.local/bin/volleyball-stats` and a desktop shortcut (a Mac's
+`.command`, Windows' `.bat` from WSL2). The app's "Installation" (`doctor.py`) checks the tools, the graphics card
+and its driver, the memory, the disk, the models (downloaded there) and the code's version. By hand:
+
 On a Windows PC with an NVIDIA GPU:
 
 ```bash
@@ -45,7 +51,8 @@ git clone https://github.com/josselinbuils/volleyball-stats.git && cd volleyball
 uv sync
 ```
 
-The models (ball, players, re-identification) download on their first use.
+The models (ball, players, re-identification) download on their first use, or ahead from the app's warning
+(`uv run python -m volleyball_stats.doctor --models`).
 
 ## Performance
 

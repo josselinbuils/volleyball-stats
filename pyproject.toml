@@ -16,6 +16,9 @@ dependencies = [
     "ultralytics",
 ]
 
+[project.scripts]
+volleyball-stats = "volleyball_stats.app:main"
+
 [dependency-groups]
 dev = ["pytest"]
 bench = ["onnxruntime", "pillow", "pyyaml"]

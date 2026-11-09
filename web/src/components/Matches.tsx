@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
@@ -43,7 +43,14 @@ export interface MatchList {
   review?: boolean;
 }
 
-/** The match pages, newest first, each a card linking to it. */
+declare global {
+  interface Window {
+    VolleyAppBundle?: { mount: (element: HTMLElement) => void };
+  }
+}
+
+/** The match pages, newest first, each a card linking to it. In the review, the app's screens above them (app.js):
+ * importing a match and preparing it until its review opens. */
 // The season's own address: the list's with this hash.
 const SEASON = '#saison';
 
@@ -61,6 +68,20 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
     }
   }, [review]);
   const matches = remote.length ? withRemote(here, remote) : here;
+  // The matches being prepared show in the app's screens.
+  const listed = review ? matches.filter((m) => m.ready || m.remote || m.missing) : matches;
+  const setup = useRef<HTMLDivElement>(null);
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (!review || loaded.current) {
+      return;
+    }
+    loaded.current = true;
+    const script = document.createElement('script');
+    script.src = 'app.js';
+    script.onload = () => setup.current && window.VolleyAppBundle?.mount(setup.current);
+    document.head.append(script);
+  }, [review]);
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
   const hasSeason = seasonTeams(matches).length > 0;
@@ -97,6 +118,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
           </div>
         </header>
         {review && <Behind />}
+        {review && <div ref={setup} className={view === 'season' ? 'hidden' : undefined} />}
         {hasSeason && (
           <Tabs
             label={t('season.view')}
@@ -114,9 +136,9 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
         <p className="px-1 text-muted-foreground">{t(view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}</p>
         {view === 'season' ? (
           <Season matches={matches} />
-        ) : matches.length ? (
+        ) : listed.length ? (
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {matches.map((m) => {
+            {listed.map((m) => {
               const names = m.teams?.map((team, k) => team.name ?? t('team', { n: k + 1 }));
               const scores = (m.scores ?? []).filter(Boolean);
               // From the disk, a folder opens as a file listing: its page is named.
@@ -167,7 +189,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
                           scores.length > 0 && scores.join(' · '),
                           opening === m.path && t(m.remote ? 'matches.pulling' : 'matches.opening'),
                           review && opening !== m.path && m.remote && t('matches.toPull'),
-                          review && !m.ready && !m.remote && t(m.missing === 'video' ? 'matches.noVideo' : 'matches.processing'),
+                          review && m.missing === 'video' && t('matches.noVideo'),
                         ]
                           .filter(Boolean)
                           .join(' · ')}

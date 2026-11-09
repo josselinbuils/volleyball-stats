@@ -225,8 +225,8 @@
     },
     "failed": "Failed: {{step}}",
     "failedClose": "Close",
-    "behind_one": "Code one commit behind: git pull, then restart the review.",
-    "behind_other": "Code {{count}} commits behind: git pull, then restart the review.",
+    "behind_one": "One update available.",
+    "behind_other": "{{count}} updates available.",
     "error": "Failed: try again. The details are in the server's log.",
     "who": "Who is outlined in yellow?",
     "mergeQuestion": "Are no. {{a}} and no. {{b}} the same person?",
@@ -504,7 +504,11 @@
     "lookAlikes": "More pictures of {{name}}",
     "unsaved": "Some corrections are not validated: lose them?",
     "goMatch": "Check the match",
-    "keys": "Keyboard: ↑ ↓ change player, ← → picture, Space marks the picture (type the name, Enter), N names the player."
+    "keys": "Keyboard: ↑ ↓ change player, ← → picture, Space marks the picture (type the name, Enter), N names the player.",
+    "update": "Update",
+    "updating": "Updating…",
+    "updateBusy": "An analysis or a page update is running: try again after.",
+    "updateFailed": "Update failed: {{error}}"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -1146,5 +1150,172 @@
       "faultFaultNamedSet": "A playing fault by {{name}}. {{team}} take the set {{score}}."
     },
     "voiceCredit": "French synthetic voice: Kokoro, SIWIS corpus (CC BY 4.0)."
+  },
+  "app": {
+    "setup": "Prepare a match",
+    "preparing": "Being prepared",
+    "hours": "{{h}} h {{m}} min",
+    "left": "About {{left}} left · done around {{end}}",
+    "busy": "The computer is busy (load {{load}} on {{cores}} cores): the analysis would be much slower. Close other programs or start it anyway.",
+    "busyNice": "The app runs at a low priority: the analysis would be much slower. Restart it in the foreground, or start anyway.",
+    "run": "Start the analysis",
+    "runAnyway": "Start anyway",
+    "retry": "Try again",
+    "stop": "Stop",
+    "stopTitle": "Stop?",
+    "stopText": "The work done is lost: it will have to start over.",
+    "delete": "Delete",
+    "deleteTitle": "Delete this match?",
+    "deleteText": "Its copied video and everything computed are erased. The camera's card is not touched.",
+    "cancel": "Cancel",
+    "state": {
+      "importing": "Copying the video…",
+      "searching": "Looking for the court…",
+      "court": "Unknown court: place it once for this gym.",
+      "check": "Check both pictures, then start the analysis (several hours).",
+      "running": "Analysing",
+      "failed": "Failed: {{step}}",
+      "stopped": "Stopped: {{step}}",
+      "elsewhere": "Being analysed in another terminal or on the other computer"
+    },
+    "step": {
+      "import": "copying the video",
+      "court": "looking for the court",
+      "pipeline": "analysis"
+    },
+    "check": {
+      "sides": "{{left}} on the left at the first rally, {{right}} on the right?",
+      "swap": "Swap",
+      "court": "Do the yellow lines follow the court's?",
+      "replace": "Place the court again"
+    },
+    "import": {
+      "open": "Import a match",
+      "title": "Import a match",
+      "where": "Where is the video? The camera's card is only read.",
+      "card": "Card {{name}}",
+      "path": "Or a folder, a video",
+      "look": "Look",
+      "scanning": "Reading the videos…",
+      "noFolder": "Folder not found.",
+      "noVideo": "No video here.",
+      "recording": "Recording",
+      "recordingN": "Recording {{n}}",
+      "left": "Team on the left at the first rally",
+      "right": "Team on the right",
+      "colour": "Jersey colour",
+      "date": "Match date",
+      "cut": "Cut the video",
+      "from": "Start",
+      "to": "End",
+      "start": "Import",
+      "exists": "This match is already imported.",
+      "disk": "Not enough space: {{gb}} GB free needed.",
+      "badTimes": "The start is after the end.",
+      "failed": "Import failed: {{error}}"
+    },
+    "court": {
+      "open": "Place the court",
+      "title": "Place the court",
+      "intro": "Click each point the small court shows, roughly: the lines are found around it. Skip a hidden point.",
+      "click": "Click: {{point}}",
+      "allDone": "Every point is placed.",
+      "hidden": "Hidden point",
+      "undo": "Undo the last",
+      "loading": "Preparing the picture…",
+      "picture": "The filmed court",
+      "name": "Gym name (found on its own next time)",
+      "save": "Save",
+      "point": {
+        "corner_left_far": "far left corner",
+        "attack_left_far": "left 3 m line, far side",
+        "center_far": "centre line, far side (under the net)",
+        "attack_right_far": "right 3 m line, far side",
+        "corner_right_far": "far right corner",
+        "corner_left_near": "near left corner",
+        "attack_left_near": "left 3 m line, near side",
+        "center_near": "centre line, near side (under the net)",
+        "attack_right_near": "right 3 m line, near side",
+        "corner_right_near": "near right corner",
+        "post_far": "foot of the far post",
+        "post_near": "foot of the near post"
+      }
+    },
+    "videos": {
+      "open": "Videos of the other computer",
+      "title": "Videos of the other computer",
+      "intro": "Both computers on the same network swap the videos the other lacks.",
+      "wait": "Wait for the other computer",
+      "waiting": "On the other computer, open this window and enter:",
+      "address": "Address",
+      "code": "Code",
+      "copying": "Swapping the videos…",
+      "joinTitle": "Join the other computer",
+      "join": "Join",
+      "done": "Swap done.",
+      "failed": "Swap failed: {{error}}"
+    },
+    "doctor": {
+      "open": "Installation",
+      "title": "Installation",
+      "checking": "Checking…",
+      "again": "Check again",
+      "failed": "Check failed: {{detail}}",
+      "download": "Download",
+      "downloading": "Downloading…",
+      "downloadFailed": "Download failed: check the internet connection.",
+      "status": {
+        "ok": "Good",
+        "warn": "To look at",
+        "error": "To fix"
+      },
+      "name": {
+        "tools": "Tools",
+        "gpu": "Graphics card",
+        "memory": "Memory",
+        "disk": "Disk space",
+        "models": "Models",
+        "code": "Version",
+        "busy": "Computer load"
+      },
+      "tools": {
+        "ok": "ffmpeg and git are installed.",
+        "missing": "Missing: {{tools}}. Install it in a terminal:"
+      },
+      "gpu": {
+        "cuda": "{{name}}: fast analysis.",
+        "mps": "{{name}}: analysis works, slower than with an NVIDIA card.",
+        "cpu": "No usable graphics card: analysing a match would take days.",
+        "driver": "NVIDIA card found but unusable: update its Windows driver, then restart.",
+        "torch": "PyTorch is missing: run the installation again."
+      },
+      "memory": {
+        "ok": "{{gb}} GB.",
+        "warn": "{{gb}} GB: just enough for a 2-hour match.",
+        "error": "{{gb}} GB: too little for a 2-hour match (12 GB at least).",
+        "warnWsl": "{{gb}} GB given to WSL: just enough. Give it more memory in .wslconfig.",
+        "errorWsl": "{{gb}} GB given to WSL: too little. Give it at least 12 GB in .wslconfig, then wsl --shutdown."
+      },
+      "disk": {
+        "ok": "{{gb}} GB free.",
+        "warn": "{{gb}} GB free: room to import one or two matches.",
+        "error": "{{gb}} GB free: too little to import a match (60 GB per 4K match).",
+        "slow": "{{gb}} GB free, but on Windows' disk: reading there is much slower. Install in the Ubuntu folder."
+      },
+      "models": {
+        "ok": "Downloaded.",
+        "missing_one": "{{count}} model to download before the first analysis.",
+        "missing_other": "{{count}} models to download before the first analysis."
+      },
+      "code": {
+        "ok": "Up to date.",
+        "behind_one": "One update available.",
+        "behind_other": "{{count}} updates available."
+      },
+      "busy": {
+        "ok": "Available.",
+        "busy": "Busy (load {{load}} on {{cores}} cores): an analysis would be slower."
+      }
+    }
   }
 }

@@ -25,6 +25,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - "Le coin du coach" advises the team: it never names a player for a fault or a weak number (the owner's rule), but in
   "Placement en défense", "Placement en réception" and "Le saut d'attaque" (the owner's call, for now).
 - Benchmark-driven: change a step, run its benchmark, report the numbers before and after.
+- Every action is done in the app (the owner's rule): `uv run volleyball-stats` (or `install.sh`) is the only
+  command a user types. A new step or command gets its place in the app, for anyone to use without computing knowledge.
 - A review question about who touched the ball always offers every player of both teams: the
   touch's team is often wrong. The answer takes the picked player's team.
 
@@ -38,7 +40,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - The page's build is committed in `src/volleyball_stats/site/`: after any `web/` change run
   `npm run build` in `web/` and commit the build with it. It makes the page, `scene3d.js` (three.js)
   that the page loads only when the 3D view is shown, `review-app.js` (the review's screens) that it loads
-  only in the review, and in `matches_site/` the list of the hosted matches (`matches.html`, `src/matches.tsx`).
+  only in the review, and in `matches_site/` the list of the hosted matches (`matches.html`, `src/matches.tsx`) with
+  `app.js`, the app's screens the review server's list loads (`src/appPanel.tsx`, never hosted).
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
 
@@ -59,7 +62,7 @@ These are not loaded at the start of a session: read the one a task touches.
 |---|---|
 | What is next, the weak spots, the owner's plans: start here when asked what to do | [docs/state.md](docs/state.md) |
 | The review: running it, its questions, Match tab, stats rule, the match list, renames | [docs/review.md](docs/review.md) |
-| Importing and running a match, a busy machine, checking the page on the short clips | [docs/running.md](docs/running.md) |
+| The app (one command, everything else in the browser), importing and running a match, a busy machine, checking the page on the short clips | [docs/running.md](docs/running.md) |
 | The server, uploads, password, viewers' reports, crawlers, backups, two machines (sync), films, voice | [docs/hosting.md](docs/hosting.md) |
 | Pipeline changes and their numbers; ideas for the page | [docs/next_steps.md](docs/next_steps.md), [docs/plan.md](docs/plan.md) |
 | Setup, recording, every command and option, the page's sections and stats, each pipeline step | [docs/setup.md](docs/setup.md), [docs/recording.md](docs/recording.md), [docs/processing.md](docs/processing.md), [docs/match-page.md](docs/match-page.md), [docs/pipeline.md](docs/pipeline.md) |

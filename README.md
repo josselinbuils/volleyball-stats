@@ -70,16 +70,22 @@ each one through the whole match and keeps the score. Each step is scored agains
 
 ### 1. Install
 
-You need a GPU (NVIDIA, or Apple Silicon at a slower pace), [`uv`](https://docs.astral.sh/uv/) and
-`ffmpeg`.
+You need a computer with a graphics card: an NVIDIA one, or a Mac with an Apple chip (slower). In a terminal (on a
+Mac: the Terminal app), paste this line and press Enter:
 
 ```bash
-git clone https://github.com/josselinbuils/volleyball-stats.git
-cd volleyball-stats
-uv sync
+curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
 ```
 
-On Windows, run it in WSL2: see [Setup](docs/setup.md).
+It installs what is missing, puts a "Volleyball Stats" shortcut on the desktop and opens the app in the browser.
+Next time, open that shortcut, or run the same line again.
+
+On Windows, the app runs in Ubuntu (WSL2): in PowerShell as administrator, run `wsl --install -d Ubuntu-24.04`,
+restart, open "Ubuntu" from the Start menu, choose a user name and password, then paste the line above there. See
+[Setup](docs/setup.md) for the NVIDIA driver.
+
+The app's "Installation" button checks the graphics card, the memory, the disk space and the tools, and says what to
+fix.
 
 ### 2. Film a match
 
@@ -87,58 +93,19 @@ One fixed camera on a sideline, in line with the net, about 6 m away and 3.6 m h
 lines. Film in 4K (2.7K minimum) at 50 fps with the exposure locked. See [Recording](docs/recording.md)
 for the stand, the camera settings and the lens calibration.
 
-### 3. Import it
+### 3. Everything else, in the app
 
-```bash
-uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "Home:navy,Away:white"
-```
+1. **Import a match:** pick the camera's card, name the team on the left at the first rally and the other one.
+2. **Check:** the app finds the court in a gym it knows; the first time in a gym, click its corners and lines once.
+   Check the sides and the court's lines on two pictures, then start the analysis: hours for a 2-hour match.
+3. **Review:** once analysed, the match opens in the review. Name each player from their pictures, answer the
+   questions about the players it is unsure of, then apply: the match page is rebuilt in seconds.
 
-It joins the camera's files into `data/matches/MATCH/MATCH.mp4` and starts `outputs/matches/MATCH/`, where `MATCH` is
-the match's date and teams, e.g. `2026-11-08-home-vs-away`. The first team is the one on the left at the
-first rally.
+The match page is in `outputs/matches/MATCH/site/index.html`; the review's "Mettre en ligne" hosts it. When a new
+version of the code is out, the app offers to update.
 
-### 4. Map the court
-
-Once per gym: click roughly on the court lines, and the fit snaps them to the painted lines.
-
-```bash
-uv run python -m volleyball_stats.court click data/matches/MATCH/MATCH.mp4
-uv run python -m volleyball_stats.court fit outputs/court/MATCH_clicks.json data/matches/MATCH/MATCH.mp4 \
-  --court my_gym
-```
-
-The next matches in that gym use `court auto` instead.
-
-### 5. Run the pipeline
-
-```bash
-uv run python -m volleyball_stats.match data/matches/MATCH/MATCH.mp4 \
-  --court outputs/courts/my_gym.json --players
-```
-
-This is the long step: hours for a 2-hour match.
-
-### 6. Review and name the players
-
-```bash
-uv run python -m volleyball_stats.review outputs/matches/MATCH
-```
-
-It opens a page in your browser, on this machine only. Name each player from their pictures, answer the
-questions it asks about the players it is unsure of, then apply: the match page is rebuilt in seconds.
-
-### 7. Open the match page
-
-```bash
-uv run python -m volleyball_stats.web outputs/matches/MATCH --video data/matches/MATCH/MATCH.mp4 \
-  --court outputs/courts/my_gym.json --theme none
-```
-
-Open `outputs/matches/MATCH/site/index.html`. `--theme` takes your club's colours and logo (see
-[`branding/brand.example.json`](branding/brand.example.json)), `--footage` adds the video, and the same
-files can be hosted as they are.
-
-Every option of every step: [Processing a match](docs/processing.md).
+Developers start it with `uv run volleyball-stats`. Each step also has its command, with every option:
+[Processing a match](docs/processing.md).
 
 ## Documentation
 

@@ -109,6 +109,13 @@ def join(chapters: list[Chapter], target: Path, start: float | None, end: float 
         listing.unlink(missing_ok=True)
 
 
+def named(chapters: list[Chapter], names: list[str], date: str | None = None) -> tuple[str, str]:
+    """The match's name, its hosted page's, and its day: `date` (any form `teams.parse_date` reads), else the camera's."""
+    first = chapters[0]
+    day = teams.parse_date(date) if date else first.stamp.date().isoformat() if first.stamp else teams.recording_date(first.path)
+    return matches.address({"date": day, "name": "", "teams": [{"name": n} for n in names]}), day
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Import a match from the camera's card, named like its hosted page.")
     parser.add_argument("source", type=Path, help="The card, a folder of chapters or one video")
@@ -142,9 +149,7 @@ def main() -> None:
     if start and start >= (end or sum(c.duration for c in chapters)):
         parser.error("--from is past the end")
 
-    first = chapters[0]
-    day = teams.parse_date(args.date) if args.date else first.stamp.date().isoformat() if first.stamp else teams.recording_date(first.path)
-    name = matches.address({"date": day, "name": "", "teams": [{"name": n} for n, _ in names]})
+    name, day = named(chapters, [n for n, _ in names], args.date)
     target = args.data / name / f"{name}.mp4"
     if target.exists():
         parser.error(f"{target} already exists")

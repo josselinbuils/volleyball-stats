@@ -28,7 +28,6 @@ import sys
 import threading
 import time
 import traceback
-import webbrowser
 from collections import Counter, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
@@ -39,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, matches, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import app, attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, matches, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
@@ -76,6 +75,7 @@ SPOT_CHECKS = 20
 # A rally window asked about is played whole with RALLY_AROUND_S on both sides, unzoomed.
 RALLY_AROUND_S = 1.0
 ROSTER = Path("outputs/roster.json")
+PORT = 8765
 # Beside a match's outputs: when its hosted page was last uploaded, and what it then showed (`page_stamp`).
 HOSTED = "hosted.json"
 # The page data and code the last upload sent (`page_content`): what changed since, when the online page is late.
@@ -1950,16 +1950,30 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
                 self.send_header("Location", "/matches/")
                 self.end_headers()
                 return
-            page = list_page(url.path, out, theme) if url.path.startswith("/matches/") else None
+            page = list_page(url.path, out, theme) if url.path.startswith("/matches/") else app.handle("GET", url.path, url.query, {}, lambda: match_list(out))
             self.send(*(page or (b"Not found", "text/plain", 404)))
 
         def do_POST(self) -> None:
-            if not same_site(self.headers, port) or self.path not in ("/open", "/pull") or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+            known = self.path in ("/open", "/pull") or self.path.startswith("/app/")
+            if not same_site(self.headers, port) or not known or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
-            if self.path == "/pull":
-                return self.send(*pulled(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0)))), out))
+            size = int(self.headers.get("Content-Length", 0))
+            if not 0 <= size <= MAX_BODY:
+                return self.send(b'{"error":"body too large"}', "application/json", 413)
             try:
-                command = reopening(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))["name"], out, theme, port, roster)
+                body = json.loads(self.rfile.read(size) or b"{}")
+            except ValueError:
+                return self.send(b'{"error":"not json"}', "application/json", 400)
+            if self.path.startswith("/app/"):
+                answer = app.handle("POST", self.path, "", body, lambda: match_list(out)) or (b"Not found", "text/plain", 404)
+                self.send(*answer)
+                if self.path == "/app/update" and answer[2] == 200:
+                    app.restart_after()
+                return None
+            if self.path == "/pull":
+                return self.send(*pulled(body, out))
+            try:
+                command = reopening(body["name"], out, theme, port, roster)
             except (LookupError, TypeError, ValueError):
                 return self.send(b'{"error":"no such match"}', "application/json", 400)
             self.send(b"{}", "application/json")
@@ -1969,7 +1983,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
     url = f"http://127.0.0.1:{port}/matches/"
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
-        webbrowser.open(url)
+        app.open_browser(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -2275,6 +2289,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             url = urlparse(self.path)
             if url.path == "/current":
                 return self.send(json.dumps({"name": match.name}).encode(), "application/json")
+            found = app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent))
+            if found:
+                return self.send(*found)
             if url.path == "/matches.json":
                 return self.send(json.dumps(match_list(match.parent)).encode(), "application/json")
             if url.path.startswith("/matches/"):
@@ -2361,6 +2378,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     f.write(json.dumps({"received": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "report": raw.decode()}, ensure_ascii=False) + "\n")
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
+            if self.path.startswith("/app/"):
+                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress)) or (b"Not found", "text/plain", 404)
+                self.send(*answer)
+                if self.path == "/app/update" and answer[2] == 200:
+                    app.restart_after(lock)
+                return None
             if self.path == "/failure":
                 failure.clear()
                 return self.send(b"{}", "application/json")
@@ -2665,7 +2688,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         threading.Thread(target=backing, daemon=True).start()
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
-        webbrowser.open(url)
+        app.open_browser(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -2681,7 +2704,7 @@ def main() -> None:
     parser.add_argument("--squad", type=identity.parse_squad, help="Players per team, N or N1,N2")
     parser.add_argument("--theme", default="aspom", help="Club theme of the match page (web.py)")
     parser.add_argument("--roster", type=Path, default=ROSTER, help=f"The club's named players across matches (default: {ROSTER})")
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-browser", action="store_true", help="Do not open the page in the browser")
     args = parser.parse_args()
     if args.match is None:

@@ -34,7 +34,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.
 7. Done (8 Nov, `benchmarks/speed.py`): tracking on the RTX 5080 runs at 26 fps, 3.9 h for a 2-hour 4K match (7.8 h on the M4 Pro);
    one Python thread runs the ball's and players' models in turn (a core at 100%, the card 51% busy). Two threads (`match.side_by_side`, 8 Nov):
-   29 -> 37 fps, tracks identical; to check on the Mac (MPS); the players' YOLO in batches of 8 or half precision faster still, outputs changed (`speed.py`). Left: the pose's cost per touch there (`next_steps.md` item 8).
+   29 -> 37 fps, tracks identical; CUDA only (Metal aborts on two threads); the players' YOLO in batches of 8 or half precision faster still, outputs changed (`speed.py`). Left: the pose's cost per touch there (`next_steps.md` item 8).
    The steps after tracking (8 Nov, first match): 2 h 56 -> 1 h 44, outputs identical (`speed.py`): the relance
    check and the wrists decode in one pass, and ffmpeg drops the frames nobody wants (`decode.frames_at`). RapidOCR
    on the GPU (`onnxruntime-gpu` on Linux, the Mac keeps `onnxruntime`): jerseys 45 -> 23.5 min (301 of 303 pieces
@@ -62,3 +62,6 @@ The pipeline's weak spots and what is left to do, most useful first.
 14. For later (the owner's, 9 Nov): the review's Match tab saves in four ways: touches, winner, join, end, wrong call and replay
     wait for "Valider"; stars, timeouts and "Supprimer" at once; comments on leaving the field; the match's end with an apply.
     Saving every edit at once, "Valider" only checking, would end the corrections not saved (a guard asks before losing them now).
+15. Done (9 Nov): one command, everything in the app (`app.py`, `install.sh`, [running.md](running.md)): the machine's
+    checks, import, court (clicked in the browser the first time in a gym), pipeline with its progress, the videos with the
+    other machine, the update. `match.side_by_side` runs on CUDA only: on the Mac (MPS) two threads abort Metal.
