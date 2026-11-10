@@ -236,3 +236,13 @@ class TestAuto:
         assert sync.auto(tmp_path)
         sync.set_auto(tmp_path, False)
         assert not sync.auto(tmp_path)
+
+
+class TestServer:
+    def test_an_address_without_its_folder_takes_the_matchs(self, tmp_path):
+        (tmp_path / "matches" / "m").mkdir(parents=True)
+        (tmp_path / "matches" / "m" / "publish.json").write_text(json.dumps({"upload": "root@h:/site/", "key": "k", "url": "https://x/"}))
+        (tmp_path / sync.SERVER).write_text(json.dumps({"upload": "root@h:", "key": "k2"}))
+        assert sync.server(tmp_path) == {"upload": "root@h:/site/", "key": "k2", "url": "https://x/"}
+        (tmp_path / sync.SERVER).write_text(json.dumps({"upload": "root@h:/other/", "key": "k2"}))
+        assert sync.server(tmp_path)["upload"] == "root@h:/other/"

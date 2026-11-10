@@ -5,7 +5,6 @@ machine works on any match: the server keeps each match's version, and a push go
 both changed, the owner keeps one, the other set aside (`take`, `keep`). Pulling a match brings its newest copy, this machine's
 unpushed changes kept aside in `backup-sync-*`, and what the outputs folder lacks of the courts, lens, club and roster.
 
-    uv run python -m volleyball_stats.sync setup root@HOST ~/.ssh/KEY   # a machine with no match yet
     uv run python -m volleyball_stats.sync list
     uv run python -m volleyball_stats.sync pull MATCH... | --all
     uv run python -m volleyball_stats.sync push outputs/matches/MATCH
@@ -57,6 +56,9 @@ def server(outputs: Path) -> dict | None:
     given = (json.loads(p.read_text()) for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")))
     found = next((c for c in given if c.get("upload") and c.get("key")), {})
     saved = json.loads((outputs / SERVER).read_text()) if (outputs / SERVER).exists() else {}
+    # An address without its folder (`root@HOST:`, written before the tab asked for it) takes the match's.
+    if str(saved.get("upload", "")).endswith(":") and str(found.get("upload", "")).startswith(saved["upload"]):
+        saved = {k: v for k, v in saved.items() if k != "upload"}
     merged = {k: v for k, v in {**{k: found.get(k) for k in HOSTING}, **saved}.items() if v}
     return merged if merged.get("upload") and merged.get("key") else None
 
@@ -98,8 +100,8 @@ def set_auto(outputs: Path, on: bool) -> None:
 
 
 def active(outputs: Path) -> bool:
-    """Whether this machine keeps its matches on the server: automatic copies on, `sync setup` run, or a match pushed or
-    pulled. Otherwise the review reaches the server only when asked."""
+    """Whether this machine keeps its matches on the server: automatic copies on, a server set in the
+    Serveur tab, or a match pushed or pulled. Otherwise the review reaches the server only when asked."""
     return auto(outputs) or (outputs / SERVER).exists() or any((outputs / "matches").glob(f"*/{STATE}"))
 
 
@@ -373,7 +375,7 @@ def pull(name: str, outputs: Path = DEFAULT_OUTPUTS, copy: str | None = None) ->
     it is, and the match left to send again: it becomes the newest. LookupError if the server has no such copy."""
     config = server(outputs)
     if config is None:
-        raise LookupError("no server: sync setup")
+        raise LookupError("no server: set it in the Serveur tab")
     found = remote(config, "list")["matches"]
     if name not in found:
         raise LookupError(name)
@@ -450,9 +452,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Keep the matches in step between machines through the hosting server.")
     parser.add_argument("--outputs", type=Path, default=DEFAULT_OUTPUTS)
     commands = parser.add_subparsers(dest="command", required=True)
-    setup = commands.add_parser("setup", help="The server, for a machine with no match yet")
-    setup.add_argument("host", help="root@HOST")
-    setup.add_argument("key", help="The ssh key, e.g. ~/.ssh/id_ed25519_ovh")
     commands.add_parser("list", help="The matches on the server")
     commands.add_parser("verify", help="Compare every match unchanged here with its copy on the server, byte by byte")
     pulling = commands.add_parser("pull", help="Bring matches from the server")
@@ -462,10 +461,7 @@ def main() -> None:
     pushing.add_argument("match", type=Path, nargs="?")
     pushing.add_argument("--all", action="store_true", help="Every match changed here, then what sits beside them")
     args = parser.parse_args()
-    if args.command == "setup":
-        args.outputs.mkdir(parents=True, exist_ok=True)
-        files.write_text(args.outputs / SERVER, json.dumps({"upload": f"{args.host}:", "key": args.key}) + "\n")
-    elif args.command == "list":
+    if args.command == "list":
         for name, c in sorted(listing(args.outputs).items()):
             here = args.outputs / "matches" / name
             state = "not here" if not here.exists() else f"here v{local(here)['version']}" + (", changed" if changed(here) else "")
