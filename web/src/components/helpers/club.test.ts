@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { fitted, guessTeams, suggestedTeams } from './brand';
+import { fitted, guessTeams, suggestedTeams } from './club';
 
-describe('brand', () => {
+describe('club', () => {
   it('shrinks pictures to their height, never enlarging them', () => {
     expect(fitted(1000, 500, 250)).toEqual([500, 250]);
     expect(fitted(100, 50, 250)).toEqual([100, 50]);
@@ -14,9 +14,9 @@ describe('brand', () => {
   });
 
   it("suggests the club's teams first, then the others played", () => {
-    const brand = { name: 'ASPOM Bègles', url: null, accent: '', header: '', logo: null, sponsors: [], teams: null };
-    expect(suggestedTeams({ brand, played: ['AVIA 1', 'ASPOM 2'] })).toEqual(['ASPOM 2', 'AVIA 1']);
-    expect(suggestedTeams({ brand: { ...brand, teams: ['ASPOM 3'] }, played: ['AVIA 1', 'ASPOM 2'] })).toEqual(['ASPOM 3', 'AVIA 1', 'ASPOM 2']);
-    expect(suggestedTeams({ brand: null, played: ['B'] })).toEqual(['B']);
+    const club = { name: 'ASPOM Bègles', url: null, accent: '', header: '', logo: null, sponsors: [], teams: null };
+    expect(suggestedTeams({ club, played: ['AVIA 1', 'ASPOM 2'] })).toEqual(['ASPOM 2', 'AVIA 1']);
+    expect(suggestedTeams({ club: { ...club, teams: ['ASPOM 3'] }, played: ['AVIA 1', 'ASPOM 2'] })).toEqual(['ASPOM 3', 'AVIA 1', 'ASPOM 2']);
+    expect(suggestedTeams({ club: null, played: ['B'] })).toEqual(['B']);
   });
 });

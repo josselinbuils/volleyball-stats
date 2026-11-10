@@ -1,6 +1,6 @@
-"""The club's branding, edited in the app: one per installation, in outputs/brand/ (out of the repository, like
-branding/NAME/ with its logo and sponsors), the list, the review and the match pages all showing it. The themes of
-branding/ are starting points.
+"""The club, edited in the app's "Club": its name, site, logo, colours, teams and sponsors, one per installation in
+outputs/club/ (out of the repository), the list, the review and the match pages all showing it. The themes of branding/
+(branding/NAME/brand.json, with its logo and sponsors) are starting points.
 """
 
 import base64
@@ -12,9 +12,13 @@ from pathlib import Path
 
 from volleyball_stats import files
 
-BRAND = Path("outputs/brand")
-PRESETS = Path("branding")
-EXAMPLE = PRESETS / "brand.example.json"
+FOLDER = Path("outputs/club")
+FILE = "club.json"
+# Where the club was kept before it was named so.
+OLD = Path("outputs/brand")
+THEMES = Path("branding")
+THEME_FILE = "brand.json"
+EXAMPLE = THEMES / "brand.example.json"
 # A picture's data: URL, as the app sends it.
 DATA_URL = re.compile(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)")
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
@@ -22,14 +26,22 @@ MAX_SPONSORS = 12
 PICTURES = (".png", ".jpg", ".jpeg", ".webp")
 
 
-def presets() -> list[dict]:
-    return [{"id": p.parent.name, "name": json.loads(p.read_text())["name"]} for p in sorted(PRESETS.glob("*/brand.json"))]
+def migrate(folder: Path = FOLDER, old: Path = OLD) -> None:
+    """The club of outputs/brand/brand.json moved to outputs/club/club.json."""
+    if old.is_dir() and not folder.exists():
+        old.rename(folder)
+        if (folder / THEME_FILE).exists():
+            (folder / THEME_FILE).rename(folder / FILE)
 
 
-def read(folder: Path = BRAND) -> dict | None:
-    """The branding as the app edits it: name, url, accent and header colours, logo, sponsors (files in `folder`) and
-    the club's teams, None until picked."""
-    path = folder / "brand.json"
+def themes() -> list[dict]:
+    return [{"id": p.parent.name, "name": json.loads(p.read_text())["name"]} for p in sorted(THEMES.glob(f"*/{THEME_FILE}"))]
+
+
+def read(folder: Path = FOLDER) -> dict | None:
+    """The club as the app edits it: name, url, accent and header colours, logo, sponsors (files in `folder`) and
+    teams, None until picked."""
+    path = folder / FILE
     if not path.exists():
         return None
     data = json.loads(path.read_text())
@@ -86,19 +98,19 @@ def picture(value, folder: Path, stem: str, kept: set[str]) -> str | None:
     raise ValueError("picture")
 
 
-def save(body: dict, folder: Path = BRAND) -> None:
-    """The branding the app sent: name, url, accent, header, logo, sponsors, each picture new or kept, and the club's teams."""
+def save(body: dict, folder: Path = FOLDER) -> None:
+    """The club the app sent: name, url, accent, header, logo, sponsors, each picture new or kept, and teams."""
     name, url = str(body["name"]).strip(), str(body.get("url") or "").strip()
     accent, header = str(body["accent"]), str(body["header"])
     if not name or not HEX.fullmatch(accent) or not HEX.fullmatch(header) or (url and not re.match(r"https?://", url)):
-        raise ValueError("brand")
+        raise ValueError("club")
     sponsors = body.get("sponsors") or []
     if len(sponsors) > MAX_SPONSORS:
         raise ValueError("sponsors")
     teams = body.get("teams")
     if teams is not None and (not isinstance(teams, list) or not all(isinstance(t, str) and t.strip() for t in teams)):
         raise ValueError("teams")
-    path = folder / "brand.json"
+    path = folder / FILE
     previous = json.loads(path.read_text()) if path.exists() else None
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "sponsors").mkdir(exist_ok=True)
@@ -121,7 +133,7 @@ def save(body: dict, folder: Path = BRAND) -> None:
         data["logo"] = logo
     files.write_text(folder / "sponsors" / "sponsors.json", json.dumps(listed, indent=2, ensure_ascii=False) + "\n")
     files.write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-    used = {logo, "brand.json"}
+    used = {logo, FILE}
     for old in folder.iterdir():
         if old.is_file() and old.name not in used:
             old.unlink()
@@ -131,21 +143,21 @@ def save(body: dict, folder: Path = BRAND) -> None:
             old.unlink()
 
 
-def use(preset: str, folder: Path = BRAND) -> None:
-    """A theme of branding/ as the club's, its sponsors too, the club's teams kept; "none" for no branding."""
-    if preset != "none" and preset not in {p["id"] for p in presets()}:
-        raise LookupError(preset)
+def use(theme: str, folder: Path = FOLDER) -> None:
+    """A theme of branding/ as the club, its sponsors too, the club's teams kept; "none" for no club."""
+    if theme != "none" and theme not in {t["id"] for t in themes()}:
+        raise LookupError(theme)
     teams = (read(folder) or {}).get("teams")
     shutil.rmtree(folder, ignore_errors=True)
-    if preset != "none":
-        shutil.copytree(PRESETS / preset, folder)
-        if teams is not None:
-            data = json.loads((folder / "brand.json").read_text())
-            files.write_text(folder / "brand.json", json.dumps({**data, "teams": teams}, indent=2, ensure_ascii=False) + "\n")
+    if theme != "none":
+        shutil.copytree(THEMES / theme, folder)
+        data = json.loads((folder / THEME_FILE).read_text())
+        (folder / THEME_FILE).unlink()
+        files.write_text(folder / FILE, json.dumps({**data, **({"teams": teams} if teams is not None else {})}, indent=2, ensure_ascii=False) + "\n")
 
 
-def file(rel: str, folder: Path = BRAND) -> Path | None:
-    """A picture of the branding by its path in `folder`, for the app to show; None for anything else."""
+def file(rel: str, folder: Path = FOLDER) -> Path | None:
+    """A picture of the club by its path in `folder`, for the app to show; None for anything else."""
     parts = Path(rel).parts
     if not parts or len(parts) > 2 or Path(rel).is_absolute() or any(p in ("", ".", "..") or p.startswith((".", "/", "\\")) for p in parts):
         return None

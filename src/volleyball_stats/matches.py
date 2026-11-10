@@ -30,13 +30,13 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import branding, files, video_copies, web
-from volleyball_stats.web import BRANDING, CLUB, brand
+from volleyball_stats import club_settings, files, video_copies, web
+from volleyball_stats.web import CLUB, club_page
 
 TEMPLATE = Path(__file__).with_name("matches_site")
 APP_JS = "app.js"
 # The list's own folders, which no match folder may take.
-RESERVED = ("assets", "brand")
+RESERVED = ("assets", "club")
 REDIRECTS = "redirects.json"
 # Where a match folder says how to host it, and where hosted pages send the viewers' reports.
 PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
@@ -193,7 +193,7 @@ def share_match(folder: Path, url: str) -> None:
     title = " - ".join(names) or data.get("title") or data["name"]
     title += f" · {won[0]}-{won[1]}" if scores else ""
     description = " · ".join(filter(None, [", ".join(f"{a}-{b}" for a, b in scores), french_date(data.get("date")), "Statistiques et replay du match"]))
-    club = data.get("brand") or {}
+    club = data.get("club") or {}
     logo = folder / club["logo"] if club.get("logo") else None
     share(folder, url, title, description, match_card(data, logo), club.get("name"))
 
@@ -218,14 +218,15 @@ def build(site: Path, theme: str = CLUB, url: str | None = None) -> list[dict]:
             data.parent.rename(named)
     matches = sorted((listed(p.parent) for p in site.glob("*/data.js")), key=lambda m: (m["date"] or "", m["path"]), reverse=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
-    shutil.rmtree(site / "brand", ignore_errors=True)
+    for folder in ("club", "brand"):
+        shutil.rmtree(site / folder, ignore_errors=True)
     # The app's screens (app.js) are the review server's only.
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True, ignore=shutil.ignore_patterns(APP_JS))
     (site / "matches.html").replace(site / "index.html")
-    club = brand(theme, site)
+    club = club_page(theme, site)
     if club:
         club.pop("sponsors")
-    text = json.dumps({"matches": matches, "brand": club}, separators=(",", ":"), ensure_ascii=False)
+    text = json.dumps({"matches": matches, "club": club}, separators=(",", ":"), ensure_ascii=False)
     # Loaded with its hash in its URL, as data.js: a CDN caching it by URL serves each list its own.
     v = hashlib.sha256(text.encode()).hexdigest()[:10]
     (site / "matches.js").write_text(f"window.MATCHES = {text};\n")
@@ -316,11 +317,15 @@ def imported(match: Path, video: Path) -> bool:
 
 
 def club_team(match: Path, theme: str) -> int:
-    """The team of the `theme` club, its name's first word for the app's (CLUB): the first if both or neither are."""
+    """The team of the `theme` club: for the app's (CLUB) one of its teams, else its name's first word; the first if
+    both or neither are."""
     path = match / "teams.json"
     names = [team["name"] or "" for team in json.loads(path.read_text())["teams"]] if path.exists() else []
     if theme == CLUB:
-        club = branding.read()
+        club = club_settings.read()
+        ours = [k for k, name in enumerate(names, 1) if name in ((club or {}).get("teams") or [])]
+        if len(ours) == 1:
+            return ours[0]
         theme = (club["name"].split() or [""])[0] if club else ""
     return next((k for k, name in enumerate(names, 1) if theme and slug(name).startswith(slug(theme))), 1)
 
@@ -550,7 +555,7 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
 
 
 def main() -> None:
-    themes = sorted(p.parent.name for p in BRANDING.glob("*/brand.json"))
+    themes = sorted(p.parent.name for p in club_settings.THEMES.glob(f"*/{club_settings.THEME_FILE}"))
     parser = argparse.ArgumentParser(description="List the match pages of a site folder on its index page.")
     parser.add_argument("site", type=Path, nargs="?", help="Folder holding one match page per subfolder")
     parser.add_argument("--host", type=Path, help="Build this match's hosted pages from its publish.json and upload them")

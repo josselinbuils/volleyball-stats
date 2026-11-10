@@ -16,7 +16,7 @@ poster frame stands in for it until it plays. Teams (names, colours,
 sets, the match's date and title, the sets' final scores) come from teams.json, written by match.py
 --players, with each player's identity for the whole match (identities.csv) and the score
 (points.csv); a teams.json from before the date takes the video's recording date. --theme picks a
-club theme from branding/NAME/brand.json (logo, colours), `none` for the neutral one.
+theme from branding/NAME/brand.json (logo, colours), `none` for the neutral one; by default the app's club.
 """
 
 import argparse
@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import branding, decode, defense, files, framing, jumps, timeouts
+from volleyball_stats import club_settings, decode, defense, files, framing, jumps, timeouts
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -45,8 +45,7 @@ from volleyball_stats.points import landing
 from volleyball_stats.teams import match_end, parse_colour, parse_date, recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
-BRANDING = Path("branding")
-# The club's own branding, edited in the app (branding.py): the default theme.
+# The club, edited in the app (club_settings.py): the default theme.
 CLUB = "club"
 # Player positions are kept every STEP_S seconds over the whole video, to the centimetre.
 STEP_S = 0.1
@@ -464,26 +463,27 @@ def read_teams(match: Path) -> dict | None:
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def brand(name: str, site: Path) -> dict | None:
-    """The club theme branding/NAME/brand.json with its logo copied into the site, and its sponsors from
-    branding/NAME/sponsors/sponsors.json (git-ignored: brands stay off the repository) with their
-    pictures inlined (the 3D view paints them, which a file:// page cannot do from a file); None for `none`. CLUB is the
-    app's (branding.BRAND), none until it has one."""
-    if name == "none" or (name == CLUB and not (branding.BRAND / "brand.json").exists()):
+def club_page(name: str, site: Path) -> dict | None:
+    """The club as the pages show it: the app's (CLUB, none until it has one) or the theme branding/NAME/brand.json,
+    with its logo copied into the site's club/, and its sponsors from sponsors/sponsors.json beside it (git-ignored under
+    branding/: brands stay off the repository) with their pictures inlined (the 3D view paints them, which a file:// page
+    cannot do from a file); None for `none`."""
+    own = club_settings.FOLDER / club_settings.FILE
+    if name == "none" or (name == CLUB and not own.exists()):
         return None
-    path = branding.BRAND / "brand.json" if name == CLUB else BRANDING / name / "brand.json"
+    path = own if name == CLUB else club_settings.THEMES / name / club_settings.THEME_FILE
     if not path.exists():
-        themes = sorted(p.parent.name for p in BRANDING.glob("*/brand.json"))
+        themes = sorted(p.parent.name for p in club_settings.THEMES.glob(f"*/{club_settings.THEME_FILE}"))
         raise SystemExit(f"Unknown theme {name!r}: available themes are {', '.join([CLUB, *themes, 'none'])}")
     data = json.loads(path.read_text())
     if data.get("logo"):
-        (site / "brand").mkdir(parents=True, exist_ok=True)
+        (site / "club").mkdir(parents=True, exist_ok=True)
         logo = cv2.imread(str(path.parent / data["logo"]), cv2.IMREAD_UNCHANGED)
         if logo.shape[0] > LOGO_PX:
             logo = cv2.resize(logo, (round(logo.shape[1] * LOGO_PX / logo.shape[0]), LOGO_PX), interpolation=cv2.INTER_AREA)
-        target = site / "brand" / f"{Path(data['logo']).stem}.webp"
+        target = site / "club" / f"{Path(data['logo']).stem}.webp"
         cv2.imwrite(str(target), logo, [cv2.IMWRITE_WEBP_QUALITY, LOGO_QUALITY])
-        data["logo"] = f"brand/{target.name}"
+        data["logo"] = f"club/{target.name}"
     sponsors = path.parent / "sponsors"
     data["sponsors"] = json.loads((sponsors / "sponsors.json").read_text()) if (sponsors / "sponsors.json").exists() else []
     # A sponsor without a logo shows as text.
@@ -1606,8 +1606,10 @@ def build(
         photos(match, video, data["people"], site / "players", pictured)
     else:
         kept_photos(data["people"], site)
-    shutil.rmtree(site / "brand", ignore_errors=True)
-    data["brand"] = brand(theme, site)
+    # The logo's folder, and the one older builds named brand/.
+    for folder in ("club", "brand"):
+        shutil.rmtree(site / folder, ignore_errors=True)
+    data["club"] = club_page(theme, site)
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
     ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
@@ -1684,7 +1686,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
 
 
 def main() -> None:
-    themes = sorted(p.parent.name for p in BRANDING.glob("*/brand.json"))
+    themes = sorted(p.parent.name for p in club_settings.THEMES.glob(f"*/{club_settings.THEME_FILE}"))
     parser = argparse.ArgumentParser(description="Build the static match page from the pipeline's outputs.")
     parser.add_argument("match", type=Path, help="The match's outputs directory (outputs/matches/VIDEO)")
     parser.add_argument("--video", type=Path, required=True)

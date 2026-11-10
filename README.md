@@ -55,7 +55,7 @@ of players already seen in earlier matches.
     <td width="50%"><img src="docs/images/trophies.webp" alt="The trophies: the best server, attacker, defender and more"><br><b>Trophies:</b> what players did well</td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/app.webp" alt="The app: the matches, one being analysed, one waiting for its court, and the buttons to import a match, swap videos, set the club's branding and check the installation"><br><b>The app:</b> import a match, follow its analysis</td>
+    <td width="50%"><img src="docs/images/app.webp" alt="The app: the matches, one being analysed, one waiting for its court, and the buttons to import a match, swap videos, set the club and check the installation"><br><b>The app:</b> import a match, follow its analysis</td>
     <td width="50%"><img src="docs/images/app-court.webp" alt="Placing the court: a click on each point the small court shows, with a magnifier"><br><b>A new gym:</b> click the court's points once</td>
   </tr>
 </table>
@@ -113,7 +113,7 @@ for the stand, the camera settings and the lens calibration.
 3. **Review:** once analysed, the match opens in the review. Name each player from their pictures, answer the
    questions about the players it is unsure of, then apply: the match page is rebuilt in seconds.
 
-"Club branding" sets your club's name, logo, colours and sponsors, the same on every page. The match page is in
+"Club" sets your club's name, logo, colours, teams and sponsors, the same on every page. The match page is in
 `outputs/matches/MATCH/site/index.html`; the review's "Put online" hosts it. When a new version of the code is out,
 the app offers to update.
 

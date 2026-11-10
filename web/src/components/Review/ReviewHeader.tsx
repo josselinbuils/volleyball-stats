@@ -9,7 +9,7 @@ import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import { review, type Backup, type FilmCounts, type Hosted } from '@/lib/review';
-import { BrandDialog } from '@/components/BrandDialog';
+import { ClubDialog } from '@/components/ClubDialog';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { Tip } from '@/components/Tip';
 
@@ -193,7 +193,7 @@ export function ReviewHeader({
   }
   // The menu's groups: the match's end on the Match tab, the uploads and films, the copies.
   const shared = !!hosted || films.players.total > 0 || films.highlights.total > 0;
-  const [branding, setBranding] = useState(false);
+  const [clubOpen, setClubOpen] = useState(false);
   return (
     <header className="grid gap-1.5 px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -261,9 +261,9 @@ export function ReviewHeader({
                 </DropdownMenuItem>
               )}
               {(end || shared) && <DropdownMenuSeparator />}
-              <DropdownMenuItem onSelect={() => setBranding(true)}>
+              <DropdownMenuItem onSelect={() => setClubOpen(true)}>
                 <Shield aria-hidden />
-                {t('app.brand.open')}
+                {t('app.club.open')}
               </DropdownMenuItem>
               {backup && (
                 <>
@@ -318,7 +318,7 @@ export function ReviewHeader({
           onCancel={() => setChoosing(false)}
         />
       )}
-      {branding && <BrandDialog onClose={() => setBranding(false)} />}
+      {clubOpen && <ClubDialog onClose={() => setClubOpen(false)} />}
     </header>
   );
 }

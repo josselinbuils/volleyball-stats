@@ -13,7 +13,7 @@ declare global {
 }
 
 /** The list of the match pages of a site, from matches.js. */
-applyTheme(null, window.MATCHES.brand);
+applyTheme(null, window.MATCHES.club);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <TooltipProvider delayDuration={200}>

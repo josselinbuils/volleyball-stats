@@ -1,28 +1,28 @@
 import { useTranslation } from 'react-i18next';
 import { Tip } from '@/components/Tip';
-import type { Brand } from '@/lib/match';
+import type { Club } from '@/lib/match';
 
 /** The club's band at the top of the page, linking to its website, and to the project's repository on the right. */
-export function BrandBar({ brand }: { brand: Brand | null }) {
+export function ClubBar({ club }: { club: Club | null }) {
   const { t } = useTranslation();
-  if (!brand) {
+  if (!club) {
     return null;
   }
   const content = (
     <>
-      {brand.logo && <img src={brand.logo} alt="" width={48} height={48} className="size-12 shrink-0 object-contain max-sm:size-10" />}
-      <span className="text-lg font-bold tracking-tight max-sm:text-base">{brand.name}</span>
+      {club.logo && <img src={club.logo} alt="" width={48} height={48} className="size-12 shrink-0 object-contain max-sm:size-10" />}
+      <span className="text-lg font-bold tracking-tight max-sm:text-base">{club.name}</span>
     </>
   );
   return (
     <div className="bg-(--brand-header) text-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2">
-        {brand.url ? (
+        {club.url ? (
           <a
-            href={brand.url}
+            href={club.url}
             target="_blank"
             rel="noopener"
-            aria-label={t('clubSite', { name: brand.name })}
+            aria-label={t('clubSite', { name: club.name })}
             className="-mx-1.5 inline-flex items-center gap-3 rounded-md px-1.5 py-1 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-white/70"
           >
             {content}

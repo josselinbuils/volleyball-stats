@@ -1,5 +1,5 @@
-/** The club's branding as the app edits it (branding.py): a picture is a data: URL when new, its file's path when kept. */
-export interface BrandForm {
+/** The club as the app edits it (club_settings.py): a picture is a data: URL when new, its file's path when kept. */
+export interface ClubForm {
   name: string;
   url: string;
   accent: string;
@@ -10,16 +10,16 @@ export interface BrandForm {
   teams: string[] | null;
 }
 
-export interface BrandState {
-  brand: (Omit<BrandForm, 'url'> & { url: string | null }) | null;
-  presets: { id: string; name: string }[];
+export interface ClubState {
+  club: (Omit<ClubForm, 'url'> & { url: string | null }) | null;
+  themes: { id: string; name: string }[];
   /** The teams of the matches, most matches first. */
   played: string[];
 }
 
-/** A picture of the club's branding, by its path in its folder. */
-export function brandFile(path: string): string {
-  return `/app/brand/file?path=${encodeURIComponent(path)}`;
+/** A picture of the club, by its path in its folder. */
+export function clubFile(path: string): string {
+  return `/app/club/file?path=${encodeURIComponent(path)}`;
 }
 
 /** The size a picture `width` x `height` is sent at: no taller than `px`, never enlarged. */
@@ -53,7 +53,7 @@ export function guessTeams(club: string, played: string[]): string[] {
 }
 
 /** The teams an import suggests: the club's first (guessed until picked), then the others played. */
-export function suggestedTeams({ brand, played }: Pick<BrandState, 'brand' | 'played'>): string[] {
-  const club = brand?.teams ?? guessTeams(brand?.name ?? '', played);
-  return [...new Set([...club, ...played])];
+export function suggestedTeams({ club, played }: Pick<ClubState, 'club' | 'played'>): string[] {
+  const ours = club?.teams ?? guessTeams(club?.name ?? '', played);
+  return [...new Set([...ours, ...played])];
 }

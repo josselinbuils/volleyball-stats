@@ -29,7 +29,7 @@ ROOT = "/root/backups/volleyball-stats"
 STATE = ".sync.json"
 SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE)
 # What sits beside the matches in the outputs folder, copied with each match and on its own (`backup_shared`).
-SHARED = ("courts", "court", "roster.json", "lens.json", "brand", "feedback")
+SHARED = ("courts", "court", "roster.json", "lens.json", "club", "feedback")
 KEEP = 30
 # Under this, no copy: the server also runs the owner's websites.
 MIN_FREE_GB = 5

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
-import { suggestedTeams, type BrandState } from '@/components/helpers/brand';
+import { suggestedTeams, type ClubState } from '@/components/helpers/club';
 import { importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
 
 interface TeamField {
@@ -35,7 +35,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   const [sending, setSending] = useState(false);
   const [suggested, setSuggested] = useState<string[]>([]);
   useEffect(() => {
-    void call<BrandState>('brand').then((r) => {
+    void call<ClubState>('club').then((r) => {
       if (r.ok) {
         setSuggested(suggestedTeams(r));
       }

@@ -88,7 +88,7 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
     loadScene()
       .then(() => {
         if (!gone && box.current && window.VolleyScene) {
-          scene.current = window.VolleyScene.mount(box.current, match.brand?.sponsors ?? []);
+          scene.current = window.VolleyScene.mount(box.current, match.club?.sponsors ?? []);
           setStatus('ready');
         }
       })

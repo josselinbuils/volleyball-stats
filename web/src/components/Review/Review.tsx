@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Behind } from '@/components/Behind';
-import { BrandBar } from '@/components/BrandBar';
+import { ClubBar } from '@/components/ClubBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
 import { Tip } from '@/components/Tip';
@@ -467,7 +467,7 @@ export function Review({
   }, [t, title]);
   return (
     <>
-      <BrandBar brand={match.brand} />
+      <ClubBar club={match.club} />
       <Status notice={notice} />
       <main className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] gap-4 px-4 pt-6 pb-16 max-sm:pt-5">
         <ReviewHeader

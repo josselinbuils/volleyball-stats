@@ -21,7 +21,7 @@ carries the code it was built with, so a change of the page or of the data it is
 online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`) rebuilds
 every match online and uploads them at once (`rsync --delay-updates`: the new files replace the old together), nothing
 if one cannot be rebuilt (on the two matches: 26 s). The review writes an imported match's
-`publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the theme). The first "Mettre en ligne" asks: with the video and
+`publish.json` on opening (`matches.ensure_publish`: the hosting from another match's, its club team from the club's teams, else the theme's name). The first "Mettre en ligne" asks: with the video and
 a password, or without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Only the password's fingerprint is kept. Nothing is encoded before that choice:
 with the video, its copies are made then (`video_copies.py`). By hand:
 
@@ -76,7 +76,7 @@ Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bo
 Backup: the review's "Sauvegarder sur le serveur" ("..." menu, and `uv run python -m volleyball_stats.backup
 outputs/matches/MATCH`), and with "Sauvegarde automatique" ticked every 10 minutes if something changed (this machine's
 choice, `outputs/backup.json`, off by default: few users keep a server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts and their clicks (`court/`), roster, reports,
-the club (the app's "Club", `outputs/brand/`) to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
+the club (the app's "Club", `outputs/club/`) to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
 files hard-linked (to the day before and to the match's last copy), a day kept while among the last 30 or among the last 30 copies of a match it
 holds, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
@@ -104,6 +104,6 @@ run would delete another match's page. The mirror brings the films too: a match 
 machine, not pulled since) takes those online, names from the page (`matches.adopt_films`), so its rebuild keeps them; an upload
 that would still delete them refuses (the upload of 8 Nov from the PC took them offline).
 
-The club's branding, sponsors included, is the app's "Club" dialog (`branding.py`), in `outputs/brand/`: off
-GitHub, each machine its own (set the other one alike, e.g. from the same theme). The hosted pages' build reads it
+The club, sponsors and teams included, is the app's "Club" dialog (`club_settings.py`), in `outputs/club/`: off
+GitHub, each machine its own, a pull bringing it to a machine that has none. The hosted pages' build reads it
 from this machine.

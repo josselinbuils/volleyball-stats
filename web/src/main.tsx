@@ -13,7 +13,7 @@ declare global {
   }
 }
 
-applyTheme(teams, match.brand);
+applyTheme(teams, match.club);
 const root = document.getElementById('root')!;
 // The review server adds review.js to the match page: the page turns into the review, whose screens are a script of
 // their own (review-app.js) that the page viewers open never loads.

@@ -118,7 +118,7 @@ export interface Team {
   colour: string;
 }
 
-/** A club theme: colour tokens per colour scheme, as branding/NAME/brand.json holds them. */
+/** A board of the 3D view. */
 export interface Sponsor {
   name: string;
   logo?: string;
@@ -126,7 +126,8 @@ export interface Sponsor {
   text?: string;
 }
 
-export interface Brand {
+/** The club as the pages show it (club_settings.py, or a theme of branding/): colour tokens per colour scheme. */
+export interface Club {
   name: string;
   url?: string;
   logo?: string;
@@ -179,7 +180,7 @@ export interface Data {
   scores?: (string | null)[] | null;
   /** The timeouts, by start. */
   timeouts?: Timeout[];
-  brand?: Brand | null;
+  club?: Club | null;
   /** yyyy-mm-dd, with teams. */
   date?: string | null;
   /** The title the user typed, null for the default one. */
@@ -219,7 +220,7 @@ export const match = {
   views: data.views ?? [],
   index: data.index ?? {},
   scores: data.scores ?? [],
-  brand: data.brand ?? null,
+  club: data.club ?? null,
   date: data.date ?? null,
   title: data.title ?? null,
   defense: data.defense ?? null,

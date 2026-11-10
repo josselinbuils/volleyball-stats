@@ -1326,12 +1326,12 @@
         "busy": "Busy (load {{load}} on {{cores}} cores): an analysis would be slower."
       }
     },
-    "brand": {
+    "club": {
       "open": "Club",
       "title": "Club",
       "intro": "On the list, the review and the match pages.",
       "from": "Start from:",
-      "none": "No branding",
+      "none": "Nothing",
       "name": "Name",
       "url": "Website",
       "logo": "Logo",

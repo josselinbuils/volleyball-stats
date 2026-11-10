@@ -10,10 +10,10 @@ class TestSources:
         (tmp_path / "courts").mkdir()
         (tmp_path / "court").mkdir()
         (tmp_path / "roster.json").write_text("{}")
-        (tmp_path / "brand").mkdir()
+        (tmp_path / "club").mkdir()
         (tmp_path / "feedback").mkdir()
         (tmp_path / "hosted").mkdir()
-        assert [p.name for p in sources(match) if p.is_relative_to(tmp_path)] == ["first_match", "courts", "court", "roster.json", "brand", "feedback"]
+        assert [p.name for p in sources(match) if p.is_relative_to(tmp_path)] == ["first_match", "courts", "court", "roster.json", "club", "feedback"]
 
 
 class TestSignature:

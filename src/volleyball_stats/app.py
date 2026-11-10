@@ -24,7 +24,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import branding, doctor, files, git_check, jobs
+from volleyball_stats import club_settings, doctor, files, git_check, jobs
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -398,9 +398,9 @@ def state(listed: list[dict]) -> dict:
     return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system()}
 
 
-def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False, rebranded=lambda: None) -> tuple[bytes, str, int] | None:
+def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False, club_changed=lambda: None) -> tuple[bytes, str, int] | None:
     """The response to an /app/ request; None when `path` is not one. `listed` gives the review's list of the matches,
-    `busy` whether the server is applying answers (no update then), `rebranded` is told the branding changed."""
+    `busy` whether the server is applying answers (no update then), `club_changed` is told the club changed."""
     if not path.startswith("/app/"):
         return None
     reply = lambda data, status=200: (json.dumps(data, ensure_ascii=False).encode(), "application/json", status)  # noqa: E731
@@ -413,10 +413,10 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply(doctor.checks(DATA.parent))
             if route == "sources":
                 return reply(sources())
-            if route == "brand":
-                return reply({"brand": branding.read(), "presets": branding.presets(), "played": played_teams()})
-            if route == "brand/file":
-                found = branding.file(parse_qs(query).get("path", [""])[0])
+            if route == "club":
+                return reply({"club": club_settings.read(), "themes": club_settings.themes(), "played": played_teams()})
+            if route == "club/file":
+                found = club_settings.file(parse_qs(query).get("path", [""])[0])
                 if not found:
                     return reply({"error": "missing"}, 404)
                 return found.read_bytes(), {".png": "image/png", ".webp": "image/webp"}.get(found.suffix.lower(), "image/jpeg"), 200
@@ -450,13 +450,13 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "court/fit":
             fit_court(name, body["clicks"], str(body["court"]))
             return reply({})
-        if route in ("brand", "brand/preset"):
-            if route == "brand":
-                branding.save(body)
+        if route in ("club", "club/theme"):
+            if route == "club":
+                club_settings.save(body)
             else:
-                branding.use(str(body["id"]))
-            rebranded()
-            return reply({"brand": branding.read()})
+                club_settings.use(str(body["id"]))
+            club_changed()
+            return reply({"club": club_settings.read()})
         if route == "swap":
             swap(name)
             return reply({})
@@ -570,6 +570,7 @@ def main() -> None:
     from volleyball_stats import review
 
     os.chdir(git_check.ROOT)
+    club_settings.migrate()
     port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv[:-1] else review.PORT
     if "--stop" in sys.argv:
         sys.exit(stop(port))

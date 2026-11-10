@@ -85,8 +85,8 @@ APPLIED = "identity_applied.json"
 # Undo takes back the UNDOS latest of the CHANGES whole, then drops the last answer. Request bodies
 # are at most MAX_BODY bytes.
 UNDOS, MAX_BODY = 100, 1 << 20
-# The club's branding carries its pictures.
-BRAND_BODY = 16 << 20
+# The club carries its pictures.
+CLUB_BODY = 16 << 20
 # Where the review's copy of the match page keeps the reports of what is wrong in a moment.
 FEEDBACK = "feedback.log"
 BACKUP_EVERY_S = 600
@@ -1860,12 +1860,12 @@ def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
     if path == "/matches/":
         shutil.rmtree(site, ignore_errors=True)
         shutil.copytree(matches.TEMPLATE, site)
-        club = matches.brand(theme, site)
+        club = web.club_page(theme, site)
         if club:
             club.pop("sponsors")
         # The server's matches come after (`/matches/remote.json`): reaching it takes a second, or ssh's timeout.
         listed = match_list(out)
-        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'brand': club, 'review': True}, ensure_ascii=False)};\n")
+        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'club': club, 'review': True}, ensure_ascii=False)};\n")
         return (site / "matches.html").read_bytes(), "text/html; charset=utf-8"
     if path == "/matches/remote.json":
         found = on_server(out, match_list(out)) if sync.active(out.parent) else []
@@ -1978,7 +1978,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             if not same_site(self.headers, port) or not known or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
             size = int(self.headers.get("Content-Length", 0))
-            if not 0 <= size <= (BRAND_BODY if self.path == "/app/brand" else MAX_BODY):
+            if not 0 <= size <= (CLUB_BODY if self.path == "/app/club" else MAX_BODY):
                 return self.send(b'{"error":"body too large"}', "application/json", 413)
             try:
                 body = json.loads(self.rfile.read(size) or b"{}")
@@ -2205,8 +2205,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
         return steps
 
-    def rebrand() -> None:
-        """The pages rebuilt with the club's new branding, before the page reloads."""
+    def club_changed() -> None:
+        """The pages rebuilt with the club as it now is, before the page reloads."""
         with lock:
             run_steps(pages())
 
@@ -2413,7 +2413,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if not self.ours() or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
             size = int(self.headers.get("Content-Length", 0))
-            if not 0 <= size <= (BRAND_BODY if self.path == "/app/brand" else MAX_BODY):
+            if not 0 <= size <= (CLUB_BODY if self.path == "/app/club" else MAX_BODY):
                 return self.send(b'{"error":"body too large"}', "application/json", 413)
             raw = self.rfile.read(size)
             # A report of what is wrong in a moment, from the review's copy of the match page: kept as
@@ -2424,7 +2424,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
             if self.path.startswith("/app/"):
-                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), rebrand) or (b"Not found", "text/plain", 404)
+                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), club_changed) or (b"Not found", "text/plain", 404)
                 self.send(*answer)
                 if self.path == "/app/update" and answer[2] == 200:
                     app.restart_after(lock)

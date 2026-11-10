@@ -1,5 +1,5 @@
 import { VideoChoice } from '@/components/VideoChoice';
-import { BrandBar } from '@/components/BrandBar';
+import { ClubBar } from '@/components/ClubBar';
 import { Coach } from '@/components/Coach/Coach';
 import { CourtChart } from '@/components/CourtChart/CourtChart';
 import { Header } from '@/components/Header/Header';
@@ -17,7 +17,7 @@ export function App() {
   return (
     <PlayerProvider>
       <SetProvider>
-        <BrandBar brand={match.brand} />
+        <ClubBar club={match.club} />
         <VideoChoice />
         <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:pt-5 max-sm:gap-4">
           <Header />

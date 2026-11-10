@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 
 from volleyball_stats.court import Calibration
-from volleyball_stats import web
+from volleyball_stats import club_settings, web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, brand, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -611,7 +611,7 @@ class TestSettle:
 
 class TestBrand:
     def test_copies_a_themes_logo_into_the_site_shrunk_and_lists_the_themes_for_an_unknown_name(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(web, "BRANDING", tmp_path / "branding")
+        monkeypatch.setattr(club_settings, "THEMES", tmp_path / "branding")
         theme = tmp_path / "branding" / "myclub"
         theme.mkdir(parents=True)
         cv2.imwrite(str(theme / "logo.png"), np.zeros((500, 400, 4), np.uint8))
@@ -620,16 +620,16 @@ class TestBrand:
         (theme / "sponsors" / "sponsors.json").write_text('[{"name": "Shop", "logo": "sponsor.png"}, {"name": "Bakery"}]')
         (theme / "brand.json").write_text('{"name": "Club", "logo": "logo.png", "light": {}, "dark": {}}')
 
-        data = brand("myclub", tmp_path / "site")
+        data = club_page("myclub", tmp_path / "site")
 
-        assert data["logo"] == "brand/logo.webp"
-        assert cv2.imread(str(tmp_path / "site" / "brand" / "logo.webp"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
+        assert data["logo"] == "club/logo.webp"
+        assert cv2.imread(str(tmp_path / "site" / "club" / "logo.webp"), cv2.IMREAD_UNCHANGED).shape == (128, 102, 4)
         inlined = base64.b64decode(data["sponsors"][0]["logo"].removeprefix("data:image/webp;base64,"))
         assert cv2.imdecode(np.frombuffer(inlined, np.uint8), cv2.IMREAD_UNCHANGED).shape == (160, 100, 4)
         assert data["sponsors"][1] == {"name": "Bakery"}
-        assert brand("none", tmp_path / "site") is None
+        assert club_page("none", tmp_path / "site") is None
         with pytest.raises(SystemExit, match="club, none"):
-            brand("other", tmp_path / "site")
+            club_page("other", tmp_path / "site")
 
 
 class TestMatchData:

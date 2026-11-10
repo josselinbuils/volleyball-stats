@@ -1326,12 +1326,12 @@
         "busy": "Occupé (charge {{load}} sur {{cores}} cœurs) : une analyse serait plus lente."
       }
     },
-    "brand": {
+    "club": {
       "open": "Club",
       "title": "Club",
       "intro": "Sur la liste, la vérification et les pages des matchs.",
       "from": "Partir de :",
-      "none": "Aucun habillage",
+      "none": "Rien",
       "name": "Nom",
       "url": "Site",
       "logo": "Logo",

@@ -104,8 +104,8 @@ class TestBuild:
         assert sorted(p.parent.name for p in tmp_path.glob("*/data.js")) == ["2026-10-25-aspom-begles-vs-talence", "unnamed"]
 
     def test_a_match_making_no_address_or_a_reserved_one_keeps_its_folder(self, tmp_path):
-        # Videos named "_.mp4" and "brand.mp4", without teams.
-        for folder, name in (("one", "_"), ("two", "brand")):
+        # Videos named "_.mp4" and "club.mp4", without teams.
+        for folder, name in (("one", "_"), ("two", "club")):
             (tmp_path / folder).mkdir()
             data = {"name": name, "date": None, "teams": None, "rallies": [{"set": 1}]}
             (tmp_path / folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
@@ -385,6 +385,12 @@ class TestClubTeam:
         (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": n} for n in names]}))
 
         assert matches.club_team(tmp_path, "aspom") == expected
+
+    def test_the_app_s_club_by_its_teams_first(self, tmp_path, monkeypatch):
+        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": "ASPOM 1"}, {"name": "ASPOM 2"}]}))
+        monkeypatch.setattr(matches.club_settings, "read", lambda: {"name": "ASPOM Bègles", "teams": ["ASPOM 2"]})
+
+        assert matches.club_team(tmp_path, matches.CLUB) == 2
 
 
 class TestChoose:

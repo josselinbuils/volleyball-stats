@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
 import { Behind } from '@/components/Behind';
-import { BrandBar } from '@/components/BrandBar';
+import { ClubBar } from '@/components/ClubBar';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { Season } from '@/components/Season/Season';
 import { seasonTeams } from '@/components/Season/helpers/season';
@@ -13,7 +13,7 @@ import { useFormat } from '@/lib/format';
 import { openMatch, pullMatch } from '@/lib/openMatch';
 import { withRemote } from '@/lib/remoteMatches';
 import { cn } from '@/lib/utils';
-import type { Brand, Team } from '@/lib/match';
+import type { Club, Team } from '@/lib/match';
 
 /** A match as matches.js lists it: its page's folder, and from its data.js what the list shows. */
 export interface ListedMatch {
@@ -38,7 +38,7 @@ export interface ListedMatch {
 
 export interface MatchList {
   matches: ListedMatch[];
-  brand: Brand | null;
+  club: Club | null;
   /** Listed by the review server: a card opens the match's review there. */
   review?: boolean;
 }
@@ -54,7 +54,7 @@ declare global {
 // The season's own address: the list's with this hash.
 const SEASON = '#saison';
 
-export function Matches({ matches: here, brand, review = false }: MatchList) {
+export function Matches({ matches: here, club, review = false }: MatchList) {
   const { t } = useTranslation();
   const f = useFormat();
   // In the review, the matches only on the server, asked after the page shows: reaching it takes a second.
@@ -84,7 +84,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
   }, [review]);
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
-  const hasSeason = seasonTeams(matches, brand?.teams).length > 0;
+  const hasSeason = seasonTeams(matches, club?.teams).length > 0;
   const [view, setView] = useState<'matches' | 'season'>(() => (hasSeason && location.hash === SEASON ? 'season' : 'matches'));
   const open = (name: string, remote = false) => {
     setOpening(name);
@@ -96,12 +96,12 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
   };
   const heading = t('matches.heading');
   useEffect(() => {
-    document.title = brand ? `${heading} · ${brand.name}` : heading;
-  }, [heading, brand]);
+    document.title = club ? `${heading} · ${club.name}` : heading;
+  }, [heading, club]);
 
   return (
     <>
-      <BrandBar brand={brand} />
+      <ClubBar club={club} />
       <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:gap-4 max-sm:pt-5">
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">
@@ -135,7 +135,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
         )}
         <p className="px-1 text-muted-foreground">{t(view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}</p>
         {view === 'season' ? (
-          <Season matches={matches} club={brand?.teams} />
+          <Season matches={matches} club={club?.teams} />
         ) : listed.length ? (
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {listed.map((m) => {
