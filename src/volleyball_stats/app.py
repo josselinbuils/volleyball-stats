@@ -1,6 +1,7 @@
 """The app: the one command to start, everything else in the browser.
 
     uv run volleyball-stats [MATCH] [--no-browser] [--port PORT]
+    uv run volleyball-stats --stop [--port PORT]
 
 Opens the list of the matches (the review server, review.py), or MATCH's review, and serves under /app/ what used to
 need a command: checking the machine (doctor.py), importing a match from the camera's card, mapping the court,
@@ -17,6 +18,7 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
 import urllib.request
 import webbrowser
 from pathlib import Path
@@ -472,6 +474,10 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 raise ValueError("address")
             jobs.start(OUTPUTS, VIDEOS, "videos", [("videos", ["volleyball_stats.data_sync", peer, code])])
             return reply({})
+        if route == "quit":
+            if busy():
+                return reply({"error": "busy"}, 409)
+            return reply({})
         if route == "update":
             running = [j["id"] for j in jobs.state(OUTPUTS) if j["running"]]
             if running or busy():
@@ -506,6 +512,41 @@ def restart_after(lock=None) -> None:
     threading.Thread(target=replace, daemon=True).start()
 
 
+def stop_after(lock=None) -> None:
+    """Ends this server once the response on its way has left; its jobs go on. Not by SIGINT: one started in the
+    background ignores it."""
+
+    def stop() -> None:
+        time.sleep(0.2)
+        if lock:
+            lock.acquire()
+        os._exit(0)
+
+    threading.Thread(target=stop, daemon=True).start()
+
+
+def stop(port: int) -> int:
+    """Asks the server on `port` to stop, refused while it applies answers; the exit status."""
+    if not already_open(port):
+        print("Not running.", flush=True)
+        return 0
+    request = urllib.request.Request(f"http://127.0.0.1:{port}/app/quit", data=b"{}", headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        urllib.request.urlopen(request, timeout=5).close()
+    except urllib.error.HTTPError as error:
+        if error.code == 409:
+            print("Answers are being applied: try again once done.", flush=True)
+            return 1
+        raise
+    for _ in range(50):
+        if not already_open(port):
+            print("Stopped.", flush=True)
+            return 0
+        time.sleep(0.1)
+    print("Still running.", flush=True)
+    return 1
+
+
 def already_open(port: int) -> bool:
     """Whether the app already answers on `port`: a second start only opens the page."""
     try:
@@ -520,6 +561,8 @@ def main() -> None:
 
     os.chdir(git_check.ROOT)
     port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv[:-1] else review.PORT
+    if "--stop" in sys.argv:
+        sys.exit(stop(port))
     if already_open(port):
         print(f"Already open: http://127.0.0.1:{port}/", flush=True)
         if "--no-browser" not in sys.argv:

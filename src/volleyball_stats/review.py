@@ -1973,6 +1973,8 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
                 self.send(*answer)
                 if self.path == "/app/update" and answer[2] == 200:
                     app.restart_after()
+                if self.path == "/app/quit" and answer[2] == 200:
+                    app.stop_after()
                 return None
             if self.path == "/pull":
                 return self.send(*pulled(body, out))
@@ -2392,6 +2394,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 self.send(*answer)
                 if self.path == "/app/update" and answer[2] == 200:
                     app.restart_after(lock)
+                if self.path == "/app/quit" and answer[2] == 200:
+                    app.stop_after(lock)
                 return None
             if self.path == "/failure":
                 failure.clear()

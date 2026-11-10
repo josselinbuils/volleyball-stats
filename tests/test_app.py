@@ -69,6 +69,14 @@ class TestApp:
         assert app.handle("GET", "/app/image", "match=..&kind=start", {}, list)[2] == 404
         assert app.handle("GET", "/other", "", {}, list) is None
 
+    def test_refuses_to_quit_while_applying(self):
+        assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409
+        assert app.handle("POST", "/app/quit", "", {}, list, lambda: False)[2] == 200
+
+    def test_stops_nothing_when_not_running(self, monkeypatch):
+        monkeypatch.setattr(app, "already_open", lambda port: False)
+        assert app.stop(1) == 0
+
     def test_answers_an_unreadable_video(self, tmp_path):
         (tmp_path / "DJI_cut.mp4").write_bytes(b"not a video")
         answer = app.handle("POST", "/app/scan", "", {"source": str(tmp_path)}, list)

@@ -6,7 +6,7 @@
   used to need a command: `doctor.py`'s checks, the import, the court (`court auto --background`, else clicks and
   `court fit --out`), the pipeline (`match --players --anyway`, after the app's own busy check), the videos with the
   other machine (`data_sync`) and the update (`git pull --ff-only --autostash`, `uv sync --inexact`, a restart; refused
-  while a job or an apply runs). The long ones are jobs (`jobs.py`): a process of their own in a new session, their
+  while a job or an apply runs). `uv run volleyball-stats --stop` stops it (`/app/quit`, refused while an apply runs); jobs go on. The long ones are jobs (`jobs.py`): a process of their own in a new session, their
   record and log in `outputs/jobs/`, so they outlive the server's restarts; `match` prints `::progress` while tracking.
   A match being prepared shows above the list until its `report.md` exists; one whose pipeline a command ran and no
   process runs any more is offered to run again. A job is the runner's process number and start time (`ps lstart`):
