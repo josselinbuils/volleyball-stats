@@ -74,6 +74,17 @@ class TestApp:
         (self.match(place, "two") / "teams.json").write_text(json.dumps({"teams": [{"name": "C"}, {"name": "B"}]}))
         assert app.played_teams() == ["B", "A", "C"]
 
+    def test_saves_the_server_for_every_match(self, place):
+        self.match(place, "one", "source.json")
+        (place / "outputs" / "matches" / "one" / "publish.json").write_text(json.dumps({"club": 2, "video": True}))
+        body = {"address": "root@1.2.3.4", "folder": "/srv/site", "key": "~/.ssh/k", "url": "https://x.org/v"}
+        answer = app.handle("POST", "/app/server", "", body, list)
+        assert answer[2] == 200 and json.loads(answer[0])["server"] == {**body, "folder": "/srv/site/", "url": "https://x.org/v/"}
+        assert json.loads((place / "outputs" / "matches" / "one" / "publish.json").read_text()) == {
+            "club": 2, "video": True, "upload": "root@1.2.3.4:/srv/site/", "key": "~/.ssh/k", "url": "https://x.org/v/", "site": "outputs/hosted"
+        }
+        assert app.handle("POST", "/app/server", "", {**body, "address": "nobody"}, list)[2] == 400
+
     def test_refuses_to_quit_while_applying(self):
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: False)[2] == 200

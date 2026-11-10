@@ -331,13 +331,15 @@ def club_team(match: Path, theme: str) -> int:
 
 
 def ensure_publish(match: Path, video: Path, theme: str) -> None:
-    """Gives an imported match a publish.json, the hosting taken from another match's, for its upload and backups."""
+    """Gives an imported match a publish.json, the hosting the server's (`sync.server`: the "Serveur" tab's, else another
+    match's), for its upload and backups."""
+    from volleyball_stats import sync
+
     target = match / PUBLISH
-    others = sorted(match.parent.glob(f"*/{PUBLISH}"))
-    if target.exists() or not others or not imported(match, video):
+    hosting = sync.server(files.root(match)) or {}
+    if target.exists() or not all(hosting.get(key) for key in sync.HOSTING) or not imported(match, video):
         return
-    other = json.loads(others[-1].read_text())
-    config = {**{key: other[key] for key in ("site", "url", "upload", "key")}, "club": club_team(match, theme)}
+    config = {**{key: hosting[key] for key in sync.HOSTING}, "club": club_team(match, theme)}
     files.write_text(target, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
 
 
@@ -585,7 +587,13 @@ def main() -> None:
             return None
         if config:
             mirror(config)
-        return host_all(found, args.theme, mirrored=config is not None)
+        host_all(found, args.theme, mirrored=config is not None)
+        from volleyball_stats import review
+
+        for match, *_ in found:
+            if (match / "review" / "data.js").exists():
+                review.record_hosted(match)
+        return None
     if not args.site:
         parser.error("site or --host")
     matches = build(args.site, args.theme, args.url)

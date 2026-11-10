@@ -78,6 +78,18 @@ def stale(held: dict[str, set[str]], keep: int = KEEP) -> list[str]:
     return [d for d in days if d not in kept]
 
 
+def listing(root: str) -> str:
+    """The server's command telling its free room, then its days and their matches (`listed`); only root reads them: they
+    hold real names and pictures."""
+    return f"mkdir -p {root} && chmod 700 {root} && df -Pk {root} | tail -1 && cd {root} && ls -1d */ */*/source.json 2>/dev/null; true"
+
+
+def listed(text: str) -> tuple[float, dict[str, set[str]]]:
+    """The free GB and each day's matches, from `listing`'s output."""
+    lines = text.splitlines()
+    return int(lines[0].split()[3]) / 1024**2, held("\n".join(lines[1:]))
+
+
 def held(listing: str) -> dict[str, set[str]]:
     """Each day's matches, from the server's `ls -1d DAY/ DAY/MATCH/source.json` lines."""
     found: dict[str, set[str]] = {}
@@ -118,12 +130,9 @@ def copy(paths: list[Path], config: dict, name: str | None, day: str | None, roo
     def remote(command: str) -> str:
         return subprocess.run([*ssh, host, command], check=True, capture_output=True, text=True, timeout=60).stdout
 
-    # Only root reads the folder: it holds real names and pictures.
-    found = remote(f"mkdir -p {root} && chmod 700 {root} && df -Pk {root} | tail -1 && cd {root} && ls -1d */ */*/source.json 2>/dev/null; true").splitlines()
-    free_gb = int(found[0].split()[3]) / 1024**2
+    free_gb, days = listed(remote(listing(root)))
     if free_gb < MIN_FREE_GB:
         raise RuntimeError(f"only {free_gb:.1f} GB free on the server")
-    days = held("\n".join(found[1:]))
     before = [d for d in sorted(days) if d != day]
     links = list(dict.fromkeys([*before[-1:], *[d for d in before if name in days[d]][-1:]]))
     run = subprocess.run(rsync_command(paths, host, ssh, root, day, links), capture_output=True, text=True, timeout=TIMEOUT_S)

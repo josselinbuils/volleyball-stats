@@ -24,7 +24,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import club_settings, doctor, files, git_check, jobs
+from volleyball_stats import club_settings, doctor, files, git_check, jobs, server, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -39,6 +39,9 @@ NAME = re.compile(r"[^,:]+")
 TOOK_VIDEO_S = 4013.0
 VIDEOS = "videos"
 MODELS = "models"
+# The "Serveur" tab's jobs: every match online rebuilt and uploaded, every match changed copied to the server.
+HOSTING = "hosting"
+BACKUP = "backup"
 
 
 def open_browser(url: str) -> None:
@@ -377,6 +380,12 @@ def videos_state() -> dict | None:
     return {**job, "address": found and found[1], "port": found and int(found[2]), "code": found and found[3], "copying": "::stage copying" in text}
 
 
+def server_state() -> dict:
+    """The "Serveur" tab: the server, whether this machine copies its matches by itself, and its two jobs."""
+    found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP)}
+    return {"server": server.read(OUTPUTS), "auto": sync.auto(OUTPUTS), "hosting": found.get(HOSTING), "backup": found.get(BACKUP)}
+
+
 def models_state() -> dict | None:
     return next((j for j in jobs.state(OUTPUTS) if j["id"] == MODELS), None)
 
@@ -411,6 +420,10 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply(state(listed()))
             if route == "doctor":
                 return reply(doctor.checks(DATA.parent))
+            if route == "server":
+                return reply(server_state())
+            if route == "server/copies":
+                return reply(server.copies(OUTPUTS))
             if route == "sources":
                 return reply(sources())
             if route == "club":
@@ -457,6 +470,23 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 club_settings.use(str(body["id"]))
             club_changed()
             return reply({"club": club_settings.read()})
+        if route == "server":
+            server.save(OUTPUTS, body)
+            return reply(server_state())
+        if route == "server/test":
+            server.test(OUTPUTS)
+            return reply({})
+        if route == "server/auto":
+            if not isinstance(body.get("on"), bool):
+                raise ValueError("on")
+            sync.set_auto(OUTPUTS, body["on"])
+            return reply(server_state())
+        if route == "server/host":
+            jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES)])])
+            return reply(server_state())
+        if route == "server/backup":
+            jobs.start(OUTPUTS, BACKUP, BACKUP, [(BACKUP, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "push", "--all"])])
+            return reply(server_state())
         if route == "swap":
             swap(name)
             return reply({})

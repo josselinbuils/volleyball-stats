@@ -44,15 +44,18 @@ def machine() -> str:
     return os.environ.get("VOLLEYBALL_MACHINE") or socket.gethostname().removesuffix(".local")
 
 
+# The hosting a match's publish.json shares with outputs/server.json.
+HOSTING = ("upload", "key", "url", "site")
+
+
 def server(outputs: Path) -> dict | None:
-    """The hosting server's `upload` and `key`: outputs/server.json's, else a match's publish.json's."""
-    if (outputs / SERVER).exists():
-        return json.loads((outputs / SERVER).read_text())
-    for path in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")):
-        config = json.loads(path.read_text())
-        if config.get("upload") and config.get("key"):
-            return {"upload": config["upload"], "key": config["key"]}
-    return None
+    """The hosting server's `upload`, `key`, `url` and `site`: outputs/server.json's (the app's "Serveur" tab), completed
+    by a match's publish.json; None without an address and key."""
+    given = (json.loads(p.read_text()) for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")))
+    found = next((c for c in given if c.get("upload") and c.get("key")), {})
+    saved = json.loads((outputs / SERVER).read_text()) if (outputs / SERVER).exists() else {}
+    merged = {k: v for k, v in {**{k: found.get(k) for k in HOSTING}, **saved}.items() if v}
+    return merged if merged.get("upload") and merged.get("key") else None
 
 
 def auto(outputs: Path) -> bool:
@@ -144,6 +147,24 @@ def push(match: Path, force: bool = False) -> None:
     if not done["ok"]:
         raise RuntimeError("the copy was cut off: try again")
     remember(match, done["version"], signature)
+
+
+def push_all(outputs: Path) -> list[str]:
+    """Every match changed here since this machine last pushed or pulled it, then what sits beside them; what failed."""
+    failed = []
+    for path in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")):
+        match = path.parent
+        if not (match / files.SOURCE).exists() or not changed(match):
+            continue
+        try:
+            push(match)
+            print(f"{match.name}: pushed", flush=True)
+        except (Conflict, OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
+            failed.append(f"{match.name}: {error}")
+    config = server(outputs)
+    if config:
+        backup.backup_shared(outputs, config)
+    return failed
 
 
 def take(match: Path) -> None:
@@ -275,7 +296,8 @@ def main() -> None:
     pulling.add_argument("names", nargs="*")
     pulling.add_argument("--all", action="store_true", help="Every match on the server")
     pushing = commands.add_parser("push", help="Send a match to the server")
-    pushing.add_argument("match", type=Path)
+    pushing.add_argument("match", type=Path, nargs="?")
+    pushing.add_argument("--all", action="store_true", help="Every match changed here, then what sits beside them")
     args = parser.parse_args()
     if args.command == "setup":
         args.outputs.mkdir(parents=True, exist_ok=True)
@@ -296,7 +318,14 @@ def main() -> None:
             if args.all and here.exists() and local(here)["version"] >= found[name]["version"]:
                 continue
             print(pull(name, args.outputs), flush=True)
+    elif args.all:
+        failed = push_all(args.outputs)
+        if failed:
+            parser.exit(1, "\n".join(failed) + "\n")
+        print("pushed", flush=True)
     else:
+        if not args.match:
+            parser.error("a match or --all")
         try:
             push(args.match)
         except Conflict as error:

@@ -332,14 +332,14 @@ class TestHostAll:
 class TestEnsurePublish:
     @staticmethod
     def imported(tmp_path, name="2026-11-02-avia-1-vs-aspom-2"):
-        match = tmp_path / "outputs" / name
+        match = tmp_path / "outputs" / "matches" / name
         match.mkdir(parents=True)
         (match / "teams.json").write_text(json.dumps({"teams": [{"name": "AVIA 1"}, {"name": "ASPOM 2"}]}))
         return match, tmp_path / "data" / name / f"{name}.mp4"
 
     @staticmethod
     def hosted(tmp_path):
-        other = tmp_path / "outputs" / "2026-10-29-a-vs-b"
+        other = tmp_path / "outputs" / "matches" / "2026-10-29-a-vs-b"
         other.mkdir(parents=True)
         (other / matches.PUBLISH).write_text(json.dumps({"site": "outputs/hosted", "url": "https://example.org/", "upload": "host:/site/", "key": "key", "light": "old.mp4", "club": 1}))
 

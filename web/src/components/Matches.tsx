@@ -45,14 +45,15 @@ export interface MatchList {
 
 declare global {
   interface Window {
-    VolleyAppBundle?: { mount: (element: HTMLElement) => void };
+    VolleyAppBundle?: { mount: (element: HTMLElement) => void; mountServer: (element: HTMLElement) => void };
   }
 }
 
 /** The match pages, newest first, each a card linking to it. In the review, the app's screens above them (app.js):
  * importing a match and preparing it until its review opens. */
-// The season's own address: the list's with this hash.
-const SEASON = '#saison';
+type View = 'matches' | 'season' | 'server';
+// The tabs' own addresses: the list's with these hashes.
+const HASHES: Record<View, string> = { matches: '', season: '#saison', server: '#serveur' };
 
 export function Matches({ matches: here, club, review = false }: MatchList) {
   const { t } = useTranslation();
@@ -71,6 +72,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
   // The matches being prepared show in the app's screens.
   const listed = review ? matches.filter((m) => m.ready || m.remote || m.missing) : matches;
   const setup = useRef<HTMLDivElement>(null);
+  const serverBox = useRef<HTMLDivElement>(null);
   const loaded = useRef(false);
   useEffect(() => {
     if (!review || loaded.current) {
@@ -79,13 +81,19 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
     loaded.current = true;
     const script = document.createElement('script');
     script.src = 'app.js';
-    script.onload = () => setup.current && window.VolleyAppBundle?.mount(setup.current);
+    script.onload = () => {
+      if (setup.current && serverBox.current) {
+        window.VolleyAppBundle?.mount(setup.current);
+        window.VolleyAppBundle?.mountServer(serverBox.current);
+      }
+    };
     document.head.append(script);
   }, [review]);
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
   const hasSeason = seasonTeams(matches, club?.teams).length > 0;
-  const [view, setView] = useState<'matches' | 'season'>(() => (hasSeason && location.hash === SEASON ? 'season' : 'matches'));
+  const views: View[] = ['matches', ...(hasSeason ? (['season'] as const) : []), ...(review ? (['server'] as const) : [])];
+  const [view, setView] = useState<View>(() => views.find((v) => v !== 'matches' && location.hash === HASHES[v]) ?? 'matches');
   const open = (name: string, remote = false) => {
     setOpening(name);
     setFailed(null);
@@ -119,22 +127,20 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
         </header>
         {review && <Behind />}
         {review && <div ref={setup} />}
-        {hasSeason && (
+        {views.length > 1 && (
           <Tabs
-            label={t('season.view')}
+            label={t('matches.sections')}
             value={view}
             onChange={(v) => {
               setView(v);
-              history.replaceState(null, '', v === 'season' ? SEASON : location.pathname + location.search);
+              history.replaceState(null, '', HASHES[v] || location.pathname + location.search);
             }}
-            tabs={[
-              { id: 'matches', label: t('matches.title') },
-              { id: 'season', label: t('season.title') },
-            ]}
+            tabs={views.map((id) => ({ id, label: t({ matches: 'matches.title', season: 'season.title', server: 'server.title' }[id]) }))}
           />
         )}
-        <p className="px-1 text-muted-foreground">{t(view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}</p>
-        {view === 'season' ? (
+        <p className="px-1 text-muted-foreground">{t(view === 'server' ? 'server.intro' : view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}</p>
+        {review && <div ref={serverBox} className={view === 'server' ? undefined : 'hidden'} />}
+        {view === 'server' ? null : view === 'season' ? (
           <Season matches={matches} club={club?.teams} />
         ) : listed.length ? (
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
