@@ -1249,6 +1249,47 @@ class TestPageChanges:
         assert state["behind"] and state["changes"] == [{"part": "contacts", "count": 1}]
 
 
+    def test_a_page_rebuilt_by_the_uploads_code_is_not_late(self, tmp_path):
+        from volleyball_stats import review
+
+        # Uploaded with every match: the review's page as an older code built it, the upload by this one.
+        TestPageStamp.page(tmp_path, {"name": "m", "brand": "x", "v": "a"})
+        review.record_hosted(tmp_path)
+        before = review.page_stamp(tmp_path)
+        # Opened: the page rebuilt by this code.
+        TestPageStamp.page(tmp_path, {"name": "m", "club": "x", "timeouts": [], "v": "b"})
+        assert review.read_hosted(tmp_path)["behind"]
+
+        review.restamp(tmp_path, before)
+        assert not review.read_hosted(tmp_path)["behind"]
+
+    def test_a_page_rebuilt_by_other_code_than_the_uploads_stays_late(self, tmp_path):
+        from volleyball_stats import review
+
+        TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
+        review.record_hosted(tmp_path)
+        saved = json.loads((tmp_path / review.HOSTED).read_text())
+        (tmp_path / review.HOSTED).write_text(json.dumps({**saved, "code": "older"}))
+        before = review.page_stamp(tmp_path)
+        TestPageStamp.page(tmp_path, {"name": "m", "timeouts": [], "v": "b"})
+
+        review.restamp(tmp_path, before)
+        assert review.read_hosted(tmp_path)["behind"]
+
+    def test_a_change_since_the_upload_stays_late(self, tmp_path):
+        from volleyball_stats import review
+
+        TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
+        review.record_hosted(tmp_path)
+        # An answer since: the page rebuilt then, its stamp no longer the upload's.
+        TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
+        before = review.page_stamp(tmp_path)
+        TestPageStamp.page(tmp_path, {"name": "n", "timeouts": [], "v": "c"})
+
+        review.restamp(tmp_path, before)
+        assert review.read_hosted(tmp_path)["behind"]
+
+
 class TestMore:
     def test_only_pieces_as_like_the_card_as_more_like_are_offered(self, tmp_path):
         from volleyball_stats.review import MORE_LIKE, Questions

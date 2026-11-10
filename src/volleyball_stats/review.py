@@ -1815,10 +1815,34 @@ def read_hosted(match: Path) -> dict:
     return state
 
 
+def code_version() -> str:
+    """The code this process runs, as it was on disk when asked: its Python files and the pages' templates."""
+    digest = hashlib.sha256()
+    for path in [*sorted(Path(__file__).parent.glob("*.py")), matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"]:
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:16]
+
+
+# Taken at start: the code this process runs, whatever is on disk later.
+CODE = code_version()
+
+
 def record_hosted(match: Path) -> None:
-    """The upload of `match`'s page just made: its time and stamp (HOSTED), and what it sent (HOSTED_PAGE)."""
+    """The upload of `match`'s page just made: its time, stamp and the code that built it, on disk now (HOSTED), and what it
+    sent (HOSTED_PAGE). The stamp is the review's page as last built, by older code maybe: `restamp` then takes the next build."""
     files.write_text(match / HOSTED_PAGE, json.dumps(page_content(match), ensure_ascii=False) + "\n")
-    files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match)}) + "\n")
+    files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match), "code": code_version()}) + "\n")
+
+
+def restamp(match: Path, before: str | None) -> None:
+    """The review's page of `match` rebuilt from the same answers, `before` its stamp: when the last upload carried that stamp and
+    was built by this code, the online page is the rebuilt one, recorded so. Else the review's newer code showed it late."""
+    path = match / HOSTED
+    saved = json.loads(path.read_text()) if path.exists() else None
+    if not saved or before is None or saved["stamp"] != before or saved.get("code") != CODE or page_stamp(match) == before:
+        return
+    files.write_text(match / HOSTED_PAGE, json.dumps(page_content(match), ensure_ascii=False) + "\n")
+    files.write_text(path, json.dumps({**saved, "stamp": page_stamp(match)}) + "\n")
 
 
 def match_list(out: Path) -> list[dict]:
@@ -2034,7 +2058,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     matches.ensure_publish(match, video, theme)
     site = match / "review"
     # Open at once: the pictures follow (`afterwards`), minutes if their scores are out of date.
+    before = page_stamp(match) if (site / "data.js").exists() else None
     web.review_page(match, video, court, theme, pictures=False)
+    restamp(match, before)
     (match / STALE_PHOTOS).touch()
     cap = cv2.VideoCapture(str(video))
     fps, width, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -2372,11 +2398,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 q = parse_qs(url.query)
                 body = picture(int(q["f"][0]), tuple(int(v) for v in q["b"][0].split(",")))
                 return self.send(body, "image/jpeg") if body else self.send(b"", "text/plain", 404)
-            if url.path in ("/", "/review"):
-                html = (site / "index.html").read_text()
-                if url.path == "/review":
-                    html = with_review(html)
-                return self.send(html.encode(), "text/html; charset=utf-8")
+            if url.path == "/":
+                self.send_response(302)
+                self.send_header("Location", "/matches/")
+                self.end_headers()
+                return None
+            if url.path == "/review":
+                return self.send(with_review((site / "index.html").read_text()).encode(), "text/html; charset=utf-8")
             parts = Path(unquote(url.path).lstrip("/")).parts
             path = site.joinpath(*parts)
             if ".." in parts or not path.is_file():
