@@ -1311,18 +1311,18 @@
       "noPicture": "Image du terrain illisible : la vidéo est-elle complète ?"
     },
     "videos": {
-      "open": "Échanger les vidéos",
-      "title": "Échanger les vidéos",
+      "open": "Synchroniser les vidéos",
+      "title": "Synchroniser les vidéos",
       "intro": "Les deux ordinateurs sur le même réseau s'échangent les vidéos que l'autre n'a pas.",
       "wait": "Attendre l'autre ordinateur",
       "waiting": "Sur l'autre ordinateur, ouvrez cette fenêtre et entrez :",
       "address": "Adresse",
       "code": "Code",
-      "copying": "Échange des vidéos…",
+      "copying": "Synchronisation…",
       "joinTitle": "Rejoindre l'autre ordinateur",
       "join": "Rejoindre",
-      "done": "Échange terminé.",
-      "failed": "Échec de l'échange : {{error}}"
+      "done": "Synchronisation terminée.",
+      "failed": "Échec de la synchronisation : {{error}}"
     },
     "doctor": {
       "open": "Installation",

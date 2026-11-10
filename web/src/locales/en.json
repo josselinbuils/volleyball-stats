@@ -1311,18 +1311,18 @@
       "noPicture": "The court's picture can't be read: is the video whole?"
     },
     "videos": {
-      "open": "Exchange videos",
-      "title": "Exchange videos",
+      "open": "Sync videos",
+      "title": "Sync videos",
       "intro": "Both computers on the same network swap the videos the other lacks.",
       "wait": "Wait for the other computer",
       "waiting": "On the other computer, open this window and enter:",
       "address": "Address",
       "code": "Code",
-      "copying": "Swapping the videos…",
+      "copying": "Syncing…",
       "joinTitle": "Join the other computer",
       "join": "Join",
-      "done": "Swap done.",
-      "failed": "Swap failed: {{error}}"
+      "done": "Sync done.",
+      "failed": "Sync failed: {{error}}"
     },
     "doctor": {
       "open": "Installation",
