@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
+import { suggestedTeams, type BrandState } from '@/components/helpers/brand';
 import { importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
 
 interface TeamField {
@@ -32,6 +33,14 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   const [to, setTo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [suggested, setSuggested] = useState<string[]>([]);
+  useEffect(() => {
+    void call<BrandState>('brand').then((r) => {
+      if (r.ok) {
+        setSuggested(suggestedTeams(r));
+      }
+    });
+  }, []);
   useEffect(() => {
     fetch('/app/sources')
       .then((r) => (r.ok ? (r.json() as Promise<Source[]>) : []))
@@ -145,6 +154,8 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
                 <div className="flex gap-2">
                   <input
                     id={`team-${k}`}
+                    list="team-names"
+                    autoComplete="off"
                     required
                     value={team.name}
                     aria-invalid={team.name !== '' && !validName(team.name)}
@@ -161,6 +172,11 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
                 </div>
               </div>
             ))}
+            <datalist id="team-names">
+              {suggested.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
             <label className="grid gap-1 font-medium">
               {t('app.import.date')}
               <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={cn(INPUT, 'w-fit')} />

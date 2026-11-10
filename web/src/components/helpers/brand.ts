@@ -51,3 +51,9 @@ export function guessTeams(club: string, played: string[]): string[] {
   const word = firstWord(club.trim());
   return word ? played.filter((team) => firstWord(team.trim()) === word) : [];
 }
+
+/** The teams an import suggests: the club's first (guessed until picked), then the others played. */
+export function suggestedTeams({ brand, played }: Pick<BrandState, 'brand' | 'played'>): string[] {
+  const club = brand?.teams ?? guessTeams(brand?.name ?? '', played);
+  return [...new Set([...club, ...played])];
+}

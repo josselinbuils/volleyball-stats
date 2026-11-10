@@ -12,13 +12,15 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
 - Interface text stays light (the owner's rule): the fewest words a viewer needs, judged on all they see together, without
   caveats about estimates or remarks on what the interface already shows. Write and shorten so by default, without asking.
+- A change done, check that the names around it still fit what they name (titles, buttons, labels, docs, code), and
+  propose a new name where one no longer does, e.g. a dialog grown past its title.
 - Never publish, host or share anything without the owner. The hosted page has no password: it
   never carries real footage or player pictures (nor anything cut from them) without every
   player's consent; the names given in the review stay on it (the owner's choice). Footage may go
   online without that consent only behind a password, unreachable by direct link without it. Never
   republish the YouTube clips in `data/benchmarks/`.
 - Commit with the personal identity (`Josselin BUILS <josselin.buils@gmail.com>`), never a work email.
-- A fix or feature done: commit it, push it to `main` and restart the review without asking, once `curl -s 127.0.0.1:8765/progress` gives `{}` (otherwise an apply is running). A restart passes `--no-browser`: the page is already open. Only a first start opens it. Start it in the background after `setopt no_bg_nice`: the jobs it starts inherit its priority.
+- A fix or feature done: commit it, push it to `main` and restart the review without asking: `uv run volleyball-stats --stop` (it refuses while an apply runs: wait and retry), then start it again on what was open (`curl -s 127.0.0.1:8765/current` names the match, null for the list). A restart passes `--no-browser`: the page is already open. Only a first start opens it. Start it in the background after `setopt no_bg_nice`: the jobs it starts inherit its priority.
 - No new Python dependency without asking (no scipy: numpy and what is installed).
 - The review server binds 127.0.0.1 only. `outputs/` (gitignored) holds names of real people
   (`player_names.json`, `roster.json`): never commit it.
