@@ -85,7 +85,7 @@ def test(outputs: Path) -> None:
 
 
 # Each day's own bytes, those no other copy shares (what removing it frees), then the whole backups' kB.
-SIZES = "; echo ::sizes; for d in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*/; do [ -d \"$d\" ] && printf '%s ' \"${d%/}\" && find \"$d\" -type f -links 1 -printf '%s\\n' | awk '{s+=$1} END {print s+0}'; done; du -sk . | cut -f1"
+SIZES = "; echo ::sizes; for d in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*/; do [ -d \"$d\" ] && printf '%s %s ' \"${d%/}\" \"$(stat -c %Y \"$d\")\" && find \"$d\" -type f -links 1 -printf '%s\\n' | awk '{s+=$1} END {print s+0}'; done; du -sk . | cut -f1"
 
 
 def connected(outputs: Path) -> dict:
@@ -103,14 +103,24 @@ def copies(outputs: Path, root: str | None = None) -> dict:
     listed, _, sized = text.partition("::sizes\n")
     free_gb, settings, days = backup.listed(listed)
     *rows, used_kb = sized.strip().split("\n")
-    sizes = {day: int(size) for day, size in (row.split() for row in rows)}
+    sizes = {day: (int(size), saved_at(day, float(at))) for day, at, size in (row.split() for row in rows)}
     last = backup.newest(days)
     return {
         "free": round(free_gb, 1),
         "used": int(used_kb) * 1024,
         "keep": backup.kept(settings),
-        "days": [{"day": d, "matches": sorted(days[d]), "size": sizes.get(d, 0), "newest": sorted(m for m, n in last.items() if n == d)} for d in sorted(days, reverse=True)],
+        "days": [
+            {"day": d, "saved": sizes.get(d, (0, None))[1], "matches": sorted(days[d]), "size": sizes.get(d, (0, None))[0], "newest": sorted(m for m, n in last.items() if n == d)}
+            for d in sorted(days, reverse=True)
+        ],
     }
+
+
+def saved_at(day: str, at: float) -> str | None:
+    """The time of an hour's copy's last save, its folder's (`backup.upload` touches it), here; None for a daily copy, or one
+    whose folder moved after its hour (a rename): only the hour is known."""
+    local = time.localtime(at)
+    return time.strftime("%Y-%m-%dT%H:%M:%S", local) if "T" in day and time.strftime("%Y-%m-%dT%H", local) == day else None
 
 
 def delete(outputs: Path, day: str, root: str | None = None) -> None:

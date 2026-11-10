@@ -212,8 +212,8 @@ def upload(own: list[Path], beside: list[Path], config: dict, name: str | None, 
             raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
     days.setdefault(day, set()).update([name] if name else [])
     old = stale(days, kept(settings))
-    if old:
-        remote("rm -rf " + " ".join(shlex.quote(f"{root}/{d}") for d in old))
+    # The copy's folder touched: its time is its last save's (`server.copies`), the hour naming it only its first's.
+    remote(f"touch {shlex.quote(f'{root}/{day}')}" + ("; rm -rf " + " ".join(shlex.quote(f"{root}/{d}") for d in old) if old else ""))
 
 
 def connection(config: dict) -> tuple[str, list[str]]:

@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from volleyball_stats import backup, server
@@ -14,7 +16,7 @@ class TestServer:
             sent.append(command)
             if command.startswith("rm "):
                 return ""
-            sizes = "::sizes\n2026-01-01 100\n2026-01-02 200\n2026-01-03 300\n2048\n" if "::sizes" in command else ""
+            sizes = "::sizes\n2026-01-01 1767225600 100\n2026-01-02 1767312000 200\n2026-01-03 1767398400 300\n2048\n" if "::sizes" in command else ""
             return self.LISTING + sizes
 
         monkeypatch.setattr(server.sync, "server", lambda outputs: {"upload": "root@h:/site/", "key": "k"})
@@ -26,10 +28,17 @@ class TestServer:
         found = server.copies(tmp_path)
         assert (found["free"], found["used"], found["keep"]) == (14.3, 2048 * 1024, 2)
         assert found["days"] == [
-            {"day": "2026-01-03", "matches": ["b"], "size": 300, "newest": ["b"]},
-            {"day": "2026-01-02", "matches": ["a"], "size": 200, "newest": ["a"]},
-            {"day": "2026-01-01", "matches": ["a"], "size": 100, "newest": []},
+            {"day": "2026-01-03", "saved": None, "matches": ["b"], "size": 300, "newest": ["b"]},
+            {"day": "2026-01-02", "saved": None, "matches": ["a"], "size": 200, "newest": ["a"]},
+            {"day": "2026-01-01", "saved": None, "matches": ["a"], "size": 100, "newest": []},
         ]
+
+    def test_an_hours_copy_says_when_it_was_last_saved_while_its_hour_lasted(self):
+        at = time.mktime((2026, 11, 10, 22, 57, 52, 0, 0, -1))
+        assert server.saved_at("2026-11-10T22", at) == "2026-11-10T22:57:52"
+        # Moved later (a rename): only its hour is known; a daily copy has none.
+        assert server.saved_at("2026-11-10T21", at) is None
+        assert server.saved_at("2026-11-10", at) is None
 
     def test_never_removes_a_match_s_newest_copy(self, remote, tmp_path):
         with pytest.raises(PermissionError):

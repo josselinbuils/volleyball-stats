@@ -54,8 +54,8 @@ interface Copies {
   used: number;
   /** How many copies the server keeps, besides each match's newest. */
   keep: number;
-  /** Newest first: its own size (what removing it frees) and the matches it holds the newest copy of. */
-  days: { day: string; matches: string[]; size: number; newest: string[] }[];
+  /** Newest first: its last save's time when known, its own size (what removing it frees) and the matches it holds the newest copy of. */
+  days: { day: string; saved: string | null; matches: string[]; size: number; newest: string[] }[];
 }
 
 const EMPTY: Server = { address: '', folder: '', key: '', url: '' };
@@ -234,8 +234,11 @@ export function ServerTab() {
       await refresh();
     });
   };
-  // A copy is named by its day, and its hour since copies are hourly.
-  const copyName = (day: string) => (day.includes('T') ? f.when(`${day}:00`) : f.date(day));
+  // A copy is named by its last save, else by its day, and its hour since copies are hourly.
+  const copyName = (day: string) => {
+    const saved = copies && copies !== 'failed' ? copies.days.find((d) => d.day === day)?.saved : null;
+    return saved ? f.when(saved) : day.includes('T') ? f.when(`${day}:00`) : f.date(day);
+  };
   const saved = state?.server;
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
   if (!state) {
