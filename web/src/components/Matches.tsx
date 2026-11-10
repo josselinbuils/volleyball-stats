@@ -118,7 +118,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
           </div>
         </header>
         {review && <Behind />}
-        {review && <div ref={setup} className={view === 'season' ? 'hidden' : undefined} />}
+        {review && <div ref={setup} />}
         {hasSeason && (
           <Tabs
             label={t('season.view')}
