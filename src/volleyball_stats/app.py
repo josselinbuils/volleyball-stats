@@ -381,7 +381,7 @@ def videos_state() -> dict | None:
 
 
 def server_state() -> dict:
-    """The "Serveur" tab: the server, whether this machine copies its matches by itself, and its two jobs."""
+    """The "Serveur" tab: the server, whether the matches are copied by themselves, and its two jobs."""
     found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP)}
     return {"server": server.read(OUTPUTS), "auto": sync.auto(OUTPUTS), "hosting": found.get(HOSTING), "backup": found.get(BACKUP)}
 
@@ -423,7 +423,7 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
             if route == "server":
                 return reply(server_state())
             if route == "server/copies":
-                return reply(server.copies(OUTPUTS))
+                return reply({**server.copies(OUTPUTS), "auto": sync.refresh_auto(OUTPUTS)})
             if route == "sources":
                 return reply(sources())
             if route == "club":
@@ -479,8 +479,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "server/auto":
             if not isinstance(body.get("on"), bool):
                 raise ValueError("on")
-            sync.set_auto(OUTPUTS, body["on"])
-            return reply(server_state())
+            shared = sync.set_auto(OUTPUTS, body["on"])
+            return reply({**server_state(), "shared": shared})
         if route == "server/host":
             jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES)])])
             return reply(server_state())

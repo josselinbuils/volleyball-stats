@@ -81,8 +81,10 @@ Link previews: `matches.build` with a `url` tags the list and each match page (`
 Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bot` list (search engines, AI scrapers, SEO tools; link previews stay) and sends `X-Robots-Tag: noindex` on all, the pages carry the same meta tag. A bot lying about its name gets through; the domain's `robots.txt` has no rule, Cloudflare's bot settings are the owner's. A change of a mounted config from `git pull` needs `docker compose up -d --force-recreate --no-deps volleyballstats`: the running container keeps the old file.
 
 Backup: the review's "Sauvegarder sur le serveur" ("..." menu, and `uv run python -m volleyball_stats.backup
-outputs/matches/MATCH`), and with "Sauvegarde automatique" ticked every 10 minutes if something changed (this machine's
-choice, `outputs/backup.json`, off by default: few users keep a server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts and their clicks (`court/`), roster, reports,
+outputs/matches/MATCH`), and with "Sauvegarde automatique" ticked every 10 minutes if something changed (one choice for
+both machines, in the server's `/root/backups/volleyball-stats/settings.json`, read before each round and when the Serveur
+tab lists the copies, kept in `outputs/backup.json` for when the server is unreachable; off by default: few users keep a
+server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts and their clicks (`court/`), roster, reports,
 the club (the app's "Club", `outputs/club/`) to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
 files hard-linked (to the day before and to the match's last copy), a day kept while among the last 30 or among the last 30 copies of a match it
 holds, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video

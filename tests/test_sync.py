@@ -227,3 +227,35 @@ class TestBehind:
         match.mkdir(parents=True)
 
         assert sync.behind([match]) == {}
+
+
+class TestSharedAuto:
+    @pytest.fixture
+    def outputs(self, tmp_path, monkeypatch):
+        server = {}
+        monkeypatch.setattr(sync, "server", lambda outputs: {"upload": "root@host:/site/", "key": "k"})
+        monkeypatch.setattr(sync, "shared_settings", lambda config: dict(server))
+        monkeypatch.setattr(sync, "share_settings", lambda config, changes: server.update(changes))
+        return tmp_path, server
+
+    def test_a_choice_reaches_the_server_and_the_other_machine(self, outputs):
+        here, server = outputs
+        assert sync.set_auto(here, True) and server == {"auto": True}
+        other = here / "other"
+        other.mkdir()
+        assert not sync.auto(other) and sync.refresh_auto(other) and sync.auto(other)
+
+    def test_kept_here_when_the_server_cannot_take_it(self, outputs, monkeypatch):
+        here, _ = outputs
+
+        def refuse(config, changes):
+            raise RuntimeError("unreachable")
+
+        monkeypatch.setattr(sync, "share_settings", refuse)
+        assert not sync.set_auto(here, True) and sync.auto(here)
+
+    def test_a_server_without_the_choice_leaves_this_machine_s(self, outputs):
+        here, _ = outputs
+        sync.set_auto(here, True)
+        outputs[1].clear()
+        assert sync.refresh_auto(here)

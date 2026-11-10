@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { CloudUpload, DatabaseBackup, ExternalLink, PlugZap } from 'lucide-react';
+import { CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,6 +25,8 @@ interface ServerState {
 interface Copies {
   free: number;
   days: { day: string; matches: string[] }[];
+  /** The automatic copies' choice as the server holds it. */
+  auto: boolean;
 }
 
 const EMPTY: Server = { address: '', folder: '', key: '', url: '' };
@@ -35,6 +37,15 @@ const FIELDS = [
   { key: 'url', placeholder: 'https://' },
 ] as const;
 const BUSY_MS = 3000;
+
+function Loading({ text }: { text: string }) {
+  return (
+    <p role="status" className="flex items-center gap-2 text-muted-foreground">
+      <LoaderCircle aria-hidden className="size-4 animate-spin" />
+      {text}
+    </p>
+  );
+}
 
 /** A job's last run: running, failed with its reason, or done and when. */
 function JobLine({ job, running }: { job: Job | null; running: string }) {
@@ -64,6 +75,9 @@ export function ServerTab() {
   const [form, setForm] = useState<Server>(EMPTY);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [copies, setCopies] = useState<Copies | null | 'failed'>(null);
+  const [listing, setListing] = useState(false);
+  // The choice saved here only: the server could not take it.
+  const [autoLocal, setAutoLocal] = useState(false);
   const refresh = useCallback(async () => {
     const r = await call<ServerState>('server');
     if (r.ok) {
@@ -72,8 +86,13 @@ export function ServerTab() {
     return r;
   }, []);
   const listCopies = useCallback(async () => {
+    setListing(true);
     const r = await call<Copies>('server/copies');
+    setListing(false);
     setCopies(r.ok ? r : 'failed');
+    if (r.ok) {
+      setState((s) => s && { ...s, auto: r.auto });
+    }
   }, []);
   useEffect(() => {
     void refresh().then((r) => {
@@ -119,9 +138,10 @@ export function ServerTab() {
     setNote({ ok: r.ok, text: r.ok ? t('server.reached') : missing ? t('server.missing') : t('server.unreached', { error: r.error ?? '' }) });
   };
   const setAuto = async (on: boolean) => {
-    const r = await call<ServerState>('server/auto', { on });
+    const r = await call<ServerState & { shared: boolean }>('server/auto', { on });
     if (r.ok) {
       setState(r);
+      setAutoLocal(!r.shared);
     }
   };
   const start = async (path: 'server/host' | 'server/backup') => {
@@ -132,6 +152,9 @@ export function ServerTab() {
   };
   const saved = state?.server;
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
+  if (!state) {
+    return <Loading text={t('server.loading')} />;
+  }
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -184,15 +207,20 @@ export function ServerTab() {
           <input type="checkbox" checked={!!state?.auto} disabled={!saved} onChange={(e) => void setAuto(e.target.checked)} />
           {t('server.auto')}
         </label>
+        {autoLocal && <p className="text-sm text-destructive">{t('server.autoLocal')}</p>}
         <Button variant="outline" className="w-fit bg-card" disabled={!saved || !!state?.backup?.running} onClick={() => void start('server/backup')}>
           <DatabaseBackup aria-hidden />
           {t('server.backUp')}
         </Button>
         <JobLine job={state?.backup ?? null} running={t('server.backingUp')} />
-        {copies === 'failed' && <p className="text-destructive">{t('server.copiesFailed')}</p>}
+        {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
+        {copies === 'failed' && !listing && <p className="text-destructive">{t('server.copiesFailed')}</p>}
         {copies && copies !== 'failed' && (
           <div className="grid gap-1">
-            <p className="text-sm text-muted-foreground">{t('server.free', { gb: copies.free })}</p>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              {t('server.free', { gb: copies.free })}
+              {listing && <LoaderCircle aria-label={t('server.listing')} className="size-3.5 animate-spin" />}
+            </p>
             <ol className="grid gap-0.5 text-sm tabular-nums">
               {copies.days.map(({ day, matches }) => (
                 <li key={day} className="flex justify-between gap-3">

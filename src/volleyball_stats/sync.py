@@ -26,8 +26,10 @@ from volleyball_stats import backup, files, matches
 # Per machine, not copied: the server's version this machine's copy started from, and its files' signature then.
 STATE = backup.STATE
 SERVER = "server.json"
-# This machine's choice of automatic copies (`auto`).
+# The choice of automatic copies (`auto`): the server's, kept here as this machine last read it.
 BACKUP = "backup.json"
+# The settings every machine shares, on the server beside the copies.
+SETTINGS = "settings.json"
 REMOTE = Path(__file__).with_name("sync_remote.py")
 DEFAULT_OUTPUTS = Path("outputs")
 
@@ -59,13 +61,56 @@ def server(outputs: Path) -> dict | None:
 
 
 def auto(outputs: Path) -> bool:
-    """Whether the review copies its match to the server by itself: this machine's choice (`outputs/backup.json`), off by default."""
+    """Whether the review copies its match to the server by itself, as this machine last knew the shared choice
+    (`outputs/backup.json`, `refresh_auto`), off by default."""
     path = outputs / BACKUP
     return path.exists() and json.loads(path.read_text()).get("auto") is True
 
 
-def set_auto(outputs: Path, on: bool) -> None:
+def shared_settings(config: dict, root: str = backup.ROOT) -> dict:
+    """The settings the machines share, from the server; RuntimeError when it cannot be read."""
+    host, ssh = backup.connection(config)
+    run = subprocess.run([*ssh, host, f"cat {shlex.quote(f'{root}/{SETTINGS}')} 2>/dev/null || echo '{{}}'"], capture_output=True, text=True, timeout=30)
+    if run.returncode:
+        raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
+    return json.loads(run.stdout or "{}")
+
+
+def share_settings(config: dict, changes: dict, root: str = backup.ROOT) -> None:
+    """`changes` written into the settings the machines share; RuntimeError when the server cannot take them."""
+    host, ssh = backup.connection(config)
+    path = shlex.quote(f"{root}/{SETTINGS}")
+    command = f"mkdir -p {shlex.quote(root)} && chmod 700 {shlex.quote(root)} && cat > {path}.tmp && mv {path}.tmp {path}"
+    text = json.dumps({**shared_settings(config, root), **changes})
+    run = subprocess.run([*ssh, host, command], input=text, capture_output=True, text=True, timeout=30)
+    if run.returncode:
+        raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
+
+
+def set_auto(outputs: Path, on: bool) -> bool:
+    """The choice of automatic copies, kept here and shared through the server; whether the server took it."""
     files.write_text(outputs / BACKUP, json.dumps({"auto": on}) + "\n")
+    config = server(outputs)
+    if not config:
+        return False
+    try:
+        share_settings(config, {"auto": on})
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        return False
+    return True
+
+
+def refresh_auto(outputs: Path) -> bool:
+    """`auto` after reading the shared choice from the server, kept here; as this machine last knew it when unreachable."""
+    config = server(outputs)
+    if config:
+        try:
+            found = shared_settings(config).get("auto")
+        except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+            found = None
+        if isinstance(found, bool) and found != auto(outputs):
+            files.write_text(outputs / BACKUP, json.dumps({"auto": found}) + "\n")
+    return auto(outputs)
 
 
 def active(outputs: Path) -> bool:

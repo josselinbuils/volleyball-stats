@@ -2006,7 +2006,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
         outputs, copied = out.parent, None
         while True:
             config = sync.server(outputs)
-            if sync.auto(outputs) and config:
+            if config and sync.refresh_auto(outputs):
                 try:
                     now = backup.signature(backup.shared(outputs))
                     if now != copied:
@@ -2146,7 +2146,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     def backing() -> None:
         """A copy whenever something changed, while this machine wants them."""
         while True:
-            if sync.auto(outputs):
+            if sync.refresh_auto(outputs):
                 try:
                     now = backup.signature(backup.sources(match))
                 except OSError:

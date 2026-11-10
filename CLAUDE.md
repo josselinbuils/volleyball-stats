@@ -38,6 +38,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - Format web files with `npx prettier --single-quote --print-width 200` (no config file: the
   defaults restyle everything). Some files already differ; only format the ones you touch.
 - Spacing in `web/`: the design system's values only, and coherent: mirror what the neighbouring elements use.
+- Anything loaded after the page shows (a fetch, a server's answer, a lazy part) has a placeholder or a loader
+  while it comes: never an empty space that fills in later.
 - Tooltips in `web/`: `Tip` only, never a `title` (one look everywhere, full screen included; `Tip.test.ts` checks).
 - The page's build is committed in `src/volleyball_stats/site/`: after any `web/` change run
   `npm run build` in `web/` and commit the build with it. It makes the page, `scene3d.js` (three.js)
