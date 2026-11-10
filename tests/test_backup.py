@@ -1,5 +1,6 @@
 import os
 
+from volleyball_stats import backup_remote
 from volleyball_stats.backup import held, kept, listed, newest, rsync_command, signature, sources, stale, vanished
 
 
@@ -69,8 +70,18 @@ class TestHeld:
 
 
 class TestRsyncCommand:
-    def test_links_to_the_copy_before_and_leaves_out_the_old_copies_and_pages(self, tmp_path):
-        out = rsync_command([tmp_path], "root@host", ["ssh"], "/root/b", "2026-01-02", ["2026-01-01"])
-        assert {"--exclude=backup-*", "--exclude=review", "--exclude=site", "--link-dest=/root/b/2026-01-01"} <= set(out)
+    def test_leaves_out_the_old_copies_and_pages(self, tmp_path):
+        out = rsync_command([tmp_path], "root@host", ["ssh"], "/root/b", "2026-01-02")
+        assert {"--exclude=backup-*", "--exclude=review", "--exclude=site"} <= set(out)
         assert out[-2:] == [str(tmp_path), "root@host:/root/b/2026-01-02/"]
-        assert not any(a.startswith("--link-dest") for a in rsync_command([tmp_path], "root@host", ["ssh"], "/root/b", "2026-01-02", []))
+
+
+class TestSnapshot:
+    def test_the_day_starts_as_the_one_before_hard_linked_once(self, tmp_path):
+        (tmp_path / "2026-01-01" / "a").mkdir(parents=True)
+        (tmp_path / "2026-01-01" / "a" / "x").write_text("old")
+        for _ in range(2):
+            backup_remote.snapshot(str(tmp_path), "2026-01-02", "2026-01-01")
+        copied = tmp_path / "2026-01-02" / "a" / "x"
+        assert copied.read_text() == "old" and copied.stat().st_ino == (tmp_path / "2026-01-01" / "a" / "x").stat().st_ino
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["2026-01-01", "2026-01-02"]

@@ -89,7 +89,7 @@ both machines, in the server's `/root/backups/volleyball-stats/settings.json`, r
 tab lists the copies, kept in `outputs/backup.json` for when the server is unreachable; off by default: few users keep a
 server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts and their clicks (`court/`), roster, reports,
 the club (the app's "Club", `outputs/club/`) to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
-files hard-linked (to the day before and to the match's last copy), a day kept while among the last 30 or holding a match's newest copy, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video
+a day's copy started on the server as the day before's, hard-linked (`backup_remote.py`), so each holds every match while only what changed goes up, a day kept while among the last 30 or holding a match's newest copy, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
 Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other, and any machine works on

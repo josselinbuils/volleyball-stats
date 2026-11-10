@@ -1,9 +1,9 @@
 """A dated copy of what cannot be made again (the review's answers, names and comments, the match's
 results, and beside the matches the courts and their clicks, the roster, the lens, the club the app edits, the viewers'
-reports) on the hosting server, outside its website: ROOT/DAY/MATCH/ and ROOT/DAY/<what sits beside>. A day holds the
-matches copied that day: the last KEEP days are kept (or as many as the server's settings.json says), and each match's
-newest copy however old. Files unchanged since a copy before take no room. The
-video is too big for that server.
+reports) on the hosting server, outside its website: ROOT/DAY/MATCH/ and ROOT/DAY/<what sits beside>. A day's copy starts as
+the one before hard-linked on the server (`snapshot`), so each holds every match while only what changed is uploaded and
+takes room. The last KEEP days are kept (or as many as the server's settings.json says), and each match's newest copy
+however old. The video is too big for that server.
 
     uv run python -m volleyball_stats.backup outputs/matches/2026-10-29-aspom-1-vs-aspom-2
 
@@ -31,6 +31,7 @@ STATE = ".sync.json"
 SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE)
 # What sits beside the matches in the outputs folder, copied with each match and on its own (`backup_shared`).
 SHARED = ("courts", "court", "roster.json", "lens.json", "club", "feedback")
+REMOTE = Path(__file__).with_name("backup_remote.py")
 KEEP = 30
 # Under this, no copy: the server also runs the owner's websites.
 MIN_FREE_GB = 5
@@ -115,11 +116,17 @@ def held(listing: str) -> dict[str, set[str]]:
     return found
 
 
-def rsync_command(paths: list[Path], host: str, ssh: list[str], root: str, day: str, links: list[str]) -> list[str]:
-    """Today's copy from `paths`, linking to the files of the copies `links` that did not change."""
+def snapshot(host: str, ssh: list[str], root: str, day: str, previous: str) -> None:
+    """The day's copy started on the server as the `previous` one, hard-linked (backup_remote.py): nothing uploaded, no
+    room taken."""
+    command = "python3 - " + " ".join(shlex.quote(a) for a in (root, day, previous))
+    subprocess.run([*ssh, host, command], input=REMOTE.read_text(), check=True, capture_output=True, text=True, timeout=600)
+
+
+def rsync_command(paths: list[Path], host: str, ssh: list[str], root: str, day: str) -> list[str]:
+    """Today's copy from `paths`: only the files changed since the copy it started as go up."""
     return [
         "rsync", "-rt", "--delete", *[f"--exclude={p}" for p in SKIP], "-e", " ".join(ssh),
-        *[f"--link-dest={root}/{d}" for d in links],
         *map(str, paths), f"{host}:{root}/{day}/",
     ]  # fmt: skip
 
@@ -135,8 +142,8 @@ def backup_shared(outputs: Path, config: dict, day: str | None = None, root: str
 
 
 def copy(paths: list[Path], config: dict, name: str | None, day: str | None, root: str) -> None:
-    """`paths` copied into the day's copy, the match `name` among them, linking to the day before and to that match's
-    last copy; then the copies past KEEP removed."""
+    """`paths` copied into the day's copy, the match `name` among them, started as the day before's; then the copies past
+    KEEP removed."""
     host, ssh = connection(config)
     day = day or time.strftime("%Y-%m-%d")
 
@@ -146,9 +153,11 @@ def copy(paths: list[Path], config: dict, name: str | None, day: str | None, roo
     free_gb, settings, days = listed(remote(listing(root)))
     if free_gb < MIN_FREE_GB:
         raise RuntimeError(f"only {free_gb:.1f} GB free on the server")
-    before = [d for d in sorted(days) if d != day]
-    links = list(dict.fromkeys([*before[-1:], *[d for d in before if name in days[d]][-1:]]))
-    run = subprocess.run(rsync_command(paths, host, ssh, root, day, links), capture_output=True, text=True, timeout=TIMEOUT_S)
+    before = [d for d in sorted(days) if d < day]
+    if before and day not in days:
+        snapshot(host, ssh, root, day, before[-1])
+        days[day] = set(days[before[-1]])
+    run = subprocess.run(rsync_command(paths, host, ssh, root, day), capture_output=True, text=True, timeout=TIMEOUT_S)
     if run.returncode not in (0, VANISHED) and not vanished(run.stderr):
         raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
     days.setdefault(day, set()).update([name] if name else [])
