@@ -75,8 +75,8 @@ Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bo
 
 Backup: the review's "Sauvegarder sur le serveur" ("..." menu, and `uv run python -m volleyball_stats.backup
 outputs/matches/MATCH`), and with "Sauvegarde automatique" ticked every 10 minutes if something changed (this machine's
-choice, `outputs/backup.json`, off by default: few users keep a server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports
-and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
+choice, `outputs/backup.json`, off by default: few users keep a server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts, roster, reports,
+the club (the app's "Club", `outputs/brand/`) and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
 files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
@@ -89,7 +89,7 @@ otherwise the review reaches the server only when asked), the review first bring
 (`sync.check`, 15 s at most). Changed on both sides (at opening, or a copy refused later), it asks which to keep, "Modifié ici et sur
 MACHINE": "Celle de MACHINE" pulls it (this machine's changes kept in `backup-sync-<time>/`), "Celle d'ici" sends this one, the
 server's set aside first in `aside/<time>-v<version>/` beside the dated copies (hard links). The list of matches offers those only
-on the server ("À télécharger"), asked once the page shows (`/matches/remote.json`: the ssh round trip takes a second). A pull also brings the courts, lens and sponsors this machine lacks, and the roster is joined,
+on the server ("À télécharger"), asked once the page shows (`/matches/remote.json`: the ssh round trip takes a second). A pull also brings the courts, lens, club and sponsors this machine lacks, and the roster is joined,
 each match's names from this machine where its copy is not behind the server's. By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all |
 push outputs/matches/MATCH`; a machine with no match yet first `sync setup root@<OVH IP> ~/.ssh/id_ed25519_ovh` (the key
 copied there). The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting:

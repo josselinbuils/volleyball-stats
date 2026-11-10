@@ -1,5 +1,5 @@
 """A dated copy of what cannot be made again (the review's answers, names and comments, the match's
-results, the courts, the viewers' reports, the sponsors) on the hosting server, outside its website.
+results, the courts, the viewers' reports, the club the app edits, the sponsors) on the hosting server, outside its website.
 Files unchanged since the copy before take no room. The video is too big for that server.
 
     uv run python -m volleyball_stats.backup outputs/matches/2026-10-29-aspom-1-vs-aspom-2
@@ -45,7 +45,7 @@ DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 def sources(match: Path) -> list[Path]:
     """What is copied, each landing under its name: the match's folder and what sits beside it."""
     outputs = files.root(match)
-    found = [match, outputs / "courts", outputs / "roster.json", outputs / "lens.json", SPONSORS, outputs / "feedback"]
+    found = [match, outputs / "courts", outputs / "roster.json", outputs / "lens.json", outputs / "brand", SPONSORS, outputs / "feedback"]
     return [p for p in found if p.exists()]
 
 
