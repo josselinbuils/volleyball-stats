@@ -237,7 +237,7 @@ def build(site: Path, theme: str = CLUB, url: str | None = None) -> list[dict]:
             share_match(site / match["path"], f"{root}{match['path']}")
         name = club["name"] if club else None
         logo = site / club["logo"] if club and club.get("logo") else None
-        share(site, root, f"Matchs · {name}" if name else "Matchs", "Les matchs de volley et leurs statistiques.", list_card("Matchs", name, logo), name)
+        share(site, root, f"Statistiques · {name}" if name else "Statistiques", "Les matchs de volley et leurs statistiques.", list_card("Statistiques", name, logo), name)
     write_redirects(site, redirects)
     compress(site)
     return matches

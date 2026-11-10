@@ -720,6 +720,7 @@
     "tv": "TV"
   },
   "matches": {
+    "heading": "Statistiques",
     "title": "Matchs",
     "intro": "Les statistiques de chaque match. Choisissez un match pour voir son bilan.",
     "none": "Aucun match pour l'instant.",
@@ -745,7 +746,7 @@
     "failed": "Échec : réessayez."
   },
   "season": {
-    "title": "La saison",
+    "title": "Saison",
     "view": "Matchs ou saison",
     "win": "Victoire",
     "loss": "Défaite",

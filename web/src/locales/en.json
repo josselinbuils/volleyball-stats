@@ -720,6 +720,7 @@
     "tv": "TV"
   },
   "matches": {
+    "heading": "Stats",
     "title": "Matches",
     "intro": "Each match's stats. Pick a match to see its report.",
     "none": "No matches yet.",
@@ -745,7 +746,7 @@
     "failed": "Failed: try again."
   },
   "season": {
-    "title": "The season",
+    "title": "Season",
     "view": "Matches or season",
     "win": "Win",
     "loss": "Loss",

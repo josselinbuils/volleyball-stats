@@ -94,7 +94,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
       setFailed(remote ? 'pull' : 'open');
     });
   };
-  const heading = t('matches.title');
+  const heading = t('matches.heading');
   useEffect(() => {
     document.title = brand ? `${heading} · ${brand.name}` : heading;
   }, [heading, brand]);
@@ -128,7 +128,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
               history.replaceState(null, '', v === 'season' ? SEASON : location.pathname + location.search);
             }}
             tabs={[
-              { id: 'matches', label: heading },
+              { id: 'matches', label: t('matches.title') },
               { id: 'season', label: t('season.title') },
             ]}
           />
