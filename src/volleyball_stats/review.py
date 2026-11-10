@@ -1916,6 +1916,20 @@ def pulled(body, out: Path) -> tuple[bytes, str, int]:
     return b"{}", "application/json", 200
 
 
+# Each page's other spelling, with or without a trailing slash, and the page's own: its files are relative to it.
+SPELLINGS = {"/matches": "/matches/", "/review/": "/review"}
+
+
+def redirect(handler: BaseHTTPRequestHandler, url) -> bool:
+    """Sends `handler` on to the page `url` names in another spelling; whether it did."""
+    if url.path not in SPELLINGS:
+        return False
+    handler.send_response(302)
+    handler.send_header("Location", SPELLINGS[url.path] + (f"?{url.query}" if url.query else ""))
+    handler.end_headers()
+    return True
+
+
 def same_site(headers, port: int) -> bool:
     """Whether a request comes from this server's own pages."""
     host = headers.get("Host", "")
@@ -1945,6 +1959,8 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             url = urlparse(self.path)
             if not same_site(self.headers, port):
                 return self.send(b"", "text/plain", 403)
+            if redirect(self, url):
+                return None
             if url.path == "/current":
                 return self.send(b'{"name":null}', "application/json")
             if url.path == "/git":
@@ -2298,6 +2314,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if not self.ours():
                 return self.send(b"", "text/plain", 403)
             url = urlparse(self.path)
+            if redirect(self, url):
+                return None
             if url.path == "/current":
                 return self.send(json.dumps({"name": match.name}).encode(), "application/json")
             found = app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent))

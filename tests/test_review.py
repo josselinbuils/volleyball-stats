@@ -101,6 +101,20 @@ class TestMatchList:
         assert [(m["path"], m["date"], m["remote"]) for m in found] == [("2026-11-02-x", "2026-11-02", True)]
 
 
+class TestRedirect:
+    def sent(self, path):
+        from urllib.parse import urlparse
+
+        handler = SimpleNamespace(headers={}, send_response=lambda code: handler.headers.update(status=code), send_header=lambda k, v: handler.headers.update({k: v}), end_headers=lambda: None)
+        return review_module.redirect(handler, urlparse(path)), handler.headers
+
+    def test_each_page_answers_with_and_without_a_trailing_slash(self):
+        assert self.sent("/matches?x=1") == (True, {"status": 302, "Location": "/matches/?x=1"})
+        assert self.sent("/review/") == (True, {"status": 302, "Location": "/review"})
+        assert self.sent("/matches/")[0] is False
+        assert self.sent("/review")[0] is False
+
+
 class TestConstraints:
     piece = {"track": 7, "frame": 100}
     three, five = {"track": 1, "frame": 10}, {"track": 2, "frame": 20}
