@@ -798,7 +798,6 @@
     "auto": "Automatic backup",
     "loading": "Loading…",
     "listing": "Reading the backups…",
-    "autoLocal": "Server unreachable: choice kept on this computer only.",
     "backUp": "Back up now",
     "lastAt": "Last backup: {{at}}",
     "never": "No backup from this computer yet.",

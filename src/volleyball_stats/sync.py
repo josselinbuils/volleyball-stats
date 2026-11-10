@@ -27,7 +27,7 @@ from volleyball_stats import backup, files, matches
 # Per machine, not copied: the server's version this machine's copy started from, and its files' signature then.
 STATE = backup.STATE
 SERVER = "server.json"
-# The choice of automatic copies (`auto`): the server's, kept here as this machine last read it.
+# This machine's choice of automatic copies (`auto`).
 BACKUP = "backup.json"
 # The settings every machine shares, on the server beside the copies.
 SETTINGS = "settings.json"
@@ -62,8 +62,8 @@ def server(outputs: Path) -> dict | None:
 
 
 def auto(outputs: Path) -> bool:
-    """Whether the matches are copied to the server by themselves, as this machine last knew the shared choice
-    (`outputs/backup.json`, `refresh_auto`): on by default once a server is set."""
+    """Whether this machine copies its matches to the server by itself: its own choice (`outputs/backup.json`), on by
+    default once a server is set."""
     path = outputs / BACKUP
     if path.exists():
         return json.loads(path.read_text()).get("auto") is True
@@ -92,34 +92,9 @@ def share_settings(config: dict, changes: dict, root: str | None = None) -> None
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
 
 
-def set_auto(outputs: Path, on: bool) -> bool:
-    """The choice of automatic copies, kept here and shared through the server; whether the server took it. One it could
-    not take stays `pending` here, sent by the next `refresh_auto` instead of the server's being read."""
-    files.write_text(outputs / BACKUP, json.dumps({"auto": on, "pending": True}) + "\n")
-    return refresh_auto(outputs) == on and not pending(outputs)
-
-
-def pending(outputs: Path) -> bool:
-    path = outputs / BACKUP
-    return path.exists() and json.loads(path.read_text()).get("pending") is True
-
-
-def refresh_auto(outputs: Path) -> bool:
-    """`auto` once in step with the server: this machine's choice sent when the server has not taken it yet (`pending`),
-    else the server's read and kept here; as this machine last knew it when unreachable."""
-    config = server(outputs)
-    if config:
-        try:
-            if pending(outputs):
-                share_settings(config, {"auto": auto(outputs)})
-                files.write_text(outputs / BACKUP, json.dumps({"auto": auto(outputs)}) + "\n")
-            else:
-                found = shared_settings(config).get("auto")
-                if isinstance(found, bool) and (found != auto(outputs) or not (outputs / BACKUP).exists()):
-                    files.write_text(outputs / BACKUP, json.dumps({"auto": found}) + "\n")
-        except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
-            pass
-    return auto(outputs)
+def set_auto(outputs: Path, on: bool) -> None:
+    """This machine's choice of automatic copies: each machine has its own."""
+    files.write_text(outputs / BACKUP, json.dumps({"auto": on}) + "\n")
 
 
 def active(outputs: Path) -> bool:

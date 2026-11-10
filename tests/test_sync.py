@@ -229,52 +229,10 @@ class TestBehind:
         assert sync.behind([match]) == {}
 
 
-class TestSharedAuto:
-    @pytest.fixture
-    def outputs(self, tmp_path, monkeypatch):
-        server = {}
-        monkeypatch.setattr(sync, "server", lambda outputs: {"upload": "root@host:/site/", "key": "k"})
-        monkeypatch.setattr(sync, "shared_settings", lambda config: dict(server))
-        monkeypatch.setattr(sync, "share_settings", lambda config, changes: server.update(changes))
-        return tmp_path, server
-
-    def test_on_by_default_once_a_server_is_set(self, tmp_path, monkeypatch):
+class TestAuto:
+    def test_each_machine_s_own_on_by_default_once_a_server_is_set(self, tmp_path, monkeypatch):
         assert not sync.auto(tmp_path)
         monkeypatch.setattr(sync, "server", lambda outputs: {"upload": "root@host:/site/", "key": "k"})
         assert sync.auto(tmp_path)
-
-    def test_a_choice_reaches_the_server_and_the_other_machine(self, outputs):
-        here, server = outputs
-        assert sync.set_auto(here, False) and server == {"auto": False}
-        other = here / "other"
-        other.mkdir()
-        assert sync.auto(other) and not sync.refresh_auto(other) and not sync.auto(other)
-
-    def test_a_choice_the_server_could_not_take_is_sent_later_not_lost(self, outputs, monkeypatch):
-        here, server = outputs
-        server["auto"] = True
-
-        def refuse(config, changes):
-            raise RuntimeError("unreachable")
-
-        monkeypatch.setattr(sync, "share_settings", refuse)
-        assert not sync.set_auto(here, False) and not sync.auto(here)
-        # Unreachable still: the server's older choice is not read over this one.
-        assert not sync.refresh_auto(here)
-        monkeypatch.setattr(sync, "share_settings", lambda config, changes: server.update(changes))
-        assert not sync.refresh_auto(here) and server == {"auto": False} and not sync.pending(here)
-
-    def test_kept_here_when_the_server_cannot_take_it(self, outputs, monkeypatch):
-        here, _ = outputs
-
-        def refuse(config, changes):
-            raise RuntimeError("unreachable")
-
-        monkeypatch.setattr(sync, "share_settings", refuse)
-        assert not sync.set_auto(here, True) and sync.auto(here)
-
-    def test_a_server_without_the_choice_leaves_this_machine_s(self, outputs):
-        here, _ = outputs
-        sync.set_auto(here, True)
-        outputs[1].clear()
-        assert sync.refresh_auto(here)
+        sync.set_auto(tmp_path, False)
+        assert not sync.auto(tmp_path)

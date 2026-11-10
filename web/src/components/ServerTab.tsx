@@ -39,8 +39,6 @@ interface Copies {
   keep: number;
   /** Newest first: its own size (what removing it frees) and the matches it holds the newest copy of. */
   days: { day: string; matches: string[]; size: number; newest: string[] }[];
-  /** The automatic copies' choice as the server holds it. */
-  auto: boolean;
 }
 
 const EMPTY: Server = { address: '', folder: '', key: '', url: '' };
@@ -90,8 +88,6 @@ export function ServerTab() {
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [copies, setCopies] = useState<Copies | null | 'failed'>(null);
   const [listing, setListing] = useState(false);
-  // The choice saved here only: the server could not take it.
-  const [autoLocal, setAutoLocal] = useState(false);
   const [keep, setKeep] = useState('');
   // A removal waiting for its confirmation: one copy, or those a new count removes.
   const [confirm, setConfirm] = useState<{ day: string } | { keep: number; removes: string[] } | null>(null);
@@ -115,7 +111,6 @@ export function ServerTab() {
     setListing(false);
     setCopies(r.ok ? r : 'failed');
     if (r.ok) {
-      setState((s) => s && { ...s, auto: r.auto });
       setKeep(String(r.keep));
     }
   }, []);
@@ -167,10 +162,9 @@ export function ServerTab() {
     });
   const setAuto = (on: boolean) =>
     run('auto', async () => {
-      const r = await call<ServerState & { shared: boolean }>('server/auto', { on });
+      const r = await call<ServerState>('server/auto', { on });
       if (r.ok) {
         setState(r);
-        setAutoLocal(!r.shared);
       }
     });
   const remove = (body: { day: string } | { keep: number; apply: true }) => {
@@ -266,7 +260,6 @@ export function ServerTab() {
           <input type="checkbox" checked={!!state.auto} disabled={!saved || doing === 'auto'} onChange={(e) => void setAuto(e.target.checked)} />
           {t('server.auto')}
         </label>
-        {autoLocal && <p className="text-sm text-destructive">{t('server.autoLocal')}</p>}
         {state.last.error ? (
           <p role="alert" className="text-destructive [overflow-wrap:anywhere]">
             {t('server.lastFailed', { error: state.last.error })}

@@ -798,7 +798,6 @@
     "auto": "Sauvegarde automatique",
     "loading": "Chargement…",
     "listing": "Lecture des sauvegardes…",
-    "autoLocal": "Serveur injoignable : choix gardé sur cet ordinateur seulement.",
     "backUp": "Sauvegarder maintenant",
     "lastAt": "Dernière sauvegarde : {{at}}",
     "never": "Pas encore de sauvegarde depuis cet ordinateur.",

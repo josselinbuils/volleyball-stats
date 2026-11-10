@@ -2007,7 +2007,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
         outputs = out.parent
         while True:
             config = sync.server(outputs)
-            if config and sync.refresh_auto(outputs):
+            if config and sync.auto(outputs):
                 try:
                     for failed in sync.push_all(outputs):
                         print(f"backup failed: {failed}", flush=True)
@@ -2145,7 +2145,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         (`sync.changed`), else what sits beside it kept in step (`sync.keep_shared`): a change there alone moves no
         match's version."""
         while True:
-            if sync.refresh_auto(outputs):
+            if sync.auto(outputs):
                 try:
                     if sync.changed(match):
                         back_up()
