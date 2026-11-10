@@ -800,6 +800,18 @@
     "listing": "Reading the backups…",
     "autoLocal": "Server unreachable: choice kept on this computer only.",
     "backUp": "Back up now",
+    "lastAt": "Last backup: {{at}}",
+    "never": "No backup from this computer yet.",
+    "lastFailed": "Last backup failed: {{error}}",
+    "verify": "Verify",
+    "same": "Verified {{at}}: same as this computer.",
+    "differ": "Verified {{at}}: differences found.",
+    "sizeTip": "Room freed if deleted",
+    "restore": "Restore",
+    "restoreTitle": "Restore from the backup of {{date}}?",
+    "restoreText": "The current version is set aside on this computer, then the restored one is backed up as the newest.",
+    "shared": "Club, courts, players and reports",
+    "restored": "Restored. The previous version is set aside.",
     "backingUp": "Backing up…",
     "failed": "Failed: {{error}}",
     "done": "Done {{at}}.",
@@ -1365,6 +1377,14 @@
         "ok": "Available.",
         "busy": "Busy (load {{load}} on {{cores}} cores): an analysis would be slower."
       }
+    },
+    "backup": {
+      "off": "Automatic backup off: nothing is copied to the server.",
+      "failed": "Last backup failed: {{error}}",
+      "old": "No backup since {{at}}.",
+      "never": "No backup from this computer.",
+      "differ": "Some backups differ from this computer.",
+      "open": "See the backups"
     },
     "club": {
       "open": "Club",

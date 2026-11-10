@@ -800,6 +800,18 @@
     "listing": "Lecture des sauvegardes…",
     "autoLocal": "Serveur injoignable : choix gardé sur cet ordinateur seulement.",
     "backUp": "Sauvegarder maintenant",
+    "lastAt": "Dernière sauvegarde : {{at}}",
+    "never": "Pas encore de sauvegarde depuis cet ordinateur.",
+    "lastFailed": "Dernière sauvegarde échouée : {{error}}",
+    "verify": "Vérifier",
+    "same": "Vérifiées le {{at}} : identiques à cet ordinateur.",
+    "differ": "Vérifiées le {{at}} : différences trouvées.",
+    "sizeTip": "Place libérée si elle est supprimée",
+    "restore": "Restaurer",
+    "restoreTitle": "Restaurer depuis la sauvegarde du {{date}} ?",
+    "restoreText": "La version actuelle est mise de côté sur cet ordinateur, puis la restaurée est sauvegardée comme la plus récente.",
+    "shared": "Club, terrains, joueurs et signalements",
+    "restored": "Restauré. La version d'avant est mise de côté.",
     "backingUp": "Sauvegarde…",
     "failed": "Échec : {{error}}",
     "done": "Fait le {{at}}.",
@@ -1365,6 +1377,14 @@
         "ok": "Disponible.",
         "busy": "Occupé (charge {{load}} sur {{cores}} cœurs) : une analyse serait plus lente."
       }
+    },
+    "backup": {
+      "off": "Sauvegarde automatique désactivée : rien n'est copié sur le serveur.",
+      "failed": "Dernière sauvegarde échouée : {{error}}",
+      "old": "Pas de sauvegarde depuis le {{at}}.",
+      "never": "Aucune sauvegarde de cet ordinateur.",
+      "differ": "Des sauvegardes diffèrent de cet ordinateur.",
+      "open": "Voir les sauvegardes"
     },
     "club": {
       "open": "Club",

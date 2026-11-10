@@ -10,6 +10,7 @@ import { ImportDialog } from './ImportDialog';
 import { PreparingCard } from './PreparingCard';
 import { VideosDialog } from './VideosDialog';
 import { call } from '@/lib/app';
+import { useFormat } from '@/lib/format';
 import { type AppState, type Check } from './helpers/setup';
 
 // Polled faster while something runs.
@@ -20,6 +21,7 @@ const IDLE_MS = 20_000;
  * matches being prepared until their review opens, and the videos of the other machine. */
 export function Setup() {
   const { t } = useTranslation();
+  const f = useFormat();
   const [state, setState] = useState<AppState | null>(null);
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [dialog, setDialog] = useState<'import' | 'doctor' | 'videos' | 'club' | null>(null);
@@ -75,6 +77,23 @@ export function Setup() {
 
   return (
     <section className="grid gap-3" aria-label={t('app.setup')}>
+      {state?.backup && (
+        <Alert variant={state.backup.kind === 'off' || state.backup.kind === 'old' ? 'warning' : 'destructive'}>
+          <TriangleAlert aria-hidden />
+          <AlertDescription className="grid gap-2">
+            <span className="[overflow-wrap:anywhere]">
+              {state.backup.kind === 'old'
+                ? state.backup.at
+                  ? t('app.backup.old', { at: f.when(state.backup.at) })
+                  : t('app.backup.never')
+                : t(`app.backup.${state.backup.kind}`, { error: state.backup.error ?? '' })}
+            </span>
+            <Button size="sm" variant="outline" className="w-fit bg-card" asChild>
+              <a href="#serveur">{t('app.backup.open')}</a>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       {problems.map((check) => (
         <Alert key={check.id} variant={check.status === 'error' ? 'destructive' : 'warning'}>
           <TriangleAlert aria-hidden />

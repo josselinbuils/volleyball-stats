@@ -6,9 +6,9 @@ The app's "Serveur" tab (on the list, `#serveur`, `server.py`, `ServerTab.tsx` i
 site folder, ssh key, public address, in `outputs/server.json`, written into every match's `publish.json` (a new match takes
 it from there, `matches.ensure_publish`); "Tester" checks it answers and holds the folder. It also runs, as jobs that
 outlive the server, "Mettre à jour tous les matchs en ligne" (`matches --all`, recording each upload as the review does)
-and "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), switches the
-automatic backup and lists the copies on the server: its used and free room, each day's own size (its files no other copy
-shares, `find -links 1`: what removing it frees), a copy removed from there unless it holds a match's newest (the one a pull
+and "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), and "Vérifier"
+(`sync verify`), shows how the last copy and check went, switches the automatic backup and lists the copies on the server: its used and free room, each day's own size (its files no other copy
+shares, `find -links 1`: what removing it frees), a copy restored from or removed from there (never a match's newest, the one a pull
 brings), and how many copies the server keeps besides each match's newest (`settings.json`'s `keep`, 30 by default, the days a
 new count removes asked first).
 
@@ -83,14 +83,24 @@ Link previews: `matches.build` with a `url` tags the list and each match page (`
 
 Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bot` list (search engines, AI scrapers, SEO tools; link previews stay) and sends `X-Robots-Tag: noindex` on all, the pages carry the same meta tag. A bot lying about its name gets through; the domain's `robots.txt` has no rule, Cloudflare's bot settings are the owner's. A change of a mounted config from `git pull` needs `docker compose up -d --force-recreate --no-deps volleyballstats`: the running container keeps the old file.
 
-Backup: the review's "Sauvegarder sur le serveur" ("..." menu, and `uv run python -m volleyball_stats.backup
-outputs/matches/MATCH`), and with "Sauvegarde automatique" ticked every 10 minutes if something changed (one choice for
-both machines, in the server's `/root/backups/volleyball-stats/settings.json`, read before each round and when the Serveur
-tab lists the copies, kept in `outputs/backup.json` for when the server is unreachable; off by default: few users keep a
-server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts and their clicks (`court/`), roster, reports,
-the club (the app's "Club", `outputs/club/`) to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
-a day's copy started on the server as the day before's, hard-linked (`backup_remote.py`), so each holds every match while only what changed goes up, a day kept while among the last 30 or holding a match's newest copy, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video
-is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
+Backup (`backup.py`, `sync.py`): with "Sauvegarde automatique" on, every 10 minutes a match changed here since it was last
+sent or brought (`sync.changed`) is sent, and what sits beside the matches (courts and their clicks, roster, lens, the club,
+the viewers' reports) is kept in step with the server (`sync.keep_shared`); the review's "Sauvegarder sur le serveur" and
+the Serveur tab's "Sauvegarder maintenant" (`sync push --all`) do it at once. The choice is one for both machines, in the
+server's `/root/backups/volleyball-stats/settings.json`, on by default once a server is set, kept in `outputs/backup.json`
+(a change the server could not take stays `pending` and is sent at the next round). Copies go to
+`/root/backups/volleyball-stats/COPY/` on the OVH server (outside the website, root only), one per hour something changed
+(`2026-11-10T15`; the daily ones before have no hour): each starts as the one before, hard-linked (`backup_remote.py`), so it
+holds every match while only what changed goes up; files go in place together at the end (`--delay-updates`). A match's files
+replace the copy's; what sits beside the matches is merged, each file the newest of both machines and none removed
+(`--update`), the reports line by line, the roster match by match. A change there alone moves no match's version. Kept: the
+last 30 copies (the tab's count) and each match's newest. None under 5 GB free. Each machine notes how its last copy and
+check went in `outputs/backup_state.json`; the list warns when copies are off, failing, a day behind a change, or differ.
+Weekly (and the tab's "Vérifier"), `sync verify` compares every match unchanged here with its copy byte by byte. The tab
+restores a match or what sits beside the matches from any copy (`server.restore`, this machine's set aside first, the
+restored one then sent as the newest). `uv run python -m volleyball_stats.backup outputs/matches/MATCH` goes through
+`sync.push` too. Tested end to end against local folders (`tests/test_backup_flow.py`). The source video is not in it (42 GB,
+18 GB free there): the owner keeps a copy elsewhere.
 
 Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other, and any machine works on
 any match (the owner's rule, 8 Nov: no machine holds one). The server keeps each match's version (`claims/MATCH.json` beside the

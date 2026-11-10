@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, Trash2 } from 'lucide-react';
+import { CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -21,9 +21,15 @@ interface Server {
 interface ServerState {
   server: Server | null;
   auto: boolean;
+  /** How this machine's last copy and check went. */
+  last: { at: string | null; error: string | null; verified: string | null; problems: string[] };
   hosting: Job | null;
   backup: Job | null;
+  verify: Job | null;
 }
+
+// What sits beside the matches, restored as one.
+const SHARED = 'shared';
 
 interface Copies {
   /** GB free on the server, and bytes the backups use. */
@@ -90,6 +96,9 @@ export function ServerTab() {
   // A removal waiting for its confirmation: one copy, or those a new count removes.
   const [confirm, setConfirm] = useState<{ day: string } | { keep: number; removes: string[] } | null>(null);
   const [copiesError, setCopiesError] = useState(false);
+  // A copy to restore from, and what of it.
+  const [restoring, setRestoring] = useState<{ day: string; matches: string[]; what: string } | null>(null);
+  const [restored, setRestored] = useState<boolean | null>(null);
   // The action running: saving, testing, starting a job, switching the automatic copies, a count or a copy removed.
   const [doing, run] = useRunning();
   const removing = doing === 'keep' || !!doing?.startsWith('delete:');
@@ -120,7 +129,7 @@ export function ServerTab() {
       }
     });
   }, [refresh, listCopies]);
-  const running = !!(state?.hosting?.running || state?.backup?.running);
+  const running = !!(state?.hosting?.running || state?.backup?.running || state?.verify?.running);
   useEffect(() => {
     if (!running) {
       return;
@@ -183,13 +192,23 @@ export function ServerTab() {
       void remove({ keep: count, apply: true });
     }
   };
-  const start = (key: 'host' | 'backup') =>
+  const start = (key: 'host' | 'backup' | 'verify') =>
     run(key, async () => {
-      const r = await call<ServerState>(key === 'host' ? 'server/host' : 'server/backup', {});
+      const r = await call<ServerState>(`server/${key}`, {});
       if (r.ok) {
         setState(r);
       }
     });
+  const restore = (body: { day: string; what: string }) => {
+    setRestoring(null);
+    return run(`restore:${body.day}`, async () => {
+      const r = await call('server/restore', { copy: body.day, what: body.what });
+      setRestored(r.ok);
+      await refresh();
+    });
+  };
+  // A copy is named by its day, and its hour since copies are hourly.
+  const copyName = (day: string) => (day.includes('T') ? f.when(`${day}:00`) : f.date(day));
   const saved = state?.server;
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
   if (!state) {
@@ -248,11 +267,37 @@ export function ServerTab() {
           {t('server.auto')}
         </label>
         {autoLocal && <p className="text-sm text-destructive">{t('server.autoLocal')}</p>}
-        <Button variant="outline" className="w-fit bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
-          <DatabaseBackup aria-hidden />
-          {t('server.backUp')}
-        </Button>
+        {state.last.error ? (
+          <p role="alert" className="text-destructive [overflow-wrap:anywhere]">
+            {t('server.lastFailed', { error: state.last.error })}
+          </p>
+        ) : (
+          <p className="text-muted-foreground">{state.last.at ? t('server.lastAt', { at: f.when(state.last.at) }) : t('server.never')}</p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
+            <DatabaseBackup aria-hidden />
+            {t('server.backUp')}
+          </Button>
+          <Button variant="outline" className="bg-card" busy={doing === 'verify' || !!state.verify?.running} disabled={!saved} onClick={() => void start('verify')}>
+            <ShieldCheck aria-hidden />
+            {t('server.verify')}
+          </Button>
+        </div>
         <JobLine job={state?.backup ?? null} running={t('server.backingUp')} />
+        {!state.verify?.running && state.last.verified && (
+          <div className={state.last.problems.length ? 'text-destructive' : 'text-muted-foreground'}>
+            <p>{state.last.problems.length ? t('server.differ', { at: f.when(state.last.verified) }) : t('server.same', { at: f.when(state.last.verified) })}</p>
+            {state.last.problems.length > 0 && (
+              <ul className="list-disc pl-5 text-sm [overflow-wrap:anywhere]">
+                {state.last.problems.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {restored !== null && <p className={restored ? 'text-muted-foreground' : 'text-destructive'}>{t(restored ? 'server.restored' : 'review.error')}</p>}
         {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
         {copies === 'failed' && !listing && <p className="text-destructive">{t('server.copiesFailed')}</p>}
         {copiesError && <p className="text-destructive">{t('review.error')}</p>}
@@ -278,9 +323,23 @@ export function ServerTab() {
             <ol className="grid text-sm tabular-nums">
               {copies.days.map(({ day, matches, size, newest }) => (
                 <li key={day} className="flex items-center gap-3">
-                  <span className="flex-1">{f.date(day)}</span>
+                  <span className="flex-1">{copyName(day)}</span>
                   <span className="text-muted-foreground">{t('server.matchesN', { count: matches.length })}</span>
-                  <span className="w-16 text-right">{f.size(size)}</span>
+                  <Tip label={t('server.sizeTip')}>
+                    <span className="w-16 text-right">{f.size(size)}</span>
+                  </Tip>
+                  <Tip label={t('server.restore')}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t('server.restore')}
+                      busy={doing === `restore:${day}`}
+                      disabled={!!doing}
+                      onClick={() => setRestoring({ day, matches, what: matches[0] ?? SHARED })}
+                    >
+                      <RotateCcw aria-hidden />
+                    </Button>
+                  </Tip>
                   <Tip label={newest.length ? t('server.newest') : t('server.delete')}>
                     {/* A disabled button gets no pointer events: the tip sits on its wrapper. */}
                     <span>
@@ -302,11 +361,38 @@ export function ServerTab() {
           </div>
         )}
       </Card>
+      {restoring && (
+        <Dialog open onOpenChange={(open) => !open && setRestoring(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('server.restoreTitle', { date: copyName(restoring.day) })}</DialogTitle>
+              <DialogDescription>{t('server.restoreText')}</DialogDescription>
+            </DialogHeader>
+            <fieldset className="grid gap-2">
+              {[...restoring.matches, SHARED].map((what) => (
+                <label key={what} className="flex items-center gap-2 [overflow-wrap:anywhere]">
+                  <input type="radio" name="restore" checked={restoring.what === what} onChange={() => setRestoring({ ...restoring, what })} />
+                  {what === SHARED ? t('server.shared') : what}
+                </label>
+              ))}
+            </fieldset>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRestoring(null)}>
+                {t('app.cancel')}
+              </Button>
+              <Button onClick={() => void restore(restoring)}>
+                <RotateCcw aria-hidden />
+                {t('server.restore')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       {confirm && (
         <Dialog open onOpenChange={(open) => !open && setConfirm(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{'day' in confirm ? t('server.deleteTitle', { date: f.date(confirm.day) }) : t('server.keepTitle', { count: confirm.removes.length })}</DialogTitle>
+              <DialogTitle>{'day' in confirm ? t('server.deleteTitle', { date: copyName(confirm.day) }) : t('server.keepTitle', { count: confirm.removes.length })}</DialogTitle>
               <DialogDescription>{t('server.deleteText')}</DialogDescription>
             </DialogHeader>
             <DialogFooter>

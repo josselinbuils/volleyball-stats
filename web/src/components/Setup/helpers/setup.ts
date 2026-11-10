@@ -22,7 +22,7 @@ export interface Check {
 /** A job (jobs.py) as the app shows it. */
 export interface Job {
   id: string;
-  kind: 'import' | 'court' | 'pipeline' | 'models' | 'videos' | 'hosting' | 'backup';
+  kind: 'import' | 'court' | 'pipeline' | 'models' | 'videos' | 'hosting' | 'backup' | 'verify';
   running: boolean;
   step?: string | null;
   failed?: string;
@@ -63,6 +63,8 @@ export interface AppState {
   videos: VideosJob | null;
   models: Job | null;
   system: 'mac' | 'wsl' | 'linux';
+  /** What is wrong with the copies on the server (server.warning), null when they are fine. */
+  backup: { kind: 'off' | 'failed' | 'old' | 'differ'; error?: string; at?: string | null; problems?: string[] } | null;
 }
 
 export interface Source {

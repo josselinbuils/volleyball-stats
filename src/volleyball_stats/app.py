@@ -24,7 +24,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import club_settings, doctor, files, git_check, jobs, server, sync
+from volleyball_stats import backup, club_settings, doctor, files, git_check, jobs, server, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -39,9 +39,11 @@ NAME = re.compile(r"[^,:]+")
 TOOK_VIDEO_S = 4013.0
 VIDEOS = "videos"
 MODELS = "models"
-# The "Serveur" tab's jobs: every match online rebuilt and uploaded, every match changed copied to the server.
+# The "Serveur" tab's jobs: every match online rebuilt and uploaded, every match changed copied to the server, the copies
+# checked against this machine's.
 HOSTING = "hosting"
 BACKUP = "backup"
+VERIFY = "verify"
 
 
 def open_browser(url: str) -> None:
@@ -381,9 +383,18 @@ def videos_state() -> dict | None:
 
 
 def server_state() -> dict:
-    """The "Serveur" tab: the server, whether the matches are copied by themselves, and its two jobs."""
-    found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP)}
-    return {"server": server.read(OUTPUTS), "auto": sync.auto(OUTPUTS), "hosting": found.get(HOSTING), "backup": found.get(BACKUP)}
+    """The "Serveur" tab: the server, whether the matches are copied by themselves, how this machine's last copies and
+    check went, and its jobs."""
+    found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP, VERIFY)}
+    last = backup.state(OUTPUTS)
+    return {
+        "server": server.read(OUTPUTS),
+        "auto": sync.auto(OUTPUTS),
+        "last": {k: last[k] for k in ("at", "error", "verified", "problems")},
+        "hosting": found.get(HOSTING),
+        "backup": found.get(BACKUP),
+        "verify": found.get(VERIFY),
+    }
 
 
 def models_state() -> dict | None:
@@ -404,12 +415,13 @@ def update() -> None:
 
 
 def state(listed: list[dict]) -> dict:
-    return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system()}
+    return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system(), "backup": server.warning(OUTPUTS)}
 
 
-def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False, club_changed=lambda: None) -> tuple[bytes, str, int] | None:
+def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False, club_changed=lambda: None, open_match: str | None = None) -> tuple[bytes, str, int] | None:
     """The response to an /app/ request; None when `path` is not one. `listed` gives the review's list of the matches,
-    `busy` whether the server is applying answers (no update then), `club_changed` is told the club changed."""
+    `busy` whether the server is applying answers (no update then), `club_changed` is told the club changed, `open_match`
+    the match whose review is open (it cannot be restored under it)."""
     if not path.startswith("/app/"):
         return None
     reply = lambda data, status=200: (json.dumps(data, ensure_ascii=False).encode(), "application/json", status)  # noqa: E731
@@ -489,6 +501,12 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
             return reply({})
         if route == "server/keep":
             return reply({"removes": server.keep(OUTPUTS, body["keep"], bool(body.get("apply")))})
+        if route == "server/restore":
+            server.restore(OUTPUTS, str(body["copy"]), str(body["what"]), open_match)
+            return reply({})
+        if route == "server/verify":
+            jobs.start(OUTPUTS, VERIFY, VERIFY, [(VERIFY, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "verify"])])
+            return reply(server_state())
         if route == "server/backup":
             jobs.start(OUTPUTS, BACKUP, BACKUP, [(BACKUP, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "push", "--all"])])
             return reply(server_state())

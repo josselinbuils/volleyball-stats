@@ -94,6 +94,13 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
   const hasSeason = seasonTeams(matches, club?.teams).length > 0;
   const views: View[] = ['matches', ...(hasSeason ? (['season'] as const) : []), ...(review ? (['server'] as const) : [])];
   const [view, setView] = useState<View>(() => views.find((v) => v !== 'matches' && location.hash === HASHES[v]) ?? 'matches');
+  // A link to a tab (the copies' warning opens the server's) switches to it.
+  useEffect(() => {
+    const follow = () => setView(views.find((v) => v !== 'matches' && location.hash === HASHES[v]) ?? 'matches');
+    window.addEventListener('hashchange', follow);
+    return () => window.removeEventListener('hashchange', follow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the tabs shown, not the array made each render
+  }, [views.join()]);
   const open = (name: string, remote = false) => {
     setOpening(name);
     setFailed(null);

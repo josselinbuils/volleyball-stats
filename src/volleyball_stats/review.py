@@ -2002,17 +2002,17 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             switch(command, threading.Lock())
 
     def backing() -> None:
-        """What sits beside the matches copied whenever it changed, while this machine wants copies: no match is open."""
-        outputs, copied = out.parent, None
+        """While the copies are automatic: every match changed here sent and what sits beside them kept in step
+        (`sync.push_all`), the copies checked once a week (`sync.verify`). No match is open."""
+        outputs = out.parent
         while True:
             config = sync.server(outputs)
             if config and sync.refresh_auto(outputs):
                 try:
-                    now = backup.signature(backup.shared(outputs))
-                    if now != copied:
-                        backup.backup_shared(outputs, config)
-                        copied = now
-                except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                    for failed in sync.push_all(outputs):
+                        print(f"backup failed: {failed}", flush=True)
+                    sync.verify_weekly(outputs)
+                except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
                     print(f"backup failed: {error}", flush=True)
             time.sleep(BACKUP_EVERY_S)
 
@@ -2117,7 +2117,6 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
     backup_lock = threading.Lock()
     # The files' signature at the last copy made, and the timer woken when automatic copies are switched on.
-    copied: list = [None]
     wake = threading.Event()
 
     def backup_state() -> dict | None:
@@ -2129,9 +2128,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         can ask for one while the timer makes another."""
         with backup_lock:
             try:
-                now = backup.signature(backup.sources(match))
                 sync.push(match)
-                copied[0] = now
                 backed.update(at=time.strftime("%H:%M"), error=None)
                 return True
             except sync.Conflict as error:
@@ -2144,16 +2141,23 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return False
 
     def backing() -> None:
-        """A copy whenever something changed, while this machine wants them."""
+        """While the copies are automatic: the match sent whenever it changed here since it was last sent or brought
+        (`sync.changed`), else what sits beside it kept in step (`sync.keep_shared`): a change there alone moves no
+        match's version."""
         while True:
             if sync.refresh_auto(outputs):
                 try:
-                    now = backup.signature(backup.sources(match))
+                    if sync.changed(match):
+                        back_up()
+                    else:
+                        config = sync.server(outputs)
+                        if config:
+                            sync.keep_shared(outputs, config)
                 except OSError:
                     # A file gone while it was read: the next round reads them again.
-                    now = None
-                if now is not None and now != copied[0]:
-                    back_up()
+                    pass
+                except (RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
+                    print(f"backup failed: {error}", flush=True)
             wake.wait(BACKUP_EVERY_S)
             wake.clear()
 
@@ -2424,7 +2428,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
             if self.path.startswith("/app/"):
-                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), club_changed) or (b"Not found", "text/plain", 404)
+                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), club_changed, match.name) or (b"Not found", "text/plain", 404)
                 self.send(*answer)
                 if self.path == "/app/update" and answer[2] == 200:
                     app.restart_after(lock)

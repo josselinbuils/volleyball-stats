@@ -14,7 +14,8 @@ import subprocess
 import sys
 import time
 
-DAY = re.compile(r"\d{4}-\d{2}-\d{2}$")
+# A copy's name: its day, and its hour since copies are hourly (backup.COPY).
+DAY = re.compile(r"\d{4}-\d{2}-\d{2}(T\d{2})?$")
 # A copy that takes longer than this was cut off: another machine may copy then (backup.TIMEOUT_S).
 COPY_S = 3600
 # The server's copies a machine's "keep this one" replaced, kept here by hard links.

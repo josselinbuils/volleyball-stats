@@ -18,6 +18,7 @@ import shlex
 import socket
 import subprocess
 import time
+from datetime import datetime
 from collections.abc import Callable
 from pathlib import Path
 
@@ -61,14 +62,17 @@ def server(outputs: Path) -> dict | None:
 
 
 def auto(outputs: Path) -> bool:
-    """Whether the review copies its match to the server by itself, as this machine last knew the shared choice
-    (`outputs/backup.json`, `refresh_auto`), off by default."""
+    """Whether the matches are copied to the server by themselves, as this machine last knew the shared choice
+    (`outputs/backup.json`, `refresh_auto`): on by default once a server is set."""
     path = outputs / BACKUP
-    return path.exists() and json.loads(path.read_text()).get("auto") is True
+    if path.exists():
+        return json.loads(path.read_text()).get("auto") is True
+    return server(outputs) is not None
 
 
-def shared_settings(config: dict, root: str = backup.ROOT) -> dict:
+def shared_settings(config: dict, root: str | None = None) -> dict:
     """The settings the machines share, from the server; RuntimeError when it cannot be read."""
+    root = root or backup.ROOT
     host, ssh = backup.connection(config)
     run = subprocess.run([*ssh, host, f"cat {shlex.quote(f'{root}/{SETTINGS}')} 2>/dev/null || echo '{{}}'"], capture_output=True, text=True, timeout=30)
     if run.returncode:
@@ -76,8 +80,9 @@ def shared_settings(config: dict, root: str = backup.ROOT) -> dict:
     return json.loads(run.stdout or "{}")
 
 
-def share_settings(config: dict, changes: dict, root: str = backup.ROOT) -> None:
+def share_settings(config: dict, changes: dict, root: str | None = None) -> None:
     """`changes` written into the settings the machines share; RuntimeError when the server cannot take them."""
+    root = root or backup.ROOT
     host, ssh = backup.connection(config)
     path = shlex.quote(f"{root}/{SETTINGS}")
     command = f"mkdir -p {shlex.quote(root)} && chmod 700 {shlex.quote(root)} && cat > {path}.tmp && mv {path}.tmp {path}"
@@ -88,28 +93,32 @@ def share_settings(config: dict, changes: dict, root: str = backup.ROOT) -> None
 
 
 def set_auto(outputs: Path, on: bool) -> bool:
-    """The choice of automatic copies, kept here and shared through the server; whether the server took it."""
-    files.write_text(outputs / BACKUP, json.dumps({"auto": on}) + "\n")
-    config = server(outputs)
-    if not config:
-        return False
-    try:
-        share_settings(config, {"auto": on})
-    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
-        return False
-    return True
+    """The choice of automatic copies, kept here and shared through the server; whether the server took it. One it could
+    not take stays `pending` here, sent by the next `refresh_auto` instead of the server's being read."""
+    files.write_text(outputs / BACKUP, json.dumps({"auto": on, "pending": True}) + "\n")
+    return refresh_auto(outputs) == on and not pending(outputs)
+
+
+def pending(outputs: Path) -> bool:
+    path = outputs / BACKUP
+    return path.exists() and json.loads(path.read_text()).get("pending") is True
 
 
 def refresh_auto(outputs: Path) -> bool:
-    """`auto` after reading the shared choice from the server, kept here; as this machine last knew it when unreachable."""
+    """`auto` once in step with the server: this machine's choice sent when the server has not taken it yet (`pending`),
+    else the server's read and kept here; as this machine last knew it when unreachable."""
     config = server(outputs)
     if config:
         try:
-            found = shared_settings(config).get("auto")
+            if pending(outputs):
+                share_settings(config, {"auto": auto(outputs)})
+                files.write_text(outputs / BACKUP, json.dumps({"auto": auto(outputs)}) + "\n")
+            else:
+                found = shared_settings(config).get("auto")
+                if isinstance(found, bool) and (found != auto(outputs) or not (outputs / BACKUP).exists()):
+                    files.write_text(outputs / BACKUP, json.dumps({"auto": found}) + "\n")
         except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
-            found = None
-        if isinstance(found, bool) and found != auto(outputs):
-            files.write_text(outputs / BACKUP, json.dumps({"auto": found}) + "\n")
+            pass
     return auto(outputs)
 
 
@@ -119,8 +128,9 @@ def active(outputs: Path) -> bool:
     return auto(outputs) or (outputs / SERVER).exists() or any((outputs / "matches").glob(f"*/{STATE}"))
 
 
-def remote(config: dict, op: str, match: str = "-", base: int = 0, force: bool = False, root: str = backup.ROOT, timeout: float = 60) -> dict:
+def remote(config: dict, op: str, match: str = "-", base: int = 0, force: bool = False, root: str | None = None, timeout: float = 60) -> dict:
     """`sync_remote.run` on the server, under its lock."""
+    root = root or backup.ROOT
     host, ssh = backup.connection(config)
     command = f"mkdir -p {shlex.quote(root)} && chmod 700 {shlex.quote(root)} && flock {shlex.quote(root + '/.claims.lock')} python3 - " + " ".join(
         shlex.quote(str(a)) for a in (root, op, match, machine(), base, "force" if force else "-")
@@ -141,8 +151,10 @@ def changed(match: Path) -> bool:
     return match.exists() and any(match.iterdir()) and local(match)["signature"] != list(backup.signature([match]))
 
 
-def remember(match: Path, version: int, signature: tuple[int, float]) -> None:
-    files.write_text(match / STATE, json.dumps({"version": version, "signature": list(signature)}) + "\n")
+def remember(match: Path, version: int, signature: tuple[int, float] | None) -> None:
+    """The server's version this machine's copy now starts from, and its files' signature then: None leaves it changed,
+    to send again."""
+    files.write_text(match / STATE, json.dumps({"version": version, "signature": list(signature) if signature else None}) + "\n")
 
 
 def shown(record: dict, match: Path) -> dict:
@@ -185,7 +197,7 @@ def push(match: Path, force: bool = False) -> None:
     if not found["ok"]:
         raise Conflict(shown(found, match))
     signature = backup.signature([match])
-    merge_roster(match.parent, config)
+    merge_shared(files.root(match), config)
     backup.backup(match)
     # ponytail: a machine pulling while another sends may get a half-written copy; `pull` waiting on `pushing` would close it.
     done = remote(config, "commit", match.name, base)
@@ -195,7 +207,8 @@ def push(match: Path, force: bool = False) -> None:
 
 
 def push_all(outputs: Path) -> list[str]:
-    """Every match changed here since this machine last pushed or pulled it, then what sits beside them; what failed."""
+    """Every match changed here since this machine last pushed or pulled it, then what sits beside them kept in step
+    (`keep_shared`); what failed."""
     failed = []
     for path in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")):
         match = path.parent
@@ -208,8 +221,130 @@ def push_all(outputs: Path) -> list[str]:
             failed.append(f"{match.name}: {error}")
     config = server(outputs)
     if config:
-        backup.backup_shared(outputs, config)
+        try:
+            keep_shared(outputs, config)
+        except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+            failed.append(f"shared: {error}")
     return failed
+
+
+def push_shared(outputs: Path, config: dict) -> None:
+    """What sits beside the matches merged with the server's, then copied there: no match's claim moves."""
+    merge_shared(outputs, config)
+    backup.backup_shared(outputs, config)
+
+
+def keep_shared(outputs: Path, config: dict) -> None:
+    """What sits beside the matches in step with the server: the other machine's brought, this one's sent only when it
+    changed here, a copy made for nothing else."""
+    mine = backup.shared_changed(outputs)
+    merge_shared(outputs, config)
+    if mine:
+        backup.backup_shared(outputs, config)
+    else:
+        backup.note(outputs, shared=list(backup.signature(backup.shared(outputs))))
+
+
+# Files a machine adds lines to: merged line by line, each machine's lines kept.
+APPENDED = ("feedback",)
+
+
+def newest_copy(config: dict) -> str | None:
+    """The server's newest copy, None without one."""
+    _, _, days = backup.listed(ssh_run(config, backup.listing(backup.ROOT)))
+    return max(days) if days else None
+
+
+def ssh_run(config: dict, command: str, timeout: float = 60) -> str:
+    host, ssh = backup.connection(config)
+    run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=timeout)
+    if run.returncode:
+        raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
+    return run.stdout
+
+
+def merge_shared(outputs: Path, config: dict, copy: str | None = None, roster: bool = True) -> None:
+    """What sits beside the matches brought from the server's newest copy (or `copy`), each file kept here when it is
+    newer, none removed; the reports joined line by line, the roster match by match (`merge_roster`) unless not
+    `roster` (a pull joins it knowing the match it brought)."""
+    copy = copy or newest_copy(config)
+    if copy:
+        day = f"{backup.ROOT}/{copy}"
+        for name in backup.SHARED:
+            if name == "roster.json":
+                continue
+            target = outputs / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                if name in APPENDED:
+                    join_lines(config, f"{day}/{name}/", target)
+                else:
+                    rsync(config, f"{day}/{name}" + ("" if name.endswith(".json") else "/"), target, "--update")
+            except RuntimeError:
+                # Not in that copy.
+                pass
+    if roster:
+        merge_roster(outputs / "matches", config)
+
+
+def join_lines(config: dict, source: str, target: Path) -> None:
+    """The server's files of `source` joined with `target`'s: a file only there brought, one on both sides given the
+    lines this machine lacks, after its own."""
+    import tempfile
+
+    target.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as folder:
+        rsync(config, source, Path(folder))
+        for theirs in Path(folder).iterdir():
+            if not theirs.is_file():
+                continue
+            mine = target / theirs.name
+            if not mine.exists():
+                files.write_bytes(mine, theirs.read_bytes())
+                continue
+            have = mine.read_text().splitlines()
+            known = set(have)
+            extra = [line for line in theirs.read_text().splitlines() if line not in known]
+            if extra:
+                files.write_text(mine, "\n".join(have + extra) + "\n")
+
+
+def verify(outputs: Path) -> list[str]:
+    """Each match unchanged here since it was last sent or brought compared byte by byte with its newest copy on the
+    server (`rsync --checksum --dry-run`); what differs, noted in outputs/backup_state.json."""
+    config = server(outputs)
+    if config is None:
+        raise LookupError("no server")
+    host, ssh = backup.connection(config)
+    _, _, days = backup.listed(ssh_run(config, backup.listing(backup.ROOT)))
+    last = backup.newest(days)
+    problems = []
+    for path in sorted((outputs / "matches").glob(f"*/{files.SOURCE}")):
+        match = path.parent
+        if changed(match) or match.name not in last:
+            continue
+        run = subprocess.run(
+            ["rsync", "-rcn", "--delete", "--itemize-changes", *[f"--exclude={p}" for p in backup.SKIP], "-e", " ".join(ssh), f"{match}/", f"{host}:{backup.ROOT}/{last[match.name]}/{match.name}/"],
+            capture_output=True, text=True, timeout=backup.TIMEOUT_S,
+        )  # fmt: skip
+        differ = [line for line in run.stdout.splitlines() if line.strip()]
+        if run.returncode:
+            problems.append(f"{match.name}: {(run.stderr.strip().splitlines() or [f'rsync: {run.returncode}'])[-1]}")
+        elif differ:
+            problems.append(f"{match.name}: {len(differ)} files differ ({differ[0].split(maxsplit=1)[-1]}…)")
+    backup.note(outputs, verified=datetime.now().isoformat(timespec="seconds"), problems=problems)
+    return problems
+
+
+# The copies are checked this often.
+VERIFY_EVERY_S = 7 * 24 * 3600
+
+
+def verify_weekly(outputs: Path) -> None:
+    """`verify` when the last check is a week old."""
+    last = backup.state(outputs)["verified"]
+    if not last or time.time() - datetime.fromisoformat(last).timestamp() > VERIFY_EVERY_S:
+        verify(outputs)
 
 
 def take(match: Path) -> None:
@@ -237,16 +372,18 @@ def listing(outputs: Path) -> dict[str, dict]:
     return remote(config, "list")["matches"] if config else {}
 
 
-def rsync(config: dict, source: str, target: Path, *options: str) -> None:
+def rsync(config: dict, source: str, target: Path, *options: str, times: bool = True) -> None:
+    """The server's `source` brought into `target`, its files' times kept unless not `times` (they are then now)."""
     host, ssh = backup.connection(config)
-    run = subprocess.run(["rsync", "-rt", *options, "-e", " ".join(ssh), f"{host}:{source}", str(target)], capture_output=True, text=True, timeout=backup.TIMEOUT_S)
+    run = subprocess.run(["rsync", "-rt" if times else "-r", *options, "-e", " ".join(ssh), f"{host}:{source}", str(target)], capture_output=True, text=True, timeout=backup.TIMEOUT_S)
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
 
 
-def pull(name: str, outputs: Path = DEFAULT_OUTPUTS) -> Path:
-    """The match `name` brought from the server into outputs/matches/; this machine's unpushed changes to it kept in
-    its `backup-sync-<time>` folder. LookupError if the server has no copy."""
+def pull(name: str, outputs: Path = DEFAULT_OUTPUTS, copy: str | None = None) -> Path:
+    """The match `name` brought from the server's newest copy into outputs/matches/; this machine's unpushed changes to
+    it kept in its `backup-sync-<time>` folder. With `copy` (a restore) that copy's, this machine's set aside whatever
+    it is, and the match left to send again: it becomes the newest. LookupError if the server has no such copy."""
     config = server(outputs)
     if config is None:
         raise LookupError("no server: sync setup")
@@ -255,19 +392,12 @@ def pull(name: str, outputs: Path = DEFAULT_OUTPUTS) -> Path:
         raise LookupError(name)
     match = outputs / "matches" / name
     match.mkdir(parents=True, exist_ok=True)
-    aside = ["--backup", f"--backup-dir=backup-sync-{time.strftime('%Y%m%d-%H%M%S')}"] if changed(match) else []
-    day = f"{backup.ROOT}/{found[name]['day']}"
+    aside = ["--backup", f"--backup-dir=backup-sync-{time.strftime('%Y%m%d-%H%M%S')}"] if copy or changed(match) else []
+    day = f"{backup.ROOT}/{copy or found[name]['day']}"
     rsync(config, f"{day}/{name}/", match, "--delete", *[f"--exclude={p}" for p in backup.SKIP], *aside)
-    remember(match, found[name]["version"], backup.signature([match]))
+    remember(match, found[name]["version"], None if copy else backup.signature([match]))
     relative_copies(match)
-    # What this machine lacks of the files beside the matches; its own stay.
-    for source, target in ((f"{day}/courts/", outputs / "courts"), (f"{day}/court/", outputs / "court"), (f"{day}/lens.json", outputs / "lens.json"), (f"{day}/club/", outputs / "club")):
-        target.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            rsync(config, source, target, "--ignore-existing")
-        except RuntimeError:
-            # Not in that copy.
-            pass
+    merge_shared(outputs, config, copy or found[name]["day"], roster=False)
     merge_roster(outputs / "matches", config, pulled=name, claims=found)
     return match
 
@@ -311,7 +441,7 @@ def merge_roster(folder: Path, config: dict, pulled: str | None = None, claims: 
     behind the server's, the match just `pulled` from the server's."""
     path = folder.parent / "roster.json"
     host, ssh = backup.connection(config)
-    command = f"f=$(ls -1d {backup.ROOT}/*/roster.json 2>/dev/null | grep -E '/[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}/roster.json$' | tail -1); if [ -n \"$f\" ]; then cat \"$f\"; else echo '{{\"players\": []}}'; fi"
+    command = f"f=$(ls -1d {backup.ROOT}/*/roster.json 2>/dev/null | grep -E '/[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}(T[0-9]{{2}})?/roster.json$' | tail -1); if [ -n \"$f\" ]; then cat \"$f\"; else echo '{{\"players\": []}}'; fi"
     run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=60)
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
@@ -337,6 +467,7 @@ def main() -> None:
     setup.add_argument("host", help="root@HOST")
     setup.add_argument("key", help="The ssh key, e.g. ~/.ssh/id_ed25519_ovh")
     commands.add_parser("list", help="The matches on the server")
+    commands.add_parser("verify", help="Compare every match unchanged here with its copy on the server, byte by byte")
     pulling = commands.add_parser("pull", help="Bring matches from the server")
     pulling.add_argument("names", nargs="*")
     pulling.add_argument("--all", action="store_true", help="Every match on the server")
@@ -363,6 +494,11 @@ def main() -> None:
             if args.all and here.exists() and local(here)["version"] >= found[name]["version"]:
                 continue
             print(pull(name, args.outputs), flush=True)
+    elif args.command == "verify":
+        problems = verify(args.outputs)
+        if problems:
+            parser.exit(1, "\n".join(problems) + "\n")
+        print("the copies match", flush=True)
     elif args.all:
         failed = push_all(args.outputs)
         if failed:
