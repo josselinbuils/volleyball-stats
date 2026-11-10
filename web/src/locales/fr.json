@@ -1325,8 +1325,8 @@
       "failed": "Échec de la synchronisation : {{error}}"
     },
     "doctor": {
-      "open": "Installation",
-      "title": "Installation",
+      "open": "Diagnostic",
+      "title": "Diagnostic",
       "checking": "Vérification…",
       "again": "Vérifier à nouveau",
       "failed": "Vérification impossible : {{detail}}",

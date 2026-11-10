@@ -28,7 +28,7 @@
 or `./install.sh` in a copy): Homebrew on a Mac, git, ffmpeg and uv when missing, the code in `~/volleyball-stats`
 (`VOLLEYBALL_STATS_DIR` for another place), `~/.local/bin/volleyball-stats` (carrying the PATH the tools were found
 on: a Mac's shortcut opens without Homebrew's) and a desktop shortcut (a Mac's `.command`, Windows' `.bat` from WSL2;
-none on Linux: the same line starts it again). The app's "Installation" (`doctor.py`) checks the tools, the graphics card
+none on Linux: the same line starts it again). The app's "Diagnostic" (`doctor.py`) checks the tools, the graphics card
 and its driver, the memory, the disk, the models (downloaded there) and the code's version. By hand:
 
 On a Windows PC with an NVIDIA GPU:

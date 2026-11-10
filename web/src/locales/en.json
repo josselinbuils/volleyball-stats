@@ -1325,8 +1325,8 @@
       "failed": "Sync failed: {{error}}"
     },
     "doctor": {
-      "open": "Installation",
-      "title": "Installation",
+      "open": "Diagnostics",
+      "title": "Diagnostics",
       "checking": "Checking…",
       "again": "Check again",
       "failed": "Check failed: {{detail}}",
