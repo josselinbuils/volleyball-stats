@@ -1311,8 +1311,8 @@
       "noPicture": "Image du terrain illisible : la vidéo est-elle complète ?"
     },
     "videos": {
-      "open": "Vidéos de l'autre ordinateur",
-      "title": "Vidéos de l'autre ordinateur",
+      "open": "Échanger les vidéos",
+      "title": "Échanger les vidéos",
       "intro": "Les deux ordinateurs sur le même réseau s'échangent les vidéos que l'autre n'a pas.",
       "wait": "Attendre l'autre ordinateur",
       "waiting": "Sur l'autre ordinateur, ouvrez cette fenêtre et entrez :",

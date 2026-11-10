@@ -1311,8 +1311,8 @@
       "noPicture": "The court's picture can't be read: is the video whole?"
     },
     "videos": {
-      "open": "Videos of the other computer",
-      "title": "Videos of the other computer",
+      "open": "Exchange videos",
+      "title": "Exchange videos",
       "intro": "Both computers on the same network swap the videos the other lacks.",
       "wait": "Wait for the other computer",
       "waiting": "On the other computer, open this window and enter:",
