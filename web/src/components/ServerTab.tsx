@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { CircleCheck, CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -63,10 +63,12 @@ function Loading({ text }: { text: string }) {
   );
 }
 
-/** A job's last run: running (its bar, what it does and the time left), failed with its reason, or done and when. */
-function JobLine({ job, running }: { job: Told | null; running: string }) {
+/** A job's last run: running (its bar, what it does and the time left), failed with its reason, or done and when
+ * (unless `quiet`: the card already says it). */
+function JobLine({ job, running, quiet }: { job: Told | null; running: string; quiet?: boolean }) {
   const { t } = useTranslation();
-  if (!job) {
+  const f = useFormat();
+  if (!job || (quiet && !job.running && !job.failed)) {
     return null;
   }
   if (job.running) {
@@ -83,8 +85,18 @@ function JobLine({ job, running }: { job: Told | null; running: string }) {
       </p>
     );
   }
-  const at = new Date((job.ended ?? job.started) * 1000);
-  return <p className="text-muted-foreground">{t('server.done', { at: at.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) })}</p>;
+  return <p className="text-muted-foreground">{t('server.done', { at: f.when(new Date((job.ended ?? job.started) * 1000).toISOString()) })}</p>;
+}
+
+/** A line of the backups' state: fine (muted, a check) or wrong (red, a warning), with what it adds below. */
+function Status({ ok, children }: { ok: boolean; children: ReactNode }) {
+  const Icon = ok ? CircleCheck : TriangleAlert;
+  return (
+    <div role={ok ? undefined : 'alert'} className={`flex gap-2 [overflow-wrap:anywhere] ${ok ? 'text-muted-foreground' : 'text-destructive'}`}>
+      <Icon aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
 }
 
 /** The "Serveur" tab of the review's list: the hosting server, the matches online and the backups. */
@@ -268,13 +280,26 @@ export function ServerTab() {
           <input type="checkbox" checked={!!state.auto} disabled={!saved || doing === 'auto'} onChange={(e) => void setAuto(e.target.checked)} />
           {t('server.auto')}
         </label>
-        {state.last.error ? (
-          <p role="alert" className="text-destructive [overflow-wrap:anywhere]">
-            {t('server.lastFailed', { error: state.last.error })}
-          </p>
-        ) : (
-          <p className="text-muted-foreground">{state.last.at ? t('server.lastAt', { at: f.when(state.last.at) }) : t('server.never')}</p>
-        )}
+        <div className="grid gap-1">
+          {state.last.error ? (
+            <Status ok={false}>{t('server.lastFailed', { error: state.last.error })}</Status>
+          ) : (
+            <Status ok={!!state.last.at}>{state.last.at ? t('server.lastAt', { at: f.when(state.last.at) }) : t('server.never')}</Status>
+          )}
+          {!state.verify?.running && state.last.verified && (
+            <Status ok={!state.last.problems.length}>
+              <p>{state.last.problems.length ? t('server.differ', { at: f.when(state.last.verified) }) : t('server.same', { at: f.when(state.last.verified) })}</p>
+              {state.last.problems.length > 0 && (
+                <ul className="list-disc pl-5 text-sm">
+                  {state.last.problems.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              )}
+            </Status>
+          )}
+          {restored !== null && <Status ok={restored}>{t(restored ? 'server.restored' : 'review.error')}</Status>}
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
             <DatabaseBackup aria-hidden />
@@ -285,26 +310,60 @@ export function ServerTab() {
             {t('server.verify')}
           </Button>
         </div>
-        <JobLine job={state.backup} running={t('server.backingUp')} />
+        <JobLine job={state.backup} running={t('server.backingUp')} quiet />
         {state.verify?.running && <JobLine job={state.verify} running={t('server.verifying')} />}
-        {!state.verify?.running && state.last.verified && (
-          <div className={state.last.problems.length ? 'text-destructive' : 'text-muted-foreground'}>
-            <p>{state.last.problems.length ? t('server.differ', { at: f.when(state.last.verified) }) : t('server.same', { at: f.when(state.last.verified) })}</p>
-            {state.last.problems.length > 0 && (
-              <ul className="list-disc pl-5 text-sm [overflow-wrap:anywhere]">
-                {state.last.problems.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        {restored !== null && <p className={restored ? 'text-muted-foreground' : 'text-destructive'}>{t(restored ? 'server.restored' : 'review.error')}</p>}
         {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
         {copies === 'failed' && !listing && <p className="text-destructive">{t('server.copiesFailed')}</p>}
         {copiesError && <p className="text-destructive">{t('review.error')}</p>}
         {copies && copies !== 'failed' && (
           <div className="grid gap-2">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              {t('server.room', { used: f.size(copies.used), free: f.size(copies.free * 1024 ** 3) })}
+              {listing && <LoaderCircle aria-label={t('server.listing')} className="size-3.5 animate-spin" />}
+            </p>
+            <ol className="grid divide-y rounded-md border text-sm tabular-nums">
+              {copies.days.map(({ day, matches, size, newest }) => (
+                <li key={day} className="flex items-center gap-3 py-1 pr-1 pl-3">
+                  {/* The count goes under the day when the row is narrow. */}
+                  <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
+                    <span className="whitespace-nowrap">{copyName(day)}</span>
+                    <span className="whitespace-nowrap text-muted-foreground">{t('server.matchesN', { count: matches.length })}</span>
+                  </span>
+                  <Tip label={t('server.sizeTip')}>
+                    <span className="w-16 text-right">{f.size(size)}</span>
+                  </Tip>
+                  <div className="flex">
+                    <Tip label={t('server.restore')}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('server.restore')}
+                        busy={doing === `restore:${day}`}
+                        disabled={!!doing}
+                        onClick={() => setRestoring({ day, matches, what: matches[0] ?? SHARED })}
+                      >
+                        <RotateCcw aria-hidden />
+                      </Button>
+                    </Tip>
+                    <Tip label={newest.length ? t('server.newest') : t('server.delete')}>
+                      {/* A disabled button gets no pointer events: the tip sits on its wrapper. */}
+                      <span>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t('server.delete')}
+                          busy={doing === `delete:${day}`}
+                          disabled={newest.length > 0 || removing}
+                          onClick={() => setConfirm({ day })}
+                        >
+                          <Trash2 aria-hidden />
+                        </Button>
+                      </span>
+                    </Tip>
+                  </div>
+                </li>
+              ))}
+            </ol>
             <form
               className="flex flex-wrap items-center gap-2"
               onSubmit={(e) => {
@@ -318,48 +377,6 @@ export function ServerTab() {
                 {t('server.apply')}
               </Button>
             </form>
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              {t('server.room', { used: f.size(copies.used), free: f.size(copies.free * 1024 ** 3) })}
-              {listing && <LoaderCircle aria-label={t('server.listing')} className="size-3.5 animate-spin" />}
-            </p>
-            <ol className="grid text-sm tabular-nums">
-              {copies.days.map(({ day, matches, size, newest }) => (
-                <li key={day} className="flex items-center gap-3">
-                  <span className="flex-1">{copyName(day)}</span>
-                  <span className="text-muted-foreground">{t('server.matchesN', { count: matches.length })}</span>
-                  <Tip label={t('server.sizeTip')}>
-                    <span className="w-16 text-right">{f.size(size)}</span>
-                  </Tip>
-                  <Tip label={t('server.restore')}>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t('server.restore')}
-                      busy={doing === `restore:${day}`}
-                      disabled={!!doing}
-                      onClick={() => setRestoring({ day, matches, what: matches[0] ?? SHARED })}
-                    >
-                      <RotateCcw aria-hidden />
-                    </Button>
-                  </Tip>
-                  <Tip label={newest.length ? t('server.newest') : t('server.delete')}>
-                    {/* A disabled button gets no pointer events: the tip sits on its wrapper. */}
-                    <span>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={t('server.delete')}
-                        busy={doing === `delete:${day}`}
-                        disabled={newest.length > 0 || removing}
-                        onClick={() => setConfirm({ day })}
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
-                    </span>
-                  </Tip>
-                </li>
-              ))}
-            </ol>
           </div>
         )}
       </Card>
