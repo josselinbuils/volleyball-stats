@@ -195,7 +195,7 @@ def pull(name: str, outputs: Path = DEFAULT_OUTPUTS) -> Path:
     remember(match, found[name]["version"], backup.signature([match]))
     relative_copies(match)
     # What this machine lacks of the files beside the matches; its own stay.
-    for source, target in ((f"{day}/courts/", outputs / "courts"), (f"{day}/lens.json", outputs / "lens.json"), (f"{day}/brand/", outputs / "brand"), (f"{day}/sponsors/", backup.SPONSORS)):
+    for source, target in ((f"{day}/courts/", outputs / "courts"), (f"{day}/court/", outputs / "court"), (f"{day}/lens.json", outputs / "lens.json"), (f"{day}/brand/", outputs / "brand"), (f"{day}/sponsors/", backup.SPONSORS)):
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             rsync(config, source, target, "--ignore-existing")
