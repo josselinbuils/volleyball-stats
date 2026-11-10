@@ -11,6 +11,7 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -24,6 +25,57 @@ FFMPEG_TIME = re.compile(r"time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
 TAIL_BYTES = 64 << 10
 # A job's id, a file name in FOLDER.
 JOB_ID = re.compile(r"[\w.-]+")
+
+
+# How often a job's Stages tell the share done, and the most of a stage's share told before it ends.
+TELL_EVERY_S, STAGE_CAP = 1.0, 0.95
+
+
+class Stages:
+    """A command's stages told as it goes, for the app's job: `::stage KIND K/N` ("match 2/5": the second of five
+    "match:NAME" stages of the `plan`, `::stage KIND` for one alone), then every TELL_EVERY_S the share done, from each
+    stage's last duration on this machine kept in `path`, else its kind's in `took`. `plan` may change as it goes. Not
+    `told`, it only keeps the durations."""
+
+    def __init__(self, path: Path, plan: list[str], took: dict[str, float], told: bool = True):
+        self.path, self.plan, self.told = path, plan, told
+        try:
+            self.took = {**took, **json.loads(path.read_text())}
+        except (OSError, ValueError):
+            self.took = dict(took)
+        self.key, self.done, self.since = None, 0.0, time.time()
+        self.stopped = threading.Event()
+        if told:
+            threading.Thread(target=self.tell, daemon=True).start()
+
+    def expected(self, key: str) -> float:
+        return self.took.get(key, self.took.get(key.split(":")[0], 0.0))
+
+    def share(self) -> float:
+        now = min(time.time() - self.since, STAGE_CAP * self.expected(self.key or ""))
+        return min(1.0, (self.done + now) / max(sum(self.expected(k) for k in self.plan), 1.0))
+
+    def tell(self) -> None:
+        while not self.stopped.wait(TELL_EVERY_S):
+            if self.key:
+                print(f"{PROGRESS}{self.share():.3f}", flush=True)
+
+    def start(self, key: str | None) -> None:
+        """The stage `key` of the plan starts, the last one's duration kept; None: the command ends."""
+        now = time.time()
+        if self.key:
+            self.took[self.key] = now - self.since
+            self.done += self.took[self.key]
+            files.write_text(self.path, json.dumps(self.took, indent=1) + "\n")
+        self.key, self.since = key, now
+        if key is None:
+            self.stopped.set()
+        if key is None or not self.told:
+            return
+        kind = key.split(":")[0]
+        alike = [k for k in self.plan if k.split(":")[0] == kind]
+        print(f"{STAGE}{kind}{f' {alike.index(key) + 1}/{len(alike)}' if ':' in key and key in alike else ''}", flush=True)
+        print(f"{PROGRESS}{self.share():.3f}", flush=True)
 
 
 class Running(RuntimeError):

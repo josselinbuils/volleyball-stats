@@ -22,7 +22,7 @@ from datetime import datetime
 from collections.abc import Callable
 from pathlib import Path
 
-from volleyball_stats import backup, files, matches
+from volleyball_stats import backup, files, jobs, matches
 
 # Per machine, not copied: the server's version this machine's copy started from, and its files' signature then.
 STATE = backup.STATE
@@ -181,25 +181,33 @@ def push(match: Path, force: bool = False) -> None:
     remember(match, done["version"], signature)
 
 
-def push_all(outputs: Path) -> list[str]:
+# A backup's and a check's stages (jobs.Stages) and their seconds before one is measured on this machine, kept in
+# outputs/TIMINGS: each match copied ("match:NAME") or compared ("check:NAME"), what sits beside them, the copies listed.
+TOOK = {"match": 30.0, "shared": 10.0, "list": 5.0, "check": 15.0}
+TIMINGS = "backup_timings.json"
+
+
+def push_all(outputs: Path, told: bool = False) -> list[str]:
     """Every match changed here since this machine last pushed or pulled it, then what sits beside them kept in step
-    (`keep_shared`); what failed."""
+    (`keep_shared`); what failed. Its stages `told` as it goes for the app's job."""
     failed = []
-    for path in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")):
-        match = path.parent
-        if not (match / files.SOURCE).exists() or not changed(match):
-            continue
+    found = [p.parent for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")) if (p.parent / files.SOURCE).exists() and changed(p.parent)]
+    config = server(outputs)
+    stages = jobs.Stages(outputs / TIMINGS, [*(f"match:{m.name}" for m in found), *(["shared"] if config else [])], TOOK, told)
+    for match in found:
+        stages.start(f"match:{match.name}")
         try:
             push(match)
             print(f"{match.name}: pushed", flush=True)
         except (Conflict, OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
             failed.append(f"{match.name}: {error}")
-    config = server(outputs)
     if config:
+        stages.start("shared")
         try:
             keep_shared(outputs, config)
         except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
             failed.append(f"shared: {error}")
+    stages.start(None)
     return failed
 
 
@@ -284,20 +292,23 @@ def join_lines(config: dict, source: str, target: Path) -> None:
                 files.write_text(mine, "\n".join(have + extra) + "\n")
 
 
-def verify(outputs: Path) -> list[str]:
+def verify(outputs: Path, told: bool = False) -> list[str]:
     """Each match unchanged here since it was last sent or brought compared byte by byte with its newest copy on the
-    server (`rsync --checksum --dry-run`); what differs, noted in outputs/backup_state.json."""
+    server (`rsync --checksum --dry-run`); what differs, noted in outputs/backup_state.json. Its stages `told` as it goes
+    for the app's job."""
     config = server(outputs)
     if config is None:
         raise LookupError("no server")
     host, ssh = backup.connection(config)
+    stages = jobs.Stages(outputs / TIMINGS, ["list"], TOOK, told)
+    stages.start("list")
     _, _, days = backup.listed(ssh_run(config, backup.listing(backup.ROOT)))
     last = backup.newest(days)
+    found = [p.parent for p in sorted((outputs / "matches").glob(f"*/{files.SOURCE}")) if not changed(p.parent) and p.parent.name in last]
     problems = []
-    for path in sorted((outputs / "matches").glob(f"*/{files.SOURCE}")):
-        match = path.parent
-        if changed(match) or match.name not in last:
-            continue
+    stages.plan = ["list", *(f"check:{m.name}" for m in found)]
+    for match in found:
+        stages.start(f"check:{match.name}")
         run = subprocess.run(
             ["rsync", "-rcn", "--delete", "--itemize-changes", *[f"--exclude={p}" for p in backup.SKIP], "-e", " ".join(ssh), f"{match}/", f"{host}:{backup.ROOT}/{last[match.name]}/{match.name}/"],
             capture_output=True, text=True, timeout=backup.TIMEOUT_S,
@@ -307,6 +318,7 @@ def verify(outputs: Path) -> list[str]:
             problems.append(f"{match.name}: {(run.stderr.strip().splitlines() or [f'rsync: {run.returncode}'])[-1]}")
         elif differ:
             problems.append(f"{match.name}: {len(differ)} files differ ({differ[0].split(maxsplit=1)[-1]}…)")
+    stages.start(None)
     backup.note(outputs, verified=datetime.now().isoformat(timespec="seconds"), problems=problems)
     return problems
 
@@ -470,12 +482,12 @@ def main() -> None:
                 continue
             print(pull(name, args.outputs), flush=True)
     elif args.command == "verify":
-        problems = verify(args.outputs)
+        problems = verify(args.outputs, told=True)
         if problems:
             parser.exit(1, "\n".join(problems) + "\n")
         print("the copies match", flush=True)
     elif args.all:
-        failed = push_all(args.outputs)
+        failed = push_all(args.outputs, told=True)
         if failed:
             parser.exit(1, "\n".join(failed) + "\n")
         print("pushed", flush=True)

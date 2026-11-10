@@ -794,6 +794,14 @@
     "hostAll": "Update every match online",
     "openOnline": "See online",
     "hosting": "Uploading…",
+    "stage": {
+      "mirror": "Reading the site online",
+      "match": "Match {{n}} of {{of}}",
+      "check": "Match {{n}} of {{of}}",
+      "upload": "Uploading to the server",
+      "shared": "Club, courts, players and reports",
+      "list": "Reading the backups"
+    },
     "backups": "Backups",
     "auto": "Automatic backup",
     "loading": "Loading…",
@@ -803,6 +811,7 @@
     "never": "No backup from this computer yet.",
     "lastFailed": "Last backup failed: {{error}}",
     "verify": "Verify",
+    "verifying": "Checking…",
     "same": "Verified {{at}}: same as this computer.",
     "differ": "Verified {{at}}: differences found.",
     "sizeTip": "Room freed if deleted",

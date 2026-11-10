@@ -30,7 +30,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, files, video_copies, web
+from volleyball_stats import club_settings, files, jobs, video_copies, web
 from volleyball_stats.web import CLUB, club_page
 
 TEMPLATE = Path(__file__).with_name("matches_site")
@@ -53,6 +53,15 @@ MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "ao�
 # The clubs' Arial where the system has it: OpenCV's own font slashes its zeros, a score's "0" then reads "Ø".
 CARD_FONT = Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf")
 SHARED_TAGS = re.compile(r"[ \t]*<meta (?:property=\"og:|name=\"twitter:)[^>]*>\n?")
+# An update's stages (jobs.Stages) and their seconds before one is measured on this machine, kept in outputs/TIMINGS:
+# the site read from the server, each match rebuilt ("match:NAME"), the site uploaded and checked.
+TOOK = {"mirror": 10.0, "match": 15.0, "upload": 30.0}
+TIMINGS = "hosting_timings.json"
+
+
+def update_stages(outputs: Path, names: list[str]) -> jobs.Stages:
+    """The stages of an update of the matches `names`."""
+    return jobs.Stages(outputs / TIMINGS, ["mirror", *(f"match:{n}" for n in names), "upload"], TOOK)
 
 
 def page_of(folder: Path) -> dict:
@@ -484,12 +493,22 @@ def online(folder: Path) -> list[tuple[Path, Path, Path, dict]]:
     return found
 
 
-def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool = False) -> None:
+def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool = False, told: jobs.Stages | None = None) -> None:
     """Each match of `hosted` (match, video, court, publish.json) rebuilt as `host` says, in the site as the server holds
     it (`mirror`, unless already `mirrored`), then the site uploaded once, its new files put in place together at the end.
-    Nothing goes up when one cannot be rebuilt; among several, the error names the match."""
+    Nothing goes up when one cannot be rebuilt; among several, the error names the match. Its stages `told` as it goes."""
     if not hosted:
         raise RuntimeError("no match online")
+    told = told or update_stages(files.root(hosted[0][0]), [m.name for m, *_ in hosted])
+    try:
+        upload_all(hosted, theme, mirrored, told)
+    finally:
+        told.stopped.set()
+    told.start(None)
+
+
+def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool, told: jobs.Stages) -> None:
+    """`host_all`'s work."""
     config = hosted[0][3]
     if any((c["site"], c["upload"]) != (config["site"], config["upload"]) for *_, c in hosted):
         raise RuntimeError("the matches are hosted in different places")
@@ -508,9 +527,11 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
         if not video.exists():
             raise RuntimeError(f"{named(match)}video not found: {video}")
     if not mirrored:
+        told.start("mirror")
         mirror(config)
     # ponytail: one match at a time, ~13 s each (2 matches: 26 s); rebuild them in parallel if a season makes it long.
     for match, video, court, c in hosted:
+        told.start(f"match:{match.name}")
         folder = hosted_folder(match, site) or site / match.name
         ensure_review_page(match, video, court, theme)
         make_voice(match)
@@ -522,6 +543,7 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
             shutil.rmtree(folder / "video", ignore_errors=True)
         public = {"footage": "none", "club": c.get("club", 1), "pictures": False, "feedback": FEEDBACK, **({"link": "video/"} if c["video"] else {})}
         web.publish(match, video, court, theme, public, folder)
+    told.start("upload")
     paths = {m["name"]: m["path"] for m in build(site, theme, config["url"])}
     guarded = []
     for match, _, _, c in hosted:
@@ -579,15 +601,19 @@ def main() -> None:
         given = [json.loads(p.read_text()) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
         config = next((c for c in given if c.get("upload") and c.get("site")), None)
         found = online(args.all)
+        told = update_stages(args.all.parent, [m.name for m, *_ in found])
+        told.start("mirror")
         newer = sync.behind([m for m, *_ in found])
         found = [h for h in found if h[0].name not in newer]
+        told.plan = ["mirror", *(f"match:{m.name}" for m, *_ in found), "upload"]
         for name, other in newer.items():
             print(f"{name}: newer on the server, from {other}: left as it is online")
         if not found:
+            told.stopped.set()
             return None
         if config:
             mirror(config)
-        host_all(found, args.theme, mirrored=config is not None)
+        host_all(found, args.theme, mirrored=config is not None, told=told)
         from volleyball_stats import review
 
         for match, *_ in found:

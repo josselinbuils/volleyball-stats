@@ -309,6 +309,14 @@ def time_left(job: dict, now: float) -> float | None:
     return scale * review.TOOK.get(f"pipeline:{stage}", 0.0) / 2 + rest
 
 
+def told(job: dict, now: float) -> dict:
+    """A running job's stage as its log tells it ("match 2/5": the second of five matches, `n` and `of`), the seconds
+    spent and left."""
+    stage, _, count = (job.get("stage") or "").partition(" ")
+    n, _, of = count.partition("/")
+    return {"stage": stage or None, "n": int(n) if n.isdigit() else None, "of": int(of) if of.isdigit() else None, "elapsed": now - job["started"], "left": time_left(job, now)}
+
+
 def run_pipeline(name: str, anyway: bool) -> dict | None:
     """Starts the pipeline on `name`; the machine's state instead when it is busy and not `anyway`."""
     busy = doctor.busy()
@@ -387,6 +395,7 @@ def server_state() -> dict:
     went, and the tab's jobs."""
     found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP, VERIFY)}
     last = backup.state(OUTPUTS)
+    found = {k: {**j, **told(j, time.time())} if j["running"] else j for k, j in found.items()}
     return {
         "server": server.read(OUTPUTS),
         "auto": sync.auto(OUTPUTS),

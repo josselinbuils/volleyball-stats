@@ -7,13 +7,14 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFormat } from '@/lib/format';
 import { CourtDialog } from './CourtDialog';
+import { JobProgress } from '@/components/JobProgress';
 import { call } from '@/lib/app';
 import { imageUrl, teamNames, type Check, type Preparing } from './helpers/setup';
 
 /** A match on its way to the review: the copy, the court, a look at both before the analysis, the analysis, or why it
  * stopped. */
 export function PreparingCard({ item, onChange }: { item: Preparing; onChange: () => Promise<void> }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const f = useFormat();
   const [placing, setPlacing] = useState(false);
   const [confirm, setConfirm] = useState<'stop' | 'delete' | null>(null);
@@ -39,12 +40,6 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
       setVersion((v) => v + 1);
       await onChange();
     });
-  const minutes = (s: number) =>
-    s < 60 ? t('review.lessThanMinute') : s < 3600 ? t('review.minutes', { count: Math.round(s / 60) }) : t('app.hours', { h: Math.floor(s / 3600), m: Math.round((s % 3600) / 60) });
-  const left =
-    item.left != null && item.left > 0
-      ? t('app.left', { left: minutes(item.left), end: new Date(Date.now() + item.left * 1000).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) })
-      : null;
   const status = {
     importing: t('app.state.importing'),
     court: item.searching ? t('app.state.searching') : item.placing ? t('app.state.placing') : item.fitFailed ? t('app.state.fitFailed') : t('app.state.court'),
@@ -54,7 +49,6 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
     elsewhere: t('app.state.elsewhere'),
     stalled: t('app.state.stalled'),
   }[item.state];
-  const fraction = job?.running ? (job.progress ?? null) : null;
 
   return (
     <Card className="h-full gap-3 px-4 py-3.5">
@@ -75,24 +69,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
       </div>
       <p className={item.state === 'failed' || item.fitFailed ? 'text-destructive' : undefined}>{status}</p>
       {item.state === 'failed' && job?.error && !['stopped', 'interrupted'].includes(job.error) && <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">{job.error}</p>}
-      {job?.running && (
-        <div className="grid gap-1">
-          <div
-            role="progressbar"
-            aria-label={status}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={fraction == null ? undefined : Math.round(fraction * 100)}
-            className="h-2 overflow-hidden rounded-full bg-muted"
-          >
-            <div
-              className={fraction == null ? 'h-full w-1/3 animate-pulse bg-primary/60' : 'h-full bg-primary transition-[width] duration-300'}
-              style={fraction == null ? undefined : { width: `${fraction * 100}%` }}
-            />
-          </div>
-          {left && <p className="text-xs text-muted-foreground tabular-nums">{left}</p>}
-        </div>
-      )}
+      {job?.running && <JobProgress label={status} fraction={job.progress ?? null} left={item.left} />}
       {item.state === 'check' && (
         <div className="grid gap-3 sm:grid-cols-2">
           {item.start && names && (

@@ -52,3 +52,20 @@ class TestJobs:
         (folder / "x.json").write_text(json.dumps({"id": "x", "kind": "pipeline", "steps": [], "started": 1.0, "pid": 999999999, "step": "pipeline"}))
         found = jobs.state(tmp_path)[0]
         assert not found["running"] and found["failed"] == "pipeline" and found["error"] == "interrupted"
+
+
+class TestStages:
+    def test_the_share_done_counts_each_match_as_it_last_took(self, tmp_path):
+        (tmp_path / "took.json").write_text(json.dumps({"mirror": 10.0, "match:long": 80.0, "upload": 10.0}))
+        stages = jobs.Stages(tmp_path / "took.json", ["mirror", "match:long", "match:new", "upload"], {"match": 15.0}, told=False)
+        stages.done, stages.key = 90.0, "match:new"
+        # 10 + 80 done of 10 + 80 + 15 (a match not measured yet) + 10.
+        assert stages.share() == pytest.approx(90.0 / 115.0, abs=0.01)
+
+    def test_tells_which_match_of_how_many(self, tmp_path, capsys):
+        stages = jobs.Stages(tmp_path / "took.json", ["match:a", "match:b", "shared"], {}, told=True)
+        for key in ("match:a", "match:b", "shared", None):
+            stages.start(key)
+        told = [line for line in capsys.readouterr().out.splitlines() if line.startswith(jobs.STAGE)]
+        assert told == ["::stage match 1/2", "::stage match 2/2", "::stage shared"]
+        assert set(json.loads((tmp_path / "took.json").read_text())) == {"match:a", "match:b", "shared"}

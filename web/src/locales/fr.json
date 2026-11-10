@@ -794,6 +794,14 @@
     "hostAll": "Mettre à jour tous les matchs en ligne",
     "openOnline": "Voir en ligne",
     "hosting": "Mise en ligne…",
+    "stage": {
+      "mirror": "Lecture du site en ligne",
+      "match": "Match {{n}} sur {{of}}",
+      "check": "Match {{n}} sur {{of}}",
+      "upload": "Envoi sur le serveur",
+      "shared": "Club, terrains, joueurs et signalements",
+      "list": "Lecture des sauvegardes"
+    },
     "backups": "Sauvegardes",
     "auto": "Sauvegarde automatique",
     "loading": "Chargement…",
@@ -803,6 +811,7 @@
     "never": "Pas encore de sauvegarde depuis cet ordinateur.",
     "lastFailed": "Dernière sauvegarde échouée : {{error}}",
     "verify": "Vérifier",
+    "verifying": "Vérification…",
     "same": "Vérifiées le {{at}} : identiques à cet ordinateur.",
     "differ": "Vérifiées le {{at}} : différences trouvées.",
     "sizeTip": "Place libérée si elle est supprimée",

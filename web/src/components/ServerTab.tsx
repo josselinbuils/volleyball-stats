@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tip } from '@/components/Tip';
+import { JobProgress } from '@/components/JobProgress';
 import { INPUT, call } from '@/lib/app';
 import { useFormat } from '@/lib/format';
 import { useRunning } from '@/hooks/useRunning';
@@ -18,14 +19,17 @@ interface Server {
   url: string;
 }
 
+/** A job of the tab, with its stage ("match": the `n`th of `of`) and the seconds spent and left while it runs. */
+type Told = Job & { n?: number | null; of?: number | null; elapsed?: number; left?: number | null };
+
 interface ServerState {
   server: Server | null;
   auto: boolean;
   /** How this machine's last copy and check went. */
   last: { at: string | null; error: string | null; verified: string | null; problems: string[] };
-  hosting: Job | null;
-  backup: Job | null;
-  verify: Job | null;
+  hosting: Told | null;
+  backup: Told | null;
+  verify: Told | null;
 }
 
 // What sits beside the matches, restored as one.
@@ -59,14 +63,18 @@ function Loading({ text }: { text: string }) {
   );
 }
 
-/** A job's last run: running, failed with its reason, or done and when. */
-function JobLine({ job, running }: { job: Job | null; running: string }) {
+/** A job's last run: running (its bar, what it does and the time left), failed with its reason, or done and when. */
+function JobLine({ job, running }: { job: Told | null; running: string }) {
   const { t } = useTranslation();
   if (!job) {
     return null;
   }
   if (job.running) {
-    return <p className="text-muted-foreground">{running}</p>;
+    return (
+      <JobProgress label={running} fraction={job.progress ?? null} left={job.left} elapsed={job.elapsed}>
+        {job.stage ? t(`server.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: running }) : running}
+      </JobProgress>
+    );
   }
   if (job.failed) {
     return (
@@ -252,7 +260,7 @@ export function ServerTab() {
             </Button>
           )}
         </div>
-        <JobLine job={state?.hosting ?? null} running={t('server.hosting')} />
+        <JobLine job={state.hosting} running={t('server.hosting')} />
       </Card>
       <Card className="gap-3 px-4 py-3.5">
         <h2 className="text-lg font-semibold">{t('server.backups')}</h2>
@@ -277,7 +285,8 @@ export function ServerTab() {
             {t('server.verify')}
           </Button>
         </div>
-        <JobLine job={state?.backup ?? null} running={t('server.backingUp')} />
+        <JobLine job={state.backup} running={t('server.backingUp')} />
+        {state.verify?.running && <JobLine job={state.verify} running={t('server.verifying')} />}
         {!state.verify?.running && state.last.verified && (
           <div className={state.last.problems.length ? 'text-destructive' : 'text-muted-foreground'}>
             <p>{state.last.problems.length ? t('server.differ', { at: f.when(state.last.verified) }) : t('server.same', { at: f.when(state.last.verified) })}</p>

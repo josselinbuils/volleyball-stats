@@ -43,6 +43,7 @@ import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 import { MatchTab } from '@/components/Review/MatchTab';
 import { Progress } from '@/components/Review/Progress';
+import { JobProgress } from '@/components/JobProgress';
 import { matchFinished } from '@/components/Review/helpers/report';
 import { ReviewHeader } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
@@ -112,7 +113,7 @@ export function Review({
   filmsError?: string | null;
   learned?: boolean;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const f = useFormat();
   const [questions, setQuestions] = useState(initial);
   const [answered, setAnswered] = useState(before);
@@ -378,7 +379,6 @@ export function Review({
   /** Where the server's run stands: its step (and the pipeline's stage), which of how many, the time
    * spent and left, and whether it takes longer than last time. */
   const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
-  const minutes = (s: number) => (s < 60 ? t('review.lessThanMinute') : t('review.minutes', { count: Math.round(s / 60) }));
   const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
@@ -504,25 +504,11 @@ export function Review({
           }}
         />
         {progress && (
-          <div role="progressbar" aria-label={t('review.applying')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.fraction * 100)} className="grid gap-1 px-1">
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress.fraction * 100}%` }} />
-            </div>
-            <p className="m-0 text-sm">
-              {t(`review.step.${progress.step}`)}
-              {progress.stage && ` · ${t(`review.stage.${progress.stage}`, { defaultValue: progress.stage })}`}
-              <span className="text-muted-foreground"> · {t('review.stepOf', { n: progress.n, of: progress.of })}</span>
-            </p>
-            <p className="m-0 text-xs text-muted-foreground tabular-nums">
-              {progress.late
-                ? t('review.progressLate', { elapsed: minutes(progress.elapsed) })
-                : t('review.progressLeft', {
-                    left: minutes(progress.left),
-                    end: new Date(Date.now() + progress.left * 1000).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }),
-                    elapsed: minutes(progress.elapsed),
-                  })}
-            </p>
-          </div>
+          <JobProgress label={t('review.applying')} fraction={progress.fraction} left={progress.left} elapsed={progress.elapsed} late={progress.late} className="px-1">
+            {t(`review.step.${progress.step}`)}
+            {progress.stage && ` · ${t(`review.stage.${progress.stage}`, { defaultValue: progress.stage })}`}
+            <span className="text-muted-foreground"> · {t('review.stepOf', { n: progress.n, of: progress.of })}</span>
+          </JobProgress>
         )}
         {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchDone} learned={learned} />}
         <p className="px-1 text-muted-foreground">

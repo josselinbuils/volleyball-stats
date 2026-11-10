@@ -12,6 +12,12 @@ from volleyball_stats import matches
 from volleyball_stats.matches import build
 
 
+@pytest.fixture(autouse=True)
+def timings(tmp_path, monkeypatch):
+    """An update's durations kept in the test's folder, whatever the matches' paths."""
+    monkeypatch.setattr(matches, "TIMINGS", str(tmp_path / matches.TIMINGS))
+
+
 class TestBuild:
     def test_lists_the_match_pages_newest_first_and_loads_the_list_by_its_hash(self, tmp_path):
         for name, date in (("old", "2026-09-01"), ("new", "2026-10-25")):
@@ -309,6 +315,16 @@ class TestHostAll:
         assert built == [("voice", "first"), ("first", "full", site / "first" / "video"), ("first", "none", site / "first"), ("voice", "second"), ("second", "none", site / "second")]
         assert [command[0] for command in ran] == ["rsync", "ssh", "rsync", "rsync"] and "--delay-updates" in ran[3]
         assert "--include=/first/**.mp4" in ran[3] and "--include=/second/**.mp4" in ran[3]
+
+    def test_tells_its_stages_and_keeps_their_durations(self, tmp_path, monkeypatch, capsys):
+        hosted, _, _, _ = self.matches_of(tmp_path, monkeypatch)
+
+        matches.host_all(hosted, "aspom")
+
+        stages = [line for line in capsys.readouterr().out.splitlines() if line.startswith("::stage ")]
+        assert stages == ["::stage mirror", "::stage match 1/2", "::stage match 2/2", "::stage upload"]
+        took = json.loads((tmp_path / matches.TIMINGS).read_text())
+        assert {"mirror", "match:first", "match:second", "upload"} <= set(took)
 
     def test_nothing_is_built_nor_sent_when_a_match_cannot_be(self, tmp_path, monkeypatch):
         hosted, built, ran, _ = self.matches_of(tmp_path, monkeypatch)

@@ -104,3 +104,8 @@ class TestApp:
         assert left > 100.0
         assert app.time_left({**tracking, "duration": app.TOOK_VIDEO_S / 10}, 100.0) < left
         assert app.time_left({"started": 0.0, "step": "import", "progress": 0.25}, 100.0) == pytest.approx(300.0)
+
+    def test_tells_the_match_an_update_rebuilds(self):
+        job = {"started": 0.0, "stepStarted": 0.0, "step": "hosting", "stage": "match 2/5", "progress": 0.5}
+        assert app.told(job, 60.0) == {"stage": "match", "n": 2, "of": 5, "elapsed": 60.0, "left": pytest.approx(60.0)}
+        assert app.told({**job, "stage": "upload"}, 60.0)["n"] is None

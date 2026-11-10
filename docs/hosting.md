@@ -7,7 +7,8 @@ site folder, ssh key, public address, in `outputs/server.json`, written into eve
 it from there, `matches.ensure_publish`); "Tester" checks it answers and holds the folder. It also runs, as jobs that
 outlive the server, "Mettre à jour tous les matchs en ligne" (`matches --all`, recording each upload as the review does)
 and "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), and "Vérifier"
-(`sync verify`), shows how the last copy and check went, switches the automatic backup and lists the copies on the server: its used and free room, each day's own size (its files no other copy
+(`sync verify`), each with a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
+duration on this machine, `outputs/hosting_timings.json`, `outputs/backup_timings.json`), shows how the last copy and check went, switches the automatic backup and lists the copies on the server: its used and free room, each day's own size (its files no other copy
 shares, `find -links 1`: what removing it frees), a copy restored from or removed from there (never a match's newest, the one a pull
 brings), and how many copies the server keeps besides each match's newest (`settings.json`'s `keep`, 30 by default, the days a
 new count removes asked first).
