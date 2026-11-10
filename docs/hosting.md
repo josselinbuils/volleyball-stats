@@ -2,6 +2,13 @@
 
 The rules on what may go online are in `CLAUDE.md`.
 
+The app's "Serveur" tab (on the list, `#serveur`, `server.py`, `ServerTab.tsx` in `app.js`, never hosted) sets the server: address,
+site folder, ssh key, public address, in `outputs/server.json`, written into every match's `publish.json` (a new match takes
+it from there, `matches.ensure_publish`); "Tester" checks it answers and holds the folder. It also runs, as jobs that
+outlive the server, "Mettre à jour tous les matchs en ligne" (`matches --all`, recording each upload as the review does)
+and "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), switches the
+automatic backup and lists the copies on the server with its free room.
+
 https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE-TEAM-vs-TEAM/`
 (the first match at `/volleyball/2026-10-29-aspom-1-vs-aspom-2/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
 `volleyballstats` nginx service in `/home/ubuntu/docker` (the owner's `docker` repo), the site in `volleyball-stats/site`, the `/volleyball` route in
