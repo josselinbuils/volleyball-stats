@@ -1340,6 +1340,7 @@
       "accent": "Couleur principale",
       "header": "Bandeau",
       "teams": "Équipes",
+      "addTeam": "Ajouter « {{name}} »",
       "sponsors": "Sponsors (panneaux de la vue 3D)",
       "sponsorName": "Nom",
       "sponsorLogo": "Logo",

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxContent, ComboboxItem, ComboboxList, ComboboxValue, useComboboxAnchor } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
@@ -41,6 +42,57 @@ function PictureField({ value, label, size, onChange }: { value: string | null; 
   );
 }
 
+// The item adding the name typed: it has no place among the names.
+const ADD = '\u0000add:';
+
+/** Names picked as chips among `options`, or typed: a name not there yet is added. */
+function NamesField({ id, value, options, onChange }: { id: string; value: string[]; options: string[]; onChange: (value: string[]) => void }) {
+  const { t } = useTranslation();
+  const anchor = useComboboxAnchor();
+  const [query, setQuery] = useState('');
+  const typed = query.trim();
+  const known = [...new Set([...options, ...value])];
+  const items = typed && !known.some((name) => name.toLowerCase() === typed.toLowerCase()) ? [...known, ADD + typed] : known;
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={items}
+      value={value}
+      inputValue={query}
+      onInputValueChange={setQuery}
+      onValueChange={(picked: string[]) => {
+        onChange([...new Set(picked.map((name) => (name.startsWith(ADD) ? name.slice(ADD.length) : name)))]);
+        setQuery('');
+      }}
+      filter={(item: string, text: string) => item.startsWith(ADD) || item.toLowerCase().includes(text.trim().toLowerCase())}
+      itemToStringLabel={(item: string) => (item.startsWith(ADD) ? item.slice(ADD.length) : item)}
+    >
+      <ComboboxChips ref={anchor} className="min-h-9">
+        <ComboboxValue>
+          {(names: string[]) => (
+            <>
+              {names.map((name) => (
+                <ComboboxChip key={name}>{name}</ComboboxChip>
+              ))}
+              <ComboboxChipsInput id={id} />
+            </>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
+        <ComboboxList>
+          {(item: string) => (
+            <ComboboxItem key={item} value={item}>
+              {item.startsWith(ADD) ? t('app.brand.addTeam', { name: item.slice(ADD.length) }) : item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 /** The club's branding, the same on the list, the review and the match pages: name, site, logo, colours and the
  * sponsors on the 3D view's boards; or one of the themes to start from, or none. */
 export function BrandDialog({ onClose }: { onClose: () => void }) {
@@ -63,8 +115,6 @@ export function BrandDialog({ onClose }: { onClose: () => void }) {
       }
     });
   }, []);
-  const teams = [...new Set([...(state?.played ?? []), ...(form.teams ?? [])])];
-  const picked = form.teams ?? [];
   const set = (change: Partial<BrandForm>) => setForm((f) => ({ ...f, ...change }));
   const setSponsor = (k: number, change: Partial<BrandForm['sponsors'][number]>) => set({ sponsors: form.sponsors.map((s, j) => (j === k ? { ...s, ...change } : s)) });
   const done = async (path: string, body: object) => {
@@ -92,7 +142,15 @@ export function BrandDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg"
+        // The names' list opens outside the dialog: picking in it does not close it.
+        onInteractOutside={(event) => {
+          if ((event.target as Element | null)?.closest('[data-slot=combobox-content]')) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{t('app.brand.title')}</DialogTitle>
           <DialogDescription>{t('app.brand.intro')}</DialogDescription>
@@ -131,19 +189,12 @@ export function BrandDialog({ onClose }: { onClose: () => void }) {
               </label>
             ))}
           </div>
-          {teams.length > 0 && (
-            <fieldset className="grid gap-2">
-              <legend className="mb-1 font-medium">{t('app.brand.teams')}</legend>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {teams.map((team) => (
-                  <label key={team} className="flex items-center gap-2">
-                    <input type="checkbox" checked={picked.includes(team)} onChange={(e) => set({ teams: e.target.checked ? [...picked, team] : picked.filter((p) => p !== team) })} />
-                    {team}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
+          <div className="grid gap-1">
+            <label htmlFor="club-teams" className="font-medium">
+              {t('app.brand.teams')}
+            </label>
+            <NamesField id="club-teams" value={form.teams ?? []} options={state?.played ?? []} onChange={(teams) => set({ teams })} />
+          </div>
           <fieldset className="grid gap-2">
             <legend className="mb-1 font-medium">{t('app.brand.sponsors')}</legend>
             {form.sponsors.map((sponsor, k) => (
