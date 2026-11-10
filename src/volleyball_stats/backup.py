@@ -1,7 +1,8 @@
 """A dated copy of what cannot be made again (the review's answers, names and comments, the match's
 results, and beside the matches the courts and their clicks, the roster, the lens, the club the app edits, the viewers'
 reports) on the hosting server, outside its website: ROOT/DAY/MATCH/ and ROOT/DAY/<what sits beside>. A day holds the
-matches copied that day, each match keeping its last copies, KEEP or as many as the server's settings.json says. Files unchanged since a copy before take no room. The
+matches copied that day: the last KEEP days are kept (or as many as the server's settings.json says), and each match's
+newest copy however old. Files unchanged since a copy before take no room. The
 video is too big for that server.
 
     uv run python -m volleyball_stats.backup outputs/matches/2026-10-29-aspom-1-vs-aspom-2
@@ -74,12 +75,10 @@ def newest(held: dict[str, set[str]]) -> dict[str, str]:
 
 
 def stale(held: dict[str, set[str]], keep: int = KEEP) -> list[str]:
-    """The days of `held` (each day's matches) to remove: those neither among the last `keep` nor among the last `keep`
-    copies of a match they hold."""
+    """The days of `held` (each day's matches) to remove: those neither among the last `keep` nor holding a match's newest
+    copy, a match nobody copies for a while keeping its last one."""
     days = sorted(held)
-    kept = set(days[-keep:])
-    for name in set().union(*held.values()):
-        kept.update([d for d in days if name in held[d]][-keep:])
+    kept = set(days[-keep:]) | set(newest(held).values())
     return [d for d in days if d not in kept]
 
 
@@ -99,7 +98,7 @@ def listed(text: str) -> tuple[float, dict, dict[str, set[str]]]:
 
 
 def kept(settings: dict) -> int:
-    """How many copies of each match the server keeps: its settings' `keep`, else KEEP."""
+    """How many copies the server keeps, besides each match's newest: its settings' `keep`, else KEEP."""
     keep = settings.get("keep")
     return keep if isinstance(keep, int) and keep >= 1 else KEEP
 

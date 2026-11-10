@@ -805,7 +805,7 @@
     "failed": "Échec : {{error}}",
     "done": "Fait le {{at}}.",
     "room": "{{used}} utilisés · {{free}} libres",
-    "keep": "Sauvegardes gardées par match",
+    "keep": "Sauvegardes gardées",
     "apply": "Appliquer",
     "delete": "Supprimer",
     "newest": "La plus récente d'un match : elle reste.",

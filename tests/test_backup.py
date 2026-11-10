@@ -47,7 +47,7 @@ class TestStale:
         assert stale({"2026-01-03": set(), "2026-01-01": set(), "2026-01-02": set()}, 2) == ["2026-01-01"]
         assert stale({"2026-01-01": set()}, 2) == []
 
-    def test_keeps_a_match_s_last_copies_however_old(self):
+    def test_keeps_a_match_s_newest_copy_however_old(self):
         days = {"2026-01-01": {"a", "b"}, "2026-01-02": {"a"}, "2026-01-03": {"a"}, "2026-01-04": {"a"}}
         assert stale(days, 2) == ["2026-01-02"]
 

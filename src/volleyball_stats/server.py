@@ -70,7 +70,7 @@ def connected(outputs: Path) -> dict:
 
 
 def copies(outputs: Path, root: str = backup.ROOT) -> dict:
-    """The backups on the server: its free and used room, how many copies of each match it keeps, then each day's copy
+    """The backups on the server: its free and used room, how many copies it keeps, then each day's copy
     newest first with its matches, its own size and the matches it holds the newest copy of (it cannot be removed)."""
     text = ssh(connected(outputs), backup.listing(root) + SIZES)
     listed, _, sized = text.partition("::sizes\n")
@@ -100,7 +100,8 @@ def delete(outputs: Path, day: str, root: str = backup.ROOT) -> None:
 
 
 def keep(outputs: Path, count: int, apply: bool, root: str = backup.ROOT) -> list[str]:
-    """The days keeping `count` copies of each match removes; with `apply`, the count shared and those days removed."""
+    """The days keeping `count` copies (and each match's newest) removes; with `apply`, the count shared and those days
+    removed."""
     if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 365:
         raise ValueError("keep")
     found = connected(outputs)

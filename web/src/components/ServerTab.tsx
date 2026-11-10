@@ -28,7 +28,7 @@ interface Copies {
   /** GB free on the server, and bytes the backups use. */
   free: number;
   used: number;
-  /** How many copies of each match the server keeps. */
+  /** How many copies the server keeps, besides each match's newest. */
   keep: number;
   /** Newest first: its own size (what removing it frees) and the matches it holds the newest copy of. */
   days: { day: string; matches: string[]; size: number; newest: string[] }[];

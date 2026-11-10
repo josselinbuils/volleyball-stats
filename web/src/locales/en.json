@@ -805,7 +805,7 @@
     "failed": "Failed: {{error}}",
     "done": "Done {{at}}.",
     "room": "{{used}} used · {{free}} free",
-    "keep": "Backups kept per match",
+    "keep": "Backups kept",
     "apply": "Apply",
     "delete": "Delete",
     "newest": "A match's newest: it stays.",

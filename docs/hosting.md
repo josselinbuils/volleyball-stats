@@ -9,8 +9,8 @@ outlive the server, "Mettre à jour tous les matchs en ligne" (`matches --all`, 
 and "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), switches the
 automatic backup and lists the copies on the server: its used and free room, each day's own size (its files no other copy
 shares, `find -links 1`: what removing it frees), a copy removed from there unless it holds a match's newest (the one a pull
-brings), and how many copies of each match the server keeps (`settings.json`'s `keep`, 30 by default, the days a new count
-removes asked first).
+brings), and how many copies the server keeps besides each match's newest (`settings.json`'s `keep`, 30 by default, the days a
+new count removes asked first).
 
 https://josselinbuils.dev/volleyball/ lists the matches, each at `/volleyball/DATE-TEAM-vs-TEAM/`
 (the first match at `/volleyball/2026-10-29-aspom-1-vs-aspom-2/`), from the OVH server (`ssh root@<OVH IP> -i ~/.ssh/id_ed25519_ovh`): a
@@ -89,8 +89,7 @@ both machines, in the server's `/root/backups/volleyball-stats/settings.json`, r
 tab lists the copies, kept in `outputs/backup.json` for when the server is unreachable; off by default: few users keep a
 server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts and their clicks (`court/`), roster, reports,
 the club (the app's "Club", `outputs/club/`) to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
-files hard-linked (to the day before and to the match's last copy), a day kept while among the last 30 or among the last 30 copies of a match it
-holds, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video
+files hard-linked (to the day before and to the match's last copy), a day kept while among the last 30 or holding a match's newest copy, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
 Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other, and any machine works on
