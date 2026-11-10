@@ -134,6 +134,8 @@ export interface Brand {
   radius?: string;
   /** Boards in the 3D view: the name, a picture (a data: URL), their colours; without a text colour, the picture alone. */
   sponsors?: Sponsor[];
+  /** The club's teams, the season's choice. */
+  teams?: string[] | null;
   light: Record<string, string>;
   dark: Record<string, string>;
 }

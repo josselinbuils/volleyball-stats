@@ -320,6 +320,16 @@ def run_pipeline(name: str, anyway: bool) -> dict | None:
     return None
 
 
+def played_teams() -> list[str]:
+    """The teams' names of the matches, most matches first."""
+    counts: dict[str, int] = {}
+    for path in MATCHES.glob("*/teams.json"):
+        for name in {t.get("name") for t in json.loads(path.read_text()).get("teams") or []}:
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+    return sorted(counts, key=lambda n: (-counts[n], n))
+
+
 def swap(name: str) -> None:
     """The teams' sides swapped: the first is the one on the left at the first rally."""
     path = MATCHES / name / "teams.json"
@@ -404,7 +414,7 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
             if route == "sources":
                 return reply(sources())
             if route == "brand":
-                return reply({"brand": branding.read(), "presets": branding.presets()})
+                return reply({"brand": branding.read(), "presets": branding.presets(), "played": played_teams()})
             if route == "brand/file":
                 found = branding.file(parse_qs(query).get("path", [""])[0])
                 if not found:

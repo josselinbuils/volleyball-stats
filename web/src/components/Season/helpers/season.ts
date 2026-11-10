@@ -72,8 +72,8 @@ const SHOWN = 2;
 // A rise counts from this much: half a grade out of 5, a point per set.
 const RISE: Record<Measure, number> = { points: 1, serve: 0.5, reception: 0.5, attack: 0.5, dig: 0.5 };
 
-/** The named teams with a season among the listed matches, most matches first. */
-export function seasonTeams(matches: ListedMatch[]): string[] {
+/** The named teams with a season among the listed matches, most matches first: the `club`'s only, when it has picked them. */
+export function seasonTeams(matches: ListedMatch[], club?: string[] | null): string[] {
   const counts = new Map<string, number>();
   for (const m of matches) {
     if (m.rallies > 0) {
@@ -85,7 +85,7 @@ export function seasonTeams(matches: ListedMatch[]): string[] {
     }
   }
   return [...counts]
-    .filter(([, count]) => count >= MIN_MATCHES)
+    .filter(([name, count]) => count >= MIN_MATCHES && (!club?.length || club.includes(name)))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([name]) => name);
 }

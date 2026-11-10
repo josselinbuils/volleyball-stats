@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
-import { brandFile, shrink, type BrandForm, type BrandState } from '@/components/helpers/brand';
+import { brandFile, guessTeams, shrink, type BrandForm, type BrandState } from '@/components/helpers/brand';
 
-const NEW: BrandForm = { name: '', url: '', accent: '#1f6bc4', header: '#111111', logo: null, sponsors: [] };
+const NEW: BrandForm = { name: '', url: '', accent: '#1f6bc4', header: '#111111', logo: null, sponsors: [], teams: null };
 const LOGO_PX = 256;
 const SPONSOR_PX = 320;
 
@@ -49,15 +49,22 @@ export function BrandDialog({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<BrandForm>(NEW);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
-  const load = (found: BrandState['brand']) => setForm(found ? { ...found, url: found.url ?? '', sponsors: found.sponsors.map((s) => ({ ...s, logo: s.logo ? `sponsors/${s.logo}` : null })) } : NEW);
+  const load = (found: BrandState['brand'], played: string[]) =>
+    setForm(
+      found
+        ? { ...found, url: found.url ?? '', sponsors: found.sponsors.map((s) => ({ ...s, logo: s.logo ? `sponsors/${s.logo}` : null })), teams: found.teams ?? guessTeams(found.name, played) }
+        : NEW,
+    );
   useEffect(() => {
     void call<BrandState>('brand').then((r) => {
       if (r.ok) {
         setState(r);
-        load(r.brand);
+        load(r.brand, r.played);
       }
     });
   }, []);
+  const teams = [...new Set([...(state?.played ?? []), ...(form.teams ?? [])])];
+  const picked = form.teams ?? [];
   const set = (change: Partial<BrandForm>) => setForm((f) => ({ ...f, ...change }));
   const setSponsor = (k: number, change: Partial<BrandForm['sponsors'][number]>) => set({ sponsors: form.sponsors.map((s, j) => (j === k ? { ...s, ...change } : s)) });
   const done = async (path: string, body: object) => {
@@ -124,6 +131,19 @@ export function BrandDialog({ onClose }: { onClose: () => void }) {
               </label>
             ))}
           </div>
+          {teams.length > 0 && (
+            <fieldset className="grid gap-2">
+              <legend className="mb-1 font-medium">{t('app.brand.teams')}</legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {teams.map((team) => (
+                  <label key={team} className="flex items-center gap-2">
+                    <input type="checkbox" checked={picked.includes(team)} onChange={(e) => set({ teams: e.target.checked ? [...picked, team] : picked.filter((p) => p !== team) })} />
+                    {team}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <fieldset className="grid gap-2">
             <legend className="mb-1 font-medium">{t('app.brand.sponsors')}</legend>
             {form.sponsors.map((sponsor, k) => (

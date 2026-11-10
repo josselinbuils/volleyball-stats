@@ -29,6 +29,17 @@ class TestBranding:
         assert again["logo"] == found["logo"] and again["sponsors"][0]["logo"] == found["sponsors"][0]["logo"]
         assert sorted(p.name for p in (folder / "sponsors").iterdir()) == sorted([found["sponsors"][0]["logo"], "sponsors.json"])
 
+    def test_keeps_the_club_s_teams_until_sent_again(self, tmp_path):
+        folder = tmp_path / "brand"
+        body = {"name": "Club", "accent": "#e30613", "header": "#111111"}
+        branding.save(body, folder)
+        assert branding.read(folder)["teams"] is None
+        branding.save({**body, "teams": [" A 1", "A 2", "A 1"]}, folder)
+        branding.save(body, folder)
+        assert branding.read(folder)["teams"] == ["A 1", "A 2"]
+        with pytest.raises(ValueError):
+            branding.save({**body, "teams": [""]}, folder)
+
     def test_makes_the_colours_follow_a_new_accent_only(self, tmp_path):
         folder = tmp_path / "brand"
         branding.save({"name": "Club", "accent": "#e30613", "header": "#111111"}, folder)

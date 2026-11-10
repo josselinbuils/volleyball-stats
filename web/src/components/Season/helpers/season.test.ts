@@ -44,6 +44,12 @@ describe('season', () => {
       expect(seasonTeams(matches)).toEqual(['A', 'B']);
     });
 
+    it("holds the club's teams only, once picked", () => {
+      const matches = [listed('a', '2026-01-01', 'B', 'A'), listed('b', '2026-01-02', 'A', 'B')];
+      expect(seasonTeams(matches, ['A'])).toEqual(['A']);
+      expect(seasonTeams(matches, [])).toEqual(['A', 'B']);
+    });
+
     it('counts a match once for a team on both sides', () => {
       expect(seasonTeams([listed('a', '2026-01-01', 'A', 'A')])).toEqual([]);
     });

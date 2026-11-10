@@ -6,11 +6,15 @@ export interface BrandForm {
   header: string;
   logo: string | null;
   sponsors: { name: string; background: string; logo: string | null }[];
+  /** The club's teams, null until picked. */
+  teams: string[] | null;
 }
 
 export interface BrandState {
   brand: (Omit<BrandForm, 'url'> & { url: string | null }) | null;
   presets: { id: string; name: string }[];
+  /** The teams of the matches, most matches first. */
+  played: string[];
 }
 
 /** A picture of the club's branding, by its path in its folder. */
@@ -33,4 +37,17 @@ export async function shrink(file: File, px: number): Promise<string> {
   canvas.height = height;
   canvas.getContext('2d')!.drawImage(bitmap, 0, 0, width, height);
   return canvas.toDataURL('image/webp', 0.92);
+}
+
+const firstWord = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{Mn}/gu, '')
+    .toLowerCase()
+    .split(/\s+/)[0];
+
+/** The `played` teams named like the club `club` (ASPOM 2 for ASPOM Bègles): a first guess of its teams. */
+export function guessTeams(club: string, played: string[]): string[] {
+  const word = firstWord(club.trim());
+  return word ? played.filter((team) => firstWord(team.trim()) === word) : [];
 }

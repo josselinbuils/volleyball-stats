@@ -69,6 +69,11 @@ class TestApp:
         assert app.handle("GET", "/app/image", "match=..&kind=start", {}, list)[2] == 404
         assert app.handle("GET", "/other", "", {}, list) is None
 
+    def test_lists_the_teams_played_most_matches_first(self, place):
+        self.match(place, "one")
+        (self.match(place, "two") / "teams.json").write_text(json.dumps({"teams": [{"name": "C"}, {"name": "B"}]}))
+        assert app.played_teams() == ["B", "A", "C"]
+
     def test_refuses_to_quit_while_applying(self):
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: False)[2] == 200

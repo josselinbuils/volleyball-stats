@@ -27,7 +27,8 @@ def presets() -> list[dict]:
 
 
 def read(folder: Path = BRAND) -> dict | None:
-    """The branding as the app edits it: name, url, accent and header colours, logo and sponsors (files in `folder`)."""
+    """The branding as the app edits it: name, url, accent and header colours, logo, sponsors (files in `folder`) and
+    the club's teams, None until picked."""
     path = folder / "brand.json"
     if not path.exists():
         return None
@@ -41,6 +42,7 @@ def read(folder: Path = BRAND) -> dict | None:
         "header": data["light"]["header"],
         "logo": data.get("logo"),
         "sponsors": [{"name": s["name"], "background": s.get("background", "#ffffff"), "logo": s.get("logo")} for s in sponsors],
+        "teams": data.get("teams"),
     }
 
 
@@ -85,7 +87,7 @@ def picture(value, folder: Path, stem: str, kept: set[str]) -> str | None:
 
 
 def save(body: dict, folder: Path = BRAND) -> None:
-    """The branding the app sent: name, url, accent, header, logo and sponsors, each picture new or kept."""
+    """The branding the app sent: name, url, accent, header, logo, sponsors, each picture new or kept, and the club's teams."""
     name, url = str(body["name"]).strip(), str(body.get("url") or "").strip()
     accent, header = str(body["accent"]), str(body["header"])
     if not name or not HEX.fullmatch(accent) or not HEX.fullmatch(header) or (url and not re.match(r"https?://", url)):
@@ -93,6 +95,9 @@ def save(body: dict, folder: Path = BRAND) -> None:
     sponsors = body.get("sponsors") or []
     if len(sponsors) > MAX_SPONSORS:
         raise ValueError("sponsors")
+    teams = body.get("teams")
+    if teams is not None and (not isinstance(teams, list) or not all(isinstance(t, str) and t.strip() for t in teams)):
+        raise ValueError("teams")
     path = folder / "brand.json"
     previous = json.loads(path.read_text()) if path.exists() else None
     folder.mkdir(parents=True, exist_ok=True)
@@ -109,6 +114,8 @@ def save(body: dict, folder: Path = BRAND) -> None:
         file = picture(sponsor.get("logo"), folder / "sponsors", f"sponsor-{k}", kept_sponsors)
         listed.append({"name": sponsor["name"].strip(), "background": background, **({"logo": file} if file else {"text": text_on(background)})})
     data = {**(previous or {}), "name": name, "url": url, "light": light, "dark": dark}
+    if teams is not None:
+        data["teams"] = list(dict.fromkeys(t.strip() for t in teams))
     data.pop("logo", None)
     if logo:
         data["logo"] = logo

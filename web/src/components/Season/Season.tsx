@@ -136,9 +136,9 @@ function Players({ season }: { season: SeasonData }) {
 }
 
 /** A team over its matches: its results, then each player's season. */
-export function Season({ matches }: { matches: ListedMatch[] }) {
+export function Season({ matches, club }: { matches: ListedMatch[]; club?: string[] | null }) {
   const { t } = useTranslation();
-  const teams = useMemo(() => seasonTeams(matches), [matches]);
+  const teams = useMemo(() => seasonTeams(matches, club), [matches, club]);
   const [team, setTeam] = useState(teams[0]);
   const [season, setSeason] = useState<SeasonData | null>(null);
   const [failed, setFailed] = useState(false);

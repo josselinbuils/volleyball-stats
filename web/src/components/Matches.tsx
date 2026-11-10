@@ -84,7 +84,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
   }, [review]);
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
-  const hasSeason = seasonTeams(matches).length > 0;
+  const hasSeason = seasonTeams(matches, brand?.teams).length > 0;
   const [view, setView] = useState<'matches' | 'season'>(() => (hasSeason && location.hash === SEASON ? 'season' : 'matches'));
   const open = (name: string, remote = false) => {
     setOpening(name);
@@ -135,7 +135,7 @@ export function Matches({ matches: here, brand, review = false }: MatchList) {
         )}
         <p className="px-1 text-muted-foreground">{t(view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}</p>
         {view === 'season' ? (
-          <Season matches={matches} />
+          <Season matches={matches} club={brand?.teams} />
         ) : listed.length ? (
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {listed.map((m) => {
