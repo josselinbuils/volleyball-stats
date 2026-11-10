@@ -25,8 +25,18 @@ export function formatters(lang: string) {
   // yyyy-mm-dd dates parse as UTC midnight.
   const long = new Intl.DateTimeFormat(DATE_LOCALES[lang] ?? lang, { dateStyle: 'long', timeZone: 'UTC' });
   const when = new Intl.DateTimeFormat(DATE_LOCALES[lang] ?? lang, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const sizes = Object.fromEntries(
+    (['kilobyte', 'megabyte', 'gigabyte'] as const).flatMap((unit) =>
+      [0, 1].map((digits) => [`${unit}${digits}`, new Intl.NumberFormat(lang, { style: 'unit', unit, maximumFractionDigits: digits })]),
+    ),
+  );
   return {
     num: (x: number) => int.format(x),
+    /** Bytes in kB, MB or GB, a decimal under 10. */
+    size: (bytes: number) => {
+      const [value, unit] = bytes >= 1e9 ? [bytes / 1e9, 'gigabyte'] : bytes >= 1e6 ? [bytes / 1e6, 'megabyte'] : [bytes / 1e3, 'kilobyte'];
+      return sizes[`${unit}${value < 10 ? 1 : 0}`].format(value);
+    },
     dec: (x: number) => dec.format(x),
     pct: (x: number) => pct.format(x),
     // The SI symbol reads the same in every language.

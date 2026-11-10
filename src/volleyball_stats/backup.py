@@ -1,7 +1,7 @@
 """A dated copy of what cannot be made again (the review's answers, names and comments, the match's
 results, and beside the matches the courts and their clicks, the roster, the lens, the club the app edits, the viewers'
 reports) on the hosting server, outside its website: ROOT/DAY/MATCH/ and ROOT/DAY/<what sits beside>. A day holds the
-matches copied that day, each match keeping its last KEEP copies. Files unchanged since a copy before take no room. The
+matches copied that day, each match keeping its last copies, KEEP or as many as the server's settings.json says. Files unchanged since a copy before take no room. The
 video is too big for that server.
 
     uv run python -m volleyball_stats.backup outputs/matches/2026-10-29-aspom-1-vs-aspom-2
@@ -68,6 +68,11 @@ def signature(paths: list[Path]) -> tuple[int, float]:
     return count, latest
 
 
+def newest(held: dict[str, set[str]]) -> dict[str, str]:
+    """Each match's newest copy, by name its day: the one a pull brings."""
+    return {name: day for day in sorted(held) for name in held[day]}
+
+
 def stale(held: dict[str, set[str]], keep: int = KEEP) -> list[str]:
     """The days of `held` (each day's matches) to remove: those neither among the last `keep` nor among the last `keep`
     copies of a match they hold."""
@@ -79,15 +84,24 @@ def stale(held: dict[str, set[str]], keep: int = KEEP) -> list[str]:
 
 
 def listing(root: str) -> str:
-    """The server's command telling its free room, then its days and their matches (`listed`); only root reads them: they
-    hold real names and pictures."""
-    return f"mkdir -p {root} && chmod 700 {root} && df -Pk {root} | tail -1 && cd {root} && ls -1d */ */*/source.json 2>/dev/null; true"
+    """The server's command telling its free room, the settings the machines share, then its days and their matches
+    (`listed`); only root reads them: they hold real names and pictures."""
+    return (
+        f"mkdir -p {root} && chmod 700 {root} && df -Pk {root} | tail -1 && (cat {root}/settings.json 2>/dev/null || echo '{{}}') | tr -d '\\n'"
+        f" && echo && cd {root} && ls -1d */ */*/source.json 2>/dev/null; true"
+    )
 
 
-def listed(text: str) -> tuple[float, dict[str, set[str]]]:
-    """The free GB and each day's matches, from `listing`'s output."""
+def listed(text: str) -> tuple[float, dict, dict[str, set[str]]]:
+    """The free GB, the shared settings and each day's matches, from `listing`'s output."""
     lines = text.splitlines()
-    return int(lines[0].split()[3]) / 1024**2, held("\n".join(lines[1:]))
+    return int(lines[0].split()[3]) / 1024**2, json.loads(lines[1] or "{}"), held("\n".join(lines[2:]))
+
+
+def kept(settings: dict) -> int:
+    """How many copies of each match the server keeps: its settings' `keep`, else KEEP."""
+    keep = settings.get("keep")
+    return keep if isinstance(keep, int) and keep >= 1 else KEEP
 
 
 def held(listing: str) -> dict[str, set[str]]:
@@ -130,7 +144,7 @@ def copy(paths: list[Path], config: dict, name: str | None, day: str | None, roo
     def remote(command: str) -> str:
         return subprocess.run([*ssh, host, command], check=True, capture_output=True, text=True, timeout=60).stdout
 
-    free_gb, days = listed(remote(listing(root)))
+    free_gb, settings, days = listed(remote(listing(root)))
     if free_gb < MIN_FREE_GB:
         raise RuntimeError(f"only {free_gb:.1f} GB free on the server")
     before = [d for d in sorted(days) if d != day]
@@ -139,7 +153,7 @@ def copy(paths: list[Path], config: dict, name: str | None, day: str | None, roo
     if run.returncode not in (0, VANISHED) and not vanished(run.stderr):
         raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
     days.setdefault(day, set()).update([name] if name else [])
-    old = stale(days)
+    old = stale(days, kept(settings))
     if old:
         remote("rm -rf " + " ".join(f"{root}/{d}" for d in old))
 

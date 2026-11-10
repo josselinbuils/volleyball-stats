@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap } from 'lucide-react';
+import { CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tip } from '@/components/Tip';
 import { INPUT, call } from '@/lib/app';
 import { useFormat } from '@/lib/format';
 import type { Job } from '@/components/Setup/helpers/setup';
@@ -23,8 +25,13 @@ interface ServerState {
 }
 
 interface Copies {
+  /** GB free on the server, and bytes the backups use. */
   free: number;
-  days: { day: string; matches: string[] }[];
+  used: number;
+  /** How many copies of each match the server keeps. */
+  keep: number;
+  /** Newest first: its own size (what removing it frees) and the matches it holds the newest copy of. */
+  days: { day: string; matches: string[]; size: number; newest: string[] }[];
   /** The automatic copies' choice as the server holds it. */
   auto: boolean;
 }
@@ -78,6 +85,10 @@ export function ServerTab() {
   const [listing, setListing] = useState(false);
   // The choice saved here only: the server could not take it.
   const [autoLocal, setAutoLocal] = useState(false);
+  const [keep, setKeep] = useState('');
+  // A removal waiting for its confirmation: one copy, or those a new count removes.
+  const [confirm, setConfirm] = useState<{ day: string } | { keep: number; removes: string[] } | null>(null);
+  const [copiesError, setCopiesError] = useState(false);
   const refresh = useCallback(async () => {
     const r = await call<ServerState>('server');
     if (r.ok) {
@@ -92,6 +103,7 @@ export function ServerTab() {
     setCopies(r.ok ? r : 'failed');
     if (r.ok) {
       setState((s) => s && { ...s, auto: r.auto });
+      setKeep(String(r.keep));
     }
   }, []);
   useEffect(() => {
@@ -142,6 +154,23 @@ export function ServerTab() {
     if (r.ok) {
       setState(r);
       setAutoLocal(!r.shared);
+    }
+  };
+  const remove = async (body: { day: string } | { keep: number; apply: true }) => {
+    setConfirm(null);
+    const r = await call('day' in body ? 'server/delete' : 'server/keep', body);
+    setCopiesError(!r.ok);
+    void listCopies();
+  };
+  const applyKeep = async () => {
+    const count = Number(keep);
+    const r = await call<{ removes: string[] }>('server/keep', { keep: count, apply: false });
+    if (!r.ok) {
+      setCopiesError(true);
+    } else if (r.removes.length) {
+      setConfirm({ keep: count, removes: r.removes });
+    } else {
+      void remove({ keep: count, apply: true });
     }
   };
   const start = async (path: 'server/host' | 'server/backup') => {
@@ -215,23 +244,64 @@ export function ServerTab() {
         <JobLine job={state?.backup ?? null} running={t('server.backingUp')} />
         {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
         {copies === 'failed' && !listing && <p className="text-destructive">{t('server.copiesFailed')}</p>}
+        {copiesError && <p className="text-destructive">{t('review.error')}</p>}
         {copies && copies !== 'failed' && (
-          <div className="grid gap-1">
+          <div className="grid gap-2">
+            <form
+              className="flex flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void applyKeep();
+              }}
+            >
+              <label htmlFor="server-keep">{t('server.keep')}</label>
+              <input id="server-keep" type="number" min={1} max={365} required value={keep} onChange={(e) => setKeep(e.target.value)} className={`${INPUT} w-20 tabular-nums`} />
+              <Button type="submit" size="sm" variant="outline" className="bg-card" disabled={Number(keep) === copies.keep}>
+                {t('server.apply')}
+              </Button>
+            </form>
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              {t('server.free', { gb: copies.free })}
+              {t('server.room', { used: f.size(copies.used), free: f.size(copies.free * 1024 ** 3) })}
               {listing && <LoaderCircle aria-label={t('server.listing')} className="size-3.5 animate-spin" />}
             </p>
-            <ol className="grid gap-0.5 text-sm tabular-nums">
-              {copies.days.map(({ day, matches }) => (
-                <li key={day} className="flex justify-between gap-3">
-                  <span>{f.date(day)}</span>
+            <ol className="grid text-sm tabular-nums">
+              {copies.days.map(({ day, matches, size, newest }) => (
+                <li key={day} className="flex items-center gap-3">
+                  <span className="flex-1">{f.date(day)}</span>
                   <span className="text-muted-foreground">{t('server.matchesN', { count: matches.length })}</span>
+                  <span className="w-16 text-right">{f.size(size)}</span>
+                  <Tip label={newest.length ? t('server.newest') : t('server.delete')}>
+                    {/* A disabled button gets no pointer events: the tip sits on its wrapper. */}
+                    <span>
+                      <Button variant="ghost" size="icon-sm" aria-label={t('server.delete')} disabled={newest.length > 0} onClick={() => setConfirm({ day })}>
+                        <Trash2 aria-hidden />
+                      </Button>
+                    </span>
+                  </Tip>
                 </li>
               ))}
             </ol>
           </div>
         )}
       </Card>
+      {confirm && (
+        <Dialog open onOpenChange={(open) => !open && setConfirm(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{'day' in confirm ? t('server.deleteTitle', { date: f.date(confirm.day) }) : t('server.keepTitle', { count: confirm.removes.length })}</DialogTitle>
+              <DialogDescription>{t('server.deleteText')}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirm(null)}>
+                {t('app.cancel')}
+              </Button>
+              <Button variant="destructive" onClick={() => void remove('day' in confirm ? { day: confirm.day } : { keep: confirm.keep, apply: true })}>
+                {t('app.delete')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

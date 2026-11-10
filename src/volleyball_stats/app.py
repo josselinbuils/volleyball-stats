@@ -484,6 +484,11 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "server/host":
             jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES)])])
             return reply(server_state())
+        if route == "server/delete":
+            server.delete(OUTPUTS, str(body["day"]))
+            return reply({})
+        if route == "server/keep":
+            return reply({"removes": server.keep(OUTPUTS, body["keep"], bool(body.get("apply")))})
         if route == "server/backup":
             jobs.start(OUTPUTS, BACKUP, BACKUP, [(BACKUP, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "push", "--all"])])
             return reply(server_state())

@@ -1,6 +1,6 @@
 import os
 
-from volleyball_stats.backup import held, rsync_command, signature, sources, stale, vanished
+from volleyball_stats.backup import held, kept, listed, newest, rsync_command, signature, sources, stale, vanished
 
 
 class TestSources:
@@ -50,6 +50,16 @@ class TestStale:
     def test_keeps_a_match_s_last_copies_however_old(self):
         days = {"2026-01-01": {"a", "b"}, "2026-01-02": {"a"}, "2026-01-03": {"a"}, "2026-01-04": {"a"}}
         assert stale(days, 2) == ["2026-01-02"]
+
+
+class TestListed:
+    def test_the_free_room_the_settings_and_each_day_s_matches(self):
+        free, settings, days = listed("/dev/sda1 1 2 2097152 1% /\n{\"keep\": 5}\n2026-01-01/\n2026-01-01/a/source.json\n")
+        assert (free, settings, days) == (2.0, {"keep": 5}, {"2026-01-01": {"a"}})
+        assert kept(settings) == 5 and kept({}) == 30 and kept({"keep": 0}) == 30
+
+    def test_each_match_s_newest_copy(self):
+        assert newest({"2026-01-01": {"a", "b"}, "2026-01-02": {"a"}}) == {"a": "2026-01-02", "b": "2026-01-01"}
 
 
 class TestHeld:

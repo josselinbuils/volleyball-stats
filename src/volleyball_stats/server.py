@@ -52,18 +52,62 @@ def ssh(found: dict, command: str, timeout: float = 30) -> str:
 
 def test(outputs: Path) -> None:
     """Whether the server answers and holds the site's folder; RuntimeError with the reason."""
-    found = sync.server(outputs)
-    if not found:
-        raise LookupError("server")
+    found = connected(outputs)
     folder = found["upload"].partition(":")[2]
     if ssh(found, f"test -d {shlex.quote(folder)} || echo missing").strip() == "missing":
         raise RuntimeError(f"missing:{folder}")
 
 
-def copies(outputs: Path, root: str = backup.ROOT) -> dict:
-    """The backups on the server: its free room, then each day's copy newest first with its matches."""
+# Each day's own bytes, those no other copy shares (what removing it frees), then the whole backups' kB.
+SIZES = "; echo ::sizes; for d in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/; do [ -d \"$d\" ] && printf '%s ' \"${d%/}\" && find \"$d\" -type f -links 1 -printf '%s\\n' | awk '{s+=$1} END {print s+0}'; done; du -sk . | cut -f1"
+
+
+def connected(outputs: Path) -> dict:
     found = sync.server(outputs)
     if not found:
         raise LookupError("server")
-    free_gb, days = backup.listed(ssh(found, backup.listing(root)))
-    return {"free": round(free_gb, 1), "days": [{"day": d, "matches": sorted(days[d])} for d in sorted(days, reverse=True)]}
+    return found
+
+
+def copies(outputs: Path, root: str = backup.ROOT) -> dict:
+    """The backups on the server: its free and used room, how many copies of each match it keeps, then each day's copy
+    newest first with its matches, its own size and the matches it holds the newest copy of (it cannot be removed)."""
+    text = ssh(connected(outputs), backup.listing(root) + SIZES)
+    listed, _, sized = text.partition("::sizes\n")
+    free_gb, settings, days = backup.listed(listed)
+    *rows, used_kb = sized.strip().split("\n")
+    sizes = {day: int(size) for day, size in (row.split() for row in rows)}
+    last = backup.newest(days)
+    return {
+        "free": round(free_gb, 1),
+        "used": int(used_kb) * 1024,
+        "keep": backup.kept(settings),
+        "days": [{"day": d, "matches": sorted(days[d]), "size": sizes.get(d, 0), "newest": sorted(m for m, n in last.items() if n == d)} for d in sorted(days, reverse=True)],
+    }
+
+
+def delete(outputs: Path, day: str, root: str = backup.ROOT) -> None:
+    """The day's copy removed from the server; PermissionError when it holds a match's newest copy, the one a pull brings."""
+    if not backup.DAY.fullmatch(day):
+        raise ValueError(day)
+    found = connected(outputs)
+    _, _, days = backup.listed(ssh(found, backup.listing(root)))
+    if day not in days:
+        raise LookupError(day)
+    if day in backup.newest(days).values():
+        raise PermissionError(day)
+    ssh(found, f"rm -rf {shlex.quote(f'{root}/{day}')}")
+
+
+def keep(outputs: Path, count: int, apply: bool, root: str = backup.ROOT) -> list[str]:
+    """The days keeping `count` copies of each match removes; with `apply`, the count shared and those days removed."""
+    if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 365:
+        raise ValueError("keep")
+    found = connected(outputs)
+    _, _, days = backup.listed(ssh(found, backup.listing(root)))
+    removed = backup.stale(days, count)
+    if apply:
+        sync.share_settings(found, {"keep": count})
+        if removed:
+            ssh(found, "rm -rf " + " ".join(shlex.quote(f"{root}/{d}") for d in removed))
+    return removed
