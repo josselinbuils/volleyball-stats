@@ -135,6 +135,11 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  /* An open menu or dialog locks the scroll and adds the scrollbar's width as a margin (react-remove-scroll): the gutter
+     already keeps it, the page would move left. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
 }
 
 /* Court drawings: one SVG unit is a court metre. */
