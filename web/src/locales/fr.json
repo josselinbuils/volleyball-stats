@@ -791,7 +791,10 @@
     "missing": "Connecté, mais le dossier du site n'existe pas.",
     "unreached": "Connexion impossible : {{error}}",
     "online": "Matchs en ligne",
-    "hostAll": "Mettre à jour tous les matchs en ligne",
+    "hostAll": "Tout mettre à jour",
+    "upToDate": "À jour",
+    "late": "En retard",
+    "noneOnline": "Aucun match en ligne.",
     "openOnline": "Voir en ligne",
     "hosting": "Mise en ligne…",
     "stage": {

@@ -791,7 +791,10 @@
     "missing": "Connected, but the site folder does not exist.",
     "unreached": "Cannot connect: {{error}}",
     "online": "Matches online",
-    "hostAll": "Update every match online",
+    "hostAll": "Update all",
+    "upToDate": "Up to date",
+    "late": "Late",
+    "noneOnline": "No match online.",
     "openOnline": "See online",
     "hosting": "Uploading…",
     "stage": {

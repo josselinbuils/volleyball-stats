@@ -5,7 +5,8 @@ The rules on what may go online are in `CLAUDE.md`.
 The app's "Serveur" tab (on the list, `#serveur`, `server.py`, `ServerTab.tsx` in `app.js`, never hosted) sets the server: address,
 site folder, ssh key, public address, in `outputs/server.json`, written into every match's `publish.json` (a new match takes
 it from there, `matches.ensure_publish`); "Tester" checks it answers and holds the folder. It also runs, as jobs that
-outlive the server, "Mettre à jour tous les matchs en ligne" (`matches --all`, recording each upload as the review does)
+outlive the server, "Tout mettre à jour" under the matches online, each "À jour" or "En retard" with its link (`server.online`;
+`matches --all`, recording each upload as the review does)
 and "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), and "Vérifier"
 (`sync verify`), each with a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
 duration on this machine, `outputs/hosting_timings.json`, `outputs/backup_timings.json`), shows how the last copy and check went, switches the automatic backup and lists the copies on the server: its used and free room, each day's own size (its files no other copy

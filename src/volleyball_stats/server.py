@@ -40,6 +40,30 @@ def save(outputs: Path, body: dict) -> None:
         matches.update_publish(path.parent, **{k: v for k, v in hosting.items() if v and (k != "site" or not given.get("site"))})
 
 
+def online(outputs: Path) -> list[dict]:
+    """The matches online, newest first: their name, date, title and teams' names, their page's address, and when it last
+    went up and whether the match changed since (`review.read_hosted`)."""
+    from volleyball_stats import review
+
+    found = []
+    for match, _, _, config in matches.online(outputs / "matches"):
+        folder = matches.hosted_folder(match, Path(config["site"]).expanduser())
+        page = matches.listed(match / "review") if (match / "review" / "data.js").exists() else {"date": None, "title": None, "teams": None}
+        hosted = review.read_hosted(match)
+        url = config.get("url") or ""
+        found.append(
+            {
+                "name": match.name,
+                "date": page["date"],
+                "title": page["title"],
+                "teams": [t.get("name") for t in page["teams"]] if page["teams"] else None,
+                "url": f"{url.rstrip('/')}/{folder.name}/" if url and folder else None,
+                **{k: hosted[k] for k in ("at", "day", "behind")},
+            }
+        )
+    return sorted(found, key=lambda m: (m["date"] or "", m["name"]), reverse=True)
+
+
 def ssh(found: dict, command: str, timeout: float = 30) -> str:
     """`command` run on the server; RuntimeError with its reason."""
     host, connect = backup.connection(found)

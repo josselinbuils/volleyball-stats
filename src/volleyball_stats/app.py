@@ -400,6 +400,7 @@ def server_state() -> dict:
         "server": server.read(OUTPUTS),
         "auto": sync.auto(OUTPUTS),
         "last": {k: last[k] for k in ("at", "error", "verified", "problems")},
+        "online": server.online(OUTPUTS),
         "hosting": found.get(HOSTING),
         "backup": found.get(BACKUP),
         "verify": found.get(VERIFY),

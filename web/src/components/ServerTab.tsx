@@ -22,8 +22,21 @@ interface Server {
 /** A job of the tab, with its stage ("match": the `n`th of `of`) and the seconds spent and left while it runs. */
 type Told = Job & { n?: number | null; of?: number | null; elapsed?: number; left?: number | null };
 
+/** A match online: its page's address, and when it last went up (`day` when not today) and whether it changed since. */
+interface Online {
+  name: string;
+  date: string | null;
+  title: string | null;
+  teams: (string | null)[] | null;
+  url: string | null;
+  at: string | null;
+  day: string | null;
+  behind: boolean;
+}
+
 interface ServerState {
   server: Server | null;
+  online: Online[];
   auto: boolean;
   /** How this machine's last copy and check went. */
   last: { at: string | null; error: string | null; verified: string | null; problems: string[] };
@@ -258,8 +271,39 @@ export function ServerTab() {
       </Card>
       <Card className="gap-3 px-4 py-3.5">
         <h2 className="text-lg font-semibold">{t('server.online')}</h2>
+        {state.online.length ? (
+          <ul className="grid divide-y rounded-md border text-sm">
+            {state.online.map((m) => {
+              const name = m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
+              return (
+                <li key={m.name} className="flex min-w-0 items-center gap-3 px-3 py-2">
+                  {/* The date goes under the match when the row is narrow. */}
+                  <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
+                    {m.url ? (
+                      <a href={m.url} target="_blank" rel="noreferrer" className="min-w-0 font-medium [overflow-wrap:anywhere] hover:underline">
+                        {name}
+                        <ExternalLink aria-hidden className="ml-1.5 inline size-3.5 align-[-2px] text-muted-foreground" />
+                      </a>
+                    ) : (
+                      <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{name}</span>
+                    )}
+                    {m.date && <span className="whitespace-nowrap text-muted-foreground">{f.date(m.date)}</span>}
+                  </span>
+                  <Tip label={m.at ? (m.day ? t('review.hostedDay', { day: f.date(m.day), at: m.at }) : t('review.hosted', { at: m.at })) : undefined}>
+                    <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap ${m.behind ? '' : 'text-muted-foreground'}`}>
+                      {m.behind ? <span aria-hidden className="size-2 rounded-full bg-primary" /> : <CircleCheck aria-hidden className="size-4" />}
+                      {t(m.behind ? 'server.late' : 'server.upToDate')}
+                    </span>
+                  </Tip>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground">{t('server.noneOnline')}</p>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Button busy={doing === 'host' || !!state.hosting?.running} disabled={!saved} onClick={() => void start('host')}>
+          <Button busy={doing === 'host' || !!state.hosting?.running} disabled={!saved || !state.online.length} onClick={() => void start('host')}>
             <CloudUpload aria-hidden />
             {t('server.hostAll')}
           </Button>
