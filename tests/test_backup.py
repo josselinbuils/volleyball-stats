@@ -1,6 +1,6 @@
 import os
 
-from volleyball_stats.backup import rsync_command, signature, sources, stale, vanished
+from volleyball_stats.backup import held, rsync_command, signature, sources, stale, vanished
 
 
 class TestSources:
@@ -44,13 +44,23 @@ class TestVanished:
 
 class TestStale:
     def test_all_but_the_last_ones(self):
-        assert stale(["2026-01-03", "2026-01-01", "2026-01-02"], 2) == ["2026-01-01"]
-        assert stale(["2026-01-01"], 2) == []
+        assert stale({"2026-01-03": set(), "2026-01-01": set(), "2026-01-02": set()}, 2) == ["2026-01-01"]
+        assert stale({"2026-01-01": set()}, 2) == []
+
+    def test_keeps_a_match_s_last_copies_however_old(self):
+        days = {"2026-01-01": {"a", "b"}, "2026-01-02": {"a"}, "2026-01-03": {"a"}, "2026-01-04": {"a"}}
+        assert stale(days, 2) == ["2026-01-02"]
+
+
+class TestHeld:
+    def test_each_day_s_matches_from_the_listing(self):
+        listing = "2026-01-01/\n2026-01-02/\nclaims/\n2026-01-01/a/source.json\n2026-01-02/b/source.json\n"
+        assert held(listing) == {"2026-01-01": {"a"}, "2026-01-02": {"b"}}
 
 
 class TestRsyncCommand:
     def test_links_to_the_copy_before_and_leaves_out_the_old_copies_and_pages(self, tmp_path):
-        out = rsync_command([tmp_path], "root@host", ["ssh"], "/root/b", "2026-01-02", "2026-01-01")
+        out = rsync_command([tmp_path], "root@host", ["ssh"], "/root/b", "2026-01-02", ["2026-01-01"])
         assert {"--exclude=backup-*", "--exclude=review", "--exclude=site", "--link-dest=/root/b/2026-01-01"} <= set(out)
         assert out[-2:] == [str(tmp_path), "root@host:/root/b/2026-01-02/"]
-        assert not any(a.startswith("--link-dest") for a in rsync_command([tmp_path], "root@host", ["ssh"], "/root/b", "2026-01-02", None))
+        assert not any(a.startswith("--link-dest") for a in rsync_command([tmp_path], "root@host", ["ssh"], "/root/b", "2026-01-02", []))

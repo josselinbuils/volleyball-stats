@@ -3,7 +3,7 @@
 machine works on any match: the server keeps each match's version, and a push goes only from it. The review opening a match
 (once this machine keeps its matches there, `active`) brings the server's newer copy when nothing changed here (`check`); when
 both changed, the owner keeps one, the other set aside (`take`, `keep`). Pulling a match brings its newest copy, this machine's
-unpushed changes kept aside in `backup-sync-*`, and what the outputs folder lacks of the courts, lens, club, sponsors and roster.
+unpushed changes kept aside in `backup-sync-*`, and what the outputs folder lacks of the courts, lens, club and roster.
 
     uv run python -m volleyball_stats.sync setup root@HOST ~/.ssh/KEY   # a machine with no match yet
     uv run python -m volleyball_stats.sync list
@@ -195,7 +195,7 @@ def pull(name: str, outputs: Path = DEFAULT_OUTPUTS) -> Path:
     remember(match, found[name]["version"], backup.signature([match]))
     relative_copies(match)
     # What this machine lacks of the files beside the matches; its own stay.
-    for source, target in ((f"{day}/courts/", outputs / "courts"), (f"{day}/court/", outputs / "court"), (f"{day}/lens.json", outputs / "lens.json"), (f"{day}/brand/", outputs / "brand"), (f"{day}/sponsors/", backup.SPONSORS)):
+    for source, target in ((f"{day}/courts/", outputs / "courts"), (f"{day}/court/", outputs / "court"), (f"{day}/lens.json", outputs / "lens.json"), (f"{day}/brand/", outputs / "brand")):
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             rsync(config, source, target, "--ignore-existing")

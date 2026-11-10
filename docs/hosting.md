@@ -76,8 +76,9 @@ Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bo
 Backup: the review's "Sauvegarder sur le serveur" ("..." menu, and `uv run python -m volleyball_stats.backup
 outputs/matches/MATCH`), and with "Sauvegarde automatique" ticked every 10 minutes if something changed (this machine's
 choice, `outputs/backup.json`, off by default: few users keep a server for it), `backup.py` copies the match's folder (no old `backup-*`, no built pages), the courts and their clicks (`court/`), roster, reports,
-the club (the app's "Club", `outputs/brand/`) and sponsors to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
-files hard-linked, the last 30 copies kept, none under 5 GB free. Restore command in `backup.py`. The source video
+the club (the app's "Club", `outputs/brand/`) to `/root/backups/volleyball-stats/DAY/` on the OVH server: outside the website, root only, unchanged
+files hard-linked (to the day before and to the match's last copy), a day kept while among the last 30 or among the last 30 copies of a match it
+holds, none under 5 GB free. The match list copies what sits beside the matches on its own (`backup_shared`, same choice), no match open. Restore command in `backup.py`. The source video
 is not in it (42 GB, 18 GB free there): the owner keeps a copy elsewhere.
 
 Two machines (the Mac and the PC, `sync.py`): the backup is also how a match goes from one to the other, and any machine works on

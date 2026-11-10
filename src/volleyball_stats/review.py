@@ -2001,6 +2001,22 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             self.send(b"{}", "application/json")
             switch(command, threading.Lock())
 
+    def backing() -> None:
+        """What sits beside the matches copied whenever it changed, while this machine wants copies: no match is open."""
+        outputs, copied = out.parent, None
+        while True:
+            config = sync.server(outputs)
+            if sync.auto(outputs) and config:
+                try:
+                    now = backup.signature(backup.shared(outputs))
+                    if now != copied:
+                        backup.backup_shared(outputs, config)
+                        copied = now
+                except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                    print(f"backup failed: {error}", flush=True)
+            time.sleep(BACKUP_EVERY_S)
+
+    threading.Thread(target=backing, daemon=True).start()
     server = Server(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/matches/"
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)

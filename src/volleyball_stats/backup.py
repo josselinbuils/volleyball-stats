@@ -1,6 +1,8 @@
 """A dated copy of what cannot be made again (the review's answers, names and comments, the match's
-results, the courts and their clicks, the viewers' reports, the club the app edits, the sponsors) on the hosting server, outside its website.
-Files unchanged since the copy before take no room. The video is too big for that server.
+results, and beside the matches the courts and their clicks, the roster, the lens, the club the app edits, the viewers'
+reports) on the hosting server, outside its website: ROOT/DAY/MATCH/ and ROOT/DAY/<what sits beside>. A day holds the
+matches copied that day, each match keeping its last KEEP copies. Files unchanged since a copy before take no room. The
+video is too big for that server.
 
     uv run python -m volleyball_stats.backup outputs/matches/2026-10-29-aspom-1-vs-aspom-2
 
@@ -26,7 +28,8 @@ ROOT = "/root/backups/volleyball-stats"
 # Per machine (`sync`): the server's version of the match this machine's copy started from.
 STATE = ".sync.json"
 SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE)
-SPONSORS = Path("branding/aspom/sponsors")
+# What sits beside the matches in the outputs folder, copied with each match and on its own (`backup_shared`).
+SHARED = ("courts", "court", "roster.json", "lens.json", "brand", "feedback")
 KEEP = 30
 # Under this, no copy: the server also runs the owner's websites.
 MIN_FREE_GB = 5
@@ -42,11 +45,13 @@ def vanished(stderr: str) -> bool:
 DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
+def shared(outputs: Path) -> list[Path]:
+    return [outputs / name for name in SHARED if (outputs / name).exists()]
+
+
 def sources(match: Path) -> list[Path]:
     """What is copied, each landing under its name: the match's folder and what sits beside it."""
-    outputs = files.root(match)
-    found = [match, outputs / "courts", outputs / "court", outputs / "roster.json", outputs / "lens.json", outputs / "brand", SPONSORS, outputs / "feedback"]
-    return [p for p in found if p.exists()]
+    return [match, *shared(files.root(match))]
 
 
 def signature(paths: list[Path]) -> tuple[int, float]:
@@ -63,39 +68,69 @@ def signature(paths: list[Path]) -> tuple[int, float]:
     return count, latest
 
 
-def stale(days: list[str], keep: int = KEEP) -> list[str]:
-    """The copies of `days` to remove: all but the last `keep`."""
-    return sorted(days)[: -keep or None] if len(days) > keep else []
+def stale(held: dict[str, set[str]], keep: int = KEEP) -> list[str]:
+    """The days of `held` (each day's matches) to remove: those neither among the last `keep` nor among the last `keep`
+    copies of a match they hold."""
+    days = sorted(held)
+    kept = set(days[-keep:])
+    for name in set().union(*held.values()):
+        kept.update([d for d in days if name in held[d]][-keep:])
+    return [d for d in days if d not in kept]
 
 
-def rsync_command(paths: list[Path], host: str, ssh: list[str], root: str, day: str, previous: str | None) -> list[str]:
-    """Today's copy from `paths`, linking to the `previous` one's files that did not change."""
+def held(listing: str) -> dict[str, set[str]]:
+    """Each day's matches, from the server's `ls -1d DAY/ DAY/MATCH/source.json` lines."""
+    found: dict[str, set[str]] = {}
+    for line in listing.splitlines():
+        parts = line.strip().strip("/").split("/")
+        if parts and DAY.fullmatch(parts[0]):
+            found.setdefault(parts[0], set())
+            if len(parts) == 3 and parts[2] == "source.json":
+                found[parts[0]].add(parts[1])
+    return found
+
+
+def rsync_command(paths: list[Path], host: str, ssh: list[str], root: str, day: str, links: list[str]) -> list[str]:
+    """Today's copy from `paths`, linking to the files of the copies `links` that did not change."""
     return [
         "rsync", "-rt", "--delete", *[f"--exclude={p}" for p in SKIP], "-e", " ".join(ssh),
-        *([f"--link-dest={root}/{previous}"] if previous else []),
+        *[f"--link-dest={root}/{d}" for d in links],
         *map(str, paths), f"{host}:{root}/{day}/",
     ]  # fmt: skip
 
 
 def backup(match: Path, day: str | None = None, root: str = ROOT) -> None:
-    """Copies `match` to the server of its publish.json; raises what went wrong."""
-    host, ssh = connection(json.loads((match / matches.PUBLISH).read_text()))
+    """Copies `match` and what sits beside it to the server of its publish.json; raises what went wrong."""
+    copy(sources(match), json.loads((match / matches.PUBLISH).read_text()), match.name, day, root)
+
+
+def backup_shared(outputs: Path, config: dict, day: str | None = None, root: str = ROOT) -> None:
+    """Copies what sits beside the matches to the server of `config` (`upload`, `key`): no match needs to be open."""
+    copy(shared(outputs), config, None, day, root)
+
+
+def copy(paths: list[Path], config: dict, name: str | None, day: str | None, root: str) -> None:
+    """`paths` copied into the day's copy, the match `name` among them, linking to the day before and to that match's
+    last copy; then the copies past KEEP removed."""
+    host, ssh = connection(config)
     day = day or time.strftime("%Y-%m-%d")
 
     def remote(command: str) -> str:
         return subprocess.run([*ssh, host, command], check=True, capture_output=True, text=True, timeout=60).stdout
 
     # Only root reads the folder: it holds real names and pictures.
-    found = remote(f"mkdir -p {root} && chmod 700 {root} && df -Pk {root} | tail -1 && ls -1 {root}").splitlines()
+    found = remote(f"mkdir -p {root} && chmod 700 {root} && df -Pk {root} | tail -1 && cd {root} && ls -1d */ */*/source.json 2>/dev/null; true").splitlines()
     free_gb = int(found[0].split()[3]) / 1024**2
     if free_gb < MIN_FREE_GB:
         raise RuntimeError(f"only {free_gb:.1f} GB free on the server")
-    days = sorted(d for d in found[1:] if DAY.fullmatch(d))
-    previous = next((d for d in reversed(days) if d != day), None)
-    run = subprocess.run(rsync_command(sources(match), host, ssh, root, day, previous), capture_output=True, text=True, timeout=TIMEOUT_S)
+    days = held("\n".join(found[1:]))
+    before = [d for d in sorted(days) if d != day]
+    links = list(dict.fromkeys([*before[-1:], *[d for d in before if name in days[d]][-1:]]))
+    run = subprocess.run(rsync_command(paths, host, ssh, root, day, links), capture_output=True, text=True, timeout=TIMEOUT_S)
     if run.returncode not in (0, VANISHED) and not vanished(run.stderr):
         raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
-    old = stale(sorted({*days, day}))
+    days.setdefault(day, set()).update([name] if name else [])
+    old = stale(days)
     if old:
         remote("rm -rf " + " ".join(f"{root}/{d}" for d in old))
 
