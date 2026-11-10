@@ -1324,6 +1324,7 @@
       "copying": "Synchronisation…",
       "joinTitle": "L'autre ordinateur attend déjà ?",
       "thereWait": "Sur l'autre ordinateur, ouvrez « {{open}} » et cliquez sur « {{wait}} ».",
+      "otherSystem": "L'autre ordinateur doit être un Mac ou sous Linux.",
       "hereJoin": "Entrez ici l'adresse et le code qu'il affiche :",
       "thereJoin": "Sur l'autre ordinateur, ouvrez « {{open}} » et entrez l'adresse et le code qui s'afficheront ici.",
       "join": "Rejoindre",

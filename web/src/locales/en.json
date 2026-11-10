@@ -1324,6 +1324,7 @@
       "copying": "Syncing…",
       "joinTitle": "Is the other computer already waiting?",
       "thereWait": "On the other computer, open “{{open}}” and click “{{wait}}”.",
+      "otherSystem": "The other computer must be a Mac or run Linux.",
       "hereJoin": "Enter here the address and code it shows:",
       "thereJoin": "On the other computer, open “{{open}}” and enter the address and code that will show here.",
       "join": "Join",

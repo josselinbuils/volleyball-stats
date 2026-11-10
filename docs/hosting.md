@@ -115,7 +115,7 @@ server's set aside first in `aside/<time>-v<version>/` beside the dated copies (
 on the server ("À télécharger"), asked once the page shows (`/matches/remote.json`: the ssh round trip takes a second). A pull also brings the courts, lens, club and sponsors this machine lacks, and the roster is joined,
 each match's names from this machine where its copy is not behind the server's. By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all |
 push outputs/matches/MATCH`; a machine with no match yet first sets the server in the Serveur tab (the key copied there). The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting:
-the Mac, WSL2 being unreachable from outside), never through the server.
+the Mac, WSL2 being unreachable from outside: two Windows PCs cannot sync, the dialog says so on Windows), never through the server.
 
 Uploads with two machines: never an older version online. A match whose server copy is newer than this machine's is left as it is
 online (`sync.behind`: "Mettre à jour" refuses it, the update of every match skips it; on 8 Nov the PC's put the first match's

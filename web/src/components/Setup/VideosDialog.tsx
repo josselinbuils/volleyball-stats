@@ -22,7 +22,8 @@ function Step({ n, children }: { n: number; children: ReactNode }) {
 
 /** The videos copied straight between this machine and the other one on the same network (data_sync.py): one waits and
  * shows an address and a code, the other types them. Each gets the videos only the other has. WSL2 cannot be reached from
- * the network: there it only joins, and the steps say to wait on the other machine. */
+ * the network: there it only joins, and the steps say to wait on the other machine, which must be a Mac or Linux:
+ * two Windows PCs cannot sync (ponytail: a PowerShell relay on the Windows side would let WSL wait). */
 export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJob | null; system: AppState['system']; onChange: () => Promise<void>; onClose: () => void }) {
   const { t } = useTranslation();
   const [address, setAddress] = useState('');
@@ -101,6 +102,7 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
               <ol className="grid gap-4">
                 <Step n={1}>
                   <p>{t('app.videos.thereWait', { open: t('app.videos.open'), wait: t('app.videos.wait') })}</p>
+                  <p className="text-muted-foreground">{t('app.videos.otherSystem')}</p>
                 </Step>
                 <Step n={2}>
                   <p>{t('app.videos.hereJoin')}</p>
