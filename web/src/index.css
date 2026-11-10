@@ -1,12 +1,12 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 /* index.html sets .dark on <html> before the first paint, from the saved theme or the system's. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-heading: var(--font-sans);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -129,6 +129,8 @@
   html {
     @apply font-sans;
     -webkit-text-size-adjust: 100%;
+    /* The scrollbar's room kept: the page keeps its width from a short tab to a long one. */
+    scrollbar-gutter: stable;
   }
   body {
     @apply bg-background text-foreground antialiased;
