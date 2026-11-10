@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, Palette, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
+import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, RefreshCw, Shield, Sparkles, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -262,7 +262,7 @@ export function ReviewHeader({
               )}
               {(end || shared) && <DropdownMenuSeparator />}
               <DropdownMenuItem onSelect={() => setBranding(true)}>
-                <Palette aria-hidden />
+                <Shield aria-hidden />
                 {t('app.brand.open')}
               </DropdownMenuItem>
               {backup && (

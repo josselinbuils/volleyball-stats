@@ -59,8 +59,9 @@ class TestBranding:
     def test_starts_from_a_preset_or_none(self, tmp_path):
         folder = tmp_path / "brand"
         preset = branding.presets()[0]["id"]
+        branding.save({"name": "Club", "accent": "#e30613", "header": "#111111", "teams": ["A 1"]}, folder)
         branding.use(preset, folder)
-        assert branding.read(folder)["name"] == branding.presets()[0]["name"]
+        assert (branding.read(folder)["name"], branding.read(folder)["teams"]) == (branding.presets()[0]["name"], ["A 1"])
         branding.use("none", folder)
         assert branding.read(folder) is None
         with pytest.raises(LookupError):

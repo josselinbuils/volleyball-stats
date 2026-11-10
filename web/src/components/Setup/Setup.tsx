@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Download, FolderInput, Palette, Stethoscope, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, Download, FolderInput, Shield, Stethoscope, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -99,7 +99,7 @@ export function Setup() {
           {t('app.videos.open')}
         </Button>
         <Button variant="outline" className="bg-card" onClick={() => setDialog('brand')}>
-          <Palette aria-hidden />
+          <Shield aria-hidden />
           {t('app.brand.open')}
         </Button>
         <Button variant="outline" className="bg-card" onClick={() => setDialog('doctor')}>

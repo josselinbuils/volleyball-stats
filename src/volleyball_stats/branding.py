@@ -132,12 +132,16 @@ def save(body: dict, folder: Path = BRAND) -> None:
 
 
 def use(preset: str, folder: Path = BRAND) -> None:
-    """A theme of branding/ as the club's, its sponsors too; "none" for no branding."""
+    """A theme of branding/ as the club's, its sponsors too, the club's teams kept; "none" for no branding."""
     if preset != "none" and preset not in {p["id"] for p in presets()}:
         raise LookupError(preset)
+    teams = (read(folder) or {}).get("teams")
     shutil.rmtree(folder, ignore_errors=True)
     if preset != "none":
         shutil.copytree(PRESETS / preset, folder)
+        if teams is not None:
+            data = json.loads((folder / "brand.json").read_text())
+            files.write_text(folder / "brand.json", json.dumps({**data, "teams": teams}, indent=2, ensure_ascii=False) + "\n")
 
 
 def file(rel: str, folder: Path = BRAND) -> Path | None:

@@ -103,6 +103,6 @@ run would delete another match's page. The mirror brings the films too: a match 
 machine, not pulled since) takes those online, names from the page (`matches.adopt_films`), so its rebuild keeps them; an upload
 that would still delete them refuses (the upload of 8 Nov from the PC took them offline).
 
-The club's branding, sponsors included, is the app's "Habillage du club" (`branding.py`), in `outputs/brand/`: off
+The club's branding, sponsors included, is the app's "Club" dialog (`branding.py`), in `outputs/brand/`: off
 GitHub, each machine its own (set the other one alike, e.g. from the same theme). The hosted pages' build reads it
 from this machine.

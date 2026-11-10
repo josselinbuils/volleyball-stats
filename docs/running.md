@@ -13,7 +13,7 @@
   after a restart, a reused number is no job. Under WSL2 the import lists Windows' drives, a card plugged in after WSL
   started mounted when picked (`wsl.exe -u root mount -t drvfs`, no password), and the Windows downloads. A second start
   only opens the page.
-  "Habillage du club" (on the list and in the review's "..." menu, `branding.py`) edits the one branding every page
+  "Club" (on the list and in the review's "..." menu, `branding.py`) edits the one branding every page
   shows; saved from a review, that match's pages are rebuilt at once, the others at their next build.
 - Every `python -m volleyball_stats.X` command fetches in the background and warns when the branch is behind its remote
   (`git_check.py`; once per command, not in the ones it starts). The review and its list say it too, with "Mettre à
