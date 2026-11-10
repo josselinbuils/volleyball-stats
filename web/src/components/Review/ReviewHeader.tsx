@@ -146,7 +146,7 @@ export function ReviewHeader({
         <span className={cn('inline-flex items-center gap-1.5', backup.error && !backingUp && 'text-destructive')}>
           {backingUp ? t('review.backingUp') : backup.error ? t(backup.auto ? 'review.backupFailed' : 'review.backupFailedOnce', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
           {backup.error && onBackup && (
-            <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={backingUp} onClick={onBackup}>
+            <Button variant="outline" size="sm" className="ml-1.5 bg-card" busy={backingUp} onClick={onBackup}>
               <RefreshCw aria-hidden />
               {t('review.backupRetry')}
             </Button>
@@ -182,7 +182,7 @@ export function ReviewHeader({
                 ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at })
                 : t('review.hosted', { at: hosted.at })}
           {(hosted.behind || hosted.error) && (
-            <Button variant="outline" size="sm" className="ml-1.5 bg-card" disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
+            <Button variant="outline" size="sm" className="ml-1.5 bg-card" busy={busy === 'host'} disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
               <CloudUpload aria-hidden />
               {busy === 'host' ? t('review.hosting') : t('review.host')}
             </Button>
@@ -209,7 +209,14 @@ export function ReviewHeader({
         </div>
         <div className="flex items-center gap-2">
           <Tip label={t('review.undo')}>
-            <Button variant="ghost" size="icon" aria-label={busy === 'undo' ? t('review.undoing') : t('review.undo')} disabled={!answered || busy !== null} onClick={() => run('undo')}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={busy === 'undo' ? t('review.undoing') : t('review.undo')}
+              busy={busy === 'undo'}
+              disabled={!answered || busy !== null}
+              onClick={() => run('undo')}
+            >
               <Undo2 aria-hidden />
             </Button>
           </Tip>
@@ -281,7 +288,7 @@ export function ReviewHeader({
             </DropdownMenuContent>
           </DropdownMenu>
           {toApply || busy === 'apply' ? (
-            <Button disabled={busy !== null} onClick={() => run('apply')}>
+            <Button busy={busy === 'apply'} disabled={busy !== null} onClick={() => run('apply')}>
               <Check aria-hidden />
               {busy === 'apply'
                 ? t('review.applying')

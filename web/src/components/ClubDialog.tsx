@@ -6,6 +6,7 @@ import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxCont
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
+import { useRunning, reloading } from '@/hooks/useRunning';
 import { clubFile, guessTeams, shrink, type ClubForm, type ClubState } from '@/components/helpers/club';
 
 const NEW: ClubForm = { name: '', url: '', accent: '#1f6bc4', header: '#111111', logo: null, sponsors: [], teams: null };
@@ -99,7 +100,8 @@ export function ClubDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const [state, setState] = useState<ClubState | null>(null);
   const [form, setForm] = useState<ClubForm>(NEW);
-  const [saving, setSaving] = useState(false);
+  // The theme being applied, or the form being saved.
+  const [saving, run] = useRunning();
   const [error, setError] = useState(false);
   const load = (found: ClubState['club'], played: string[]) =>
     setForm(
@@ -117,21 +119,19 @@ export function ClubDialog({ onClose }: { onClose: () => void }) {
   }, []);
   const set = (change: Partial<ClubForm>) => setForm((f) => ({ ...f, ...change }));
   const setSponsor = (k: number, change: Partial<ClubForm['sponsors'][number]>) => set({ sponsors: form.sponsors.map((s, j) => (j === k ? { ...s, ...change } : s)) });
-  const done = async (path: string, body: object) => {
-    setSaving(true);
-    setError(false);
-    const r = await call(path, body);
-    setSaving(false);
-    if (r.ok) {
-      // The list shows the club as it now is.
-      location.reload();
-    } else {
+  const done = (key: string, path: string, body: object) =>
+    run(key, async () => {
+      setError(false);
+      const r = await call(path, body);
+      if (r.ok) {
+        // The list shows the club as it now is.
+        await reloading();
+      }
       setError(true);
-    }
-  };
+    });
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void done('club', {
+    void done('save', 'club', {
       ...form,
       url: form.url.trim(),
       // A picture kept goes back by its file's name.
@@ -159,11 +159,11 @@ export function ClubDialog({ onClose }: { onClose: () => void }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground">{t('app.club.from')}</span>
             {state.themes.map((p) => (
-              <Button key={p.id} size="sm" variant="outline" disabled={saving} onClick={() => void done('club/theme', { id: p.id })}>
+              <Button key={p.id} size="sm" variant="outline" busy={saving === `theme:${p.id}`} disabled={!!saving} onClick={() => void done(`theme:${p.id}`, 'club/theme', { id: p.id })}>
                 {p.name}
               </Button>
             ))}
-            <Button size="sm" variant="outline" disabled={saving} onClick={() => void done('club/theme', { id: 'none' })}>
+            <Button size="sm" variant="outline" busy={saving === 'none'} disabled={!!saving} onClick={() => void done('none', 'club/theme', { id: 'none' })}>
               {t('app.club.none')}
             </Button>
           </div>
@@ -227,7 +227,7 @@ export function ClubDialog({ onClose }: { onClose: () => void }) {
               {t('app.club.addSponsor')}
             </Button>
           </fieldset>
-          <Button type="submit" disabled={!ready || saving}>
+          <Button type="submit" busy={saving === 'save'} disabled={!ready || !!saving}>
             {t('app.club.save')}
           </Button>
         </form>

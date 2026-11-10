@@ -109,9 +109,9 @@ export function VideoChoice() {
           </p>
         )}
         <div className="grid gap-2">
-          <Button type="submit" disabled={!password || state === 'checking'}>
+          <Button type="submit" busy={state === 'checking'} disabled={!password}>
             <Lock aria-hidden />
-            {t(state === 'checking' ? 'videoChoice.checking' : 'videoChoice.video')}
+            {t('videoChoice.video')}
           </Button>
           <Button type="button" variant="outline" className="bg-card" onClick={stay}>
             {t('videoChoice.without')}

@@ -3,6 +3,7 @@ import { ArrowLeftRight, Download, FolderInput, Shield, Stethoscope, TriangleAle
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { useRunning } from '@/hooks/useRunning';
 import { ClubDialog } from '@/components/ClubDialog';
 import { Doctor, checkText } from './Doctor';
 import { ImportDialog } from './ImportDialog';
@@ -62,6 +63,7 @@ export function Setup() {
   }, [state]);
   // Models downloaded: their check passes.
   const modelsRunning = !!state?.models?.running;
+  const [starting, run] = useRunning();
   useEffect(() => {
     if (!modelsRunning) {
       void recheck();
@@ -80,7 +82,7 @@ export function Setup() {
             <span>{checkText(t, check)}</span>
             {check.command && <code className="w-fit rounded-md bg-muted px-2 py-1 font-mono text-xs select-all">{check.command}</code>}
             {check.id === 'models' && (
-              <Button size="sm" variant="outline" className="w-fit bg-card" disabled={modelsRunning} onClick={() => void call('models', {}).then(refresh)}>
+              <Button size="sm" variant="outline" className="w-fit bg-card" busy={modelsRunning || !!starting} onClick={() => void run('models', () => call('models', {}).then(refresh))}>
                 <Download aria-hidden />
                 {modelsRunning ? t('app.doctor.downloading') : t('app.doctor.download')}
               </Button>

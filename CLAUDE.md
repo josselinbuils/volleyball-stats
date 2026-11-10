@@ -40,6 +40,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - Spacing in `web/`: the design system's values only, and coherent: mirror what the neighbouring elements use.
 - Anything loaded after the page shows (a fetch, a server's answer, a lazy part) has a placeholder or a loader
   while it comes: never an empty space that fills in later.
+- A button starting an async action is disabled with a loader inside while it runs (`Button`'s `busy`, `useRunning`),
+  the buttons beside it that would start another disabled too.
 - Tooltips in `web/`: `Tip` only, never a `title` (one look everywhere, full screen included; `Tip.test.ts` checks).
 - The page's build is committed in `src/volleyball_stats/site/`: after any `web/` change run
   `npm run build` in `web/` and commit the build with it. It makes the page, `scene3d.js` (three.js)

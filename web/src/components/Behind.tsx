@@ -45,8 +45,8 @@ export function Behind() {
         <TriangleAlert aria-hidden />
         <AlertDescription className="grid gap-2">
           <span>{t('review.behind', { count: behind })}</span>
-          <Button size="sm" variant="outline" className="w-fit bg-card" disabled={updating} onClick={() => void update()}>
-            <RefreshCw aria-hidden className={updating ? 'animate-spin' : undefined} />
+          <Button size="sm" variant="outline" className="w-fit bg-card" busy={updating} onClick={() => void update()}>
+            <RefreshCw aria-hidden />
             {updating ? t('review.updating') : t('review.update')}
           </Button>
           {error && <span className="text-destructive">{error}</span>}

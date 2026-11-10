@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, PenLine, Scissors, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, LoaderCircle, PenLine, Scissors, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -332,9 +332,12 @@ export function Review({
 
   // An answer on a piece earlier answers give to another player, to settle.
   const [conflict, setConflict] = useState<{ names: string[]; choice: string; extra: object } | null>(null);
+  // The answer being sent: its button shows a loader, and no other answer goes until it is saved.
+  const [answering, setAnswering] = useState<string | null>(null);
+  const sending = useRef(false);
   const answer = useCallback(
     async (choice: string, extra: object = {}) => {
-      if (!question) {
+      if (!question || sending.current) {
         return;
       }
       // A cut falls where the clip stands when asked, playing or paused, inside the outlined piece.
@@ -343,6 +346,8 @@ export function Review({
         setNotice(t('review.cutWhere'));
         return;
       }
+      sending.current = true;
+      setAnswering(choice);
       try {
         const saved = await post('answer', { id: question.id, choice, ...extra, ...(choice === 'cut' ? { at } : {}) });
         if (saved.cancelled) {
@@ -362,6 +367,9 @@ export function Review({
         setError(false);
       } catch {
         setError(true);
+      } finally {
+        sending.current = false;
+        setAnswering(null);
       }
     },
     [question, t],
@@ -565,7 +573,7 @@ export function Review({
           />
         )}
         {tab === 'progress' ? (
-          <Progress runs={learning} comparison={comparison} reviewed={reviewed} busy={busy !== null} onLearn={() => void reload('rerun')} />
+          <Progress runs={learning} comparison={comparison} reviewed={reviewed} busy={busy !== null} learning={busy === 'rerun'} onLearn={() => void reload('rerun')} />
         ) : tab === 'names' ? (
           <Names
             players={players}
@@ -667,9 +675,9 @@ export function Review({
               <div className="grid gap-3">
                 {question.kind === 'rally' ? (
                   <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                    <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" onClick={() => void answer('rally')} />
-                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                    <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" choice={'rally'} answering={answering} onAnswer={(c) => void answer(c)} />
+                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" choice={'not_play'} answering={answering} onAnswer={(c) => void answer(c)} />
+                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
                   </div>
                 ) : question.kind === 'touch' ? (
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
@@ -678,19 +686,28 @@ export function Review({
                         icon={<Check aria-hidden />}
                         label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
                         hint="1"
-                        onClick={() => void answer(`player:${question.team}:${question.proposed}`)}
+                        choice={`player:${question.team}:${question.proposed}`}
+                        answering={answering}
+                        onAnswer={(c) => void answer(c)}
                       />
                     )}
-                    <AnswerButton icon={<CircleOff aria-hidden />} label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')} hint="X" onClick={() => void answer('nobody')} />
-                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" onClick={() => void answer('not_play')} />
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                    <AnswerButton
+                      icon={<CircleOff aria-hidden />}
+                      label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')}
+                      hint="X"
+                      choice={'nobody'}
+                      answering={answering}
+                      onAnswer={(c) => void answer(c)}
+                    />
+                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" choice={'not_play'} answering={answering} onAnswer={(c) => void answer(c)} />
+                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
                   </div>
                 ) : question.kind === 'piece' ? (
                   <div className="grid gap-3">
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" onClick={() => void answer('not_player')} />
-                      <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" onClick={() => void answer('cut')} />
-                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                      <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" choice={'not_player'} answering={answering} onAnswer={(c) => void answer(c)} />
+                      <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" choice={'cut'} answering={answering} onAnswer={(c) => void answer(c)} />
+                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
                     </div>
                     <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
                   </div>
@@ -711,9 +728,9 @@ export function Review({
                       </div>
                     ))}
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" onClick={() => void answer('same')} />
-                      <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" onClick={() => void answer('different')} />
-                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" onClick={() => void answer('skip')} />
+                      <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" choice={'same'} answering={answering} onAnswer={(c) => void answer(c)} />
+                      <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" choice={'different'} answering={answering} onAnswer={(c) => void answer(c)} />
+                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
                     </div>
                   </>
                 )}
@@ -739,11 +756,26 @@ export function Review({
   );
 }
 
-function AnswerButton({ icon, label, hint, onClick }: { icon: React.ReactNode; label: string; hint: string; onClick: () => void }) {
+/** An answer's button: a loader in place of its icon while it is sent, every answer waiting meanwhile. */
+function AnswerButton({
+  icon,
+  label,
+  hint,
+  choice,
+  answering,
+  onAnswer,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  choice: string;
+  answering: string | null;
+  onAnswer: (choice: string) => void;
+}) {
   return (
-    <Button variant="outline" className="justify-between bg-card" onClick={onClick}>
+    <Button variant="outline" className="justify-between bg-card" disabled={answering !== null} onClick={() => onAnswer(choice)}>
       <span className="inline-flex items-center gap-2">
-        {icon}
+        {answering === choice ? <LoaderCircle aria-hidden className="animate-spin" /> : icon}
         {label}
       </span>
       <kbd className="rounded border px-1.5 text-xs text-muted-foreground">{hint}</kbd>

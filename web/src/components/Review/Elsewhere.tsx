@@ -8,10 +8,11 @@ import type { Claim } from '@/lib/review';
 /** The match changed here and on another machine since this one's copy: the owner keeps one, the other stays saved. */
 export function Elsewhere({ claim: { machine, at }, onKept }: { claim: Claim; onKept: () => void }) {
   const { t } = useTranslation();
-  const [working, setWorking] = useState(false);
+  // The copy being kept: its button shows a loader, the other waits.
+  const [working, setWorking] = useState<'take' | 'keep' | null>(null);
   const [failed, setFailed] = useState(false);
   const keep = async (which: 'take' | 'keep') => {
-    setWorking(true);
+    setWorking(which);
     setFailed(false);
     try {
       const response = await fetch(`sync/${which}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -23,11 +24,11 @@ export function Elsewhere({ claim: { machine, at }, onKept }: { claim: Claim; on
         await restarted();
       } else {
         onKept();
-        setWorking(false);
+        setWorking(null);
       }
     } catch {
       setFailed(true);
-      setWorking(false);
+      setWorking(null);
     }
   };
 
@@ -44,11 +45,11 @@ export function Elsewhere({ claim: { machine, at }, onKept }: { claim: Claim; on
           </p>
         )}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" disabled={working} onClick={() => void keep('take')}>
-            {working ? t('sync.working') : t('sync.theirs', { machine })}
+          <Button variant="outline" busy={working === 'take'} disabled={!!working} onClick={() => void keep('take')}>
+            {t('sync.theirs', { machine })}
           </Button>
-          <Button disabled={working} onClick={() => void keep('keep')}>
-            {working ? t('sync.working') : t('sync.mine')}
+          <Button busy={working === 'keep'} disabled={!!working} onClick={() => void keep('keep')}>
+            {t('sync.mine')}
           </Button>
         </div>
       </DialogContent>

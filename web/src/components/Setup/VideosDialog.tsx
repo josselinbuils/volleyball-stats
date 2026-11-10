@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Radio, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
@@ -14,11 +15,13 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
   const [address, setAddress] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState(false);
-  const act = async (path: string, body: object = {}) => {
-    const r = await call(path, body);
-    setError(!r.ok);
-    await onChange();
-  };
+  const [doing, run] = useRunning();
+  const act = (path: string, body: object = {}) =>
+    run(path, async () => {
+      const r = await call(path, body);
+      setError(!r.ok);
+      await onChange();
+    });
   const join = (event: FormEvent) => {
     event.preventDefault();
     void act('videos/join', { address: address.trim(), code: code.trim() });
@@ -49,7 +52,7 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
             ) : (
               <p>{t('app.videos.copying')}</p>
             )}
-            <Button variant="outline" className="w-fit" onClick={() => void act('stop', { id: job.id })}>
+            <Button variant="outline" className="w-fit" busy={doing === 'stop'} onClick={() => void act('stop', { id: job.id })}>
               <Square aria-hidden />
               {t('app.stop')}
             </Button>
@@ -58,7 +61,7 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
           <div className="grid gap-4">
             {ended && <p className={job.failed ? 'text-destructive' : undefined}>{job.failed ? t('app.videos.failed', { error: job.error ?? '' }) : t('app.videos.done')}</p>}
             {system !== 'wsl' && (
-              <Button className="w-fit" onClick={() => void act('videos/wait')}>
+              <Button className="w-fit" busy={doing === 'videos/wait'} disabled={!!doing} onClick={() => void act('videos/wait')}>
                 <Radio aria-hidden />
                 {t('app.videos.wait')}
               </Button>
@@ -75,7 +78,7 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
                 />
                 <input aria-label={t('app.videos.code')} placeholder={t('app.videos.code')} value={code} onChange={(e) => setCode(e.target.value)} className={cn(INPUT, 'w-32 font-mono text-sm')} />
               </div>
-              <Button type="submit" variant="outline" className="w-fit" disabled={!/^[\w.-]+:\d+$/.test(address.trim()) || !code.trim()}>
+              <Button type="submit" variant="outline" className="w-fit" busy={doing === 'videos/join'} disabled={!/^[\w.-]+:\d+$/.test(address.trim()) || !code.trim() || !!doing}>
                 <Link aria-hidden />
                 {t('app.videos.join')}
               </Button>

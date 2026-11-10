@@ -743,7 +743,6 @@
     "whichNoTime": "Laquelle garder ? L'autre reste sauvegardée.",
     "theirs": "Celle de {{machine}}",
     "mine": "Celle d'ici",
-    "working": "Copie…",
     "failed": "Échec : réessayez."
   },
   "season": {
@@ -876,7 +875,6 @@
     "video": "Voir avec la vidéo",
     "without": "Sans la vidéo",
     "password": "Mot de passe",
-    "checking": "Vérification…",
     "wrong": "Mot de passe incorrect.",
     "changed": "Le mot de passe a changé : entrez le nouveau."
   },
@@ -1242,6 +1240,7 @@
       "card": "Carte {{name}}",
       "path": "Ou un dossier, une vidéo",
       "look": "Chercher",
+      "finding": "Recherche des cartes et dossiers…",
       "scanning": "Lecture des vidéos…",
       "noFolder": "Dossier introuvable.",
       "noVideo": "Aucune vidéo ici.",

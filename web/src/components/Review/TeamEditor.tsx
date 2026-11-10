@@ -52,8 +52,8 @@ export function TeamEditor({ g, onError }: { g: Group; onError: () => void }) {
         className="h-8 w-52 max-w-full rounded-md border border-input bg-card px-2 text-lg font-semibold shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       />
       {changed && (
-        <Button type="submit" size="sm" disabled={saving}>
-          {t(saving ? 'review.saving' : 'review.saveTeam')}
+        <Button type="submit" size="sm" busy={saving}>
+          {t('review.saveTeam')}
         </Button>
       )}
     </form>

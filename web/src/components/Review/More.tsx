@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Images, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useRunning } from '@/hooks/useRunning';
 import { ofName } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { lookAlikes, pieceKey, post, type Found, type Named, type Saved } from '@/lib/review';
@@ -25,6 +26,7 @@ export function More({ player, label, onSaved, onError }: { player: Named; label
       onError();
     }
   };
+  const [sending, run] = useRunning();
   const confirm = async () => {
     if (!pieces?.length) {
       return;
@@ -105,7 +107,7 @@ export function More({ player, label, onSaved, onError }: { player: Named; label
             <Button variant="outline" onClick={() => dialog.current?.close()}>
               {t('review.moreClose')}
             </Button>
-            <Button disabled={!pieces?.length} onClick={() => void confirm()}>
+            <Button busy={!!sending} disabled={!pieces?.length} onClick={() => void run('more', confirm)}>
               {t('review.moreConfirm')}
             </Button>
           </div>

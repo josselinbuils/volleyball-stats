@@ -162,7 +162,7 @@ export function MatchTab({
             onPlay={(at) => go(at - REPORT_LEAD_S, true)}
             onPause={(at) => go(at, false)}
             onSave={(changes, rally, onward) =>
-              void onSave(changes, rally).then(() => {
+              onSave(changes, rally).then(() => {
                 setRound((r) => r + 1);
                 const k = rallies.findIndex((r) => (r.key ?? Math.round(r.start * match.fps)) === rally);
                 if (onward && k >= 0 && rallies[k + 1]) {
@@ -170,10 +170,10 @@ export function MatchTab({
                 }
               })
             }
-            onSaveUnchecked={(changes, rally) => void onSaveUnchecked(changes, rally).then(() => setRound((r) => r + 1))}
+            onSaveUnchecked={(changes, rally) => onSaveUnchecked(changes, rally).then(() => setRound((r) => r + 1))}
             green={green}
             checked={new Set(checked)}
-            onUncheck={(rally) => void onUncheck(rally)}
+            onUncheck={(rally) => onUncheck(rally)}
             onCaption={setCaption}
             questions={reports}
             onHandled={(q, changes) => void onHandled(q, changes).then(() => setRound((r) => r + 1))}

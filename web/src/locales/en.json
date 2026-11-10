@@ -743,7 +743,6 @@
     "whichNoTime": "Which one to keep? The other stays saved.",
     "theirs": "{{machine}}'s",
     "mine": "This one",
-    "working": "Copying…",
     "failed": "Failed: try again."
   },
   "season": {
@@ -876,7 +875,6 @@
     "video": "See with the video",
     "without": "Without the video",
     "password": "Password",
-    "checking": "Checking…",
     "wrong": "Wrong password.",
     "changed": "The password changed: enter the new one."
   },
@@ -1242,6 +1240,7 @@
       "card": "Card {{name}}",
       "path": "Or a folder, a video",
       "look": "Look",
+      "finding": "Looking for cards and folders…",
       "scanning": "Reading the videos…",
       "noFolder": "Folder not found.",
       "noVideo": "No video here.",

@@ -147,8 +147,8 @@ export function Feedback({ inline = false }: { inline?: boolean }) {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" size="sm" disabled={state === 'sending'}>
-                {t(state === 'sending' ? 'feedback.sending' : 'feedback.send')}
+              <Button type="submit" size="sm" busy={state === 'sending'}>
+                {t('feedback.send')}
               </Button>
               <DialogClose asChild>
                 <Button type="button" variant="outline" size="sm" className="bg-card">

@@ -58,7 +58,22 @@ const PAD = 6;
  * answers of all the matches over the analysis runs (learn.json, each counting every match so far):
  * the last run, its change since the one before and a curve of every run, then a table of all of them;
  * above them the button making a new run (`onLearn`), `reviewed` saying it leaves the match as it is. */
-export function Progress({ runs, comparison, reviewed, busy, onLearn }: { runs: LearnRun[]; comparison: Comparison | null; reviewed: boolean; busy: boolean; onLearn: () => void }) {
+export function Progress({
+  runs,
+  comparison,
+  reviewed,
+  busy,
+  learning,
+  onLearn,
+}: {
+  runs: LearnRun[];
+  comparison: Comparison | null;
+  reviewed: boolean;
+  busy: boolean;
+  /** The learning asked here runs. */
+  learning: boolean;
+  onLearn: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
   const stamp = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -67,7 +82,17 @@ export function Progress({ runs, comparison, reviewed, busy, onLearn }: { runs: 
 
   const learn = (
     <Tip label={t(reviewed ? 'review.rerunNoteReviewed' : 'review.rerunNote')}>
-      <Button variant="outline" className="justify-self-start bg-card" disabled={busy} onClick={() => window.confirm(t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm')) && onLearn()}>
+      <Button
+        variant="outline"
+        className="justify-self-start bg-card"
+        busy={learning}
+        disabled={busy}
+        onClick={() => {
+          if (window.confirm(t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm'))) {
+            onLearn();
+          }
+        }}
+      >
         <RefreshCw aria-hidden />
         {t('review.rerun')}
       </Button>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { HardDrive, Folder, Search } from 'lucide-react';
+import { HardDrive, Folder, LoaderCircle, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -21,7 +21,8 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   const f = useFormat();
   const [sources, setSources] = useState<Source[] | null>(null);
   const [path, setPath] = useState('');
-  const [scanning, setScanning] = useState(false);
+  // The folder being read: a listed one's path, or the one typed.
+  const [scanning, setScanning] = useState<string | null>(null);
   const [found, setFound] = useState<{ source: string; recordings: Recording[] } | null>(null);
   const [recording, setRecording] = useState(0);
   const [teams, setTeams] = useState<[TeamField, TeamField]>([
@@ -52,20 +53,20 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
     const [key, values] = importError(error);
     setError(t(key, values));
   };
-  const scan = async (source: string, drive?: string) => {
+  const scan = async (source: string, drive?: string, from = source) => {
     setPath(source);
-    setScanning(true);
+    setScanning(from);
     setError(null);
     setFound(null);
     // A Windows drive is mounted first (WSL2).
     const mounted = drive ? await call('mount', { drive }) : null;
     if (mounted && !mounted.ok) {
-      setScanning(false);
+      setScanning(null);
       refuse(mounted.error);
       return;
     }
     const r = await call<{ source: string; recordings: Recording[] }>('scan', { source });
-    setScanning(false);
+    setScanning(null);
     if (!r.ok) {
       refuse(r.error);
       return;
@@ -108,8 +109,21 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
           <DialogDescription>{t('app.import.where')}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
+          {!sources && (
+            <p role="status" className="flex items-center gap-2 text-muted-foreground">
+              <LoaderCircle aria-hidden className="size-4 animate-spin" />
+              {t('app.import.finding')}
+            </p>
+          )}
           {sources?.map((source) => (
-            <Button key={source.path} variant={path === source.path ? 'secondary' : 'outline'} className="justify-start" onClick={() => void scan(source.path, source.drive)}>
+            <Button
+              key={source.path}
+              variant={path === source.path ? 'secondary' : 'outline'}
+              className="justify-start"
+              busy={scanning === source.path}
+              disabled={!!scanning}
+              onClick={() => void scan(source.path, source.drive)}
+            >
               {source.card ? <HardDrive aria-hidden /> : <Folder aria-hidden />}
               <span className="truncate">{source.card ? t('app.import.card', { name: source.name }) : source.name}</span>
             </Button>
@@ -119,17 +133,17 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
             onSubmit={(event) => {
               event.preventDefault();
               if (path.trim()) {
-                void scan(path.trim());
+                void scan(path.trim(), undefined, 'typed');
               }
             }}
           >
             <input aria-label={t('app.import.path')} placeholder={t('app.import.path')} value={path} onChange={(e) => setPath(e.target.value)} className={cn(INPUT, 'min-w-0 flex-1 text-sm')} />
-            <Button type="submit" variant="outline" disabled={!path.trim() || scanning}>
+            <Button type="submit" variant="outline" busy={scanning === 'typed'} disabled={!path.trim() || !!scanning}>
               <Search aria-hidden />
               {t('app.import.look')}
             </Button>
           </form>
-          {scanning && <p className="text-muted-foreground">{t('app.import.scanning')}</p>}
+          {!!scanning && <p className="text-muted-foreground">{t('app.import.scanning')}</p>}
         </div>
         {found && (
           <form onSubmit={submit} className="grid gap-4">
@@ -197,7 +211,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
                 ))}
               </div>
             </details>
-            <Button type="submit" disabled={!ready || sending}>
+            <Button type="submit" busy={sending} disabled={!ready}>
               {t('app.import.start')}
             </Button>
           </form>

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tip } from '@/components/Tip';
 import { INPUT, call } from '@/lib/app';
 import { useFormat } from '@/lib/format';
+import { useRunning } from '@/hooks/useRunning';
 import type { Job } from '@/components/Setup/helpers/setup';
 
 /** The hosting server as server.py reads it. */
@@ -89,6 +90,9 @@ export function ServerTab() {
   // A removal waiting for its confirmation: one copy, or those a new count removes.
   const [confirm, setConfirm] = useState<{ day: string } | { keep: number; removes: string[] } | null>(null);
   const [copiesError, setCopiesError] = useState(false);
+  // The action running: saving, testing, starting a job, switching the automatic copies, a count or a copy removed.
+  const [doing, run] = useRunning();
+  const removing = doing === 'keep' || !!doing?.startsWith('delete:');
   const refresh = useCallback(async () => {
     const r = await call<ServerState>('server');
     if (r.ok) {
@@ -134,37 +138,43 @@ export function ServerTab() {
     backingUp.current = now;
   }, [state?.backup?.running, listCopies]);
 
-  const save = async (event: FormEvent) => {
+  const save = (event: FormEvent) => {
     event.preventDefault();
-    const r = await call<ServerState>('server', form);
-    if (r.ok) {
-      setState(r);
-      setForm(r.server ?? EMPTY);
-    }
-    setNote({ ok: r.ok, text: t(r.ok ? 'server.saved' : 'server.invalid') });
+    void run('save', async () => {
+      const r = await call<ServerState>('server', form);
+      if (r.ok) {
+        setState(r);
+        setForm(r.server ?? EMPTY);
+      }
+      setNote({ ok: r.ok, text: t(r.ok ? 'server.saved' : 'server.invalid') });
+    });
   };
-  const test = async () => {
-    setNote(null);
-    const r = await call('server/test', {});
-    const missing = r.error?.startsWith('missing:');
-    setNote({ ok: r.ok, text: r.ok ? t('server.reached') : missing ? t('server.missing') : t('server.unreached', { error: r.error ?? '' }) });
-  };
-  const setAuto = async (on: boolean) => {
-    const r = await call<ServerState & { shared: boolean }>('server/auto', { on });
-    if (r.ok) {
-      setState(r);
-      setAutoLocal(!r.shared);
-    }
-  };
-  const remove = async (body: { day: string } | { keep: number; apply: true }) => {
+  const test = () =>
+    run('test', async () => {
+      setNote(null);
+      const r = await call('server/test', {});
+      const missing = r.error?.startsWith('missing:');
+      setNote({ ok: r.ok, text: r.ok ? t('server.reached') : missing ? t('server.missing') : t('server.unreached', { error: r.error ?? '' }) });
+    });
+  const setAuto = (on: boolean) =>
+    run('auto', async () => {
+      const r = await call<ServerState & { shared: boolean }>('server/auto', { on });
+      if (r.ok) {
+        setState(r);
+        setAutoLocal(!r.shared);
+      }
+    });
+  const remove = (body: { day: string } | { keep: number; apply: true }) => {
     setConfirm(null);
-    const r = await call('day' in body ? 'server/delete' : 'server/keep', body);
-    setCopiesError(!r.ok);
-    void listCopies();
+    return run('day' in body ? `delete:${body.day}` : 'keep', async () => {
+      const r = await call('day' in body ? 'server/delete' : 'server/keep', body);
+      setCopiesError(!r.ok);
+      await listCopies();
+    });
   };
   const applyKeep = async () => {
     const count = Number(keep);
-    const r = await call<{ removes: string[] }>('server/keep', { keep: count, apply: false });
+    const r = await run('keep', () => call<{ removes: string[] }>('server/keep', { keep: count, apply: false }));
     if (!r.ok) {
       setCopiesError(true);
     } else if (r.removes.length) {
@@ -173,12 +183,13 @@ export function ServerTab() {
       void remove({ keep: count, apply: true });
     }
   };
-  const start = async (path: 'server/host' | 'server/backup') => {
-    const r = await call<ServerState>(path, {});
-    if (r.ok) {
-      setState(r);
-    }
-  };
+  const start = (key: 'host' | 'backup') =>
+    run(key, async () => {
+      const r = await call<ServerState>(key === 'host' ? 'server/host' : 'server/backup', {});
+      if (r.ok) {
+        setState(r);
+      }
+    });
   const saved = state?.server;
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
   if (!state) {
@@ -189,7 +200,7 @@ export function ServerTab() {
     <div className="grid gap-3 lg:grid-cols-2">
       <Card className="gap-3 px-4 py-3.5 lg:row-span-2">
         <h2 className="text-lg font-semibold">{t('server.connection')}</h2>
-        <form onSubmit={(e) => void save(e)} className="grid gap-3">
+        <form onSubmit={save} className="grid gap-3">
           {FIELDS.map(({ key, placeholder }) => (
             <label key={key} className="grid gap-1 font-medium">
               {t(`server.${key}`)}
@@ -197,10 +208,10 @@ export function ServerTab() {
             </label>
           ))}
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={!changed}>
+            <Button type="submit" busy={doing === 'save'} disabled={!changed || doing === 'test'}>
               {t('server.save')}
             </Button>
-            <Button type="button" variant="outline" className="bg-card" disabled={!saved || changed} onClick={() => void test()}>
+            <Button type="button" variant="outline" className="bg-card" busy={doing === 'test'} disabled={!saved || changed || doing === 'save'} onClick={() => void test()}>
               <PlugZap aria-hidden />
               {t('server.test')}
             </Button>
@@ -215,7 +226,7 @@ export function ServerTab() {
       <Card className="gap-3 px-4 py-3.5">
         <h2 className="text-lg font-semibold">{t('server.online')}</h2>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={!saved || !!state?.hosting?.running} onClick={() => void start('server/host')}>
+          <Button busy={doing === 'host' || !!state.hosting?.running} disabled={!saved} onClick={() => void start('host')}>
             <CloudUpload aria-hidden />
             {t('server.hostAll')}
           </Button>
@@ -233,11 +244,11 @@ export function ServerTab() {
       <Card className="gap-3 px-4 py-3.5">
         <h2 className="text-lg font-semibold">{t('server.backups')}</h2>
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={!!state?.auto} disabled={!saved} onChange={(e) => void setAuto(e.target.checked)} />
+          <input type="checkbox" checked={!!state.auto} disabled={!saved || doing === 'auto'} onChange={(e) => void setAuto(e.target.checked)} />
           {t('server.auto')}
         </label>
         {autoLocal && <p className="text-sm text-destructive">{t('server.autoLocal')}</p>}
-        <Button variant="outline" className="w-fit bg-card" disabled={!saved || !!state?.backup?.running} onClick={() => void start('server/backup')}>
+        <Button variant="outline" className="w-fit bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
           <DatabaseBackup aria-hidden />
           {t('server.backUp')}
         </Button>
@@ -256,7 +267,7 @@ export function ServerTab() {
             >
               <label htmlFor="server-keep">{t('server.keep')}</label>
               <input id="server-keep" type="number" min={1} max={365} required value={keep} onChange={(e) => setKeep(e.target.value)} className={`${INPUT} w-20 tabular-nums`} />
-              <Button type="submit" size="sm" variant="outline" className="bg-card" disabled={Number(keep) === copies.keep}>
+              <Button type="submit" size="sm" variant="outline" className="bg-card" busy={doing === 'keep'} disabled={Number(keep) === copies.keep || removing}>
                 {t('server.apply')}
               </Button>
             </form>
@@ -273,7 +284,14 @@ export function ServerTab() {
                   <Tip label={newest.length ? t('server.newest') : t('server.delete')}>
                     {/* A disabled button gets no pointer events: the tip sits on its wrapper. */}
                     <span>
-                      <Button variant="ghost" size="icon-sm" aria-label={t('server.delete')} disabled={newest.length > 0} onClick={() => setConfirm({ day })}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('server.delete')}
+                        busy={doing === `delete:${day}`}
+                        disabled={newest.length > 0 || removing}
+                        onClick={() => setConfirm({ day })}
+                      >
                         <Trash2 aria-hidden />
                       </Button>
                     </span>

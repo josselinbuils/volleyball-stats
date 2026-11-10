@@ -2,6 +2,7 @@ import { CircleCheck, CircleX, RefreshCw, TriangleAlert } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Check } from './helpers/setup';
 
@@ -33,6 +34,7 @@ const COLOURS = { ok: 'text-(--point)', warn: 'text-warning', error: 'text-destr
 
 /** Every check of the machine, passed or not. */
 export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | null; onRecheck: () => Promise<void>; onClose: () => void }) {
+  const [checking, run] = useRunning();
   const { t } = useTranslation();
 
   return (
@@ -60,7 +62,7 @@ export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | null;
         ) : (
           <p className="text-muted-foreground">{t('app.doctor.checking')}</p>
         )}
-        <Button variant="outline" className="w-fit" onClick={() => void onRecheck()}>
+        <Button variant="outline" className="w-fit" busy={!!checking} onClick={() => void run('recheck', onRecheck)}>
           <RefreshCw aria-hidden />
           {t('app.doctor.again')}
         </Button>

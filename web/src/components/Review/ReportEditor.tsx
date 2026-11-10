@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 're
 import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Star, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useRunning } from '@/hooks/useRunning';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
@@ -118,14 +119,14 @@ export function ReportEditor({
   /** Stops the video at a moment. */
   onPause: (time: number) => void;
   /** Saves the corrections, a rally (by its key) checked with them; `onward`: the video goes to the next rally. */
-  onSave: (changes: ReportChanges, rally: number, onward: boolean) => void;
+  onSave: (changes: ReportChanges, rally: number, onward: boolean) => Promise<void>;
   /** Saves the corrections, a rally (by its key) no longer checked. */
-  onSaveUnchecked: (changes: ReportChanges, rally: number) => void;
+  onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<void>;
   /** The rallies checked with no report open nor corrections not saved since, by their key: shown green. */
   green: Set<number>;
   /** The rallies checked, by their key, a report open on them or not. */
   checked: Set<number>;
-  onUncheck: (rally: number) => void;
+  onUncheck: (rally: number) => Promise<void>;
   /** The report questions left: each a rally's reports, listed under it. */
   questions: Question[];
   /** Marks a rally's reports handled, the corrections as they stand saved with them. */
@@ -439,19 +440,21 @@ export function ReportEditor({
   // A touchless rally whose end was said explains a point: it is validated, not deleted at once.
   const canDelete = (k: number) => isEmpty(k) && fixOf(k)?.play !== false && fixOf(k)?.winner === undefined && !toReplay(k) && !calledWrong(k);
   const otherRallies = (key: number) => (changes.rallies ?? []).filter((r) => r.start !== key);
+  // The rally whose change is being saved: its button shows a loader, the others wait.
+  const [saving, run] = useRunning();
+  const busyOn = (k: number) => saving === String(keyOf(k));
   // A rally the review started goes away; one of the page's is said no play.
   const deleteRally = (k: number) => {
     const key = keyOf(k);
     if (splits.includes(key)) {
-      onSaveUnchecked({ ...changes, splits: splits.filter((f) => f !== key), rallies: otherRallies(key) }, key);
-    } else {
-      onSave({ ...changes, rallies: [...otherRallies(key), { ...changes.rallies?.find((r) => r.start === key), start: key, play: false }] }, key, k === here);
+      return onSaveUnchecked({ ...changes, splits: splits.filter((f) => f !== key), rallies: otherRallies(key) }, key);
     }
+    return onSave({ ...changes, rallies: [...otherRallies(key), { ...changes.rallies?.find((r) => r.start === key), start: key, play: false }] }, key, k === here);
   };
   const restoreRally = (k: number) => {
     const key = keyOf(k);
     const { play: _, ...rest } = changes.rallies?.find((r) => r.start === key) ?? { start: key };
-    onSaveUnchecked({ ...changes, rallies: [...otherRallies(key), ...(Object.keys(rest).length > 1 ? [rest] : [])] }, key);
+    return onSaveUnchecked({ ...changes, rallies: [...otherRallies(key), ...(Object.keys(rest).length > 1 ? [rest] : [])] }, key);
   };
   const found = new Map<number, ReturnType<typeof problems>>();
   for (let k = 0; k < shown.length; k++) {
@@ -607,7 +610,15 @@ export function ReportEditor({
                   </Tip>
                   {isDeleted(k) ? (
                     <Tip label={t('review.restoreRally', { n: k + 1 })}>
-                      <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.restoreRally', { n: k + 1 })} onClick={() => restoreRally(k)}>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="mr-1 shrink-0 bg-card text-foreground"
+                        aria-label={t('review.restoreRally', { n: k + 1 })}
+                        busy={busyOn(k)}
+                        disabled={saving !== null}
+                        onClick={() => void run(String(keyOf(k)), () => restoreRally(k))}
+                      >
                         <Undo2 aria-hidden />
                         {t('review.restore')}
                       </Button>
@@ -616,21 +627,45 @@ export function ReportEditor({
                     <>
                       {!canDelete(k) && deletable(k) && (
                         <Tip label={t('review.deleteRally', { n: k + 1 })}>
-                          <Button variant="ghost" size="icon-xs" className="mr-1 shrink-0 text-foreground" aria-label={t('review.deleteRally', { n: k + 1 })} onClick={() => deleteRally(k)}>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="mr-1 shrink-0 text-foreground"
+                            aria-label={t('review.deleteRally', { n: k + 1 })}
+                            busy={busyOn(k)}
+                            disabled={saving !== null}
+                            onClick={() => void run(String(keyOf(k)), () => deleteRally(k))}
+                          >
                             <Trash2 aria-hidden />
                           </Button>
                         </Tip>
                       )}
                       {checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
                         <Tip label={t('review.uncheckRally', { n: k + 1 })}>
-                          <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.uncheckRally', { n: k + 1 })} onClick={() => onUncheck(keyOf(k))}>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            className="mr-1 shrink-0 bg-card text-foreground"
+                            aria-label={t('review.uncheckRally', { n: k + 1 })}
+                            busy={busyOn(k)}
+                            disabled={saving !== null}
+                            onClick={() => void run(String(keyOf(k)), () => onUncheck(keyOf(k)))}
+                          >
                             <CircleOff aria-hidden />
                             {t('review.uncheck')}
                           </Button>
                         </Tip>
                       ) : canDelete(k) ? (
                         <Tip label={t('review.deleteRally', { n: k + 1 })}>
-                          <Button variant="outline" size="xs" className="mr-1 shrink-0 bg-card text-foreground" aria-label={t('review.deleteRally', { n: k + 1 })} onClick={() => deleteRally(k)}>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            className="mr-1 shrink-0 bg-card text-foreground"
+                            aria-label={t('review.deleteRally', { n: k + 1 })}
+                            busy={busyOn(k)}
+                            disabled={saving !== null}
+                            onClick={() => void run(String(keyOf(k)), () => deleteRally(k))}
+                          >
                             <Trash2 aria-hidden />
                             {t('review.delete')}
                           </Button>
@@ -642,7 +677,9 @@ export function ReportEditor({
                             size="xs"
                             className="mr-1 shrink-0 bg-card text-foreground"
                             aria-label={t('review.validateRally', { n: k + 1 })}
-                            onClick={() => onSave(changes, keyOf(k), k === here)}
+                            busy={busyOn(k)}
+                            disabled={saving !== null}
+                            onClick={() => void run(String(keyOf(k)), () => onSave(changes, keyOf(k), k === here))}
                           >
                             <Check aria-hidden />
                             {t('review.validate')}

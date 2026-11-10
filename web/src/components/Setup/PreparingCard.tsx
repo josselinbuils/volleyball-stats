@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeftRight, Crosshair, Play, RotateCcw, Square, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useRunning } from '@/hooks/useRunning';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFormat } from '@/lib/format';
@@ -22,19 +23,22 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
   const [version, setVersion] = useState(0);
   const names = teamNames(item);
   const job = item.job;
-  const act = async (path: string, body: object = {}) => {
-    setError(false);
-    const r = await call<{ busy?: Check }>(path, { match: item.name, ...body });
-    if (r.status === 409 && r.busy) {
-      setBusy(r.busy);
-    } else if (!r.ok) {
-      setError(true);
-    } else {
-      setBusy(null);
-    }
-    setVersion((v) => v + 1);
-    await onChange();
-  };
+  // The action running, its button showing a loader.
+  const [doing, run] = useRunning();
+  const act = (path: string, body: object = {}) =>
+    run(path, async () => {
+      setError(false);
+      const r = await call<{ busy?: Check }>(path, { match: item.name, ...body });
+      if (r.status === 409 && r.busy) {
+        setBusy(r.busy);
+      } else if (!r.ok) {
+        setError(true);
+      } else {
+        setBusy(null);
+      }
+      setVersion((v) => v + 1);
+      await onChange();
+    });
   const minutes = (s: number) =>
     s < 60 ? t('review.lessThanMinute') : s < 3600 ? t('review.minutes', { count: Math.round(s / 60) }) : t('app.hours', { h: Math.floor(s / 3600), m: Math.round((s % 3600) / 60) });
   const left =
@@ -64,7 +68,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           <h3 className="text-lg leading-snug font-semibold [overflow-wrap:anywhere]">{names ? t('matchTitle', { one: names[0], two: names[1] }) : item.name}</h3>
         </div>
         {!job?.running && item.state !== 'elsewhere' && (
-          <Button variant="ghost" size="icon-sm" aria-label={t('app.delete')} onClick={() => setConfirm('delete')}>
+          <Button variant="ghost" size="icon-sm" aria-label={t('app.delete')} busy={doing === 'delete'} disabled={!!doing} onClick={() => setConfirm('delete')}>
             <Trash2 aria-hidden />
           </Button>
         )}
@@ -96,7 +100,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
               <img src={imageUrl(item.name, 'start', version)} alt="" className="w-full rounded-md" />
               <figcaption className="grid gap-1.5 text-sm">
                 {t('app.check.sides', { left: names[0], right: names[1] })}
-                <Button size="sm" variant="outline" className="w-fit" onClick={() => void act('swap')}>
+                <Button size="sm" variant="outline" className="w-fit" busy={doing === 'swap'} disabled={!!doing} onClick={() => void act('swap')}>
                   <ArrowLeftRight aria-hidden />
                   {t('app.check.swap')}
                 </Button>
@@ -135,19 +139,19 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           </Button>
         )}
         {(item.state === 'check' || item.state === 'stalled' || (item.state === 'failed' && job?.failed === 'pipeline')) && (
-          <Button onClick={() => void act('run', { anyway: !!busy })}>
+          <Button busy={doing === 'run'} disabled={!!doing} onClick={() => void act('run', { anyway: !!busy })}>
             {item.state === 'check' ? <Play aria-hidden /> : <RotateCcw aria-hidden />}
             {busy ? t('app.runAnyway') : item.state === 'check' ? t('app.run') : t('app.retry')}
           </Button>
         )}
         {item.state === 'failed' && job?.failed === 'court' && (
-          <Button onClick={() => void act('court/auto')}>
+          <Button busy={doing === 'court/auto'} disabled={!!doing} onClick={() => void act('court/auto')}>
             <RotateCcw aria-hidden />
             {t('app.retry')}
           </Button>
         )}
         {job?.running && (
-          <Button variant="outline" onClick={() => setConfirm('stop')}>
+          <Button variant="outline" busy={doing === 'stop'} disabled={!!doing} onClick={() => setConfirm('stop')}>
             <Square aria-hidden />
             {t('app.stop')}
           </Button>

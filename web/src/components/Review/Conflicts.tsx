@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { AlertTriangle, Scissors, Split, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { reloading, useRunning } from '@/hooks/useRunning';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { post, type Conflict, type Linking, type Named } from '@/lib/review';
@@ -62,14 +63,17 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
   const time = useRef(0);
   const [seek, setSeek] = useState<{ time: number; n: number }>();
   const [failed, setFailed] = useState(false);
-  const act = async (path: 'cut' | 'forget', at?: number) => {
-    try {
-      await post(path, { id: answer.id, ...(path === 'cut' ? { at: at ?? time.current } : {}) });
-      location.reload();
-    } catch {
-      setFailed(true);
-    }
-  };
+  // The action sent, its button showing a loader until the page reloads: a cut where it cuts, or forgetting the answer.
+  const [doing, run] = useRunning();
+  const act = (path: 'cut' | 'forget', at?: number) =>
+    run(path === 'cut' && at !== undefined ? `cut:${at}` : path, async () => {
+      try {
+        await post(path, { id: answer.id, ...(path === 'cut' ? { at: at ?? time.current } : {}) });
+        await reloading();
+      } catch {
+        setFailed(true);
+      }
+    });
   const someone = (name: string | null) => name ?? t('review.someoneElse');
 
   if (answer.kind === 'odd') {
@@ -84,7 +88,7 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
             </figure>
           ))}
         </div>
-        <Button variant="outline" className="justify-self-start bg-card" onClick={() => void act('forget')}>
+        <Button variant="outline" className="justify-self-start bg-card" busy={doing === 'forget'} disabled={!!doing} onClick={() => void act('forget')}>
           <Trash2 aria-hidden />
           {t('review.forgetMarks')}
         </Button>
@@ -114,6 +118,8 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
                   size="icon"
                   className="mb-6 size-7"
                   aria-label={t('review.cutBetween', { a: clock(answer.strip[k - 1].time), b: clock(m.time) })}
+                  busy={doing === `cut:${(answer.strip[k - 1].time + m.time) / 2}`}
+                  disabled={!!doing}
                   onClick={() => void act('cut', (answer.strip[k - 1].time + m.time) / 2)}
                 >
                   <Scissors aria-hidden />
@@ -153,12 +159,12 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
       <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <ClipVideo clip={answer.clip} width={width} height={height} timeRef={time} seek={seek} />
         <div className="grid content-start gap-2">
-          <Button variant="outline" className="justify-start bg-card" onClick={() => void act('cut')}>
+          <Button variant="outline" className="justify-start bg-card" busy={doing === 'cut'} disabled={!!doing} onClick={() => void act('cut')}>
             <Scissors aria-hidden />
             {t('review.cut')}
           </Button>
           {answer.kind === 'piece' && (
-            <Button variant="outline" className="justify-start bg-card" onClick={() => void act('forget')}>
+            <Button variant="outline" className="justify-start bg-card" busy={doing === 'forget'} disabled={!!doing} onClick={() => void act('forget')}>
               <Trash2 aria-hidden />
               {t('review.forget')}
             </Button>

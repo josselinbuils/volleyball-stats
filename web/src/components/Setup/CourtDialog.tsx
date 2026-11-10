@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { Check, EyeOff, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
@@ -38,14 +39,17 @@ export function CourtDialog({ match, onClose }: { match: string; onClose: (place
     const box = img.getBoundingClientRect();
     setDone((d) => [...d, [((event.clientX - box.left) / box.width) * img.naturalWidth, ((event.clientY - box.top) / box.height) * img.naturalHeight]]);
   };
-  const submit = async (event: FormEvent) => {
+  const [fitting, run] = useRunning();
+  const submit = (event: FormEvent) => {
     event.preventDefault();
-    const r = await call('court/fit', { match, clicks, court: name.trim() });
-    if (r.ok) {
-      onClose(true);
-    } else {
-      setError(true);
-    }
+    void run('fit', async () => {
+      const r = await call('court/fit', { match, clicks, court: name.trim() });
+      if (r.ok) {
+        onClose(true);
+      } else {
+        setError(true);
+      }
+    });
   };
   const shown = image.current;
 
@@ -134,7 +138,7 @@ export function CourtDialog({ match, onClose }: { match: string; onClose: (place
               {t('app.court.name')}
               <input required value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
             </label>
-            <Button type="submit" disabled={!enough || !name.trim() || /[,:/]/.test(name)}>
+            <Button type="submit" busy={!!fitting} disabled={!enough || !name.trim() || /[,:/]/.test(name)}>
               <Check aria-hidden />
               {t('app.court.save')}
             </Button>
