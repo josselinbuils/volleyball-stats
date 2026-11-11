@@ -278,7 +278,7 @@ export function ServerTab() {
       <Card className="gap-3 px-4 py-3.5">
         <h2 className="text-lg font-semibold">{t('server.online')}</h2>
         {state.online.length ? (
-          <ul className="grid divide-y rounded-md border text-sm">
+          <ul className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm">
             {state.online.map((m) => {
               const name = m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
               return (
@@ -380,7 +380,7 @@ export function ServerTab() {
               {t('server.room', { used: f.size(copies.used), free: f.size(copies.free * 1024 ** 3) })}
               {listing && <LoaderCircle aria-label={t('server.listing')} className="size-3.5 animate-spin" />}
             </p>
-            <ol className="grid divide-y rounded-md border text-sm tabular-nums">
+            <ol className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm tabular-nums">
               {copies.days.map(({ day, matches, size, newest }) => (
                 <li key={day} className="flex items-center gap-3 py-1 pr-1 pl-3">
                   {/* The count goes under the day when the row is narrow. */}
