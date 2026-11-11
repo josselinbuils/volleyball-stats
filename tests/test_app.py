@@ -112,6 +112,15 @@ class TestApp:
         assert app.parse(["--stop"]) == ("stop", [])
         assert {command: app.OPENING[command] for command in (None, "browser", "server")} == {None: "window", "browser": "tab", "server": None}
 
+    def test_refuses_to_start_at_a_lowered_priority(self, monkeypatch):
+        monkeypatch.setattr(app.os, "nice", lambda increment: 5)
+        monkeypatch.setattr(app.os, "chdir", lambda path: None)
+        monkeypatch.setattr(app.shortcut, "update_launcher", lambda: None)
+        monkeypatch.setattr(app, "already_open", lambda port: False)
+        monkeypatch.setattr(app.sys, "argv", ["stats", "server"])
+        with pytest.raises(SystemExit, match="lowered priority"):
+            app.main()
+
     def test_stops_nothing_when_not_running(self, monkeypatch):
         monkeypatch.setattr(app, "already_open", lambda port: False)
         assert app.stop(1) == 0

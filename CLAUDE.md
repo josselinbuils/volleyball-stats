@@ -20,7 +20,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   online without that consent only behind a password, unreachable by direct link without it. Never
   republish the YouTube clips in `data/benchmarks/`.
 - Commit with the personal identity (`Josselin BUILS <josselin.buils@gmail.com>`), never a work email.
-- A fix or feature done: commit it, push it to `main` and restart the review without asking: `uv run stats stop` (it refuses while an apply runs: wait and retry), then start it again on what was open (`curl -s 127.0.0.1:8765/current` names the match, null for the list). A restart is `uv run stats server [MATCH]`: the page is already open. Only a first start opens it. Start it in the background after `setopt no_bg_nice`: the jobs it starts inherit its priority.
+- A fix or feature done: commit it, push it to `main` and restart the review without asking: `uv run stats stop` (it refuses while an apply runs: wait and retry), then start it again on what was open (`curl -s 127.0.0.1:8765/current` names the match, null for the list). A restart is `uv run stats server [MATCH]`: the page is already open. Only a first start opens it. Start it with the Bash tool's `run_in_background`, in any shell: `[ -n "$ZSH_VERSION" ] && setopt no_bg_nice; uv run stats server` (zsh lowers background jobs' priority, which the jobs it starts would inherit; it refuses to start so). Then check it runs at nice 0: `ps -o ni= -p "$(lsof -ti tcp:8765 -sTCP:LISTEN)"`.
 - No new Python dependency without asking (no scipy: numpy and what is installed).
 - The review server binds 127.0.0.1 only. `outputs/` (gitignored) holds names of real people
   (`player_names.json`, `roster.json`): never commit it.

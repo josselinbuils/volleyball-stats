@@ -674,6 +674,12 @@ def already_open(port: int) -> bool:
         return False
 
 
+def lowered() -> bool:
+    """Whether this process runs below the normal priority: zsh lowers its background jobs' (bg_nice), and nothing
+    without root brings it back, for the server nor its jobs."""
+    return os.nice(0) > 0
+
+
 def parse(args: list[str]) -> tuple[str | None, list[str]]:
     """The command after `stats` (None: the app in its own window) and the rest, for the review."""
     args = list(args)
@@ -707,6 +713,9 @@ def main() -> None:
         if opening:
             open_browser(f"http://127.0.0.1:{port}/")
         return
+    if lowered():
+        sys.exit(f"Started at a lowered priority (nice {os.nice(0)}), which the jobs it starts would inherit: start it from "
+                 "its shortcut, or not as a background job of zsh (`setopt no_bg_nice` first).")
     shortcut.refresh()
     sys.argv = [sys.argv[0], *args, *([] if opening else ["--no-browser"])]
     review.main()
