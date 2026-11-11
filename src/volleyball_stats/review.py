@@ -38,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import app, attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, matches, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import app, attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
 
@@ -1909,7 +1909,7 @@ def reopening(name: str, out: Path, theme: str, port: int, roster: Path) -> list
     """The command opening the review on the match `name`, one of `match_list`'s ready ones; LookupError otherwise."""
     if not any(m["path"] == name and m["ready"] for m in match_list(out)):
         raise LookupError(name)
-    return [sys.executable, "-m", "volleyball_stats.review", str(out / name), "--outputs", str(out), "--theme", theme, "--port", str(port), "--roster", str(roster), "--no-browser"]
+    return [sys.executable, "-m", "volleyball_stats.review", str(out / name), "--outputs", str(out), "--theme", theme, "--port", str(port), "--roster", str(roster), "--no-browser", *(["--with-window"] if presence.ON else [])]
 
 
 class Server(ThreadingHTTPServer):
@@ -2041,6 +2041,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             time.sleep(BACKUP_EVERY_S)
 
     threading.Thread(target=backing, daemon=True).start()
+    presence.watch(lambda: not any(j["running"] for j in jobs.state(app.OUTPUTS)))
     server = Server(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/matches/"
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
@@ -2765,6 +2766,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     threading.Thread(target=afterwards, daemon=True).start()
     if can_back_up:
         threading.Thread(target=backing, daemon=True).start()
+    presence.watch(lambda: not progress and not any(j["running"] for j in jobs.state(app.OUTPUTS)), lock)
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
         app.open_browser(url)
@@ -2785,7 +2787,9 @@ def main() -> None:
     parser.add_argument("--roster", type=Path, default=ROSTER, help=f"The club's named players across matches (default: {ROSTER})")
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-browser", action="store_true", help="Do not open the page in the browser")
+    parser.add_argument("--with-window", action="store_true", help="Stop once the app's last window closes, no job running (`stats`)")
     args = parser.parse_args()
+    presence.ON = args.with_window
     if args.match is None:
         return serve_list(args.outputs, args.theme, args.port, not args.no_browser, args.roster)
     source = args.match / files.SOURCE

@@ -34,8 +34,8 @@ Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl
 on Linux an applications menu entry. The icon (`icon.py`) is a volleyball in the club logo's two main colours (else its
 main colour, else blue and yellow), drawn with Pillow for the shortcut and as SVG for the pages' favicon (`club.favicon`,
 named after its colours: Windows caches icons by path). The page opens in a window of its own (`--app`) of Chrome, Edge,
-Brave or Chromium, else in the browser (`app.app_window`), its title ending in "– Volleyball Stats" there; its "Quitter"
-stops the server, refused while a job runs (Windows may stop WSL with it). The app's "Diagnostic" (`doctor.py`) checks the tools, the graphics card
+Brave or Chromium, else in the browser (`app.app_window`), its title ending in "– Volleyball Stats" there. Closing
+it stops the server (`presence.py`), once no job runs (Windows may stop WSL with it). The app's "Diagnostic" (`doctor.py`) checks the tools, the graphics card
 and its driver, the memory, the disk, the models (downloaded there) and the code's version. By hand:
 
 On a Windows PC with an NVIDIA GPU:

@@ -15,7 +15,7 @@ import { SetFilter } from '@/components/Header/SetFilter';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
 import { Tip } from '@/components/Tip';
-import { windowTitle } from '@/lib/windowTitle';
+import { windowTitle } from '@/lib/appServer';
 
 export function Header() {
   const { t } = useTranslation();

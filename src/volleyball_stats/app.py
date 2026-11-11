@@ -1,6 +1,6 @@
 """The app: the one command to start, everything else in the browser.
 
-    uv run stats [MATCH] [--port PORT]           the app in a window of its own (the shortcut's)
+    uv run stats [MATCH] [--port PORT]           the app in a window of its own (the shortcut's), stopped with it
     uv run stats browser [MATCH] [--port PORT]   the app in a browser tab
     uv run stats server [MATCH] [--port PORT]    the app, opening nothing (a restart: the page is open)
     uv run stats stop [--port PORT]              stops it
@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import backup, club_settings, doctor, files, git_check, jobs, server, shortcut, sync
+from volleyball_stats import backup, club_settings, doctor, files, git_check, jobs, presence, server, shortcut, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -512,6 +512,9 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         name = str(body.get("match", ""))
         if name and ("/" in name or ".." in name):
             raise ValueError(name)
+        if route in ("alive", "leaving"):
+            (presence.PAGES.seen if route == "alive" else presence.PAGES.left)(str(body["id"]))
+            return reply({})
         if route == "mount":
             return reply({"path": str(mount(str(body["drive"])))})
         if route == "scan":
@@ -592,9 +595,6 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "quit":
             if busy():
                 return reply({"error": "busy"}, 409)
-            # From the app's Quitter, not while a job runs: under WSL2, the server gone, Windows may stop Linux and it.
-            if body.get("app") and any(j["running"] for j in jobs.state(OUTPUTS)):
-                return reply({"error": "running"}, 409)
             return reply({})
         if route == "update":
             running = [j["id"] for j in jobs.state(OUTPUTS) if j["running"]]
@@ -717,7 +717,7 @@ def main() -> None:
         sys.exit(f"Started at a lowered priority (nice {os.nice(0)}), which the jobs it starts would inherit: start it from "
                  "its shortcut, or not as a background job of zsh (`setopt no_bg_nice` first).")
     shortcut.refresh()
-    sys.argv = [sys.argv[0], *args, *([] if opening else ["--no-browser"])]
+    sys.argv = [sys.argv[0], *args, *([] if opening else ["--no-browser"]), *(["--with-window"] if opening == "window" else [])]
     review.main()
 
 

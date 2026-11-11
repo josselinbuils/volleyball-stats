@@ -47,7 +47,7 @@ import { JobProgress } from '@/components/JobProgress';
 import { matchFinished } from '@/components/Review/helpers/report';
 import { ReviewHeader } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
-import { windowTitle } from '@/lib/windowTitle';
+import { windowTitle } from '@/lib/appServer';
 
 /** One answer per key: X not a player, C cut, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };

@@ -5,6 +5,7 @@ import '@/i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Matches, type MatchList } from '@/components/Matches';
 import { applyTheme } from '@/helpers/theme';
+import { keepPresence } from '@/lib/appServer';
 
 declare global {
   interface Window {
@@ -14,6 +15,7 @@ declare global {
 
 /** The list of the match pages of a site, from matches.js. */
 applyTheme(null, window.MATCHES.club);
+keepPresence();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <TooltipProvider delayDuration={200}>

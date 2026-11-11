@@ -1216,14 +1216,6 @@
     "voiceCredit": "French synthetic voice: Kokoro, SIWIS corpus (CC BY 4.0)."
   },
   "app": {
-    "quit": {
-      "label": "Quit",
-      "running": "A task is running: quit once it ends.",
-      "busy": "Answers are being applied: quit once done.",
-      "failed": "Couldn't quit.",
-      "closed": "Volleyball Stats is closed.",
-      "ok": "OK"
-    },
     "setup": "Prepare a match",
     "preparing": "Being prepared",
     "hours": "{{h}} h {{m}} min",

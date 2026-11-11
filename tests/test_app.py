@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from volleyball_stats import app, files, jobs
+from volleyball_stats import app, files, jobs, presence
 
 
 class TestApp:
@@ -89,14 +89,6 @@ class TestApp:
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: False)[2] == 200
 
-    def test_refuses_the_apps_quit_while_a_task_runs(self, place, monkeypatch):
-        self.job(place, "a", steps=[{"name": "import"}])
-        monkeypatch.setattr(jobs, "running", lambda job: True)
-        assert app.handle("POST", "/app/quit", "", {"app": True}, list, lambda: False)[2] == 409
-        assert app.handle("POST", "/app/quit", "", {}, list, lambda: False)[2] == 200
-        monkeypatch.setattr(jobs, "running", lambda job: False)
-        assert app.handle("POST", "/app/quit", "", {"app": True}, list, lambda: False)[2] == 200
-
     def test_opens_the_page_in_a_window_of_its_own(self, monkeypatch):
         monkeypatch.setattr(app.shutil, "which", lambda name: "/usr/bin/chromium" if name == "chromium" else None)
         assert app.app_window("http://127.0.0.1:8765/", "linux") == ["chromium", "--app=http://127.0.0.1:8765/"]
@@ -120,6 +112,14 @@ class TestApp:
         monkeypatch.setattr(app.sys, "argv", ["stats", "server"])
         with pytest.raises(SystemExit, match="lowered priority"):
             app.main()
+
+    def test_hears_from_the_pages(self, monkeypatch):
+        pages = presence.Presence()
+        monkeypatch.setattr(presence, "PAGES", pages)
+        app.handle("POST", "/app/alive", "", {"id": "a"}, list)
+        assert "a" in pages.pages
+        app.handle("POST", "/app/leaving", "", {"id": "a"}, list)
+        assert not pages.pages and pages.left_at is not None
 
     def test_stops_nothing_when_not_running(self, monkeypatch):
         monkeypatch.setattr(app, "already_open", lambda port: False)

@@ -90,7 +90,7 @@ curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main
 ```
 
 It installs what is missing, puts a "Volleyball Stats" shortcut on the desktop and opens the app in a window of its
-own. Next time, open that shortcut; "Quitter" closes the app.
+own. Next time, open that shortcut; closing its window closes the app.
 
 On Windows, the app runs in Ubuntu (WSL2): in PowerShell as administrator, run `wsl --install -d Ubuntu-24.04`,
 restart, open "Ubuntu" from the Start menu, choose a user name and password, then paste the line above there. See
