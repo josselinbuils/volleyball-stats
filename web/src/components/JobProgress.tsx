@@ -31,13 +31,15 @@ export function JobProgress({
   const { t, i18n } = useTranslation();
   const duration = useDuration();
   const end = left != null && new Date(Date.now() + left * 1000).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
+  // Under a minute left, said as such, not "about".
+  const soon = left != null && left < 60 ? 'soon' : undefined;
   const time =
     late && elapsed != null
       ? t('review.progressLate', { elapsed: duration(elapsed) })
       : left != null
         ? elapsed != null
-          ? t('review.progressLeft', { left: duration(left), end, elapsed: duration(elapsed) })
-          : t('app.left', { left: duration(left), end })
+          ? t('review.progressLeft', { left: duration(left), end, elapsed: duration(elapsed), context: soon })
+          : t('app.left', { left: duration(left), end, context: soon })
         : null;
   return (
     <div className={cn('grid gap-1', className)}>
