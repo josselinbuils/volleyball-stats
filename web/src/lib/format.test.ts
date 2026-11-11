@@ -19,3 +19,10 @@ describe('size', () => {
     expect(formatters('en').size(2_400).replace(/\s/g, ' ')).toBe('2.4 kB');
   });
 });
+
+describe('when', () => {
+  it('says the day and month in full, then the time', () => {
+    expect(formatters('fr').when('2026-11-11T11:11:00')).toBe('11 novembre à 11:11');
+    expect(formatters('en').when('2026-11-11T11:11:00')).toBe('11 November at 11:11');
+  });
+});

@@ -24,7 +24,7 @@ export function formatters(lang: string) {
   const pct = new Intl.NumberFormat(lang, { style: 'percent' });
   // yyyy-mm-dd dates parse as UTC midnight.
   const long = new Intl.DateTimeFormat(DATE_LOCALES[lang] ?? lang, { dateStyle: 'long', timeZone: 'UTC' });
-  const when = new Intl.DateTimeFormat(DATE_LOCALES[lang] ?? lang, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const when = new Intl.DateTimeFormat(DATE_LOCALES[lang] ?? lang, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   const sizes = Object.fromEntries(
     (['kilobyte', 'megabyte', 'gigabyte'] as const).flatMap((unit) =>
       [0, 1].map((digits) => [`${unit}${digits}`, new Intl.NumberFormat(lang, { style: 'unit', unit, maximumFractionDigits: digits })]),
@@ -42,7 +42,7 @@ export function formatters(lang: string) {
     // The SI symbol reads the same in every language.
     secs: (x: number) => `${dec.format(x)}\u00a0s`,
     date: (iso: string) => long.format(new Date(iso)),
-    // In the viewer's own time.
+    // In the viewer's own time: 11 novembre à 11:11.
     when: (iso: string) => when.format(new Date(iso)),
   };
 }
