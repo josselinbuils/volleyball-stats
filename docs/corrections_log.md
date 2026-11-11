@@ -168,6 +168,8 @@ better ball track.
 
 ## The owner's answers
 
+- Runtime (11 Nov): the pipeline got much faster, so a model taking more time is fine if it is clearly better; candidates
+  that only run on the PC or carry another licence are tested too, and reported for the owner to decide.
 - A first touch after the other team's attack that sends the ball straight back over (11 Nov): a relance when the player
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
@@ -213,6 +215,17 @@ Running:
   calls cached once (`outputs/benchmarks/pose/`), each model writing its own `wrists.json`, `relances.json`, `jumps.json`;
   scored on who touched the ball (the rule, the learned order held out), the jumps benchmark, attack or relance, overlays
   looked at by eye, then the harness for a winner (runs `pose-*`). Weights in `models/pose_candidates/`.
+
+- rally ends: a Sonnet agent revives the learned play / no-play video model shelved on 8 Nov for its runtime (the owner,
+  11 Nov: the pipeline got much faster, a slower model is fine if it is clearly better), compares a few (a stronger video
+  model, a light one, an audio whistle score), and uses P(play) for the ends, the late starts and the windows on no play,
+  each measured alone; worktree, `outputs/benchmarks/play/`, runs `play-*`.
+- touch types: a Sonnet agent trains a model that sees the gesture on the owner's reviewed types (a clip around each contact,
+  an image model, the skeletons, each fused with the rules' type), one match trained and the other tested, the bar +15
+  right types on each; also whether it tells false touches; worktree, `outputs/benchmarks/act/`, runs `act-*`.
+
+Both wire a winner in only behind its weights file (without it the pipeline runs as today); how fine-tuned weights reach the
+other machine and the app's "Apprendre de mes réponses" is open, for the ball model too.
 
 Ball, first test on the second match (model A, trained on the first only; `weights/eval_A_M2.log`), at the threshold 0.2:
 labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw), median error 2.9 px against 4.3;
