@@ -168,10 +168,9 @@ better ball track.
 
 ## The owner's answers
 
-- The Mac (11 Nov): the pipeline stays compatible with it ideally; a split (a stage only on the PC) is a compromise he is
-  open to when it gives better results. So each model kept is reported with what the Mac loses and how a split would work
-  (the PC processes, the Mac reviews the synced outputs; a rerun keeps the tracks, so the ball model is not needed there),
-  and he decides: no split merged without him.
+- The Mac (11 Nov): the pipeline must still run on it end to end, but it may be a different one, a bit less accurate. So a
+  stage with a heavy model or fine-tuned weights falls back to today's behaviour where they are missing (the guard the
+  agents already build), and what the Mac's pipeline loses is said each time. One path for both when the results are close.
 - Runtime (11 Nov): the pipeline got much faster, so a model taking more time is fine if it is clearly better; candidates
   that only run on the PC or carry another licence are tested too, and reported for the owner to decide.
 - A first touch after the other team's attack that sends the ball straight back over (11 Nov): a relance when the player
@@ -229,9 +228,9 @@ Running:
   right types on each; also whether it tells false touches; worktree, `outputs/benchmarks/act/`, runs `act-*`.
 
 Both wire a winner in only behind its weights file (without it the pipeline runs as today): a guard for the worktree, not a
-way to ship. Before such a stage is merged: either the weights reach both machines (downloaded on first use like the other models, or
-synced) and "Apprendre de mes réponses" knows how to retrain them, or the owner accepts a split for it ("The owner's
-answers"). Open, for the ball model too.
+way to ship. That guard is the way to ship too ("The owner's answers": the Mac may run a less accurate pipeline): a stage can be merged
+once it gains and its fallback is tested. Still open: syncing the weights to the Mac for those it can run, and
+"Apprendre de mes réponses" retraining them.
 
 Ball, first test on the second match (model A, trained on the first only; `weights/eval_A_M2.log`), at the threshold 0.2:
 labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw), median error 2.9 px against 4.3;
