@@ -100,7 +100,7 @@ add, counted as a type), 24 follow a wrong team, 26 a false touch just before: 1
 | A learned model | not built: no other cell has a signal to learn |
 
 Out of reach: the missed blocks (detection: a second contact within 0.2 s), floor or touch (the hand on the ball), dig or
-relance (the owner's rule to settle: see "Questions for the owner").
+relance (meant or not: "The owner's answers").
 
 ### Rally windows (11 Nov, `next_steps.md` "Tried and dropped (11 Nov)", runs `win-whole`, `win-whole2`, second match only)
 
@@ -143,10 +143,11 @@ has 14 / 31 and the real one mistimed 9 / 3; no real touch within 0.5 s 23 / 39.
 Out of a rule's reach: the block after an attack needs the blockers' hands at the net (pose) or a learned filter; the rest a
 better ball track.
 
-## Questions for the owner
+## The owner's answers
 
-- A first touch after the other team's attack that sends the ball straight back over: dig or relance? The two matches' labels
-  disagree (relance 7 of 9, dig 8 of 14); one rule would save about 16 type fixes over the two matches.
+- A first touch after the other team's attack that sends the ball straight back over (11 Nov): a relance when the player
+  meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
+  arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
 ## State (11 Nov, 15:20)
 
