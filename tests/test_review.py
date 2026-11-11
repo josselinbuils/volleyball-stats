@@ -1265,6 +1265,37 @@ class TestPageChanges:
         state = review.read_hosted(tmp_path)
         assert state["behind"] and state["changes"] == [{"part": "contacts", "count": 1}]
 
+    def test_a_new_3d_view_makes_the_page_late(self, tmp_path, monkeypatch):
+        from volleyball_stats import review
+
+        scene = tmp_path / "scene3d.js"
+        scene.write_text("a")
+        monkeypatch.setitem(review.CODE_PAGES, "3d", scene)
+        TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
+        review.record_hosted(tmp_path)
+        assert not review.read_hosted(tmp_path)["behind"]
+        scene.write_text("b")
+
+        state = review.read_hosted(tmp_path)
+        assert state["behind"] and state["changes"] == [{"part": "code", "count": None, "keys": ["3d"]}]
+
+    def test_an_upload_from_before_the_3d_views_stamp_is_judged_without_it(self, tmp_path, monkeypatch):
+        from volleyball_stats import review
+
+        scene = tmp_path / "scene3d.js"
+        scene.write_text("a")
+        monkeypatch.setitem(review.CODE_PAGES, "3d", scene)
+        TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
+        sent = review.page_content(tmp_path)
+        del sent["code"]["3d"]
+        (tmp_path / review.HOSTED_PAGE).write_text(json.dumps(sent))
+        (tmp_path / review.HOSTED).write_text(json.dumps({"at": "2026-11-10T23:01:11", "stamp": review.page_stamp(tmp_path, review.OLD_STAMPED), "code": "x"}))
+        scene.write_text("b")
+
+        assert not review.read_hosted(tmp_path)["behind"]
+        TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
+        assert review.read_hosted(tmp_path)["changes"] == [{"part": "name", "count": None}]
+
 
     def test_a_page_rebuilt_by_the_uploads_code_is_not_late(self, tmp_path):
         from volleyball_stats import review

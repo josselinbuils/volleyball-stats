@@ -324,7 +324,8 @@
       },
       "code": {
         "page": "page du match",
-        "list": "liste des matchs"
+        "list": "liste des matchs",
+        "3d": "vue 3D"
       }
     },
     "changedWhich": "{{part}} : {{keys}}",

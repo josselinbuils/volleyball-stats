@@ -6,7 +6,8 @@ The app's "Serveur" tab (on the list, `#serveur`, `server.py`, `ServerTab.tsx` i
 site folder, ssh key, public address, in `outputs/server.json`, written into every match's `publish.json` (a new match takes
 it from there, `matches.ensure_publish`); "Tester" checks it answers and holds the folder. It also runs, as jobs that
 outlive the server, "Tout mettre à jour" under the matches online, each "À jour" or "En retard" with its link (`server.online`;
-`matches --all`, recording each upload as the review does)
+`matches --all`, recording each upload as the review does: "En retard" once the page's data or the code of the match's page,
+the list or the 3D view changed since, `review.read_hosted`; the review's tip lists each cause on its line)
 and "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), and "Vérifier"
 (`sync verify`), each with a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
 duration on this machine, `outputs/hosting_timings.json`, `outputs/backup_timings.json`), shows how the last copy and check went, switches the automatic backup and lists the copies on the server: its used and free room, each day's own size (its files no other copy

@@ -1757,18 +1757,23 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
     return (max(0, first), min(last, size - 1)) if first < size else None
 
 
-def page_stamp(match: Path) -> str:
-    """What the hosted page would show: the review's page data, as content (its keys in any order), and the page's code. Not
-    the data's `v`, its address for the browser's cache, which each patch of the pictures moves (`web.patch_people`): a
+# The code the hosted pages run, by the name the late page's tip gives each: the match's page (its scripts and styles are
+# named by their content in it), the list, and the 3D view the page loads by a name that stays.
+CODE_PAGES = {"page": web.TEMPLATE / "index.html", "list": matches.TEMPLATE / "matches.html", "3d": web.TEMPLATE / "scene3d.js"}
+# The code page_stamp takes, in its order; uploads recorded without their `pages` took the first two only.
+STAMPED, OLD_STAMPED = ("list", "page", "3d"), ("list", "page")
+
+
+def page_stamp(match: Path, pages: tuple[str, ...] = STAMPED) -> str:
+    """What the hosted page would show: the review's page data, as content (its keys in any order), and the code of `pages`.
+    Not the data's `v`, its address for the browser's cache, which each patch of the pictures moves (`web.patch_people`): a
     restart rebuilding the same page then patching it gave another, and the online page looked late."""
     digest = hashlib.sha256(json.dumps(page_content(match)["data"], sort_keys=True, ensure_ascii=False).encode())
-    for path in (matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"):
-        digest.update(path.read_bytes())
+    for name in pages:
+        digest.update(CODE_PAGES[name].read_bytes())
     return digest.hexdigest()[:16]
 
 
-# The pages whose code page_content stamps, by the name the late page's tip gives each.
-CODE_PAGES = {"page": web.TEMPLATE / "index.html", "list": matches.TEMPLATE / "matches.html"}
 # The parts of the page data whose changes the tip names one by one: the club's fields, the players and films by name.
 NAMED_KEYS = ("club", "people", "films")
 
@@ -1805,10 +1810,13 @@ def page_changes(sent: dict, now: dict) -> list[dict]:
         else:
             count = None
         out.append({"part": part, "count": count, **({"keys": keys} if keys else {})})
-    if sent["code"] != now["code"]:
-        pages = [name for name in CODE_PAGES if sent["code"].get(name) != now["code"].get(name)] if isinstance(sent["code"], dict) else None
-        out.append({"part": "code", "count": None, **({"keys": pages} if pages else {})})
-    return out
+    if isinstance(sent["code"], str):
+        if sent["code"] != now["code"]:
+            out.append({"part": "code", "count": None})
+        return out
+    # An upload records the code it knew of: the 3D view's is unknown for the older ones.
+    pages = [name for name in CODE_PAGES if name in sent["code"] and sent["code"][name] != now["code"].get(name)]
+    return out + ([{"part": "code", "count": None, "keys": pages}] if pages else [])
 
 
 def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
@@ -1823,7 +1831,8 @@ def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
 def read_hosted(match: Path) -> dict:
     """`hosted_state`, with what changed since the last upload when the page is late and it kept what it sent (`changes`)."""
     path, sent = match / HOSTED, match / HOSTED_PAGE
-    state = hosted_state(json.loads(path.read_text()) if path.exists() else None, page_stamp(match), date.today())
+    saved = json.loads(path.read_text()) if path.exists() else None
+    state = hosted_state(saved, page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)) if saved else STAMPED), date.today())
     state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
     return state
 
@@ -1831,7 +1840,7 @@ def read_hosted(match: Path) -> dict:
 def code_version() -> str:
     """The code this process runs, as it was on disk when asked: its Python files and the pages' templates."""
     digest = hashlib.sha256()
-    for path in [*sorted(Path(__file__).parent.glob("*.py")), matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"]:
+    for path in [*sorted(Path(__file__).parent.glob("*.py")), *CODE_PAGES.values()]:
         digest.update(path.read_bytes())
     return digest.hexdigest()[:16]
 
@@ -1844,7 +1853,7 @@ def record_hosted(match: Path) -> None:
     """The upload of `match`'s page just made: its time, stamp and the code that built it, on disk now (HOSTED), and what it
     sent (HOSTED_PAGE). The stamp is the review's page as last built, by older code maybe: `restamp` then takes the next build."""
     files.write_text(match / HOSTED_PAGE, json.dumps(page_content(match), ensure_ascii=False) + "\n")
-    files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match), "code": code_version()}) + "\n")
+    files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match), "pages": list(STAMPED), "code": code_version()}) + "\n")
 
 
 def restamp(match: Path, before: str | None) -> None:
