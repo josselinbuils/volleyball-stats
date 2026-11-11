@@ -208,6 +208,12 @@ Running:
   `models/reid_candidates/`, a throwaway venv if they need packages); only a permissive one running on both machines goes
   into `src/`, the others are reported for the owner to decide.
 
+- pose: a Sonnet agent compares pose models with YOLO11m-pose (the owner's ask, 11 Nov), in a worktree, under the same rule
+  as the re-identification (PC-only or other licences tested too, reported for the owner to decide): the pipeline's pose
+  calls cached once (`outputs/benchmarks/pose/`), each model writing its own `wrists.json`, `relances.json`, `jumps.json`;
+  scored on who touched the ball (the rule, the learned order held out), the jumps benchmark, attack or relance, overlays
+  looked at by eye, then the harness for a winner (runs `pose-*`). Weights in `models/pose_candidates/`.
+
 Ball, first test on the second match (model A, trained on the first only; `weights/eval_A_M2.log`), at the threshold 0.2:
 labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw), median error 2.9 px against 4.3;
 detections in the wrong place 71 against 1, and on 1,160 of 5,122 frames between rallies where the model in use sees none
