@@ -36,6 +36,9 @@ ABOVE, LIFT = 0.03, 0.6
 # With the ball's 3D place (`by_flight`), an attack leaves from ATTACK_M or higher and rising at under
 # RISE_MS: first ASPOM match's checked rallies, each set held out, 137 -> 144 of 169 attacks and relances.
 ATTACK_M, RISE_MS = 2.1, 6.0
+# A set that crosses the net within SET_OVER_S of its touch is a hit, not a set: both ASPOM matches' checked rallies, the
+# sets over the net of 1.4 s or more are sets (the owner's), those under are attacks or relances (6 of 22 and 11 of 43 fixed, 0 and 3 broken).
+SET_OVER_S = 1.3
 # The player under the ball is within UNDER_PX of it horizontally (at 720p); their feet are followed
 # back LIFT_S seconds by box overlap.
 UNDER_PX = 15
@@ -379,13 +382,17 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
 def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, longest: float = 2.2, gravity: float = 9.81) -> list[Typed]:
     """`typed` with the attacks and relances retyped from the ball's 3D `places` by frame: how high
     it leaves and how fast it rises until the next contact, which is under `longest` seconds away;
-    those with no such flight stay."""
+    those with no such flight stay. A set sent over the net within SET_OVER_S is one too, an attack when its flight is unknown."""
     out = list(typed)
     for k, (frame, x, y, kind, side) in enumerate(typed):
-        if kind not in ("attack", "relance") or k + 1 == len(typed):
+        if kind not in ("attack", "relance", "set") or k + 1 == len(typed):
             continue
         after = typed[k + 1][0]
         seconds = (after - frame) / fps
+        if kind == "set":
+            if typed[k + 1][4] == side or seconds > SET_OVER_S:
+                continue
+            out[k] = (frame, x, y, "attack", side)
         if frame in places and after in places and 0 < seconds <= longest:
             rise = (places[after][2] - places[frame][2] + gravity * seconds**2 / 2) / seconds
             out[k] = (frame, x, y, "attack" if places[frame][2] >= ATTACK_M and rise <= RISE_MS else "relance", side)

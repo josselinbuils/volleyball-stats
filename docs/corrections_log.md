@@ -71,15 +71,36 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
    with `PYTHONPATH=src`), reruns one at a time (`flock`, 15 GB of RAM):
    - windows: done, nothing kept ("Tried and dropped");
    - false touches: done, nothing kept ("Tried and dropped");
-   - types: the 91 / 130 types to fix;
+   - types: done, one rule kept ("Kept"), the rest in "Tried and dropped";
    - ball: a training set to fine-tune the ball model on the two matches (the ball is about 4 px wide at the model's 512x288;
      the same model size, so no slower on either machine), labels from the reviewed touches' flights.
 
 ## Kept
 
-Nothing yet.
+| Change | First match | Second match |
+| --- | --- | --- |
+| A set crossing the net within 1.3 s of its touch is an attack, or a relance by its flight (`actions.SET_OVER_S`, `by_flight`; runs `types-setover`) | 294 -> 288 (types 91 -> 85) | 410 -> 400 (types 130 -> 119, players 103 -> 104) |
+
+The slower sets over the net (1.4 s or more) stay sets, as the owner calls them. The threshold comes from 65 sets over the net on
+the two matches (none between 1.3 and 1.4 s): to check on the third match. The school clips' actions benchmark does not run
+`by_flight` (no camera model), so it is unchanged by construction; its ball tracks are not on this machine.
 
 ## Tried and dropped
+
+### Types (11 Nov, `next_steps.md` "Types to fix (11 Nov)")
+
+Of the 221 wrong types, 20 are a block the pipeline never saw (one touch serving an attack and a block 0.2 s apart: a touch to
+add, counted as a type), 24 follow a wrong team, 26 a false touch just before: 151 are the typing's own.
+
+| Idea | Result |
+| --- | --- |
+| Attack or relance from the height, the rise, the ball above the head, its rise in the picture, in grids | the rule in place (2.1 m, 6 m/s) is at the best on both matches (±3); trees of depth 1-3 lose 3-10 held out |
+| The last touch typed floor made a pass or dig by the ball's height over the nearest player's feet | AUC 0.75 but overlapping: at 0.9 box heights 3 touches for 3 floors (first), 8 for 4 (second) |
+| A first touch after the other team's attack, typed relance, made a dig | the owner calls the same flights relance 7 of 9 (first) and dig 8 of 14 (second) |
+| A learned model | not built: no other cell has a signal to learn |
+
+Out of reach: the missed blocks (detection: a second contact within 0.2 s), floor or touch (the hand on the ball), dig or
+relance (the owner's rule to settle: see "Questions for the owner").
 
 ### Rally windows (11 Nov, `next_steps.md` "Tried and dropped (11 Nov)", runs `win-whole`, `win-whole2`, second match only)
 
@@ -121,6 +142,11 @@ has 14 / 31 and the real one mistimed 9 / 3; no real touch within 0.5 s 23 / 39.
 
 Out of a rule's reach: the block after an attack needs the blockers' hands at the net (pose) or a learned filter; the rest a
 better ball track.
+
+## Questions for the owner
+
+- A first touch after the other team's attack that sends the ball straight back over: dig or relance? The two matches' labels
+  disagree (relance 7 of 9, dig 8 of 14); one rule would save about 16 type fixes over the two matches.
 
 ## Next
 

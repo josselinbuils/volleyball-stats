@@ -313,4 +313,23 @@ class TestByFlight:
     def test_other_touches_stay(self):
         places = {0: np.array([1.0, 0.0, 1.0]), 50: np.array([-5.0, 0.0, 1.0])}
 
-        assert by_flight(self.typed("set"), places, self.FPS)[0][3] == "set"
+        assert by_flight([(0, 0, 0, "pass", "left"), (50, 0, 0, "dig", "right")], places, self.FPS)[0][3] == "pass"
+
+    def test_a_set_kept_on_its_side_stays(self):
+        assert by_flight([(0, 0, 0, "set", "left"), (50, 0, 0, "attack", "left")], {}, self.FPS)[0][3] == "set"
+
+    def test_a_set_sent_over_fast_is_an_attack(self):
+        assert by_flight(self.typed("set"), {}, self.FPS)[0][3] == "attack"
+        places = {0: np.array([1.0, 0.0, 2.8]), 50: np.array([-5.0, 0.0, 1.0])}
+
+        assert by_flight(self.typed("set"), places, self.FPS)[0][3] == "attack"
+
+    def test_a_set_sent_over_low_is_a_relance(self):
+        places = {0: np.array([1.0, 0.0, 1.5]), 50: np.array([-5.0, 0.0, 0.5])}
+
+        assert by_flight(self.typed("set"), places, self.FPS)[0][3] == "relance"
+
+    def test_a_set_sent_over_slowly_stays(self):
+        typed = [(0, 0, 0, "set", "left"), (100, 0, 0, "dig", "right")]
+
+        assert by_flight(typed, {}, self.FPS)[0][3] == "set"

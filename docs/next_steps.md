@@ -272,3 +272,14 @@ but so are 78 of 440 sets and 34 of 129 relances; passes and digs never seen as 
 On the rules' confusions: a set retyped attack when it says spike fixes 15 for 68 broken (13 for 39 at confidence 0.5), a
 relance 8 for 20 (8 for 8). Fine-tuning on the owner's types would be the next try; the arm's shape needs more than this model.
 
+
+## Types to fix (11 Nov): sets sent over, and what typing cannot reach
+
+Kept: a set crossing the net within 1.3 s of its touch is an attack, or a relance by the flight (`actions.SET_OVER_S`, `by_flight`): the owner calls the slower ones sets. Corrections M1 294 -> 288 (types 91 -> 85), M2 410 -> 400 (types 130 -> 119, players 103 -> 104).
+Of the 221 wrong types, 20 are a block the pipeline never saw (one touch serving an attack and a block), 24 follow a wrong team and 26 a false touch just before; 151 are clean.
+
+| Idea | Result |
+| --- | --- |
+| Attack or relance from height, rise, ball above the head, ball's pixel rise after, in grids | the shipped rule (2.1 m, 6 m/s) is at the best on both matches (+-3); depth 1-3 trees overfit (-3 to -10 held out) |
+| The last touch typed floor turned into a pass or dig by the ball's height over the nearest player's feet | AUC 0.75 but overlapping: 0.9 box heights or more takes 3 touches for 3 floors (M1), 8 for 4 (M2) |
+| A first touch after the opposing attack, typed relance, retyped dig | the owner calls it relance 7 of 9 (M1) and dig 8 of 14 (M2) on the same ball flights: nothing in the flight tells |

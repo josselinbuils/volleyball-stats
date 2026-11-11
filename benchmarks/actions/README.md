@@ -232,6 +232,6 @@ uv run python benchmarks/actions/relance.py \
 
 `actions.by_flight`, on calibrated footage with a lens, after the pose rule: an attack leaves from 2.1 m or higher, rising at under
 6 m/s until the next contact (`ball3d.flight_places`, no player's feet in it); else a relance; a contact with no such flight
-keeps the pose rule's type. On the first match's checked rallies, 169 attacks and relances: pose 137, thresholds set on the other
+keeps the pose rule's type. A set that crosses the net within 1.3 s of its touch (SET_OVER_S) is the same case (an attack, or a relance by the flight; an attack with no flight known): the owner calls the slower ones sets. On the first match's checked rallies, 169 attacks and relances: pose 137, thresholds set on the other
 two sets 144 (149 at their best on all; a logit on height, speed and rise 150 over 5 folds). All types: 764 -> 777 of 871.
 
