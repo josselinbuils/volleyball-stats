@@ -148,6 +148,29 @@ better ball track.
 - A first touch after the other team's attack that sends the ball straight back over: dig or relance? The two matches' labels
   disagree (relance 7 of 9, dig 8 of 14); one rule would save about 16 type fixes over the two matches.
 
+## State (11 Nov, 15:20)
+
+Today's code (commit 375ed87, runs `types-setover`): 288 and 400 corrections (294 and 410 at the start).
+The review was restarted on the second match after the push.
+
+Running:
+
+- ball: frames and the two teachers' candidates extracted for about 40% of each match's rallies, spread over the match, plus
+  clips between rallies (`outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match; `benchmarks/ball/finetune_data.py`,
+  `finetune_labels.py`, `finetune_audit.py`, not committed yet). The agent is fitting the flights and auditing the labels by
+  eye. No training before the audit says the labels are right.
+- players: a Sonnet agent splitting the 84 / 104 players to fix into wrong picks and wrong identities, in a worktree
+  (runs `players-*`).
+
+To resume from another session: read this file, `git worktree list` (a worktree left under `.claude/worktrees/` is an agent's:
+its links `outputs`, `data`, `models` are symlinks, `unlink` them before `git worktree remove`), and
+`ls outputs/benchmarks/corrections/*/runs/`.
+
 ## Next
 
-Players (84 / 103): split the wrong picks from the wrong identities, once contacts and types settle.
+1. Ball: if the audit is good, train (one match held out, then the other), re-track the held-out match and score it with the
+   harness; keep only if the corrections fall, the same input size.
+2. The server staying behind the end line after serving (23 touches of the second match): a serve found from the ball leaving
+   the server; larger change, not tried.
+3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
+
