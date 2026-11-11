@@ -1,7 +1,9 @@
 """The app: the one command to start, everything else in the browser.
 
-    uv run volleyball-stats [MATCH] [--no-browser] [--port PORT]
-    uv run volleyball-stats --stop [--port PORT]
+    uv run stats [MATCH] [--port PORT]           the app in a window of its own (the shortcut's)
+    uv run stats browser [MATCH] [--port PORT]   the app in a browser tab
+    uv run stats server [MATCH] [--port PORT]    the app, opening nothing (a restart: the page is open)
+    uv run stats stop [--port PORT]              stops it
 
 Opens the list of the matches (the review server, review.py), or MATCH's review, and serves under /app/ what used to
 need a command: checking the machine (doctor.py), importing a match from the camera's card, mapping the court,
@@ -46,6 +48,11 @@ BACKUP = "backup"
 VERIFY = "verify"
 
 
+# The words after `stats`, and how the page opens for each: a window of its own, a browser tab, nothing.
+OPENING = {None: "window", "browser": "tab", "server": None}
+COMMANDS = ("browser", "server", "stop")
+opening: str | None = "window"
+
 # Browsers that open a page as an app (its own window, without tabs or address bar), the first found taken.
 APP_BROWSERS = {
     "wsl": [
@@ -76,9 +83,9 @@ def app_window(url: str, system: str) -> list[str] | None:
 
 
 def open_browser(url: str) -> None:
-    """`url` in a window of its own, else in the browser; under WSL2, Windows'."""
+    """`url` in a window of its own (`opening`), else in the browser; under WSL2, Windows'."""
     system = doctor.system()
-    command = app_window(url, system)
+    command = app_window(url, system) if opening == "window" else None
     windows = "/mnt/c" if Path("/mnt/c").exists() else None
     if command:
         subprocess.Popen(command, cwd=windows if system == "wsl" else None, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
@@ -667,20 +674,41 @@ def already_open(port: int) -> bool:
         return False
 
 
+def parse(args: list[str]) -> tuple[str | None, list[str]]:
+    """The command after `stats` (None: the app in its own window) and the rest, for the review."""
+    args = list(args)
+    command = args.pop(0) if args[:1] and args[0] in COMMANDS else None
+    # ponytail: the flags the commands replaced, for the habits of then; drop them once forgotten.
+    for flag, instead in (("--stop", "stop"), ("--no-browser", "server")):
+        if flag in args:
+            args.remove(flag)
+            command = command or instead
+    return command, args
+
+
 def main() -> None:
     from volleyball_stats import review
 
+    global opening
+    args = sys.argv[1:]
+    if args[:1] in (["-h"], ["--help"], ["help"]):
+        print(__doc__.split("\n\n")[1], flush=True)
+        return
+    command, args = parse(args)
     os.chdir(git_check.ROOT)
     club_settings.migrate()
-    port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv[:-1] else review.PORT
-    if "--stop" in sys.argv:
+    shortcut.update_launcher()
+    port = int(args[args.index("--port") + 1]) if "--port" in args[:-1] else review.PORT
+    if command == "stop":
         sys.exit(stop(port))
+    opening = OPENING[command]
     if already_open(port):
         print(f"Already open: http://127.0.0.1:{port}/", flush=True)
-        if "--no-browser" not in sys.argv:
+        if opening:
             open_browser(f"http://127.0.0.1:{port}/")
         return
     shortcut.refresh()
+    sys.argv = [sys.argv[0], *args, *([] if opening else ["--no-browser"])]
     review.main()
 
 

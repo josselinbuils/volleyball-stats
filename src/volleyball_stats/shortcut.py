@@ -132,6 +132,16 @@ def make_linux(pair: tuple[str, str]) -> list[Path]:
     return [entry]
 
 
+def update_launcher() -> None:
+    """install.sh's launcher of before `stats`, made to start it."""
+    try:
+        text = LAUNCHER.read_text()
+    except OSError:
+        return
+    if " run volleyball-stats " in text:
+        LAUNCHER.write_text(text.replace(" run volleyball-stats ", " run stats "))
+
+
 def key(pair: tuple[str, str]) -> str:
     return f"{VERSION} {pair[0]} {pair[1]}"
 

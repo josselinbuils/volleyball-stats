@@ -17,6 +17,8 @@ dependencies = [
 ]
 
 [project.scripts]
+stats = "volleyball_stats.app:main"
+# ponytail: the name of before, which launchers installed until 2026-11 start; the app rewrites them to `stats`.
 volleyball-stats = "volleyball_stats.app:main"
 
 [dependency-groups]

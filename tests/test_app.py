@@ -103,6 +103,15 @@ class TestApp:
         monkeypatch.setattr(app.shutil, "which", lambda name: None)
         assert app.app_window("http://127.0.0.1:8765/", "linux") is None
 
+    def test_reads_the_word_after_stats(self):
+        assert app.parse([]) == (None, [])
+        assert app.parse(["browser", "m", "--port", "9000"]) == ("browser", ["m", "--port", "9000"])
+        assert app.parse(["server", "m"]) == ("server", ["m"])
+        assert app.parse(["stop"]) == ("stop", [])
+        assert app.parse(["m", "--no-browser"]) == ("server", ["m"])
+        assert app.parse(["--stop"]) == ("stop", [])
+        assert {command: app.OPENING[command] for command in (None, "browser", "server")} == {None: "window", "browser": "tab", "server": None}
+
     def test_stops_nothing_when_not_running(self, monkeypatch):
         monkeypatch.setattr(app, "already_open", lambda port: False)
         assert app.stop(1) == 0

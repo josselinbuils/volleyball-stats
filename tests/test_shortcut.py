@@ -60,3 +60,10 @@ class TestShortcut:
         assert (folders["C:\\Local"] / "Volleyball Stats" / "volleyball-stats-2c2b79-d01214.ico").stat().st_size > 0
         assert not (folders["C:\\Desktop"] / "Volleyball Stats.bat").exists()
         assert "C:\\Local\\Volleyball Stats\\volleyball-stats-2c2b79-d01214.ico" in scripts[1] and "conhost.exe" in scripts[1]
+
+    def test_moves_an_older_launcher_to_stats(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(shortcut, "LAUNCHER", tmp_path / "volleyball-stats")
+        shortcut.update_launcher()
+        shortcut.LAUNCHER.write_text('#!/bin/sh\ncd "/x" && exec "/uv" run volleyball-stats "$@"\n')
+        shortcut.update_launcher()
+        assert shortcut.LAUNCHER.read_text() == '#!/bin/sh\ncd "/x" && exec "/uv" run stats "$@"\n'

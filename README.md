@@ -117,7 +117,7 @@ for the stand, the camera settings and the lens calibration.
 `outputs/matches/MATCH/site/index.html`; the review's "Put online" hosts it. When a new version of the code is out,
 the app offers to update.
 
-Developers start it with `uv run volleyball-stats`. Each step also has its command, with every option:
+Developers start it with `uv run stats` (`uv run stats --help` for the others). Each step also has its command, with every option:
 [Processing a match](docs/processing.md).
 
 ## Documentation

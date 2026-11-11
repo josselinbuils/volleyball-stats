@@ -26,7 +26,7 @@
 
 `install.sh` does it all and starts the app (`curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh`,
 or `./install.sh` in a copy): Homebrew on a Mac, git, ffmpeg and uv when missing, the code in `~/volleyball-stats`
-(`VOLLEYBALL_STATS_DIR` for another place), `~/.local/bin/volleyball-stats` (carrying the PATH the tools were found
+(`VOLLEYBALL_STATS_DIR` for another place), `~/.local/bin/volleyball-stats` (`uv run stats`, carrying the PATH the tools were found
 on: a Mac's shortcut opens without Homebrew's). The app's start and the club's changes make the shortcut on that launcher again when
 `shortcut.VERSION` or the icon's colours change (`shortcut.py`), replacing the older `.bat` or `.command`: under WSL2 a
 Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl.exe …`: no window, the icon in

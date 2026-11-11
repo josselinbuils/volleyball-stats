@@ -1,6 +1,6 @@
 # Processing a match
 
-Every command and option, from the camera's card to the hosted page. The app (`uv run volleyball-stats`, `app.py`)
+Every command and option, from the camera's card to the hosted page. The app (`uv run stats`, `app.py`)
 does each step from the browser: the list of the matches imports one ("Importer un match"), finds its court or has it
 clicked once per gym, shows the sides and the court's lines to check, runs the pipeline, then opens the review. The
 short path is in the [README's getting started](../README.md#getting-started).

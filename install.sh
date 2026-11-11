@@ -70,7 +70,7 @@ UV=$(command -v uv)
 # lacks Homebrew's /opt/homebrew/bin on Apple chips). The app makes its shortcut on it at start (shortcut.py).
 mkdir -p "$HOME/.local/bin"
 launcher=$HOME/.local/bin/volleyball-stats
-printf '#!/bin/sh\nexport PATH="%s:$PATH"\ncd "%s" && exec "%s" run volleyball-stats "$@"\n' "$PATH" "$DIR" "$UV" >"$launcher"
+printf '#!/bin/sh\nexport PATH="%s:$PATH"\ncd "%s" && exec "%s" run stats "$@"\n' "$PATH" "$DIR" "$UV" >"$launcher"
 chmod +x "$launcher"
 if [ "$(uname -s)" = Darwin ] || [ -n "$WSL_DISTRO_NAME" ]; then
   next="open \"Volleyball Stats\" on the desktop"
@@ -78,4 +78,4 @@ else
   next="open \"Volleyball Stats\" in the applications menu"
 fi
 say "Starting volleyball-stats: the first start takes a few minutes. Next time, $next."
-exec "$UV" run volleyball-stats
+exec "$UV" run stats
