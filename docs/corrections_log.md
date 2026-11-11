@@ -154,12 +154,29 @@ better ball track.
 Today's code (commit 375ed87, runs `types-setover`): 288 and 400 corrections (294 and 410 at the start).
 The review was restarted on the second match after the push.
 
+Ball training set, done (11 Nov, a Sonnet agent; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`,
+not committed yet; `outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match):
+
+- Frames as the pipeline feeds the model (`decode.piped` at 1280x720, then `ball.preprocess`), 57 and 64 rallies spread over
+  the match, 29 and 32 clips between rallies: 45,258 and 44,521 frames. Against `ball.csv`: the ball in the same frames 99%,
+  within 8 px at 4K 99.5-99.7%.
+- Two teachers' candidates a frame: the model as the pipeline runs it, and the same fed 1024x576 (stride 3: its forward was
+  the bottleneck, 79 windows a second).
+- Labels (`labels.csv`): per flight between two reviewed touches, RANSAC then least squares on both teachers' candidates, a
+  cubic in time from 25 frames (median residual 3.5 px), a quadratic under; tolerance 45 px (the ball is 35-55 px wide at
+  4K, about 6 px at 512); a flight accepted with inliers on 40% of its frames, in 3 of its 4 quarters, a path of 100 px or
+  more: 450 of 472 and 404 of 422 flights. `ball` 25,598 / 23,697 (65% / 62% of rally frames; 22% / 19% of them only the
+  1024 teacher saw), `unsure` 1,637 / 1,454, `offscreen` 484 / 141, `skip` 11,739 / 12,829; between rallies, the model's
+  own picks (`clip_ball` 1,584 / 1,278, `clip_none` 4,216 / 5,122).
+- Audit by eye (`audit/*.png`): `ball` labels only the 1024 teacher saw 59 of 60 on the ball (1 cannot tell), both teachers
+  30 of 30; `unsure` 31 of 40 with the ball there; the model's picks off the path (2.6% / 2.0% of its picks) 16 of 30 false
+  (shoes, arms, another ball), 14 the real ball: those frames are left out of the training.
+
 Running:
 
-- ball: frames and the two teachers' candidates extracted for about 40% of each match's rallies, spread over the match, plus
-  clips between rallies (`outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match; `benchmarks/ball/finetune_data.py`,
-  `finetune_labels.py`, `finetune_audit.py`, not committed yet). The agent is fitting the flights and auditing the labels by
-  eye. No training before the audit says the labels are right.
+- ball: a Sonnet agent fine-tunes on the first match (`benchmarks/ball/finetune.py`), scores the detections on the second
+  (`finetune_eval.py`), re-tracks the whole second match and scores it with the harness (run `ball-A`, `bench.py run --ball`);
+  the mirror (`ball-B`) only if that gains. Weights in `outputs/benchmarks/ball_finetune/weights/`.
 - players: a Sonnet agent splitting the 84 / 104 players to fix into wrong picks and wrong identities, in a worktree
   (runs `players-*`).
 
