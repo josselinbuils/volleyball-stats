@@ -37,3 +37,26 @@ class TestShortcut:
 
     def test_names_the_icon_after_its_colours(self):
         assert shortcut.icon_name(PAIR, ".ico") == "volleyball-stats-2c2b79-d01214.ico"
+
+    def test_makes_windows_shortcuts_with_the_icon_in_place_of_the_bat(self, tmp_path, monkeypatch):
+        folders = {"C:\\Desktop": tmp_path / "desktop", "C:\\Programs": tmp_path / "programs", "C:\\Local": tmp_path / "local"}
+        for folder in folders.values():
+            folder.mkdir()
+        (folders["C:\\Desktop"] / "Volleyball Stats.bat").write_text("")
+        scripts = []
+
+        def powershell(script):
+            scripts.append(script)
+            return "C:\\Desktop\nC:\\Programs\nC:\\Local\nC:\\Windows"
+
+        def wsl_path(windows):
+            folder, _, name = windows.partition("\\Volleyball Stats")
+            return folders[folder] / f"Volleyball Stats{name}"
+
+        monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu-24.04")
+        monkeypatch.setattr(shortcut, "run_powershell", powershell)
+        monkeypatch.setattr(shortcut, "wsl_path", lambda windows: folders.get(windows) or wsl_path(windows))
+        shortcut.make_windows(PAIR)
+        assert (folders["C:\\Local"] / "Volleyball Stats" / "volleyball-stats-2c2b79-d01214.ico").stat().st_size > 0
+        assert not (folders["C:\\Desktop"] / "Volleyball Stats.bat").exists()
+        assert "C:\\Local\\Volleyball Stats\\volleyball-stats-2c2b79-d01214.ico" in scripts[1] and "conhost.exe" in scripts[1]

@@ -55,13 +55,13 @@ def make_windows(pair: tuple[str, str]) -> list[Path]:
         old.unlink()
     icon.write(pair, icon_dir / icon_name(pair, ".ico"))
     program, arguments = windows_command(distro, LAUNCHER)
-    target, icon = f"{root}\\System32\\{program}", f"{local}\\{NAME}\\{icon_name(pair, '.ico')}"
+    target, picture = f"{root}\\System32\\{program}", f"{local}\\{NAME}\\{icon_name(pair, '.ico')}"
     links = [f"{desktop}\\{NAME}.lnk", f"{programs}\\{NAME}.lnk"]
     run_powershell(
         "$shell = New-Object -ComObject WScript.Shell\n"
         + "".join(
             f"$s = $shell.CreateShortcut({ps_quote(link)}); $s.TargetPath = {ps_quote(target)}; $s.Arguments = {ps_quote(arguments)}; "
-            f"$s.IconLocation = {ps_quote(icon)}; $s.Description = {ps_quote(NAME)}; $s.Save()\n"
+            f"$s.IconLocation = {ps_quote(picture)}; $s.Description = {ps_quote(NAME)}; $s.Save()\n"
             for link in links
         )
     )
