@@ -15,6 +15,7 @@ import { openMatch, pullMatch } from '@/lib/openMatch';
 import { withRemote } from '@/lib/remoteMatches';
 import { cn } from '@/lib/utils';
 import type { Club, Team } from '@/lib/match';
+import { windowTitle } from '@/lib/windowTitle';
 
 /** A match as matches.js lists it: its page's folder, and from its data.js what the list shows. */
 export interface ListedMatch {
@@ -112,7 +113,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
   };
   const heading = t('matches.heading');
   useEffect(() => {
-    document.title = club ? `${heading} · ${club.name}` : heading;
+    document.title = windowTitle(club ? `${heading} · ${club.name}` : heading);
   }, [heading, club]);
 
   return (

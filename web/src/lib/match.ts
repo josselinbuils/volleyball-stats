@@ -137,6 +137,8 @@ export interface Club {
   sponsors?: Sponsor[];
   /** The club's teams, the season's choice. */
   teams?: string[] | null;
+  /** The app's icon in the club's colours, a data: URL. */
+  favicon?: string;
   light: Record<string, string>;
   dark: Record<string, string>;
 }

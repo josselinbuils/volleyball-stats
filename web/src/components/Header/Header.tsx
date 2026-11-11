@@ -15,6 +15,7 @@ import { SetFilter } from '@/components/Header/SetFilter';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
 import { Tip } from '@/components/Tip';
+import { windowTitle } from '@/lib/windowTitle';
 
 export function Header() {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export function Header() {
 
   const tab = tabTitle(t, f);
   useEffect(() => {
-    document.title = tab;
+    document.title = windowTitle(tab);
   }, [tab]);
 
   // A set lasts from its first serve to its last ball.

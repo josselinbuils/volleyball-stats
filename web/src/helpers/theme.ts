@@ -34,7 +34,7 @@ function block(colours: string[], club: Club | null, scheme: 'light' | 'dark'): 
 }
 
 /** The team colours, outlined where a colour scheme needs it, and the club theme, as a stylesheet;
- * set before the first render so nothing repaints. */
+ * set before the first render so nothing repaints. The icon in the club's colours. */
 export function applyTheme(teams: [Team, Team] | null, club: Club | null) {
   const colours = teamColors(teams ? [teams[0].colour, teams[1].colour] : SIDES);
   const fills = colours.flatMap((c, k) => [`--team${k + 1}:${c}`, `--team${k + 1}-text:${textOn(c)}`, `--team${k + 1}-card-text:${textOnShade(c, CARD_SHADE)}`]);
@@ -48,5 +48,9 @@ export function applyTheme(teams: [Team, Team] | null, club: Club | null) {
   document.head.append(style);
   if (club) {
     document.documentElement.dataset.brand = '';
+  }
+  const icon = document.querySelector<HTMLLinkElement>('link[rel=icon]');
+  if (club?.favicon && icon) {
+    icon.href = club.favicon;
   }
 }

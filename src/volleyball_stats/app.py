@@ -525,6 +525,7 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
             else:
                 club_settings.use(str(body["id"]))
             club_changed()
+            shortcut.refresh()
             return reply({"club": club_settings.read()})
         if route == "server":
             server.save(OUTPUTS, body)

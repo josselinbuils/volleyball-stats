@@ -1,6 +1,7 @@
 """The app's shortcut, opening it with no terminal: under WSL2 Windows' (desktop and Start menu), a Mac's app
-(Applications and desktop), Linux's applications menu. Made by the app's start once per VERSION, in place of the older
-ones (a .bat, a .command), when install.sh's launcher is there.
+(Applications and desktop), Linux's applications menu, its icon in the club's colours (icon.py). Made again by the
+app's start and the club's changes when its VERSION or colours change, in place of the older ones (a .bat, a .command),
+when install.sh's launcher is there.
 
     uv run python -m volleyball_stats.shortcut
 """
@@ -12,15 +13,15 @@ import subprocess
 import threading
 from pathlib import Path
 
-from volleyball_stats import doctor
+from volleyball_stats import club_settings, doctor, icon
 
 NAME = "Volleyball Stats"
 # Bumped when the shortcut changes: each machine's is made again once.
-VERSION = 2
-ICON = Path(__file__).parent / "icon" / "volleyball-stats"
+VERSION = 3
 LAUNCHER = Path.home() / ".local/bin/volleyball-stats"
 MADE = Path.home() / ".local/share/volleyball-stats/shortcut"
 BUNDLE_ID = "io.github.josselinbuils.volleyball-stats"
+ONE_AT_A_TIME = threading.Lock()
 
 
 def ps_quote(text: str) -> str:
@@ -34,7 +35,12 @@ def windows_command(distro: str, launcher: Path) -> tuple[str, str]:
     return "conhost.exe", f'--headless wsl.exe -d {distro} -- "{launcher}"'
 
 
-def make_windows() -> list[Path]:
+def icon_name(pair: tuple[str, str], suffix: str) -> str:
+    """Named after its colours: Windows and desktops keep a file's icon cached by its path."""
+    return f"volleyball-stats-{pair[0][1:]}-{pair[1][1:]}{suffix}"
+
+
+def make_windows(pair: tuple[str, str]) -> list[Path]:
     """The shortcut on Windows' desktop and in its Start menu, its icon copied beside Windows' apps' data."""
     distro = os.environ.get("WSL_DISTRO_NAME")
     if not distro:
@@ -45,13 +51,11 @@ def make_windows() -> list[Path]:
         return []
     desktop, programs, local, root = found
     icon_dir = wsl_path(local) / NAME
-    icon_dir.mkdir(parents=True, exist_ok=True)
-    # Named after the version: Windows keeps a file's icon cached by its path.
     for old in icon_dir.glob("volleyball-stats*.ico"):
         old.unlink()
-    shutil.copyfile(ICON.with_suffix(".ico"), icon_dir / f"volleyball-stats-{VERSION}.ico")
+    icon.write(pair, icon_dir / icon_name(pair, ".ico"))
     program, arguments = windows_command(distro, LAUNCHER)
-    target, icon = f"{root}\\System32\\{program}", f"{local}\\{NAME}\\volleyball-stats-{VERSION}.ico"
+    target, icon = f"{root}\\System32\\{program}", f"{local}\\{NAME}\\{icon_name(pair, '.ico')}"
     links = [f"{desktop}\\{NAME}.lnk", f"{programs}\\{NAME}.lnk"]
     run_powershell(
         "$shell = New-Object -ComObject WScript.Shell\n"
@@ -92,7 +96,7 @@ def info_plist() -> bytes:
     )
 
 
-def make_mac() -> list[Path]:
+def make_mac(pair: tuple[str, str]) -> list[Path]:
     """`Volleyball Stats.app` in the user's Applications (Launchpad, Spotlight) and on the desktop."""
     home = Path.home()
     made = []
@@ -104,7 +108,7 @@ def make_mac() -> list[Path]:
         (app / "Contents/MacOS").mkdir(parents=True)
         (app / "Contents/Resources").mkdir()
         (app / "Contents/Info.plist").write_bytes(info_plist())
-        shutil.copyfile(ICON.with_suffix(".icns"), app / "Contents/Resources/volleyball-stats.icns")
+        icon.write(pair, app / "Contents/Resources/volleyball-stats.icns")
         program = app / "Contents/MacOS/volleyball-stats"
         program.write_text(f'#!/bin/sh\nexec "{LAUNCHER}"\n')
         program.chmod(0o755)
@@ -113,40 +117,53 @@ def make_mac() -> list[Path]:
     return made
 
 
-def desktop_entry() -> str:
-    return f'[Desktop Entry]\nType=Application\nName={NAME}\nExec="{LAUNCHER}"\nIcon={ICON.with_suffix(".png")}\nTerminal=false\nCategories=Sports;Video;\n'
+def desktop_entry(picture: Path) -> str:
+    return f'[Desktop Entry]\nType=Application\nName={NAME}\nExec="{LAUNCHER}"\nIcon={picture}\nTerminal=false\nCategories=Sports;Video;\n'
 
 
-def make_linux() -> list[Path]:
-    """The entry in the applications menu."""
+def make_linux(pair: tuple[str, str]) -> list[Path]:
+    """The entry in the applications menu, its icon beside the record of what was made."""
+    for old in MADE.parent.glob("volleyball-stats*.png"):
+        old.unlink()
+    picture = icon.write(pair, MADE.parent / icon_name(pair, ".png"))
     entry = Path.home() / ".local/share/applications/volleyball-stats.desktop"
     entry.parent.mkdir(parents=True, exist_ok=True)
-    entry.write_text(desktop_entry())
+    entry.write_text(desktop_entry(picture))
     return [entry]
 
 
-def make() -> list[Path]:
-    """This machine's shortcut made again; where it went, none without the launcher."""
+def key(pair: tuple[str, str]) -> str:
+    return f"{VERSION} {pair[0]} {pair[1]}"
+
+
+def make(pair: tuple[str, str] | None = None) -> list[Path]:
+    """This machine's shortcut made again, in the club's colours unless `pair`; where it went, none without the
+    launcher."""
     if not LAUNCHER.exists():
         return []
-    made = {"wsl": make_windows, "mac": make_mac, "linux": make_linux}[doctor.system()]()
-    if made:
-        MADE.parent.mkdir(parents=True, exist_ok=True)
-        MADE.write_text(str(VERSION))
+    pair = pair or icon.colours(club_settings.read())
+    with ONE_AT_A_TIME:
+        made = {"wsl": make_windows, "mac": make_mac, "linux": make_linux}[doctor.system()](pair)
+        if made:
+            MADE.parent.mkdir(parents=True, exist_ok=True)
+            MADE.write_text(key(pair))
     return made
 
 
-def made() -> bool:
+def made(pair: tuple[str, str]) -> bool:
     try:
-        return MADE.read_text().strip() == str(VERSION)
+        return MADE.read_text().strip() == key(pair)
     except OSError:
         return False
 
 
 def refresh() -> None:
-    """At the app's start: the shortcut made, aside, unless this version's is."""
-    if LAUNCHER.exists() and not made():
-        threading.Thread(target=lambda: _quietly(make), daemon=True).start()
+    """At the app's start and on the club's changes: the shortcut made again, aside, unless it is as it should be."""
+    if not LAUNCHER.exists():
+        return
+    pair = icon.colours(club_settings.read())
+    if not made(pair):
+        threading.Thread(target=lambda: _quietly(lambda: make(pair)), daemon=True).start()
 
 
 def _quietly(action) -> None:

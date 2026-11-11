@@ -27,13 +27,15 @@
 `install.sh` does it all and starts the app (`curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh`,
 or `./install.sh` in a copy): Homebrew on a Mac, git, ffmpeg and uv when missing, the code in `~/volleyball-stats`
 (`VOLLEYBALL_STATS_DIR` for another place), `~/.local/bin/volleyball-stats` (carrying the PATH the tools were found
-on: a Mac's shortcut opens without Homebrew's). The app's start makes the shortcut on that launcher once per
-`shortcut.VERSION` (`shortcut.py`), replacing the older `.bat` or `.command`: under WSL2 a Windows `.lnk` on the desktop
-and in the Start menu (`conhost.exe --headless wsl.exe …`: no window, the icon copied to `%LOCALAPPDATA%`), on a Mac
-`Volleyball Stats.app` in `~/Applications` and on the desktop (`LSUIElement`: no Dock icon), on Linux an applications
-menu entry. The page opens in a window of its own (`--app`) of Chrome, Edge, Brave or Chromium, else in the browser
-(`app.app_window`); its "Quitter" stops the server, refused while a job runs (Windows may stop WSL with it). The icon is
-`src/volleyball_stats/icon/` (`.svg`, its renders, and the pages' favicon). The app's "Diagnostic" (`doctor.py`) checks the tools, the graphics card
+on: a Mac's shortcut opens without Homebrew's). The app's start and the club's changes make the shortcut on that launcher again when
+`shortcut.VERSION` or the icon's colours change (`shortcut.py`), replacing the older `.bat` or `.command`: under WSL2 a
+Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl.exe …`: no window, the icon in
+`%LOCALAPPDATA%`), on a Mac `Volleyball Stats.app` in `~/Applications` and on the desktop (`LSUIElement`: no Dock icon),
+on Linux an applications menu entry. The icon (`icon.py`) is a volleyball in the club logo's two main colours (else its
+main colour, else blue and yellow), drawn with Pillow for the shortcut and as SVG for the pages' favicon (`club.favicon`,
+named after its colours: Windows caches icons by path). The page opens in a window of its own (`--app`) of Chrome, Edge,
+Brave or Chromium, else in the browser (`app.app_window`), its title ending in "– Volleyball Stats" there; its "Quitter"
+stops the server, refused while a job runs (Windows may stop WSL with it). The app's "Diagnostic" (`doctor.py`) checks the tools, the graphics card
 and its driver, the memory, the disk, the models (downloaded there) and the code's version. By hand:
 
 On a Windows PC with an NVIDIA GPU:

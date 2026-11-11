@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, decode, defense, files, framing, jumps, timeouts
+from volleyball_stats import club_settings, decode, defense, files, framing, icon, jumps, timeouts
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -465,7 +465,7 @@ def read_teams(match: Path) -> dict | None:
 
 def club_page(name: str, site: Path) -> dict | None:
     """The club as the pages show it: the app's (CLUB, none until it has one) or the theme branding/NAME/brand.json,
-    with its logo copied into the site's club/, and its sponsors from sponsors/sponsors.json beside it (git-ignored under
+    with its icon in its colours (`favicon`), its logo copied into the site's club/, and its sponsors from sponsors/sponsors.json beside it (git-ignored under
     branding/: brands stay off the repository) with their pictures inlined (the 3D view paints them, which a file:// page
     cannot do from a file); None for `none`."""
     own = club_settings.FOLDER / club_settings.FILE
@@ -476,6 +476,7 @@ def club_page(name: str, site: Path) -> dict | None:
         themes = sorted(p.parent.name for p in club_settings.THEMES.glob(f"*/{club_settings.THEME_FILE}"))
         raise SystemExit(f"Unknown theme {name!r}: available themes are {', '.join([CLUB, *themes, 'none'])}")
     data = json.loads(path.read_text())
+    data["favicon"] = icon.favicon(icon.colours({"logo": data.get("logo"), "accent": data.get("light", {}).get("accent")}, path.parent))
     if data.get("logo"):
         (site / "club").mkdir(parents=True, exist_ok=True)
         logo = cv2.imread(str(path.parent / data["logo"]), cv2.IMREAD_UNCHANGED)
