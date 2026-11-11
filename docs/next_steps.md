@@ -222,6 +222,20 @@ servers from it still loses (first, second, of 126 and 138): the rotation decode
 turn by majority 117 → 119, 129 → 123; a server between two agreeing ones of the turn 117, 129. `auto.serverOrder` stays
 a review flag.
 
+## Tried and dropped (11 Nov): windows that miss touches (`benchmarks/corrections`)
+
+Of the 79 added touches outside every window (M1 26, M2 53), 55 are the rally's last 1-3 touches after the window's end (the ball unseen
+there in 4 of 5 cases: the ball tracker's recall), 11 of them follow a whistle that closed the window mid-rally (a contact chain of 3+ after a whistle
+is as common after real dead-ball whistles: 100+ in each match), 23 (M2) are three rallies whose server stays behind the end line after serving
+(the stand ends 2-12 s after the serve, so `served` sees no serve; `whistled` finds it but `alone` refuses it as a window lies inside it).
+
+| Idea | Result (M1 / M2 corrections 294 / 410) |
+| --- | --- |
+| A whistled serve holding windows that start over 8 s after it, no whistle between, becomes one window (`rallies.whistled_whole`) | M2 410 → 412 (the 31 s rally's window is then dropped: its low touches near the camera type "floor", so `no_play` and `mark_dead` take it); touches in windows (`checked.py`) M2 +14, M1 -8 |
+| A "floor" contact the ball crosses the net within 2 s after is a low touch (`classify_rally`) | the 31 s rally typed whole (27 contacts, 7 floor → 1), but M2 410 → 429 (add 97 → 126, winners 7 → 15: 8 windows lost to `mark_dead`/`no_play` once their contacts turn to touches) |
+
+Left: the unseen tails (tracker recall), and the two M2 serve-only rallies (a fault with the ball unseen: no ball run, no window).
+
 ## Tried and dropped (7 Nov)
 
 On the two reviewed matches' checked rallies and answers (M1 first, M2 second):

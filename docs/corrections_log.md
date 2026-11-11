@@ -69,8 +69,8 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 1. Done: the harness, the baseline and the breakdown above (a Sonnet agent, 14 min).
 2. In progress, four Sonnet agents, the pipeline ones each in its own git worktree (`outputs`, `data`, `models` linked, main's `.venv`
    with `PYTHONPATH=src`), reruns one at a time (`flock`, 15 GB of RAM):
-   - windows: the touches outside every rally window (26 / 53 to add);
-   - false touches: those seen twice or mistimed (23 / 34 of those to remove), then the rest;
+   - windows: done, nothing kept ("Tried and dropped");
+   - false touches: done, nothing kept ("Tried and dropped");
    - types: the 91 / 130 types to fix;
    - ball: a training set to fine-tune the ball model on the two matches (the ball is about 4 px wide at the model's 512x288;
      the same model size, so no slower on either machine), labels from the reviewed touches' flights.
@@ -81,7 +81,46 @@ Nothing yet.
 
 ## Tried and dropped
 
-Nothing yet.
+### Rally windows (11 Nov, `next_steps.md` "Tried and dropped (11 Nov)", runs `win-whole`, `win-whole2`, second match only)
+
+The 79 touches outside every window (first 26 / second 53): the rally's last 1-3 touches after the window's end 26 / 29 (the
+ball seen under 30% of the time in 4 of 5 of those tails; 5 / 6 of them after a whistle that closed the window mid-rally); the
+window starting late 0 / 23 (three rallies of 18, 5 and 3 touches whose server stays behind the end line after serving, so
+`served` sees no serve); no window 0 / 2 (serve faults with the ball unseen).
+
+| Idea | Result |
+| --- | --- |
+| A whistled serve holding windows that start over 8 s after it becomes one window | second match 410 -> 412 (the 31 s rally then dropped by `no_play` / `mark_dead`: its low touches near the camera type "floor") |
+| A "floor" the ball crosses the net within 2 s after is a low touch | second match 410 -> 429 (to add 97 -> 126, winners 7 -> 15: 8 windows lost) |
+
+Not run: the first match on either idea (the second already lost), the school clips' rally benchmark (their ball tracks are not
+in `outputs/`). Out of a rule's reach: the unseen tails (about 40 touches: the ball model), the mid-rally whistles (11: a chain
+of 3+ contacts follows 100+ real whistles a match too), the server staying behind the line (23: a serve found from the ball
+leaving the server, and `mark_dead` not killing a long rally; a larger change, not tried).
+
+### False touches (11 Nov, offline on the `baseline` runs, no rerun: no rule came close)
+
+What they are (first / second match): 0.2-0.5 s from a real touch 23 / 34, of which a second touch on one the pipeline also
+has 14 / 31 and the real one mistimed 9 / 3; no real touch within 0.5 s 23 / 39.
+
+- The main double: a "block" 11 frames (`contacts.GAP` + 1) after a rightly timed attack, across the net: 5 of 14 and about 12 of 31.
+  Real blocks at that spacing outnumber them (about 11 real for 1-3 false, 17 for 9): the turn's strength, the ball's direction
+  and track jumps do not tell them apart.
+- 5 of the first match's 9 mistimed are serves the owner placed 15-36 frames after the ball's first sighting, the ball already
+  flying: the truth's time, not a slip (1 on the second).
+- Those far from any real touch: often 2-4 relance/dig/set touches between the real attack and the floor; the ball is seen less
+  around them (median 0.6-0.7 of ±0.4 s against 1.0) and its track jumps more (p90 270-810 px against 46), but both hit real touches.
+
+| Rule (false removed for real lost) | First match | Second match |
+| --- | --- | --- |
+| Ball seen under 30-80% of ±0.4 s | 0 for 12 up to 13 for 143 | 4 for 19 up to 48 for 151 |
+| A track jump over 80 px near the contact | 7 for 12 | 11 for 14 |
+| One track twice within 0.6 s, the second dropped (23 pairs, one false in 17) | 5 for 6 | about 5 for 3 |
+| A touch under 1.6x the threshold | 8 for 18 | 28 for 30 |
+| A block under 1.25x the threshold | 0 for 0 | 6 for 3 |
+
+Out of a rule's reach: the block after an attack needs the blockers' hands at the net (pose) or a learned filter; the rest a
+better ball track.
 
 ## Next
 
