@@ -177,10 +177,16 @@ better ball track.
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
-## State (11 Nov, 16:25)
+## State (11 Nov, 20:15)
 
 Today's code (runs `players-near`): 283 and 389 corrections (294 and 410 at the start).
-The review was restarted on the second match after the push.
+
+The stop at 17:26: five agents at once exhausted WSL's 15 GB (the kernel's out-of-memory killer at 17:13 and 17:22, the VM
+down at 17:26 with every job and the session; a WSL update from Windows Update stopped it again at 18:41). Since then: two
+agents at most at once, the others queued. Every agent's files survived (worktrees, `outputs/benchmarks/`); their running
+jobs did not (the second match's re-track was at 72%).
+
+Queue, in order: ball (re-track again, then the harness), re-identification, rally ends, touch types, pose.
 
 Ball training set, done (11 Nov, a Sonnet agent; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`,
 not committed yet; `outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match):
