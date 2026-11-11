@@ -74,11 +74,10 @@ export function Progress({
   learning: boolean;
   onLearn: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const f = useFormat();
-  const stamp = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   // learn.json's local time, yyyy-mm-dd hh:mm.
-  const when = (run: LearnRun) => stamp.format(new Date(run.time.replace(' ', 'T')));
+  const when = (run: LearnRun) => f.when(run.time.replace(' ', 'T'));
 
   const learn = (
     <Tip label={t(reviewed ? 'review.rerunNoteReviewed' : 'review.rerunNote')}>
