@@ -172,7 +172,7 @@ better ball track.
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
-## State (11 Nov, 17:00)
+## State (11 Nov, 16:25)
 
 Today's code (runs `players-near`): 283 and 389 corrections (294 and 410 at the start).
 The review was restarted on the second match after the push.
@@ -200,6 +200,19 @@ Running:
 - ball: a Sonnet agent fine-tunes on the first match (`benchmarks/ball/finetune.py`), scores the detections on the second
   (`finetune_eval.py`), re-tracks the whole second match and scores it with the harness (run `ball-A`, `bench.py run --ball`);
   the mirror (`ball-B`) only if that gains. Weights in `outputs/benchmarks/ball_finetune/weights/`.
+
+- re-identification: a Sonnet agent compares stronger embeddings with OSNet-AIN (the owner's question, 11 Nov: "do we use the
+  best models?"), in a worktree: the same crops for every model (`outputs/benchmarks/reid/`), the held-out answers
+  (`benchmarks/identity/answers.py`), same or other player within a team, then the harness for a winner (runs `reid-*`).
+  The owner's rule for it: test also the models that only run on the PC or carry another licence (weights in
+  `models/reid_candidates/`, a throwaway venv if they need packages); only a permissive one running on both machines goes
+  into `src/`, the others are reported for the owner to decide.
+
+Ball, first test on the second match (model A, trained on the first only; `weights/eval_A_M2.log`), at the threshold 0.2:
+labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw), median error 2.9 px against 4.3;
+detections in the wrong place 71 against 1, and on 1,160 of 5,122 frames between rallies where the model in use sees none
+(252 at 0.5, with 97.9% found): both near zero for the model in use by construction (the labels come from its picks). The
+agent re-tracks the second match at 0.5.
 
 To resume from another session: read this file, `git worktree list` (a worktree left under `.claude/worktrees/` is an agent's:
 its links `outputs`, `data`, `models` are symlinks, `unlink` them before `git worktree remove`), and
