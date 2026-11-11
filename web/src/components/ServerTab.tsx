@@ -6,8 +6,10 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tip } from '@/components/Tip';
 import { JobProgress } from '@/components/JobProgress';
+import { LateCauses } from '@/components/LateCauses';
 import { INPUT, call } from '@/lib/app';
 import { useFormat } from '@/lib/format';
+import type { PageChange } from '@/lib/hostedChanges';
 import { useRunning } from '@/hooks/useRunning';
 import type { Job } from '@/components/Setup/helpers/setup';
 
@@ -22,7 +24,7 @@ interface Server {
 /** A job of the tab, with its stage ("match": the `n`th of `of`) and the seconds spent and left while it runs. */
 type Told = Job & { n?: number | null; of?: number | null; elapsed?: number; left?: number | null };
 
-/** A match online: its page's address, and when it last went up (`day` when not today) and whether it changed since. */
+/** A match online: its page's address, and when it last went up (`day` when not today), whether it changed since and what. */
 interface Online {
   name: string;
   date: string | null;
@@ -32,6 +34,7 @@ interface Online {
   at: string | null;
   day: string | null;
   behind: boolean;
+  changes: PageChange[] | null;
 }
 
 interface ServerState {
@@ -292,7 +295,16 @@ export function ServerTab() {
                     )}
                     {m.date && <span className="whitespace-nowrap text-muted-foreground">{f.date(m.date)}</span>}
                   </span>
-                  <Tip label={m.at ? (m.day ? t('review.hostedDay', { day: f.date(m.day), at: m.at }) : t('review.hosted', { at: m.at })) : undefined}>
+                  <Tip
+                    label={
+                      m.at || m.changes?.length ? (
+                        <div className="grid gap-1">
+                          {m.at && <p className="m-0">{m.day ? t('review.hostedDay', { day: f.date(m.day), at: m.at }) : t('review.hosted', { at: m.at })}</p>}
+                          {m.behind && <LateCauses changes={m.changes} />}
+                        </div>
+                      ) : undefined
+                    }
+                  >
                     <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap ${m.behind ? '' : 'text-muted-foreground'}`}>
                       {m.behind ? <span aria-hidden className="size-2 rounded-full bg-primary" /> : <CircleCheck aria-hidden className="size-4" />}
                       {t(m.behind ? 'server.late' : 'server.upToDate')}

@@ -42,7 +42,7 @@ def save(outputs: Path, body: dict) -> None:
 
 def online(outputs: Path) -> list[dict]:
     """The matches online, newest first: their name, date, title and teams' names, their page's address, and when it last
-    went up and whether the match changed since (`review.read_hosted`)."""
+    went up, whether the match changed since and what (`review.read_hosted`)."""
     from volleyball_stats import review
 
     found = []
@@ -58,7 +58,7 @@ def online(outputs: Path) -> list[dict]:
                 "title": page["title"],
                 "teams": [t.get("name") for t in page["teams"]] if page["teams"] else None,
                 "url": f"{url.rstrip('/')}/{folder.name}/" if url and folder else None,
-                **{k: hosted[k] for k in ("at", "day", "behind")},
+                **{k: hosted[k] for k in ("at", "day", "behind", "changes")},
             }
         )
     return sorted(found, key=lambda m: (m["date"] or "", m["name"]), reverse=True)

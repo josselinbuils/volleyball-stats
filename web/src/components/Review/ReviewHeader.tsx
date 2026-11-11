@@ -4,13 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { clock, useFormat } from '@/lib/format';
-import { changesLines } from '@/lib/hostedChanges';
 import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import { review, type Backup, type FilmCounts, type Hosted } from '@/lib/review';
 import { ClubDialog } from '@/components/ClubDialog';
 import { HostChoice } from '@/components/Review/HostChoice';
+import { LateCauses } from '@/components/LateCauses';
 import { Tip } from '@/components/Tip';
 
 type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
@@ -170,20 +170,8 @@ export function ReviewHeader({
     );
   }
   if (hosted) {
-    const causes = hosted.behind ? changesLines(hosted.changes, t) : undefined;
     status.push(
-      <Tip
-        label={
-          hosted.error ??
-          (causes && (
-            <ul className="list-disc space-y-0.5 pl-4">
-              {causes.map((cause) => (
-                <li key={cause}>{cause}</li>
-              ))}
-            </ul>
-          ))
-        }
-      >
+      <Tip label={hosted.error ?? (hosted.behind && hosted.changes?.length ? <LateCauses changes={hosted.changes} /> : undefined)}>
         <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')}>
           {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
           {hosted.error
