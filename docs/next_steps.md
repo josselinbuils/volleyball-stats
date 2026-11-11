@@ -283,3 +283,30 @@ Of the 221 wrong types, 20 are a block the pipeline never saw (one touch serving
 | Attack or relance from height, rise, ball above the head, ball's pixel rise after, in grids | the shipped rule (2.1 m, 6 m/s) is at the best on both matches (+-3); depth 1-3 trees overfit (-3 to -10 held out) |
 | The last touch typed floor turned into a pass or dig by the ball's height over the nearest player's feet | AUC 0.75 but overlapping: 0.9 box heights or more takes 3 touches for 3 floors (M1), 8 for 4 (M2) |
 | A first touch after the opposing attack, typed relance, retyped dig | the owner calls it relance 7 of 9 (M1) and dig 8 of 14 (M2) on the same ball flights: nothing in the flight tells |
+
+
+## Players to fix (11 Nov): where the wrong names come from, `benchmarks/corrections`
+
+Kept: a touch on a piece of track with no identity takes the identity of the same track's nearest piece holding one within 5 s (`identity.touch_identity`, `NEAR_TOUCH_S`).
+Of the 28 touches credited to no one (every one a correction), a piece of the track within 5 s carries the truth's player in 16 of 20 (the neighbours of a track share an identity: they differ in 2 of 420 touches on pieces under 2 s). Corrections M1 288 -> 283, M2 400 -> 389 (players 84 -> 79, 104 -> 93; runs `players-near`), the rule has no number to fit.
+
+The 188 wrong players (M1 / M2) by cause, each touch at its frame against the tracks and the identity table:
+
+| Cause | M1 | M2 |
+| --- | --- | --- |
+| The touch is another (type also wrong, 18 of them a block credited to the attack beside it) | 25 | 22 |
+| Wrong pick: the truth's player is on a track among the first two candidates | 30 | 36 |
+| The truth's player is on a far or 3rd+ candidate, or on a track not a candidate | 6 | 12 |
+| No track carries the truth's player at that frame (wrong identity, or a toucher the tracker lost) | 23 | 34 |
+
+Distinct causes: 81 pieces of 84 and 102 of 104 (no run of errors). The ball lies inside the picked box in 59 of 97 wrong picks (the truth's candidate 0.4 box heights off on average): two players in line, the depth question. Of the 57 no-track cases with a pick near the ball, the truth's player is seen on another track within 1 s in 31 of 57 (court distance under 3 m in 34), and the pick's identity is its track's dominant one in 26 of 43. Confidence of the pieces (median 0.99), the runner-up (the truth in 6 of 188) and neighbouring pieces (carry the truth in 8 of 114 touches within 0.5 s of an edge) tell nothing. Errors per piece edge: 14% within 0.5 s, 4-6% beyond 1 s, with the same neighbour identity.
+
+| Idea | Result (M1 / M2, answered-touch scoring on all 761 / 945 named touches with a candidate, identity of the pick against the truth) |
+| --- | --- |
+| The learned order retrained on the other match's 770 / 953 named touches (not the 180 answers) | 686 / 850 held out against 687 / 849 for the shipped weights: saturated |
+| + pose (both wrists, elbow, pose box IoU), motion toward the ball 0.3 s before, presence | 687 / 844 at best, +0..8 in sum over both: noise |
+| + the candidate's distance to the ball's own positions around the contact (6, 12, 25, 50 frames before and after, mean, min, share under 0.3) | -3..+11 in sum depending on the windows: noise |
+| Consecutive touches of one team by one identity (32 of 188 errors) decoded together by the learned scores, the repeat costing 0.5 to 100 | +3 / +2 at best (684 / 844 from 681 / 842); the other touch is mostly a third player's |
+| Short pieces (under 1 s: 19% wrong against 11%) given their track's neighbours' identity | the neighbours differ from the piece in 2 touches of 420 |
+
+Left: the wrong picks of two players in line (ceiling 729 / 905 of 770 / 953 if the order were perfect, 687 / 849 now) and the wrong identities (the identity step: 77% of the held-out answers) need a signal the box, the pose and the ball's track do not give: a depth cue or a better re-identification.

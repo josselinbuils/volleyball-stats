@@ -545,7 +545,7 @@ def main() -> None:
         if attacks:
             jumps.pose_all(args.video, attacks, jumps.attack_rows(players_path, attacks, fps, out / "jumps_rows.npz"), fps, out / "jumps.json")
         timings["jumps"] = time.perf_counter() - start
-        who = [identity.lookup(known, k, t[0]) if k is not None else None for t, k in zip(typed, touchers)]
+        who = [identity.touch_identity(known, k, t[0], fps) if k is not None else None for t, k in zip(typed, touchers)]
         # A track swapping players across the net can hold an identity of the other team.
         # `gap`: box heights from the toucher to the next candidate, the doubt about the pick.
         rows_out = [

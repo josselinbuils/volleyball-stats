@@ -840,6 +840,23 @@ def lookup(table: list[tuple[int, int, int, int, int]], track: int | None, frame
     return (team, identity) if identity else None
 
 
+# A touch on a piece with no identity takes the one of its track's nearest piece holding one within NEAR_TOUCH_S: a track keeps its player
+# between crowd episodes (checked rallies, two matches: of 28 such touches, 17 of the 20 with such a piece within 5 s then right).
+NEAR_TOUCH_S = 5.0
+
+
+def touch_identity(table: list[tuple[int, int, int, int, int]], track: int, frame: int, fps: float) -> tuple[int, int] | None:
+    """`lookup` for a touch: a piece with no identity gives the nearest piece of the same track with one, within NEAR_TOUCH_S."""
+    found = lookup(table, track, frame)
+    if found:
+        return found
+    near = [r for r in table if r[0] == track and r[4] and max(r[1] - frame, frame - r[2], 0) <= NEAR_TOUCH_S * fps]
+    if not near:
+        return None
+    _, _, _, team, number = min(near, key=lambda r: max(r[1] - frame, frame - r[2], 0))
+    return team, number
+
+
 def finder(table: list[tuple[int, int, int, int, int]]) -> Callable[[int | None, int], tuple[int, int] | None]:
     """`lookup` on `table`, by bisection: for the rows of a whole match."""
     pieces: dict[int | None, list] = {}

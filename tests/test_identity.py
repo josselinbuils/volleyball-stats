@@ -21,6 +21,7 @@ from volleyball_stats.identity import (
     resolve,
     sharpen,
     split,
+    touch_identity,
 )
 from volleyball_stats.players import Row
 
@@ -266,6 +267,18 @@ class TestLookup:
         table = [(1, 0, 10, 1, 3), (1, 11, 30, 1, 0)]
 
         assert lookup(table, 1, 20) is None
+
+
+class TestTouchIdentity:
+    def test_a_piece_without_identity_takes_its_tracks_nearest_one_within_the_limit(self):
+        table = [(1, 0, 10, 1, 3), (1, 11, 30, 1, 0), (1, 31, 40, 1, 5), (1, 41, 200, 1, 0)]
+
+        assert touch_identity(table, 1, 20, FPS) == (1, 3)
+        assert touch_identity(table, 1, 29, FPS) == (1, 5)
+        assert touch_identity(table, 1, 15, FPS) == (1, 3)
+        assert touch_identity(table, 1, 150, FPS) is None
+        assert touch_identity(table, 2, 20, FPS) is None
+        assert touch_identity(table, 1, 35, FPS) == (1, 5)
 
 
 class TestSharpen:

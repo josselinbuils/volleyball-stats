@@ -80,12 +80,35 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | Change | First match | Second match |
 | --- | --- | --- |
 | A set crossing the net within 1.3 s of its touch is an attack, or a relance by its flight (`actions.SET_OVER_S`, `by_flight`; runs `types-setover`) | 294 -> 288 (types 91 -> 85) | 410 -> 400 (types 130 -> 119, players 103 -> 104) |
+| A touch on a piece of track with no identity takes its track's nearest identified piece within 5 s (`identity.touch_identity`; runs `players-near`) | 288 -> 283 (players 84 -> 79) | 400 -> 389 (players 104 -> 93) |
+
+The touches on a piece with no identity were asked in the review as unknown players: they now come with a guess, right 16 times
+in 20 on the two matches; the rule fits no number to them. How those guesses show in the review was not looked at.
 
 The slower sets over the net (1.4 s or more) stay sets, as the owner calls them. The threshold comes from 65 sets over the net on
 the two matches (none between 1.3 and 1.4 s): to check on the third match. The school clips' actions benchmark does not run
 `by_flight` (no camera model), so it is unchanged by construction; its ball tracks are not on this machine.
 
 ## Tried and dropped
+
+### Players (11 Nov, `next_steps.md` "Players to fix (11 Nov)")
+
+The 188 wrong players (first / second): the touch is another one, its type wrong too 25 / 22 (18 are a block credited to the
+attack beside it); a wrong pick, the right player among the first two candidates 30 / 36; the right player a later candidate
+or none 6 / 12; no track carrying the right player at that frame 23 / 34 (a wrong identity, or a toucher the tracker lost:
+not told apart; 5 serves a match). No runs: 81 and 102 distinct track pieces. In 59 of 97 wrong picks the ball lies inside
+the picked box, the real toucher 0.4 box heights away: two players in line with the camera.
+
+| Idea (right players of 761 / 945 named touches with a candidate, one match trained, the other tested) | Result |
+| --- | --- |
+| The learned order trained on the other match's checked touches (770 / 953 instead of about 180 answers) | 686 / 850 against 687 / 849 as shipped |
+| With the pose (both wrists, elbow, the pose's box), the move toward the ball, the box seen | 687 / 844 at best |
+| With the candidate's distance to the ball's places around the contact | -3 to +11 over the two, by the window: noise |
+| One identity not twice in a row, the touches decoded together (20 / 24 such pairs, the second wrong in 13 / 19) | +3 / +2 at best, offline only |
+| A short piece given its track's neighbours' identity | the neighbours agree with it (2 of 420 differ) |
+
+Out of reach: two players in line (a perfect order would give 729 / 905: a depth cue, the ball's size or the players in 3D),
+the wrong identity pieces (the identity step keeps 77% of the held-out answers: a better re-identification).
 
 ### Types (11 Nov, `next_steps.md` "Types to fix (11 Nov)")
 
@@ -149,9 +172,9 @@ better ball track.
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
-## State (11 Nov, 15:20)
+## State (11 Nov, 17:00)
 
-Today's code (commit 375ed87, runs `types-setover`): 288 and 400 corrections (294 and 410 at the start).
+Today's code (runs `players-near`): 283 and 389 corrections (294 and 410 at the start).
 The review was restarted on the second match after the push.
 
 Ball training set, done (11 Nov, a Sonnet agent; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`,
@@ -177,8 +200,6 @@ Running:
 - ball: a Sonnet agent fine-tunes on the first match (`benchmarks/ball/finetune.py`), scores the detections on the second
   (`finetune_eval.py`), re-tracks the whole second match and scores it with the harness (run `ball-A`, `bench.py run --ball`);
   the mirror (`ball-B`) only if that gains. Weights in `outputs/benchmarks/ball_finetune/weights/`.
-- players: a Sonnet agent splitting the 84 / 104 players to fix into wrong picks and wrong identities, in a worktree
-  (runs `players-*`).
 
 To resume from another session: read this file, `git worktree list` (a worktree left under `.claude/worktrees/` is an agent's:
 its links `outputs`, `data`, `models` are symlinks, `unlink` them before `git worktree remove`), and
