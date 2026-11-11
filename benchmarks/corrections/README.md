@@ -6,6 +6,7 @@ on the reviewed matches. The real folders in `outputs/matches/` are only read; e
 
     uv run python benchmarks/corrections/bench.py freeze            # once: truth.json from review/data.js (checked rallies)
     uv run python benchmarks/corrections/bench.py run NAME          # copy + learn.rerun on the copy, no training (3 min per match)
+    uv run python benchmarks/corrections/bench.py run NAME MATCH --ball PATH  # same, with the ball track PATH (a ball.csv) in the copy
     uv run python benchmarks/corrections/bench.py score NAME [--compare OTHER]
     uv run python benchmarks/corrections/bench.py score real        # the real folder, read-only
     uv run python benchmarks/corrections/breakdown.py NAME          # outputs/benchmarks/corrections/breakdown.md

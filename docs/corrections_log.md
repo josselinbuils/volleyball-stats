@@ -91,6 +91,31 @@ the two matches (none between 1.3 and 1.4 s): to check on the third match. The s
 
 ## Tried and dropped
 
+### The fine-tuned ball model, end to end (11-12 Nov, second match, model A trained on the first only)
+
+Model A (`benchmarks/ball/finetune.py`; WASB fine-tuned on the first match's labels, the same size and input) finds 99.4% of
+the second match's labelled balls against 81.3%, 97% of those only the 1024 teacher saw, median error 2.9 px against 4.3
+(`finetune_eval.py`, at 0.2; 97.9% at 0.5). The whole second match re-tracked (`finetune_track.py`, resumable, about 55 min
+alone) and rerun (`bench.py run --ball`), against today's 389:
+
+| Run | To add | To remove | Types | Players | Winners | Total |
+| --- | --- | --- | --- | --- | --- | --- |
+| `players-near` (today) | 97 | 73 | 119 | 93 | 7 | 389 |
+| `ball-A`: model A at 0.5 | 212 | 79 | 115 | 91 | 13 | 510 |
+| `ball-A07`: at 0.7 | 257 | 56 | 82 | 80 | 15 | 490 |
+| `ball-A-fill`: today's track, its frames with no ball inside the rally windows filled from A | 164 | 84 | 151 | 82 | 7 | 488 |
+| `ball-A-in`: A's positions inside the windows, today's elsewhere | 205 | 70 | 117 | 86 | 11 | 489 |
+| `ball-A-fill-tail`: the fill, to 2.5 s after each window | 156 | 90 | 152 | 86 | 7 | 491 |
+
+With `ball-A`: touches lost for "ball seen under half" 25 -> 7, but "outside every window" 53 -> 142 (8 checked rallies with no
+window) and "ball seen, no contact" 12 -> 39 (22 serves). The steps after the tracker rest on its habits: it only sees a
+flying ball, so a ball-track run is a rally and a ball appearing is a serve. The fill keeps today's windows and serves and
+still loses 67 touches: my reading (not checked contact by contact) is that touches are also found from the ball vanishing
+near the hands (`contacts.hidden_contacts`) and from thresholds set on this track's jitter.
+What it would take: contacts found again for the new track, e.g. a detector trained on the 2,150 reviewed touches (the
+ball's path and the players around it); large and uncertain, today's finds 92% of the touches. Not started. The mirror
+(model B on the second match, the first re-tracked) was not run: nothing gained to confirm.
+
 ### Players (11 Nov, `next_steps.md` "Players to fix (11 Nov)")
 
 The 188 wrong players (first / second): the touch is another one, its type wrong too 25 / 22 (18 are a block credited to the
@@ -177,27 +202,32 @@ better ball track.
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
-## State (11 Nov, 20:15)
+## State (12 Nov, 00:35): stopped for the night, to resume
 
-Today's code (runs `players-near`): 283 and 389 corrections (294 and 410 at the start).
+Today's code (runs `players-near`): 283 and 389 corrections (294 and 410 at the start). Two rules kept, both merged.
+Nothing runs: the owner shut the PC down for the night. Two heavy agents at most at once (WSL has 15 GB: five took it down
+at 17:26 on 11 Nov, the kernel's out-of-memory killer, and a WSL update stopped it again at 18:41).
 
-The stop at 17:26: five agents at once exhausted WSL's 15 GB (the kernel's out-of-memory killer at 17:13 and 17:22, the VM
-down at 17:26 with every job and the session; a WSL update from Windows Update stopped it again at 18:41). Since then: two
-agents at most at once, the others queued. Every agent's files survived (worktrees, `outputs/benchmarks/`); their running
-jobs did not (the second match's re-track was at 72%).
+To resume, in this order (each agent's transcript is saved: a new session can also start each from its section here):
 
-Queue, in order: ball, re-identification (both running), rally ends, touch types, pose.
+1. Re-identification (worktree `agent-a28e04763f3bb00fa`, `outputs/benchmarks/reid/`): crops and six models' embeddings done
+   for both matches, offline scores done, the control right (OSNet through the wrapper: 283 / 389, runs `reid-orig`). The
+   runs `reid-personvit` and `reid-clipreid` from before 00:00 are INVALID (the rerun crashed on the embedding's size and a
+   stale copy was scored: 293 / 429 for both). Left: the candidates' end-to-end reruns. See "Re-identification" below.
+2. Rally ends (worktree `agent-aac18b0142065904c`, uncommitted): `src/volleyball_stats/playing.py`,
+   `benchmarks/rallies/play_uses.py` and `play_run.py` written, untested end to end; the edits to `match.py` and
+   `actions.py`, `play_candidates.py` (nothing trained) and `play_audio.py` (never run) half-done; no training script, test
+   or doc. The run `play-ref-esk2` was killed unfinished: nothing usable. First: rerun the harness for it on both matches
+   with the 8 Nov VideoMAE-base held-out P(play) files, compare with `players-near`; the other candidates only if it gains.
+3. Touch types (worktree `agent-a986c2ca4ced6707b`, `outputs/benchmarks/act/` 1.3 GB): dataset and candidates' scripts
+   written (`benchmarks/actions/*.py`), nothing trained as far as known.
+4. Pose (worktree `agent-afe099b401a6e33e1`, `outputs/benchmarks/pose/` 35 GB of cached inputs): scripts in
+   `benchmarks/pose/`, no comparison yet.
 
-Ball, end to end on the second match (run `ball-A`: model A trained on the first match only, threshold 0.5, the whole match
-re-tracked, `benchmarks/ball/finetune_track.py`, `bench.py run --ball`): 389 -> 510 corrections. To add 97 -> 212, to remove
-73 -> 79, types 119 -> 115, players 93 -> 91, winners 7 -> 13, rallies needing none 40 -> 23. The ball is seen in 111,813
-frames against 91,708, and the touches lost for "ball seen under half" fall 25 -> 7, but "outside every window" rises
-53 -> 142 (8 checked rallies with no window: 108 touches) and "ball seen, no contact" 12 -> 39 (22 serves). Reading: the
-steps after the tracker rest on its blindness. The model in use only sees a flying ball, so a ball-track run is a rally and
-a ball appearing is a serve; model A also sees the ball held, bounced and carried. Next (running): the threshold 0.7, then
-hybrids from the two tracks, the windows and serves found as today: model A filling the frames with no ball inside the
-windows (`ball-A-fill`), replacing inside them (`ball-A-in`), and up to 2.5 s after their end (`-tail`). The mirror on the
-first match only if one of them gains.
+A worktree left under `.claude/worktrees/` is an agent's: its `outputs`, `data`, `models` are symlinks, `unlink` them before
+`git worktree remove`. Runs: `ls outputs/benchmarks/corrections/*/runs/`.
+
+Ball: dropped as it is (12 Nov), see "Tried and dropped". The training set, model A and the scripts stay.
 
 Ball training set, done (11 Nov, a Sonnet agent; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`,
 not committed yet; `outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match):
