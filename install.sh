@@ -4,7 +4,8 @@
 #   curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
 #
 # macOS, Linux or Windows' Ubuntu (WSL2). It installs what is missing (Homebrew on a Mac, then git, ffmpeg and uv), the
-# code in ~/volleyball-stats, a shortcut on the desktop (a Mac's, or Windows' for WSL2), and opens the app in the browser.
+# code in ~/volleyball-stats and its launcher, then opens the app, which puts its shortcut on the desktop (a Mac's, or
+# Windows' for WSL2) or in Linux's applications menu.
 set -e
 
 REPO=https://github.com/josselinbuils/volleyball-stats.git
@@ -66,29 +67,15 @@ cd "$DIR"
 UV=$(command -v uv)
 
 # The launcher, with the PATH this script found the tools on (a shortcut opens with the system's default one, which
-# lacks Homebrew's /opt/homebrew/bin on Apple chips), then the shortcut on the desktop.
+# lacks Homebrew's /opt/homebrew/bin on Apple chips). The app makes its shortcut on it at start (shortcut.py).
 mkdir -p "$HOME/.local/bin"
 launcher=$HOME/.local/bin/volleyball-stats
 printf '#!/bin/sh\nexport PATH="%s:$PATH"\ncd "%s" && exec "%s" run volleyball-stats "$@"\n' "$PATH" "$DIR" "$UV" >"$launcher"
 chmod +x "$launcher"
-shortcut=""
-if [ "$(uname -s)" = Darwin ] && [ -d "$HOME/Desktop" ]; then
-  cp "$launcher" "$HOME/Desktop/Volleyball Stats.command"
-  shortcut=yes
-elif [ -n "$WSL_DISTRO_NAME" ] && command -v powershell.exe >/dev/null 2>&1; then
-  # The desktop Windows shows, which OneDrive often moves out of the user's folder.
-  windows=$(cd /mnt/c 2>/dev/null && powershell.exe -NoProfile -Command "[Environment]::GetFolderPath('Desktop')" 2>/dev/null </dev/null | tr -d '\r')
-  desktop=$(wslpath "$windows" 2>/dev/null || true)
-  if [ -n "$windows" ] && [ -n "$desktop" ] && [ -d "$desktop" ]; then
-    printf '@echo off\r\nwsl.exe -d %s -- "%s"\r\n' "$WSL_DISTRO_NAME" "$launcher" >"$desktop/Volleyball Stats.bat"
-    shortcut=yes
-  fi
-fi
-
-if [ -n "$shortcut" ]; then
+if [ "$(uname -s)" = Darwin ] || [ -n "$WSL_DISTRO_NAME" ]; then
   next="open \"Volleyball Stats\" on the desktop"
 else
-  next="run this same line again"
+  next="open \"Volleyball Stats\" in the applications menu"
 fi
 say "Starting volleyball-stats: the first start takes a few minutes. Next time, $next."
 exec "$UV" run volleyball-stats

@@ -5,6 +5,7 @@ import { Tabs } from '@/components/Tabs';
 import { Behind } from '@/components/Behind';
 import { ClubBar } from '@/components/ClubBar';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
+import { QuitButton } from '@/components/Quit';
 import { Season } from '@/components/Season/Season';
 import { seasonTeams } from '@/components/Season/helpers/season';
 import { Swatch } from '@/components/Swatch';
@@ -130,6 +131,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
           <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
             <ThemeSwitch />
             <LanguageSwitch />
+            {review && <QuitButton />}
           </div>
         </header>
         {review && <Behind />}

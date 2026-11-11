@@ -24,7 +24,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import backup, club_settings, doctor, files, git_check, jobs, server, sync
+from volleyball_stats import backup, club_settings, doctor, files, git_check, jobs, server, shortcut, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -46,10 +46,44 @@ BACKUP = "backup"
 VERIFY = "verify"
 
 
+# Browsers that open a page as an app (its own window, without tabs or address bar), the first found taken.
+APP_BROWSERS = {
+    "wsl": [
+        "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe",
+        "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+        "/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+        "/mnt/c/Program Files/Microsoft/Edge/Application/msedge.exe",
+    ],
+    "mac": [f"{root}/{name}.app" for name in ("Google Chrome", "Microsoft Edge", "Brave Browser", "Chromium") for root in ("/Applications", str(Path.home() / "Applications"))],
+    "linux": ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge", "brave-browser"],
+}
+
+
+def app_window(url: str, system: str) -> list[str] | None:
+    """The command opening `url` in a window of its own, None without such a browser. Under WSL2, Windows' browser
+    (it reaches the server through localhost), started by `start` for it not to hang on to this server's console."""
+    for found in APP_BROWSERS[system]:
+        if system == "linux":
+            if shutil.which(found):
+                return [found, f"--app={url}"]
+        elif Path(found).exists():
+            if system == "mac":
+                return ["open", "-na", found, "--args", f"--app={url}"]
+            windows = subprocess.run(["wslpath", "-w", found], capture_output=True, text=True).stdout.strip()
+            # start's first quoted word is a title: one with a space, quoted as is by WSL (an empty one would not be).
+            return ["cmd.exe", "/c", "start", "Volleyball Stats", windows, f"--app={url}"] if windows else None
+    return None
+
+
 def open_browser(url: str) -> None:
-    """`url` in the browser; under WSL2, Windows' (it reaches the server through localhost)."""
-    if doctor.system() == "wsl" and shutil.which("explorer.exe"):
-        subprocess.run(["explorer.exe", url], cwd="/mnt/c" if Path("/mnt/c").exists() else None, capture_output=True)
+    """`url` in a window of its own, else in the browser; under WSL2, Windows'."""
+    system = doctor.system()
+    command = app_window(url, system)
+    windows = "/mnt/c" if Path("/mnt/c").exists() else None
+    if command:
+        subprocess.Popen(command, cwd=windows if system == "wsl" else None, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    elif system == "wsl" and shutil.which("explorer.exe"):
+        subprocess.run(["explorer.exe", url], cwd=windows, capture_output=True)
     else:
         webbrowser.open(url)
 
@@ -550,6 +584,9 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "quit":
             if busy():
                 return reply({"error": "busy"}, 409)
+            # From the app's Quitter, not while a job runs: under WSL2, the server gone, Windows may stop Linux and it.
+            if body.get("app") and any(j["running"] for j in jobs.state(OUTPUTS)):
+                return reply({"error": "running"}, 409)
             return reply({})
         if route == "update":
             running = [j["id"] for j in jobs.state(OUTPUTS) if j["running"]]
@@ -642,6 +679,7 @@ def main() -> None:
         if "--no-browser" not in sys.argv:
             open_browser(f"http://127.0.0.1:{port}/")
         return
+    shortcut.refresh()
     review.main()
 
 

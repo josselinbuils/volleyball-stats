@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, RefreshCw, Shield, Sparkles, Undo2 } from 'lucide-react';
+import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, Power, RefreshCw, Shield, Sparkles, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { review, type Backup, type FilmCounts, type Hosted } from '@/lib/review';
 import { ClubDialog } from '@/components/ClubDialog';
 import { HostChoice } from '@/components/Review/HostChoice';
+import { useQuit } from '@/components/Quit';
 import { Tip } from '@/components/Tip';
 
 type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
@@ -194,6 +195,7 @@ export function ReviewHeader({
   // The menu's groups: the match's end on the Match tab, the uploads and films, the copies.
   const shared = !!hosted || films.players.total > 0 || films.highlights.total > 0;
   const [clubOpen, setClubOpen] = useState(false);
+  const app = useQuit();
   return (
     <header className="grid gap-1.5 px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -285,6 +287,11 @@ export function ReviewHeader({
                   </DropdownMenuCheckboxItem>
                 </>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={app.quitting} onSelect={() => mayLeave() && void app.quit()}>
+                <Power aria-hidden />
+                {t('app.quit.label')}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           {toApply || busy === 'apply' ? (
@@ -326,6 +333,7 @@ export function ReviewHeader({
         />
       )}
       {clubOpen && <ClubDialog onClose={() => setClubOpen(false)} />}
+      {app.screens}
     </header>
   );
 }
