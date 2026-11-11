@@ -82,8 +82,39 @@ def app_window(url: str, system: str) -> list[str] | None:
     return None
 
 
+# Windows' curl, to know when Windows reaches this server.
+WINDOWS_CURL = "/mnt/c/Windows/System32/curl.exe"
+# How long a just started server may take to be reached from Windows before the page opens anyway.
+REACHED_WITHIN_S = 10.0
+
+
+def reached_from_windows(url: str) -> bool:
+    """Whether Windows reaches `url`: WSL2 forwards a port just opened to Windows' localhost after a moment, a page
+    opened sooner shows the browser's error until it reloads."""
+    try:
+        done = subprocess.run([WINDOWS_CURL, "-s", "-o", "NUL", "--max-time", "1", url], capture_output=True, timeout=5, stdin=subprocess.DEVNULL, cwd="/mnt/c")
+    except (OSError, subprocess.SubprocessError):
+        return True
+    return done.returncode == 0
+
+
 def open_browser(url: str) -> None:
-    """`url` in a window of its own (`opening`), else in the browser; under WSL2, Windows'."""
+    """`url` in a window of its own (`opening`), else in the browser; under WSL2, Windows', once it reaches the server
+    (meanwhile the server starts serving)."""
+    if doctor.system() == "wsl" and Path(WINDOWS_CURL).exists():
+        threading.Thread(target=open_once_reached, args=(url,)).start()
+    else:
+        show(url)
+
+
+def open_once_reached(url: str) -> None:
+    deadline = time.monotonic() + REACHED_WITHIN_S
+    while not reached_from_windows(url) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    show(url)
+
+
+def show(url: str) -> None:
     system = doctor.system()
     command = app_window(url, system) if opening == "window" else None
     windows = "/mnt/c" if Path("/mnt/c").exists() else None

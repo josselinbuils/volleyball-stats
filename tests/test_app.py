@@ -95,6 +95,14 @@ class TestApp:
         monkeypatch.setattr(app.shutil, "which", lambda name: None)
         assert app.app_window("http://127.0.0.1:8765/", "linux") is None
 
+    def test_under_wsl_opens_the_page_once_windows_reaches_the_server(self, monkeypatch):
+        tries, shown = iter([False, False, True]), []
+        monkeypatch.setattr(app, "reached_from_windows", lambda url: next(tries))
+        monkeypatch.setattr(app, "show", lambda url: shown.append(url))
+        monkeypatch.setattr(app.time, "sleep", lambda s: None)
+        app.open_once_reached("http://127.0.0.1:8765/")
+        assert shown == ["http://127.0.0.1:8765/"] and next(tries, None) is None
+
     def test_reads_the_word_after_stats(self):
         assert app.parse([]) == (None, [])
         assert app.parse(["browser", "m", "--port", "9000"]) == ("browser", ["m", "--port", "9000"])
