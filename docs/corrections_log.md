@@ -210,10 +210,16 @@ at 17:26 on 11 Nov, the kernel's out-of-memory killer, and a WSL update stopped 
 
 To resume, in this order (each agent's transcript is saved: a new session can also start each from its section here):
 
-1. Re-identification (worktree `agent-a28e04763f3bb00fa`, `outputs/benchmarks/reid/`): crops and six models' embeddings done
-   for both matches, offline scores done, the control right (OSNet through the wrapper: 283 / 389, runs `reid-orig`). The
-   runs `reid-personvit` and `reid-clipreid` from before 00:00 are INVALID (the rerun crashed on the embedding's size and a
-   stale copy was scored: 293 / 429 for both). Left: the candidates' end-to-end reruns. See "Re-identification" below.
+1. Re-identification (worktree `agent-a28e04763f3bb00fa`, an uncommitted `REID_DIM` edit in `identity.py` marked
+   `# TEMP bench override`; crops and embeddings in `outputs/benchmarks/reid/`, the agent's scripts copied from the session's
+   temporary folder to `outputs/benchmarks/reid/scripts/`: `e2e.py`, `e2eall.sh`, `embed.py`, `dump.py`, `common.py`).
+   Offline done ("Re-identification" below): PersonViT and CLIP-ReID beat OSNet on both matches. End to end: only the
+   control is valid (OSNet through the wrapper: 283 / 389, runs `reid-orig`). The runs `reid-personvit` and `reid-clipreid`
+   are INVALID (293 / 429 for both): the rerun's subprocess imported the main checkout's code, not the worktree's, crashed
+   on the 384-d vectors, and a stale copy was scored. Left: delete those two run folders (`e2e.py` refuses a name that
+   exists); in `e2eall.sh` make the `e2e.py` call's `PYTHONPATH` hold the worktree's `src` too; the control again (283 /
+   389); then `e2e.py reid-personvit MATCH personvit:whole` and `reid-clipreid MATCH clipreid:whole` on both matches under
+   `flock /tmp/vb-rerun.lock`, and `bench.py score reid-NAME MATCH --compare players-near`.
 2. Rally ends (worktree `agent-aac18b0142065904c`, uncommitted): `src/volleyball_stats/playing.py`,
    `benchmarks/rallies/play_uses.py` and `play_run.py` written, untested end to end; the edits to `match.py` and
    `actions.py`, `play_candidates.py` (nothing trained) and `play_audio.py` (never run) half-done; no training script, test
@@ -288,6 +294,31 @@ agent re-tracks the second match at 0.5.
 To resume from another session: read this file, `git worktree list` (a worktree left under `.claude/worktrees/` is an agent's:
 its links `outputs`, `data`, `models` are symlinks, `unlink` them before `git worktree remove`), and
 `ls outputs/benchmarks/corrections/*/runs/`.
+
+## Re-identification: the models compared (11-12 Nov, offline; end to end left to run)
+
+The same cached crops for every model (about 4 a piece, so OSNet scores a little under its usual 12). "Kept": the review's
+held-out answers kept by the identity step (`benchmarks/identity/answers.py`); rank-1 and AUC: same or another player within
+a team, pieces 120 s apart or more (181 and 133 queries).
+
+| Model | Licence | First match kept (of 565) | rank-1 / AUC | Second match kept (of 338) | rank-1 / AUC | Embedding, min a match |
+| --- | --- | --- | --- | --- | --- | --- |
+| OSNet-AIN as today (12 crops) | MIT | 422 (74.7%) | | not reproduced | | 5.4 / 6.2 |
+| OSNet-AIN (cached crops) | MIT | 410 (72.6%) | .80 / .76 | 238 (70.4%) | .77 / .85 | |
+| PersonViT-S, MSMT17 (a third party's port) | Apache-2.0 | 437 (77.3%) | .89 / .90 | 259 (76.6%) | .76 / .91 | 0.8 |
+| CLIP-ReID ViT-B/16, Market-1501 (ONNX, 345 MB) | MIT | 442 (78.2%) | .91 / .85 | 262 (77.5%) | .88 / .92 | 3.3 |
+| SigLIP base | Apache-2.0 | 433 (76.6%) | .85 / .85 | 251 (74.3%) | .80 / .90 | 1.2 |
+| DINOv2 small | Apache-2.0 | not run | .74 / .75 | 243 (71.9%) | .64 / .77 | 0.7 |
+| DINOv2 base | Apache-2.0 | not run | .69 / .75 | 249 (73.7%) | .62 / .76 | 1.5 |
+| PersonViT + CLIP-ReID | | 438 (77.5%) | .88 / .89 | 265 (78.4%) | .84 / .91 | |
+| PersonViT + OSNet | | 434 (76.8%) | .85 / .84 | 256 (75.7%) | .75 / .88 | |
+| CLIP-ReID + OSNet | | 432 (76.5%) | .84 / .79 | 233 (68.9%) | .80 / .87 | |
+
+PersonViT and CLIP-ReID lead on both matches; DINOv2 does not beat OSNet; joining a model to OSNet does not help. The
+weights' training sets (MSMT17, Market-1501) are research-only, as OSNet's in use already are. PersonViT and SigLIP and
+DINOv2 run on both machines; CLIP-ReID was run with ONNX on CUDA, the Mac not checked; no time measured on the Mac. No
+SOLIDER or TransReID weights found to test. The "77%" of the docs was not reproduced: today's code gives 74.7% on the first
+match; on the second, OSNet's own cache lacked pieces and a decode error stopped it.
 
 ## Next
 
