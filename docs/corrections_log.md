@@ -224,8 +224,10 @@ Running:
   an image model, the skeletons, each fused with the rules' type), one match trained and the other tested, the bar +15
   right types on each; also whether it tells false touches; worktree, `outputs/benchmarks/act/`, runs `act-*`.
 
-Both wire a winner in only behind its weights file (without it the pipeline runs as today); how fine-tuned weights reach the
-other machine and the app's "Apprendre de mes réponses" is open, for the ball model too.
+Both wire a winner in only behind its weights file (without it the pipeline runs as today): a guard for the worktree, not a
+way to ship. The owner's rule stands (8 Nov: one pipeline on both machines), so before any such stage is merged the weights
+must reach both machines (downloaded on first use like the other models, or synced), and "Apprendre de mes réponses" must
+know how to retrain them. Open, for the ball model too.
 
 Ball, first test on the second match (model A, trained on the first only; `weights/eval_A_M2.log`), at the threshold 0.2:
 labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw), median error 2.9 px against 4.3;
