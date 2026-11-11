@@ -186,7 +186,18 @@ down at 17:26 with every job and the session; a WSL update from Windows Update s
 agents at most at once, the others queued. Every agent's files survived (worktrees, `outputs/benchmarks/`); their running
 jobs did not (the second match's re-track was at 72%).
 
-Queue, in order: ball (re-track again, then the harness), re-identification, rally ends, touch types, pose.
+Queue, in order: ball, re-identification (both running), rally ends, touch types, pose.
+
+Ball, end to end on the second match (run `ball-A`: model A trained on the first match only, threshold 0.5, the whole match
+re-tracked, `benchmarks/ball/finetune_track.py`, `bench.py run --ball`): 389 -> 510 corrections. To add 97 -> 212, to remove
+73 -> 79, types 119 -> 115, players 93 -> 91, winners 7 -> 13, rallies needing none 40 -> 23. The ball is seen in 111,813
+frames against 91,708, and the touches lost for "ball seen under half" fall 25 -> 7, but "outside every window" rises
+53 -> 142 (8 checked rallies with no window: 108 touches) and "ball seen, no contact" 12 -> 39 (22 serves). Reading: the
+steps after the tracker rest on its blindness. The model in use only sees a flying ball, so a ball-track run is a rally and
+a ball appearing is a serve; model A also sees the ball held, bounced and carried. Next (running): the threshold 0.7, then
+hybrids from the two tracks, the windows and serves found as today: model A filling the frames with no ball inside the
+windows (`ball-A-fill`), replacing inside them (`ball-A-in`), and up to 2.5 s after their end (`-tail`). The mirror on the
+first match only if one of them gains.
 
 Ball training set, done (11 Nov, a Sonnet agent; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`,
 not committed yet; `outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match):
