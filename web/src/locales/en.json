@@ -279,17 +279,55 @@
     "savedAt": "Saved at {{at}}",
     "hostedLate": "Online page behind",
     "changed": {
+      "name": "Match name",
+      "aliases": "Former names",
+      "video": "Video",
+      "fps": "Frame rate",
+      "duration": "Duration",
+      "end": "Match end",
+      "teams": "Teams",
+      "date": "Date",
+      "title": "Title",
       "rallies": "Rallies",
       "contacts": "Touches",
-      "people": "Players",
-      "films": "Films",
+      "zones": "Court zones",
       "scores": "Score",
-      "teams": "Teams",
-      "voice": "Commentary",
-      "code": "Page code",
       "timeouts": "Timeouts",
-      "other": "Other data"
+      "people": "Players",
+      "ball3d": "3D ball",
+      "club": "Club",
+      "videoPage": "Video link",
+      "feedback": "Reports",
+      "views": "Framing",
+      "index": "Video index",
+      "poster": "Preview picture",
+      "positions": "Player positions",
+      "defense": "Defence placement",
+      "voice": "Commentary",
+      "films": "Films",
+      "code": "Code"
     },
+    "changedKeys": {
+      "club": {
+        "name": "name",
+        "url": "website",
+        "logo": "logo",
+        "font": "font",
+        "radius": "corners",
+        "light": "light colours",
+        "dark": "dark colours",
+        "sponsors": "sponsors",
+        "favicon": "icon"
+      },
+      "films": {
+        "*": "summary"
+      },
+      "code": {
+        "page": "match page",
+        "list": "match list"
+      }
+    },
+    "changedWhich": "{{part}}: {{keys}}",
     "allMatches": "All matches",
     "tabMatch": "Match",
     "namesIntro": "Name each player: the same name makes two numbers one.",

@@ -1236,11 +1236,23 @@ class TestPageChanges:
     def test_each_changed_part_with_how_many_of_its_items_then_the_code(self):
         from volleyball_stats.review import page_changes
 
-        sent = {"data": {"contacts": [{"f": 1}, {"f": 2}, {"f": 3}], "people": {"1": "Ana", "2": "Bob"}, "ball3d": True, "name": "m"}, "code": "a"}
-        now = {"data": {"contacts": [{"f": 1}, {"f": 2, "type": "set"}, {"f": 3}, {"f": 4}], "people": {"1": "Ana", "2": "Bobby", "3": "Cy"}, "ball3d": False, "name": "m"}, "code": "b"}
+        sent = {"data": {"contacts": [{"f": 1}, {"f": 2}, {"f": 3}], "people": {"1": {"name": "Ana"}, "2": {"name": "Bob"}}, "ball3d": True, "club": {"name": "A"}, "positions": {"step": 1}, "name": "m"}, "code": {"page": "a", "list": "c"}}
+        now = {"data": {"contacts": [{"f": 1}, {"f": 2, "type": "set"}, {"f": 3}, {"f": 4}], "people": {"1": {"name": "Ana"}, "2": {"name": "Bobby"}, "3": {}}, "ball3d": False, "club": {"name": "A", "favicon": "x"}, "positions": {"step": 2}, "name": "m"}, "code": {"page": "b", "list": "c"}}
 
-        assert page_changes(sent, now) == [{"part": "ball3d", "count": None}, {"part": "contacts", "count": 2}, {"part": "people", "count": 2}, {"part": "code", "count": None}]
+        assert page_changes(sent, now) == [
+            {"part": "ball3d", "count": None},
+            {"part": "club", "count": 1, "keys": ["favicon"]},
+            {"part": "contacts", "count": 2},
+            {"part": "people", "count": 2, "keys": ["Bobby", "3"]},
+            {"part": "positions", "count": 1},
+            {"part": "code", "count": None, "keys": ["page"]},
+        ]
         assert page_changes(sent, sent) == []
+
+    def test_an_upload_older_than_the_stamps_by_page_says_only_the_code_changed(self):
+        from volleyball_stats.review import page_changes
+
+        assert page_changes({"data": {}, "code": "a"}, {"data": {}, "code": {"page": "b", "list": "c"}}) == [{"part": "code", "count": None}]
 
     def test_a_late_page_says_what_changed_since_the_upload(self, tmp_path):
         from volleyball_stats import review

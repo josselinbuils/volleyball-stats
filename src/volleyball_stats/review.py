@@ -1767,34 +1767,47 @@ def page_stamp(match: Path) -> str:
     return digest.hexdigest()[:16]
 
 
+# The pages whose code page_content stamps, by the name the late page's tip gives each.
+CODE_PAGES = {"page": web.TEMPLATE / "index.html", "list": matches.TEMPLATE / "matches.html"}
+# The parts of the page data whose changes the tip names one by one: the club's fields, the players and films by name.
+NAMED_KEYS = ("club", "people", "films")
+
+
 def page_content(match: Path) -> dict:
-    """The review's page data without its `v` (`page_stamp`), and its code's stamp."""
+    """The review's page data without its `v` (`page_stamp`), and its code's stamp for each of CODE_PAGES."""
     data = page_data(match / "review") or {}
     data.pop("v", None)
-    code = hashlib.sha256(b"".join(path.read_bytes() for path in (matches.TEMPLATE / "matches.html", web.TEMPLATE / "index.html"))).hexdigest()[:16]
-    return {"data": data, "code": code}
+    return {"data": data, "code": {name: hashlib.sha256(path.read_bytes()).hexdigest()[:16] for name, path in CODE_PAGES.items()}}
 
 
 def page_changes(sent: dict, now: dict) -> list[dict]:
     """What changed from the page content `sent` to `now` (`page_content`): each part of the data that differs, with how many of
-    its items changed, added or went (a list's, a mapping's), then "code" when the page's code did."""
+    its items changed, added or went (a list's, a mapping's) and, for NAMED_KEYS, which (`keys`: the players by name), then
+    "code" with the pages whose code did (`keys` None when `sent` is older than the stamps by page)."""
     out = []
     old, new = sent["data"], now["data"]
     for part in sorted(set(old) | set(new)):
         a, b = old.get(part), new.get(part)
         if a == b:
             continue
+        keys = None
         if isinstance(a, list) and isinstance(b, list):
             texts = lambda items: Counter(json.dumps(x, sort_keys=True) for x in items)  # noqa: E731
             gone, came = texts(a) - texts(b), texts(b) - texts(a)
             count = max(sum(gone.values()), sum(came.values()))
         elif isinstance(a, dict) and isinstance(b, dict):
-            count = sum(a.get(k) != b.get(k) for k in set(a) | set(b))
+            changed = sorted((k for k in set(a) | set(b) if a.get(k) != b.get(k)), key=lambda k: (len(k), k))
+            count = len(changed)
+            if part == "people":
+                keys = [str((b.get(k) or a.get(k) or {}).get("name") or k) for k in changed]
+            elif part in NAMED_KEYS:
+                keys = changed
         else:
             count = None
-        out.append({"part": part, "count": count})
+        out.append({"part": part, "count": count, **({"keys": keys} if keys else {})})
     if sent["code"] != now["code"]:
-        out.append({"part": "code", "count": None})
+        pages = [name for name in CODE_PAGES if sent["code"].get(name) != now["code"].get(name)] if isinstance(sent["code"], dict) else None
+        out.append({"part": "code", "count": None, **({"keys": pages} if pages else {})})
     return out
 
 

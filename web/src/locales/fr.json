@@ -279,17 +279,55 @@
     "savedAt": "Sauvegardé à {{at}}",
     "hostedLate": "Page en ligne en retard",
     "changed": {
+      "name": "Nom du match",
+      "aliases": "Anciens noms",
+      "video": "Vidéo",
+      "fps": "Images par seconde",
+      "duration": "Durée",
+      "end": "Fin du match",
+      "teams": "Équipes",
+      "date": "Date",
+      "title": "Titre",
       "rallies": "Échanges",
       "contacts": "Touches",
-      "people": "Joueurs",
-      "films": "Films",
+      "zones": "Zones du terrain",
       "scores": "Score",
-      "teams": "Équipes",
-      "voice": "Commentaire",
-      "code": "Code de la page",
       "timeouts": "Temps morts",
-      "other": "Autres données"
+      "people": "Joueurs",
+      "ball3d": "Ballon en 3D",
+      "club": "Club",
+      "videoPage": "Lien vers la vidéo",
+      "feedback": "Signalements",
+      "views": "Cadrages",
+      "index": "Index de la vidéo",
+      "poster": "Image d'aperçu",
+      "positions": "Positions des joueurs",
+      "defense": "Placement en défense",
+      "voice": "Commentaire",
+      "films": "Films",
+      "code": "Code"
     },
+    "changedKeys": {
+      "club": {
+        "name": "nom",
+        "url": "site",
+        "logo": "logo",
+        "font": "police",
+        "radius": "arrondis",
+        "light": "couleurs claires",
+        "dark": "couleurs sombres",
+        "sponsors": "partenaires",
+        "favicon": "icône"
+      },
+      "films": {
+        "*": "résumé"
+      },
+      "code": {
+        "page": "page du match",
+        "list": "liste des matchs"
+      }
+    },
+    "changedWhich": "{{part}} : {{keys}}",
     "allMatches": "Tous les matchs",
     "tabMatch": "Match",
     "namesIntro": "Nommez chaque joueur : le même nom réunit deux numéros.",

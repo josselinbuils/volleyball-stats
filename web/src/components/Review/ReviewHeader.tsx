@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { clock, useFormat } from '@/lib/format';
-import { changesLabel } from '@/lib/hostedChanges';
+import { changesLines } from '@/lib/hostedChanges';
 import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
@@ -170,8 +170,20 @@ export function ReviewHeader({
     );
   }
   if (hosted) {
+    const causes = hosted.behind ? changesLines(hosted.changes, t) : undefined;
     status.push(
-      <Tip label={hosted.error ?? (hosted.behind ? changesLabel(hosted.changes, t) : undefined)}>
+      <Tip
+        label={
+          hosted.error ??
+          (causes && (
+            <ul className="list-disc space-y-0.5 pl-4">
+              {causes.map((cause) => (
+                <li key={cause}>{cause}</li>
+              ))}
+            </ul>
+          ))
+        }
+      >
         <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')}>
           {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
           {hosted.error
