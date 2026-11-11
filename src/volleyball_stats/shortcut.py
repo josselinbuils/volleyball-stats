@@ -16,7 +16,7 @@ from volleyball_stats import doctor
 
 NAME = "Volleyball Stats"
 # Bumped when the shortcut changes: each machine's is made again once.
-VERSION = 1
+VERSION = 2
 ICON = Path(__file__).parent / "icon" / "volleyball-stats"
 LAUNCHER = Path.home() / ".local/bin/volleyball-stats"
 MADE = Path.home() / ".local/share/volleyball-stats/shortcut"
@@ -46,9 +46,12 @@ def make_windows() -> list[Path]:
     desktop, programs, local, root = found
     icon_dir = wsl_path(local) / NAME
     icon_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(ICON.with_suffix(".ico"), icon_dir / "volleyball-stats.ico")
+    # Named after the version: Windows keeps a file's icon cached by its path.
+    for old in icon_dir.glob("volleyball-stats*.ico"):
+        old.unlink()
+    shutil.copyfile(ICON.with_suffix(".ico"), icon_dir / f"volleyball-stats-{VERSION}.ico")
     program, arguments = windows_command(distro, LAUNCHER)
-    target, icon = f"{root}\\System32\\{program}", f"{local}\\{NAME}\\volleyball-stats.ico"
+    target, icon = f"{root}\\System32\\{program}", f"{local}\\{NAME}\\volleyball-stats-{VERSION}.ico"
     links = [f"{desktop}\\{NAME}.lnk", f"{programs}\\{NAME}.lnk"]
     run_powershell(
         "$shell = New-Object -ComObject WScript.Shell\n"
