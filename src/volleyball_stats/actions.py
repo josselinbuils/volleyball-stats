@@ -17,6 +17,7 @@ only if the ball is on the floor; a ball in the air projects farther from the ca
 import argparse
 import csv
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -134,9 +135,12 @@ def behind_end_line(calibration: Calibration, x: float, y: float) -> bool:
     return abs(calibration.to_court(np.array([[x, y]]))[0, 0]) > 9.0
 
 
-def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
+def classify_rally(
+    contacts: list[Contact], crossings: list[int], fps: float, net_x: float, calibration: Calibration | None = None, alive: Callable[[int], bool] | None = None
+) -> list[Typed]:
     """(frame, x, y, type, side) of a rally's contacts, in frame order. A touch over NET_M from the
-    net on the other side of the previous touch (blocks aside) follows a crossing, seen or not."""
+    net on the other side of the previous touch (blocks aside) follows a crossing, seen or not.
+    A contact at floor level ends the rally's touches unless play goes on after it (`alive`, a play model's): a bounce played on."""
     out: list[Typed] = []
     touches, crossed, blocked, attack, dead, thrown, unseen, previous = 0, 0, False, None, False, 0, 0, None
     # The server's bounces behind the end line before the serve: the ball is not dead yet.
@@ -161,7 +165,8 @@ def classify_rally(contacts: list[Contact], crossings: list[int], fps: float, ne
         if len(out) == bounces and not now and not dead and on_floor(calibration, x, y, False) and behind_end_line(calibration, x, y):
             kind, bounces = "floor", bounces + 1
         elif dead or on_floor(calibration, x, y, frame == contacts[-1][0]):
-            kind, dead = "floor", True
+            # A bounce the players play on (allowed in leisure play) does not end the rally.
+            kind, dead = "floor", dead or not (alive and frame != contacts[-1][0] and alive(frame))
         elif len(out) == bounces and not crossed:
             kind = "serve"
         elif attack and frame - attack[0] <= BLOCK_S * fps:
@@ -253,7 +258,9 @@ def late_serves(
     return out
 
 
-def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[int, int]], fps: float, net_x: float, calibration: Calibration | None = None) -> list[Typed]:
+def classify(
+    contacts: list[Contact], crossings: list[int], rallies: list[tuple[int, int]], fps: float, net_x: float, calibration: Calibration | None = None, alive: Callable[[int], bool] | None = None
+) -> list[Typed]:
     """Typed contacts of every rally; contacts outside the rallies are dropped. A contact in two
     windows, the next one's lead overlapping, stays the first's: answers name a touch by its frame."""
     out: list[Typed] = []
@@ -261,20 +268,21 @@ def classify(contacts: list[Contact], crossings: list[int], rallies: list[tuple[
         start -= round(LEAD_S * fps)
         inside = [c for c in contacts if start <= c[0] <= end]
         taken = {t[0] for t in out}
-        out += [t for t in classify_rally(inside, [c for c in crossings if start <= c <= end], fps, net_x, calibration) if t[0] not in taken]
+        out += [t for t in classify_rally(inside, [c for c in crossings if start <= c <= end], fps, net_x, calibration, alive) if t[0] not in taken]
     return out
 
 
-def mark_dead(typed: list[Typed], touchers: list[int | None], rallies: list[int | None]) -> tuple[list[Typed], list[int | None]]:
+def mark_dead(typed: list[Typed], touchers: list[int | None], rallies: list[int | None], alive: Callable[[int], bool] | None = None) -> tuple[list[Typed], list[int | None]]:
     """`typed` and `touchers` with each run of DEAD_RUN touches or more in a row by one track, and
-    the rest of its rally, retyped "floor" without a toucher; `rallies` holds each contact's rally."""
+    the rest of its rally, retyped "floor" without a toucher; `rallies` holds each contact's rally.
+    A run with play going on after it (`alive`, a play model's) stays."""
     typed, touchers = list(typed), list(touchers)
     k = 0
     while k < len(typed):
         end = k + 1
         while end < len(typed) and touchers[k] is not None and touchers[end] == touchers[k] and rallies[end] == rallies[k]:
             end += 1
-        if end - k >= DEAD_RUN:
+        if end - k >= DEAD_RUN and not (alive and alive(typed[end - 1][0])):
             while end < len(typed) and rallies[end] == rallies[k]:
                 end += 1
             for m in range(k, end):
@@ -284,26 +292,29 @@ def mark_dead(typed: list[Typed], touchers: list[int | None], rallies: list[int 
     return typed, touchers
 
 
-def no_play(typed: list[Typed], rallies: list[int | None], windows: list[tuple[int, int]] | None = None, crossings: list[int] | None = None, fps: float = 0.0) -> set[int]:
+def no_play(
+    typed: list[Typed], rallies: list[int | None], windows: list[tuple[int, int]] | None = None, crossings: list[int] | None = None, fps: float = 0.0, kept: set[int] | None = None
+) -> set[int]:
     """The rallies whose contacts are IDLE_FLOORS floor contacts or more and no player touch: the
     next server bouncing the ball, a ball rolled back (first ASPOM match: the 2 such windows of
     50:00-60:00, labelled no rally, and none other on the match); `rallies` holds each contact's.
     With the windows, also those with no player touch at all and those over NO_CROSSING_S with no
     crossing: a serve into the net is over before that (at most 1.6 s, the 2 longer false). A window
-    with touches and no serve stays: the server out of view (second ASPOM match: 7 such rallies, 3 false)."""
+    with touches and no serve stays: the server out of view (second ASPOM match: 7 such rallies, 3 false).
+    The windows of `kept` (those a play model sees play in all along) are none of these."""
     found: dict[int, list[str]] = {}
     for t, k in zip(typed, rallies):
         if k is not None:
             found.setdefault(k, []).append(t[3])
     idle = {k for k, kinds in found.items() if kinds.count("floor") >= IDLE_FLOORS and set(kinds) <= {"floor", "net"} or kinds.count("floor") >= BOUNCED_FLOORS}
     if windows is None:
-        return idle
+        return idle - (kept or set())
     lead = round(LEAD_S * fps)
     for k, (start, end) in enumerate(windows):
         crossed = any(start - lead <= c <= end for c in crossings or [])
         if not set(found.get(k, [])) - {"floor", "net"} or (not crossed and (end - start) / fps >= NO_CROSSING_S):
             idle.add(k)
-    return idle
+    return idle - (kept or set())
 
 
 def player_under(ball: tuple[float, float], boxes: np.ndarray, reach: float) -> int | None:

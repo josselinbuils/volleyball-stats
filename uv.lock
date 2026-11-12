@@ -3321,6 +3321,7 @@ dependencies = [
     { name = "rapidocr-onnxruntime" },
     { name = "spandrel" },
     { name = "torch" },
+    { name = "transformers" },
     { name = "ultralytics" },
 ]
 
@@ -3350,6 +3351,7 @@ requires-dist = [
     { name = "rapidocr-onnxruntime", specifier = ">=1.4.4" },
     { name = "spandrel", specifier = ">=0.4.2" },
     { name = "torch" },
+    { name = "transformers" },
     { name = "ultralytics" },
 ]
 

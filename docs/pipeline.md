@@ -11,7 +11,7 @@ How a video becomes statistics, step by step. Each step is scored against hand l
 
 | Step | What it does | Starting point |
 | --- | --- | --- |
-| 1. Rallies | Find when the ball is in play, drop dead time | Ball-track runs closed by the referee's whistle ([benchmark](../benchmarks/rallies/README.md)) |
+| 1. Rallies | Find when the ball is in play, drop dead time | Ball-track runs closed by the referee's whistle; where its weights are (`models/play/`), a play / no-play clip model moves the ends and starts and keeps a rally going after a bounce played on ([benchmark](../benchmarks/rallies/README.md)) |
 | 2. Court | Map pixels to court coordinates | Lens undistortion + homography: rough clicks once per court, snapped to the painted lines; known courts recognised automatically when the stand moves a little ([benchmark](../benchmarks/court/README.md)) |
 | 3. Ball | Track the ball, detect contacts and net crossings | WASB, pretrained ([benchmark](../benchmarks/ball/README.md)); contacts from velocity changes with gravity removed ([benchmark](../benchmarks/contacts/README.md)) |
 | 4. Actions | Classify each contact: serve, reception, set, attack, block, dig | Rules: contact order per side of the net + floor position ([benchmark](../benchmarks/actions/README.md)) |

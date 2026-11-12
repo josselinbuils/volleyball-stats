@@ -85,6 +85,12 @@ class TestFloor:
         assert kinds(classify_rally(contacts, [20], FPS, NET_X, self.CALIBRATION)) == ["serve", "pass", "floor"]
         assert kinds(classify_rally([*contacts, self.at(120, -4, -6)], [20], FPS, NET_X, self.CALIBRATION)) == ["serve", "pass", "set", "attack"]
 
+    def test_a_bounce_played_on_leaves_the_rally_alive(self):
+        contacts = [self.at(0, 12, 0), self.at(40, -6, -6), self.at(80, -5, 3), self.at(100, -4, -6), self.at(140, -5, 3)]
+
+        assert kinds(classify_rally(contacts, [20], FPS, NET_X, self.CALIBRATION, alive=lambda frame: True)) == ["serve", "pass", "floor", "set", "floor"]
+        assert kinds(classify_rally(contacts, [20], FPS, NET_X, self.CALIBRATION, alive=lambda frame: False)) == ["serve", "pass", "floor", "floor", "floor"]
+
     def test_a_ball_above_the_horizon_is_never_the_floor(self):
         contacts = [self.at(0, 12, 0), (40, 640, 100)]
 
@@ -143,6 +149,13 @@ class TestMarkDead:
 
         assert mark_dead(typed, [1, 1, 2], [0, 0, 0]) == (typed, [1, 1, 2])
 
+    def test_a_run_with_play_going_on_after_it_stays(self):
+        typed = [(f, 0, 0, kind, "left") for f, kind in enumerate(["pass", "set", "attack", "attack", "attack", "dig"])]
+        touchers = [1, 2, 3, 3, 3, 4]
+
+        assert mark_dead(typed, touchers, [0] * 6, alive=lambda frame: frame == 4) == (typed, touchers)
+        assert kinds(mark_dead(typed, touchers, [0] * 6, alive=lambda frame: False)[0])[2:] == ["floor"] * 4
+
 
 class TestServeStarts:
     def test_a_window_opening_after_its_serve_starts_lead_s_after_it(self):
@@ -168,6 +181,7 @@ class TestNoPlay:
         typed = [(10, 0, 0, "floor", "left"), (20, 0, 0, "floor", "left"), (30, 0, 0, "serve", "left"), (40, 0, 0, "floor", "right"), (50, 0, 0, "floor", "right"), (60, 0, 0, "floor", "left")]
 
         assert no_play(typed, [0, 0, 1, 1, 1, 2]) == {0}
+        assert no_play(typed, [0, 0, 1, 1, 1, 2], kept={0}) == set()
 
 
 class TestRelanceCues:

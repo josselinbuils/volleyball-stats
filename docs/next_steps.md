@@ -157,18 +157,14 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
 13. **The review's answers as benchmarks.** `answers.py --rerank` scores attribution on them; the
     same for `action` types (`actions.classify_rally` on `actions.csv`'s contacts against the
     owner's types) and `rally` verdicts would score those steps without labels.
-14. **A learned play / no-play clip model for rally ends** (tried 8 Nov, `benchmarks/rallies/README.md`: AUC 0.99 held out both ways;
-    ends carried on through its play 50:00-60:00 F1 ±1 s 0.57 -> 0.65, touches in windows +6 and +11). Left out for now (the
-    owner, 8 Nov): one pipeline on both machines, and on the Mac it would add about an hour a match (frames ~25 min, VideoMAE
-    on MPS ~25-40 min, estimated; 14 min on the 5080) plus the 330 MB model on each, for 1 in 10 of the touches missed outside
-    windows. Retry when more checked matches can train it, or if it gains more. Ends with the ball out of sight or
-    another court's whistle: 50:00-60:00 F1 ±1 s 0.58, every hand-made cue tried dropped. Recipe from
-    [volleyball-ml-models](https://github.com/masouduut94/volleyball-ml-models) (MIT; `literature.md` §1): VideoMAE-base,
-    16 frames at 224 px, service / play / no play. Their weights are broadcast-only: fine-tune on the two matches' checked
-    rallies (about 270, clips at a 0.5 s stride inside and between them), one match held out, then the other way round.
-    Its P(play) closes a ball run in `rallies.py` beside the whistle, not instead. Score with `benchmarks/rallies/bench.py`
-    (50:00-60:00 and `side_holdout`) and `checked.py`. A match is about 11k clips. Needs `transformers` declared in
-    `pyproject.toml` (in the lock already, through another package; the owner's OK given).
+14. Done (12 Nov): **the learned play / no-play clip model** is in the pipeline where its weights are (`playing.py`, the
+    stage "play"; `benchmarks/rallies/README.md` "12 Nov"): ends carried on and starts pulled back through its play, the
+    windows it sees play in kept, a rally going on after a bounce played on. Corrections 283 -> 281 and 389 -> 351, the
+    model held out. VideoMAE-base fine-tuned on the two reviewed matches (base weights CC BY-NC 4.0: fine for a
+    non-commercial project, the owner, 12 Nov), 345 MB in `models/play/`, about 20 min a match on the 5080. Left: the
+    weights on the Mac (not copied there, the stage never run on MPS: about an hour a match, estimated), retraining it
+    with each reviewed match ("Apprendre de mes réponses" does not), and the ends themselves (it only carries them on:
+    cutting them back where P(play) falls loses the last floor contact).
 
 ## Tried and dropped (1 Nov)
 

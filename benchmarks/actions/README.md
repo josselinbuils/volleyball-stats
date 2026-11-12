@@ -235,3 +235,39 @@ uv run python benchmarks/actions/relance.py \
 keeps the pose rule's type. A set that crosses the net within 1.3 s of its touch (SET_OVER_S) is the same case (an attack, or a relance by the flight; an attack with no flight known): the owner calls the slower ones sets. On the first match's checked rallies, 169 attacks and relances: pose 137, thresholds set on the other
 two sets 144 (149 at their best on all; a logit on height, speed and rise 150 over 5 folds). All types: 764 -> 777 of 871.
 
+
+## A learned type from the gesture (11-12 Nov, `learned/`, dropped for now)
+
+The owner's reviewed types as labels: one example per pipeline contact of the checked rallies (917 and 1167; "none" for a
+contact that is no touch, 46 and 73), a clip of 16 frames every 3 around it cut on the credited player and the ball
+(`learned/dataset.py`, about 9 min a match), trained on one match and tested on the other, both ways. The bar set before:
+15 more right types on each match.
+
+    uv run python benchmarks/actions/learned/dataset.py MATCH [RUN]       # outputs/benchmarks/act/MATCH/ (ACT_DIR for another folder)
+    uv run python benchmarks/actions/learned/videomae.py TRAIN TEST video  # also dino.py, skel.py: outputs/benchmarks/act/preds/
+    uv run python benchmarks/actions/learned/evaluate.py videomae-video
+
+Right types of the touches found, the rules at 794 of 871 (first match) and 983 of 1094 (second). "Alone" is the model's
+own class; "over the rules" replaces the rules' type above a confidence tuned on the training match; "stacked" is a small
+head on the model's scores, the rules' type and what the rules see (order, timing, side, the ball's 3D height and speeds),
+trained on the training match's out-of-fold scores.
+
+| Model | First match: alone / over the rules / stacked | Second match |
+| --- | --- | --- |
+| DINOv2-base frozen, 3 frames | 592 / 794 / 794 | 758 / 983 / 992 |
+| DINOv2-base frozen, 16 frames in a temporal head | 573 / 794 / 800 | 744 / 985 / 991 |
+| The toucher's skeleton and the ball's path (YOLO11m-pose on the clip) | 685 / 782 / 803 | 859 / 980 / 993 |
+| The same with the rules' features in the head | 783 / 797 / 803 | 978 / 997 / 991 |
+| VideoMAE-base fine-tuned on the clips (about 6 min a direction on the 5080) | 660 / 792 / **810** | 821 / 986 / **998** |
+| VideoMAE with the rules' features fused in | 792 / 802 / 805 | 995 / 996 / 990 |
+
+Alone, every model is far under the rules (pass or dig, dig or set: the order of the touches says it, the gesture hardly).
+Stacked, each gains 0 to 16; the best, VideoMAE stacked, +16 and +15: at the bar, and the variants differ by as much. Its
+fixes: attack for relance and back, a pass or a set the rules called floor; it breaks relance into dig 6 times on the
+first match (the owner's call there is the player's intent, `docs/corrections_log.md`). None tells a false touch: at best
+14 of 73 caught for 8 real touches lost.
+
+On the pipeline with the play model (`ACT_DIR=act-play`, the set built on the run `play-eskb`; the rules at 800 of 873 and
+1032 of 1129, some of the floors already fixed): VideoMAE stacked +14 and +12, under the bar. Not wired in: a second
+345 MB model and a decoding pass around every contact for about 13 types of 95 a match. To try again with a third reviewed
+match in the training set (the models alone are weak for lack of examples: about 900 a match).

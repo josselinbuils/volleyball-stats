@@ -408,3 +408,55 @@ The settings were picked on both labelled spans (none is held out for them); the
 rallies, 9 ends move with cuts, 7 closer (the +10 s tail to +1.0 s, a ball out of sight -3.0 to -0.6 s), 2 farther; the
 -9.9 s end (ball out of sight 4 s, then 6 contacts) gets to -7.8 s. Left out of `match.py` (8 Nov): the pipeline stays the same
 on both machines, and it would need the frames, the model (330 MB) on each and about 14 min a match on the 5080, an hour on the Mac (estimated).
+
+### 12 Nov: the play model in the pipeline
+
+Kept (`playing.py`, the stage "play" of `match.py`): the model's P(play) every 0.25 s is written once to the match folder
+(`play.npz`) and the rally step uses it four ways, each measured alone on the held-out P(play) (`play_uses.py`, touches of
+the checked rallies inside a window, of 945 and 1199):
+
+| Use | First match | Second match |
+| --- | --- | --- |
+| none (the pipeline before) | 880 | 1103 |
+| `ends`: an end carried on through play (8 Nov, above) | 886 | 1114 |
+| `starts`: a start pulled back to where play began, 2 s or more before it, up to 30 s and never into the previous window | 880 | 1105 (a rally missed: 2 -> 3) |
+| `keep`: a window with play on 85% of its length or more is no dead ball for `actions.no_play` | 880 | 1103 |
+| `ends`, `starts`, `keep` | 886 | 1139 (rallies missed 2) |
+| with `alive` too | 883 | 1137 |
+
+`starts` and `keep` gain together: a rally whose server stays behind the end line gets its start back, and `no_play` no
+longer drops it for its floors. `alive` (`playing.goes_on`: play live all through 1 to 3 s after a frame) is for the types,
+not the windows: both matches have rallies where the ball bounces and the players play on (27 and 38 such floors in the
+reviewed touches), so a floor contact that is not the window's last, with play going on, no longer ends the rally's touches
+(`actions.classify_rally`), and a run of 3 touches by one track with play going on is no dead ball (`actions.mark_dead`: of
+its 4 runs on the two matches, the 2 in checked rallies retyped 17 real touches "floor", play fully on after both; fully off
+after the 2 others). The few touches `alive` loses were kept as floors and are now dropped for having no player at the ball.
+On the first match's labelled spans, all four uses: 26:00-36:00 F1 ±1 s 0.90 -> 0.90 (±2 s 1.00 -> 0.95), 50:00-60:00
+0.58 -> 0.67 (±2 s 0.76 -> 0.84).
+
+End to end, the corrections left to the owner (`benchmarks/corrections`, the model held out):
+
+| Run | First match | Second match |
+| --- | --- | --- |
+| before (`players-near`) | 283 | 389 |
+| `play-e`: ends | 282 | 384 |
+| `play-esk`: ends, starts, keep | 282 | 373 |
+| `play-eska`: with `alive`, a floor with play after it typed as a touch | 282 | 352 |
+| `play-eskb`: with `alive`, the floor stays a floor and the rally goes on (kept) | **281** | **351** |
+
+`play-eskb` by kind, first / second: to add 65 -> 62 / 97 -> 62, to remove 46 -> 47 / 73 -> 74, types 85 -> 82 / 119 -> 105,
+players 79 -> 81 / 93 -> 103 (55 more named touches are found on the second match, 45 of them given to the right player),
+winners 8 -> 9 / 7 -> 7. One 31 s rally of the second match goes from 23 corrections to 9.
+
+Tried and left out: `drop` (a window with no play over 0.3 dropped: 8 real rallies lost on the first match) and `find`
+(play 6 s long with no window near made one: none found).
+
+The weights (`models/play/`, 345 MB, not in the repository): the same recipe trained on both matches
+(`play.py train M1 M2 --test M2 --wide --tag both_wide`, then `config.json` and `model.safetensors` copied there), AUC 0.9995
+on the second match it has seen. Without them the stage does not run and the pipeline is as before: the Mac's case today.
+The stage (`playing.predict`) streams the video at 8 fps, scaled on the NVIDIA card as the training frames were: on the
+first match (67 min) its P(play) is the benchmark's to the last digit, in 21 min with another job on the card (22 min and
+live or not on 1% of the clips otherwise with frames scaled on the CPU, the path of a machine without CUDA: 882 touches in
+windows against 883). The Mac has not run it.
+A match's `play.npz` travels with its folder, so a rerun on the Mac keeps the windows of a match first run on the PC, and
+a rerun on the PC adds it to a match first run on the Mac.

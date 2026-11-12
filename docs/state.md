@@ -27,8 +27,9 @@ The pipeline's weak spots and what is left to do, most useful first.
    2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Apprendre de mes réponses".
    12 of the second match's 18 wrong winners are rallies with no window. Left: ends with the ball out of sight or another court's
    whistle (50:00-60:00 F1 ±1 s 0.58; four end rules tried, none gains; 7 Nov, the players' speed and the cheer after a
-   point dropped too), then how rallies end (in, out, fault). A learned play / no-play clip model (8 Nov, `next_steps.md`
-   item 14): ends carried on through its play 50:00-60:00 0.57 -> 0.65, more touches in windows on both matches; left out for now (one pipeline on both machines, ~1 h more a match on the Mac).
+   point dropped too), then how rallies end (in, out, fault). A learned play / no-play clip model (`playing.py`, `next_steps.md`
+   item 14) is in the pipeline since 12 Nov where its weights are (the PC): 50:00-60:00 F1 ±1 s 0.58 -> 0.67,
+   the touches outside every window 26 -> 8 and 53 -> 2; the Mac runs as before without the weights.
 5. Done (5 Nov): the checked rallies as labels (`checked.py` scores `match.py`'s windows). The 6 false windows left have
    no feature apart from real rallies: review questions.
 6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.
@@ -65,3 +66,8 @@ The pipeline's weak spots and what is left to do, most useful first.
 15. Done (9 Nov): one command, everything in the app (`app.py`, `install.sh`, [running.md](running.md)): the machine's
     checks, import, court (clicked in the browser the first time in a gym), pipeline with its progress, the videos with the
     other machine, the update. `match.side_by_side` runs on CUDA only: on the Mac (MPS) two threads abort Metal.
+16. Fewer corrections in the review (11-12 Nov, [corrections_log.md](corrections_log.md): the harness `benchmarks/corrections`, what
+    was kept and dropped, what is next): the corrections left to the owner on the two reviewed matches 294 -> 281 and 410 -> 351
+    (2.2 and 2.3 a rally). Kept: a set sent over the net typed by its flight, a touch on a nameless piece of track given its
+    track's nearest name, the play / no-play model. Dropped with their numbers: a fine-tuned ball model, two stronger
+    re-identification models, a learned touch type, rules for windows, false touches and types.

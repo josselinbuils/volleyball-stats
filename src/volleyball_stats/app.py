@@ -366,14 +366,14 @@ def court_of(name: str) -> Path:
 def time_left(job: dict, now: float) -> float | None:
     """Seconds left of a job's step: from its progress while it tells one (the copy, the tracking), then for the
     pipeline each later stage's duration on the first ASPOM match (review.TOOK), in proportion to the video's length."""
-    from volleyball_stats import review
+    from volleyball_stats import playing, review
 
     spent, done = now - job.get("stepStarted", job["started"]), job.get("progress")
     here = spent * (1 - done) / done if done and done > 0.01 else None
     if job.get("step") != "pipeline":
         return here
     stage = job.get("stage") or "tracking"
-    later = review.STAGES[review.STAGES.index(stage) + 1 :] if stage in review.STAGES else []
+    later = [s for s in review.STAGES[review.STAGES.index(stage) + 1 :] if s != "play" or playing.available()] if stage in review.STAGES else []
     scale = job.get("duration", TOOK_VIDEO_S) / TOOK_VIDEO_S
     rest = scale * sum(review.TOOK.get(f"pipeline:{s}", 0.0) for s in later)
     if stage == "tracking":

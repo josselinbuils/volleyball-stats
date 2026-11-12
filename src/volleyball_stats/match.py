@@ -28,7 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, jumps, players, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -188,22 +188,22 @@ def rally_windows(
 
 def typed_windows(
     windows: list[rallies.Rally], found: list[contacts.Contact], crossings: list[int], fps: float, net_x: float, calibration: court.Calibration | None, rows: list[players.Row] | None,
-    track: np.ndarray, whistle_times: list[tuple[float, float]],
+    track: np.ndarray, whistle_times: list[tuple[float, float]], alive: Callable[[int], bool] | None = None,
 ) -> tuple[list[rallies.Rally], list[actions.Typed]]:
     """The windows' contacts typed; with the players' `rows`, the touches no player reaches dropped and the serves the ball
     track missed added (`unseen_serves`)."""
-    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    typed = actions.classify(found, crossings, windows, fps, net_x, calibration, alive)
     if rows is None:
         return windows, typed
     # Touches with no player at the ball are none; the rest typed again without them.
     far = attribution.unreached(typed, rows, fps, crossings)
     found = [c for c in found if c[0] not in far]
-    typed = actions.classify(found, crossings, windows, fps, net_x, calibration)
+    typed = actions.classify(found, crossings, windows, fps, net_x, calibration, alive)
     track = track.copy()
     track[calibration.in_front(track, SPARE_Y)] = np.nan
     windows, added = unseen_serves(windows, typed, crossings, rallies.served([(r.frame, *r.court) for r in rows], track, whistle_times, fps, calibration), rows, fps)
     if added:
-        typed = actions.classify(sorted(found + added), crossings, windows, fps, net_x, calibration)
+        typed = actions.classify(sorted(found + added), crossings, windows, fps, net_x, calibration, alive)
     return windows, typed
 
 
@@ -452,11 +452,19 @@ def main() -> None:
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
     rows = attribution.read_players(players_path) if args.players else None
+    if playing.available() and (args.force or not (out / playing.FILE).exists()):
+        stage("play")
+        start = time.perf_counter()
+        playing.predict(args.video, out / playing.FILE)
+        timings["play"] = time.perf_counter() - start
     stage("rallies")
     start = time.perf_counter()
     whistle_times = rallies.whistles(rallies.read_audio(args.video))
     positions = None if rows is None else [(r.frame, *r.court) for r in rows]
     windows, found, crossings = rally_windows(rallies.load_track(track_path), whistle_times, fps, net_x, calibration, positions)
+    play = playing.load(out / playing.FILE) if (out / playing.FILE).exists() else None
+    if play:
+        windows = playing.moved(windows, fps, *play[:2], play[2])
     if starts:
         # The rallies before set 1 are the warm-up's.
         windows = [w for w in windows if w[0] >= starts[0] * fps]
@@ -467,7 +475,8 @@ def main() -> None:
 
     stage("actions")
     start = time.perf_counter()
-    windows, typed = typed_windows(windows, found, crossings, fps, net_x, calibration, rows, rallies.load_track(track_path), whistle_times)
+    alive = playing.goes_on(*play[:2], fps) if play and "alive" in play[2] else None
+    windows, typed = typed_windows(windows, found, crossings, fps, net_x, calibration, rows, rallies.load_track(track_path), whistle_times, alive)
     typed = actions.mark_relances(args.video, typed, fps, out / "relances.json")
     if calibration is not None and calibration.lens:
         typed = actions.by_flight(typed, ball3d.flight_places(typed, windows, round(actions.LEAD_S * fps), track_path, calibration, fps), fps)
@@ -479,7 +488,7 @@ def main() -> None:
         candidates = attribution.ranked(typed, rows, fps)
         gaps = [attribution.gap_to_next(c) for c in candidates]
         # A dead ball is one track nearest the ball touch after touch, whatever the wrists say.
-        dead, _ = actions.mark_dead(typed, [c[0][2] if c else None for c in candidates], [rally_of(t[0], windows, lead) for t in typed])
+        dead, _ = actions.mark_dead(typed, [c[0][2] if c else None for c in candidates], [rally_of(t[0], windows, lead) for t in typed], alive)
         stage("wrists")
         start = time.perf_counter()
         # The learned order on the camera footage it was trained on, the wrists' rule elsewhere.
@@ -489,7 +498,8 @@ def main() -> None:
         timings["wrists"] = time.perf_counter() - start
         touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
         typed = dead
-    idle = actions.no_play(typed, [rally_of(t[0], windows, lead) for t in typed], windows, crossings, fps)
+    kept = playing.confirmed(windows, fps, *play[:2]) if play and "keep" in play[2] else None
+    idle = actions.no_play(typed, [rally_of(t[0], windows, lead) for t in typed], windows, crossings, fps, kept)
     if idle:
         keep = [k for k, t in enumerate(typed) if rally_of(t[0], windows, lead) not in idle]
         typed, touchers, gaps = [typed[k] for k in keep], [touchers[k] for k in keep], [gaps[k] for k in keep]

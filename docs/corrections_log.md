@@ -6,7 +6,8 @@ Read `state.md` and `next_steps.md` first for what was tried before 11 Nov.
 
 ## How the work is run
 
-- Claude Fable 5.2 plans and reviews; Sonnet agents execute (cheaper). One agent at a time touches `src/`.
+- 11 Nov: Claude Fable 5.2 planned and reviewed, Sonnet agents executed, each pipeline one in its own git worktree. 12 Nov: one
+  session did the rest itself, no agents; the reruns one at a time (`flock /tmp/vb-rerun.lock`), two heavy jobs at most (WSL has 15 GB).
 - The two reviewed matches in `outputs/matches/` are never written to: every rerun happens on a scratch copy.
 - A change is kept only if the corrections it saves show on both matches (see "Harness").
 
@@ -67,13 +68,15 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 ## Steps
 
 1. Done: the harness, the baseline and the breakdown above (a Sonnet agent, 14 min).
-2. In progress, four Sonnet agents, the pipeline ones each in its own git worktree (`outputs`, `data`, `models` linked, main's `.venv`
+2. Done (11 Nov), four Sonnet agents, the pipeline ones each in its own git worktree (`outputs`, `data`, `models` linked, main's `.venv`
    with `PYTHONPATH=src`), reruns one at a time (`flock`, 15 GB of RAM):
    - windows: done, nothing kept ("Tried and dropped");
    - false touches: done, nothing kept ("Tried and dropped");
    - types: done, one rule kept ("Kept"), the rest in "Tried and dropped";
    - ball: a training set to fine-tune the ball model on the two matches (the ball is about 4 px wide at the model's 512x288;
-     the same model size, so no slower on either machine), labels from the reviewed touches' flights.
+     the same model size, so no slower on either machine), labels from the reviewed touches' flights: dropped end to end.
+3. Done (12 Nov): the models the owner asked about on 11 Nov ("do we use the best models?"): re-identification dropped, the
+   play / no-play model kept, a learned touch type not wired in, the pose comparison (see "State").
 
 ## Kept
 
@@ -81,6 +84,13 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | --- | --- | --- |
 | A set crossing the net within 1.3 s of its touch is an attack, or a relance by its flight (`actions.SET_OVER_S`, `by_flight`; runs `types-setover`) | 294 -> 288 (types 91 -> 85) | 410 -> 400 (types 130 -> 119, players 103 -> 104) |
 | A touch on a piece of track with no identity takes its track's nearest identified piece within 5 s (`identity.touch_identity`; runs `players-near`) | 288 -> 283 (players 84 -> 79) | 400 -> 389 (players 104 -> 93) |
+| A play / no-play clip model, where its weights are: ends carried on, starts pulled back, the windows with play all along kept, a rally going on after a bounce played on (`playing.py`; runs `play-eskb`, the model held out) | 283 -> 281 (to add 65 -> 62, types 85 -> 82, players 79 -> 81) | 389 -> 351 (to add 97 -> 62, types 119 -> 105, players 93 -> 103) |
+
+The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
+players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
+have rallies where the ball bounces and play goes on (27 and 38 such floors in the reviewed touches): a floor used to end the
+rally's touches, turning the rest into floors (one 31 s rally of the second match: 23 corrections -> 9). Weights in `models/play/`
+(345 MB, trained on both matches, not in the repository): the PC has them, the Mac runs as before without them.
 
 The touches on a piece with no identity were asked in the review as unknown players: they now come with a guess, right 16 times
 in 20 on the two matches; the rule fits no number to them. How those guesses show in the review was not looked at.
@@ -116,6 +126,30 @@ What it would take: contacts found again for the new track, e.g. a detector trai
 ball's path and the players around it); large and uncertain, today's finds 92% of the touches. Not started. The mirror
 (model B on the second match, the first re-tracked) was not run: nothing gained to confirm.
 
+The training set (11 Nov; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`;
+`outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match):
+
+- Frames as the pipeline feeds the model (`decode.piped` at 1280x720, then `ball.preprocess`), 57 and 64 rallies spread over
+  the match, 29 and 32 clips between rallies: 45,258 and 44,521 frames. Against `ball.csv`: the ball in the same frames 99%,
+  within 8 px at 4K 99.5-99.7%.
+- Two teachers' candidates a frame: the model as the pipeline runs it, and the same fed 1024x576 (stride 3: its forward was
+  the bottleneck, 79 windows a second).
+- Labels (`labels.csv`): per flight between two reviewed touches, RANSAC then least squares on both teachers' candidates, a
+  cubic in time from 25 frames (median residual 3.5 px), a quadratic under; tolerance 45 px (the ball is 35-55 px wide at
+  4K, about 6 px at 512); a flight accepted with inliers on 40% of its frames, in 3 of its 4 quarters, a path of 100 px or
+  more: 450 of 472 and 404 of 422 flights. `ball` 25,598 / 23,697 (65% / 62% of rally frames; 22% / 19% of them only the
+  1024 teacher saw), `unsure` 1,637 / 1,454, `offscreen` 484 / 141, `skip` 11,739 / 12,829; between rallies, the model's
+  own picks (`clip_ball` 1,584 / 1,278, `clip_none` 4,216 / 5,122).
+- Audit by eye (`audit/*.png`): `ball` labels only the 1024 teacher saw 59 of 60 on the ball (1 cannot tell), both teachers
+  30 of 30; `unsure` 31 of 40 with the ball there; the model's picks off the path (2.6% / 2.0% of its picks) 16 of 30 false
+  (shoes, arms, another ball), 14 the real ball: those frames are left out of the training.
+
+Ball, first test on the second match (model A, trained on the first only; `weights/eval_A_M2.log`), at the threshold 0.2:
+labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw), median error 2.9 px against 4.3;
+detections in the wrong place 71 against 1, and on 1,160 of 5,122 frames between rallies where the model in use sees none
+(252 at 0.5, with 97.9% found): both near zero for the model in use by construction (the labels come from its picks). The
+agent re-tracks the second match at 0.5.
+
 ### Players (11 Nov, `next_steps.md` "Players to fix (11 Nov)")
 
 The 188 wrong players (first / second): the touch is another one, its type wrong too 25 / 22 (18 are a block credited to the
@@ -149,6 +183,12 @@ add, counted as a type), 24 follow a wrong team, 26 a false touch just before: 1
 
 Out of reach: the missed blocks (detection: a second contact within 0.2 s), floor or touch (the hand on the ball), dig or
 relance (meant or not: "The owner's answers").
+
+A learned type from the gesture (11-12 Nov, `benchmarks/actions/README.md` "A learned type from the gesture"): a clip around
+each contact, one match trained and the other tested. Alone every model is far under the rules; stacked with the rules' type
+and features, a fine-tuned VideoMAE gains 16 and 15 right types (the bar: 15 on each), the other variants 0 to 14. With the
+play model in, which fixes some of the same floors: 14 and 12, under the bar. Not wired in; none tells a false touch. To try
+again with a third reviewed match.
 
 ### Rally windows (11 Nov, `next_steps.md` "Tried and dropped (11 Nov)", runs `win-whole`, `win-whole2`, second match only)
 
@@ -202,100 +242,21 @@ better ball track.
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
-## State (12 Nov, 00:35): stopped for the night, to resume
+## State (12 Nov, midday)
 
-Today's code (runs `players-near`): 283 and 389 corrections (294 and 410 at the start). Two rules kept, both merged.
-Nothing runs: the owner shut the PC down for the night. Two heavy agents at most at once (WSL has 15 GB: five took it down
-at 17:26 on 11 Nov, the kernel's out-of-memory killer, and a WSL update stopped it again at 18:41).
+Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov).
+Three changes kept, all merged. The four agents' work of 11 Nov was finished on 12 Nov:
 
-To resume, in this order (each agent's transcript is saved: a new session can also start each from its section here):
+1. Re-identification, end to end: dropped ("Tried and dropped").
+2. Rally ends: the play model, kept ("Kept"). The agent's other candidates (a stronger and a lighter video model, an audio
+   whistle score: `play_candidates.py`, `play_audio.py`, never run) were not pursued: copies in `outputs/benchmarks/play/scripts/`.
+3. Touch types from the gesture: at the bar on the pipeline of 11 Nov, under it with the play model: not wired in
+   ("Tried and dropped", `benchmarks/actions/README.md`).
+4. Pose: the comparison is running (`benchmarks/pose/`, crops cached in `outputs/benchmarks/pose/`, 35 GB).
 
-1. Re-identification (worktree `agent-a28e04763f3bb00fa`, an uncommitted `REID_DIM` edit in `identity.py` marked
-   `# TEMP bench override`; crops and embeddings in `outputs/benchmarks/reid/`, the agent's scripts copied from the session's
-   temporary folder to `outputs/benchmarks/reid/scripts/`: `e2e.py`, `e2eall.sh`, `embed.py`, `dump.py`, `common.py`).
-   Offline done ("Re-identification" below): PersonViT and CLIP-ReID beat OSNet on both matches. End to end: only the
-   control is valid (OSNet through the wrapper: 283 / 389, runs `reid-orig`). The runs `reid-personvit` and `reid-clipreid`
-   are INVALID (293 / 429 for both): the rerun's subprocess imported the main checkout's code, not the worktree's, crashed
-   on the 384-d vectors, and a stale copy was scored. Left: delete those two run folders (`e2e.py` refuses a name that
-   exists); in `e2eall.sh` make the `e2e.py` call's `PYTHONPATH` hold the worktree's `src` too; the control again (283 /
-   389); then `e2e.py reid-personvit MATCH personvit:whole` and `reid-clipreid MATCH clipreid:whole` on both matches under
-   `flock /tmp/vb-rerun.lock`, and `bench.py score reid-NAME MATCH --compare players-near`.
-2. Rally ends (worktree `agent-aac18b0142065904c`, uncommitted): `src/volleyball_stats/playing.py`,
-   `benchmarks/rallies/play_uses.py` and `play_run.py` written, untested end to end; the edits to `match.py` and
-   `actions.py`, `play_candidates.py` (nothing trained) and `play_audio.py` (never run) half-done; no training script, test
-   or doc. The run `play-ref-esk2` was killed unfinished: nothing usable. First: rerun the harness for it on both matches
-   with the 8 Nov VideoMAE-base held-out P(play) files, compare with `players-near`; the other candidates only if it gains.
-3. Touch types (worktree `agent-a986c2ca4ced6707b`, `outputs/benchmarks/act/` 1.3 GB): dataset and candidates' scripts
-   written (`benchmarks/actions/*.py`), nothing trained as far as known.
-4. Pose (worktree `agent-afe099b401a6e33e1`, `outputs/benchmarks/pose/` 35 GB of cached inputs): scripts in
-   `benchmarks/pose/`, no comparison yet.
+Runs: `ls outputs/benchmarks/corrections/*/runs/`.
 
-A worktree left under `.claude/worktrees/` is an agent's: its `outputs`, `data`, `models` are symlinks, `unlink` them before
-`git worktree remove`. Runs: `ls outputs/benchmarks/corrections/*/runs/`.
-
-Ball: dropped as it is (12 Nov), see "Tried and dropped". The training set, model A and the scripts stay.
-
-Ball training set, done (11 Nov, a Sonnet agent; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`,
-not committed yet; `outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match):
-
-- Frames as the pipeline feeds the model (`decode.piped` at 1280x720, then `ball.preprocess`), 57 and 64 rallies spread over
-  the match, 29 and 32 clips between rallies: 45,258 and 44,521 frames. Against `ball.csv`: the ball in the same frames 99%,
-  within 8 px at 4K 99.5-99.7%.
-- Two teachers' candidates a frame: the model as the pipeline runs it, and the same fed 1024x576 (stride 3: its forward was
-  the bottleneck, 79 windows a second).
-- Labels (`labels.csv`): per flight between two reviewed touches, RANSAC then least squares on both teachers' candidates, a
-  cubic in time from 25 frames (median residual 3.5 px), a quadratic under; tolerance 45 px (the ball is 35-55 px wide at
-  4K, about 6 px at 512); a flight accepted with inliers on 40% of its frames, in 3 of its 4 quarters, a path of 100 px or
-  more: 450 of 472 and 404 of 422 flights. `ball` 25,598 / 23,697 (65% / 62% of rally frames; 22% / 19% of them only the
-  1024 teacher saw), `unsure` 1,637 / 1,454, `offscreen` 484 / 141, `skip` 11,739 / 12,829; between rallies, the model's
-  own picks (`clip_ball` 1,584 / 1,278, `clip_none` 4,216 / 5,122).
-- Audit by eye (`audit/*.png`): `ball` labels only the 1024 teacher saw 59 of 60 on the ball (1 cannot tell), both teachers
-  30 of 30; `unsure` 31 of 40 with the ball there; the model's picks off the path (2.6% / 2.0% of its picks) 16 of 30 false
-  (shoes, arms, another ball), 14 the real ball: those frames are left out of the training.
-
-Running:
-
-- ball: a Sonnet agent fine-tunes on the first match (`benchmarks/ball/finetune.py`), scores the detections on the second
-  (`finetune_eval.py`), re-tracks the whole second match and scores it with the harness (run `ball-A`, `bench.py run --ball`);
-  the mirror (`ball-B`) only if that gains. Weights in `outputs/benchmarks/ball_finetune/weights/`.
-
-- re-identification: a Sonnet agent compares stronger embeddings with OSNet-AIN (the owner's question, 11 Nov: "do we use the
-  best models?"), in a worktree: the same crops for every model (`outputs/benchmarks/reid/`), the held-out answers
-  (`benchmarks/identity/answers.py`), same or other player within a team, then the harness for a winner (runs `reid-*`).
-  The owner's rule for it: test also the models that only run on the PC or carry another licence (weights in
-  `models/reid_candidates/`, a throwaway venv if they need packages); only a permissive one running on both machines goes
-  into `src/`, the others are reported for the owner to decide.
-
-- pose: a Sonnet agent compares pose models with YOLO11m-pose (the owner's ask, 11 Nov), in a worktree, under the same rule
-  as the re-identification (PC-only or other licences tested too, reported for the owner to decide): the pipeline's pose
-  calls cached once (`outputs/benchmarks/pose/`), each model writing its own `wrists.json`, `relances.json`, `jumps.json`;
-  scored on who touched the ball (the rule, the learned order held out), the jumps benchmark, attack or relance, overlays
-  looked at by eye, then the harness for a winner (runs `pose-*`). Weights in `models/pose_candidates/`.
-
-- rally ends: a Sonnet agent revives the learned play / no-play video model shelved on 8 Nov for its runtime (the owner,
-  11 Nov: the pipeline got much faster, a slower model is fine if it is clearly better), compares a few (a stronger video
-  model, a light one, an audio whistle score), and uses P(play) for the ends, the late starts and the windows on no play,
-  each measured alone; worktree, `outputs/benchmarks/play/`, runs `play-*`.
-- touch types: a Sonnet agent trains a model that sees the gesture on the owner's reviewed types (a clip around each contact,
-  an image model, the skeletons, each fused with the rules' type), one match trained and the other tested, the bar +15
-  right types on each; also whether it tells false touches; worktree, `outputs/benchmarks/act/`, runs `act-*`.
-
-Both wire a winner in only behind its weights file (without it the pipeline runs as today): a guard for the worktree, not a
-way to ship. That guard is the way to ship too ("The owner's answers": the Mac may run a less accurate pipeline): a stage can be merged
-once it gains and its fallback is tested. Still open: syncing the weights to the Mac for those it can run, and
-"Apprendre de mes réponses" retraining them.
-
-Ball, first test on the second match (model A, trained on the first only; `weights/eval_A_M2.log`), at the threshold 0.2:
-labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw), median error 2.9 px against 4.3;
-detections in the wrong place 71 against 1, and on 1,160 of 5,122 frames between rallies where the model in use sees none
-(252 at 0.5, with 97.9% found): both near zero for the model in use by construction (the labels come from its picks). The
-agent re-tracks the second match at 0.5.
-
-To resume from another session: read this file, `git worktree list` (a worktree left under `.claude/worktrees/` is an agent's:
-its links `outputs`, `data`, `models` are symlinks, `unlink` them before `git worktree remove`), and
-`ls outputs/benchmarks/corrections/*/runs/`.
-
-## Re-identification: the models compared (11-12 Nov, offline; end to end left to run)
+## Re-identification: the models compared (11-12 Nov), dropped end to end
 
 The same cached crops for every model (about 4 a piece, so OSNet scores a little under its usual 12). "Kept": the review's
 held-out answers kept by the identity step (`benchmarks/identity/answers.py`); rank-1 and AUC: same or another player within
@@ -320,11 +281,34 @@ DINOv2 run on both machines; CLIP-ReID was run with ONNX on CUDA, the Mac not ch
 SOLIDER or TransReID weights found to test. The "77%" of the docs was not reproduced: today's code gives 74.7% on the first
 match; on the second, OSNet's own cache lacked pieces and a decode error stopped it.
 
+End to end (12 Nov, runs `reid-*`: the match rerun with the candidate's vectors in `embeddings.npz`, the code of the worktree
+with `identity.DIM` read from `REID_DIM`, since removed):
+
+| Vectors | First match | Second match |
+| --- | --- | --- |
+| OSNet, today (`players-near`; the control `reid-orig` the same) | 283 (players 79) | 389 (players 93) |
+| PersonViT | 279 (players 75) | 393 (players 97) |
+| CLIP-ReID | 280 (players 76) | 443 (players 147) |
+
+Neither gains on both: not kept. CLIP-ReID's 147 holds 51 touches of one player left with no name on the second match (the
+names given in the review no longer land on one of its identities); 96 without them. The candidates' caches lacked 13 of the
+second match's 20,983 pieces: given empty vectors, and OSNet with the same 13 emptied scores 389 too (`reid-orig-z13`). The
+runs of 11 Nov under these names were invalid (the rerun's subprocess imported the main checkout's code) and deleted. What
+the offline scores promised (about 77% of the held-out answers kept against 70-73%) does not reach the touches: most wrong
+players are a wrong pick among the candidates at the ball, not a wrong identity ("Players"). Scripts:
+`outputs/benchmarks/reid/scripts/` (`e2e.py`, and `reid_all.sh` for the order of the runs).
+
 ## Next
 
-1. Ball: if the audit is good, train (one match held out, then the other), re-track the held-out match and score it with the
-   harness; keep only if the corrections fall, the same input size.
-2. The server staying behind the end line after serving (23 touches of the second match): a serve found from the ball leaving
-   the server; larger change, not tried.
-3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
+What is left with the play model in (run `play-eskb`, first / second match: 281 / 351), `breakdown.py`:
 
+- To add (62 / 62): the ball seen under half of ±0.4 s 30 / 39; ball seen, no contact 16 / 13; outside every window 8 / 2
+  (26 / 53 before); a contact with no player at the ball 5 / 6.
+- To remove 47 / 74, types 82 / 105, players 81 / 103, winners 9 / 7.
+
+1. A third reviewed match: the touch-type model and the play model both train on about 900-1,200 touches and 130-150 rallies
+   a match, and every threshold here was set on two matches.
+2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
+   81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"): contacts found again for its track.
+3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
+4. The play model on the Mac (weights not copied, never run on MPS) and retrained with each reviewed match.
