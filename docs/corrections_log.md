@@ -236,6 +236,9 @@ better ball track.
 - The Mac (11 Nov): the pipeline must still run on it end to end, but it may be a different one, a bit less accurate. So a
   stage with a heavy model or fine-tuned weights falls back to today's behaviour where they are missing (the guard the
   agents already build), and what the Mac's pipeline loses is said each time. One path for both when the results are close.
+- Every system (12 Nov, now a rule of `CLAUDE.md`): the project is generic and runs at least on Windows and macOS; nothing
+  relies on one system or machine, a more optimised pipeline on some is fine. So the play model as merged is not finished:
+  its weights are on the PC only and its stage has never run on the Mac ("Next").
 - Runtime (11 Nov): the pipeline got much faster, so a model taking more time is fine if it is clearly better; candidates
   that only run on the PC or carry another licence are tested too, and reported for the owner to decide.
 - A first touch after the other team's attack that sends the ball straight back over (11 Nov): a relance when the player
@@ -322,4 +325,6 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
 2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
    81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"): contacts found again for its track.
 3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
-4. The play model on the Mac (weights not copied, never run on MPS) and retrained with each reviewed match.
+4. The play model on every machine (the owner's rule, 12 Nov): its weights reaching the Mac and any other machine (they are
+   on the PC only), the stage run and timed on the Mac (MPS, never run) and on a machine with no graphics card, and its
+   retraining with each reviewed match as an action of the app that works on each.

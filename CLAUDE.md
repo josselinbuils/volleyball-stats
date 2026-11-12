@@ -27,6 +27,9 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - "Le coin du coach" advises the team: it never names a player for a fault or a weak number (the owner's rule), but in
   "Placement en défense", "Placement en réception" and "Le saut d'attaque" (the owner's call, for now).
 - Benchmark-driven: change a step, run its benchmark, report the numbers before and after.
+- A generic project (the owner's rule): it runs on as many operating systems as it can, at least Windows and macOS as today.
+  Nothing relies on one of them: no feature, model or step for a single system or machine. A more optimised pipeline on
+  some of them is fine.
 - Every action is done in the app (the owner's rule): `uv run stats` (or `install.sh`, or its shortcut) is the
   only command a user types. A new step or command gets its place in the app, for anyone to use without computing knowledge.
 - A review question about who touched the ball always offers every player of both teams: the
