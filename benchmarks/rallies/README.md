@@ -481,12 +481,22 @@ the 5080; on its processor alone a step takes 38 s (2 clips at a time, their gra
 not measured. Nothing checks that a retrained model is better (the learned order is kept only if it gains held out):
 with three matches or more, train on all but one and compare the windows on the last.
 
-On other people's footage (12 Nov; the three labelled clips of other gyms and cameras, 720p at 30 fps, none seen in
-training; clips within 1 s of a labelled start or end left out): the model's P(play) against the labelled rallies has an
+On someone else's footage (12 Nov; the three labelled clips above: one school match, another gym and camera, 720p at
+30 fps, none seen in training; clips within 1 s of a labelled start or end left out): the model's P(play) against the labelled rallies has an
 AUC of 0.988 on `side_club`, 0.987 on `side_long`, 0.979 on `side_holdout`; at the pipeline's threshold it sees play in
-all 38 rallies (100%, 91% and 100% of their clips) and calls 13%, 5% and 20% of the no-play clips play. So what it learned
-is not this camera's view alone. Not measured: its windows on those clips (`playing.wanted` keeps the stage to 4K footage;
-to lift if `bench.py` gains with it), and any view that is not a sideline's.
+all 38 rallies (100%, 91% and 100% of their clips) and calls 13%, 5% and 20% of the no-play clips play. But its windows there are worse (the pipeline's windows of `bench.py`, then `playing.moved`; rallies matched within ±1 s):
+
+| | `side_club` (8) | `side_long` (9) | `side_holdout` (21) | F1 ±1 s, the three |
+| --- | --- | --- | --- | --- |
+| pipeline | 7 | 9 | 17 | 0.87 |
+| with the model's ends (the starts move none) | 5 | 8 | 12 | 0.66 |
+
+9 ends are carried on, 8 of them past a right end: after a rally on that footage the model still sees play (the 5-20%
+above), which never costs on the owner's matches. So the weights rank play well anywhere but their threshold and uses hold
+for footage like the training's only: `playing.wanted` keeps the stage to the camera's 4K footage, and the weights are not
+published (the owner asked, 12 Nov; the repository is public and a file over 100 MB would need a release or LFS). Someone
+else gets a play model by reviewing a match of their own: "Apprendre de mes réponses" trains one. ponytail: `wanted`
+tells the footage by its height alone; a model trained on 1080p footage would never run: record what it was trained on.
 
 In `benchmarks/corrections`, a scratch copy sees no weights: it runs without the play model unless the match folder holds a
 `play.npz`, copied with it. For a held-out measure, `play_run.py RUN MATCH P_NPZ` puts a held-out model's prediction in the

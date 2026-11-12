@@ -240,31 +240,51 @@ better ball track.
   relies on one system or machine, a more optimised pipeline on some is fine. So the play model's weights moved beside the
   matches, where the backup shares them between the machines, its stage and its training run on any device (measured on the
   PC's card and on its processor alone), and "Apprendre de mes réponses" trains it. The Mac's GPU is left to run ("Next").
+- The weights in the repository (12 Nov)? Not as they are: "are they generic enough to improve performance for any new user
+  or too specific to me?" was measured, and they do not help the one other match there is ("State", item 6).
+- Licences (12 Nov): a non-commercial one is no obstacle, the project is not sold.
 - Runtime (11 Nov): the pipeline got much faster, so a model taking more time is fine if it is clearly better; candidates
   that only run on the PC or carry another licence are tested too, and reported for the owner to decide.
 - A first touch after the other team's attack that sends the ball straight back over (11 Nov): a relance when the player
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
-## State (12 Nov, midday)
+## State (12 Nov, evening): hand-over
 
 Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov).
-Three changes kept, all merged. The four agents' work of 11 Nov was finished on 12 Nov:
+Three changes kept, all merged and pushed; nothing runs, no worktree is left, the review server is not started.
 
-1. Re-identification, end to end: dropped ("Tried and dropped").
-2. Rally ends: the play model, kept ("Kept"). The agent's other candidates (a stronger and a lighter video model, an audio
-   whistle score: `play_candidates.py`, `play_audio.py`, never run) were not pursued: copies in `outputs/benchmarks/play/scripts/`.
+Done on 12 Nov, each with its numbers further down or in its benchmark's README:
+
+1. Re-identification, end to end: dropped ("Re-identification").
+2. Rally ends: the play / no-play model, kept ("Kept", `benchmarks/rallies/README.md` "12 Nov: the play model in the
+   pipeline"). The 11 Nov agent's other candidates (`play_candidates.py`, `play_audio.py`, never run) were not pursued:
+   copies in `outputs/benchmarks/play/scripts/`.
 3. Touch types from the gesture: at the bar on the pipeline of 11 Nov, under it with the play model: not wired in
-   ("Tried and dropped", `benchmarks/actions/README.md`).
-4. Pose: eight models compared with YOLO11m-pose on the same crops (`benchmarks/pose/README.md`; larger YOLO11 and YOLO26,
-   RTMPose, RTMW, ViTPose, Sapiens): who touched the ball moves by 4 or less with the learned order (one +8), jumps and
-   attack or relance stay level. None gains offline, so none went through the harness: YOLO11m-pose stays.
+   (`benchmarks/actions/README.md`).
+4. Pose: eight models compared with YOLO11m-pose (`benchmarks/pose/README.md`): none gains, YOLO11m-pose stays.
+5. The owner's rule of 12 Nov (nothing for a single system, `CLAUDE.md`): the play model's weights moved to
+   `outputs/learned/play/`, shared between the machines by the backup (sent to the server's backup on 12 Nov, 15:39);
+   its stage and its training run on a card, a Mac's GPU or a processor (`play_training.py`); "Apprendre de mes réponses"
+   on a fully checked match trains it again. Measured on the PC's card and processor; the Mac is left ("Next", item 4).
+6. The weights are not published (the owner asked whether they belong in the repository): on the one other match there
+   is, the model's windows are worse (F1 ±1 s 0.87 -> 0.66), so the stage stays on the camera's 4K footage and someone
+   else trains their own (`benchmarks/rallies/README.md`, "On someone else's footage").
 
-The agents' worktrees are removed. On disk, not in the repository, to delete when no longer wanted: `outputs/benchmarks/pose/`
-(46 GB), `ball_finetune/` (38 GB), `bench/play/` (22 GB of frames), `act/` and `act-play/` (11 GB each), `reid/` (18 GB), and the
-candidates' weights in `models/pose_candidates/` (7 GB) and `models/reid_candidates/` (2 GB): about 155 GB.
+Waiting on the owner:
 
-Runs: `ls outputs/benchmarks/corrections/*/runs/`.
+- A third match, filmed on 12 Nov, to process on the PC. When its pipeline has finished and before the review starts, copy
+  its folder aside (`cp -r outputs/matches/NAME outputs/benchmarks/corrections/NAME-automatic`): the only output of a match
+  nothing was tuned or trained on. Once reviewed: "Next", item 1.
+- A session on the Mac: "Next", item 4.
+
+On disk, not in the repository, to delete when no longer wanted: `outputs/benchmarks/pose/` (46 GB), `ball_finetune/`
+(38 GB), `bench/play/` (22 GB: the frames `play.py` trains held-out models from), `act/` and `act-play/` (11 GB each),
+`reid/` (18 GB), the candidates' weights in `models/pose_candidates/` (7 GB) and `models/reid_candidates/` (2 GB); and
+`outputs/cache/play/` (22 GB: the training's frames, made again when missing).
+
+Runs: `ls outputs/benchmarks/corrections/*/runs/` (`play-eskb`: the kept change, held out; `play-main`, `play-main2`: the
+merged code, the same numbers; `play-stage`, `play-stage2`: the stage run inside the pipeline, not held out).
 
 ## Re-identification: the models compared (11-12 Nov), dropped end to end
 
@@ -338,3 +358,7 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
      `playing.device`; only CUDA uses half precision), the processor being the fallback;
    - the numbers written in `benchmarks/rallies/README.md` ("the Mac's GPU (MPS): not run yet", "the Mac not measured") and
      here, committed and pushed.
+5. A check that a retrained play model is better before it replaces the weights (the learned order has one): with three
+   matches, train on two and compare the windows on the third.
+6. The play model on someone else's footage: its windows are worse on the one other match (`benchmarks/rallies/README.md`);
+   a threshold or uses set per footage, or training on more views, before it runs on anything but the footage it knows.
