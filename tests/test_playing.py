@@ -88,6 +88,19 @@ class TestGoesOn:
         assert not playing.goes_on(TIMES, play((50, 60)), FPS)(round(58.5 * FPS))
 
 
+class TestWanted:
+    def test_runs_only_with_its_weights_on_the_camera_s_footage(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(playing.decode, "size", lambda video: (3840, 2160))
+        monkeypatch.setattr(playing, "WEIGHTS", tmp_path)
+        assert not playing.wanted(tmp_path / "match.mp4")
+
+        (tmp_path / "model.safetensors").touch()
+        assert playing.wanted(tmp_path / "match.mp4")
+
+        monkeypatch.setattr(playing.decode, "size", lambda video: (1280, 720))
+        assert not playing.wanted(tmp_path / "clip.mp4")
+
+
 class TestLoad:
     def test_reads_the_clips_middles_and_every_use_by_default(self, tmp_path):
         np.savez(tmp_path / "play.npz", starts=np.array([0, 2, 4]), p=np.array([0.1, 0.9, 0.8]), fps=8, T=16)

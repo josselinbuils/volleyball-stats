@@ -453,7 +453,8 @@ Tried and left out: `drop` (a window with no play over 0.3 dropped: 8 real ralli
 
 The weights (`models/play/`, 345 MB, not in the repository): the same recipe trained on both matches
 (`play.py train M1 M2 --test M2 --wide --tag both_wide`, then `config.json` and `model.safetensors` copied there), AUC 0.9995
-on the second match it has seen. Without them the stage does not run and the pipeline is as before: the Mac's case today.
+on the second match it has seen. Without them the stage does not run and the pipeline is as before: the Mac's case today. It runs on the camera's 4K footage
+only (`playing.wanted`, as the learned order): the model has seen no other view, the 720p benchmark clips keep the rules alone.
 The stage (`playing.predict`) streams the video at 8 fps, scaled on the NVIDIA card as the training frames were: on the
 first match (67 min) its P(play) is the benchmark's to the last digit, in 21 min with another job on the card (22 min and
 live or not on 1% of the clips otherwise with frames scaled on the CPU, the path of a machine without CUDA: 882 touches in

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import actions, decode, rallies
+from volleyball_stats import actions, decode, rallies, ranker
 
 FILE = "play.npz"
 # VideoMAE-base fine-tuned on the reviewed matches (`benchmarks/rallies/play.py`; its base weights are CC BY-NC 4.0), beside the
@@ -104,6 +104,12 @@ def goes_on(times: np.ndarray, p: np.ndarray, fps: float) -> Callable[[int], boo
 
 def available() -> bool:
     return (WEIGHTS / "model.safetensors").exists()
+
+
+def wanted(video: Path) -> bool:
+    """Whether the stage runs on `video`: the weights are here and it is the camera's footage they were trained on,
+    as the learned order's (`ranker.MIN_HEIGHT`): the model has seen no other view."""
+    return available() and decode.size(video)[1] >= ranker.MIN_HEIGHT
 
 
 def predict(video: Path, out: Path, batch: int = 32) -> None:

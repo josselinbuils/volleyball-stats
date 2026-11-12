@@ -452,7 +452,7 @@ def main() -> None:
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
     rows = attribution.read_players(players_path) if args.players else None
-    if playing.available() and (args.force or not (out / playing.FILE).exists()):
+    if playing.wanted(args.video) and (args.force or not (out / playing.FILE).exists()):
         stage("play")
         start = time.perf_counter()
         playing.predict(args.video, out / playing.FILE)
