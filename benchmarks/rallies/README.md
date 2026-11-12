@@ -467,7 +467,9 @@ The stage (`playing.predict`) streams the video at 8 fps and runs on an NVIDIA c
 - on the processor alone, software decoding and all (12 Nov, one minute of the match): the same P(play) (live or not
   differs on 1 clip of 233) at 6 times the video's length, about 7 hours a match on the PC's processor: it works, a
   machine with no card is slow. ponytail: a P(play) every 0.5 s there would halve it (`playing.STRIDE`);
-- the Mac's GPU (MPS): not run yet.
+- on the Mac's GPU (MPS, M4 Pro, 12 Nov, the same minute, `play_device.py --cpu`): the processor's P(play) (live or not
+  differs on 0 clips of 233) at 1.32 times the video's length, about 1 h 30 a match (decoding 20 s of the 79, the model the
+  rest); on the Mac's processor alone 2.66 times, about 3 hours.
 
 The whole pipeline run once on a scratch copy of the first match with the final weights (run `play-stage`, not held out:
 the model has seen the match): the corrections come to 280.
@@ -477,8 +479,8 @@ the model again on every such match here (their videos and reviews on this machi
 since its last training (`trained.json` beside the weights) and never on fewer matches than the weights know. The recipe
 above (2000 steps of 8 clips), each match's frames kept in `outputs/cache/play/` (10-12 GB a match, safe to delete). The
 weights in use were trained so on both matches (AUC 0.9995 on the second, which they have seen). 2000 steps take 13 min on
-the 5080; on its processor alone a step takes 38 s (2 clips at a time, their gradients added up), 21 hours in all; the Mac
-not measured. Nothing checks that a retrained model is better (the learned order is kept only if it gains held out):
+the 5080; on its processor alone a step takes 38 s (2 clips at a time, their gradients added up), 21 hours in all; on the Mac's GPU 8.6 s,
+about 5 hours. Nothing checks that a retrained model is better (the learned order is kept only if it gains held out):
 with three matches or more, train on all but one and compare the windows on the last.
 
 On someone else's footage (12 Nov; the three labelled clips above: one school match, another gym and camera, 720p at

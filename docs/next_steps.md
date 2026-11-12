@@ -163,7 +163,7 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
     model held out. VideoMAE-base fine-tuned on the reviewed matches (base weights CC BY-NC 4.0: fine for a
     non-commercial project, the owner, 12 Nov), 345 MB in `outputs/learned/play/`, shared between the machines by the
     backup; "Apprendre de mes réponses" on a fully checked match trains it again (`play_training.py`). About 10 min a
-    match on the 5080, 7 hours on a processor alone. Left (`corrections_log.md` "Next"): the stage and the training run and timed on the Mac (MPS), a
+    match on the 5080, 1 h 30 on the Mac's GPU (the same P(play)), 7 hours on a processor alone. Left (`corrections_log.md` "Next"): a
     check that a retrained model is better, someone else's footage (worse windows on the one other match: the stage stays on
     the camera's 4K footage, the weights are not published), and the ends themselves (it only carries them on: cutting them back where
     P(play) falls loses the last floor contact).

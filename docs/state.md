@@ -29,7 +29,7 @@ The pipeline's weak spots and what is left to do, most useful first.
    whistle (50:00-60:00 F1 ±1 s 0.58; four end rules tried, none gains; 7 Nov, the players' speed and the cheer after a
    point dropped too), then how rallies end (in, out, fault). A learned play / no-play clip model (`playing.py`, `next_steps.md`
    item 14) is in the pipeline since 12 Nov where its weights are (`outputs/learned/play/`, shared by the backup): 50:00-60:00 F1 ±1 s 0.58 -> 0.67,
-   the touches outside every window 26 -> 8 and 53 -> 2; trained again by "Apprendre de mes réponses" on a fully checked match; not run on the Mac yet, and kept to the camera's own 4K footage (worse windows on the one other match there is).
+   the touches outside every window 26 -> 8 and 53 -> 2; trained again by "Apprendre de mes réponses" on a fully checked match; runs on the Mac too (1 h 30 a match on its GPU), kept to the camera's own 4K footage (worse windows on the one other match there is).
 5. Done (5 Nov): the checked rallies as labels (`checked.py` scores `match.py`'s windows). The 6 false windows left have
    no feature apart from real rallies: review questions.
 6. Done (5 Nov, `docs/next_steps.md`): the pose on every touch type and the serve rotation, both dropped.

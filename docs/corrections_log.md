@@ -239,7 +239,7 @@ better ball track.
 - Every system (12 Nov, now a rule of `CLAUDE.md`): the project is generic and runs at least on Windows and macOS; nothing
   relies on one system or machine, a more optimised pipeline on some is fine. So the play model's weights moved beside the
   matches, where the backup shares them between the machines, its stage and its training run on any device (measured on the
-  PC's card and on its processor alone), and "Apprendre de mes réponses" trains it. The Mac's GPU is left to run ("Next").
+  PC's card and on its processor alone, and on the Mac's GPU), and "Apprendre de mes réponses" trains it.
 - The weights in the repository (12 Nov)? Not as they are: "are they generic enough to improve performance for any new user
   or too specific to me?" was measured, and they do not help the one other match there is ("State", item 6).
 - Licences (12 Nov): a non-commercial one is no obstacle, the project is not sold.
@@ -266,7 +266,7 @@ Done on 12 Nov, each with its numbers further down or in its benchmark's README:
 5. The owner's rule of 12 Nov (nothing for a single system, `CLAUDE.md`): the play model's weights moved to
    `outputs/learned/play/`, shared between the machines by the backup (sent to the server's backup on 12 Nov, 15:39);
    its stage and its training run on a card, a Mac's GPU or a processor (`play_training.py`); "Apprendre de mes réponses"
-   on a fully checked match trains it again. Measured on the PC's card and processor; the Mac is left ("Next", item 4).
+   on a fully checked match trains it again. Measured on the PC's card and processor, and on the Mac ("Next", item 4).
 6. The weights are not published (the owner asked whether they belong in the repository): on the one other match there
    is, the model's windows are worse (F1 ±1 s 0.87 -> 0.66), so the stage stays on the camera's 4K footage and someone
    else trains their own (`benchmarks/rallies/README.md`, "On someone else's footage").
@@ -276,7 +276,6 @@ Waiting on the owner:
 - A third match, filmed on 12 Nov, to process on the PC. When its pipeline has finished and before the review starts, copy
   its folder aside (`cp -r outputs/matches/NAME outputs/benchmarks/corrections/NAME-automatic`): the only output of a match
   nothing was tuned or trained on. Once reviewed: "Next", item 1.
-- A session on the Mac: "Next", item 4.
 
 On disk, not in the repository, to delete when no longer wanted: `outputs/benchmarks/pose/` (46 GB), `ball_finetune/`
 (38 GB), `bench/play/` (22 GB: the frames `play.py` trains held-out models from), `act/` and `act-play/` (11 GB each),
@@ -346,18 +345,10 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
 2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
    81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"): contacts found again for its track.
 3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
-4. The play model on the Mac (the owner's rule, 12 Nov: nothing for a single system). Done on the PC, its card and its
-   processor alone (`benchmarks/rallies/README.md`). To do in a session on the Mac, in this order:
-   - `git pull`, `uv sync` (`transformers` is now declared), `uv run pytest -q`;
-   - the weights: `ls outputs/learned/play/` shows `model.safetensors` (345 MB) once the app has run with its backup on
-     ("Sauvegarde automatique", or "Sauvegarder maintenant" in the Serveur tab); the PC sent them on 12 Nov;
-   - `uv run python benchmarks/rallies/play_device.py data/matches/MATCH/MATCH.mp4 --cpu` on a match whose video is there:
-     the prediction on the Mac's GPU (MPS) against the processor's, their times, and a training step's time. Wanted: play or
-     not differing on a few clips of 233 at most, and the times;
-   - if MPS fails or differs, the fix is in `playing.predict` or `play_training.train` (the device comes from
-     `playing.device`; only CUDA uses half precision), the processor being the fallback;
-   - the numbers written in `benchmarks/rallies/README.md` ("the Mac's GPU (MPS): not run yet", "the Mac not measured") and
-     here, committed and pushed.
+4. Done (12 Nov): the play model on the Mac (M4 Pro, `play_device.py --cpu`, one minute of the first match): its GPU (MPS)
+   gives the processor's P(play) (0 clips of 233 differ) at 1.32 times the video's length, about 1 h 30 a match (10 min
+   on the 5080), the processor alone 2.66 times; a training step 8.6 s, about 5 hours for the 2000. No fix needed. The
+   weights came from the server's copy (`sync.merge_shared`, nothing sent).
 5. A check that a retrained play model is better before it replaces the weights (the learned order has one): with three
    matches, train on two and compare the windows on the third.
 6. The play model on someone else's footage: its windows are worse on the one other match (`benchmarks/rallies/README.md`);
