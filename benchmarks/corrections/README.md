@@ -7,6 +7,7 @@ on the reviewed matches. The real folders in `outputs/matches/` are only read; e
     uv run python benchmarks/corrections/bench.py freeze            # once: truth.json from review/data.js (checked rallies)
     uv run python benchmarks/corrections/bench.py run NAME          # copy + learn.rerun on the copy, no training (3 min per match)
     uv run python benchmarks/corrections/bench.py run NAME MATCH --ball PATH  # same, with the ball track PATH (a ball.csv) in the copy
+    uv run python benchmarks/corrections/bench.py run NAME MATCH --play PATH  # same, with the play model's P(play) (a play.npz) in the copy
     uv run python benchmarks/corrections/bench.py score NAME [--compare OTHER]
     uv run python benchmarks/corrections/bench.py score real        # the real folder, read-only
     uv run python benchmarks/corrections/breakdown.py NAME          # outputs/benchmarks/corrections/breakdown.md
@@ -23,4 +24,6 @@ truth touches, as there.
 A run copies the match folder without what a rerun does not read (films, voice, backups, photos, site, crops, review but data.js)
 and runs `learn.rerun` on it with the scratch parent as `--out`. The pipeline writes only inside that folder
 (plus ffprobe's frame-times cache in the system temp folder). The copy sees no play model's weights (`playing.weights`): it keeps the
-match folder's `play.npz` when it has one, and `benchmarks/rallies/play_run.py` puts a held-out one in.
+match folder's `play.npz` when it has one, and `benchmarks/rallies/play_run.py` puts a held-out one in. The reviewed matches'
+folders hold none (made at their next rerun in the app), so a run of today's code takes `--play PATH`, e.g. the held-out
+`runs/play-main/MATCH/play.npz`: without it the play model is off (the run `ctl`, with it: 281 and 351, as `play-main`).

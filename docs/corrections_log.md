@@ -126,6 +126,33 @@ What it would take: contacts found again for the new track, e.g. a detector trai
 ball's path and the players around it); large and uncertain, today's finds 92% of the touches. Not started. The mirror
 (model B on the second match, the first re-tracked) was not run: nothing gained to confirm.
 
+### The fine-tuned ball model's contacts added to today's (12 Nov, evening; both matches, each tracked by the model trained on the other)
+
+Today's track kept for everything; the contacts the fine-tuned track finds (`contacts.detect_contacts` on it) added where today's
+sees the ball in under half of ±0.4 s and has no contact within `GAP`. Model B (trained on the second match, 45 min) tracked
+the first (`ball_B_M1_t05.csv`, at 0.5, 55 min); model A's track of the second as above. Runs `ctl` (today's code with the
+held-out `play.npz`, `bench.py run --play`: 281 / 351, as `play-main`) and `extra-*`:
+
+| Variant | First match | Second match |
+| --- | --- | --- |
+| Every such contact (`extra-A0.5`; 1.01: every one, whatever today's sees, 361) | | 351 -> 354 (to add 62 -> 30, remove 74 -> 93, types 105 -> 111, players 103 -> 114) |
+| Today's gaps filled from the fine-tuned track within 0.5 / 1 s of each contact, for every step after the contacts | | 366 / 363 (players 107, types 126 / 123) |
+| Filtered (`extra-filt`): not a contact hidden in a gap, a turn under 2.5 times `THRESHOLD`, the ball by a player's head (from 0.25 box heights under the box's top to 1 above, within 0.8 box heights of the box) | 281 -> 284 (add 62 -> 45, remove 47 -> 55, types 82 -> 87, players 81 -> 88) | 351 -> 343 (add 31, remove 83, types 110, players 113) |
+| Filtered, the gaps filled within 1 s for the players' order only (`ball3d.flight_places` of the learned order; `extra-filt-places`) | **281 -> 280** (players 84) | **351 -> 335** (players 105) |
+| The same, the extras 0.5 s or more from any contact (`extra-apart`) | 283 | 336 |
+
+The filter was set on the second match's 60 extras in its checked rallies (real 35, false 25: real ones by a head, turns 369-806
+px/s but one; false ones low, at the feet, or a track jump): offline it keeps 34 of 35 and 7 of 25 there, 18 of 22 and 6 of 35 on
+the first match. End to end the extras find 17 and 31 touches, but each found one brings about half a correction back: a type
+(6 of 17 on the first), a player (the players' order reads the flight from today's track, empty there: fixed in part by the
+fill) and the false ones (8, half of them 0.1-0.5 s from a real touch).
+
+Not wired in: -1 on the first match is no gain, and it costs a second ball pass a match (about 55 min on the 5080, more on the
+Mac) and the fine-tuning of the ball model in "Apprendre de mes réponses" (the labels' frames, 19 GB a match, then 45 min). To
+decide on the third match: model A+B (both matches) tracking it, `extra-filt-places` against today's. The pipeline's change is
+`outputs/benchmarks/ball_finetune/scripts/extra_contacts.patch` (its `VB_EXTRA_*` variables are the variants above), the offline
+scripts beside it.
+
 The training set (11 Nov; `benchmarks/ball/finetune_data.py`, `finetune_labels.py`, `finetune_audit.py`;
 `outputs/benchmarks/ball_finetune/MATCH/`, 19 GB a match):
 
@@ -275,7 +302,8 @@ Waiting on the owner:
 
 - A third match, filmed on 12 Nov, to process on the PC. When its pipeline has finished and before the review starts, copy
   its folder aside (`cp -r outputs/matches/NAME outputs/benchmarks/corrections/NAME-automatic`): the only output of a match
-  nothing was tuned or trained on. Once reviewed: "Next", item 1.
+  nothing was tuned or trained on. Once reviewed: "Next", items 1 and 2 (the ball model fine-tuned on both matches tracking it;
+  `finetune.py` takes one match today).
 
 On disk, not in the repository, to delete when no longer wanted: `outputs/benchmarks/pose/` (46 GB), `ball_finetune/`
 (38 GB), `bench/play/` (22 GB: the frames `play.py` trains held-out models from), `act/` and `act-play/` (11 GB each),
@@ -343,7 +371,10 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
    - then the play model and the touch-type model trained on two matches and tested on the third, each way round, and
      the final play weights trained on the three.
 2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
-   81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"): contacts found again for its track.
+   81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"). Its contacts added to today's where
+   today's loses the ball (12 Nov, evening): 281 -> 280 and 351 -> 335, not wired in; to decide on the third match ("The
+   fine-tuned ball model's contacts added to today's"). What would make it pay: the new touches' types and players (half a
+   correction each), the ball's flight from the fine-tuned track for the typing too without its jitter elsewhere.
 3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
 4. Done (12 Nov): the play model on the Mac (M4 Pro, `play_device.py --cpu`, one minute of the first match): its GPU (MPS)
    gives the processor's P(play) (0 clips of 233 differ) at 1.32 times the video's length, about 1 h 30 a match (10 min

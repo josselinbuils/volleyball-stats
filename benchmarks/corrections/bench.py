@@ -1,7 +1,7 @@
 """The corrections the owner makes in the review, counted for the pipeline's current code on the reviewed matches.
 
     uv run python benchmarks/corrections/bench.py freeze [MATCH]
-    uv run python benchmarks/corrections/bench.py run RUN [MATCH] [--ball PATH]
+    uv run python benchmarks/corrections/bench.py run RUN [MATCH] [--ball PATH] [--play PATH]
     uv run python benchmarks/corrections/bench.py score RUN [MATCH] [--compare OTHER] [--folder PATH]
 
 MATCH is a prefix of a match folder's name (default: every reviewed match). Everything is written under
@@ -64,7 +64,7 @@ def freeze(name: str) -> None:
     print(f"{name}: {len(out)} rallies, {sum(len(r['touches']) for r in out)} touches -> {path}")
 
 
-def run(name: str, run_name: str, ball_path: Path | None = None) -> None:
+def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | None = None) -> None:
     """The match folder copied to a scratch folder and the pipeline run again on it, as the review's rerun does (no training).
     With `ball_path`, its ball track replaces the copy's ball.csv; the caches keyed by frame and ball place (wrists.json,
     relances.json, jumps.json) stay, the other contacts' entries unused, and net.csv is rewritten by the run."""
@@ -77,6 +77,8 @@ def run(name: str, run_name: str, ball_path: Path | None = None) -> None:
     if ball_path:
         shutil.copy2(ball_path, scratch / "ball.csv")
         (scratch / "net.csv").unlink(missing_ok=True)
+    if play:
+        shutil.copy2(play, scratch / "play.npz")
     shutil.copy2(MATCHES / name / "review" / "data.js", scratch / "review" / "data.js")
     start, stages = time.perf_counter(), {}
     last = ["start", start]
@@ -205,6 +207,7 @@ def main() -> None:
         p.add_argument("run", help='Run name ("real" scores the real folder, read-only)' if command == "score" else "Run name")
         p.add_argument("match", nargs="?")
     sub.choices["run"].add_argument("--ball", type=Path, help="Use this ball track (a ball.csv) in the copy instead of the match's")
+    sub.choices["run"].add_argument("--play", type=Path, help="A play.npz (the play model's P(play)) for the copy: the scratch folder finds no weights")
     sub.choices["score"].add_argument("--compare", metavar="OTHER_RUN")
     sub.choices["score"].add_argument("--folder", type=Path, help="Score this folder instead of the run's")
     args = parser.parse_args()
@@ -216,7 +219,7 @@ def main() -> None:
             else:
                 freeze(name)
         elif args.command == "run":
-            run(name, args.run, args.ball)
+            run(name, args.run, args.ball, args.play)
         else:
             score(name, args.run, args.folder, args.compare)
 
