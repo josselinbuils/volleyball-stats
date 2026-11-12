@@ -314,6 +314,11 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
 
 1. A third reviewed match: the touch-type model and the play model both train on about 900-1,200 touches and 130-150 rallies
    a match, and every threshold here was set on two matches.
+   The owner films one on 12 Nov. Once it is reviewed, in this order:
+   - before any retraining, `bench.py freeze` then `bench.py score real` on it: the first numbers on a match nothing was tuned
+     or trained on (the play model's windows, `actions.SET_OVER_S`'s 1.3 s, the touch on a nameless piece of track);
+   - then the play model and the touch-type model trained on two matches and tested on the third, each way round, and
+     the final play weights trained on the three.
 2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
    81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"): contacts found again for its track.
 3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
