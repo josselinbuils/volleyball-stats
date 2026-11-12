@@ -252,7 +252,13 @@ Three changes kept, all merged. The four agents' work of 11 Nov was finished on 
    whistle score: `play_candidates.py`, `play_audio.py`, never run) were not pursued: copies in `outputs/benchmarks/play/scripts/`.
 3. Touch types from the gesture: at the bar on the pipeline of 11 Nov, under it with the play model: not wired in
    ("Tried and dropped", `benchmarks/actions/README.md`).
-4. Pose: the comparison is running (`benchmarks/pose/`, crops cached in `outputs/benchmarks/pose/`, 35 GB).
+4. Pose: eight models compared with YOLO11m-pose on the same crops (`benchmarks/pose/README.md`; larger YOLO11 and YOLO26,
+   RTMPose, RTMW, ViTPose, Sapiens): who touched the ball moves by 4 or less with the learned order (one +8), jumps and
+   attack or relance stay level. None gains offline, so none went through the harness: YOLO11m-pose stays.
+
+The agents' worktrees are removed. On disk, not in the repository, to delete when no longer wanted: `outputs/benchmarks/pose/`
+(46 GB), `ball_finetune/` (38 GB), `bench/play/` (22 GB of frames), `act/` and `act-play/` (11 GB each), `reid/` (18 GB), and the
+candidates' weights in `models/pose_candidates/` (7 GB) and `models/reid_candidates/` (2 GB): about 155 GB.
 
 Runs: `ls outputs/benchmarks/corrections/*/runs/`.
 
