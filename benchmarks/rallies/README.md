@@ -458,6 +458,8 @@ only (`playing.wanted`, as the learned order): the model has seen no other view,
 The stage (`playing.predict`) streams the video at 8 fps, scaled on the NVIDIA card as the training frames were: on the
 first match (67 min) its P(play) is the benchmark's to the last digit, in 21 min with another job on the card (22 min and
 live or not on 1% of the clips otherwise with frames scaled on the CPU, the path of a machine without CUDA: 882 touches in
-windows against 883). The Mac has not run it.
+windows against 883). The Mac has not run it. The whole pipeline run once on a scratch copy of the first match with the final
+weights (run `play-stage`, not held out: the model has seen the match): the stage alone on the card takes 10 min 18 s and the
+corrections come to 280.
 A match's `play.npz` travels with its folder, so a rerun on the Mac keeps the windows of a match first run on the PC, and
 a rerun on the PC adds it to a match first run on the Mac.
