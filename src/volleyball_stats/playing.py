@@ -2,22 +2,24 @@
 
 Each use is separate (`USES`): the ends carried on through play the ball track lost, the starts pulled back to where play began,
 the windows with play all along kept (`actions.no_play`), and play going on after a floor contact or a dead-ball run (`goes_on`).
-Without the weights the stage does not run and the pipeline is as before.
+Without the weights the stage does not run and the pipeline is as before. The weights sit beside the matches
+(`outputs/learned/play/`, shared between the machines by the backup) and are trained on the reviewed matches (`play_training`).
 """
 
 import subprocess
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import actions, decode, rallies, ranker
+from volleyball_stats import actions, decode, files, rallies, ranker
 
 FILE = "play.npz"
-# VideoMAE-base fine-tuned on the reviewed matches (`benchmarks/rallies/play.py`; its base weights are CC BY-NC 4.0), beside the
-# project's other models.
-WEIGHTS = Path(__file__).resolve().parents[2] / "models" / "play"
+# VideoMAE-base fine-tuned on the reviewed matches (`play_training`; its base weights are CC BY-NC 4.0), in the outputs
+# folder: what the machines share (`backup.SHARED`), unlike the downloaded models.
+WEIGHTS = Path("learned") / "play"
+MODEL = "model.safetensors"
 # A clip: T frames at FPS, the whole width and the top 224 of 252 rows, a P(play) every STRIDE frames.
 FPS, T, WIDTH, HEIGHT, FULL_HEIGHT, STRIDE = 8, 16, 448, 224, 252, 2
 USES = ("ends", "starts", "keep", "alive")
@@ -102,53 +104,82 @@ def goes_on(times: np.ndarray, p: np.ndarray, fps: float) -> Callable[[int], boo
     return alive
 
 
-def available() -> bool:
-    return (WEIGHTS / "model.safetensors").exists()
+def weights(match: Path) -> Path:
+    """The model's folder for the match folder `match`."""
+    return files.root(match) / WEIGHTS
 
 
-def wanted(video: Path) -> bool:
-    """Whether the stage runs on `video`: the weights are here and it is the camera's footage they were trained on,
-    as the learned order's (`ranker.MIN_HEIGHT`): the model has seen no other view."""
-    return available() and decode.size(video)[1] >= ranker.MIN_HEIGHT
+def stamp(folder: Path) -> int | None:
+    """Which weights `folder` holds (their file's time, kept by the copies between machines), None without any."""
+    path = folder / MODEL
+    return int(path.stat().st_mtime) if path.exists() else None
 
 
-def predict(video: Path, out: Path, batch: int = 32) -> None:
-    """P(play) of the clips of `video`, streamed (16 frames in memory), written to `out` as `load` reads it."""
+def wanted(video: Path, match: Path) -> bool:
+    """Whether the stage runs on `video`: the weights are here, it is the camera's footage they were trained on (as the
+    learned order's, `ranker.MIN_HEIGHT`: the model has seen no other view), and the match holds no P(play) of these weights."""
+    now = stamp(weights(match))
+    if now is None or decode.size(video)[1] < ranker.MIN_HEIGHT:
+        return False
+    path = match / FILE
+    return not path.exists() or made_with(path) != now
+
+
+def made_with(path: Path) -> int | None:
+    """The weights a `play.npz` was made with, None when it does not say (a benchmark's)."""
+    z = np.load(path)
+    return int(z["weights"]) if "weights" in z else None
+
+
+def device() -> str:
     import torch
-    from transformers import VideoMAEForVideoClassification
 
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    model = VideoMAEForVideoClassification.from_pretrained(WEIGHTS).to(device).eval()
-    mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 1, 3, 1, 1)
-    std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 1, 3, 1, 1)
+    return "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+
+
+def frames(video: Path) -> Iterator[np.ndarray]:
+    """The video at FPS, each frame WIDTH wide and the top HEIGHT rows of FULL_HEIGHT (RGB), streamed from ffmpeg."""
     hardware = decode.hardware(video)
     if hardware[1:] == ("cuda",):
-        # Scaled on the card, as the training frames were (`benchmarks/rallies/play.py`): no 4K frame leaves it.
+        # Scaled on the card: no 4K frame leaves it.
         hardware, scale = (*hardware, "-hwaccel_output_format", "cuda"), f"scale_cuda={WIDTH}:{FULL_HEIGHT},hwdownload,format=nv12"
     else:
         scale = f"scale={WIDTH}:{FULL_HEIGHT}"
     command = ["ffmpeg", "-v", "error", *hardware, "-i", str(video), "-an", "-sn", "-dn", "-vf", f"fps={FPS},{scale},format=rgb24", "-f", "rawvideo", "-"]
     size = FULL_HEIGHT * WIDTH * 3
+    with subprocess.Popen(command, stdout=subprocess.PIPE) as process:
+        while (buf := process.stdout.read(size)) and len(buf) == size:
+            yield np.frombuffer(buf, np.uint8).reshape(FULL_HEIGHT, WIDTH, 3)[:HEIGHT]
+
+
+def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | None = None) -> None:
+    """P(play) of the clips of `video` by the weights of `folder`, streamed (16 frames in memory), written to `out` as
+    `load` reads it; `on` names the device (the best one here by default)."""
+    import torch
+    from transformers import VideoMAEForVideoClassification
+
+    on = on or device()
+    model = VideoMAEForVideoClassification.from_pretrained(folder).to(on).eval()
+    mean = torch.tensor([0.485, 0.456, 0.406], device=on).view(1, 1, 3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225], device=on).view(1, 1, 3, 1, 1)
     window: deque[np.ndarray] = deque(maxlen=T)
     clips, starts, probabilities = [], [], []
 
     def flush() -> None:
-        x = torch.from_numpy(np.stack(clips)).to(device).permute(0, 1, 4, 2, 3).float().div_(255)
-        with torch.no_grad(), torch.autocast(device, dtype=torch.bfloat16, enabled=device == "cuda"):
+        x = torch.from_numpy(np.stack(clips)).to(on).permute(0, 1, 4, 2, 3).float().div_(255)
+        with torch.no_grad(), torch.autocast(on, dtype=torch.bfloat16, enabled=on == "cuda"):
             logits = model(pixel_values=((x - mean) / std).contiguous()).logits
         probabilities.extend(logits.float().softmax(-1)[:, 1].cpu().tolist())
         clips.clear()
 
-    with subprocess.Popen(command, stdout=subprocess.PIPE) as process:
-        n = 0
-        while (buf := process.stdout.read(size)) and len(buf) == size:
-            window.append(np.frombuffer(buf, np.uint8).reshape(FULL_HEIGHT, WIDTH, 3)[:HEIGHT].copy())
-            n += 1
-            if n >= T and (n - T) % STRIDE == 0:
-                clips.append(np.stack(window))
-                starts.append(n - T)
-                if len(clips) == batch:
-                    flush()
-        if clips:
-            flush()
-    np.savez(out, starts=np.array(starts), p=np.array(probabilities), fps=FPS, T=T)
+    for n, frame in enumerate(frames(video), 1):
+        window.append(frame.copy())
+        if n >= T and (n - T) % STRIDE == 0:
+            clips.append(np.stack(window))
+            starts.append(n - T)
+            if len(clips) == batch:
+                flush()
+    if clips:
+        flush()
+    with files.replacing(out, "wb") as f:
+        np.savez(f, starts=np.array(starts), p=np.array(probabilities), fps=FPS, T=T, weights=stamp(folder) or 0)

@@ -22,4 +22,5 @@ truth touches, as there.
 
 A run copies the match folder without what a rerun does not read (films, voice, backups, photos, site, crops, review but data.js)
 and runs `learn.rerun` on it with the scratch parent as `--out`. The pipeline writes only inside that folder
-(plus ffprobe's frame-times cache in the system temp folder).
+(plus ffprobe's frame-times cache in the system temp folder). The copy sees no play model's weights (`playing.weights`): it keeps the
+match folder's `play.npz` when it has one, and `benchmarks/rallies/play_run.py` puts a held-out one in.

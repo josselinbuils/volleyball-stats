@@ -210,6 +210,7 @@
     "step": {
       "reports": "Loading the online reports…",
       "training": "Training the who-touched model on your answers (a few minutes)…",
+      "playTraining": "Training the play model on your checked matches…",
       "pipeline": "Analysing the match",
       "players": "Working out the players…",
       "questions": "Preparing the questions…",

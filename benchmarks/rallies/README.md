@@ -411,7 +411,7 @@ on both machines, and it would need the frames, the model (330 MB) on each and a
 
 ### 12 Nov: the play model in the pipeline
 
-Kept (`playing.py`, the stage "play" of `match.py`): the model's P(play) every 0.25 s is written once to the match folder
+Kept (`playing.py`, the stage "play" of `match.py`): the model's P(play) every 0.25 s is written to the match folder
 (`play.npz`) and the rally step uses it four ways, each measured alone on the held-out P(play) (`play_uses.py`, touches of
 the checked rallies inside a window, of 945 and 1199):
 
@@ -451,15 +451,38 @@ winners 8 -> 9 / 7 -> 7. One 31 s rally of the second match goes from 23 correct
 Tried and left out: `drop` (a window with no play over 0.3 dropped: 8 real rallies lost on the first match) and `find`
 (play 6 s long with no window near made one: none found).
 
-The weights (`models/play/`, 345 MB, not in the repository): the same recipe trained on both matches
-(`play.py train M1 M2 --test M2 --wide --tag both_wide`, then `config.json` and `model.safetensors` copied there), AUC 0.9995
-on the second match it has seen. Without them the stage does not run and the pipeline is as before: the Mac's case today. It runs on the camera's 4K footage
-only (`playing.wanted`, as the learned order): the model has seen no other view, the 720p benchmark clips keep the rules alone.
-The stage (`playing.predict`) streams the video at 8 fps, scaled on the NVIDIA card as the training frames were: on the
-first match (67 min) its P(play) is the benchmark's to the last digit, in 21 min with another job on the card (22 min and
-live or not on 1% of the clips otherwise with frames scaled on the CPU, the path of a machine without CUDA: 882 touches in
-windows against 883). The Mac has not run it. The whole pipeline run once on a scratch copy of the first match with the final
-weights (run `play-stage`, not held out: the model has seen the match): the stage alone on the card takes 10 min 18 s and the
-corrections come to 280.
+The weights (345 MB, not in the repository) sit beside the matches, `outputs/learned/play/`: what the machines share through
+the backup (`backup.SHARED`, the newest of both kept), so the Mac gets the PC's and the other way round. Without them the
+stage does not run and the pipeline is as before. It runs on the camera's 4K footage only (`playing.wanted`, as the learned
+order): the model has seen no other view, the 720p benchmark clips keep the rules alone. A match's `play.npz` says which
+weights made it and is made again once they change; it travels with its folder, so a machine without the weights keeps the
+windows of a match first run elsewhere.
+
+The stage (`playing.predict`) streams the video at 8 fps and runs on an NVIDIA card, a Mac's GPU or the processor alone:
+
+- on the RTX 5080, frames scaled on the card as the training frames were: on the first match (67 min) its P(play) is the
+  benchmark's to the last digit, in 10 min 18 s alone on the card (21 min beside another job);
+- with frames scaled on the processor (any machine without CUDA): live or not differs on 1% of the clips, 882 touches in
+  windows against 883;
+- on the processor alone, software decoding and all (12 Nov, one minute of the match): the same P(play) (live or not
+  differs on 1 clip of 233) at 6 times the video's length, about 7 hours a match on the PC's processor: it works, a
+  machine with no card is slow. ponytail: a P(play) every 0.5 s there would halve it (`playing.STRIDE`);
+- the Mac's GPU (MPS): not run yet.
+
+The whole pipeline run once on a scratch copy of the first match with the final weights (run `play-stage`, not held out:
+the model has seen the match): the corrections come to 280.
+
+Training (`play_training.py`, on any machine): "Apprendre de mes réponses" on a match whose every rally is checked trains
+the model again on every such match here (their videos and reviews on this machine), when their checked rallies changed
+since its last training (`trained.json` beside the weights) and never on fewer matches than the weights know. The recipe
+above (2000 steps of 8 clips), each match's frames kept in `outputs/cache/play/` (10-12 GB a match, safe to delete). The
+weights in use were trained so on both matches (AUC 0.9995 on the second, which they have seen). 2000 steps take 13 min on
+the 5080; on its processor alone a step takes 38 s (2 clips at a time, their gradients added up), 21 hours in all; the Mac
+not measured. Nothing checks that a retrained model is better (the learned order is kept only if it gains held out):
+with three matches or more, train on all but one and compare the windows on the last.
+
+In `benchmarks/corrections`, a scratch copy sees no weights: it runs without the play model unless the match folder holds a
+`play.npz`, copied with it. For a held-out measure, `play_run.py RUN MATCH P_NPZ` puts a held-out model's prediction in the
+copy (`play.py train` writes one).
 A match's `play.npz` travels with its folder, so a rerun on the Mac keeps the windows of a match first run on the PC, and
 a rerun on the PC adds it to a match first run on the Mac.

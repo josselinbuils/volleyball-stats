@@ -15,6 +15,8 @@ class TestSources:
         (tmp_path / "feedback").mkdir()
         (tmp_path / "hosted").mkdir()
         assert [p.name for p in sources(match) if p.is_relative_to(tmp_path)] == ["first_match", "courts", "court", "roster.json", "club", "feedback"]
+        (tmp_path / "learned").mkdir()
+        assert sources(match)[-1].name == "learned"
 
 
 class TestSignature:

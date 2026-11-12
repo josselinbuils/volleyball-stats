@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 from volleyball_stats import playing
@@ -89,16 +91,45 @@ class TestGoesOn:
 
 
 class TestWanted:
-    def test_runs_only_with_its_weights_on_the_camera_s_footage(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(playing.decode, "size", lambda video: (3840, 2160))
-        monkeypatch.setattr(playing, "WEIGHTS", tmp_path)
-        assert not playing.wanted(tmp_path / "match.mp4")
+    def match(self, tmp_path):
+        match = tmp_path / "matches" / "m"
+        match.mkdir(parents=True)
+        return match
 
-        (tmp_path / "model.safetensors").touch()
-        assert playing.wanted(tmp_path / "match.mp4")
+    def weights(self, tmp_path, time: int = 1000):
+        folder = tmp_path / playing.WEIGHTS
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / playing.MODEL).touch()
+        os.utime(folder / playing.MODEL, (time, time))
+
+    def test_runs_only_with_its_weights_on_the_camera_s_footage(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path)
+        monkeypatch.setattr(playing.decode, "size", lambda video: (3840, 2160))
+        assert not playing.wanted(tmp_path / "match.mp4", match)
+
+        self.weights(tmp_path)
+        assert playing.wanted(tmp_path / "match.mp4", match)
 
         monkeypatch.setattr(playing.decode, "size", lambda video: (1280, 720))
-        assert not playing.wanted(tmp_path / "clip.mp4")
+        assert not playing.wanted(tmp_path / "clip.mp4", match)
+
+    def test_runs_again_only_once_the_weights_change(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path)
+        monkeypatch.setattr(playing.decode, "size", lambda video: (3840, 2160))
+        self.weights(tmp_path)
+        np.savez(match / playing.FILE, starts=np.array([0]), p=np.array([0.1]), fps=8, T=16, weights=1000)
+        assert not playing.wanted(tmp_path / "match.mp4", match)
+
+        self.weights(tmp_path, 2000)
+        assert playing.wanted(tmp_path / "match.mp4", match)
+
+    def test_a_p_play_of_no_known_weights_is_made_again(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path)
+        monkeypatch.setattr(playing.decode, "size", lambda video: (3840, 2160))
+        self.weights(tmp_path)
+        np.savez(match / playing.FILE, starts=np.array([0]), p=np.array([0.1]), fps=8, T=16)
+
+        assert playing.wanted(tmp_path / "match.mp4", match)
 
 
 class TestLoad:

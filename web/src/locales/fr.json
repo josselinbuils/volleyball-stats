@@ -210,6 +210,7 @@
     "step": {
       "reports": "Chargement des signalements en ligne…",
       "training": "Entraînement du modèle « qui a touché » sur vos réponses (quelques minutes)…",
+      "playTraining": "Entraînement du modèle « phases de jeu » sur vos matchs vérifiés…",
       "pipeline": "Analyse du match",
       "players": "Calcul des joueurs…",
       "questions": "Préparation des questions…",

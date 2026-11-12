@@ -216,6 +216,19 @@ def train(match: Path, video: Path, court: Path) -> None:
     )
 
 
+def play_due(match: Path) -> bool:
+    """Whether the play model has something new to learn here (`play_training.due`): a match fully checked since its last training."""
+    from volleyball_stats import play_training
+
+    return bool(play_training.due(match))
+
+
+def train_play(match: Path) -> None:
+    """The play model trained again on every match fully checked (`play_training`), in its own process: the review's
+    server keeps no model in memory."""
+    subprocess.run([sys.executable, "-m", "volleyball_stats.play_training", str(match)], cwd=ROOT, stdin=subprocess.DEVNULL, check=True)
+
+
 def retrain(match: Path, video: Path, court: Path) -> dict[str, Score]:
     """`train` alone, the match left as it is, measured in learn.json like a rerun."""
     replaced = {k: v for k, v in scores(match, video, court).items() if k not in from_training(match)}

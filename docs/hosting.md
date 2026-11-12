@@ -88,7 +88,7 @@ Crawlers: the service's nginx answers 403 to the user agents of its `$blocked_bo
 
 Backup (`backup.py`, `sync.py`): with "Sauvegarde automatique" on, every 10 minutes a match changed here since it was last
 sent or brought (`sync.changed`) is sent, and what sits beside the matches (courts and their clicks, roster, lens, the club,
-the viewers' reports) is kept in step with the server (`sync.keep_shared`); the review's "Sauvegarder sur le serveur" and
+the viewers' reports, the models trained on the reviewed matches: `learned/`, 345 MB) is kept in step with the server (`sync.keep_shared`); the review's "Sauvegarder sur le serveur" and
 the Serveur tab's "Sauvegarder maintenant" (`sync push --all`) do it at once. The choice is each machine's own
 (`outputs/backup.json`), on by default once a server is set. Copies go to
 `/root/backups/volleyball-stats/COPY/` on the OVH server (outside the website, root only), one per hour something changed

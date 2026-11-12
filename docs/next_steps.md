@@ -160,11 +160,12 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
 14. Done (12 Nov): **the learned play / no-play clip model** is in the pipeline where its weights are (`playing.py`, the
     stage "play"; `benchmarks/rallies/README.md` "12 Nov"): ends carried on and starts pulled back through its play, the
     windows it sees play in kept, a rally going on after a bounce played on. Corrections 283 -> 281 and 389 -> 351, the
-    model held out. VideoMAE-base fine-tuned on the two reviewed matches (base weights CC BY-NC 4.0: fine for a
-    non-commercial project, the owner, 12 Nov), 345 MB in `models/play/`, about 10 min for a 67-minute match on the 5080 (twice that with another job on the card). Left: the
-    weights on the Mac (not copied there, the stage never run on MPS: about an hour a match, estimated), retraining it
-    with each reviewed match ("Apprendre de mes réponses" does not), and the ends themselves (it only carries them on:
-    cutting them back where P(play) falls loses the last floor contact).
+    model held out. VideoMAE-base fine-tuned on the reviewed matches (base weights CC BY-NC 4.0: fine for a
+    non-commercial project, the owner, 12 Nov), 345 MB in `outputs/learned/play/`, shared between the machines by the
+    backup; "Apprendre de mes réponses" on a fully checked match trains it again (`play_training.py`). About 10 min a
+    match on the 5080, 7 hours on a processor alone. Left: the stage and the training run and timed on the Mac (MPS), a
+    check that a retrained model is better, and the ends themselves (it only carries them on: cutting them back where
+    P(play) falls loses the last floor contact).
 
 ## Tried and dropped (1 Nov)
 

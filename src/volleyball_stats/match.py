@@ -452,10 +452,10 @@ def main() -> None:
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
     rows = attribution.read_players(players_path) if args.players else None
-    if playing.wanted(args.video) and (args.force or not (out / playing.FILE).exists()):
+    if playing.wanted(args.video, out):
         stage("play")
         start = time.perf_counter()
-        playing.predict(args.video, out / playing.FILE)
+        playing.predict(args.video, out / playing.FILE, playing.weights(out))
         timings["play"] = time.perf_counter() - start
     stage("rallies")
     start = time.perf_counter()

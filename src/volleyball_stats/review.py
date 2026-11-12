@@ -1612,9 +1612,9 @@ def unlocked(keys: list[int]) -> list[dict]:
 
 
 # Each step's and pipeline stage's duration in seconds before one is measured: the first ASPOM
-# match, 4K, on the M4 (1 Nov); "play" on the RTX 5080 (12 Nov), the only machine with its model.
+# match, 4K, on the M4 (1 Nov); "play" and "playTraining" on the RTX 5080 (12 Nov).
 TOOK = {
-    "reports": 3.0, "training": 270.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "hostingAll": 120.0, "copies": 3300.0, "films": 2400.0, "film": 180.0, "highlights": 300.0,
+    "reports": 3.0, "training": 270.0, "playTraining": 2400.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "hostingAll": 120.0, "copies": 3300.0, "films": 2400.0, "film": 180.0, "highlights": 300.0,
     "pipeline:tracking": 7200.0, "pipeline:play": 620.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
     "pipeline:identity": 20.0, "pipeline:jumps": 420.0, "pipeline:answers": 60.0,
 }
@@ -2733,7 +2733,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
                     # A match whose every rally is checked only teaches the next ones: it stays as reviewed.
                     if reviewed(questions.page, log):
-                        run_steps([("training", lambda: learn.retrain(match, video, court))])
+                        play = [("playTraining", lambda: learn.train_play(match))] if learn.play_due(match) else []
+                        run_steps([("training", lambda: learn.retrain(match, video, court)), *play])
                         return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                     # The pipeline again, its identities with every answer: an apply too. Undo
                     # stops here: the answers moved onto the new rallies.

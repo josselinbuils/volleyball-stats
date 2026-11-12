@@ -1,5 +1,6 @@
 """Copies of what cannot be made again (the review's answers, names and comments, the match's results, and beside the
-matches the courts and their clicks, the roster, the lens, the club the app edits, the viewers' reports) on the hosting
+matches the courts and their clicks, the roster, the lens, the club the app edits, the viewers' reports, the models
+trained on the reviewed matches) on the hosting
 server, outside its website: ROOT/COPY/MATCH/ and ROOT/COPY/<what sits beside>, a copy per hour something changed
 (`copy_id`). A copy starts as the one before hard-linked on the server (`snapshot`), so each holds every match while only
 what changed is uploaded and takes room. A match's files replace the copy's (`--delete`); what sits beside the matches is
@@ -34,7 +35,8 @@ ROOT = "/root/backups/volleyball-stats"
 STATE = ".sync.json"
 SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE)
 # What sits beside the matches in the outputs folder, copied with each match and on its own (`backup_shared`).
-SHARED = ("courts", "court", "roster.json", "lens.json", "club", "feedback")
+# "learned": the models trained on the reviewed matches (`playing.WEIGHTS`, 345 MB: a machine with no card gets them made).
+SHARED = ("courts", "court", "roster.json", "lens.json", "club", "feedback", "learned")
 REMOTE = Path(__file__).with_name("backup_remote.py")
 # How this machine's last copies went.
 STATE_FILE = "backup_state.json"

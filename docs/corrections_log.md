@@ -89,8 +89,8 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
 have rallies where the ball bounces and play goes on (27 and 38 such floors in the reviewed touches): a floor used to end the
-rally's touches, turning the rest into floors (one 31 s rally of the second match: 23 corrections -> 9). Weights in `models/play/`
-(345 MB, trained on both matches, not in the repository): the PC has them, the Mac runs as before without them.
+rally's touches, turning the rest into floors (one 31 s rally of the second match: 23 corrections -> 9). Weights in
+`outputs/learned/play/` (345 MB, trained on both matches, not in the repository), shared between the machines by the backup.
 
 The touches on a piece with no identity were asked in the review as unknown players: they now come with a guess, right 16 times
 in 20 on the two matches; the rule fits no number to them. How those guesses show in the review was not looked at.
@@ -237,8 +237,9 @@ better ball track.
   stage with a heavy model or fine-tuned weights falls back to today's behaviour where they are missing (the guard the
   agents already build), and what the Mac's pipeline loses is said each time. One path for both when the results are close.
 - Every system (12 Nov, now a rule of `CLAUDE.md`): the project is generic and runs at least on Windows and macOS; nothing
-  relies on one system or machine, a more optimised pipeline on some is fine. So the play model as merged is not finished:
-  its weights are on the PC only and its stage has never run on the Mac ("Next").
+  relies on one system or machine, a more optimised pipeline on some is fine. So the play model's weights moved beside the
+  matches, where the backup shares them between the machines, its stage and its training run on any device (measured on the
+  PC's card and on its processor alone), and "Apprendre de mes réponses" trains it. The Mac's GPU is left to run ("Next").
 - Runtime (11 Nov): the pipeline got much faster, so a model taking more time is fine if it is clearly better; candidates
   that only run on the PC or carry another licence are tested too, and reported for the owner to decide.
 - A first touch after the other team's attack that sends the ball straight back over (11 Nov): a relance when the player
@@ -325,6 +326,15 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
 2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
    81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"): contacts found again for its track.
 3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
-4. The play model on every machine (the owner's rule, 12 Nov): its weights reaching the Mac and any other machine (they are
-   on the PC only), the stage run and timed on the Mac (MPS, never run) and on a machine with no graphics card, and its
-   retraining with each reviewed match as an action of the app that works on each.
+4. The play model on the Mac (the owner's rule, 12 Nov: nothing for a single system). Done on the PC, its card and its
+   processor alone (`benchmarks/rallies/README.md`). To do in a session on the Mac, in this order:
+   - `git pull`, `uv sync` (`transformers` is now declared), `uv run pytest -q`;
+   - the weights: `ls outputs/learned/play/` shows `model.safetensors` (345 MB) once the app has run with its backup on
+     ("Sauvegarde automatique", or "Sauvegarder maintenant" in the Serveur tab); the PC sent them on 12 Nov;
+   - `uv run python benchmarks/rallies/play_device.py data/matches/MATCH/MATCH.mp4 --cpu` on a match whose video is there:
+     the prediction on the Mac's GPU (MPS) against the processor's, their times, and a training step's time. Wanted: play or
+     not differing on a few clips of 233 at most, and the times;
+   - if MPS fails or differs, the fix is in `playing.predict` or `play_training.train` (the device comes from
+     `playing.device`; only CUDA uses half precision), the processor being the fallback;
+   - the numbers written in `benchmarks/rallies/README.md` ("the Mac's GPU (MPS): not run yet", "the Mac not measured") and
+     here, committed and pushed.

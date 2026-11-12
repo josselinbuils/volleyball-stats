@@ -373,7 +373,7 @@ def time_left(job: dict, now: float) -> float | None:
     if job.get("step") != "pipeline":
         return here
     stage = job.get("stage") or "tracking"
-    later = [s for s in review.STAGES[review.STAGES.index(stage) + 1 :] if s != "play" or playing.available()] if stage in review.STAGES else []
+    later = [s for s in review.STAGES[review.STAGES.index(stage) + 1 :] if s != "play" or playing.stamp(OUTPUTS / playing.WEIGHTS)] if stage in review.STAGES else []
     scale = job.get("duration", TOOK_VIDEO_S) / TOOK_VIDEO_S
     rest = scale * sum(review.TOOK.get(f"pipeline:{s}", 0.0) for s in later)
     if stage == "tracking":
