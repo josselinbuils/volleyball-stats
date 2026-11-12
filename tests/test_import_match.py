@@ -73,6 +73,11 @@ class TestImport:
         with pytest.raises(SystemExit):
             self.run(monkeypatch, tmp_path, str(self.card(tmp_path)), "--teams", "A")
 
+    def test_previews_a_picture_of_the_joined_recording(self, tmp_path):
+        chapters = recordings([probe(p) for p in videos(self.card(tmp_path))])[0]
+        for at in (0.0, 3.0, 6.0, 99.0):
+            assert import_match.frame_at(chapters, at, 32)[:2] == b"\xff\xd8"
+
     def test_finds_only_the_videos_in_the_camera_s_order(self, tmp_path):
         assert [p.name[-10:] for p in videos(self.card(tmp_path))] == ["0002_D.MP4", "0003_D.MP4", "0004_D.MP4"]
 
@@ -85,6 +90,13 @@ class TestConcatList:
 
     def test_leaves_out_the_chapters_outside_the_cut_and_cuts_inside_the_others(self):
         assert concat_list(self.chapters, 12.5, 25.0) == "file '/c/1.mp4'\ninpoint 2.500\nfile '/c/2.mp4'\noutpoint 5.000\n"
+
+    def test_previews_inside_the_chapter_holding_the_time(self, monkeypatch):
+        asked = []
+        monkeypatch.setattr(import_match.subprocess, "run", lambda command, **_: asked.append(command) or subprocess.CompletedProcess(command, 0, b"\xff\xd8"))
+        for at in (12.5, 30.0):
+            import_match.frame_at(self.chapters, at)
+        assert [(c[c.index("-i") + 1], c[c.index("-ss") + 1]) for c in asked] == [("/c/1.mp4", "2.50"), ("/c/2.mp4", "10.00")]
 
     def test_quotes_an_apostrophe(self):
         assert "it'\\''s" in concat_list([Chapter(import_match.Path("/it's.mp4"), 1.0, 0)], None, None)

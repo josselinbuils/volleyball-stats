@@ -37,6 +37,8 @@ IMAGES = {"start": ("start.jpg", "image/jpeg"), "court": ("court.jpg", "image/jp
 # Where a camera's card or a video folder may be.
 MOUNTS = {"mac": ["/Volumes"], "linux": ["/media/{user}", "/run/media/{user}"]}
 NAME = re.compile(r"[^,:]+")
+# The videos' lengths by path, size and change time: the import's preview asks for them at every picture.
+PROBED: dict[tuple, object] = {}
 # The length of the video review.TOOK's durations were measured on.
 TOOK_VIDEO_S = 4013.0
 VIDEOS = "videos"
@@ -222,11 +224,33 @@ def probed(videos: list[Path]) -> list:
 
     found = []
     for video in videos:
-        try:
-            found.append(import_match.probe(video))
-        except (subprocess.CalledProcessError, KeyError, ValueError, IndexError) as error:
-            raise LookupError(f"unreadable:{video.name}") from error
+        stat = video.stat()
+        key = (str(video), stat.st_size, stat.st_mtime_ns)
+        if key not in PROBED:
+            try:
+                PROBED[key] = import_match.probe(video)
+            except (subprocess.CalledProcessError, KeyError, ValueError, IndexError) as error:
+                raise LookupError(f"unreadable:{video.name}") from error
+        found.append(PROBED[key])
     return found
+
+
+def chapters_of(source: str, recording: int) -> list:
+    """The chapters of a card's or folder's recording `recording` (from 1)."""
+    from volleyball_stats import import_match
+
+    groups = import_match.recordings(probed(import_match.videos(Path(source).expanduser())))
+    if not 1 <= recording <= len(groups):
+        raise LookupError("recording")
+    return groups[recording - 1]
+
+
+def preview(query: str) -> bytes:
+    """The import's preview: the picture of a recording at a time (`source`, `recording` from 1, `at` in seconds)."""
+    from volleyball_stats import import_match
+
+    q = parse_qs(query)
+    return import_match.frame_at(chapters_of(q["source"][0], int(q["recording"][0])), float(q["at"][0]))
 
 
 def scan(source: str) -> dict:
@@ -271,9 +295,8 @@ def import_steps(body: dict) -> tuple[str, str, list, float]:
     from volleyball_stats import import_match, teams
 
     flag = team_flag(body["teams"])
-    groups = import_match.recordings(probed(import_match.videos(Path(body["source"]).expanduser())))
     recording = int(body.get("recording") or 1)
-    chapters = groups[recording - 1]
+    chapters = chapters_of(body["source"], recording)
     start, end = [teams.seconds(body[k]) if body.get(k) else None for k in ("from", "to")]
     total = sum(c.duration for c in chapters)
     if (start or 0) >= min(end or total, total):
@@ -520,6 +543,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply(server.copies(OUTPUTS))
             if route == "sources":
                 return reply(sources())
+            if route == "preview":
+                return preview(query), "image/jpeg", 200
             if route == "club":
                 return reply({"club": club_settings.read(), "themes": club_settings.themes(), "played": played_teams()})
             if route == "club/file":

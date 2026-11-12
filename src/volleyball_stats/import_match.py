@@ -23,6 +23,8 @@ CAMERA_NAME = re.compile(r"(\d{14})_\d+_")
 SAME_RECORDING_S = 5.0
 # How far from the times asked the cut video may end up: a keyframe's distance.
 CUT_TOLERANCE_S = 2.0
+# The import's preview: wide enough to see the serve and the scoreboard, quick to make from 4K.
+PREVIEW_WIDTH = 640
 
 
 @dataclass
@@ -82,6 +84,26 @@ def concat_list(chapters: list[Chapter], start: float | None, end: float | None)
         if end and at > end:
             lines.append(f"outpoint {end - begin:.3f}")
     return "\n".join(lines) + "\n"
+
+
+def frame_at(chapters: list[Chapter], at: float, width: int = PREVIEW_WIDTH) -> bytes:
+    """The picture at `at` seconds in the joined video, a JPEG `width` pixels wide: the import's preview."""
+    begin = 0.0
+    for chapter in chapters[:-1]:
+        if at < begin + chapter.duration:
+            break
+        begin += chapter.duration
+    else:
+        chapter = chapters[-1]
+    offset = min(max(at - begin, 0.0), chapter.duration)
+    # The keyframe at or before: three times quicker on the camera's 4K (0.3 s against 1 s, a keyframe every 0.6 s there),
+    # and where the cut starts. Past a chapter's last keyframe it gives nothing: a picture a second before its end then.
+    for seek, at_most in ((["-skip_frame", "nokey", "-noaccurate_seek"], offset), ([], max(chapter.duration - 1.0, 0.0))):
+        command = ["ffmpeg", "-nostdin", "-v", "error", *seek, "-ss", f"{min(offset, at_most):.2f}", "-i", str(chapter.path), "-frames:v", "1", "-vf", f"scale={width}:-2"]
+        picture = subprocess.run([*command, "-q:v", "5", "-f", "image2pipe", "-c:v", "mjpeg", "-"], capture_output=True).stdout
+        if picture:
+            return picture
+    raise LookupError("frame")
 
 
 def join(chapters: list[Chapter], target: Path, start: float | None, end: float | None) -> None:

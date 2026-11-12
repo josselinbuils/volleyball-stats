@@ -138,6 +138,14 @@ class TestApp:
         answer = app.handle("POST", "/app/scan", "", {"source": str(tmp_path)}, list)
         assert answer[2] == 400 and json.loads(answer[0])["error"] == "unreadable:DJI_cut.mp4"
 
+    def test_previews_a_recording_and_refuses_one_not_there(self, tmp_path):
+        from test_import_match import TestImport
+
+        card = TestImport.card(tmp_path)
+        picture = app.handle("GET", "/app/preview", f"source={card}&recording=1&at=3", {}, list)
+        assert picture[1:] == ("image/jpeg", 200) and picture[0][:2] == b"\xff\xd8"
+        assert app.handle("GET", "/app/preview", f"source={card}&recording=2&at=3", {}, list)[2] == 400
+
     def test_estimates_the_time_left(self):
         tracking = {"started": 0.0, "stepStarted": 0.0, "step": "pipeline", "stage": "tracking", "progress": 0.5, "duration": app.TOOK_VIDEO_S}
         left = app.time_left(tracking, 100.0)

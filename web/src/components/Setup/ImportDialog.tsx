@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
+import { CutPreview } from './CutPreview';
 import { suggestedTeams, type ClubState } from '@/components/helpers/club';
 import { importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
 
@@ -32,6 +33,9 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   const [date, setDate] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  // The cut's picture: shown once "Couper la vidéo" is open, at the time last typed in its fields.
+  const [cutting, setCutting] = useState(false);
+  const [previewAt, setPreviewAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [suggested, setSuggested] = useState<string[]>([]);
@@ -152,7 +156,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
                 <legend className="mb-1.5 font-medium">{t('app.import.recording')}</legend>
                 {found.recordings.map((r, k) => (
                   <label key={k} className="flex items-center gap-2">
-                    <input type="radio" name="recording" checked={recording === k} onChange={() => (setRecording(k), setDate(r.date))} />
+                    <input type="radio" name="recording" checked={recording === k} onChange={() => (setRecording(k), setDate(r.date), setFrom(''), setTo(''), setPreviewAt(0))} />
                     <span className="tabular-nums">
                       {r.start ? f.when(r.start) : t('app.import.recordingN', { n: k + 1 })} · {clock(r.duration)}
                     </span>
@@ -195,8 +199,22 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
               {t('app.import.date')}
               <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={cn(INPUT, 'w-fit')} />
             </label>
-            <details className="grid gap-2">
+            <details className="grid gap-2" onToggle={(e) => setCutting(e.currentTarget.open)}>
               <summary className="cursor-pointer text-muted-foreground">{t('app.import.cut')}</summary>
+              {cutting && (
+                <div className="mt-2">
+                  <CutPreview
+                    key={recording}
+                    source={found.source}
+                    recording={recording + 1}
+                    duration={found.recordings[recording].duration}
+                    at={previewAt}
+                    from={from.trim() ? times[0] : null}
+                    to={to.trim() ? times[1] : null}
+                    onPick={(key, seconds) => (key === 'from' ? setFrom : setTo)(clock(seconds))}
+                  />
+                </div>
+              )}
               <div className="mt-2 flex flex-wrap gap-3">
                 {(
                   [
@@ -206,7 +224,19 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
                 ).map(([key, value, set], k) => (
                   <label key={key} className="grid gap-1">
                     {t(`app.import.${key}`)}
-                    <input placeholder="0:00" value={value} aria-invalid={times[k] === null} onChange={(e) => set(e.target.value)} className={cn(INPUT, 'w-28 tabular-nums')} />
+                    <input
+                      placeholder={key === 'from' ? '0:00' : clock(found.recordings[recording].duration)}
+                      value={value}
+                      aria-invalid={times[k] === null}
+                      onChange={(e) => {
+                        set(e.target.value);
+                        const typed = parseTime(e.target.value);
+                        if (typed !== null) {
+                          setPreviewAt(Math.min(typed, found.recordings[recording].duration));
+                        }
+                      }}
+                      className={cn(INPUT, 'w-28 tabular-nums')}
+                    />
                   </label>
                 ))}
               </div>
