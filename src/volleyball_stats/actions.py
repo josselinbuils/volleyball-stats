@@ -63,6 +63,10 @@ BOUNCE_PX = 200
 # Seconds after an attack within which a touch is the block: 0.1-0.2 s on the labelled clips, the
 # next dig 0.67 s or more.
 BLOCK_S = 0.33
+# Court x (meters from the net) past which a touch typed block is none: the blocker's hands are at the net, and the camera
+# in the net plane projects a ball there whatever its height. The reviewed blocks project under 1.5 m but 2 of 26, the false
+# ones (the attack's turn seen again as the ball flies on) 9 of 18 past 1.6 m (`off_net_blocks`).
+BLOCK_NET_M = 1.6
 # Court y (meters, toward the camera) from which a contact's floor projection is on the floor: any
 # contact past FLOOR_Y (digs project under 1.3 m on the labelled clips), the rally's last contact
 # past the far sideline. Projections over MARGIN outside the court are balls in the air, or above
@@ -194,6 +198,12 @@ def classify_rally(
         if a[3] == "serve" and b[3] == "floor" and crossed_at[k + 1] == crossed_at[k] and b[4] == a[4] and behind_end_line(calibration, b[1], b[2]):
             out[k] = (*a[:3], "floor", a[4])
     return out
+
+
+def off_net_blocks(typed: list[Typed], calibration: Calibration) -> list[Typed]:
+    """`typed` without the blocks over BLOCK_NET_M from the net. Run once the touches are typed: typing again without them
+    moves the touches the players' reach keeps (corrections 281 -> 279 and 351 -> 345, against 279 and 352)."""
+    return [t for t in typed if t[3] != "block" or abs(calibration.to_court(np.array([[t[1], t[2]]], dtype=float))[0, 0]) <= BLOCK_NET_M]
 
 
 def served(rallies: list[tuple[int, int]], contacts: list[Contact], fps: float, calibration: Calibration | None = None) -> list[tuple[int, int]]:

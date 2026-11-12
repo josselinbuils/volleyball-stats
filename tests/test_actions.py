@@ -33,6 +33,12 @@ class TestClassifyRally:
         assert kinds(typed) == ["serve", "pass", "set", "attack", "block", "dig", "set", "attack"]
         assert typed[4][4] == "right"
 
+    def test_a_block_away_from_the_net_is_dropped(self):
+        calibration = Calibration(np.array([[30.0, 0.0, 640.0], [0.0, 20.0, 360.0], [0.0, 0.0, 1.0]]))
+        typed = [(0, 700, 360, "attack", "right"), (11, 625, 360, "block", "left"), (20, 580, 360, "block", "left"), (40, 580, 360, "dig", "left")]
+
+        assert [t[0] for t in actions.off_net_blocks(typed, calibration)] == [0, 11, 40]
+
     def test_the_touch_after_a_block_is_a_dig_even_before_the_serve_s_side_crossed_again(self):
         contacts = [(0, *RIGHT), (40, *LEFT), (80, *LEFT), (120, *LEFT), (125, *NET), (160, *LEFT)]
 

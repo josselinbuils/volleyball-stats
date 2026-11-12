@@ -67,8 +67,8 @@ The pipeline's weak spots and what is left to do, most useful first.
     checks, import, court (clicked in the browser the first time in a gym), pipeline with its progress, the videos with the
     other machine, the update. `match.side_by_side` runs on CUDA only: on the Mac (MPS) two threads abort Metal.
 16. Fewer corrections in the review (11-12 Nov, [corrections_log.md](corrections_log.md): the harness `benchmarks/corrections`, what
-    was kept and dropped, what is next): the corrections left to the owner on the two reviewed matches 294 -> 281 and 410 -> 351
+    was kept and dropped, what is next): the corrections left to the owner on the two reviewed matches 294 -> 279 and 410 -> 345
     (2.2 and 2.3 a rally). Kept: a set sent over the net typed by its flight, a touch on a nameless piece of track given its
-    track's nearest name, the play / no-play model. Dropped with their numbers: a fine-tuned ball model, two stronger
+    track's nearest name, the play / no-play model, a block away from the net dropped. Dropped with their numbers: a fine-tuned ball model, two stronger
     re-identification models, a learned touch type, eight pose models, rules for windows, false touches and types.
     Its "State" is the hand-over: what waits on the owner (a third match filmed on 12 Nov, a session on the Mac) and what is next.

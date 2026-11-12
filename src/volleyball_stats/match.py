@@ -191,7 +191,7 @@ def typed_windows(
     track: np.ndarray, whistle_times: list[tuple[float, float]], alive: Callable[[int], bool] | None = None,
 ) -> tuple[list[rallies.Rally], list[actions.Typed]]:
     """The windows' contacts typed; with the players' `rows`, the touches no player reaches dropped and the serves the ball
-    track missed added (`unseen_serves`)."""
+    track missed added (`unseen_serves`) and the blocks away from the net dropped (`actions.off_net_blocks`)."""
     typed = actions.classify(found, crossings, windows, fps, net_x, calibration, alive)
     if rows is None:
         return windows, typed
@@ -204,7 +204,7 @@ def typed_windows(
     windows, added = unseen_serves(windows, typed, crossings, rallies.served([(r.frame, *r.court) for r in rows], track, whistle_times, fps, calibration), rows, fps)
     if added:
         typed = actions.classify(sorted(found + added), crossings, windows, fps, net_x, calibration, alive)
-    return windows, typed
+    return windows, actions.off_net_blocks(typed, calibration)
 
 
 def unseen_serves(

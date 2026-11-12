@@ -85,6 +85,7 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | A set crossing the net within 1.3 s of its touch is an attack, or a relance by its flight (`actions.SET_OVER_S`, `by_flight`; runs `types-setover`) | 294 -> 288 (types 91 -> 85) | 410 -> 400 (types 130 -> 119, players 103 -> 104) |
 | A touch on a piece of track with no identity takes its track's nearest identified piece within 5 s (`identity.touch_identity`; runs `players-near`) | 288 -> 283 (players 84 -> 79) | 400 -> 389 (players 104 -> 93) |
 | A play / no-play clip model, where its weights are: ends carried on, starts pulled back, the windows with play all along kept, a rally going on after a bounce played on (`playing.py`; runs `play-eskb`, the model held out) | 283 -> 281 (to add 65 -> 62, types 85 -> 82, players 79 -> 81) | 389 -> 351 (to add 97 -> 62, types 119 -> 105, players 93 -> 103) |
+| A touch typed block over 1.6 m from the net is none, dropped once the touches are typed (`actions.off_net_blocks`; run `block-net` against `ctl`, 12 Nov) | 281 -> 279 (to add 62 -> 63, remove 47 -> 46, types 82 -> 81, players 81 -> 80) | 351 -> 345 (to add 62 -> 65, remove 74 -> 68, types 105 -> 103, players 103 -> 102) |
 
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
@@ -176,6 +177,29 @@ labelled balls found 99.4% against 81.3% (97% of those only the 1024 teacher saw
 detections in the wrong place 71 against 1, and on 1,160 of 5,122 frames between rallies where the model in use sees none
 (252 at 0.5, with 97.9% found): both near zero for the model in use by construction (the labels come from its picks). The
 agent re-tracks the second match at 0.5.
+
+### The block right after an attack (12 Nov, evening; runs `block-*` against `ctl`: 281 / 351)
+
+Where blocks cost corrections (`ctl`, first / second match): blocks to add 9 / 6, blocks typed something else 14 / 9 (attack
+9 / 8), false blocks 3 / 12. The truth's blocks come 0.02-0.54 s after their attack, most at 0.22 s: the pipeline's spacing
+(`contacts.GAP` + 1 frame) the owner kept.
+
+- False blocks (18 in the checked rallies, against 26 real): the pipeline's attack 11-13 frames early and the real attack typed
+  block (4), or the attack's turn seen again 0.22 s later as the ball flies on into the defence, a dig 11-13 frames after (most of
+  the second match's). The wrists don't tell them (the blockers' hands are up by the ball both times: nearest wrist 0.04-0.8 box
+  heights, raised); the turn's strength partly (the second match's false ones 364-480 px/s, but 6 real ones under 650); where
+  the contact projects does: real blocks within 1.5 m of the net but 2 of 26 (2.4, 4.1 m), false ones past 1.6 m 9 of 18.
+  Typing them as another touch (`block-retype`): 281 / 373, the touches around retyped. Dropping them inside the typing
+  (`block-drop`): 279 / 352, the touches the players' reach keeps (`attribution.unreached`, which types first) move. Dropped
+  once typed: kept ("Kept").
+- Missed blocks: mostly one contact for an attack and its block 4-13 frames apart, under `GAP` (0.2 s): the turn signal
+  (0.17 s fits on each side) cannot split them. An attack followed by a touch on its own side with no crossing (only possible
+  after a block): 15 on the two matches, 6 with a block. Attacks whose ball does not cross within 1.5 s: 17 of the 23 merged
+  blocks, but 44 of 295 clean attacks (mostly into the net); with the next touch on the same side or the rally's end, 16
+  blocked against 27: a block put there would make more false than it finds. Not run end to end.
+
+Left: a blocked attack from a picture of the hands at the net (the ball deflected or not), with about 60 blocks a match to
+learn from; the attack's timing (4 of the false blocks are the attack found 0.25 s early).
 
 ### Players (11 Nov, `next_steps.md` "Players to fix (11 Nov)")
 
@@ -278,7 +302,8 @@ better ball track.
 
 ## State (12 Nov, evening): hand-over
 
-Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov).
+Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov); 279
+and 345 since the blocks away from the net are dropped (12 Nov, evening).
 Three changes kept, all merged and pushed; nothing runs, no worktree is left, the review server is not started.
 
 Done on 12 Nov, each with its numbers further down or in its benchmark's README:
@@ -375,7 +400,8 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
    today's loses the ball (12 Nov, evening): 281 -> 280 and 351 -> 335, not wired in; to decide on the third match ("The
    fine-tuned ball model's contacts added to today's"). What would make it pay: the new touches' types and players (half a
    correction each), the ball's flight from the fine-tuned track for the typing too without its jitter elsewhere.
-3. The block right after an attack (20 missed, about 17 made up over the two matches): the blockers' hands at the net.
+3. Done (12 Nov, evening): the block right after an attack. The blocks away from the net dropped (279 / 345, "Kept"); the
+   merged attack and block and the rest out of a rule's reach ("Tried and dropped", "The block right after an attack").
 4. Done (12 Nov): the play model on the Mac (M4 Pro, `play_device.py --cpu`, one minute of the first match): its GPU (MPS)
    gives the processor's P(play) (0 clips of 233 differ) at 1.32 times the video's length, about 1 h 30 a match (10 min
    on the 5080), the processor alone 2.66 times; a training step 8.6 s, about 5 hours for the 2000. No fix needed. The
