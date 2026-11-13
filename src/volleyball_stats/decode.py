@@ -14,6 +14,7 @@ from the average frame rate: on the first ASPOM match it gives the frame before 
 
 import functools
 import os
+import queue
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,9 @@ WIDTH = 1280
 SEEK = 150
 # Runs of wanted frames one ffmpeg selects at most: its select filter tests each frame against them all.
 SELECTED = 64
+# Readers at once for scattered frames (`frames_apart`): each ffmpeg start reads the video's index and sets up its decoder,
+# most of a lone frame's 0.6 s on a 2-hour 4K match; 8 at once read 40 such frames 4.8 times faster (23.1 -> 4.8 s, 13 Nov, PC).
+APART = max(1, min(8, (os.cpu_count() or 2) // 2))
 
 
 def size(video: Path) -> tuple[int, int]:
@@ -95,11 +99,12 @@ def timestamps(video: Path) -> np.ndarray:
     return found
 
 
-def piped(video: Path, width: int, height: int, fresh: bool = True, first: int = 0, count: int | None = None, kept: list[int] | None = None) -> Iterator[np.ndarray]:
+def piped(video: Path, width: int, height: int, fresh: bool = True, first: int = 0, count: int | None = None, kept: list[int] | None = None, gpu: bool = True) -> Iterator[np.ndarray]:
     """The BGR frames of the video in order at this size, from index `first` (`count` of them, else to
     the end), or only those `kept` (sorted offsets from `first`): ffmpeg still decodes the others but
-    neither converts nor sends them. Without `fresh` in one array, valid until the next frame."""
-    flags = hardware(video)
+    neither converts nor sends them. Without `fresh` in one array, valid until the next frame. On the
+    GPU when it can, else on the processor: one busy with other work may refuse another decoder."""
+    flags = hardware(video) if gpu else ()
     # Half a frame early: ffmpeg drops what comes before the time asked, and no more.
     seek = ("-ss", f"{timestamps(video)[first] - 0.01:.6f}") if first else ()
     select = f"select='{'+'.join(f'between(n,{a},{b})' for a, b in spans(kept))}'," if kept else ""
@@ -111,9 +116,11 @@ def piped(video: Path, width: int, height: int, fresh: bool = True, first: int =
     with tempfile.TemporaryFile() as errors:
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors)
         frame = np.empty((height, width, 3), np.uint8)
+        sent = 0
         try:
             while process.stdout.readinto(frame) == frame.nbytes:
                 yield frame
+                sent += 1
                 if fresh:
                     frame = np.empty((height, width, 3), np.uint8)
             process.wait()
@@ -124,7 +131,11 @@ def piped(video: Path, width: int, height: int, fresh: bool = True, first: int =
             process.stdout.close()
         if process.returncode:
             errors.seek(0)
-            raise RuntimeError(f"ffmpeg could not decode {video}: {errors.read().decode(errors='replace').strip()}")
+            said = errors.read().decode(errors="replace").strip()
+            if flags and not sent:
+                yield from piped(video, width, height, fresh, first, count, kept, gpu=False)
+                return
+            raise RuntimeError(f"ffmpeg could not decode {video}: {said}")
 
 
 def spans(sorted_: list[int]) -> list[tuple[int, int]]:
@@ -171,6 +182,57 @@ def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndar
         # Past the video's end.
         if found < len(run):
             return
+
+
+def frames_apart(video: Path, wanted: Iterable[int], workers: int = APART) -> Iterator[tuple[int, np.ndarray]]:
+    """`frames_at` with `workers` readers at once, each on a stretch of the `wanted` frames; in no set order."""
+    found = sorted(set(wanted))
+    parts = [part for k in range(workers) if (part := found[k * len(found) // workers : (k + 1) * len(found) // workers])]
+    if len(parts) <= 1:
+        yield from frames_at(video, found)
+        return
+    out: queue.Queue = queue.Queue(maxsize=2 * len(parts))
+    stop = threading.Event()
+
+    def put(item) -> bool:
+        while not stop.is_set():
+            try:
+                out.put(item, timeout=0.2)
+                return True
+            except queue.Full:
+                pass
+        return False
+
+    def read(part: list[int]) -> None:
+        frames = frames_at(video, part)
+        try:
+            for item in frames:
+                if not put(item):
+                    return
+        except Exception as error:  # noqa: BLE001
+            put(error)
+            return
+        finally:
+            frames.close()
+        put(None)
+
+    threads = [threading.Thread(target=read, args=(part,), daemon=True) for part in parts]
+    for thread in threads:
+        thread.start()
+    try:
+        left = len(threads)
+        while left:
+            item = out.get()
+            if item is None:
+                left -= 1
+            elif isinstance(item, Exception):
+                raise item
+            else:
+                yield item
+    finally:
+        stop.set()
+        for thread in threads:
+            thread.join()
 
 
 def frame_at(video: Path, index: int) -> np.ndarray | None:

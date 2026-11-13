@@ -129,3 +129,16 @@ class TestFrames:
 
     def test_frames_at_wanting_nothing_gives_nothing(self, tmp_path):
         assert list(frames_at(tmp_path / "none.mp4", [])) == []
+
+
+class TestApart:
+    def test_reads_the_frames_with_several_readers_and_on_the_processor_when_the_gpu_refuses(self, tmp_path, monkeypatch):
+        path = TestFrames().video(tmp_path, 40)
+        expected = TestFrames().expected(path)
+        # A decoder the machine cannot start, as a GPU busy with other work refuses one.
+        monkeypatch.setattr(decode, "hardware", lambda video: ("-hwaccel", "nosuchdevice"))
+
+        found = dict(decode.frames_apart(path, [0, 3, 17, 18, 39], workers=3))
+
+        assert sorted(found) == [0, 3, 17, 18, 39]
+        assert all(np.array_equal(found[f], expected[f]) for f in found)

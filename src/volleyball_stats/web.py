@@ -1393,11 +1393,15 @@ def scores_stamp(video: Path) -> str:
     return files.cache_stamp(video, [POSE_MODEL, REID], f"{SCORES_FORMAT}:{CROP_MARGIN}:" + files.code_text(looks, framed, describe, load_reid))
 
 
+# The re-identification model, its device and `describe`, once loaded: the review makes pictures after each apply.
+LOADED_REID: list = []
+
+
 def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}, record: Path | None = None) -> dict[int, tuple]:
     """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: their
     best moment (PHOTO_PICKS), framed; returns each pictured player's (frame, box, head). `record`
     (PHOTO_SHOWN) gets where each picture was taken."""
-    from volleyball_stats.decode import frames_at
+    from volleyball_stats.decode import frames_apart
     from volleyball_stats.review import ALONE, IDENTITY_CROPS, Questions, load_log, piece_key
 
     if not teams or not (match / "identity_candidates.json").exists():
@@ -1463,7 +1467,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
     if current and vectors_path.exists():
         with np.load(vectors_path) as found:
             vectors = dict(zip(found["names"].tolist(), found["vectors"].astype(np.float32)))
-    reid: list = []
+    reid = LOADED_REID
 
     def scored(moments: dict[int, list]) -> None:
         """`scores` holding every one of `moments` (`looks`) and `vectors` their appearance (the
@@ -1494,7 +1498,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
             boxes.clear()
 
         scored_any = False
-        for frame, image in frames_at(video, wanted):
+        for frame, image in frames_apart(video, wanted):
             for box in wanted[frame]:
                 part, (left, top, scale) = framed(image, box)
                 # Copies: a view would keep the whole 4K frame alive.
@@ -1576,7 +1580,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
 
     missing = {frame: pairs for frame, pairs in chosen.items() if any(not kept_at(frame, box).exists() for _, box in pairs)}
     up = upscaler() if missing else None
-    for frame, image in frames_at(video, missing):
+    for frame, image in frames_apart(video, missing):
         for _, box in missing[frame]:
             part = face(image, box, scores[name(frame, box)][4])
             if part.size:

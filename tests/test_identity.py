@@ -2,6 +2,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from volleyball_stats.identity import (
+    kept_cards,
     CORE_S,
     LONGEST_S,
     Segment,
@@ -116,6 +117,24 @@ class TestGroup:
         v = np.eye(8)[:1]
 
         assert group(v, np.ones(1), np.array([LONGEST_S * FPS - 1]), np.array([0]), [set()], [], np.array([-1]), FPS).tolist() == [-1]
+
+
+class TestKeptCards:
+    def test_a_named_card_stays_whole_and_takes_the_pieces_reading_its_number(self):
+        piece = lambda track, start: Segment(track, list(range(start, start + 10)), [(0.0, 0.0)] * 10, team=1)  # noqa: E731
+        # 0 the pin; 1, 2 on its card; 3 another card's, reading Ana's 7; 4 on her card reading Bea's 9;
+        # 5 on her card, seen at once with 1 (longer); 6 on her card, answered elsewhere.
+        segments = [piece(1, 0), piece(2, 100), piece(3, 200), piece(4, 300), piece(5, 400), piece(6, 100), piece(7, 500), piece(8, 600)]
+        segments[1].frames = list(range(100, 130))
+        before = [(1, 1), (1, 1), (1, 1), (1, 2), (1, 1), (1, 1), (1, 1), (1, 3)]
+        names = [({"track": 1, "frame": 0}, "Ana"), ({"track": 8, "frame": 600}, "Bea")]
+        cannot = [set() for _ in segments]
+        cannot[1].add(5)
+        cannot[5].add(1)
+
+        found = kept_cards(segments, before, names, {"ana": 7, "bea": 9}, {3: 7, 4: 9}, {6}, cannot)
+
+        assert sorted(map(sorted, found)) == [[0, 1, 2, 3], [4, 7]]
 
 
 class TestNumber:

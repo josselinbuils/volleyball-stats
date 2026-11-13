@@ -91,6 +91,8 @@ GAP_SCALE, CONTACT_S, QUESTIONS = 0.1, 10.0, 50
 # The first serve's positions are read within SERVE_S of the first rally's start.
 SERVE_S = 1.0
 NAMES = "player_names.json"
+# A named player keeps the card they were named on and takes the pieces reading their jersey number (`kept_cards`).
+KEEP_CARDS = True
 
 Key = tuple[int, int]
 
@@ -560,6 +562,55 @@ def aims(segments: list[Segment], names: list[tuple[dict, str]], before: list[tu
     return out
 
 
+def read_numbers(segments: list[Segment], jerseys: dict[Key, int] | None) -> dict[int, int]:
+    """The jersey number read on each segment reading only one."""
+    out: dict[int, int] = {}
+    for k, s in enumerate(segments):
+        found = {jerseys[f, s.track] for f in s.frames if (f, s.track) in jerseys} if jerseys else set()
+        if len(found) == 1:
+            out[k] = found.pop()
+    return out
+
+
+def kept_cards(segments: list[Segment], before: list[tuple[int, int] | None], names: list[tuple[dict, str]], numbers: dict[str, int], read: dict[int, int], answered: set[int], cannot: list[set[int]]) -> list[list[int]]:
+    """Per named player, their pins and the segments no answer names joined as one ("same" groups): those of the card
+    they had in the previous run (`before`), the card the user saw and named, and those reading their jersey number
+    (`numbers`, by name casefolded; `read`, by segment), a card's segment reading another named player's leaving it.
+    Longest first, a segment the player cannot be with (`cannot`: seen at once, too far to run) left out. The rest of a
+    named card stayed only by a lean (STAY) before: an apply moved 1,300-3,700 s of named time on the third match."""
+    pins = name_pins(segments, names, before)
+    card: dict[tuple[int, int], set[tuple[int, str]]] = {}
+    for key, ks in pins.items():
+        for k in ks:
+            if before[k] is not None and before[k][0] == key[0]:
+                card.setdefault(before[k], set()).add(key)
+    wears: dict[tuple[int, int], set[tuple[int, str]]] = {}
+    for team, name in pins:
+        if name in numbers:
+            wears.setdefault((team, numbers[name]), set()).add((team, name))
+    wanted: dict[tuple[int, str], list[int]] = {}
+    for k, s in enumerate(segments):
+        if k in answered:
+            continue
+        number = wears.get((s.team, read[k]), set()) if k in read else set()
+        owner = card.get(before[k], set()) if before[k] is not None and before[k][0] == s.team else set()
+        if len(number) == 1:
+            wanted.setdefault(next(iter(number)), []).append(k)
+        elif len(owner) == 1 and not (k in read and (s.team, read[k]) in wears):
+            wanted.setdefault(next(iter(owner)), []).append(k)
+    out = []
+    for key, ks in wanted.items():
+        group_ = list(dict.fromkeys(pins[key]))
+        taken = set(group_)
+        for k in sorted(ks, key=lambda k: -len(segments[k].frames)):
+            if k not in taken and not cannot[k] & taken:
+                group_.append(k)
+                taken.add(k)
+        if len(group_) > 1:
+            out.append(group_)
+    return out
+
+
 def links(read: dict[tuple[int, int | str], list[int]]) -> tuple[list[list[int]], list[list[list[int]]]]:
     """"same" groups and "different" pairs of groups from the segments of each (team, label)."""
     same = [g for g in read.values() if len(g) > 1]
@@ -726,6 +777,7 @@ def identify(
     jerseys: dict[Key, int] | None = None,
     names: list[tuple[dict, str]] | None = None,
     until: int | None = None,
+    numbers: dict[str, int] | None = None,
 ) -> tuple[list[Segment], dict]:
     """The segments of the players' tracks with their team, identity number (0 for none) and doubt,
     and the doubts' questions (`doubts`). `answers` (identity_answers.json, segments referred to as
@@ -734,7 +786,8 @@ def identify(
     run's (team, number) by (frame, track); `squad` the number of players of each team, when known;
     `contacts` the (frame, track) of the attributed contacts, for the questions' ranking; `jerseys`
     the jersey numbers read by (frame, track), as constraints (`jersey_links`), and `names` the
-    names the user gave, (ref, name), likewise (`name_links`). Each "team" answer gives its piece
+    names the user gave, (ref, name), likewise (`name_links`), each named player keeping their card and taking
+    the segments reading their jersey number (`numbers`, by name casefolded; `kept_cards`). Each "team" answer gives its piece
     that team, whichever side it stands on, and from frame `until` (the end of the match) nothing is
     anyone."""
     answers = answers or {}
@@ -780,6 +833,9 @@ def identify(
                     for y in group_[b]:
                         cannot[x].add(y)
                         cannot[y].add(x)
+    if names and KEEP_CARDS:
+        answered = {k for kind in ("same", "different", "team") for entry in answers.get(kind, []) for ref in (entry if isinstance(entry, list) else [entry]) for k in resolve(ref, segments, before)}
+        same = same + kept_cards(segments, before, names, numbers or {}, read_numbers(segments, jerseys), answered, cannot)
     last: dict[int, int] = {}
     pieces = []
     for k, s in enumerate(segments):
@@ -905,7 +961,9 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
     identities.csv and identity_candidates.json and returns identities.csv's rows."""
     answers_path, path = match / "identity_answers.json", match / "identities.csv"
     answers = json.loads(answers_path.read_text()) if answers_path.exists() else None
-    names = [(e["ref"], e["name"]) for e in read_names(match) if e.get("name")]
+    entries = read_names(match)
+    names = [(e["ref"], e["name"]) for e in entries if e.get("name")]
+    numbers = {e["name"].strip().casefold(): e["jersey"] for e in entries if e.get("name") and e.get("jersey") is not None}
     previous = None
     if path.exists():
         frames: dict[int, list[int]] = {}
@@ -918,7 +976,7 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
     from volleyball_stats import jerseys
 
     end = match_end(match)
-    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names, until=None if end is None else round(end * fps))
+    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names, until=None if end is None else round(end * fps), numbers=numbers)
     write_identities(path, segments)
     files.write_text(match / "identity_candidates.json", json.dumps(found, indent=1) + "\n")
     return read_identities(path)

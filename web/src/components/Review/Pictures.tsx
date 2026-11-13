@@ -30,7 +30,20 @@ export function Pictures({
   const { t } = useTranslation();
   const [odd, setOdd] = useState(() => new Map(pieces.map(pieceKey).flatMap((k) => (marked.has(k) ? [[k, marked.get(k) ?? null] as const] : []))));
 
-  const save = async (next: Map<string, string | null>) => {
+  // What the clicks asked for, shown at once, and what the server last saved: the saves go one at a time, each sending
+  // the latest marks, so a click while another saves keeps it (a name picked then lost to the next mark's save).
+  const latest = useRef(odd);
+  const confirmed = useRef(odd);
+  const queue = useRef(Promise.resolve());
+  const send = async () => {
+    const next = latest.current;
+    if (next === confirmed.current) {
+      return;
+    }
+    const back = () => {
+      latest.current = confirmed.current;
+      setOdd(confirmed.current);
+    };
     const out = pieces.filter((p) => next.has(pieceKey(p)));
     const to = out.map((p) => {
       const who = next.get(pieceKey(p));
@@ -39,27 +52,35 @@ export function Pictures({
     try {
       const saved = await post('odd', { odd: out, rest: pieces.filter((p) => !next.has(pieceKey(p))), to, owner: { team: owner.team, identity: owner.identity } });
       if (saved.cancelled) {
+        back();
         return;
       }
       pieces.forEach((p) => marked.delete(pieceKey(p)));
       next.forEach((who, k) => marked.set(k, who));
-      setOdd(next);
+      confirmed.current = next;
       onSaved(saved);
     } catch {
+      back();
       onError();
     }
+  };
+  const save = (change: (marks: Map<string, string | null>) => void) => {
+    const next = new Map(latest.current);
+    change(next);
+    latest.current = next;
+    setOdd(next);
+    queue.current = queue.current.then(send);
   };
   // The field of a picture just marked takes the cursor, to type who it is.
   const [typing, setTyping] = useState<string | null>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
-  const toggle = (piece: Piece) => {
-    const next = new Map(odd);
-    if (!next.delete(pieceKey(piece))) {
-      next.set(pieceKey(piece), null);
-      setTyping(pieceKey(piece));
-    }
-    void save(next);
-  };
+  const toggle = (piece: Piece) =>
+    save((next) => {
+      if (!next.delete(pieceKey(piece))) {
+        next.set(pieceKey(piece), null);
+        setTyping(pieceKey(piece));
+      }
+    });
 
   return (
     <div className="grid gap-1.5">
@@ -99,7 +120,7 @@ export function Pictures({
                   empty={t('review.other')}
                   label={t('review.oddWho')}
                   className="w-0 min-w-full"
-                  onChange={(who) => void save(new Map(odd).set(key, who || null))}
+                  onChange={(who) => save((next) => next.set(key, who || null))}
                 />
               )}
             </div>

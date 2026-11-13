@@ -2855,6 +2855,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     if self.path == "/apply":
                         steps.append(("roster", lambda: remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())))
                     run_steps(steps + published)
+                    # Counted in the app's log: how many applies a match's naming takes.
+                    print(f"{datetime.now():%Y-%m-%d %H:%M:%S} {self.path.strip('/')}: {sum(not e.get('applied', True) for e in log)} answers", flush=True)
                     later.set()
                     for entry in log:
                         entry["applied"] = True
