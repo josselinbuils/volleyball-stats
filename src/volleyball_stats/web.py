@@ -614,6 +614,20 @@ def credited(found: list[dict], typed: list[dict]) -> None:
             a.update(result="error", label="play")
 
 
+def blamed(found: list[dict], typed: list[dict], causes: dict[int, int | None]) -> None:
+    """The faults the review puts on a teammate (`causes`: the fault's frame to the frame of that teammate's earlier touch
+    in the rally, None for nobody else): `cause` on the fault, that touch's frame. The statistics count the fault for
+    that touch's player and no longer for the one who made it (the owner's rule, 13 Nov); the labels stay what happened."""
+    at = {int(row["frame"]): c for c, row in zip(found, typed)}
+    for frame, c in at.items():
+        on = at.get(causes.get(frame))
+        if (
+            on is not None and c["result"] == "error" and labelled(c) == "error" and c["type"] not in NO_PLAYER
+            and on["rally"] == c["rally"] and on["t"] < c["t"] and on["type"] not in (*NO_PLAYER, "fault") and on.get("team") and on["team"] == c.get("team")
+        ):
+            c["cause"] = causes[frame]
+
+
 def labelled(contact: dict) -> str | None:
     """What a page's touch holds for the review, before the statistics' reading (`credited`)."""
     return contact.get("label", contact.get("result"))
@@ -797,8 +811,11 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     wrong = said_on(match, "referee", "wrong")
     # The referee got it wrong: the last touch is what really happened, the other team won it.
     settle(found, [3 - r["winner"] if r["winner"] and r["key"] in wrong else r["winner"] for r in rallies])
-    acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in answers(match, "action")})
+    said_actions = answers(match, "action")
+    # An answer about a fault's cause alone leaves the touch's type and result as said before.
+    acted(found, actions, {a["frame"]: {k: a[k] for k in ("type", "result") if k in a} for a in said_actions if "type" in a or "result" in a})
     credited(found, actions)
+    blamed(found, actions, {a["frame"]: a["cause"] for a in said_actions if "cause" in a})
     followed(rallies, found, said_on(match, "redo", "redo"), wrong)
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)

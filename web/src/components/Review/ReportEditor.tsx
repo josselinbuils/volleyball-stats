@@ -49,7 +49,8 @@ const TOUCH_LEAD_S = 0.2;
 /** The list shows this many rallies before and after the one the video is in. */
 const AROUND_RALLIES = 2;
 
-type Fix = { player?: string; type?: string; result?: string };
+/** `cause`: the frame of the teammate's touch a fault is put on, 0 for nobody else. */
+type Fix = { player?: string; type?: string; result?: string; cause?: number };
 /** `join`: the rally and the next one are one, ending at the next one's end. `redo`: to replay,
  * nobody gets the point; false takes back what the page shows. `wrong`: the referee gave the
  * point to the wrong team, `winner` being the one that got it; false likewise. */
@@ -58,9 +59,9 @@ type RallyFix = { winner?: Group; play?: false; end?: number; join?: true; redo?
 const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 const frameOf = (time: number) => Math.round(time * match.fps);
 /** A touch added: its team the picked player's, else the touch before's. */
-type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string };
+type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string; cause?: number };
 /** A touch as listed: one of the page's, or one added. */
-type Row = { frame: number; time: number; rally: number; team: Group; type: string; result: string; player: string; removed: boolean; added: boolean; contact?: Contact };
+type Row = { frame: number; time: number; rally: number; team: Group; type: string; result: string; player: string; cause: number; removed: boolean; added: boolean; contact?: Contact };
 
 /** The page's touches a player makes, with that player as "TEAM:IDENTITY". */
 const touches = contacts
@@ -177,8 +178,8 @@ export function ReportEditor({
     setFixes((all) => {
       const c = row.contact!;
       const next: Fix = { ...all[row.frame], ...change };
-      const own: Fix = { player: touches.find((x) => x.frame === row.frame)?.player || undefined, type: c.type, result: labelled(c) };
-      for (const k of ['player', 'type', 'result'] as const) {
+      const own: Fix = { player: touches.find((x) => x.frame === row.frame)?.player || undefined, type: c.type, result: labelled(c), cause: c.cause ?? 0 };
+      for (const k of ['player', 'type', 'result', 'cause'] as const) {
         if (next[k] === undefined || next[k] === own[k]) {
           delete next[k];
         }
@@ -229,12 +230,13 @@ export function ReportEditor({
         type: fix.type ?? c.type,
         result: fix.result ?? labelled(c),
         player: fix.player === 'none' ? '' : (fix.player ?? player),
+        cause: fix.cause ?? c.cause ?? 0,
         removed: fix.player === 'none',
         added: false,
         contact: c,
       };
     }),
-    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: a.player ?? '', removed: false, added: true })),
+    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: a.player ?? '', cause: a.cause ?? 0, removed: false, added: true })),
   ].sort((a, b) => a.time - b.time);
   const rows = allRows.filter((row) => row.rally >= first && row.rally <= last);
   // The touches kept, by rally.
@@ -249,7 +251,7 @@ export function ReportEditor({
 
   const changes: ReportChanges = {
     touches: Object.entries(fixes).map(([frame, c]) => ({ frame: Number(frame), ...c })),
-    ...(added.length ? { added: added.map(({ frame, team, type, result, player }) => ({ frame, team, type, result, ...(player ? { player } : {}) })) } : {}),
+    ...(added.length ? { added: added.map(({ frame, team, type, result, player, cause }) => ({ frame, team, type, result, ...(player ? { player } : {}), ...(cause ? { cause } : {}) })) } : {}),
     ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([key, f]) => ({ start: Number(key), ...f, ...(f.end !== undefined ? { end: frameOf(f.end) } : {}) })) } : {}),
     ...(splits.length ? { splits } : {}),
   };
@@ -696,7 +698,9 @@ export function ReportEditor({
                 .filter((row) => row.rally === k)
                 .map((row) => {
                   const remove = () => (row.added ? setAdded((all) => all.filter((a) => a.frame !== row.frame)) : edit(row, { player: 'none' }));
-                  const change = (c: Fix) => {
+                  const change = (said: Fix) => {
+                    // A touch no longer a fault is put on nobody.
+                    const c: Fix = said.result && said.result !== 'error' ? { ...said, cause: 0 } : said;
                     // A point or a fault said on a touch ends the rally: it is no longer to replay.
                     const owner = joinStart(row.rally, joins);
                     if (c.result && c.result !== 'play' && toReplay(owner)) {
@@ -708,6 +712,8 @@ export function ReportEditor({
                       edit(row, c);
                     }
                   };
+                  // A fault may be put on a teammate's earlier touch of the rally.
+                  const causes = row.removed || row.result !== 'error' ? [] : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault');
                   return (
                     <li
                       key={`t${row.frame}`}
@@ -818,6 +824,21 @@ export function ReportEditor({
                           openOnFocus={false}
                           onChange={(who) => who && (row.added ? editAdded(row.frame, { player: who, team: teamOf(who) }) : change({ player: who }))}
                         />
+                      )}
+                      {causes.length > 0 && (
+                        <select
+                          className={cn(SELECT, 'w-full flex-none')}
+                          aria-label={t('review.cause')}
+                          value={causes.some((r) => r.frame === row.cause) ? row.cause : 0}
+                          onChange={(e) => change({ cause: Number(e.target.value) })}
+                        >
+                          <option value={0}>{t('review.causeSelf')}</option>
+                          {causes.map((r) => (
+                            <option key={r.frame} value={r.frame}>
+                              {t('review.causeOf', { touch: `${t(`types.${r.type}`)} · ${who(r.player)}` })}
+                            </option>
+                          ))}
+                        </select>
                       )}
                     </li>
                   );

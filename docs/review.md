@@ -14,7 +14,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   answers and the checked rallies, against its last run (`learn.json`).
   Stats: a serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that
   touch staying the other team's fault (both count; a serve's is an ace); an attack
-  blocked for a point is a fault (`web.credited`). That is the statistics' reading only: the labels stay what happened, the attack in play (the owner's rule, `label` on the page's touch, `web.labelled`), so a label's point or fault before another touch warns. The viewers' "Signaler" reports ([hosting.md](hosting.md)) are the main source of
+  blocked for a point is a fault (`web.credited`). That is the statistics' reading only: the labels stay what happened, the attack in play (the owner's rule, `label` on the page's touch, `web.labelled`), so a label's point or fault before another touch warns. A fault may be put on a teammate's earlier touch of the rally, a bad set or reception (the Match tab, under the fault's player: "Sa faute" or "À cause de"; `cause` in the `action` answer, `web.blamed`): the statistics count it for that touch's player, graded 0, and no longer for the one who made it, whose touch is left ungraded (the owner's rule, 13 Nov). The viewers' "Signaler" reports ([hosting.md](hosting.md)) are the main source of
   corrections: fetch them, record the clear ones (a named player on a replayed touch, "pas une phase de jeu") as pending review answers, leave
   the rest (no comment, unsure) to the review's Match tab, which lists each rally reported; then score and fix
   the steps they point at. Kili labels (`docs/kili_labelling.md`) only where reports are not enough.

@@ -33,6 +33,9 @@ export interface Contact {
   result: Result;
   /** What the review shows where that reading differs from what happened (`web.credited`). */
   label?: Result;
+  /** On a fault the review puts on a teammate: the frame (`f`) of that teammate's earlier touch in the rally, whose
+   * player the statistics count the fault for (`web.blamed`). */
+  cause?: number;
   /** Key of the attributed player in `match.people`. */
   person: number | null;
   /** That player's jersey number, else their number for the match. */

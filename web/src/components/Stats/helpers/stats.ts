@@ -181,11 +181,23 @@ export function over(c: Contact, after: Contact[]): boolean {
   return !!next && (next.team != null && c.team != null ? next.team !== c.team : next.side !== c.side);
 }
 
+/** The frames of the touches a teammate's fault is put on (`cause`, said in the review). */
+export function blamed(contacts: Contact[]): Set<number> {
+  return new Set(contacts.flatMap((c) => (c.result === 'error' && c.cause != null ? [c.cause] : [])));
+}
+
 /** The stats of the touches `mine` holds; `missedAce` holds the aces counted against them, as
- * receptions and faults, but those a reception touched: that touch counts. */
+ * receptions and faults, but those a reception touched: that touch counts. A fault put on a teammate's
+ * touch (`cause`) is that touch's, graded 0, and no longer its own touch's, which is left ungraded. */
 export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missedAce: (c: Contact) => boolean): Stats {
   const out = Object.fromEntries(STATS.map((s) => [s, [] as Contact[]])) as Stats;
+  const charged = blamed(contacts);
   for (const [k, c] of contacts.entries()) {
+    const excused = c.result === 'error' && c.cause != null;
+    const taken = c.f != null && charged.has(c.f);
+    const fault = (c.result === 'error' && !excused) || taken;
+    const play = c.result === 'play' && !taken;
+    const graded = (grade: number | null) => (excused ? null : taken ? 0 : grade);
     const ace = c.type === 'serve' && c.result === 'point';
     // A reception touched and missed counts as its own fault, even after the ball hit the net.
     const touched = ace && contacts.slice(k + 1).some((n) => n.rally === c.rally && isTouch(n));
@@ -197,28 +209,30 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
     }
     // A playing fault is a fault of its player, no touch of the ball.
     if (c.type === 'fault' && mine(c)) {
-      out.faults.push(c);
+      if (fault) {
+        out.faults.push(c);
+      }
       continue;
     }
     if (!isTouch(c) || !mine(c)) {
       continue;
     }
     out.touches.push(c);
-    const add = (stat: Stat, point: Stat | null, fault: Stat | null, play: Stat | null = null) => {
+    const add = (stat: Stat, point: Stat | null, faulty: Stat | null, played: Stat | null = null) => {
       out[stat].push(c);
       if (point && c.result === 'point') {
         out[point].push(c);
       }
-      if (fault && c.result === 'error') {
-        out[fault].push(c);
+      if (faulty && fault) {
+        out[faulty].push(c);
       }
-      if (play && c.result === 'play') {
-        out[play].push(c);
+      if (played && play) {
+        out[played].push(c);
       }
     };
     if (c.type === 'serve') {
       add('serves', 'aces', 'serveFaults');
-      const grade = serveRating(c, contacts[k + 1], contacts[k + 2]);
+      const grade = graded(serveRating(c, contacts[k + 1], contacts[k + 2]));
       if (grade !== null) {
         out.serveRated.push(c);
         if (grade > 0 && grade < 4) {
@@ -228,13 +242,13 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
     } else if (c.type === 'pass') {
       add('receptions', null, 'missed');
       // A rally holds a handful of touches.
-      if (unattacked(c, contacts.slice(k + 1, k + 8))) {
+      if (play && unattacked(c, contacts.slice(k + 1, k + 8))) {
         out.unattacked.push(c);
       }
-      if (over(c, contacts.slice(k + 1, k + 8))) {
+      if (play && over(c, contacts.slice(k + 1, k + 8))) {
         out.overReceptions.push(c);
       }
-      const grade = rating(c, contacts[k + 1]);
+      const grade = graded(rating(c, contacts[k + 1]));
       if (grade !== null) {
         out.rated.push(c);
         if (grade > 0) {
@@ -243,7 +257,7 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       }
     } else if (c.type === 'attack') {
       add('attacks', 'kills', 'attackFaults', 'defended');
-      const grade = attackRating(c, contacts.slice(k + 1, k + 8));
+      const grade = graded(attackRating(c, contacts.slice(k + 1, k + 8)));
       if (grade !== null) {
         out.attackRated.push(c);
         if (grade === 4 || grade === 2 || grade === 1) {
@@ -256,17 +270,17 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
       add('blocks', 'blockPoints', 'blockFaults', 'blockDefended');
     } else if (c.type === 'dig') {
       add('digs', null, 'digFaults');
-      const grade = rating(c, contacts[k + 1]);
+      const grade = graded(rating(c, contacts[k + 1]));
       if (grade !== null) {
         out.digRated.push(c);
         if (grade > 0) {
           out[DIG_GRADES[grade - 1]].push(c);
         }
       }
-      if (unattacked(c, contacts.slice(k + 1, k + 8))) {
+      if (play && unattacked(c, contacts.slice(k + 1, k + 8))) {
         out.unattackedDigs.push(c);
       }
-      if (over(c, contacts.slice(k + 1, k + 8))) {
+      if (play && over(c, contacts.slice(k + 1, k + 8))) {
         out.overDigs.push(c);
       }
     } else if (c.type === 'set') {
@@ -282,7 +296,7 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
     }
     if (c.result === 'point') {
       out.points.push(c);
-    } else if (c.result === 'error') {
+    } else if (fault) {
       out.faults.push(c);
     }
   }

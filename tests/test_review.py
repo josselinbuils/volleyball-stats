@@ -371,6 +371,18 @@ class TestReports:
         assert (out["rally"], out["winner"], out["end"]) == ([{"start": 2000, "play": False}], [{"start": 2000, "winner": 1}], [{"start": 3000, "end": 3400}])
         assert out["join"] == [{"start": 2000}]
 
+    def test_a_fault_s_cause_becomes_an_action_answer_alone_or_beside_the_result(self):
+        changes = {
+            "touches": [{"frame": 2100, "cause": 2050}, {"frame": 3050, "result": "error", "cause": 0}, {"frame": 2050, "cause": "x"}],
+            "added": [{"frame": 2150, "team": 1, "type": "attack", "result": "error", "cause": 2100}],
+        }
+
+        out = report_answer(changes, self.teams, self.windows, {}, 20)
+
+        assert out["action"] == [
+            {"frame": 2150, "result": "error", "cause": 2100}, {"frame": 2100, "cause": 2050}, {"frame": 3050, "result": "error", "cause": None}, {"frame": 2050, "cause": None},
+        ]
+
     def test_the_referee_s_error_or_no_longer_becomes_a_referee_answer_beside_the_winner(self):
         changes = {"rallies": [{"start": 2000, "winner": 2, "wrong": True}, {"start": 3000, "wrong": False}]}
 

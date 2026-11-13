@@ -15,15 +15,17 @@ export type Cause = (typeof CAUSES)[number];
 const OWN: Partial<Record<Contact['type'], Cause>> = { serve: 'serve', attack: 'attack', dig: 'defense', pass: 'reception', set: 'set', relance: 'relance', block: 'block', fault: 'fault' };
 const THEIRS: Partial<Record<Contact['type'], Cause>> = { serve: 'reception', attack: 'defense', relance: 'defense', block: 'attack' };
 
-/** Why `g` lost a rally, with the touch that lost it: its own last touch's fault, or the other team's last touch
- * scoring. Nothing for a rally they did not lose, one to replay, one the referee got wrong or one ending otherwise. */
+/** Why `g` lost a rally, with the touch that lost it: its own last touch's fault (the teammate's touch the review puts
+ * it on, `cause`), or the other team's last touch scoring. Nothing for a rally they did not lose, one to replay, one the
+ * referee got wrong or one ending otherwise. */
 export function lostOn(rally: Rally, g: Group): { cause: Cause; contact: Contact } | null {
   if (rally.redo || rally.wrongCall || !rally.winner || rally.winner === g) {
     return null;
   }
   const last = rally.contacts.filter((c) => isTouch(c) || c.type === 'fault').at(-1);
-  const cause = !last ? undefined : last.g === g ? (last.result === 'error' ? OWN[last.type] : undefined) : last.result === 'point' ? THEIRS[last.type] : undefined;
-  return cause && last ? { cause, contact: last } : null;
+  const lost = (last?.g === g && last.cause != null && rally.contacts.find((c) => c.f === last.cause)) || last;
+  const cause = !last || !lost ? undefined : last.g === g ? (last.result === 'error' ? OWN[lost.type] : undefined) : last.result === 'point' ? THEIRS[last.type] : undefined;
+  return cause && lost ? { cause, contact: lost } : null;
 }
 
 /** What cost `g` points: `n` the points, `other` what the same cost the other team. */

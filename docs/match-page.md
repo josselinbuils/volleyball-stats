@@ -88,8 +88,8 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 Team by team, following the set filter. Advice for the team: no player is named for a fault or a weak number, but in
 the reception and defence placements and the attack jump (the owner's call).
 
-- what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, or the other
-  team's last touch scoring), with the other team's count and a tip;
+- what cost the team the most points (each lost rally goes to one cause: its own last touch's fault, on the teammate's
+  touch the review puts it on when it does, or the other team's last touch scoring), with the other team's count and a tip;
 - who sets whom: each setter from 5 sets and who attacks right after, the winners in green;
 - "Le saut d'attaque": each attacker with 5 jumps measured on a teammate's set (`jumps.py`, `benchmarks/jumps`) and a
   tip from their medians: jump later (the contact 120 ms or more past the flight's top) or earlier (as much before it),
@@ -137,6 +137,8 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
 - attacks: winning, faults, and from 5 attacks a rating out of 5: 5 winning, 4 in play with no counter-attack, 2 with one, 1 blocked,
   0 another fault;
 - free balls: faults;
+- a fault the review puts on a teammate's earlier touch (a bad set, a bad reception: [review.md](review.md), "Stats") counts in
+  that touch's faults, graded 0, and not in its own touch's, left ungraded: an attack lost on a bad set is the setter's fault;
 - blocks;
 - digs: from 5 digs a rating out of 5, as for receptions;
 - "Bilan": points, faults, and "Entre deux": the balls that landed in untouched within 2.5 m of two

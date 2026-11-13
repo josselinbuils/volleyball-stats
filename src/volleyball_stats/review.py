@@ -985,6 +985,17 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
     return {**question, "rally": key}, {"start": key, "touches": {str(t["frame"]): t["team"] for t in touches}}
 
 
+def cause_of(change: dict) -> dict:
+    """A correction's `cause`, the frame of the teammate's touch a fault is put on (`web.blamed`), as an `action`
+    answer holds it: None for nobody else, nothing when the correction says nothing of it."""
+    if "cause" not in change:
+        return {}
+    try:
+        return {"cause": int(change["cause"]) or None}
+    except (TypeError, ValueError):
+        return {"cause": None}
+
+
 def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int, int]], given: dict[tuple[int, int], dict], lead: int, keys: list[int] | None = None) -> dict:
     """What the corrections made in the review add to identity_answers.json, anywhere in the match
     (the page's touches' `teams` by frame, its rally `windows` and the `keys` naming them, their
@@ -1015,7 +1026,7 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
             continue
         out["added"].append({"start": keys[k], "frame": frame, "team": team, "type": c["type"]})
         if c.get("result") in RESULTS:
-            out["action"].append({"frame": frame, "result": c["result"]})
+            out["action"].append({"frame": frame, "result": c["result"], **cause_of(c)})
         if c.get("player"):
             t, i = (int(v) for v in str(c["player"]).split(":"))
             out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
@@ -1030,7 +1041,7 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
         elif c.get("player"):
             t, i = (int(v) for v in str(c["player"]).split(":"))
             out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
-        fix = {k: c[k] for k, allowed in (("type", TOUCH_TYPES), ("result", RESULTS)) if c.get(k) in allowed}
+        fix = {**{k: c[k] for k, allowed in (("type", TOUCH_TYPES), ("result", RESULTS)) if c.get(k) in allowed}, **cause_of(c)}
         if fix:
             out["action"].append({"frame": frame, **fix})
     starts = set(keys)
@@ -1597,7 +1608,7 @@ def locked(page: dict | None, keys: list[int], given: dict[tuple[int, int], dict
                 continue
             frame = c.get("f", round(c["t"] * page["fps"]))
             mine.append({"frame": frame, "team": c["team"], "type": c["type"]})
-            out["action"].append({"frame": frame, "type": c["type"], "result": web.labelled(c)})
+            out["action"].append({"frame": frame, "type": c["type"], "result": web.labelled(c), **({"cause": c["cause"]} if c.get("cause") else {})})
             # Keyed by text once read from data.js.
             p = people.get(str(c["person"]), people.get(c["person"])) if c.get("person") is not None else None
             if p and p.get("number") is not None and p["team"] == c["team"]:

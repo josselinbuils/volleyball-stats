@@ -22,6 +22,9 @@ describe('coach', () => {
     it('blames the last touch of the team that lost', () => {
       expect(lostOn(rally(0, 2, [touch(0, 'serve', 1, 'error')]), 1)?.cause).toBe('serve');
       expect(lostOn(rally(0, 2, [touch(0, 'serve', 3), touch(0, 'pass', 1), touch(0, 'dig', 2, 'error')]), 1)?.cause).toBe('defense');
+      // A fault the review puts on a teammate's touch is that touch's.
+      const blamed = lostOn(rally(0, 2, [touch(0, 'pass', 1), touch(0, 'set', 2, 'play', { f: 7 }), touch(0, 'attack', 1, 'error', { cause: 7 })]), 1);
+      expect([blamed?.cause, blamed?.contact.type]).toEqual(['set', 'set']);
     });
 
     it("counts the other team's point as what it beat", () => {

@@ -284,3 +284,34 @@ describe('attackRating', () => {
     expect(line && meanDigRating(line.stats)).toBeNull();
   });
 });
+
+describe('a fault put on a teammate', () => {
+  function touch(f: number, type: Contact['type'], person: number, result: Contact['result'] = 'play', extra: Partial<Contact> = {}): Contact {
+    return { i: 0, t: f, f, type, g: 1, team: 1, side: 'left', rally: 0, set: 1, x: -1, y: 1.5, zone: null, result, person, player: null, name: null, ...extra };
+  }
+
+  const people = { 1: { team: 1, number: 1, jersey: null, name: 'A' }, 2: { team: 1, number: 2, jersey: null, name: 'B' }, 3: { team: 1, number: 3, jersey: null, name: 'C' } } as const;
+  const of = (contacts: Contact[], id: number | 'total') => lines(contacts, people as never, 1).find((l) => l.id === id)?.stats as Stats;
+
+  it('counts for the teammate, not for who made it', () => {
+    const contacts = [touch(1, 'pass', 3), touch(2, 'set', 1), touch(3, 'attack', 2, 'error', { cause: 2 })];
+    const [setter, attacker, team] = [of(contacts, 1), of(contacts, 2), of(contacts, 'total')];
+    expect([setter.setFaults.length, setter.faults.length]).toEqual([1, 1]);
+    expect([attacker.attacks.length, attacker.attackFaults.length, attacker.faults.length, attacker.attackRated.length, attacker.defended.length]).toEqual([1, 0, 0, 0, 0]);
+    // The set was attacked all the same, and the team lost one point on it.
+    expect([setter.setsAttacked.length, team.faults.length]).toEqual([1, 1]);
+  });
+
+  it("grades the teammate's reception 0", () => {
+    const contacts = [touch(1, 'pass', 1), touch(3, 'set', 2, 'error', { cause: 1 })];
+    const [receiver, setter] = [of(contacts, 1), of(contacts, 2)];
+    expect([receiver.missed.length, receiver.rated.length, receiver.perfect.length, receiver.unattacked.length, receiver.faults.length]).toEqual([1, 1, 0, 0, 1]);
+    expect([setter.setFaults.length, setter.faults.length]).toEqual([0, 0]);
+    expect(meanRating(receiver)).toBe(0);
+  });
+
+  it('stays its own without a cause', () => {
+    const attacker = of([touch(2, 'set', 1), touch(3, 'attack', 2, 'error')], 2);
+    expect([attacker.attackFaults.length, attacker.faults.length, attacker.attackRated.length]).toEqual([1, 1, 1]);
+  });
+});

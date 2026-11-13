@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import club_settings, web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -191,6 +191,25 @@ class TestContacts:
         # The labels stay what happened.
         assert {labelled(x) for x in found if x["type"] == "attack" and x["rally"] in (1, 3, 5, 7)} == {"play"}
         assert labelled(next(x for x in found if x["type"] == "attack" and x["rally"] == 6)) == "error"
+
+    def test_a_fault_put_on_a_teammate_s_earlier_touch_of_the_rally_names_it(self):
+        def c(kind, team, rally, t, result="play"):
+            return {"type": kind, "team": team, "rally": rally, "t": t, "result": result}
+
+        found = [
+            c("pass", 1, 1, 1.0), c("set", 1, 1, 2.0), c("attack", 1, 1, 3.0, "error"),  # put on the set
+            c("set", 1, 2, 5.0), c("attack", 1, 2, 6.0, "error"),  # on nobody else
+            c("attack", 2, 3, 8.0), c("dig", 1, 3, 9.0, "error"),  # on the other team's touch: no
+            c("set", 1, 4, 11.0), c("attack", 1, 4, 12.0),  # no fault: no
+            c("attack", 1, 5, 14.0, "error"), c("floor", None, 5, 15.0),  # on a later touch, on the floor: no
+        ]
+        typed = [{"frame": str(10 * k)} for k in range(len(found))]
+
+        blamed(found, typed, {20: 10, 40: None, 60: 50, 80: 70, 90: 100, 999: 0})
+
+        assert [x.get("cause") for x in found] == [None, None, 10, None, None, None, None, None, None, None, None]
+        # The label stays what happened: the attack's fault.
+        assert labelled(found[2]) == "error" and found[1]["result"] == "play"
 
     def test_the_review_s_types_and_results_replace_the_touches(self):
         found = [{"type": "serve", "result": "point"}, {"type": "pass", "result": "play"}]
