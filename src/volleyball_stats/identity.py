@@ -659,13 +659,14 @@ def number(segments: list[Segment], serve: int | None, fps: float, previous: dic
         s.identity = numbers.get(s.identity, 0)
 
 
-def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: list[set[int]], fps: float, contacts: dict[int, int]) -> dict:
+def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: list[set[int]], fps: float, contacts: dict[int, int], answered: set[int] = frozenset()) -> dict:
     """identity_candidates.json's content, each list ranked by impact, (seconds + CONTACT_S per
     contact) x exp(-gap / GAP_SCALE), and each segment's `runner_up` and `confidence`
     (1 - exp(-gap / GAP_SCALE)):
     - segments: the segments, numbered or not (identity null), whose identity is least sure, with
       the nearest other identity they could join (`runner_up`); `gap`: their distance to it minus
-      to the rest of their own identity (NEW without one);
+      to the rest of their own identity (NEW without one); none an answer names (`answered`): they
+      would take the places of the next ones, asked a few at a time after each apply;
     - merges: the pairs of identities of a team never seen together that might be one player;
       `gap`: their prototypes' distance minus NEW.
     `v` holds the segments' embeddings in their team's whitened space."""
@@ -707,7 +708,8 @@ def doubts(segments: list[Segment], v: np.ndarray, weights: np.ndarray, cannot: 
             "runner_up": keys[best][1], "seconds": round(float(seconds[k]), 1), "contacts": int(touches[k]),
         })
         s.runner_up, s.confidence = keys[best][1], found["confidence"]
-        out["segments"].append(found)
+        if k not in answered:
+            out["segments"].append(found)
     longest = {key: max((s for s in segments if (s.team, s.identity) == key), key=lambda s: len(s.frames)) for key in keys}
     for a in range(len(keys)):
         for b in range(a + 1, len(keys)):
@@ -833,8 +835,8 @@ def identify(
                     for y in group_[b]:
                         cannot[x].add(y)
                         cannot[y].add(x)
+    answered = {k for kind in ("same", "different", "team") for entry in answers.get(kind, []) for ref in (entry if isinstance(entry, list) else [entry]) for k in resolve(ref, segments, before)}
     if names and KEEP_CARDS:
-        answered = {k for kind in ("same", "different", "team") for entry in answers.get(kind, []) for ref in (entry if isinstance(entry, list) else [entry]) for k in resolve(ref, segments, before)}
         same = same + kept_cards(segments, before, names, numbers or {}, read_numbers(segments, jerseys), answered, cannot)
     last: dict[int, int] = {}
     pieces = []
@@ -866,7 +868,7 @@ def identify(
         found = resolve({"track": track, "frame": frame}, segments, before)
         if found:
             touches[found[0]] = touches.get(found[0], 0) + 1
-    found = doubts(segments, wv, weights, cannot, fps, touches)
+    found = doubts(segments, wv, weights, cannot, fps, touches, answered)
     return sorted(hold(segments, windows) + removed, key=lambda s: (s.start, s.track)), found
 
 

@@ -9,6 +9,7 @@ from volleyball_stats.identity import (
     aims,
     cannot_links,
     covers,
+    doubts,
     group,
     hold,
     answered_teams,
@@ -332,3 +333,20 @@ class TestJerseyLinks:
         assert jersey_links(segments, jerseys) == []
         segments[1].frames = list(range(100, 200))
         assert jersey_links(segments, jerseys) == [[[2], [1]]]
+
+
+class TestDoubts:
+    def test_leaves_out_the_answered_pieces_keeping_their_doubt(self):
+        # Two identities of team 1 and a third piece between them, answered or not.
+        segments = [
+            Segment(1, list(range(0, 50)), [(0.0, 0.0)] * 50, team=1, identity=1),
+            Segment(2, list(range(0, 50)), [(1.0, 0.0)] * 50, team=1, identity=2),
+            Segment(3, list(range(100, 150)), [(0.5, 0.0)] * 50, team=1, identity=1),
+        ]
+        v = np.array([[1.0, 0.0], [0.0, 1.0], [0.7071, 0.7071]])
+        cannot = [{1}, {0}, set()]
+        asked = doubts(segments, v, np.ones(3), cannot, FPS, {})
+        assert [q["track"] for q in asked["segments"]] == [3]
+        answered = doubts(segments, v, np.ones(3), cannot, FPS, {}, {2})
+        assert answered["segments"] == []
+        assert segments[2].runner_up == 2 and segments[2].confidence < 1

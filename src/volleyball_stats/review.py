@@ -60,8 +60,9 @@ MORE, MORE_S, MORE_LIKE = 24, 1.0, 0.90
 # Pictures spread over a piece in a conflict, to see whether the tracking swapped players.
 STRIP = 24
 # Doubts under MIN_IMPACT (seconds of play, a touch counting as 10, times the doubt: identity.doubts)
-# are not asked: their answers barely move the numbers, and there are always more.
-MIN_IMPACT = 10.0
+# are not asked: about a touch each, a rally checked in the Match tab answers them faster, in their
+# play (13 Nov, last match: 225 questions over 10 for 193 touches, 32 over 20 for 30).
+MIN_IMPACT = 20.0
 # Doubtful touches (`doubtful`) are asked first, each clip TOUCH_AROUND_S on both sides of the touch,
 # zoomed on where it happens, outlined and slowed to TOUCH_SLOW only TOUCH_SHOWN_S on both sides of
 # it (a contact found up to a few frames off): only that moment is asked about.
