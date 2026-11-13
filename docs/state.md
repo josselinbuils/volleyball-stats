@@ -80,3 +80,23 @@ The pipeline's weak spots and what is left to do, most useful first.
     timeouts taken for set breaks. Fixed the same day (`teams.likely_starts`, its 30 rallies a set set on the three matches,
     this one included) and the match run again (13 Nov, 17:01): 4 sets. Waiting on its review, then
     [corrections_log.md](corrections_log.md) "Next", item 1.
+18. Phones (13 Nov, nothing started): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
+    horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). To do, most useful first (the owner picks; 1-3 first was the advice):
+    1. The replay comes to the viewer: a number tapped scrolls the page to the player (`lib/player.tsx` `play`), the viewer losing their
+       place in a page of 9,500 px; on a phone, the video and court in a sheet from the bottom, "Fermer" back where they were.
+    2. "Mon match" first on a phone: its picker is 4,400 px down; the name is remembered, their card could come first.
+    3. Section links in the sticky bar beside the set filter (`Header/SetFilter.tsx`), scrolling sideways.
+    4. The stats table: Joueur and two columns show, the group headings ("Services") scroll away, leaving a bare "Total"; one group at
+       a time on a phone (Touches, Services, Réceptions, Passes, Attaques, Bilan).
+    5. Touch wording: 24 French texts say "Cliquez" or "Survolez" (`numbersNoteNamed`: hovering a number for a name is impossible
+       on a phone); "Touchez" on a coarse pointer, a tap showing the name, or the sentence dropped.
+    6. Dense charts: the score curve's three sets in 350 px, markers overlapping (6, 7, 8 in set 1): one set a row; "Sur le terrain"
+       about 1,000 dots unreadable: "Par zone" first on a phone.
+    7. Tap targets: 1,551 under 32 px (theme and language 31x28, the curve's rallies 8 px wide, stat chips 41x28): larger invisible areas.
+    8. The theme and language switches into the black top bar: beside the title they wrap the date and title onto four lines.
+    9. The replay's header cut ("A.. 0 – 0 A..", "Entre deux…"); the rally cards and "Échange sélectionné" mostly empty.
+    10. The 11 trophies two a row.
+    Not looked at: 3D and TV mode on a real phone, the review, dark mode, "Mon match" with a player picked. How to look: Playwright's
+    cached `chromium_headless_shell-1148` lacks `libnss3` in WSL (`apt-get download libnss3 libnspr4`, `dpkg -x` them in a scratch
+    folder, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu`), driven by `playwright` installed in a scratch folder (not in `web/`)
+    with `devices['iPhone 13']`; Windows' Edge headless cannot go under about 500 px wide.
