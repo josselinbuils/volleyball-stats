@@ -232,7 +232,6 @@
     "failedClose": "Close",
     "behind_one": "One update available.",
     "behind_other": "{{count}} updates available.",
-    "error": "Failed: try again. The details are in the server's log.",
     "who": "Who is outlined in yellow?",
     "mergeQuestion": "Are no. {{a}} and no. {{b}} the same person?",
     "atStake": "{{s}} of play",
@@ -272,7 +271,7 @@
     "pieceConflictReplace": "It is {{name}} on the whole piece",
     "pieceConflictCut": "It shows both: cut at {{time}}",
     "pieceConflictCancel": "Cancel",
-    "mergeWarn": "Careful: this answer would join {{names}}, who carry different names, into one player. Save it anyway?",
+    "mergeWarn": "This answer would join {{names}}, who carry different names, into one player.",
     "same": "The same person",
     "different": "Two different people",
     "done": "No more questions.",
@@ -557,8 +556,11 @@
     "keys": "Keyboard: ↑ ↓ change player, ← → picture, Space marks the picture (type the name, Enter), N names the player.",
     "update": "Update",
     "updating": "Updating…",
-    "updateBusy": "An analysis or a page update is running: try again after.",
-    "updateFailed": "Update failed: {{error}}"
+    "updateFailed": "Update failed.",
+    "mergeTitle": "Join these players?",
+    "unsavedLeave": "Lose them",
+    "rerunStart": "Start",
+    "matchesLoading": "Loading…"
   },
   "playVideo": "Play",
   "pauseVideo": "Pause",
@@ -794,8 +796,7 @@
     "which": "{{machine}}'s copy at {{at}}. Which one to keep? The other stays saved.",
     "whichNoTime": "Which one to keep? The other stays saved.",
     "theirs": "{{machine}}'s",
-    "mine": "This one",
-    "failed": "Failed: try again."
+    "mine": "This one"
   },
   "season": {
     "title": "Season",
@@ -804,8 +805,6 @@
     "draw": "Draw",
     "pickTeam": "Team",
     "loading": "Loading…",
-    "failed": "Could not load it.",
-    "retry": "Try again",
     "players": "The players",
     "matches_one": "{{count}} match",
     "matches_other": "{{count}} matches",
@@ -841,7 +840,7 @@
     "test": "Test",
     "reached": "Connected.",
     "missing": "Connected, but the site folder does not exist.",
-    "unreached": "Cannot connect: {{error}}",
+    "unreached": "Cannot connect.",
     "online": "Matches online",
     "hostAll": "Update all",
     "upToDate": "Up to date",
@@ -864,7 +863,7 @@
     "backUp": "Back up now",
     "lastAt": "Last backup: {{at}}",
     "never": "No backup from this computer yet.",
-    "lastFailed": "Last backup failed: {{error}}",
+    "lastFailed": "Last backup failed.",
     "verify": "Verify",
     "verifying": "Checking…",
     "same": "Verified {{at}}: same as this computer.",
@@ -876,7 +875,6 @@
     "shared": "Club, courts, players and reports",
     "restored": "Restored. The previous version is set aside.",
     "backingUp": "Backing up…",
-    "failed": "Failed: {{error}}",
     "done": "Done {{at}}.",
     "room": "{{used}} used · {{free}} free",
     "keep": "Backups kept",
@@ -951,7 +949,8 @@
     "without": "Without the video",
     "password": "Password",
     "wrong": "Wrong password.",
-    "changed": "The password changed: enter the new one."
+    "changed": "The password changed: enter the new one.",
+    "unreached": "The site does not answer: try again."
   },
   "autoZoom": "Auto zoom",
   "story": {
@@ -1343,7 +1342,7 @@
       "exists": "This match is already imported.",
       "disk": "Not enough space: {{gb}} GB free needed.",
       "badTimes": "The start is after the end.",
-      "failed": "Import failed: {{error}}",
+      "failed": "Import failed.",
       "unreadable": "Unreadable video: {{name}}. It may have been cut (empty battery).",
       "running": "This match is already being imported.",
       "mountFailed": "Drive unreachable: check the card is inserted."
@@ -1392,7 +1391,7 @@
       "thereJoin": "On the other computer, open “{{open}}” and enter the address and code that will show here.",
       "join": "Join",
       "done": "Sync done.",
-      "failed": "Sync failed: {{error}}"
+      "failed": "Sync failed."
     },
     "doctor": {
       "open": "Diagnostics",
@@ -1458,7 +1457,7 @@
     },
     "backup": {
       "off": "Automatic backup off: nothing is copied to the server.",
-      "failed": "Last backup failed: {{error}}",
+      "failed": "Last backup failed.",
       "old": "No backup since {{at}}.",
       "never": "No backup from this computer.",
       "differ": "Some backups differ from this computer.",
@@ -1485,8 +1484,22 @@
       "board": "Board colour",
       "removeSponsor": "Remove this sponsor",
       "addSponsor": "Add a sponsor",
-      "save": "Save"
+      "save": "Save",
+      "loading": "Loading…"
     },
-    "noAnswer": "No answer from the app: check it still runs."
+    "confirm": "Confirm",
+    "save": "Save"
+  },
+  "error": {
+    "failed": "Failed: try again.",
+    "noAnswer": "No answer from the app: check it still runs.",
+    "busy": "An analysis or a page update is running: try again after.",
+    "loadFailed": "Could not load it.",
+    "retry": "Try again",
+    "details": "See details",
+    "log": "App log",
+    "logLoading": "Loading…",
+    "logEmpty": "Nothing written yet.",
+    "video": "The video could not load."
   }
 }

@@ -1,6 +1,8 @@
-import { CircleCheck, CircleX, RefreshCw, TriangleAlert } from 'lucide-react';
+import { useState } from 'react';
+import { CircleCheck, CircleX, LoaderCircle, RefreshCw, ScrollText, TriangleAlert } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote, LogDialog } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -33,9 +35,10 @@ const ICONS = { ok: CircleCheck, warn: TriangleAlert, error: CircleX };
 const COLOURS = { ok: 'text-(--point)', warn: 'text-warning', error: 'text-destructive' };
 
 /** Every check of the machine, passed or not. */
-export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | null; onRecheck: () => Promise<void>; onClose: () => void }) {
+export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | 'failed' | null; onRecheck: () => Promise<void>; onClose: () => void }) {
   const [checking, run] = useRunning();
   const { t } = useTranslation();
+  const [reading, setReading] = useState(false);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -43,7 +46,9 @@ export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | null;
         <DialogHeader>
           <DialogTitle>{t('app.doctor.title')}</DialogTitle>
         </DialogHeader>
-        {checks ? (
+        {checks === 'failed' ? (
+          <ErrorNote text={t('error.noAnswer')} />
+        ) : checks ? (
           <ul className="grid gap-3">
             {checks.map((check) => {
               const Icon = ICONS[check.status];
@@ -60,12 +65,22 @@ export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | null;
             })}
           </ul>
         ) : (
-          <p className="text-muted-foreground">{t('app.doctor.checking')}</p>
+          <p role="status" className="flex items-center gap-2 text-muted-foreground">
+            <LoaderCircle aria-hidden className="size-4 animate-spin" />
+            {t('app.doctor.checking')}
+          </p>
         )}
-        <Button variant="outline" className="w-fit" busy={!!checking} onClick={() => void run('recheck', onRecheck)}>
-          <RefreshCw aria-hidden />
-          {t('app.doctor.again')}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" busy={!!checking} onClick={() => void run('recheck', onRecheck)}>
+            <RefreshCw aria-hidden />
+            {t('app.doctor.again')}
+          </Button>
+          <Button variant="outline" onClick={() => setReading(true)}>
+            <ScrollText aria-hidden />
+            {t('error.log')}
+          </Button>
+        </div>
+        {reading && <LogDialog onClose={() => setReading(false)} />}
       </DialogContent>
     </Dialog>
   );

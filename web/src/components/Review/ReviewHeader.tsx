@@ -12,12 +12,15 @@ import {
   Ellipsis,
   ExternalLink,
   History,
+  LoaderCircle,
   RefreshCw,
   Shield,
   Sparkles,
   Undo2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ask } from '@/components/ask';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { clock, useFormat } from '@/lib/format';
@@ -47,7 +50,7 @@ function MatchEndItem({ at, onEnd }: { at: () => number; onEnd: (time: string) =
   const { t } = useTranslation();
   const [time] = useState(() => clock(at()));
   return (
-    <DropdownMenuItem onSelect={() => window.confirm(t('review.matchEndAsk', { time })) && onEnd(time)}>
+    <DropdownMenuItem onSelect={() => void ask({ title: t('review.matchEndAt', { time }), text: t('review.matchEndAsk', { time }), confirm: t('app.confirm') }).then((yes) => yes && onEnd(time))}>
       <CircleStop aria-hidden />
       {t('review.matchEndAt', { time })}
     </DropdownMenuItem>
@@ -63,12 +66,18 @@ function SetItems({ at, starts, onSet }: { at: () => number; starts: string[]; o
   const n = starts.filter((s) => toSeconds(s) <= seconds).length;
   return (
     <>
-      <DropdownMenuItem onSelect={() => window.confirm(t('review.setStartAsk', { time })) && onSet({ add: seconds })}>
+      <DropdownMenuItem
+        onSelect={() => void ask({ title: t('review.setStartAt', { time }), text: t('review.setStartAsk', { time }), confirm: t('app.confirm') }).then((yes) => yes && onSet({ add: seconds }))}
+      >
         <CirclePlus aria-hidden />
         {t('review.setStartAt', { time })}
       </DropdownMenuItem>
       {n > 1 && (
-        <DropdownMenuItem onSelect={() => window.confirm(t('review.setRemoveAsk', { n, previous: n - 1 })) && onSet({ remove: starts[n - 1] })}>
+        <DropdownMenuItem
+          onSelect={() =>
+            void ask({ title: t('review.setRemove', { n }), text: t('review.setRemoveAsk', { n, previous: n - 1 }), confirm: t('app.confirm') }).then((yes) => yes && onSet({ remove: starts[n - 1] }))
+          }
+        >
           <CircleMinus aria-hidden />
           {t('review.setRemove', { n })}
         </DropdownMenuItem>
@@ -83,21 +92,21 @@ function toSeconds(time: string): number {
 }
 
 /** The match's name, opening the list of the others to go to one of them. */
-function MatchSwitch({ title, disabled, mayLeave, onFailed }: { title: string; disabled: boolean; mayLeave: () => boolean; onFailed: () => void }) {
+function MatchSwitch({ title, disabled, mayLeave, onFailed }: { title: string; disabled: boolean; mayLeave: () => Promise<boolean>; onFailed: () => void }) {
   const { t } = useTranslation();
   const f = useFormat();
-  const [matches, setMatches] = useState<Listed[] | null>(null);
+  const [matches, setMatches] = useState<Listed[] | 'failed' | null>(null);
   const [opening, setOpening] = useState(false);
   const load = (open: boolean) => {
     if (open) {
       fetch('/matches.json')
-        .then((response) => response.json())
+        .then((response) => (response.ok ? (response.json() as Promise<Listed[]>) : Promise.reject(new Error(`matches: ${response.status}`))))
         .then(setMatches)
-        .catch(onFailed);
+        .catch(() => setMatches((m) => (Array.isArray(m) ? m : 'failed')));
     }
   };
-  const go = (path: string) => {
-    if (!mayLeave()) {
+  const go = async (path: string) => {
+    if (!(await mayLeave())) {
       return;
     }
     setOpening(true);
@@ -119,16 +128,24 @@ function MatchSwitch({ title, disabled, mayLeave, onFailed }: { title: string; d
         </DropdownMenuTrigger>
       </Tip>
       <DropdownMenuContent align="start">
-        {matches?.map((m) => (
-          <DropdownMenuItem key={m.path} disabled={!m.ready} onSelect={() => m.path !== match.name && go(m.path)}>
-            <Check aria-hidden className={cn(m.path !== match.name && 'invisible')} />
-            <span className="grid min-w-0">
-              <span className="truncate">{m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0].name, two: m.teams[1].name }) : m.name)}</span>
-              <span className="text-xs text-muted-foreground">{m.ready ? m.date && f.date(m.date) : t('matches.processing')}</span>
-            </span>
+        {matches === null && (
+          <DropdownMenuItem disabled>
+            <LoaderCircle aria-hidden className="animate-spin" />
+            {t('review.matchesLoading')}
           </DropdownMenuItem>
-        ))}
-        {matches && <DropdownMenuSeparator />}
+        )}
+        {matches === 'failed' && <ErrorNote text={t('error.loadFailed')} className="px-2 py-1.5" />}
+        {Array.isArray(matches) &&
+          matches.map((m) => (
+            <DropdownMenuItem key={m.path} disabled={!m.ready} onSelect={() => m.path !== match.name && void go(m.path)}>
+              <Check aria-hidden className={cn(m.path !== match.name && 'invisible')} />
+              <span className="grid min-w-0">
+                <span className="truncate">{m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0].name, two: m.teams[1].name }) : m.name)}</span>
+                <span className="text-xs text-muted-foreground">{m.ready ? m.date && f.date(m.date) : t('matches.processing')}</span>
+              </span>
+            </DropdownMenuItem>
+          ))}
+        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <a href="/matches/">{t('review.allMatches')}</a>
         </DropdownMenuItem>
@@ -174,7 +191,7 @@ export function ReviewHeader({
   busy: Action | null;
   run: (action: Action, body?: object) => void;
   /** Whether the page may go, corrections not saved being lost. */
-  mayLeave: () => boolean;
+  mayLeave: () => Promise<boolean>;
   /** On the Match tab: where the video stands, ending the match there (taken away with ''), and the set starts to change
    * there. */
   here?: { at: () => number; onEnd: (time: string) => void; sets: string[]; onSet: (change: { add: number } | { remove: string }) => void };

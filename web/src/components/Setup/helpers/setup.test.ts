@@ -27,7 +27,8 @@ describe('setup', () => {
     expect(importError('unreadable:DJI_0003.MP4')).toEqual(['app.import.unreadable', { name: 'DJI_0003.MP4' }]);
     expect(importError('disk:120')).toEqual(['app.import.disk', { gb: '120' }]);
     expect(importError('running')).toEqual(['app.import.running', {}]);
-    expect(importError('boom')).toEqual(['app.import.failed', { error: 'boom' }]);
+    expect(importError('boom')).toEqual(['app.import.failed', {}, 'boom']);
+    expect(importError('network')).toEqual(['error.noAnswer', {}]);
   });
 
   it('names the teams only when both have a name', () => {

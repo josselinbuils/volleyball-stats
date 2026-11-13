@@ -17,7 +17,10 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - The progress names each step and the pipeline's stage, with the time left from each one's last duration
   (`outputs/matches/MATCH/review_timings.json`).
 - A run that fails opens an alert with its step and error, even after a reload, until closed (`/failure`); the traceback
-  is in the server's log.
+  is in the app's log.
+- The app's log: what the server prints, kept in `outputs/app.log` too (`applog.py`, trimmed past 2 MB), shown by
+  "Journal de l'app" in Diagnostic and by "Voir le détail" beside a failure (`/app/log`): the shortcut starts the app
+  with no terminal.
 - `outputs/feedback/feedback-conflicts.log` is no viewer's: Claude's note on two answers that disagreed (merged).
 
 ## Applying and learning

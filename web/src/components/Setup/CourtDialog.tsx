@@ -1,11 +1,13 @@
 import { useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { Check, EyeOff, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
+import { explain, type Explained } from '@/lib/errors';
 import { LANDMARKS, MIN_CLICKS, imageUrl, nextLandmark } from './helpers/setup';
 
 // The magnifier: its radius in screen pixels and how much it enlarges the picture as shown.
@@ -26,7 +28,7 @@ export function CourtDialog({ match, onClose }: { match: string; onClose: (place
   const [unreadable, setUnreadable] = useState(false);
   const [lens, setLens] = useState<{ x: number; y: number } | null>(null);
   const [name, setName] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<Explained | null>(null);
   const current = nextLandmark(done.length);
   const clicks = Object.fromEntries(done.flatMap((p, k) => (p ? [[LANDMARKS[k][0], p]] : [])));
   const enough = Object.keys(clicks).length >= MIN_CLICKS;
@@ -47,7 +49,7 @@ export function CourtDialog({ match, onClose }: { match: string; onClose: (place
       if (r.ok) {
         onClose(true);
       } else {
-        setError(true);
+        setError(explain(t, r.error));
       }
     });
   };
@@ -144,11 +146,7 @@ export function CourtDialog({ match, onClose }: { match: string; onClose: (place
             </Button>
           </form>
         )}
-        {error && (
-          <p role="alert" className="text-destructive">
-            {t('review.error')}
-          </p>
-        )}
+        {error && <ErrorNote {...error} />}
       </DialogContent>
     </Dialog>
   );

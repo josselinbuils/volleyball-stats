@@ -1,4 +1,5 @@
 import i18n from 'i18next';
+import { ask } from '@/components/ask';
 import type { PageChange } from '@/lib/hostedChanges';
 import type { Group } from '@/lib/match';
 
@@ -319,7 +320,9 @@ export async function post(
     | 'repin'
     | 'team'
     | 'photo'
-    | 'failure',
+    | 'failure'
+    | 'sync/take'
+    | 'sync/keep',
   body: object = {},
 ): Promise<Saved> {
   const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
@@ -330,7 +333,7 @@ export async function post(
       return { conflict };
     }
     const list = new Intl.ListFormat(i18n.language, { type: 'conjunction' });
-    if (window.confirm(i18n.t('review.mergeWarn', { names: merges.map((m) => list.format(m)).join(' ; ') }))) {
+    if (await ask({ title: i18n.t('review.mergeTitle'), text: i18n.t('review.mergeWarn', { names: merges.map((m) => list.format(m)).join(' ; ') }), confirm: i18n.t('app.save') })) {
       return post(path, { ...body, force: true });
     }
     return { cancelled: true };

@@ -38,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import app, attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import app, applog, attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
@@ -2874,6 +2874,7 @@ def main() -> None:
     parser.add_argument("--no-browser", action="store_true", help="Do not open the page in the browser")
     parser.add_argument("--with-window", action="store_true", help="Stop once the app's last window closes, no job running (`stats`)")
     args = parser.parse_args()
+    applog.start(app.LOG)
     presence.ON = args.with_window
     if args.match is None:
         return serve_list(args.outputs, args.theme, args.port, not args.no_browser, args.roster)

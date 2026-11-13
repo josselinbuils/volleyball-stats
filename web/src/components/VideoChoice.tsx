@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { match } from '@/lib/match';
 
@@ -38,7 +39,7 @@ export function VideoChoice() {
   const denied = new URLSearchParams(location.search).get('video') === 'denied';
   const [open, setOpen] = useState(() => !!page && (denied || (!hasKey() && sessionStorageGet(SKIPPED) !== folder())));
   const [password, setPassword] = useState('');
-  const [state, setState] = useState<'idle' | 'checking' | 'wrong' | 'changed'>(() => (denied && hasKey() ? 'changed' : 'idle'));
+  const [state, setState] = useState<'idle' | 'checking' | 'wrong' | 'changed' | 'unreached' | 'failed'>(() => (denied && hasKey() ? 'changed' : 'idle'));
   useEffect(() => {
     if (!page) {
       return;
@@ -72,14 +73,20 @@ export function VideoChoice() {
       return;
     }
     setState('checking');
-    setKey(await fingerprint(password));
+    try {
+      setKey(await fingerprint(password));
+    } catch {
+      setState('failed');
+      return;
+    }
     const found = await fetch(page, { method: 'HEAD', cache: 'no-store', redirect: 'manual' }).catch(() => null);
     if (found?.ok) {
       location.href = page;
       return;
     }
     setKey(null);
-    setState('wrong');
+    // No answer is no wrong password.
+    setState(found ? 'wrong' : 'unreached');
   };
   if (!page || !open) {
     return null;
@@ -103,11 +110,8 @@ export function VideoChoice() {
             className="h-9 rounded-md border border-input bg-transparent px-2.5 text-base font-normal shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
         </label>
-        {(state === 'wrong' || state === 'changed') && (
-          <p role="alert" className="m-0 text-sm text-destructive">
-            {t(`videoChoice.${state}`)}
-          </p>
-        )}
+        {(state === 'wrong' || state === 'changed' || state === 'unreached') && <ErrorNote text={t(`videoChoice.${state}`)} className="text-sm" />}
+        {state === 'failed' && <ErrorNote className="text-sm" />}
         <div className="grid gap-2">
           <Button type="submit" busy={state === 'checking'} disabled={!password}>
             <Lock aria-hidden />

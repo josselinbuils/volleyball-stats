@@ -48,6 +48,8 @@ MODELS = "models"
 HOSTING = "hosting"
 BACKUP = "backup"
 VERIFY = "verify"
+# What the server prints, for the page (applog.py).
+LOG = OUTPUTS / "app.log"
 
 
 # The words after `stats`, and how the page opens for each: a window of its own, a browser tab, nothing.
@@ -649,6 +651,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply(state(listed()))
             if route == "doctor":
                 return reply(doctor.checks(DATA.parent))
+            if route == "log":
+                return reply({"text": jobs.tail(LOG)})
             if route == "server":
                 return reply(server_state())
             if route == "server/copies":

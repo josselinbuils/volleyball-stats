@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -187,12 +188,15 @@ export function Season({ matches, club }: { matches: ListedMatch[]; club?: strin
         </Select>
       )}
       {failed ? (
-        <p className="flex flex-wrap items-center gap-3 px-1 text-destructive" role="alert">
-          {t('season.failed')}
-          <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
-            {t('season.retry')}
-          </Button>
-        </p>
+        <ErrorNote
+          text={t('error.loadFailed')}
+          className="px-1"
+          action={
+            <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+              {t('error.retry')}
+            </Button>
+          }
+        />
       ) : season ? (
         <>
           <Form season={season} />

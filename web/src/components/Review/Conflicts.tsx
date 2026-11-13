@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { AlertTriangle, Scissors, Split, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { reloading, useRunning } from '@/hooks/useRunning';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,11 +93,7 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
           <Trash2 aria-hidden />
           {t('review.forgetMarks')}
         </Button>
-        {failed && (
-          <p role="alert" className="m-0 text-sm text-destructive">
-            {t('review.error')}
-          </p>
-        )}
+        {failed && <ErrorNote className="text-sm" />}
       </div>
     );
   }
@@ -169,11 +166,7 @@ function Linked({ answer, width, height }: { answer: Linking; width: number; hei
               {t('review.forget')}
             </Button>
           )}
-          {failed && (
-            <p role="alert" className="m-0 text-sm text-destructive">
-              {t('review.error')}
-            </p>
-          )}
+          {failed && <ErrorNote className="text-sm" />}
         </div>
       </div>
     </div>
@@ -209,11 +202,7 @@ function Pinned({ conflict, players, nameOf }: { conflict: Conflict; players: Na
           </figure>
         ))}
       </div>
-      {failed && (
-        <p role="alert" className="m-0 text-sm text-destructive">
-          {t('review.error')}
-        </p>
-      )}
+      {failed && <ErrorNote className="text-sm" />}
     </section>
   );
 }

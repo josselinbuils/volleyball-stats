@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
 import { Behind } from '@/components/Behind';
@@ -122,11 +123,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
-            {failed && (
-              <p className="mt-1 text-sm text-destructive" role="alert">
-                {t(failed === 'pull' ? 'matches.pullFailed' : 'matches.openFailed')}
-              </p>
-            )}
+            {failed && <ErrorNote text={t(failed === 'pull' ? 'matches.pullFailed' : 'matches.openFailed')} log className="mt-1 text-sm" />}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
             <ThemeSwitch />

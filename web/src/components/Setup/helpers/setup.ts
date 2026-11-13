@@ -134,8 +134,9 @@ export function validName(name: string): boolean {
   return /^[^,:]+$/.test(name.trim());
 }
 
-/** The text key and values saying why an import or a scan was refused (app.py's errors). */
-export function importError(error: string | undefined): [string, Record<string, string>] {
+/** The text key and values saying why an import or a scan was refused (app.py's errors), and the server's own words
+ * when it is none of them. */
+export function importError(error: string | undefined): [string, Record<string, string>, string?] {
   if (error?.startsWith('unreadable:')) {
     return ['app.import.unreadable', { name: error.slice('unreadable:'.length) }];
   }
@@ -149,9 +150,9 @@ export function importError(error: string | undefined): [string, Record<string, 
     times: 'app.import.badTimes',
     running: 'app.import.running',
     mount: 'app.import.mountFailed',
-    network: 'app.noAnswer',
+    network: 'error.noAnswer',
   };
-  return error && known[error] ? [known[error], {}] : ['app.import.failed', { error: error ?? '' }];
+  return error && known[error] ? [known[error], {}] : ['app.import.failed', {}, error];
 }
 
 /** The chapter holding `seconds` of a recording whose chapters last `chapters`, and where in it; the last one's end past it. */

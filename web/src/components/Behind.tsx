@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { RefreshCw, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
+import { call } from '@/lib/app';
+import { explain, type Explained } from '@/lib/errors';
 import { restarted } from '@/lib/openMatch';
 import { readBehind } from '@/lib/review';
 
@@ -14,7 +17,7 @@ export function Behind() {
   const { t } = useTranslation();
   const [behind, setBehind] = useState(0);
   const [updating, setUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Explained | null>(null);
   useEffect(() => {
     const read = () => void readBehind().then(setBehind);
     read();
@@ -24,17 +27,17 @@ export function Behind() {
   const update = async () => {
     setUpdating(true);
     setError(null);
+    const r = await call('update', {});
+    if (!r.ok) {
+      setError(explain(t, r.error, 'review.updateFailed'));
+      setUpdating(false);
+      return;
+    }
     try {
-      const response = await fetch('/app/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      const answer = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(answer.error === 'busy' ? t('review.updateBusy') : t('review.updateFailed', { error: answer.error }));
-        setUpdating(false);
-        return;
-      }
       await restarted();
     } catch {
-      setError(t('review.updateFailed', { error: '' }));
+      // Not back after minutes.
+      setError(explain(t, null, 'review.updateFailed'));
       setUpdating(false);
     }
   };
@@ -49,7 +52,7 @@ export function Behind() {
             <RefreshCw aria-hidden />
             {updating ? t('review.updating') : t('review.update')}
           </Button>
-          {error && <span className="text-destructive">{error}</span>}
+          {error && <ErrorNote {...error} />}
         </AlertDescription>
       </Alert>
     )

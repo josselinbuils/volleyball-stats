@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { CircleCheck, CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +9,7 @@ import { Tip } from '@/components/Tip';
 import { JobProgress } from '@/components/JobProgress';
 import { LateCauses } from '@/components/LateCauses';
 import { INPUT, call } from '@/lib/app';
+import { explain, type Explained } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
 import type { PageChange } from '@/lib/hostedChanges';
 import { useRunning } from '@/hooks/useRunning';
@@ -95,11 +97,7 @@ function JobLine({ job, running, quiet }: { job: Told | null; running: string; q
     );
   }
   if (job.failed) {
-    return (
-      <p role="alert" className="text-destructive [overflow-wrap:anywhere]">
-        {t('server.failed', { error: job.error ?? '' })}
-      </p>
-    );
+    return <ErrorNote {...explain(t, job.error)} />;
   }
   return <p className="text-muted-foreground">{t('server.done', { at: f.when(new Date((job.ended ?? job.started) * 1000).toISOString()) })}</p>;
 }
@@ -121,7 +119,12 @@ export function ServerTab() {
   const f = useFormat();
   const [state, setState] = useState<ServerState | null>(null);
   const [form, setForm] = useState<Server>(EMPTY);
-  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [note, setNote] = useState<{ ok: true; text: string } | { ok: false; error: Explained } | null>(null);
+  // The server's state unread: the tab says so, with a retry.
+  const [unread, setUnread] = useState(false);
+  // What failed to start in the hosting's card and in the backups'.
+  const [hostError, setHostError] = useState<Explained | null>(null);
+  const [backupError, setBackupError] = useState<Explained | null>(null);
   const [copies, setCopies] = useState<Copies | null | 'failed'>(null);
   const [listing, setListing] = useState(false);
   const [keep, setKeep] = useState('');
@@ -150,16 +153,20 @@ export function ServerTab() {
       setKeep(String(r.keep));
     }
   }, []);
-  useEffect(() => {
+  const load = useCallback(() => {
+    setUnread(false);
     void refresh().then((r) => {
       if (r.ok) {
         setForm(r.server ?? EMPTY);
         if (r.server) {
           void listCopies();
         }
+      } else {
+        setUnread(true);
       }
     });
   }, [refresh, listCopies]);
+  useEffect(load, [load]);
   const running = !!(state?.hosting?.running || state?.backup?.running || state?.verify?.running);
   useEffect(() => {
     if (!running) {
@@ -186,15 +193,18 @@ export function ServerTab() {
         setState(r);
         setForm(r.server ?? EMPTY);
       }
-      setNote({ ok: r.ok, text: t(r.ok ? 'server.saved' : 'server.invalid') });
+      setNote(r.ok ? { ok: true, text: t('server.saved') } : { ok: false, error: r.error === 'network' ? explain(t, r.error) : { text: t('server.invalid'), detail: null, log: false } });
     });
   };
   const test = () =>
     run('test', async () => {
       setNote(null);
       const r = await call('server/test', {});
-      const missing = r.error?.startsWith('missing:');
-      setNote({ ok: r.ok, text: r.ok ? t('server.reached') : missing ? t('server.missing') : t('server.unreached', { error: r.error ?? '' }) });
+      setNote(
+        r.ok
+          ? { ok: true, text: t('server.reached') }
+          : { ok: false, error: r.error?.startsWith('missing:') ? { text: t('server.missing'), detail: null, log: false } : explain(t, r.error, 'server.unreached') },
+      );
     });
   const setAuto = (on: boolean) =>
     run('auto', async () => {
@@ -202,6 +212,7 @@ export function ServerTab() {
       if (r.ok) {
         setState(r);
       }
+      setBackupError(r.ok ? null : explain(t, r.error));
     });
   const remove = (body: { day: string } | { keep: number; apply: true }) => {
     setConfirm(null);
@@ -228,6 +239,7 @@ export function ServerTab() {
       if (r.ok) {
         setState(r);
       }
+      (key === 'host' ? setHostError : setBackupError)(r.ok ? null : explain(t, r.error));
     });
   const restore = (body: { day: string; what: string }) => {
     setRestoring(null);
@@ -245,7 +257,20 @@ export function ServerTab() {
   const saved = state?.server;
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
   if (!state) {
-    return <Loading text={t('server.loading')} />;
+    return unread ? (
+      <ErrorNote
+        text={t('error.loadFailed')}
+        log
+        className="px-1"
+        action={
+          <Button size="sm" variant="outline" className="bg-card" onClick={load}>
+            {t('error.retry')}
+          </Button>
+        }
+      />
+    ) : (
+      <Loading text={t('server.loading')} />
+    );
   }
 
   return (
@@ -268,11 +293,12 @@ export function ServerTab() {
               {t('server.test')}
             </Button>
           </div>
-          {note && (
-            <p role="status" className={note.ok ? 'text-muted-foreground' : 'text-destructive [overflow-wrap:anywhere]'}>
+          {note?.ok && (
+            <p role="status" className="text-muted-foreground">
               {note.text}
             </p>
           )}
+          {note && !note.ok && <ErrorNote {...note.error} />}
         </form>
       </Card>
       <Card className="gap-3 px-4 py-3.5">
@@ -331,6 +357,7 @@ export function ServerTab() {
             </Button>
           )}
         </div>
+        {hostError && <ErrorNote {...hostError} />}
         <JobLine job={state.hosting} running={t('server.hosting')} />
       </Card>
       <Card className="gap-3 px-4 py-3.5">
@@ -341,7 +368,10 @@ export function ServerTab() {
         </label>
         <div className="grid gap-1">
           {state.last.error ? (
-            <Status ok={false}>{t('server.lastFailed', { error: state.last.error })}</Status>
+            <Status ok={false}>
+              <p>{t('server.lastFailed')}</p>
+              <p className="text-xs text-muted-foreground">{state.last.error}</p>
+            </Status>
           ) : (
             <Status ok={!!state.last.at}>{state.last.at ? t('server.lastAt', { at: f.when(state.last.at) }) : t('server.never')}</Status>
           )}
@@ -357,7 +387,7 @@ export function ServerTab() {
               )}
             </Status>
           )}
-          {restored !== null && <Status ok={restored}>{t(restored ? 'server.restored' : 'review.error')}</Status>}
+          {restored !== null && <Status ok={restored}>{t(restored ? 'server.restored' : 'error.failed')}</Status>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
@@ -369,11 +399,22 @@ export function ServerTab() {
             {t('server.verify')}
           </Button>
         </div>
+        {backupError && <ErrorNote {...backupError} />}
         <JobLine job={state.backup} running={t('server.backingUp')} quiet />
         {state.verify?.running && <JobLine job={state.verify} running={t('server.verifying')} />}
         {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
-        {copies === 'failed' && !listing && <p className="text-destructive">{t('server.copiesFailed')}</p>}
-        {copiesError && <p className="text-destructive">{t('review.error')}</p>}
+        {copies === 'failed' && !listing && (
+          <ErrorNote
+            text={t('server.copiesFailed')}
+            log
+            action={
+              <Button size="sm" variant="outline" className="bg-card" onClick={() => void listCopies()}>
+                {t('error.retry')}
+              </Button>
+            }
+          />
+        )}
+        {copiesError && <ErrorNote />}
         {copies && copies !== 'failed' && (
           <div className="grid gap-2">
             <p className="flex items-center gap-2 text-sm text-muted-foreground">

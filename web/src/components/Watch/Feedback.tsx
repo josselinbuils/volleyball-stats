@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Check, Flag, MessageSquarePlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { clock, useFormat } from '@/lib/format';
@@ -141,11 +142,7 @@ export function Feedback({ inline = false }: { inline?: boolean }) {
                 className="rounded-md border border-input bg-transparent px-2 py-1.5 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             </label>
-            {state === 'failed' && (
-              <p role="alert" className="m-0 text-destructive">
-                {t('feedback.failed')}
-              </p>
-            )}
+            {state === 'failed' && <ErrorNote text={t('feedback.failed')} />}
             <div className="flex flex-wrap gap-2">
               <Button type="submit" size="sm" busy={state === 'sending'}>
                 {t('feedback.send')}

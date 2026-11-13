@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { restarted } from '@/lib/openMatch';
-import type { Claim } from '@/lib/review';
+import { post, type Claim } from '@/lib/review';
 
 /** The match changed here and on another machine since this one's copy: the owner keeps one, the other stays saved. */
 export function Elsewhere({ claim: { machine, at }, onKept }: { claim: Claim; onKept: () => void }) {
@@ -15,10 +16,7 @@ export function Elsewhere({ claim: { machine, at }, onKept }: { claim: Claim; on
     setWorking(which);
     setFailed(false);
     try {
-      const response = await fetch(`sync/${which}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (!response.ok) {
-        throw new Error(`${which}: ${response.status}`);
-      }
+      await post(`sync/${which}`);
       if (which === 'take') {
         // The review restarts on the other machine's copy.
         await restarted();
@@ -39,11 +37,7 @@ export function Elsewhere({ claim: { machine, at }, onKept }: { claim: Claim; on
           <DialogTitle>{t('sync.conflict', { machine })}</DialogTitle>
           <DialogDescription>{at ? t('sync.which', { machine, at }) : t('sync.whichNoTime')}</DialogDescription>
         </DialogHeader>
-        {failed && (
-          <p role="alert" className="text-sm text-destructive">
-            {t('sync.failed')}
-          </p>
-        )}
+        {failed && <ErrorNote className="text-sm" />}
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" busy={working === 'take'} disabled={!!working} onClick={() => void keep('take')}>
             {t('sync.theirs', { machine })}

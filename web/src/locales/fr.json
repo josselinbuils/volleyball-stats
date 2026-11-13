@@ -232,7 +232,6 @@
     "failedClose": "Fermer",
     "behind_one": "Une mise à jour disponible.",
     "behind_other": "{{count}} mises à jour disponibles.",
-    "error": "Échec : réessayez. Le détail est dans le journal du serveur.",
     "who": "Qui est entouré en jaune ?",
     "mergeQuestion": "Le n° {{a}} et le n° {{b}} sont-ils la même personne ?",
     "atStake": "{{s}} de jeu",
@@ -272,7 +271,7 @@
     "pieceConflictReplace": "C'est {{name}} sur tout le morceau",
     "pieceConflictCut": "Il montre les deux : couper à {{time}}",
     "pieceConflictCancel": "Annuler",
-    "mergeWarn": "Attention : cette réponse relierait {{names}}, qui portent des noms différents, en un seul joueur. L'enregistrer quand même ?",
+    "mergeWarn": "Cette réponse relierait {{names}}, qui portent des noms différents, en un seul joueur.",
     "same": "La même personne",
     "different": "Deux personnes différentes",
     "done": "Plus de questions.",
@@ -557,8 +556,11 @@
     "keys": "Clavier : ↑ ↓ changent de joueur, ← → d'image, Espace marque l'image (tapez le nom, Entrée), N nomme le joueur.",
     "update": "Mettre à jour",
     "updating": "Mise à jour…",
-    "updateBusy": "Une analyse ou une mise à jour de la page est en cours : réessayez après.",
-    "updateFailed": "Mise à jour impossible : {{error}}"
+    "updateFailed": "Mise à jour impossible.",
+    "mergeTitle": "Relier ces joueurs ?",
+    "unsavedLeave": "Les perdre",
+    "rerunStart": "Lancer",
+    "matchesLoading": "Chargement…"
   },
   "playVideo": "Lecture",
   "pauseVideo": "Pause",
@@ -794,8 +796,7 @@
     "which": "Copie de {{machine}} à {{at}}. Laquelle garder ? L'autre reste sauvegardée.",
     "whichNoTime": "Laquelle garder ? L'autre reste sauvegardée.",
     "theirs": "Celle de {{machine}}",
-    "mine": "Celle d'ici",
-    "failed": "Échec : réessayez."
+    "mine": "Celle d'ici"
   },
   "season": {
     "title": "Saison",
@@ -804,8 +805,6 @@
     "draw": "Nul",
     "pickTeam": "Équipe",
     "loading": "Chargement…",
-    "failed": "Chargement impossible.",
-    "retry": "Réessayer",
     "players": "Les joueurs",
     "matches_one": "{{count}} match",
     "matches_other": "{{count}} matchs",
@@ -841,7 +840,7 @@
     "test": "Tester",
     "reached": "Connexion réussie.",
     "missing": "Connecté, mais le dossier du site n'existe pas.",
-    "unreached": "Connexion impossible : {{error}}",
+    "unreached": "Connexion impossible.",
     "online": "Matchs en ligne",
     "hostAll": "Tout mettre à jour",
     "upToDate": "À jour",
@@ -864,7 +863,7 @@
     "backUp": "Sauvegarder maintenant",
     "lastAt": "Dernière sauvegarde : {{at}}",
     "never": "Pas encore de sauvegarde depuis cet ordinateur.",
-    "lastFailed": "Dernière sauvegarde échouée : {{error}}",
+    "lastFailed": "Dernière sauvegarde échouée.",
     "verify": "Vérifier",
     "verifying": "Vérification…",
     "same": "Vérifiées le {{at}} : identiques à cet ordinateur.",
@@ -876,7 +875,6 @@
     "shared": "Club, terrains, joueurs et signalements",
     "restored": "Restauré. La version d'avant est mise de côté.",
     "backingUp": "Sauvegarde…",
-    "failed": "Échec : {{error}}",
     "done": "Fait le {{at}}.",
     "room": "{{used}} utilisés · {{free}} libres",
     "keep": "Sauvegardes gardées",
@@ -951,7 +949,8 @@
     "without": "Sans la vidéo",
     "password": "Mot de passe",
     "wrong": "Mot de passe incorrect.",
-    "changed": "Le mot de passe a changé : entrez le nouveau."
+    "changed": "Le mot de passe a changé : entrez le nouveau.",
+    "unreached": "Le site ne répond pas : réessayez."
   },
   "autoZoom": "Zoom auto",
   "story": {
@@ -1343,7 +1342,7 @@
       "exists": "Ce match est déjà importé.",
       "disk": "Pas assez de place : {{gb}} Go libres nécessaires.",
       "badTimes": "Le début est après la fin.",
-      "failed": "Import impossible : {{error}}",
+      "failed": "Import impossible.",
       "unreadable": "Vidéo illisible : {{name}}. Elle a peut-être été coupée (batterie vide).",
       "running": "Ce match est déjà en cours d'import.",
       "mountFailed": "Lecteur inaccessible : vérifiez que la carte est bien insérée."
@@ -1392,7 +1391,7 @@
       "thereJoin": "Sur l'autre ordinateur, ouvrez « {{open}} » et entrez l'adresse et le code qui s'afficheront ici.",
       "join": "Rejoindre",
       "done": "Synchronisation terminée.",
-      "failed": "Échec de la synchronisation : {{error}}"
+      "failed": "Échec de la synchronisation."
     },
     "doctor": {
       "open": "Diagnostic",
@@ -1458,7 +1457,7 @@
     },
     "backup": {
       "off": "Sauvegarde automatique désactivée : rien n'est copié sur le serveur.",
-      "failed": "Dernière sauvegarde échouée : {{error}}",
+      "failed": "Dernière sauvegarde échouée.",
       "old": "Pas de sauvegarde depuis le {{at}}.",
       "never": "Aucune sauvegarde de cet ordinateur.",
       "differ": "Des sauvegardes diffèrent de cet ordinateur.",
@@ -1485,8 +1484,22 @@
       "board": "Couleur du panneau",
       "removeSponsor": "Retirer ce sponsor",
       "addSponsor": "Ajouter un sponsor",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "loading": "Chargement…"
     },
-    "noAnswer": "Pas de réponse de l'app : vérifiez qu'elle tourne toujours."
+    "confirm": "Confirmer",
+    "save": "Enregistrer"
+  },
+  "error": {
+    "failed": "Échec : réessayez.",
+    "noAnswer": "Pas de réponse de l'app : vérifiez qu'elle tourne toujours.",
+    "busy": "Une analyse ou une mise à jour de la page est en cours : réessayez après.",
+    "loadFailed": "Chargement impossible.",
+    "retry": "Réessayer",
+    "details": "Voir le détail",
+    "log": "Journal de l'app",
+    "logLoading": "Chargement…",
+    "logEmpty": "Rien d'écrit pour l'instant.",
+    "video": "La vidéo n'a pas pu se charger."
   }
 }

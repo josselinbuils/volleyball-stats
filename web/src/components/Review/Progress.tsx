@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { compared } from '@/components/Review/helpers/comparison';
 import { Tip } from '@/components/Tip';
+import { ask } from '@/components/ask';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFormat } from '@/lib/format';
@@ -86,11 +87,9 @@ export function Progress({
         className="justify-self-start bg-card"
         busy={learning}
         disabled={busy}
-        onClick={() => {
-          if (window.confirm(t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm'))) {
-            onLearn();
-          }
-        }}
+        onClick={() =>
+          void ask({ title: t('review.rerun'), text: t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm'), confirm: t('review.rerunStart') }).then((yes) => yes && onLearn())
+        }
       >
         <RefreshCw aria-hidden />
         {t('review.rerun')}

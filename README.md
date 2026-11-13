@@ -97,7 +97,7 @@ restart, open "Ubuntu" from the Start menu, choose a user name and password, the
 [Setup](docs/setup.md) for the NVIDIA driver.
 
 The app's "Diagnostics" button checks the graphics card, the memory, the disk space and the tools, and says what to
-fix.
+fix; it also shows the app's log.
 
 ### 2. Film a match
 

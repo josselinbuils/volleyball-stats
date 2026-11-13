@@ -1,11 +1,13 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Radio, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
+import { explain, type Explained } from '@/lib/errors';
 import { type AppState, type VideosJob } from './helpers/setup';
 
 /** A numbered step of the dialog. */
@@ -28,12 +30,12 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
   const { t } = useTranslation();
   const [address, setAddress] = useState('');
   const [code, setCode] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<Explained | null>(null);
   const [doing, run] = useRunning();
   const act = (path: string, body: object = {}) =>
     run(path, async () => {
       const r = await call(path, body);
-      setError(!r.ok);
+      setError(r.ok ? null : explain(t, r.error));
       await onChange();
     });
   const join = (event: FormEvent) => {
@@ -97,7 +99,7 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
           </div>
         ) : (
           <div className="grid gap-4">
-            {ended && <p className={job.failed ? 'text-destructive' : undefined}>{job.failed ? t('app.videos.failed', { error: job.error ?? '' }) : t('app.videos.done')}</p>}
+            {ended && (job.failed ? <ErrorNote {...explain(t, job.error, 'app.videos.failed')} /> : <p>{t('app.videos.done')}</p>)}
             {system === 'wsl' ? (
               <ol className="grid gap-4">
                 <Step n={1}>
@@ -130,11 +132,7 @@ export function VideosDialog({ job, system, onChange, onClose }: { job: VideosJo
             )}
           </div>
         )}
-        {error && (
-          <p role="alert" className="text-destructive">
-            {t('review.error')}
-          </p>
-        )}
+        {error && <ErrorNote {...error} />}
       </DialogContent>
     </Dialog>
   );

@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { FileVideo, Folder, FolderOpen, HardDrive, LoaderCircle, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
+import type { Explained } from '@/lib/errors';
 import { RecordingPlayer } from './RecordingPlayer';
 import { suggestedTeams, type ClubState } from '@/components/helpers/club';
 import { importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
@@ -38,7 +40,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   const [to, setTo] = useState('');
   // The player's time, following the last one typed in the cut's fields.
   const [previewAt, setPreviewAt] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Explained | null>(null);
   const [sending, setSending] = useState(false);
   const [suggested, setSuggested] = useState<string[]>([]);
   useEffect(() => {
@@ -61,8 +63,9 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   }, []);
 
   const refuse = (error: string | undefined) => {
-    const [key, values] = importError(error);
-    setError(t(key, values));
+    const [key, values, detail] = importError(error);
+    // Only a failure the app does not name may tell more in its log.
+    setError({ text: t(key, values), detail: detail ?? null, log: key === 'app.import.failed' });
   };
   const scan = async (source: string | string[], drive?: string, from = typeof source === 'string' ? source : 'pick') => {
     if (typeof source === 'string') {
@@ -281,11 +284,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
             </Button>
           </form>
         )}
-        {error && (
-          <p role="alert" className="text-destructive">
-            {error}
-          </p>
-        )}
+        {error && <ErrorNote {...error} />}
       </DialogContent>
     </Dialog>
   );

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, LoaderCircle, PenLine, Scissors, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ask } from '@/components/ask';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Behind } from '@/components/Behind';
@@ -192,8 +194,8 @@ export function Review({
   const [unsaved, setUnsaved] = useState(0);
   // Losing them was agreed to: the page may go.
   const leaving = useRef(false);
-  const mayLeave = () => {
-    if (unsaved && !window.confirm(t('review.unsaved'))) {
+  const mayLeave = async () => {
+    if (unsaved && !(await ask({ title: t('review.unsaved'), confirm: t('review.unsavedLeave'), danger: true }))) {
       return false;
     }
     leaving.current = true;
@@ -212,8 +214,8 @@ export function Review({
     return () => window.removeEventListener('beforeunload', onLeave);
   }, [unsaved]);
   const matchTime = useRef(0);
-  const show = (next: Tab) => {
-    if (next !== tab && !mayLeave()) {
+  const show = async (next: Tab) => {
+    if (next !== tab && !(await mayLeave())) {
       return;
     }
     leaving.current = false;
@@ -245,16 +247,21 @@ export function Review({
   };
   // Shown at once: the editor starting again from `comments` must not lose one being saved.
   const saveComment = async (rally: number, text: string) => {
-    setComments((all) => {
-      const out = { ...all };
-      delete out[rally];
-      return text ? { ...out, [rally]: text } : out;
-    });
+    const before = comments[rally];
+    const put = (value: string | undefined) =>
+      setComments((all) => {
+        const out = { ...all };
+        delete out[rally];
+        return value ? { ...out, [rally]: value } : out;
+      });
+    put(text);
     try {
       await post('comment', { rally, text });
       setError(false);
       return true;
     } catch {
+      // Back to what is saved.
+      put(before);
       setError(true);
       return false;
     }
@@ -284,19 +291,23 @@ export function Review({
   };
 
   const savePick = async (frame: number, picked: boolean) => {
-    setPicks((all) => {
-      const out = new Set(all);
-      if (picked) {
-        out.add(frame);
-      } else {
-        out.delete(frame);
-      }
-      return out;
-    });
+    const put = (on: boolean) =>
+      setPicks((all) => {
+        const out = new Set(all);
+        if (on) {
+          out.add(frame);
+        } else {
+          out.delete(frame);
+        }
+        return out;
+      });
+    put(picked);
     try {
       await post('pick', { frame, picked });
       setError(false);
     } catch {
+      // Back to what is saved.
+      put(!picked);
       setError(true);
     }
   };
@@ -432,7 +443,7 @@ export function Review({
   };
 
   const split = async ({ team, identity }: Conflict) => {
-    if (!mayLeave()) {
+    if (!(await mayLeave())) {
       return;
     }
     try {
@@ -443,7 +454,7 @@ export function Review({
     }
   };
   const saveEnd = async (time: string) => {
-    if (!mayLeave()) {
+    if (!(await mayLeave())) {
       return;
     }
     try {
@@ -496,11 +507,13 @@ export function Review({
           films={films}
           pending={pending}
           busy={busy}
-          run={(action, body) => {
-            if (mayLeave()) {
-              void reload(action, body);
-            }
-          }}
+          run={(action, body) =>
+            void mayLeave().then((yes) => {
+              if (yes) {
+                void reload(action, body);
+              }
+            })
+          }
           mayLeave={mayLeave}
           here={
             tab === 'match'
@@ -508,11 +521,12 @@ export function Review({
                   at: () => matchTime.current,
                   onEnd: (time) => void saveEnd(time),
                   sets: review?.sets ?? ['0:00'],
-                  onSet: (change) => {
-                    if (mayLeave()) {
-                      void reload('sets', change);
-                    }
-                  },
+                  onSet: (change) =>
+                    void mayLeave().then((yes) => {
+                      if (yes) {
+                        void reload('sets', change);
+                      }
+                    }),
                 }
               : undefined
           }
@@ -540,11 +554,7 @@ export function Review({
           )}
         </p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />
-        {error && (
-          <p role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive">
-            {t('review.error')}
-          </p>
-        )}
+        {error && <ErrorNote className="rounded-lg border border-destructive px-3 py-2 text-sm" />}
         <Behind />
         {elsewhere && <Elsewhere claim={elsewhere} onKept={() => setElsewhere(null)} />}
         {failure && (
@@ -747,7 +757,7 @@ export function Review({
               <p className="text-lg font-semibold">{t('review.done')}</p>
               <p className="mt-1 text-muted-foreground">{t(pending.changed || pending.names ? 'review.doneApply' : 'review.doneNothing')}</p>
               {next && (
-                <Button className="mt-4" onClick={() => show(next)}>
+                <Button className="mt-4" onClick={() => void show(next)}>
                   {next === 'match' ? <ListChecks aria-hidden /> : <PenLine aria-hidden />}
                   {t(next === 'match' ? 'review.goMatch' : 'review.goNames')}
                 </Button>

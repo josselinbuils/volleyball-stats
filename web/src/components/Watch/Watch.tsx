@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LoaderCircle, Lock } from 'lucide-react';
+import { VideoError } from '@/components/VideoError';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
@@ -228,6 +229,7 @@ export function Watch() {
                   className="block aspect-video w-full cursor-pointer [:fullscreen>&]:aspect-auto [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1"
                 />
                 {video instanceof HTMLVideoElement && <Buffering video={video} />}
+                {video instanceof HTMLVideoElement && <VideoError video={video} />}
                 <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} />
               </div>
             </div>

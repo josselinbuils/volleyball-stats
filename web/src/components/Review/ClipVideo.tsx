@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, ScanSearch, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { VideoError } from '@/components/VideoError';
 import { Button } from '@/components/ui/button';
 import { SkipIcon } from '@/components/SkipIcon';
 import { Swatch } from '@/components/Swatch';
@@ -410,6 +411,7 @@ export function ClipVideo({
               )}
             </svg>
           </div>
+          <VideoError video={video} />
           {caption && (
             <Tip label={t('review.captionMove')}>
               <span

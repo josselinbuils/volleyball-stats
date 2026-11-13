@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeftRight, Crosshair, Play, RotateCcw, Square, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { Card } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { CourtDialog } from './CourtDialog';
 import { JobProgress } from '@/components/JobProgress';
 import { Zoomable } from '@/components/Zoomable';
 import { call } from '@/lib/app';
+import { explain, type Explained } from '@/lib/errors';
 import { imageUrl, teamNames, type Check, type Preparing } from './helpers/setup';
 
 /** A match on its way to the review: the copy, the court, a look at both before the analysis, the analysis, or why it
@@ -20,7 +22,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
   const [placing, setPlacing] = useState(false);
   const [confirm, setConfirm] = useState<'stop' | 'delete' | null>(null);
   const [busy, setBusy] = useState<Check | null>(null);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<Explained | null>(null);
   // The pictures change when the sides swap or the court is placed again.
   const [version, setVersion] = useState(0);
   const names = teamNames(item);
@@ -29,12 +31,12 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
   const [doing, run] = useRunning();
   const act = (path: string, body: object = {}) =>
     run(path, async () => {
-      setError(false);
+      setError(null);
       const r = await call<{ busy?: Check }>(path, { match: item.name, ...body });
       if (r.status === 409 && r.busy) {
         setBusy(r.busy);
       } else if (!r.ok) {
-        setError(true);
+        setError(explain(t, r.error));
       } else {
         setBusy(null);
       }
@@ -113,11 +115,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           {t(busy.nice ? 'app.busyNice' : 'app.busy', { load: busy.load, cores: busy.cores })}
         </p>
       )}
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {t('review.error')}
-        </p>
-      )}
+      {error && <ErrorNote className="text-sm" {...error} />}
       <div className="flex flex-wrap gap-2">
         {item.state === 'court' && !job?.running && (
           <Button onClick={() => setPlacing(true)}>
