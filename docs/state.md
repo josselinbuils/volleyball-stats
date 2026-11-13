@@ -76,4 +76,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     Its "State" is the hand-over: what waits on the owner and what is next.
 17. The third match (`2026-11-12-aspom-1-vs-le-haillan-1`, 91 min, 163 rallies) processed on the 5080 (13 Nov), its pipeline's
     output kept aside (`outputs/benchmarks/corrections/2026-11-12-aspom-1-vs-le-haillan-1-automatic`): the first match nothing
-    was tuned or trained on. Waiting on its review, then [corrections_log.md](corrections_log.md) "Next", item 1.
+    was tuned or trained on. That copy holds 7 sets for 4, the teams (one kit) on the wrong sides in 68 of its 163 rallies:
+    timeouts taken for set breaks. Fixed the same day (`teams.likely_starts`, its 30 rallies a set set on the three matches,
+    this one included) and the match run again (13 Nov, 17:01): 4 sets. Waiting on its review, then
+    [corrections_log.md](corrections_log.md) "Next", item 1.
