@@ -54,6 +54,13 @@ class TestImport:
         assert stages == ["::stage copy", "::stage index"]
         assert shares and shares == sorted(shares) and shares[-1] > 0.5
 
+    def test_joins_videos_picked_together(self, tmp_path, monkeypatch):
+        card = self.card(tmp_path)
+        picked = sorted(p for p in (card / "DCIM" / "DJI_001").glob("*.MP4") if not p.name.startswith("."))
+        assert videos([picked[2], picked[0]]) == [picked[0], picked[2]]
+        self.run(monkeypatch, tmp_path, str(picked[0]), str(picked[1]), "--teams", "A,B")
+        assert probe(tmp_path / "data" / "2026-11-02-a-vs-b" / "2026-11-02-a-vs-b.mp4").frames == 100
+
     def test_cuts_from_the_keyframe_before_the_start(self, tmp_path, monkeypatch):
         self.run(monkeypatch, tmp_path, str(self.card(tmp_path)), "--teams", "A,B", "--from", "2.4", "--to", "5", "--date", "03/11/2026")
 

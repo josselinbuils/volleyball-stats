@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -173,38 +174,60 @@ class TestPickVideo:
         monkeypatch.setattr(app.subprocess, "run", run)
         return ran
 
-    def test_gives_the_video_picked_in_the_finder(self, monkeypatch):
-        ran = self.run_as(monkeypatch, "mac", "/Users/léa/Movies/match.mp4\n".encode())
-        assert app.picker() == "mac" and app.pick_video() == "/Users/léa/Movies/match.mp4"
-        assert ran[0][0] == "osascript"
+    def test_gives_the_videos_picked_in_the_finder(self, monkeypatch):
+        ran = self.run_as(monkeypatch, "mac", "/Users/léa/Movies/a.mp4\n/Users/léa/Movies/b.mp4\n".encode())
+        assert app.picker() == "mac" and app.pick("files") == ["/Users/léa/Movies/a.mp4", "/Users/léa/Movies/b.mp4"]
+        assert ran[0][0] == "osascript" and "multiple selections allowed" in " ".join(ran[0])
+        self.run_as(monkeypatch, "mac", b"/Volumes/OSMO/DCIM/\n")
+        assert app.pick("folder") == ["/Volumes/OSMO/DCIM"]
 
     def test_a_window_closed_without_a_video_gives_none(self, monkeypatch):
         self.run_as(monkeypatch, "mac", b"", 1)
-        assert app.pick_video() is None
+        assert app.pick() is None
         self.run_as(monkeypatch, "wsl", b"\r\n")
-        assert app.pick_video() is None
+        assert app.pick() is None
+        with pytest.raises(ValueError):
+            app.pick("anything")
 
-    def test_under_wsl_gives_windows_path_as_wsl_sees_it_its_drive_mounted(self, monkeypatch):
+    def test_under_wsl_gives_windows_paths_as_wsl_sees_them_their_drive_mounted(self, monkeypatch):
         mounted = []
-        ran = self.run_as(monkeypatch, "wsl", "E:\\DCIM\\DJI_001\\match é.MP4\r\n".encode())
+        ran = self.run_as(monkeypatch, "wsl", "E:\\DCIM\\DJI_001\\match é.MP4\r\nE:\\DCIM\\DJI_001\\b.MP4\r\n".encode())
         monkeypatch.setattr(app, "mount", lambda drive: mounted.append(drive))
         monkeypatch.setattr(app.os.path, "ismount", lambda path: False)
-        assert app.pick_video() == "/mnt/e/DCIM/DJI_001/match é.MP4"
-        assert mounted == ["E"] and ran[0][0] == "powershell.exe"
-        # Windows' own drive is always there.
-        self.run_as(monkeypatch, "wsl", b"C:\\Users\\a\\m.mp4\r\n")
-        assert app.pick_video() == "/mnt/c/Users/a/m.mp4" and mounted == ["E"]
+        assert app.pick("files") == ["/mnt/e/DCIM/DJI_001/match é.MP4", "/mnt/e/DCIM/DJI_001/b.MP4"]
+        assert mounted == ["E", "E"] and ran[0][0] == "powershell.exe" and "Multiselect" in ran[0][-1]
+        # The window opens on top of the page's.
+        assert "TopMost = $true" in ran[0][-1] and "ShowDialog($top)" in ran[0][-1]
+        ran = self.run_as(monkeypatch, "wsl", b"C:\\Users\\a\\Videos\r\n")
+        assert app.pick("folder") == ["/mnt/c/Users/a/Videos"] and "FolderBrowserDialog" in ran[0][-1]
 
     def test_a_linux_desktop_uses_its_own_tool_and_none_means_no_window(self, monkeypatch):
-        self.run_as(monkeypatch, "linux", b"/home/a/m.mp4\n")
+        self.run_as(monkeypatch, "linux", b"/home/a/m.mp4\n/home/a/n.mp4\n")
         monkeypatch.setenv("DISPLAY", ":0")
         monkeypatch.setattr(app.shutil, "which", lambda name: "/usr/bin/kdialog" if name == "kdialog" else None)
-        assert app.picker() == "kdialog" and app.pick_video() == "/home/a/m.mp4"
+        assert app.picker() == "kdialog" and app.pick() == ["/home/a/m.mp4", "/home/a/n.mp4"]
         monkeypatch.setattr(app.shutil, "which", lambda name: None)
         assert app.picker() is None
         with pytest.raises(LookupError, match="picker"):
-            app.pick_video()
+            app.pick()
         monkeypatch.setattr(app.shutil, "which", lambda name: "/usr/bin/zenity")
         monkeypatch.delenv("DISPLAY")
         monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         assert app.picker() is None
+
+    def test_names_windows_drives_as_windows_does(self, monkeypatch):
+        self.run_as(monkeypatch, "wsl", "C:|Windows\r\nD:|\r\nE:|OSMO ACTION\r\n".encode())
+        monkeypatch.setattr(app, "windows_home", lambda: None)
+        monkeypatch.setattr(app.os.path, "ismount", lambda path: False)
+        monkeypatch.setattr(app.Path, "home", lambda: Path("/nowhere"))
+        assert [(s["name"], s.get("drive")) for s in app.sources()] == [("D:", "D"), ("OSMO ACTION (E:)", "E")]
+
+
+class TestSources:
+    def test_several_videos_picked_together_are_one_source(self, tmp_path):
+        assert app.paths_of(str(tmp_path)) == tmp_path
+        assert app.paths_of([str(tmp_path / "a.mp4")]) == tmp_path / "a.mp4"
+        assert app.paths_of([str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")]) == [tmp_path / "a.mp4", tmp_path / "b.mp4"]
+        with pytest.raises(ValueError):
+            app.paths_of([])
+        assert app.query_source({"source": ["x"]}) == "x" and app.query_source({"source": ["x", "y"]}) == ["x", "y"]

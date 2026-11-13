@@ -1763,6 +1763,38 @@ def undo(log: list[dict], history: list[dict]) -> tuple[list[dict], list[dict] |
     return log[:-1], None, log[-1]["id"], log[-1].get("applied", True)
 
 
+FILE_KINDS = {".js": "text/javascript", ".css": "text/css", ".mp4": "video/mp4", ".mov": "video/quicktime", ".webp": "image/webp", ".png": "image/png"}
+
+
+def send_file(handler, path: Path, kind: str | None = None) -> None:
+    """A file by byte ranges, for a video to seek: `handler` a request's (BaseHTTPRequestHandler)."""
+    size = path.stat().st_size
+    span = range_of(handler.headers.get("Range"), size)
+    first, last = span or (0, size - 1)
+    handler.send_response(206 if span else 200)
+    handler.send_header("Content-Type", kind or FILE_KINDS.get(path.suffix.lower(), "application/octet-stream"))
+    handler.send_header("Accept-Ranges", "bytes")
+    handler.send_header("Content-Length", str(last - first + 1))
+    # An apply rewrites the page's data under the same names.
+    if path.suffix.lower() == ".js":
+        handler.send_header("Cache-Control", "no-cache")
+    if span:
+        handler.send_header("Content-Range", f"bytes {first}-{last}/{size}")
+    handler.end_headers()
+    with open(path, "rb") as f:
+        f.seek(first)
+        left = last - first + 1
+        try:
+            while left > 0:
+                chunk = f.read(min(left, 1 << 20))
+                if not chunk:
+                    break
+                handler.wfile.write(chunk)
+                left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+
 def range_of(header: str | None, size: int) -> tuple[int, int] | None:
     """(first, last) byte of a "bytes=a-b" Range header, None without one or when unsatisfiable."""
     if not header or not header.startswith("bytes="):
@@ -2008,7 +2040,10 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
         def log_message(self, *_) -> None:
             pass
 
-        def send(self, body: bytes, kind: str, status: int = 200) -> None:
+        def send(self, body: bytes | Path, kind: str, status: int = 200) -> None:
+            # A file the app names (a card's video for the import's player): by byte ranges.
+            if isinstance(body, Path):
+                return send_file(self, body, kind)
             self.send_response(status)
             self.send_header("Content-Type", kind)
             self.send_header("Content-Length", str(len(body)))
@@ -2366,7 +2401,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
 
     class Handler(BaseHTTPRequestHandler):
-        def send(self, body: bytes, kind: str, status: int = 200) -> None:
+        def send(self, body: bytes | Path, kind: str, status: int = 200) -> None:
+            # A file the app names (a card's video for the import's player): by byte ranges.
+            if isinstance(body, Path):
+                return send_file(self, body, kind)
             self.send_response(status)
             self.send_header("Content-Type", kind)
             self.send_header("Content-Length", str(len(body)))
@@ -2451,32 +2489,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
         def file(self, path: Path) -> None:
             """A static file, by byte ranges for the video to seek."""
-            size = path.stat().st_size
-            span = range_of(self.headers.get("Range"), size)
-            first, last = span or (0, size - 1)
-            kinds = {".js": "text/javascript", ".css": "text/css", ".mp4": "video/mp4", ".webp": "image/webp", ".png": "image/png"}
-            self.send_response(206 if span else 200)
-            self.send_header("Content-Type", kinds.get(path.suffix.lower(), "application/octet-stream"))
-            self.send_header("Accept-Ranges", "bytes")
-            self.send_header("Content-Length", str(last - first + 1))
-            # An apply rewrites the page's data under the same names.
-            if path.suffix.lower() == ".js":
-                self.send_header("Cache-Control", "no-cache")
-            if span:
-                self.send_header("Content-Range", f"bytes {first}-{last}/{size}")
-            self.end_headers()
-            with open(path, "rb") as f:
-                f.seek(first)
-                left = last - first + 1
-                try:
-                    while left > 0:
-                        chunk = f.read(min(left, 1 << 20))
-                        if not chunk:
-                            break
-                        self.wfile.write(chunk)
-                        left -= len(chunk)
-                except (BrokenPipeError, ConnectionResetError):
-                    pass
+            send_file(self, path)
 
         def post(self) -> None:
             # A JSON body: a page elsewhere can only send a form or plain text without asking.

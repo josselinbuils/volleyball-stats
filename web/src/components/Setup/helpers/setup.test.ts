@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LANDMARKS, importError, nextLandmark, parseTime, teamNames, validName } from './setup';
+import { LANDMARKS, chapterAt, importError, nextLandmark, parseTime, sourceQuery, teamNames, validName } from './setup';
 
 describe('setup', () => {
   it('reads times as m:ss or h:mm:ss', () => {
@@ -33,5 +33,21 @@ describe('setup', () => {
   it('names the teams only when both have a name', () => {
     expect(teamNames({ name: 'm', teams: [{ name: 'A' }, { name: 'B' }] as never })).toEqual(['A', 'B']);
     expect(teamNames({ name: 'm', teams: null })).toBeNull();
+  });
+});
+
+describe('chapterAt', () => {
+  it('finds the chapter and the time in it', () => {
+    expect(chapterAt([600, 600, 300], 0)).toEqual([0, 0]);
+    expect(chapterAt([600, 600, 300], 650)).toEqual([1, 50]);
+    expect(chapterAt([600, 600, 300], 1200)).toEqual([2, 0]);
+    expect(chapterAt([600, 600, 300], 9999)).toEqual([2, 300]);
+  });
+});
+
+describe('sourceQuery', () => {
+  it('names one source or several videos picked together', () => {
+    expect(sourceQuery('/mnt/e', { recording: '1' })).toBe('source=%2Fmnt%2Fe&recording=1');
+    expect(sourceQuery(['/a.mp4', '/b.mp4'], { at: '3' })).toBe('source=%2Fa.mp4&source=%2Fb.mp4&at=3');
   });
 });

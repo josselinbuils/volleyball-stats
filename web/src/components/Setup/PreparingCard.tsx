@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useFormat } from '@/lib/format';
 import { CourtDialog } from './CourtDialog';
 import { JobProgress } from '@/components/JobProgress';
+import { Zoomable } from '@/components/Zoomable';
 import { call } from '@/lib/app';
 import { imageUrl, teamNames, type Check, type Preparing } from './helpers/setup';
 
@@ -79,7 +80,9 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
         <div className="grid gap-3 sm:grid-cols-2">
           {item.start && names && (
             <figure className="grid gap-1.5">
-              <img src={imageUrl(item.name, 'start', version)} alt="" className="w-full rounded-md" />
+              <Zoomable>
+                <img src={imageUrl(item.name, 'start', version)} alt="" draggable={false} className="w-full" />
+              </Zoomable>
               <figcaption className="grid gap-1.5 text-sm">
                 {t('app.check.sides', { left: names[0], right: names[1] })}
                 <Button size="sm" variant="outline" className="w-fit" busy={doing === 'swap'} disabled={!!doing} onClick={() => void act('swap')}>
@@ -91,7 +94,9 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           )}
           {item.court && (
             <figure className="grid gap-1.5">
-              <img src={imageUrl(item.name, 'court', version)} alt="" className="w-full rounded-md" />
+              <Zoomable>
+                <img src={imageUrl(item.name, 'court', version)} alt="" draggable={false} className="w-full" />
+              </Zoomable>
               <figcaption className="grid gap-1.5 text-sm">
                 {t('app.check.court')}
                 <Button size="sm" variant="outline" className="w-fit" onClick={() => setPlacing(true)}>

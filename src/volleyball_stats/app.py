@@ -145,15 +145,23 @@ def restart_command() -> list[str]:
     return [sys.executable, "-m", "volleyball_stats.review", *args]
 
 
-def windows_drives() -> list[str]:
-    """Under WSL2, Windows' drive letters but C (a card plugged in after WSL started has no /mnt/ folder yet)."""
+def windows_drives() -> list[tuple[str, str]]:
+    """Under WSL2, Windows' drives but C, each letter with its name (a card plugged in after WSL started has no /mnt/
+    folder yet)."""
     try:
-        roots = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command", "(Get-PSDrive -PSProvider FileSystem).Name"], capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL, cwd="/mnt/c" if Path("/mnt/c").exists() else None
-        ).stdout
+        listed = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command", "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_LogicalDisk | ForEach-Object { $_.DeviceID + '|' + $_.VolumeName }"],
+            capture_output=True, timeout=20, stdin=subprocess.DEVNULL, cwd="/mnt/c" if Path("/mnt/c").exists() else None,
+        ).stdout.decode("utf-8", "replace")
     except (OSError, subprocess.SubprocessError):
         return []
-    return sorted({d.strip().upper() for d in roots.split() if re.fullmatch(r"[A-Za-z]", d.strip()) and d.strip().upper() != "C"})
+    found = {}
+    for line in listed.splitlines():
+        device, _, label = line.strip().partition("|")
+        letter = device.rstrip(":").upper()
+        if re.fullmatch(r"[A-Z]", letter) and letter != "C":
+            found[letter] = label.strip()
+    return sorted(found.items())
 
 
 def windows_home() -> Path | None:
@@ -187,14 +195,15 @@ def sources() -> list[dict]:
     user = os.environ.get("USER", "")
     found = []
     if doctor.system() == "wsl":
-        for drive in windows_drives():
+        for drive, label in windows_drives():
             path = Path("/mnt") / drive.lower()
             mounted = os.path.ismount(path)
             try:
                 card = mounted and (path / "DCIM").is_dir()
             except OSError:
                 card = False
-            found.append({"path": str(path), "name": f"{drive}:", "card": card, **({} if mounted else {"drive": drive})})
+            # As Windows names it: "LABEL (E:)".
+            found.append({"path": str(path), "name": f"{label} ({drive}:)" if label else f"{drive}:", "card": card, **({} if mounted else {"drive": drive})})
         home = windows_home()
         for name in ("Downloads", "Videos", "Desktop"):
             if home and (home / name).is_dir():
@@ -219,13 +228,26 @@ def sources() -> list[dict]:
 
 # The longest the system's file window may stay open.
 PICK_S = 900
-# Windows' file window, on top of the page's: the path picked on stdout, nothing when closed.
-PICK_WINDOWS = (
+# Windows' file windows, owned by an invisible window kept on top so that they open in front of the page's (a window of
+# a process in the background otherwise opens behind): the paths picked on stdout, one a line, nothing when closed.
+PICK_WINDOWS_ON_TOP = (
     "Add-Type -AssemblyName System.Windows.Forms; [Console]::OutputEncoding = [Text.Encoding]::UTF8; "
-    "$d = New-Object System.Windows.Forms.OpenFileDialog; $d.Filter = 'MP4, MOV|*.mp4;*.mov|*.*|*.*'; "
-    "$top = New-Object System.Windows.Forms.Form -Property @{TopMost = $true; ShowInTaskbar = $false}; "
-    "if ($d.ShowDialog($top) -eq 'OK') { $d.FileName }"
+    "$top = New-Object System.Windows.Forms.Form -Property @{TopMost = $true; ShowInTaskbar = $false; Opacity = 0; "
+    "FormBorderStyle = 'None'; StartPosition = 'CenterScreen'; Size = New-Object System.Drawing.Size(1, 1)}; "
+    "$top.Show(); $top.Activate(); "
 )
+PICK_WINDOWS = {
+    "files": PICK_WINDOWS_ON_TOP + "$d = New-Object System.Windows.Forms.OpenFileDialog -Property @{Multiselect = $true; "
+    "Filter = 'MP4, MOV|*.mp4;*.mov|*.*|*.*'}; if ($d.ShowDialog($top) -eq 'OK') { $d.FileNames -join \"`n\" }; $top.Close()",
+    "folder": PICK_WINDOWS_ON_TOP + "$d = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{ShowNewFolderButton = $false}; "
+    "if ($d.ShowDialog($top) -eq 'OK') { $d.SelectedPath }; $top.Close()",
+}
+# macOS: the Finder's window, brought to the front by System Events.
+PICK_MAC = {
+    "files": ['tell application "System Events"', "activate", 'set picked to choose file of type {"public.movie"} with multiple selections allowed', "end tell",
+              'set out to ""', "repeat with f in picked", "set out to out & POSIX path of f & linefeed", "end repeat", "return out"],
+    "folder": ['tell application "System Events"', "activate", "set picked to choose folder", "end tell", "return POSIX path of picked"],
+}
 
 
 def picker() -> str | None:
@@ -248,18 +270,20 @@ def from_windows(path: str) -> Path:
     root = Path("/mnt") / drive.lower()
     if drive.upper() != "C" and not os.path.ismount(root):
         mount(drive)
-    return root.joinpath(*rest.split("\\"))
+    return root.joinpath(*[part for part in rest.split("\\") if part])
 
 
-def pick_video() -> str | None:
-    """The video picked in the system's own file window, None when it is closed without one. LookupError "picker" on a
-    machine without such a window."""
-    kind = picker()
+def pick(what: str = "files") -> list[str] | None:
+    """The videos (`what` "files", several at once) or the folder ("folder") picked in the system's own window, None
+    when it is closed without any. LookupError "picker" on a machine without such a window."""
+    if what not in ("files", "folder"):
+        raise ValueError(what)
+    kind, folder = picker(), what == "folder"
     command, cwd = {
-        "mac": (["osascript", "-e", "tell me to activate", "-e", 'POSIX path of (choose file of type {"public.movie"})'], None),
-        "wsl": (["powershell.exe", "-NoProfile", "-STA", "-Command", PICK_WINDOWS], "/mnt/c" if Path("/mnt/c").exists() else None),
-        "zenity": (["zenity", "--file-selection", "--file-filter=MP4, MOV | *.mp4 *.MP4 *.mov *.MOV", "--file-filter=* | *"], None),
-        "kdialog": (["kdialog", "--getopenfilename", str(Path.home()), "MP4, MOV (*.mp4 *.MP4 *.mov *.MOV)"], None),
+        "mac": (["osascript", *[a for line in PICK_MAC[what] for a in ("-e", line)]], None),
+        "wsl": (["powershell.exe", "-NoProfile", "-STA", "-Command", PICK_WINDOWS[what]], "/mnt/c" if Path("/mnt/c").exists() else None),
+        "zenity": (["zenity", "--file-selection", "--directory"] if folder else ["zenity", "--file-selection", "--multiple", "--separator=\n", "--file-filter=MP4, MOV | *.mp4 *.MP4 *.mov *.MOV", "--file-filter=* | *"], None),
+        "kdialog": (["kdialog", "--getexistingdirectory", str(Path.home())] if folder else ["kdialog", "--getopenfilename", str(Path.home()), "MP4, MOV (*.mp4 *.MP4 *.mov *.MOV)", "--multiple", "--separate-output"], None),
     }.get(kind, (None, None))
     if command is None:
         raise LookupError("picker")
@@ -267,11 +291,26 @@ def pick_video() -> str | None:
         run = subprocess.run(command, capture_output=True, timeout=PICK_S, stdin=subprocess.DEVNULL, cwd=cwd)
     except subprocess.TimeoutExpired:
         return None
-    picked = run.stdout.decode("utf-8", "replace").strip()
-    # Closed without a video: nothing printed (osascript, zenity and kdialog also fail).
+    picked = [line.strip() for line in run.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
+    # Closed without any: nothing printed (osascript, zenity and kdialog also fail).
     if run.returncode or not picked:
         return None
-    return str(from_windows(picked) if kind == "wsl" else Path(picked))
+    return [str(from_windows(p) if kind == "wsl" else Path(p)) for p in picked]
+
+
+def paths_of(source: str | list[str]) -> Path | list[Path]:
+    """A source as the import reads it: a card, a folder or a video, or several videos picked together."""
+    if isinstance(source, list):
+        if not source or not all(isinstance(p, str) for p in source):
+            raise ValueError("source")
+        return Path(source[0]).expanduser() if len(source) == 1 else [Path(p).expanduser() for p in source]
+    return Path(str(source)).expanduser()
+
+
+def query_source(q: dict) -> str | list[str]:
+    """The source a GET's query names: one `source`, or several for videos picked together."""
+    found = q["source"]
+    return found[0] if len(found) == 1 else found
 
 
 def probed(videos: list[Path]) -> list:
@@ -292,11 +331,11 @@ def probed(videos: list[Path]) -> list:
     return found
 
 
-def chapters_of(source: str, recording: int) -> list:
-    """The chapters of a card's or folder's recording `recording` (from 1)."""
+def chapters_of(source: str | list[str], recording: int) -> list:
+    """The chapters of a source's (`paths_of`) recording `recording` (from 1)."""
     from volleyball_stats import import_match
 
-    groups = import_match.recordings(probed(import_match.videos(Path(source).expanduser())))
+    groups = import_match.recordings(probed(import_match.videos(paths_of(source))))
     if not 1 <= recording <= len(groups):
         raise LookupError("recording")
     return groups[recording - 1]
@@ -307,24 +346,35 @@ def preview(query: str) -> bytes:
     from volleyball_stats import import_match
 
     q = parse_qs(query)
-    return import_match.frame_at(chapters_of(q["source"][0], int(q["recording"][0])), float(q["at"][0]))
+    return import_match.frame_at(chapters_of(query_source(q), int(q["recording"][0])), float(q["at"][0]))
 
 
-def scan(source: str) -> dict:
-    """The recordings of a card or folder, each with its start, length and the match day it gives."""
+def chapter_video(query: str) -> Path:
+    """A chapter of a recording, for the import's player to play as it is (`source`, `recording` from 1, `chapter` from 0)."""
+    q = parse_qs(query)
+    chapters = chapters_of(query_source(q), int(q["recording"][0]))
+    k = int(q["chapter"][0])
+    if not 0 <= k < len(chapters):
+        raise LookupError("chapter")
+    return chapters[k].path
+
+
+def scan(source: str | list[str]) -> dict:
+    """The recordings of a card, a folder or videos picked together, each with its start, length, its chapters' lengths
+    and the match day it gives."""
     from volleyball_stats import import_match
 
-    path = Path(source).expanduser()
-    if not path.exists():
+    paths = paths_of(source)
+    if not all(p.exists() for p in (paths if isinstance(paths, list) else [paths])):
         raise LookupError("missing")
-    found = import_match.videos(path)
+    found = import_match.videos(paths)
     if not found:
         raise LookupError("empty")
     groups = import_match.recordings(probed(found))
     return {
-        "source": str(path),
+        "source": [str(p) for p in paths] if isinstance(paths, list) else str(paths),
         "recordings": [
-            {"start": g[0].stamp.isoformat() if g[0].stamp else None, "duration": sum(c.duration for c in g), "chapters": len(g), "date": import_match.named(g, ["", ""])[1]}
+            {"start": g[0].stamp.isoformat() if g[0].stamp else None, "duration": sum(c.duration for c in g), "chapters": [c.duration for c in g], "date": import_match.named(g, ["", ""])[1]}
             for g in groups
         ],
     }
@@ -366,7 +416,8 @@ def import_steps(body: dict) -> tuple[str, str, list, float]:
     needed = 2 * sum(c.path.stat().st_size for c in chapters)
     if shutil.disk_usage(DATA).free < needed:
         raise OSError(f"disk:{round(needed / 1e9)}")
-    command = ["volleyball_stats.import_match", str(Path(body["source"]).expanduser()), "--teams", flag, "--date", day, "--recording", str(recording)]
+    paths = paths_of(body["source"])
+    command = ["volleyball_stats.import_match", *map(str, paths if isinstance(paths, list) else [paths]), "--teams", flag, "--date", day, "--recording", str(recording)]
     command += [arg for k, flag_name in (("from", "--from"), ("to", "--to")) if body.get(k) for arg in (flag_name, str(body[k]))]
     return name, day, [("import", command), court_auto(name)], min(end or total, total) - (start or 0)
 
@@ -608,6 +659,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply({"available": picker() is not None})
             if route == "preview":
                 return preview(query), "image/jpeg", 200
+            if route == "video":
+                return chapter_video(query), "video/mp4", 200
             if route == "club":
                 return reply({"club": club_settings.read(), "themes": club_settings.themes(), "played": played_teams()})
             if route == "club/file":
@@ -637,7 +690,7 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "mount":
             return reply({"path": str(mount(str(body["drive"])))})
         if route == "pick":
-            return reply({"source": pick_video()})
+            return reply({"source": pick(str(body.get("what", "files")))})
         if route == "scan":
             return reply(scan(str(body["source"])))
         if route == "import":

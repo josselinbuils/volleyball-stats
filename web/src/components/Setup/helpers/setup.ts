@@ -80,7 +80,8 @@ export interface Source {
 export interface Recording {
   start: string | null;
   duration: number;
-  chapters: number;
+  /** Each chapter's length, in seconds: the camera cuts a long recording into files. */
+  chapters: number[];
   date: string;
 }
 
@@ -151,4 +152,28 @@ export function importError(error: string | undefined): [string, Record<string, 
     network: 'app.noAnswer',
   };
   return error && known[error] ? [known[error], {}] : ['app.import.failed', { error: error ?? '' }];
+}
+
+/** The chapter holding `seconds` of a recording whose chapters last `chapters`, and where in it; the last one's end past it. */
+export function chapterAt(chapters: number[], seconds: number): [number, number] {
+  let start = 0;
+  for (const [k, length] of chapters.entries()) {
+    if (seconds < start + length || k === chapters.length - 1) {
+      return [k, Math.max(0, Math.min(length, seconds - start))];
+    }
+    start += length;
+  }
+  return [0, 0];
+}
+
+/** The query naming a source (a card, a folder, or videos picked together, each a `source`) and `extra`. */
+export function sourceQuery(source: string | string[], extra: Record<string, string>): string {
+  const q = new URLSearchParams();
+  for (const s of Array.isArray(source) ? source : [source]) {
+    q.append('source', s);
+  }
+  for (const [k, v] of Object.entries(extra)) {
+    q.set(k, v);
+  }
+  return q.toString();
 }

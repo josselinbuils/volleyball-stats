@@ -47,8 +47,11 @@ def probe(path: Path) -> Chapter:
     return Chapter(path, float(stream["duration"]), int(frames) if frames.isdigit() else 0)
 
 
-def videos(source: Path) -> list[Path]:
-    """The videos of a card or folder in name order, which is the camera's; SOURCE itself if it is a file."""
+def videos(source: Path | list[Path]) -> list[Path]:
+    """The videos of a card or folder in name order, which is the camera's; SOURCE itself if it is a file; those of
+    each of several sources together."""
+    if isinstance(source, list):
+        return sorted({p for one in source for p in videos(one)}, key=lambda p: p.name)
     if source.is_file():
         return [source]
     return sorted((p for p in source.rglob("*") if p.suffix.lower() == ".mp4" and not any(part.startswith(".") for part in p.relative_to(source).parts)), key=lambda p: p.name)
@@ -165,7 +168,7 @@ def named(chapters: list[Chapter], names: list[str], date: str | None = None) ->
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Import a match from the camera's card, named like its hosted page.")
-    parser.add_argument("source", type=Path, help="The card, a folder of chapters or one video")
+    parser.add_argument("source", type=Path, nargs="+", help="The card, a folder of chapters, one video or several")
     parser.add_argument("--teams", required=True, help='"NAME_1[:COLOUR],NAME_2[:COLOUR]", the first on the left at the first rally')
     parser.add_argument("--from", dest="start", help="Where the match starts in the joined video, m:ss or h:mm:ss")
     parser.add_argument("--to", dest="end", help="Where it ends")
@@ -186,7 +189,7 @@ def main() -> None:
         parser.error(f"Not a date: {args.date!r} (use YYYY-MM-DD)")
     found = videos(args.source)
     if not found:
-        parser.error(f"No video in {args.source}")
+        parser.error(f"No video in {' '.join(map(str, args.source))}")
     groups = recordings([probe(p) for p in found])
     if len(groups) > 1 and not args.recording:
         parser.error(f"{len(groups)} recordings: {describe(groups)}. Choose one with --recording.")

@@ -15,9 +15,12 @@
   A match being prepared shows above the list until its `report.md` exists; one whose pipeline a command ran and no
   process runs any more is offered to run again. A job is the runner's process number and start time (`ps lstart`):
   after a restart, a reused number is no job. Under WSL2 the import lists Windows' drives, a card plugged in after WSL
-  started mounted when picked (`wsl.exe -u root mount -t drvfs`, no password), and the Windows downloads. "Parcourir…" opens the
-  system's own file window to pick the video (`app.pick_video`: Finder, Windows' under WSL2, zenity or kdialog on a Linux
-  desktop; no button without one). A second start
+  started mounted when picked (`wsl.exe -u root mount -t drvfs`, no password), and the Windows downloads. "Vidéos…" and "Dossier…" open
+  the system's own file window in front of the page to pick several videos or a folder (`app.pick`: Finder, Windows' under WSL2
+  owned by a window kept on top, zenity or kdialog on a Linux desktop; no button without one); Windows' drives show by their
+  name ("SD_Card (E:)"). The import plays the recording (the camera's own files, `/app/video` by byte ranges, chapter after
+  chapter; HEVC needs a browser that decodes it, else the pictures of a slider), zoomed and full screen, above the two teams
+  side by side as on the picture. The pictures to check before the analysis zoom too (`Zoomable`). A second start
   only opens the page.
   "Club" (on the list and in the review's "..." menu, `club_settings.py`, `outputs/club/club.json`) edits the one club
   every page shows (name, site, logo, colours, sponsors) and its teams; saved from a review, that match's pages are rebuilt at once, the others at their next build.
