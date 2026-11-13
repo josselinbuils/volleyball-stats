@@ -84,7 +84,7 @@ On 13 Nov, the third match (one kit, named while its review went on): its pendin
 time, Jessy's card losing 2,017 s (the 1,376 s left of it an unnamed card again), and `STAY` gave no steady fix
 (0.2, 0.4, 0.6, 1.0: 3,690, 1,273, 3,108, 2,094 s moved). Kept: a named card's pieces no answer names joined to the
 name, a piece reading a named player's jersey number joined to them, one reading another's leaving (`kept_cards`):
-named time lost 2,563 -> 120 s, 3,450 s newly named (Joffrey's unnamed second card, 1,398 s, all its 387 reads 22;
+named time lost 2,382 -> 134 s, newly named 1,273 -> 3,457 s, given another name 35 -> 83 s (Joffrey's unnamed second card, 1,398 s, all its 387 reads 22;
 four of its unread pieces checked by eye, all him). Held-out answers unchanged without a previous run (first match
 422/565, second 224/338).
 
