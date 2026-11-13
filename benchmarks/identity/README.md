@@ -80,6 +80,14 @@ had (`STAY` 0.2): 298/428 (69.6%) against 293/428 (68.5%); naming a second card 
 the two, and 0.5% of the named time changes name across an apply against 5% (the school clips,
 without names, keep their scores).
 
+On 13 Nov, the third match (one kit, named while its review went on): its pending apply moved 3,690 s of named
+time, Jessy's card losing 2,017 s (the 1,376 s left of it an unnamed card again), and `STAY` gave no steady fix
+(0.2, 0.4, 0.6, 1.0: 3,690, 1,273, 3,108, 2,094 s moved). Kept: a named card's pieces no answer names joined to the
+name, a piece reading a named player's jersey number joined to them, one reading another's leaving (`kept_cards`):
+named time lost 2,563 -> 120 s, 3,450 s newly named (Joffrey's unnamed second card, 1,398 s, all its 387 reads 22;
+four of its unread pieces checked by eye, all him). Held-out answers unchanged without a previous run (first match
+422/565, second 224/338).
+
 ## Ground truth
 
 `ground_truth/<clip>.csv`: `frame,player,x1,y1,x2,y2,track`, every tracked on-court player on
