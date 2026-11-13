@@ -16,7 +16,7 @@ const SETTLE_MS = 200;
  * the camera's own video, chapter after chapter, zoomed and full screen at will; a browser that cannot play it shows the
  * pictures of a slider instead. A slider, steps, and "start here" / "end here"; `at` follows a time typed in a field, the
  * kept span (`from`..`to`) shows on the slider. */
-export function CutPreview({
+export function RecordingPlayer({
   source,
   recording,
   chapters,

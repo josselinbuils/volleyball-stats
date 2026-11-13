@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { clock, useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
-import { CutPreview } from './CutPreview';
+import { RecordingPlayer } from './RecordingPlayer';
 import { suggestedTeams, type ClubState } from '@/components/helpers/club';
 import { importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
 
@@ -201,7 +201,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
                 ))}
               </fieldset>
             )}
-            <CutPreview
+            <RecordingPlayer
               key={recording}
               source={found.source}
               recording={recording + 1}
