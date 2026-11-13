@@ -157,3 +157,52 @@ class TestApp:
         job = {"started": 0.0, "stepStarted": 0.0, "step": "hosting", "stage": "match 2/5", "progress": 0.5}
         assert app.told(job, 60.0) == {"stage": "match", "n": 2, "of": 5, "elapsed": 60.0, "left": pytest.approx(60.0)}
         assert app.told({**job, "stage": "upload"}, 60.0)["n"] is None
+
+
+class TestPickVideo:
+    def run_as(self, monkeypatch, kind, stdout=b"", returncode=0):
+        ran = []
+
+        def run(command, **_):
+            ran.append(command)
+            return app.subprocess.CompletedProcess(command, returncode, stdout, b"")
+
+        monkeypatch.setattr(app.doctor, "system", lambda: kind)
+        monkeypatch.setattr(app.subprocess, "run", run)
+        return ran
+
+    def test_gives_the_video_picked_in_the_finder(self, monkeypatch):
+        ran = self.run_as(monkeypatch, "mac", "/Users/léa/Movies/match.mp4\n".encode())
+        assert app.picker() == "mac" and app.pick_video() == "/Users/léa/Movies/match.mp4"
+        assert ran[0][0] == "osascript"
+
+    def test_a_window_closed_without_a_video_gives_none(self, monkeypatch):
+        self.run_as(monkeypatch, "mac", b"", 1)
+        assert app.pick_video() is None
+        self.run_as(monkeypatch, "wsl", b"\r\n")
+        assert app.pick_video() is None
+
+    def test_under_wsl_gives_windows_path_as_wsl_sees_it_its_drive_mounted(self, monkeypatch):
+        mounted = []
+        ran = self.run_as(monkeypatch, "wsl", "E:\\DCIM\\DJI_001\\match é.MP4\r\n".encode())
+        monkeypatch.setattr(app, "mount", lambda drive: mounted.append(drive))
+        monkeypatch.setattr(app.os.path, "ismount", lambda path: False)
+        assert app.pick_video() == "/mnt/e/DCIM/DJI_001/match é.MP4"
+        assert mounted == ["E"] and ran[0][0] == "powershell.exe"
+        # Windows' own drive is always there.
+        self.run_as(monkeypatch, "wsl", b"C:\\Users\\a\\m.mp4\r\n")
+        assert app.pick_video() == "/mnt/c/Users/a/m.mp4" and mounted == ["E"]
+
+    def test_a_linux_desktop_uses_its_own_tool_and_none_means_no_window(self, monkeypatch):
+        self.run_as(monkeypatch, "linux", b"/home/a/m.mp4\n")
+        monkeypatch.setenv("DISPLAY", ":0")
+        monkeypatch.setattr(app.shutil, "which", lambda name: "/usr/bin/kdialog" if name == "kdialog" else None)
+        assert app.picker() == "kdialog" and app.pick_video() == "/home/a/m.mp4"
+        monkeypatch.setattr(app.shutil, "which", lambda name: None)
+        assert app.picker() is None
+        with pytest.raises(LookupError, match="picker"):
+            app.pick_video()
+        monkeypatch.setattr(app.shutil, "which", lambda name: "/usr/bin/zenity")
+        monkeypatch.delenv("DISPLAY")
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+        assert app.picker() is None

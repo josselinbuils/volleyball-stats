@@ -1309,6 +1309,7 @@
       "card": "Carte {{name}}",
       "path": "Ou un dossier, une vidéo",
       "look": "Chercher",
+      "pick": "Parcourir…",
       "finding": "Recherche des cartes et dossiers…",
       "scanning": "Lecture des vidéos…",
       "noFolder": "Dossier introuvable.",

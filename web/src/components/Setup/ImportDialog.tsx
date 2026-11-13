@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { HardDrive, Folder, LoaderCircle, Search } from 'lucide-react';
+import { HardDrive, Folder, FolderSearch, LoaderCircle, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,12 +15,15 @@ interface TeamField {
   colour: string | null;
 }
 
-/** A match imported from the camera's card or a folder: where, which recording, the teams, the day. The copy, then the
+/** A match imported from the camera's card, a folder or a video picked in the system's file window: where, which recording, the teams, the day. The copy, then the
  * court's search, run in the background. */
 export function ImportDialog({ onClose }: { onClose: (started: boolean) => void }) {
   const { t } = useTranslation();
   const f = useFormat();
   const [sources, setSources] = useState<Source[] | null>(null);
+  // Whether this machine can open its own file window, and whether it is open.
+  const [picker, setPicker] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [path, setPath] = useState('');
   // The folder being read: a listed one's path, or the one typed.
   const [scanning, setScanning] = useState<string | null>(null);
@@ -47,10 +50,15 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
     });
   }, []);
   useEffect(() => {
-    fetch('/app/sources')
-      .then((r) => (r.ok ? (r.json() as Promise<Source[]>) : []))
-      .then(setSources)
-      .catch(() => setSources([]));
+    void Promise.all([
+      fetch('/app/sources')
+        .then((r) => (r.ok ? (r.json() as Promise<Source[]>) : []))
+        .catch(() => [] as Source[]),
+      call<{ available: boolean }>('picker'),
+    ]).then(([found, own]) => {
+      setPicker(own.ok && own.available);
+      setSources(found);
+    });
   }, []);
 
   const refuse = (error: string | undefined) => {
@@ -78,6 +86,23 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
     setFound(r);
     setRecording(r.recordings.length - 1);
     setDate(r.recordings[r.recordings.length - 1].date);
+  };
+
+  /** The video picked in the system's own file window. */
+  const pick = async () => {
+    setScanning('pick');
+    setPicking(true);
+    setError(null);
+    const r = await call<{ source: string | null }>('pick', {});
+    setPicking(false);
+    if (r.ok && r.source) {
+      await scan(r.source, undefined, 'pick');
+      return;
+    }
+    setScanning(null);
+    if (!r.ok) {
+      refuse(r.error);
+    }
   };
 
   const times = [from, to].map((v) => (v.trim() ? parseTime(v) : 0));
@@ -132,6 +157,12 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
               <span className="truncate">{source.card ? t('app.import.card', { name: source.name }) : source.name}</span>
             </Button>
           ))}
+          {sources && picker && (
+            <Button variant="outline" className="justify-start" busy={scanning === 'pick'} disabled={!!scanning} onClick={() => void pick()}>
+              <FolderSearch aria-hidden />
+              {t('app.import.pick')}
+            </Button>
+          )}
           <form
             className="flex gap-2"
             onSubmit={(event) => {
@@ -147,7 +178,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
               {t('app.import.look')}
             </Button>
           </form>
-          {!!scanning && <p className="text-muted-foreground">{t('app.import.scanning')}</p>}
+          {!!scanning && !picking && <p className="text-muted-foreground">{t('app.import.scanning')}</p>}
         </div>
         {found && (
           <form onSubmit={submit} className="grid gap-4">

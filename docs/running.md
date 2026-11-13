@@ -11,7 +11,9 @@
   A match being prepared shows above the list until its `report.md` exists; one whose pipeline a command ran and no
   process runs any more is offered to run again. A job is the runner's process number and start time (`ps lstart`):
   after a restart, a reused number is no job. Under WSL2 the import lists Windows' drives, a card plugged in after WSL
-  started mounted when picked (`wsl.exe -u root mount -t drvfs`, no password), and the Windows downloads. A second start
+  started mounted when picked (`wsl.exe -u root mount -t drvfs`, no password), and the Windows downloads. "Parcourir…" opens the
+  system's own file window to pick the video (`app.pick_video`: Finder, Windows' under WSL2, zenity or kdialog on a Linux
+  desktop; no button without one). A second start
   only opens the page.
   "Club" (on the list and in the review's "..." menu, `club_settings.py`, `outputs/club/club.json`) edits the one club
   every page shows (name, site, logo, colours, sponsors) and its teams; saved from a review, that match's pages are rebuilt at once, the others at their next build.

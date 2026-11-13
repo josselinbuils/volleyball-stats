@@ -217,6 +217,63 @@ def sources() -> list[dict]:
     return sorted(found, key=lambda s: not s["card"])
 
 
+# The longest the system's file window may stay open.
+PICK_S = 900
+# Windows' file window, on top of the page's: the path picked on stdout, nothing when closed.
+PICK_WINDOWS = (
+    "Add-Type -AssemblyName System.Windows.Forms; [Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+    "$d = New-Object System.Windows.Forms.OpenFileDialog; $d.Filter = 'MP4, MOV|*.mp4;*.mov|*.*|*.*'; "
+    "$top = New-Object System.Windows.Forms.Form -Property @{TopMost = $true; ShowInTaskbar = $false}; "
+    "if ($d.ShowDialog($top) -eq 'OK') { $d.FileName }"
+)
+
+
+def picker() -> str | None:
+    """How this machine opens its own file window: "mac" (Finder), "wsl" (Windows'), a Linux desktop's "zenity" or
+    "kdialog"; None without one."""
+    kind = doctor.system()
+    if kind in ("mac", "wsl"):
+        return kind
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return None
+    return next((tool for tool in ("zenity", "kdialog") if shutil.which(tool)), None)
+
+
+def from_windows(path: str) -> Path:
+    """A Windows path (a letter's drive) as WSL2 sees it, its drive mounted when it is not yet."""
+    found = re.fullmatch(r"([A-Za-z]):\\(.*)", path)
+    if not found:
+        raise LookupError("missing")
+    drive, rest = found.groups()
+    root = Path("/mnt") / drive.lower()
+    if drive.upper() != "C" and not os.path.ismount(root):
+        mount(drive)
+    return root.joinpath(*rest.split("\\"))
+
+
+def pick_video() -> str | None:
+    """The video picked in the system's own file window, None when it is closed without one. LookupError "picker" on a
+    machine without such a window."""
+    kind = picker()
+    command, cwd = {
+        "mac": (["osascript", "-e", "tell me to activate", "-e", 'POSIX path of (choose file of type {"public.movie"})'], None),
+        "wsl": (["powershell.exe", "-NoProfile", "-STA", "-Command", PICK_WINDOWS], "/mnt/c" if Path("/mnt/c").exists() else None),
+        "zenity": (["zenity", "--file-selection", "--file-filter=MP4, MOV | *.mp4 *.MP4 *.mov *.MOV", "--file-filter=* | *"], None),
+        "kdialog": (["kdialog", "--getopenfilename", str(Path.home()), "MP4, MOV (*.mp4 *.MP4 *.mov *.MOV)"], None),
+    }.get(kind, (None, None))
+    if command is None:
+        raise LookupError("picker")
+    try:
+        run = subprocess.run(command, capture_output=True, timeout=PICK_S, stdin=subprocess.DEVNULL, cwd=cwd)
+    except subprocess.TimeoutExpired:
+        return None
+    picked = run.stdout.decode("utf-8", "replace").strip()
+    # Closed without a video: nothing printed (osascript, zenity and kdialog also fail).
+    if run.returncode or not picked:
+        return None
+    return str(from_windows(picked) if kind == "wsl" else Path(picked))
+
+
 def probed(videos: list[Path]) -> list:
     """Each video's length (import_match.probe); LookupError "unreadable:NAME" for one ffprobe cannot read (a chapter
     cut short by an empty battery)."""
@@ -543,6 +600,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply(server.copies(OUTPUTS))
             if route == "sources":
                 return reply(sources())
+            if route == "picker":
+                return reply({"available": picker() is not None})
             if route == "preview":
                 return preview(query), "image/jpeg", 200
             if route == "club":
@@ -573,6 +632,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
             return reply({})
         if route == "mount":
             return reply({"path": str(mount(str(body["drive"])))})
+        if route == "pick":
+            return reply({"source": pick_video()})
         if route == "scan":
             return reply(scan(str(body["source"])))
         if route == "import":

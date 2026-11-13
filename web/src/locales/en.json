@@ -1309,6 +1309,7 @@
       "card": "Card {{name}}",
       "path": "Or a folder, a video",
       "look": "Look",
+      "pick": "Browse…",
       "finding": "Looking for cards and folders…",
       "scanning": "Reading the videos…",
       "noFolder": "Folder not found.",
