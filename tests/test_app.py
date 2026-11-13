@@ -28,7 +28,9 @@ class TestApp:
         folder.mkdir(parents=True, exist_ok=True)
         (folder / f"{name}.json").write_text(json.dumps({"id": name, "kind": "import", "steps": [], "started": 1.0, "ended": 2.0, **fields}))
 
-    def test_tells_what_each_match_waits_for(self, place):
+    def test_tells_what_each_match_waits_for(self, place, monkeypatch):
+        # No pipeline of this machine's: one running for real would name these one-letter matches.
+        monkeypatch.setattr(app, "commands_running", lambda: "")
         self.match(place, "a")
         self.match(place, "b", app.COURT)
         self.match(place, "c", files.SOURCE)

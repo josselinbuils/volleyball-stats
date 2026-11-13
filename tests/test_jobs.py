@@ -1,4 +1,5 @@
 import json
+import os
 import time
 
 import pytest
@@ -45,6 +46,20 @@ class TestJobs:
 
         assert jobs.alive(os.getpid(), jobs.started_at(os.getpid()))
         assert not jobs.alive(os.getpid(), "Mon Jan  1 00:00:00 2001")
+
+    def test_a_clock_set_again_keeps_the_process_its_own(self, monkeypatch):
+        # WSL2 after a resync: `ps` tells a start 9 s off the one recorded.
+        monkeypatch.setattr(jobs, "started_at", lambda pid: "Fri Nov 13 11:04:46 2026")
+        assert jobs.alive(os.getpid(), "Fri Nov 13 11:04:55 2026")
+        assert not jobs.alive(os.getpid(), "Fri Nov 13 09:04:55 2026")
+
+    def test_a_process_known_by_its_key_is_that_one_whatever_the_clock(self, monkeypatch):
+        key = jobs.process_key(os.getpid())
+        if key is None:
+            pytest.skip("no /proc here")
+        monkeypatch.setattr(jobs, "started_at", lambda pid: "Mon Jan  1 00:00:00 2001")
+        assert jobs.alive(os.getpid(), "Fri Nov 13 11:04:55 2026", key)
+        assert not jobs.alive(os.getpid(), None, key.rsplit(":", 1)[0] + ":1")
 
     def test_a_dead_runner_is_interrupted(self, tmp_path):
         folder = jobs.folder(tmp_path)

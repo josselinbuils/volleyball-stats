@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 from volleyball_stats import files
@@ -114,8 +115,8 @@ def start(outputs: Path, job_id: str, kind: str, steps: list[tuple[str, list[str
         stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
     log.close()
-    job.update(pid=process.pid, pidStarted=started_at(process.pid))
-    update(record, pid=job["pid"], pidStarted=job["pidStarted"])
+    job.update(pid=process.pid, pidStarted=started_at(process.pid), pidKey=process_key(process.pid))
+    update(record, pid=job["pid"], pidStarted=job["pidStarted"], pidKey=job["pidKey"])
     return job
 
 
@@ -123,6 +124,12 @@ def update(record: Path, **fields) -> None:
     job = json.loads(record.read_text())
     job.update(fields)
     files.write_text(record, json.dumps(job, indent=1))
+
+
+# `ps` tells a process's start from the clock at boot plus its age: a clock set again (WSL2 after a sleep or a resync,
+# 9 s on 13 Nov) moves it. Starts this close are one process; a number reused after a restart starts much later.
+START_SLACK_S = 300
+LSTART = "%a %b %d %H:%M:%S %Y"
 
 
 def started_at(pid: int) -> str | None:
@@ -134,8 +141,30 @@ def started_at(pid: int) -> str | None:
     return found or None
 
 
-def alive(pid: int | None, since: str | None = None) -> bool:
-    """Whether the process `pid` runs, and is the one started at `since` when given (a restart reuses numbers)."""
+def process_key(pid: int) -> str | None:
+    """Where the system tells it (Linux, WSL2), the process `pid` exactly: the boot's id and its start in ticks since
+    the boot, which no clock change moves; None elsewhere (macOS: `started_at` only)."""
+    try:
+        boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+        ticks = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
+    except (OSError, IndexError):
+        return None
+    return f"{boot}:{ticks}"
+
+
+def same_start(now: str | None, since: str) -> bool:
+    """Whether two of `ps`'s start times are one process's, the clock set again in between (START_SLACK_S)."""
+    if now is None:
+        return False
+    try:
+        return abs((datetime.strptime(" ".join(now.split()), LSTART) - datetime.strptime(" ".join(since.split()), LSTART)).total_seconds()) <= START_SLACK_S
+    except ValueError:
+        return now == since
+
+
+def alive(pid: int | None, since: str | None = None, key: str | None = None) -> bool:
+    """Whether the process `pid` runs, and is the one started at `since` (`ps`'s time) or known as `key`
+    (`process_key`) when given: a restart reuses numbers."""
     if not pid:
         return False
     try:
@@ -151,11 +180,14 @@ def alive(pid: int | None, since: str | None = None) -> bool:
             return False
     except ChildProcessError:
         pass
-    return since is None or started_at(pid) == since
+    found = process_key(pid) if key else None
+    if found:
+        return found == key
+    return since is None or same_start(started_at(pid), since)
 
 
 def running(job: dict) -> bool:
-    return "ended" not in job and alive(job.get("pid"), job.get("pidStarted"))
+    return "ended" not in job and alive(job.get("pid"), job.get("pidStarted"), job.get("pidKey"))
 
 
 def tail(path: Path) -> str:
