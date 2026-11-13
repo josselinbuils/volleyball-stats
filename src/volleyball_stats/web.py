@@ -1262,6 +1262,10 @@ def packed(vectors: dict[str, np.ndarray]) -> bytes:
     return out.getvalue()
 
 
+# Player pictures scored together (`photos`): their crops held in memory meanwhile.
+SCORE_BATCH = 64
+
+
 def framed(image: np.ndarray, box: tuple[int, int, int, int]) -> tuple[np.ndarray, tuple[int, int, float]]:
     """A player's whole picture from their `box`: a little room above and below them, widened to
     PHOTO_RATIO; and its left, top and scale (`cut`)."""
@@ -1459,33 +1463,46 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
 
     def scored(moments: dict[int, list]) -> None:
         """`scores` holding every one of `moments` (`looks`) and `vectors` their appearance (the
-        re-identification embedding of their box), read from the video where missing."""
+        re-identification embedding of their box), read from the video where missing, SCORE_BATCH
+        pictures at a time: a long match's cut all at once took the machine's memory (13 Nov)."""
         wanted: dict[int, list[tuple]] = {}
         for f, b in {m for found in moments.values() for m in found if len(scores.get(name(*m), ())) != 6 or name(*m) not in vectors}:
             wanted.setdefault(f, []).append(b)
         pictures: dict[str, tuple] = {}
         boxes: dict[str, np.ndarray] = {}
+
+        def flush() -> None:
+            if boxes:
+                if not reid:
+                    from volleyball_stats.ball import default_device
+                    from volleyball_stats.identity import describe, load_reid
+
+                    device = default_device()
+                    reid.extend([load_reid(device), device, describe])
+                model, device, describe = reid
+                vectors.update(zip(boxes, describe(list(boxes.values()), model, device)))
+            if pictures:
+                for key, (facing, whole, sharp, others, head, kit) in zip(pictures, looks([(p, b) for p, b, _ in pictures.values()])):
+                    left, top, scale = pictures[key][2]
+                    # The head back in the frame's pixels.
+                    scores[key] = [facing, whole, sharp, others, head and [top + head[0] / scale, left + head[1] / scale, top + head[2] / scale], kit]
+            pictures.clear()
+            boxes.clear()
+
+        scored_any = False
         for frame, image in frames_at(video, wanted):
             for box in wanted[frame]:
                 part, (left, top, scale) = framed(image, box)
-                pictures[name(frame, box)] = (part, tuple(round((v - o) * scale) for v, o in zip(box, (left, top, left, top))), (left, top, scale))
+                # Copies: a view would keep the whole 4K frame alive.
+                pictures[name(frame, box)] = (part.copy(), tuple(round((v - o) * scale) for v, o in zip(box, (left, top, left, top))), (left, top, scale))
                 x1, y1, x2, y2 = box
-                boxes[name(frame, box)] = image[max(0, y1) : y2, max(0, x1) : x2]
-        if boxes:
-            if not reid:
-                from volleyball_stats.ball import default_device
-                from volleyball_stats.identity import describe, load_reid
-
-                device = default_device()
-                reid.extend([load_reid(device), device, describe])
-            model, device, describe = reid
-            vectors.update(zip(boxes, describe(list(boxes.values()), model, device)))
+                boxes[name(frame, box)] = image[max(0, y1) : y2, max(0, x1) : x2].copy()
+                scored_any = True
+            if len(boxes) >= SCORE_BATCH:
+                flush()
+        flush()
+        if scored_any:
             files.write_bytes(vectors_path, packed(vectors))
-        if pictures:
-            for key, (facing, whole, sharp, others, head, kit) in zip(pictures, looks([(p, b) for p, b, _ in pictures.values()])):
-                left, top, scale = pictures[key][2]
-                # The head back in the frame's pixels.
-                scores[key] = [facing, whole, sharp, others, head and [top + head[0] / scale, left + head[1] / scale, top + head[2] / scale], kit]
             files.write_text(path, json.dumps({"stamp": stamp, "scores": scores}))
 
     scored(moments)
