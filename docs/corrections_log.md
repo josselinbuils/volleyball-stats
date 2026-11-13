@@ -220,6 +220,26 @@ the picked box, the real toucher 0.4 box heights away: two players in line with 
 Out of reach: two players in line (a perfect order would give 729 / 905: a depth cue, the ball's size or the players in 3D),
 the wrong identity pieces (the identity step keeps 77% of the held-out answers: a better re-identification).
 
+### The wrong names, again (13 Nov, night; runs `cross-*` against `block-net`: 279 / 345)
+
+Where the truth's player stands at each wrong name of `block-net` (80 / 102; scripts `where.py`, `holes.py` in
+`outputs/benchmarks/corrections/scripts/`, `uv run python SCRIPT block-net`, about 10 min each): candidate #1 4 / 3 (the
+learned order moved it), #2 31 / 37, #3+ 10 / 14, on no track 18 / 30, and two new groups:
+
+- On a track the side check leaves out (13 / 8): the contact is put on the wrong side of the net (attacks and sets at the
+  net, the ball high over the net line in the picture), the truth's player on their own side 0.2-0.9 m from the net; the
+  pipeline names the other team's nearest (19 of 21). Letting the other side's tracks within `-CROSS_M` m of the net be
+  candidates for every touch: CROSS_M -1.0 m 287 / 348, -0.5 m 283 / 347: worse (they win touches that were this side's;
+  add -3 but remove and players up). Not kept, `attribution.py` unchanged.
+- On a track with a hole around the contact (4 / 10, mostly attacks): the attacker's track misses 0.6-2 s around the jump
+  (holes of 30-100 frames, longer than `GAP_S`), its interpolated box at the ball (under 0.3 box heights in about half);
+  the picked track holds the ball's box: likely the tracker giving the jumping attacker's box to another track for that
+  moment. Not run.
+
+The early attack (Next, "The block right after an attack"): the blocks the net rule drops are the real attack after a
+false early "attack" in 2 of 11 (88521 on the first match, 51436 on the second); the other 9 are false blocks after a real
+attack, with the same gaps (11-15 frames), sides and teams: out of a rule's reach (2 corrections at most). Not run.
+
 ### Types (11 Nov, `next_steps.md` "Types to fix (11 Nov)")
 
 Of the 221 wrong types, 20 are a block the pipeline never saw (one touch serving an attack and a block 0.2 s apart: a touch to
@@ -410,3 +430,13 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
    matches, train on two and compare the windows on the third.
 6. The play model on someone else's footage: its windows are worse on the one other match (`benchmarks/rallies/README.md`);
    a threshold or uses set per footage, or training on more views, before it runs on anything but the footage it knows.
+7. Resume here (13 Nov, night): the wrong names ("The wrong names, again"). Two leads, neither run end to end:
+   - the side check only where the contact is near the net: let the other side's tracks within 1 m of the net be candidates
+     only when the ball's court x (`ball3d` places, or the contact's image x against the net's line at the ball's height,
+     not `net_x` at the floor) is within about 1 m of the net, so the touches away from the net keep today's candidates
+     (everywhere, the 0.5 m version lost 4 / 2);
+   - an attacker's hole: when the picked track's box at the contact sits where another track with a hole there (both ends
+     within about 1 s) would be interpolated (IoU, same team), credit the hole's track; count first how often it fires on
+     the touches named right.
+   Bench: `VB_...` env var in `attribution.py`, `bench.py run NAME MATCH --play runs/play-main/MATCH/play.npz` through
+   `flock /tmp/vb-rerun.lock`, then `score NAME MATCH --compare block-net`; about 3 min a match.
