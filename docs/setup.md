@@ -7,8 +7,7 @@
 ## Requirements
 
 - **A GPU.** Processing picks an NVIDIA GPU (CUDA) first, then Apple Silicon (MPS), then the CPU.
-  Set up for an RTX 5080 in WSL2 with Ubuntu (its speed not measured yet), and run on an Apple M4 Pro
-  (slower).
+  Run on an RTX 5080 in WSL2 with Ubuntu and on an Apple M4 Pro (about twice as slow).
 - **NVIDIA under WSL2:** the Windows NVIDIA driver covers WSL2: do not install a Linux driver. The
   locked PyTorch is the CUDA 13 build. It supports the RTX 50 series and needs a recent driver (R580
   or later).
@@ -73,10 +72,9 @@ without it the pipeline runs on its rules alone.
   `sudo apt install ffmpeg` in WSL2 is enough for NVDEC.
 - **Numbers read on the graphics card:** the jerseys and the score board (RapidOCR) run on it through
   `onnxruntime-gpu`, which `uv sync` installs on Linux in place of `onnxruntime`, with torch's CUDA libraries.
-- **Processing time:** `speed.py` compares that reading with the old two readings and projects both
-  over a 2-hour match. On the M4 Pro the models set the pace (7.8 h instead of 8.4 h for 2 hours of
-  4K 50 fps). The RTX 5080 should run them several times faster, so the saved reading matters more
-  there.
+- **Processing time:** the RTX 5080 ran a 91-minute 4K match end to end in 4 h 15. Tracking, the longest step,
+  runs the ball's and the players' models in two threads on an NVIDIA card (37 frames a second); on the M4 Pro in turn,
+  7.8 h for 2 hours of 4K 50 fps (Metal aborts on two threads). `speed.py` projects a video's tracking time.
 - **Memory:** a 2-hour match at 50 fps needs about 8 GB of RAM at its peak, the identity step
   holding the players' rows (`benchmarks/scale.py` measures each step on a synthetic long match).
 - **WSL2 memory:** WSL2 gets half of the PC's RAM by default. With 16 GB, raise it in

@@ -23,9 +23,9 @@ It joins the camera's chapters without re-encoding, cut at the times given in th
 `outputs/matches/MATCH/` with `teams.json`. The first team is the one on the left at the first rally: check
 `outputs/matches/MATCH/start.jpg`. The card is only read.
 
-In the app, the import's "Couper la vidéo" shows the recording's picture at any time (a slider, steps of 10 s and 1 min,
-`import_match.frame_at` through `/app/preview`: the keyframe at or before, 0.2-0.3 s a picture from the camera's 4K) and sets
-the start and the end where it is ("Début ici", "Fin ici"); a time typed moves the picture there.
+In the app, the import plays the recording (`RecordingPlayer`: the camera's own files, chapter after chapter; a browser
+that cannot decode HEVC gets the pictures of a slider, `import_match.frame_at` through `/app/preview`) and sets the start and
+the end where it stands ("Début ici", "Fin ici"); a time typed moves it there.
 
 Change a team's name in the review and the match follows: its folders, video and backups take the new name, and the next upload moves
 its hosted page, with a redirect from the old address. `uv run python -m volleyball_stats.rename outputs/matches/MATCH [NEW_NAME]` does the same without the review.

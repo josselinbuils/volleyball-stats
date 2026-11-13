@@ -70,15 +70,9 @@ takes it (a line no longer true of the match is left out).
 Hosted pages are built with `--feedback /volleyball/feedback`: one tap on "Signaler" reports the
 moment, "Préciser" then adds what is wrong and a comment to the same report (its `id`); the
 service's nginx logs each POST (2 KB, 5 a minute per visitor) to
-`volleyball-stats/feedback/feedback.log`. Fetch them keeping a dated copy (the review reads every
-`outputs/feedback/*.log`), then empty the log online:
-
-```bash
-scp -i ~/.ssh/id_ed25519_ovh root@<OVH IP>:/home/ubuntu/docker/volleyball-stats/feedback/feedback.log outputs/feedback/feedback.log
-cp -p outputs/feedback/feedback.log outputs/feedback/feedback-$(date +%Y%m%d-%H%M%S).log
-uv run python -m volleyball_stats.feedback outputs/feedback/feedback.log
-ssh -i ~/.ssh/id_ed25519_ovh root@<OVH IP> ': > /home/ubuntu/docker/volleyball-stats/feedback/feedback.log'
-```
+`volleyball-stats/feedback/feedback.log`. The review's "Charger les signalements" (`feedback.fetch`) copies it to
+`outputs/feedback/feedback-DATE.log` (the review reads every `outputs/feedback/*.log`), then empties it online;
+`uv run python -m volleyball_stats.feedback LOG` lists a log's reports.
 
 Test the report endpoint without writing to that log (it holds viewers' reports): a GET writes an empty line too, which `feedback.read` skips.
 

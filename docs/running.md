@@ -11,10 +11,10 @@
   stages, the share done of the whole and of the stage, and the time left (`jobs.Stages`: `::progress SHARE part=P left=S`, each
   stage's last duration by second of video in `outputs/pipeline_timings.json` and `import_timings.json`); the bars show both shares,
   and slide when a job tells none. A job is known by its process's boot and start ticks (`jobs.process_key`), else by `ps`'s start
-  time within 5 min: WSL2 resetting its clock once made a running analysis show as failed (13 Nov).
+  time (`ps lstart`, macOS) within 5 min: WSL2 resetting its clock once made a running analysis show as failed (13 Nov);
+  after a restart, a reused process number is no job.
   A match being prepared shows above the list until its `report.md` exists; one whose pipeline a command ran and no
-  process runs any more is offered to run again. A job is the runner's process number and start time (`ps lstart`):
-  after a restart, a reused number is no job. Under WSL2 the import lists Windows' drives, a card plugged in after WSL
+  process runs any more is offered to run again. Under WSL2 the import lists Windows' drives, a card plugged in after WSL
   started mounted when picked (`wsl.exe -u root mount -t drvfs`, no password), and the Windows downloads. "Vidéos…" and "Dossier…" open
   the system's own file window in front of the page to pick several videos or a folder (`app.pick`: Finder, Windows' under WSL2
   owned by a window kept on top, zenity or kdialog on a Linux desktop; no button without one); Windows' drives show by their
@@ -33,8 +33,7 @@
 - A new match starts with `import_match` ([processing.md](processing.md)): `data/matches/MATCH/MATCH.mp4` and `outputs/matches/MATCH/`, named like its hosted page, everything of a match in those two folders.
 - `match` refuses to track at a low priority or on a busy machine (`slow_run_reasons`, `--anyway`): tell the owner what it lists, stopping their work
   (Docker, Kili sandboxes) is their call. To correct a running job: `sudo renice 0 -p PID...` in their own terminal (`renice -n 0` changes nothing on
-  macOS). A run can't survive a restart: tracking writes nothing until it ends. Idle, the M4 tracks 4K at 2.87 MB/s (6 h for 84 min); progress is the
-  `ffmpeg` read offset (`lsof -o`) over the file's size.
+  macOS). A run can't survive the machine's restart: tracking writes nothing until it ends.
 
 - `match` ends by making the review's page and pictures, for its first open to be quick; a failure there only warns. The review's reruns pass `--no-page`.
 

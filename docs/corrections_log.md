@@ -342,11 +342,11 @@ better ball track.
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
 
-## State (12 Nov, evening): hand-over
+## State (13 Nov): hand-over
 
 Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov); 279
-and 345 since the blocks away from the net are dropped (12 Nov, evening).
-Three changes kept, all merged and pushed; nothing runs, no worktree is left, the review server is not started.
+and 345 since the blocks away from the net are dropped (12 Nov, evening); 271 and 339 with the ball's width (13 Nov).
+Five changes kept ("Kept"), all merged and pushed; nothing runs, no worktree is left.
 
 Done on 12 Nov, each with its numbers further down or in its benchmark's README:
 
@@ -367,8 +367,8 @@ Done on 12 Nov, each with its numbers further down or in its benchmark's README:
 
 Waiting on the owner:
 
-- A third match, filmed on 12 Nov, to process on the PC. When its pipeline has finished and before the review starts, copy
-  its folder aside (`cp -r outputs/matches/NAME outputs/benchmarks/corrections/NAME-automatic`): the only output of a match
+- The third match's review. Filmed on 12 Nov, processed on the PC on 13 Nov, its pipeline's output copied aside before any
+  review (`outputs/benchmarks/corrections/2026-11-12-aspom-1-vs-le-haillan-1-automatic`): the only output of a match
   nothing was tuned or trained on. Once reviewed: "Next", items 1 and 2 (the ball model fine-tuned on both matches tracking it;
   `finetune.py` takes one match today).
 
@@ -433,7 +433,7 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
 
 1. A third reviewed match: the touch-type model and the play model both train on about 900-1,200 touches and 130-150 rallies
    a match, and every threshold here was set on two matches.
-   The owner films one on 12 Nov. Once it is reviewed, in this order:
+   Filmed on 12 Nov, processed on 13 Nov, not reviewed yet. Once it is, in this order:
    - before any retraining, `bench.py freeze` then `bench.py score real` on it: the first numbers on a match nothing was tuned
      or trained on (the play model's windows, `actions.SET_OVER_S`'s 1.3 s, the touch on a nameless piece of track);
    - then the play model and the touch-type model trained on two matches and tested on the third, each way round, and

@@ -33,6 +33,9 @@ the rallies checked by hand (7 Nov):
 | Touches given to the right named player | 678 of 769 (88%) | 832 of 932 (89%) |
 | Rally winners right | 117 of 128 (91%) | 127 of 145 (88%) |
 
+A third match (12 Nov) is processed, not reviewed yet: the first one nothing was tuned or trained on. The corrections left to
+the owner since: [corrections_log.md](corrections_log.md).
+
 The weak spots are rally ends and how a rally ends (in, out, fault), and the ball when it leaves the
 frame or stays unseen near the floor. Most rules were tuned on the first match and the learned
 attribution trains on both: neither is a clean held-out test. For reference, a fixed-camera semi-automatic system reached 77% agreement

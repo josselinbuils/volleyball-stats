@@ -370,5 +370,5 @@ the player seen elsewhere. Every track cut between the rallies it spans, re-iden
 
 - Detector recall at contact frames is the ceiling: rerun the detector at a lower threshold or on a
   zoomed crop around the ball when no candidate is near it, and let the tracker coast longer.
-- Depth for crowds: the ball's apparent size. Its 3D path and a learned scorer over box, pose and
-  ball features are in the learned order ([above](#learned-order-rankerpy)).
+- Depth for crowds: the ball's 3D path, its width in the picture and a learned scorer over box, pose and ball features
+  are in the learned order ([above](#learned-order-rankerpy)); the wrong picks left: [corrections_log.md](../../docs/corrections_log.md).

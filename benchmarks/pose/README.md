@@ -15,7 +15,7 @@ uv run python benchmarks/pose/score.py MODEL [--parts wrists jumps relances] [--
 ```
 
 `MODEL` is `yolo11m-pose` (the pipeline's, run again through the benchmark as a control) or a folder or file of
-`models/pose_candidates/` (`models.py`; not in the repository). The top-down models (all but the YOLOs) are given the boxes
+`models/pose_candidates/` (`models.py`; not in the repository, deleted on 13 Nov with the crops: download them again to rerun). The top-down models (all but the YOLOs) are given the boxes
 YOLO11m-pose found for the wrists and the tracks' boxes for the jumps; they make no boxes, so no relance score. A crop file
 left empty by a stopped run makes `run.py` fail: delete the files of size 0 and run `cache.py` again.
 

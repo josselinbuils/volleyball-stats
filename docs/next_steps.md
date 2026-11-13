@@ -107,25 +107,17 @@ and checked rallies, on the RTX 5080).
 
 ## Left, by value
 
-Since 2 Nov (`docs/plan.md`): 2 (the 3D ball path in the learned attribution), 4 (sets sent over: tried, the owner calls many
-sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are settled.
+Settled items keep their number, which other notes cite.
 
-1. **Identity behind wrong touches.** 9 of the 135 answered players are among no candidate: tracks
-   with no identity (3), and long tracks chopped into many pieces whose identities jump (track 275:
-   pieces of identities 2, 14, 4, 11, 16 over 14162-23115; both serves 21875 and 31080 land on a
-   piece of team 1's identity 14, the owner says 4 and 8). Idea: feed touch answers to the identity
-   step as constraints when the answered player is among no candidate (the toucher's track is then
-   probably right and its piece wrong): the piece holding the nearest candidate at that frame is
-   that player. Score with `benchmarks/identity/answers.py`.
-2. **Wrong picks among tracked players.** Before the pose 26 answered players came second; after it, 104 first, 31 wrong, 9 of those with no candidate. Next: the ball's path
-   after the touch (the player it leaves from), the 3D ball path for depth (`README` of
-   attribution, "Not tried").
+1. Settled (2 Nov): touch answers as identity pins, worse (608 -> 507 of 673 held out, `docs/plan.md`).
+2. Settled: the 3D ball path is in the learned attribution (2 Nov), the ball's width tells two players in line apart (13 Nov,
+   `benchmarks/attribution/README.md`).
 3. **Contacts the ball track misses.** Of the 71 added touches (41 outside the old windows), 18 have the ball
    visible under half of ±0.4 s, and 20 have a velocity change under `contacts.THRESHOLD` (15.5 px
    a frame at 4K): the ball tracker's recall, not the contact rule. A lower threshold only where
    a player is at the ball: tried and dropped (7 Nov, below).
-4. **Sets sent straight over.** 1 retyped as an attack, 4 seen and kept as sets (in touch questions,
-   where the type is not asked), 20 never seen: ask the owner, or ask the type in the Match tab.
+4. Settled (11 Nov): a set crossing the net within 1.3 s is an attack or a relance (`actions.SET_OVER_S`), the slower
+   ones stay sets, as the owner calls them.
 5. **Empty windows.** 120243 (no contact, "no play") and 158580 (no contact, 0.4 s, "rally"): no
    rule separates them; 36995 (a serve then 4 net contacts) and 180776 (a dig then 5 floors) are
    the other "no play" windows a rule could take: 4+ net or floor contacts in a row after at most
@@ -134,7 +126,7 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
    of 136, and identities do not exist when `match.py` attributes; only worth it inside the identity
    step. Tried as a fix of the review's flag (4 Nov, below): dropped.
 7. **Ties within 0.02 box heights** to the bigger box: 97 instead of 93 alone on the answers, one
-   fewer detected contact on the tuning clips. Retry once a second match is answered.
+   fewer detected contact on the tuning clips. Not retried since the second match was answered.
 8. **Pose cost.** `by_wrists` runs YOLO11m-pose 3 times per touch below the head with 2+
    candidates: 409 of the first match's 718 contacts, about 1 s each on the M4 Pro (3 crops); measure
    on the RTX 5080 with `speed.py`.
@@ -151,9 +143,7 @@ sets), 12 (hidden contacts place the serves) and 1 (pins: tried, worse) are sett
     the one before: a points benchmark on the 4K match (`benchmarks/points` has only the school
     clips), now that 131 of 137 windows open on a serve. Done another way: `learn` scores the winners on
     the checked rallies (117 of 128).
-12. **Added serves' frames.** `unseen_serves` puts the serve where the server's stand ends, 0.1-0.5 s
-    after the contact: the page's serve clips start that late. The ball's first sighting after
-    the stand, or the window's first ball run, would place it closer.
+12. Settled (2 Nov): hidden contacts place the added serves (`contacts.hidden_contacts`, `docs/plan.md`).
 13. **The review's answers as benchmarks.** `answers.py --rerank` scores attribution on them; the
     same for `action` types (`actions.classify_rally` on `actions.csv`'s contacts against the
     owner's types) and `rally` verdicts would score those steps without labels.

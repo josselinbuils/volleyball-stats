@@ -1,4 +1,6 @@
-# Plan in progress (2 Nov)
+# The touches and the page (1-5 Nov)
+
+What was measured and built from 1 to 5 Nov. The touches' work since: [corrections_log.md](corrections_log.md).
 
 ## Touches
 
@@ -52,12 +54,9 @@ blocks right, 21 more false), a set sent over typed attack (13 fixed, 10 broken:
 touches typed floor (real floors fit up to 2 m), touch answers as identity pins (608 -> 507 of 673 held out), tracks cut between
 rallies (678 -> 679 of 761, 15 min more). 30 settings searched one at a time, sets 1-2 apart from set 3: a plateau, nothing changed.
 
-Next:
-
-1. The 73 touches still missed: mostly the ball model, fine-tuned on the RTX 5080.
-2. The 46 false ones; ends with no whistle on 50:00-60:00, which the settings cannot reach; the merged attack and block.
-
-Tried and dropped: see `benchmarks/rallies/README.md`.
+Next, as of 2 Nov: the touches still missed (the ball model fine-tuned, tried 11-12 Nov), the false ones, the ends with no
+whistle on 50:00-60:00 (the play model since 12 Nov), the merged attack and block: all taken up in
+[corrections_log.md](corrections_log.md). Tried and dropped: see `benchmarks/rallies/README.md`.
 
 ## Page: online
 

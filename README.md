@@ -96,7 +96,7 @@ On Windows, the app runs in Ubuntu (WSL2): in PowerShell as administrator, run `
 restart, open "Ubuntu" from the Start menu, choose a user name and password, then paste the line above there. See
 [Setup](docs/setup.md) for the NVIDIA driver.
 
-The app's "Installation" button checks the graphics card, the memory, the disk space and the tools, and says what to
+The app's "Diagnostics" button checks the graphics card, the memory, the disk space and the tools, and says what to
 fix.
 
 ### 2. Film a match

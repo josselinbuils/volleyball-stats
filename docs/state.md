@@ -21,7 +21,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 2. Done (5 Nov): the learned attribution trains on every reviewed match (held out 623 -> 625 of 691, 859 -> 868 of 957);
    `identity.SHARPEN` 0.9 kept on both matches' answers. Jersey numbers now only keep players apart, and one read mostly on the
    other team links nobody (`identity.jersey_links`): held-out answers 206 -> 230 of 333 (224 without numbers), 419 -> 420 of 543.
-3. `docs/plan.md`: the touches left, the 3D ball and TV mode's limits.
+3. `docs/plan.md`: the touches and the page from 1 to 5 Nov, the 3D ball and TV mode's limits.
 4. Rally ends and winners. Done (5 Nov, `benchmarks/rallies/README.md`): `no_play` keeps rallies with touches and no serve seen,
    short whistled serves count, a ball bounced 20 times is no rally; rallies missed 2 -> 0 of 129 and 9 -> 2 of 150, false windows
    2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Apprendre de mes réponses".
@@ -73,4 +73,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     track's nearest name, the play / no-play model, a block away from the net dropped, the ball's width in the picture (two players in line with the
     camera told apart). Dropped with their numbers: a fine-tuned ball model, two stronger
     re-identification models, a learned touch type, eight pose models, rules for windows, false touches and types.
-    Its "State" is the hand-over: what waits on the owner (a third match filmed on 12 Nov, a session on the Mac) and what is next.
+    Its "State" is the hand-over: what waits on the owner and what is next.
+17. The third match (`2026-11-12-aspom-1-vs-le-haillan-1`, 91 min, 163 rallies) processed on the 5080 (13 Nov), its pipeline's
+    output kept aside (`outputs/benchmarks/corrections/2026-11-12-aspom-1-vs-le-haillan-1-automatic`): the first match nothing
+    was tuned or trained on. Waiting on its review, then [corrections_log.md](corrections_log.md) "Next", item 1.
