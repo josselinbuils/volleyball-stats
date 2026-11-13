@@ -109,6 +109,10 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - The star on a touch puts it in the films, the match's and its player's (`film.PICKS`, by frame, saved at once; a rerun's
   touch within 0.3 s takes it).
 - "Fin du match à …" (the video's moment) and taking it back are in the "..." menu.
+- So are "Nouveau set à …" and "Retirer le début du set N" (the set the video is in; `review.set_start`, teams.json's
+  `sets`): a set starts at the rally playing or the next one, its start the middle of the break before it, a start
+  already in that break giving way. The pipeline runs again then (no training; on a reviewed match too): the sides of
+  teams in one kit change at each set start.
 
 ### Checking a rally
 

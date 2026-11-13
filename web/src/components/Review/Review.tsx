@@ -17,6 +17,7 @@ import {
   type Failure,
   allMarked,
   post,
+  review,
   type Conflict,
   type Backup,
   type FilmCounts,
@@ -146,7 +147,7 @@ export function Review({
     }
   };
   const films = savedFilms ?? { players: { total: 0, stale: [] }, highlights: { total: 0, stale: [] } };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights' | null>(null);
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights' | null>(null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -382,7 +383,7 @@ export function Review({
   const [progress, setProgress] = useState<{ fraction: number; part: number | null; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(
     null,
   );
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
+  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {
@@ -501,7 +502,20 @@ export function Review({
             }
           }}
           mayLeave={mayLeave}
-          end={tab === 'match' ? { at: () => matchTime.current, onEnd: (time) => void saveEnd(time) } : undefined}
+          here={
+            tab === 'match'
+              ? {
+                  at: () => matchTime.current,
+                  onEnd: (time) => void saveEnd(time),
+                  sets: review?.sets ?? ['0:00'],
+                  onSet: (change) => {
+                    if (mayLeave()) {
+                      void reload('sets', change);
+                    }
+                  },
+                }
+              : undefined
+          }
           onFailed={() => {
             leaving.current = false;
             setError(true);

@@ -40,7 +40,7 @@ import numpy as np
 
 from volleyball_stats import app, attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
-from volleyball_stats.teams import given_end, match_end, parse_colour, seconds
+from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
 # frames looked at for the clearest picture of a piece.
@@ -1516,6 +1516,36 @@ def set_end(match: Path, time: str | None) -> None:
     files.write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
+def given_sets(match: Path) -> list[str]:
+    """The set starts teams.json gives, as written."""
+    path = match / "teams.json"
+    return (json.loads(path.read_text()).get("sets") or ["0:00"]) if path.exists() else ["0:00"]
+
+
+def set_start(match: Path, fps: float, add: float | None = None, remove: str | None = None) -> None:
+    """teams.json with a set starting at the rally playing `add` seconds into the video or the next one (the set start the
+    middle of the break before it), or without the set start `remove`; the scores of the sets kept stay theirs.
+    ValueError for a first rally, a moment after the last one, or the first set's start."""
+    path = match / "teams.json"
+    data = json.loads(path.read_text())
+    starts = data.get("sets") or ["0:00"]
+    scores = dict(zip(starts, data.get("scores") or []))
+    if add is not None:
+        windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in web.read_csv(match / "rallies.csv")]
+        k = next((k for k, (_, end) in enumerate(windows) if end >= add * fps), None)
+        if not k:
+            raise ValueError(f"no set can start at {add} s")
+        # One start a break: a start already in it gives way.
+        kept = [s for s in starts if not windows[k - 1][1] < seconds(s) * fps <= windows[k][0]]
+        starts = sorted([*kept, clock((windows[k - 1][1] + windows[k][0]) / 2 / fps)], key=seconds)
+    if remove is not None:
+        if remove not in starts[1:]:
+            raise ValueError(f"no set starts at {remove!r} but the first")
+        starts = [s for s in starts if s != remove]
+    data["sets"], data["scores"] = starts, [scores.get(s) for s in starts]
+    files.write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
 def write_names(match: Path, entries: list[dict]) -> None:
     files.write_text(match / identity.NAMES, json.dumps({"players": entries}, indent=1, ensure_ascii=False) + "\n")
 
@@ -2391,7 +2421,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
         }
-        data = {"width": width, "height": height, "matchEnd": given_end(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "picks": sorted(film.read_picks(match)), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
+        data = {"width": width, "height": height, "matchEnd": given_end(match), "sets": given_sets(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "picks": sorted(film.read_picks(match)), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
             "learning": pooled_runs(match.parent),
             "comparison": last_comparison(match),
             "fetched": fetched_log or None,
@@ -2755,18 +2785,22 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     step, kind = ("highlights", "highlights") if self.path == "/highlights" else (self.path[1:], "players")
                     run_steps([(step, lambda: filming(kind, names)), *pages()])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
-                elif self.path == "/rerun":
+                elif self.path in ("/rerun", "/sets"):
                     from volleyball_stats import learn
 
-                    # A match whose every rally is checked only teaches the next ones: it stays as reviewed.
-                    if reviewed(questions.page, log):
+                    if self.path == "/sets":
+                        set_start(match, questions.fps, body.get("add"), body.get("remove"))
+
+                    # A match whose every rally is checked only teaches the next ones: it stays as reviewed, its sets apart.
+                    if self.path == "/rerun" and reviewed(questions.page, log):
                         play = [("playTraining", lambda: learn.train_play(match))] if learn.play_due(match) else []
                         run_steps([("training", lambda: learn.retrain(match, video, court)), *play])
                         return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                     # The pipeline again, its identities with every answer: an apply too. Undo
                     # stops here: the answers moved onto the new rallies.
                     own, *published = pages()
-                    run_steps([("training", lambda: learn.train(match, video, court)), ("pipeline", lambda: learn.rerun(match, video, court, staged)), own, ("questions", questions.load), *published])
+                    training = [("training", lambda: learn.train(match, video, court))] if self.path == "/rerun" else []
+                    run_steps([*training, ("pipeline", lambda: learn.rerun(match, video, court, staged)), own, ("questions", questions.load), *published])
                     history.clear()
                     log = load_log(answers)
                     for entry in log:

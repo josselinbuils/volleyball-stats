@@ -103,7 +103,8 @@ The first run writes it, from the first source available:
 
 Later runs reuse the file. To fix something, either:
 
-- edit the file: a name, a colour, the date, the title, a set start or a score;
+- edit the file: a name, a colour, the date, the title, a set start or a score (a set start also from the review's
+  Match tab, "Nouveau set à …" or "Retirer le début du set N", which runs the pipeline again);
 - or pass the flags again (`--title ""` goes back to the default title).
 
 A new set starts when the teams change ends after a set break (see the

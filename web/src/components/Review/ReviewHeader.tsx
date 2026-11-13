@@ -1,5 +1,22 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, CircleStop, Clapperboard, CloudDownload, CloudUpload, DatabaseBackup, Ellipsis, ExternalLink, History, RefreshCw, Shield, Sparkles, Undo2 } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  CircleMinus,
+  CirclePlus,
+  CircleStop,
+  Clapperboard,
+  CloudDownload,
+  CloudUpload,
+  DatabaseBackup,
+  Ellipsis,
+  ExternalLink,
+  History,
+  RefreshCw,
+  Shield,
+  Sparkles,
+  Undo2,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -13,7 +30,7 @@ import { HostChoice } from '@/components/Review/HostChoice';
 import { LateCauses } from '@/components/LateCauses';
 import { Tip } from '@/components/Tip';
 
-type Action = 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
+type Action = 'undo' | 'apply' | 'rerun' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
 
 /** Between two items of the status line, which wraps on a phone. */
@@ -35,6 +52,34 @@ function MatchEndItem({ at, onEnd }: { at: () => number; onEnd: (time: string) =
       {t('review.matchEndAt', { time })}
     </DropdownMenuItem>
   );
+}
+
+/** Starts a set at the rally playing where the video stood when the menu opened, or takes away the start of the set it
+ * stood in; the analysis runs again. */
+function SetItems({ at, starts, onSet }: { at: () => number; starts: string[]; onSet: (change: { add: number } | { remove: string }) => void }) {
+  const { t } = useTranslation();
+  const [seconds] = useState(at);
+  const time = clock(seconds);
+  const n = starts.filter((s) => toSeconds(s) <= seconds).length;
+  return (
+    <>
+      <DropdownMenuItem onSelect={() => window.confirm(t('review.setStartAsk', { time })) && onSet({ add: seconds })}>
+        <CirclePlus aria-hidden />
+        {t('review.setStartAt', { time })}
+      </DropdownMenuItem>
+      {n > 1 && (
+        <DropdownMenuItem onSelect={() => window.confirm(t('review.setRemoveAsk', { n, previous: n - 1 })) && onSet({ remove: starts[n - 1] })}>
+          <CircleMinus aria-hidden />
+          {t('review.setRemove', { n })}
+        </DropdownMenuItem>
+      )}
+    </>
+  );
+}
+
+/** Seconds of a time written m:ss or h:mm:ss. */
+function toSeconds(time: string): number {
+  return time.split(':').reduce((total, part) => total * 60 + Number(part), 0);
 }
 
 /** The match's name, opening the list of the others to go to one of them. */
@@ -108,7 +153,7 @@ export function ReviewHeader({
   busy,
   run,
   mayLeave,
-  end,
+  here,
   onFailed,
 }: {
   title: string;
@@ -130,8 +175,9 @@ export function ReviewHeader({
   run: (action: Action, body?: object) => void;
   /** Whether the page may go, corrections not saved being lost. */
   mayLeave: () => boolean;
-  /** On the Match tab: where the video stands, and ending the match there (taken away with ''). */
-  end?: { at: () => number; onEnd: (time: string) => void };
+  /** On the Match tab: where the video stands, ending the match there (taken away with ''), and the set starts to change
+   * there. */
+  here?: { at: () => number; onEnd: (time: string) => void; sets: string[]; onSet: (change: { add: number } | { remove: string }) => void };
   onFailed: () => void;
 }) {
   const { t } = useTranslation();
@@ -229,11 +275,12 @@ export function ReviewHeader({
               </Tip>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {end && (
+              {here && (
                 <>
-                  <MatchEndItem at={end.at} onEnd={end.onEnd} />
+                  <SetItems at={here.at} starts={here.sets} onSet={here.onSet} />
+                  <MatchEndItem at={here.at} onEnd={here.onEnd} />
                   {review?.matchEnd && (
-                    <DropdownMenuItem onSelect={() => end.onEnd('')}>
+                    <DropdownMenuItem onSelect={() => here.onEnd('')}>
                       <Undo2 aria-hidden />
                       {t('review.matchEndRemove', { time: review.matchEnd })}
                     </DropdownMenuItem>
@@ -267,7 +314,7 @@ export function ReviewHeader({
                   {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
                 </DropdownMenuItem>
               )}
-              {(end || shared) && <DropdownMenuSeparator />}
+              {(here || shared) && <DropdownMenuSeparator />}
               <DropdownMenuItem onSelect={() => setClubOpen(true)}>
                 <Shield aria-hidden />
                 {t('app.club.open')}

@@ -137,6 +137,8 @@ interface ReviewData {
   height: number;
   /** The end of the match given, as written. */
   matchEnd?: string | null;
+  /** Each set's start, as written, the first one's "0:00". */
+  sets?: string[];
   answered: number;
   /** Answers not applied yet; whether the answers (or the jersey numbers read), and the names, differ
    * from what the players were last computed from. */
@@ -302,6 +304,7 @@ export async function post(
     | 'undo'
     | 'apply'
     | 'rerun'
+    | 'sets'
     | 'host'
     | 'hostAll'
     | 'reports'

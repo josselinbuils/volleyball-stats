@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import files, presence, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import answers_stamp, leftovers, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import answers_stamp, leftovers, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -1365,3 +1365,45 @@ class TestMore:
         np.savez(tmp_path / "embeddings.npz", keys=np.array([[1, 0, 99], [2, 200, 299], [3, 200, 299]]), vectors=vectors)
 
         assert [p["track"] for p in q.more(1, 1, set())] == [2]
+
+
+class TestSetStart:
+    @staticmethod
+    def match(tmp_path):
+        # Rallies at 0-20 s, 60-80 s, 300-320 s and 400-420 s (50 fps); a set start typed at 2:30, its score 25-20.
+        files.write_text(tmp_path / "teams.json", json.dumps({"teams": [], "sets": ["0:00", "2:30"], "scores": [None, [25, 20]]}))
+        files.write_text(tmp_path / "rallies.csv", "start_frame,end_frame\n0,1000\n3000,4000\n15000,16000\n20000,21000\n")
+        return tmp_path
+
+    def test_starts_a_set_in_the_break_before_the_rally_playing_or_the_next(self, tmp_path):
+        match = self.match(tmp_path)
+
+        set_start(match, 50.0, add=70.0)
+        assert json.loads((match / "teams.json").read_text())["sets"] == ["0:00", "0:40", "2:30"]
+        set_start(match, 50.0, add=330.0)
+        assert json.loads((match / "teams.json").read_text())["sets"] == ["0:00", "0:40", "2:30", "6:00"]
+
+    def test_one_start_a_break_and_the_scores_follow_their_sets(self, tmp_path):
+        match = self.match(tmp_path)
+
+        # 2:30 and the break's middle, 3:10, start the same rallies: the new one takes its place.
+        set_start(match, 50.0, add=200.0)
+        saved = json.loads((match / "teams.json").read_text())
+        assert saved["sets"] == ["0:00", "3:10"] and saved["scores"] == [None, None]
+        set_start(match, 50.0, add=70.0)
+        set_start(match, 50.0, remove="3:10")
+        saved = json.loads((match / "teams.json").read_text())
+        assert saved["sets"] == ["0:00", "0:40"] and saved["scores"] == [None, None]
+
+    def test_keeps_a_kept_sets_score(self, tmp_path):
+        match = self.match(tmp_path)
+
+        set_start(match, 50.0, add=70.0)
+        assert json.loads((match / "teams.json").read_text())["scores"] == [None, None, [25, 20]]
+
+    def test_refuses_the_first_set_and_a_moment_after_the_last_rally(self, tmp_path):
+        match = self.match(tmp_path)
+
+        for change in ({"add": 5.0}, {"add": 500.0}, {"remove": "0:00"}, {"remove": "1:00"}):
+            with pytest.raises(ValueError):
+                set_start(match, 50.0, **change)
