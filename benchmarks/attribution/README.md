@@ -298,6 +298,23 @@ Retrained on the answers (`ranker.py MATCH:VIDEO:COURT`, needed for the places; 
 against learned: 207/209, 229/237, 171/177 of 235, 264, 191. On a copy of the match, named players on the
 checked rallies 651/731 -> 678/761, answered touches 607/673 -> 610/668.
 
+**The ball's width (13 Nov).** Two players in line with the camera stand a median 22-25% apart in distance from it
+on the wrong picks whose right player is another candidate (44 and 54 on the two matches), and the ball looks
+that much bigger near the nearer one. `ballsize.py` reads its width in the 4K picture around each touch: the
+camera is fixed, so the pixels differing from both an earlier and a later frame where the ball is elsewhere are
+the ball, and the short side of that blob's smallest rectangle is its width (motion blur stretches the long
+side); the median over the frames within 0.12 s of the touch, those within 0.04 s left out (hands). Against a
+ball of 0.21 m at the toucher's feet (the lens file's focal length), the width of the touches named right is
+1% off in the median, spread 9% (first match, 655 touches); measured on 97% of the touches. The ranker takes
+each candidate's misfit over the best one's. One match trained and the other tested (checked named touches,
+`outputs/benchmarks/ballsize/scripts/rank.py`): 699 -> 706 of 772 and 905 -> 915 of 998 (26 picks made right, 9
+made wrong); the same within 3 with the feet taken where the box stood lowest (jumps), 4 or 8 frames around the
+touch. Held out set by set in `ranker.py`: 624 -> 630 of 691 and 862 -> 865 of 957. End to end
+(`benchmarks/corrections`, weights fit on the other match and the school clips): corrections 283 -> 274 and
+345 -> 340 (players 84 -> 75, 102 -> 97). Cost: one more pass over about 15,000-20,000 frames a match, 4.4 and
+6 min on the RTX 5080's machine, kept in `ball_widths.json`. It needs the camera's lens file and footage of
+`ranker.MIN_HEIGHT` or more; the school clips train without it (`VB_NO_WIDTH=1` for the features without it).
+
 **Tried and dropped (2 Nov).** Touch answers as identity pins, where the answered player is on no candidate
 (next_steps' idea), half the answers given and half held out: 608 -> 507 of 673, the wrong pieces' pins pull
 whole identities over. Of the 78 wrong named players then: 42 wrong picks, 24 no track holding the player, 12

@@ -86,12 +86,19 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | A touch on a piece of track with no identity takes its track's nearest identified piece within 5 s (`identity.touch_identity`; runs `players-near`) | 288 -> 283 (players 84 -> 79) | 400 -> 389 (players 104 -> 93) |
 | A play / no-play clip model, where its weights are: ends carried on, starts pulled back, the windows with play all along kept, a rally going on after a bounce played on (`playing.py`; runs `play-eskb`, the model held out) | 283 -> 281 (to add 65 -> 62, types 85 -> 82, players 79 -> 81) | 389 -> 351 (to add 97 -> 62, types 119 -> 105, players 93 -> 103) |
 | A touch typed block over 1.6 m from the net is none, dropped once the touches are typed (`actions.off_net_blocks`; run `block-net` against `ctl`, 12 Nov) | 281 -> 279 (to add 62 -> 63, remove 47 -> 46, types 82 -> 81, players 81 -> 80) | 351 -> 345 (to add 62 -> 65, remove 74 -> 68, types 105 -> 103, players 103 -> 102) |
+| The ball's width in the picture, a depth cue in the learned order of who touched (`ballsize.py`, 13 Nov; runs `hw-width` against `hw-none`, both with weights fit on the other match and the school clips) | 283 -> 274 (players 84 -> 75) | 345 -> 340 (players 102 -> 97) |
 
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
 have rallies where the ball bounces and play goes on (27 and 38 such floors in the reviewed touches): a floor used to end the
 rally's touches, turning the rest into floors (one 31 s rally of the second match: 23 corrections -> 9). Weights in
 `outputs/learned/play/` (345 MB, trained on both matches, not in the repository), shared between the machines by the backup.
+
+The ball's width (13 Nov, `benchmarks/attribution/README.md` "The ball's width"): the cue the wrong picks of two players in
+line waited for ("Players": "a depth cue, the ball's size"). `block-net`'s 279 / 345 ran on weights fit on both matches'
+answers; the same weights fit on the other match alone give 283 / 345 (`hw-none`), the control here. With the weights now
+shipped (both matches and the clips, the width in; run `width-final`, not held out): 279 -> 271 and 345 -> 339 against
+`block-net` (players 80 -> 72, 102 -> 96). The wrists stage takes 4-6 min more a match (the widths' pass).
 
 The touches on a piece with no identity were asked in the review as unknown players: they now come with a guess, right 16 times
 in 20 on the two matches; the rule fits no number to them. How those guesses show in the review was not looked at.
@@ -235,6 +242,21 @@ learned order moved it), #2 31 / 37, #3+ 10 / 14, on no track 18 / 30, and two n
   (holes of 30-100 frames, longer than `GAP_S`), its interpolated box at the ball (under 0.3 box heights in about half);
   the picked track holds the ball's box: likely the tracker giving the jumping attacker's box to another track for that
   moment. Not run.
+
+Both leads measured offline on `block-net` (13 Nov, day; `sides.py`, `sides2.py`, `holes2.py` beside the two scripts above,
+a few seconds each), neither worth a rerun:
+
+- The side check is not at fault. Of the checked named touches, 15 of 781 / 10 of 1006 carry the wrong team: 11 / 7 are the
+  truth's block matched to the pipeline's attack 4-9 frames before it (one contact for an attack and its block: "The block
+  right after an attack"), 1 / 1 the touch after a missed attack, 0 / 1 a dig right after an attack, 1 / 0 unclear; only
+  2 / 1 are a ball 10-60 px past the net line on the wrong side. The camera stands in the net plane (0.1 and 0.33 m from
+  it, 7.3 m behind the sideline, 3.9 m high), so the picture's net line holds at any height. The ball's 3D place
+  (`ball3d.flight_places`) does not tell those touches either: it agrees with the picture's side on 9 of 13 / 6 of 9, and
+  "within 1 m of the net" holds 11 / 7 of them with 86 / 126 touches of the right team.
+- The attacker's hole: a same-side track with a hole around the contact (both ends within 1 s) whose interpolated box
+  overlaps the picked one. At IoU 0.3 it fires 19 / 15 times: 2 / 4 wrong names made right, 15 / 10 right ones made wrong
+  (IoU 0.1: 3 / 7 for 25 / 22; IoU 0.5: 0 for 2 / 1). The picked track never lives inside the hole: it is the player in
+  front, the hidden one behind, and the one in front mostly touched.
 
 The early attack (Next, "The block right after an attack"): the blocks the net rule drops are the real attack after a
 false early "attack" in 2 of 11 (88521 on the first match, 51436 on the second); the other 9 are false blocks after a real
@@ -430,13 +452,6 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
    matches, train on two and compare the windows on the third.
 6. The play model on someone else's footage: its windows are worse on the one other match (`benchmarks/rallies/README.md`);
    a threshold or uses set per footage, or training on more views, before it runs on anything but the footage it knows.
-7. Resume here (13 Nov, night): the wrong names ("The wrong names, again"). Two leads, neither run end to end:
-   - the side check only where the contact is near the net: let the other side's tracks within 1 m of the net be candidates
-     only when the ball's court x (`ball3d` places, or the contact's image x against the net's line at the ball's height,
-     not `net_x` at the floor) is within about 1 m of the net, so the touches away from the net keep today's candidates
-     (everywhere, the 0.5 m version lost 4 / 2);
-   - an attacker's hole: when the picked track's box at the contact sits where another track with a hole there (both ends
-     within about 1 s) would be interpolated (IoU, same team), credit the hole's track; count first how often it fires on
-     the touches named right.
-   Bench: `VB_...` env var in `attribution.py`, `bench.py run NAME MATCH --play runs/play-main/MATCH/play.npz` through
-   `flock /tmp/vb-rerun.lock`, then `score NAME MATCH --compare block-net`; about 3 min a match.
+7. Done (13 Nov, day): the two leads on the wrong names, the side check near the net and the attacker's hole, both dropped
+   offline ("The wrong names, again"). A rerun, when one is wanted: `bench.py run NAME MATCH --play runs/play-main/MATCH/play.npz`
+   through `flock /tmp/vb-rerun.lock`, then `score NAME MATCH --compare block-net`; about 3 min a match.

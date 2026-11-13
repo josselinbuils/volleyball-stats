@@ -28,7 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, contacts, court, decode, files, identity, jerseys, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, attribution, ball, ball3d, ballsize, contacts, court, decode, files, identity, jerseys, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -494,7 +494,10 @@ def main() -> None:
         # The learned order on the camera footage it was trained on, the wrists' rule elsewhere.
         learned = ranker.load() if decode.size(args.video)[1] >= ranker.MIN_HEIGHT else None
         places = ball3d.flight_places(typed, windows, lead, track_path, calibration, fps) if learned else None
-        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json", learned, places)
+        # The ball's width tells players in line with the camera apart, for weights fit with it and a camera with its lens.
+        sized = learned and ranker.reads_width(learned) and calibration.lens
+        widths = ballsize.widths(args.video, [t for t, c in zip(typed, candidates) if len(c) >= 2], track_path, fps, out / ballsize.FILE) if sized else None
+        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json", learned, places, widths, calibration)
         timings["wrists"] = time.perf_counter() - start
         touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
         typed = dead

@@ -10,6 +10,7 @@ The poses are kept in outputs/benchmarks/ranker/ (first run: about a second per 
 
 import argparse
 import json
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -19,21 +20,24 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 import bench  # noqa: E402
 
-from volleyball_stats import actions, attribution, ball3d, contacts, identity, ranker, web  # noqa: E402
+from volleyball_stats import actions, attribution, ball3d, ballsize, contacts, identity, ranker, web  # noqa: E402
 from volleyball_stats.court import Calibration  # noqa: E402
 
 CACHE = Path("outputs/benchmarks/ranker")
+# VB_NO_WIDTH=1: the features without the ball's width, to compare.
+NO_WIDTH = bool(os.environ.get("VB_NO_WIDTH"))
 
 
-def candidates_features(video: Path, typed: list, rows: list, fps: float, cache: Path, places: dict | None = None) -> tuple[list, list, list]:
-    """Each touch's candidates, their features as by_wrists computes them, and the rule's order."""
+def candidates_features(video: Path, typed: list, rows: list, fps: float, cache: Path, places: dict | None = None, widths: dict | None = None, calibration: Calibration | None = None) -> tuple[list, list, list]:
+    """Each touch's candidates, their features as by_wrists computes them (the ball's `widths` with the `calibration`), and the rule's order."""
     found = attribution.ranked(typed, rows, fps)
     # The poses of every touch with two candidates or more, kept for the next runs.
     attribution.by_wrists(video, typed, found, rows, fps, cache, learned={"w": [0.0] * 34, "mean": [0.0] * 34, "std": [1.0] * 34})
     rule = attribution.by_wrists(video, typed, found, rows, fps, cache)
     kept = json.loads(cache.read_text()) if cache.exists() else {}
     by_track, gap = attribution.tracks(rows), round(attribution.GAP_S * fps)
-    feet = attribution.feet_on_court(rows) if places else {}
+    feet = attribution.feet_on_court(rows) if places or widths else {}
+    depth = ballsize.Depth(calibration, feet, gap) if widths and calibration is not None else None
     feats = []
     for (frame, x, y, kind, side), c in zip(typed, found):
         if len(c) < 2:
@@ -43,8 +47,9 @@ def candidates_features(video: Path, typed: list, rows: list, fps: float, cache:
         boxes = {k[2]: attribution.box_at(by_track[k[2]][1], frame, gap) for k in c}
         tallest = max(b[3] - b[1] for b in boxes.values())
         metres = attribution.court_metres((places or {}).get(frame), frame, c, feet, gap)
+        sized = depth.misfits(widths.get(frame), x, y, frame, kind, [k[2] for k in c]) if depth else None
         feats.append(np.array([
-            ranker.features((x, y), kind, k, c[0][0], r, boxes[k[2]], tallest, attribution.wrist_distance((x, y), boxes[k[2]], poses), by_track[k[2]][0] == side, (frame - min(by_track[k[2]][1])) / fps, metres[k[2]])
+            ranker.features((x, y), kind, k, c[0][0], r, boxes[k[2]], tallest, attribution.wrist_distance((x, y), boxes[k[2]], poses), by_track[k[2]][0] == side, (frame - min(by_track[k[2]][1])) / fps, metres[k[2]], sized and sized[k[2]])
             for r, k in enumerate(c)
         ]))
     return found, feats, rule
@@ -65,8 +70,11 @@ def from_match(match: Path, video: Path, court: Path | None = None) -> list[dict
     rows = attribution.read_players(match / "players.csv")
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in web.read_csv(match / "rallies.csv")]
     every = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in web.read_csv(match / "actions.csv")]
-    places = ball3d.flight_places(every, windows, round(actions.LEAD_S * fps), match / "ball.csv", Calibration.load(court), fps) if court else None
-    found, feats, rule = candidates_features(video, typed, rows, fps, CACHE / f"{match.name}_wrists.json", places)
+    calibration = Calibration.load(court) if court else None
+    places = ball3d.flight_places(every, windows, round(actions.LEAD_S * fps), match / "ball.csv", calibration, fps) if court else None
+    # The ball's width (ballsize.py) with a lens: kept beside the poses.
+    widths = ballsize.widths(video, typed, match / "ball.csv", fps, CACHE / f"{match.name}_widths.json") if court and calibration.lens and not NO_WIDTH else None
+    found, feats, rule = candidates_features(video, typed, rows, fps, CACHE / f"{match.name}_wrists.json", places, widths, calibration)
     by_track = defaultdict(list)
     for r in table:
         by_track[r[0]].append(r)

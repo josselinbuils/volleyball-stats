@@ -15,11 +15,18 @@ import numpy as np
 WEIGHTS = Path(__file__).with_name("attribution_ranker.json")
 MIN_HEIGHT = 1440
 BELOW_HEAD = {"pass", "set", "dig", "relance"}
+# The width's misfit says no more past WIDTH_FAR, and is read again up to WIDTH_NEAR (log of a ratio).
+WIDTH_FAR, WIDTH_NEAR = 0.6, 0.2
 
 
-def features(ball: tuple[float, float], kind: str, candidate: tuple[float, float, int], best: float, rank: int, box: tuple, tallest: float, wrist: float | None, own: bool, age: float, court_m: float = 0.0) -> list[float]:
+def features(
+    ball: tuple[float, float], kind: str, candidate: tuple[float, float, int], best: float, rank: int, box: tuple, tallest: float, wrist: float | None, own: bool, age: float,
+    court_m: float = 0.0, width: float | None = None,
+) -> list[float]:
     """One candidate's features (box heights, seconds and, `court_m`, metres on the court from the
-    ball's 3D place over the nearest candidate's), each again for touches below the head."""
+    ball's 3D place over the nearest candidate's), each again for touches below the head; then
+    `width`, the misfit of the ball's width to the candidate's place (`ballsize.Depth.misfits`, None
+    when not measured), last so that weights fit without it still read their own columns."""
     x, y = ball
     h = box[3] - box[1]
     seen = wrist is not None
@@ -29,7 +36,8 @@ def features(ball: tuple[float, float], kind: str, candidate: tuple[float, float
         min(age, 10.0) / 10, float(age < 0.5), court_m, min(court_m, 2.0),
     ]
     below = kind in BELOW_HEAD
-    return base + [v * below for v in base]
+    sized = [float(width is not None), min(width or 0.0, WIDTH_FAR), min(width or 0.0, WIDTH_NEAR)]
+    return base + [v * below for v in base] + sized + [v * below for v in sized]
 
 
 def fit(touches: list[tuple[np.ndarray, int]], l2: float = 0.01, steps: int = 3000, rate: float = 0.05) -> dict:
@@ -51,7 +59,14 @@ def fit(touches: list[tuple[np.ndarray, int]], l2: float = 0.01, steps: int = 30
 
 
 def scores(model: dict, x: np.ndarray) -> np.ndarray:
-    return ((x - np.array(model["mean"])) / np.array(model["std"])) @ np.array(model["w"])
+    """Each candidate's score; weights fit on fewer columns read the first ones."""
+    w = np.array(model["w"])
+    return ((x[:, : len(w)] - np.array(model["mean"])) / np.array(model["std"])) @ w
+
+
+def reads_width(model: dict) -> bool:
+    """Whether `model` was fit with the ball's width among its columns."""
+    return len(model["w"]) > 34
 
 
 def load(path: Path = WEIGHTS) -> dict | None:

@@ -25,6 +25,7 @@ import numpy as np
 
 from volleyball_stats import decode, files
 from volleyball_stats.actions import LATE_FLIGHT_S, POSE_MODEL, Typed
+from volleyball_stats.court import Calibration
 from volleyball_stats.players import Row
 
 NO_PLAYER = {"floor", "net"}
@@ -209,15 +210,19 @@ def by_wrists(
     cache: Path | None = None,
     learned: dict | None = None,
     places: dict[int, np.ndarray] | None = None,
+    widths: dict[int, float] | None = None,
+    calibration: Calibration | None = None,
 ) -> list[list[Candidate]]:
     """`candidates` reordered by the wrists for touches below the head (see WRIST_VETO), or, with a
-    `learned` ranker (ranker.py), every touch's by its scores, the ball's 3D `places` by frame among
-    them; YOLO pose on a crop around the ball, kept in `cache` (JSON, by frame and ball place) for
-    the next runs. First ASPOM match: 97 -> 104 of the 135 touches answered."""
-    from volleyball_stats import ranker
+    `learned` ranker (ranker.py), every touch's by its scores, the ball's 3D `places` by frame and
+    its `widths` in the picture (ballsize.py, with the `calibration`) among them; YOLO pose on a crop
+    around the ball, kept in `cache` (JSON, by frame and ball place) for the next runs. First ASPOM
+    match: 97 -> 104 of the 135 touches answered."""
+    from volleyball_stats import ballsize, ranker
 
     by_track, gap = tracks(rows), round(GAP_S * fps)
-    feet = feet_on_court(rows) if places else {}
+    feet = feet_on_court(rows) if places or widths else {}
+    depth = ballsize.Depth(calibration, feet, gap) if widths and calibration is not None else None
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     posed = lambda kind, found: len(found) >= 2 and (learned is not None or kind in BELOW_HEAD)  # noqa: E731
     wanted = [(frame, x, y) for (frame, x, y, kind, _), found in zip(typed, candidates) if posed(kind, found) and f"{frame}:{x}:{y}" not in kept]
@@ -241,8 +246,9 @@ def by_wrists(
             continue
         tallest = max(b[3] - b[1] for b in boxes.values())
         metres = court_metres((places or {}).get(frame), frame, found, feet, gap)
+        sized = depth.misfits(widths.get(frame), x, y, frame, kind, [c[2] for c in found]) if depth else None
         x_ = np.array([
-            ranker.features((x, y), kind, c, found[0][0], k, boxes[c[2]], tallest, wrists[c[2]], by_track[c[2]][0] == side, (frame - min(by_track[c[2]][1])) / fps, metres[c[2]])
+            ranker.features((x, y), kind, c, found[0][0], k, boxes[c[2]], tallest, wrists[c[2]], by_track[c[2]][0] == side, (frame - min(by_track[c[2]][1])) / fps, metres[c[2]], sized and sized[c[2]])
             for k, c in enumerate(found)
         ])
         out.append([found[k] for k in np.argsort(-ranker.scores(learned, x_), kind="stable")])
