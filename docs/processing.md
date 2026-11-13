@@ -75,7 +75,8 @@ uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [
 Team 1 is the team on the left of the camera at the first rally. Teams keep their names when they
 change ends, at a set break or a timeout. Kits may differ within a team: a player's team is their
 side of the net. Two teams in the same kit (two teams of one club) are taken to change ends at every
-set break, as the rules say, and only then.
+set break, as the rules say, and only then: a break of 90 s or more leaving sets of 30 rallies or more (a timeout
+of the same length leaves smaller ones).
 
 `outputs/matches/VIDEO/teams.json` holds:
 

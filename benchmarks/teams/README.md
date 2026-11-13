@@ -101,8 +101,11 @@ Kits may differ within a team, so a team is never a colour.
    the frames after the break matched a player of the other side: breaks without a change are the
    more common case, so a change needs a clear majority. When the two sides of the stretch before
    the break look alike (their tracks' median looks under 60 apart in 8-bit Lab, torso and shorts),
-   the looks cannot tell the teams apart: the rules decide instead, the teams changed ends when the
-   break lasts 90 s or more (a set break). White against navy is 84-121 apart on `side_setend`; one
+   the looks cannot tell the teams apart: the rules decide instead, the teams changed ends at a set
+   break (`likely_starts`): breaks of 90 s or more, longest first, each kept while every set keeps 30
+   rallies or more, the last 12 (a deciding set to 15). Timeouts last 90 s too (94-111 s on the ASPOM
+   matches): on the third, every such break taken gave 7 sets for 4, the teams on the wrong sides in
+   68 of its 163 rallies. White against navy is 84-121 apart on `side_setend`; one
    kit on either half 12 (white) and 43 (navy: small far players take the floor's colour), and the
    three real breaks of the four clips 91-117.
 4. **Team per track.** A track's team is the team on its median side of the net in the rally it
@@ -212,6 +215,8 @@ Held out:
 
 ## Next steps
 
-- Score this step on the two ASPOM matches, which ran through it with no score recorded: the first
-  two teams in one kit (the same-kit rule, `KIT_GAP`), the second two kits.
+- Score this step on the ASPOM matches, which ran through it with no score recorded. The set breaks alone (13 Nov): the
+  three matches' 3, 3 and 4 sets found by `likely_starts` from their windows, against 5, 5 and 7 when every break of
+  90 s is one (the first two matches' sets were typed, so their runs did not depend on it).
+- A set's end from the running score of each side, which `likely_starts` stands in for.
 - If long breaks fail on it: compare the players' re-ID embeddings instead of their colours.

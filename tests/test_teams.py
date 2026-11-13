@@ -17,6 +17,7 @@ from volleyball_stats.teams import (
     contact_teams,
     default_title,
     lefts,
+    likely_starts,
     parse_date,
     parse_colour,
     parse_teams,
@@ -79,8 +80,10 @@ class TestLefts:
 
         assert lefts(rows, [(0, 20), (95, 115)], looks, 30.0) == [0, 0]
 
-    def test_changes_the_ends_at_a_set_break_when_the_teams_look_alike(self):
-        # One kit, a shade lighter on the right: the looks would keep each team on its side.
+    def test_changes_the_ends_at_a_set_break_when_the_teams_look_alike(self, monkeypatch):
+        # One kit, a shade lighter on the right: the looks would keep each team on its side. One rally a set here.
+        monkeypatch.setattr(teams, "MIN_SET_RALLIES", 1)
+        monkeypatch.setattr(teams, "MIN_LAST_RALLIES", 1)
         rows = [row(f, 1, -3.0) for f in range(10)] + [row(f, 2, 3.0) for f in range(10)]
         rows += [row(f, 3, -3.0) for f in range(3000, 3010)] + [row(f, 4, 3.0) for f in range(3000, 3010)]
         looks = {1: np.full(6, 100.0), 2: np.full(6, 120.0), 3: np.full(6, 100.0), 4: np.full(6, 120.0)}
@@ -91,6 +94,34 @@ class TestLefts:
         # between sets changes them.
         assert lefts(rows, [(0, 20), (2990, 3020)], looks, 30.0, [0.0, 200.0]) == [0, 0]
         assert lefts(rows, [(0, 20), (2990, 3020)], looks, 60.0, [0.0, 40.0]) == [0, 1]
+
+
+class TestLikelyStarts:
+    @staticmethod
+    def rallies(sizes: list[int], breaks: list[float], fps: float = 50.0) -> list[tuple[int, int]]:
+        """Rallies of 10 s 20 s apart, `sizes` of them between breaks of `breaks` seconds."""
+        windows, t = [], 0.0
+        for k, n in enumerate(sizes):
+            for _ in range(n):
+                windows.append((round(t * fps), round((t + 10) * fps)))
+                t += 30
+            t += breaks[k] - 20 if k < len(breaks) else 0
+        return windows
+
+    def test_takes_the_longest_breaks_that_leave_whole_sets(self):
+        # The third ASPOM match: 4 sets of 45, 38, 41 and 39 rallies, three timeouts of about 100 s inside sets 2 and 3.
+        windows = self.rallies([45, 18, 11, 9, 23, 18, 39], [251, 101, 98, 107, 99, 230])
+
+        found = likely_starts(windows, 50.0)
+
+        assert [sum(1 for w in windows if w[0] / 50 >= s) for s in found] == [163, 118, 80, 39]
+
+    def test_lets_a_short_last_set_be_one(self):
+        # A deciding set to 15 after a match of two sets.
+        assert len(likely_starts(self.rallies([40, 45, 15], [200, 200]), 50.0)) == 3
+
+    def test_no_break_no_set(self):
+        assert likely_starts(self.rallies([50], []), 50.0) == [0.0]
 
 
 class TestChangedEnds:

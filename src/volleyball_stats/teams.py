@@ -54,6 +54,9 @@ KIT_GAP = 60.0
 # Seconds between two rallies from which a change of ends is a set break; in a deciding set the
 # teams change ends at 8 points within a minute.
 SET_BREAK_S = 90.0
+# Rallies a set holds at least, the last one apart (a deciding set to 15, a recording cut short): teams alike tell a set
+# break from a timeout by it. On the three ASPOM matches the sets hold 38-59 windows, a timeout of 94-111 s leaves 8-32.
+MIN_SET_RALLIES, MIN_LAST_RALLIES = 30, 12
 # Named jersey colours, English then French names; a detected colour snaps to one of them.
 COLOURS = {
     "white": "#f4f4f4", "black": "#151515", "grey": "#8a8a8a", "red": "#d22630", "dark red": "#7a1426",
@@ -172,12 +175,11 @@ def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.n
     with players; None for a rally without players. Consecutive rallies sharing CONTINUITY of their
     player frames form a stretch, where those tracks tell whether the teams changed ends; from one
     stretch to the next, the looks do, unless the teams look alike: then the teams changed ends at a
-    set start of `starts` (seconds) between them, without `starts` after a break of SET_BREAK_S or
-    more.
+    set start of `starts` (seconds) between them, without `starts` at one of `likely_starts`.
 
-    ponytail: teams alike that keep their ends between sets get it wrong, and without `starts` so do
-    those changing them at a timeout or a long break.
+    ponytail: teams alike that keep their ends between sets get it wrong.
     """
+    starts = starts or likely_starts(windows, fps)
     order = sorted(rows, key=lambda r: r.frame)
     frames = np.array([r.frame for r in order])
     tracks = np.array([r.track for r in order])
@@ -205,13 +207,31 @@ def lefts(rows: list[Row], windows: list[tuple[int, int]], looks: dict[int, np.n
                 # From the previous stretch's first rally: its own changes, then the break's.
                 last = stretches[i - 1][-1]
                 gap = (windows[last[0]][1], windows[stretch[0][0]][0])
-                set_break = any(gap[0] < s * fps <= gap[1] for s in starts[1:]) if starts else gap[1] - gap[0] >= SET_BREAK_S * fps
+                set_break = any(gap[0] < s * fps <= gap[1] for s in starts[1:])
                 swapped ^= last[1] != set_break
             else:
                 swapped ^= changed_ends(before, after, looks)
         for k, changed in stretch:
             out[k] = int(swapped != changed)
     return out
+
+
+def likely_starts(windows: list[tuple[int, int]], fps: float) -> list[float]:
+    """Set starts (s) from the breaks alone, for teams alike: 0, then the middle of breaks of SET_BREAK_S or more, longest
+    first, each kept while every set keeps MIN_SET_RALLIES rallies, the last MIN_LAST_RALLIES.
+
+    ponytail: a set won 25-4 or less with a timeout in it, or a short set, gets it wrong; the running score of each side
+    would tell a set's end.
+    """
+    breaks = sorted(((windows[k][0] - windows[k - 1][1], k) for k in range(1, len(windows)) if windows[k][0] - windows[k - 1][1] >= SET_BREAK_S * fps), reverse=True)
+    cuts: list[int] = []
+    for _, k in breaks:
+        trial = sorted([*cuts, k])
+        bounds = [0, *trial, len(windows)]
+        sizes = [b - a for a, b in zip(bounds, bounds[1:])]
+        if min(sizes[:-1]) >= MIN_SET_RALLIES and sizes[-1] >= MIN_LAST_RALLIES:
+            cuts = trial
+    return [0.0, *(round((windows[k - 1][1] + windows[k][0]) / 2 / fps) for k in cuts)]
 
 
 def side_group(frames: np.ndarray, xs: np.ndarray, known: list[tuple[tuple[int, int], int]]) -> int | None:
