@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from volleyball_stats import files, matches, teams
+from volleyball_stats import files, jobs, matches, teams
 
 CAMERA_NAME = re.compile(r"(\d{14})_\d+_")
 # Chapters of one recording follow each other within this long.
@@ -106,17 +106,42 @@ def frame_at(chapters: list[Chapter], at: float, width: int = PREVIEW_WIDTH) -> 
     raise LookupError("frame")
 
 
-def join(chapters: list[Chapter], target: Path, start: float | None, end: float | None) -> None:
-    """Writes the chapters as one video from `start` to `end`, checked, without re-encoding; `target` only appears once whole."""
+# What the copy and the index's move to the front of the file (+faststart, a second pass ffmpeg tells nothing of) took
+# here, by second of video, kept beside the matches; before any, a camera card's (about 90 MB/s).
+TIMINGS, TOOK = "import_timings.json", {"copy": 0.09, "index": 0.02}
+
+
+def copied(command: list[str], expected: float, stages: jobs.Stages) -> None:
+    """Runs ffmpeg's `command`, telling the copy's share done from its time over the `expected` seconds of video, then
+    the index's move by its last duration (`stages`)."""
+    process = subprocess.Popen([*command[:1], "-progress", "pipe:1", "-nostats", *command[1:]], stdout=subprocess.PIPE, text=True)
+    stages.start("copy")
+    for line in process.stdout:
+        key, _, value = line.strip().partition("=")
+        if key == "out_time_us" and value.isdigit() and expected > 0:
+            stages.share_of_stage(int(value) / 1e6 / expected)
+            # Written to the end: the index moves to the front.
+            if int(value) / 1e6 >= expected - 1 and stages.key == "copy":
+                stages.start("index")
+    if process.wait():
+        raise subprocess.CalledProcessError(process.returncode, command)
+    stages.start(None)
+
+
+def join(chapters: list[Chapter], target: Path, start: float | None, end: float | None, timings: Path | None = None) -> None:
+    """Writes the chapters as one video from `start` to `end`, checked, without re-encoding, telling its progress (each
+    step's last duration kept in `timings`); `target` only appears once whole."""
     part = target.with_name(f"{target.stem}.part.mp4")
     listing = target.with_name(f"{target.stem}.part.txt")
     listing.write_text(concat_list(chapters, start, end))
     total = sum(c.duration for c in chapters)
+    length = min(end or total, total) - (start or 0.0)
     try:
-        subprocess.run(
-            ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-stats", "-f", "concat", "-safe", "0", "-i", str(listing)]
+        copied(
+            ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(listing)]
             + ["-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-map_metadata", "0", "-avoid_negative_ts", "make_zero", "-movflags", "+faststart", "-y", str(part)],
-            check=True,
+            length,
+            jobs.Stages(timings, ["copy", "index"], TOOK, scale=length),
         )
         made = probe(part)
         expected = min(end or total, total) - (start or 0.0)
@@ -181,7 +206,7 @@ def main() -> None:
     if shutil.disk_usage(target.parent).free < needed:
         parser.error(f"{needed / 1e9:.0f} GB free needed in {target.parent}")
 
-    join(chapters, target, start, end)
+    join(chapters, target, start, end, args.out.parent / TIMINGS if args.out.name == "matches" else None)
     out = args.out / name
     out.mkdir(parents=True, exist_ok=True)
     files.write_text(out / "teams.json", json.dumps({"teams": [{"name": n, "colour": c} for n, c in names], "date": day}, indent=2, ensure_ascii=False) + "\n")

@@ -451,7 +451,7 @@ class TestReports:
         run = {"steps": ["training", "pipeline", "review"], "done": 1, "started": 0.0, "since": 100.0, "stage": "wrists", "stage_since": 500.0}
 
         # 100 s of the wrists' 400 spent; the teams and the review to come; no tracking, the other stages unknown.
-        assert eta(run, took, 600.0) == {"steps": run["steps"], "done": 1, "stage": "wrists", "elapsed": 600.0, "left": 300.0 + 500.0 + 10.0, "late": False}
+        assert eta(run, took, 600.0) == {"steps": run["steps"], "done": 1, "stage": "wrists", "elapsed": 600.0, "left": 300.0 + 500.0 + 10.0, "late": False, "part": 0.25}
         late = eta(run, took, 1000.0)
         assert (late["left"], late["late"]) == (510.0, True)
         # Before its first stage, a step counts as a whole.

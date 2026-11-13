@@ -28,7 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, ballsize, contacts, court, decode, files, identity, jerseys, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, attribution, ball, ball3d, ballsize, contacts, court, decode, files, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -150,7 +150,10 @@ def track(video: Path, calibration: court.Calibration | None, fps: float, ball_p
         positions.append([index, int(position is not None), *(position or ("", ""))])
         rows += frame_rows
         if frame_count and index % PROGRESS_EVERY == 0:
-            print(f"{PROGRESS}{min(1.0, index / frame_count):.4f}", flush=True)
+            if stages:
+                stages.share_of_stage(index / frame_count)
+            else:
+                print(f"{PROGRESS}{min(1.0, index / frame_count):.4f}", flush=True)
     if ball_path:
         write_csv(ball_path, ["frame", "visible", "x", "y"], positions)
     if players_path:
@@ -240,8 +243,28 @@ def unseen_serves(
     return out, added
 
 
+# The pipeline's stages told to the app (`plan`): what each took here, by second of video, in this file of the outputs.
+TIMINGS = "pipeline_timings.json"
+# A stage no run here measured yet: the first ASPOM match's (review.TOOK, its video 4013 s long), the page's guessed.
+TOOK_VIDEO_S, PAGE_S = 4013.0, 60.0
+stages: jobs.Stages | None = None
+
+
+def plan(names: list[str], outputs: Path | None, duration: float) -> None:
+    """The stages to run, told as they go (`stage`) with the share done and the time left, by their last duration here
+    (kept in `outputs`, none kept without)."""
+    from volleyball_stats import review
+
+    global stages
+    took = {name: review.TOOK.get(f"pipeline:{name}", PAGE_S if name == "page" else 0.0) / TOOK_VIDEO_S for name in names}
+    stages = jobs.Stages(outputs / TIMINGS if outputs else None, names, took, scale=duration)
+
+
 def stage(name: str) -> None:
-    print(f"{STAGE}{name}", flush=True)
+    if stages:
+        stages.start(name)
+    else:
+        print(f"{STAGE}{name}", flush=True)
 
 
 def in_rallies(frames: list[int], windows: list[tuple[int, int]], lead: int) -> list[int]:
@@ -436,6 +459,10 @@ def main() -> None:
     track_path, players_path = out / "ball.csv", out / "players.csv"
     new_ball = args.force or not track_path.exists()
     new_players = args.players and (args.force or not players_path.exists())
+    with_page = bool(args.players and args.court and not args.no_page)
+    later = ["rallies", "actions", *(["wrists", "teams", "jerseys", "scoreboard", "identity", "jumps"] if args.players else []), *(["page"] if with_page else [])]
+    # A copy's run (`--out` elsewhere, the benchmarks') keeps no durations outside its folder.
+    plan([*(["tracking"] if new_ball or new_players else []), *(["play"] if playing.wanted(args.video, out) else []), *later], args.out.parent if args.out.name == "matches" else None, frame_count / fps if fps else 0.0)
     if new_ball or new_players:
         reasons = slow_run_reasons(os.nice(0), os.getloadavg()[0], os.cpu_count() or 1)
         if reasons and not args.anyway:
@@ -577,9 +604,11 @@ def main() -> None:
     (out / "report.md").write_text(text)
     print(text, end="")
     print(out / "report.md")
-    if args.players and args.court and not args.no_page:
+    if with_page:
         stage("page")
         review_page(out, args.video, args.court)
+    if stages:
+        stages.start(None)
 
 
 if __name__ == "__main__":

@@ -444,10 +444,14 @@ def court_of(name: str) -> Path:
 
 
 def time_left(job: dict, now: float) -> float | None:
-    """Seconds left of a job's step: from its progress while it tells one (the copy, the tracking), then for the
-    pipeline each later stage's duration on the first ASPOM match (review.TOOK), in proportion to the video's length."""
+    """Seconds left of a job's step: as it tells them (the pipeline), else from its progress while it tells one (the
+    copy), then for a pipeline that tells none (started before 13 Nov) each later stage's duration on the first ASPOM
+    match (review.TOOK), in proportion to the video's length."""
     from volleyball_stats import playing, review
 
+    # The pipeline tells its own (`jobs.Stages`).
+    if job.get("toldLeft") is not None:
+        return float(job["toldLeft"])
     spent, done = now - job.get("stepStarted", job["started"]), job.get("progress")
     here = spent * (1 - done) / done if done and done > 0.01 else None
     if job.get("step") != "pipeline":

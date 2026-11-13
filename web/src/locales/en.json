@@ -432,6 +432,7 @@
       "scoreboard": "Scoreboard",
       "identity": "Players",
       "jumps": "Attack jumps",
+      "page": "Review page",
       "answers": "Moving your answers and scoring"
     },
     "toCheck_one": "{{count}} to check",
@@ -1266,6 +1267,7 @@
     "hours": "{{h}} h {{m}} min",
     "left": "About {{left}} left · Done around {{end}}",
     "left_soon": "Less than a minute left · Done around {{end}}",
+    "done": "{{percent}} done",
     "busy": "The computer is busy (load {{load}} on {{cores}} cores): the analysis would be much slower. Close other programs or start it anyway.",
     "busyNice": "The app runs at a low priority: the analysis would be much slower. Restart it in the foreground, or start anyway.",
     "run": "Start the analysis",

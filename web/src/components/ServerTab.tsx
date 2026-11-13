@@ -89,7 +89,7 @@ function JobLine({ job, running, quiet }: { job: Told | null; running: string; q
   }
   if (job.running) {
     return (
-      <JobProgress label={running} fraction={job.progress ?? null} left={job.left} elapsed={job.elapsed}>
+      <JobProgress label={running} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed}>
         {job.stage ? t(`server.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: running }) : running}
       </JobProgress>
     );

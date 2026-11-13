@@ -379,16 +379,19 @@ export function Review({
 
   /** Where the server's run stands: its step (and the pipeline's stage), which of how many, the time
    * spent and left, and whether it takes longer than last time. */
-  const [progress, setProgress] = useState<{ fraction: number; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(null);
+  const [progress, setProgress] = useState<{ fraction: number; part: number | null; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(
+    null,
+  );
   const reload = async (path: 'undo' | 'apply' | 'rerun' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {
       try {
-        const p = (await (await fetch('progress')).json()) as { steps?: string[]; done: number; stage: string | null; elapsed: number; left: number; late: boolean };
+        const p = (await (await fetch('progress')).json()) as { steps?: string[]; done: number; stage: string | null; elapsed: number; left: number; late: boolean; part?: number | null };
         if (p.steps) {
           setProgress({
             fraction: Math.min(0.99, p.elapsed / Math.max(1, p.elapsed + p.left)),
+            part: p.part ?? null,
             step: p.steps[p.done],
             stage: p.stage,
             n: p.done + 1,
@@ -505,7 +508,7 @@ export function Review({
           }}
         />
         {progress && (
-          <JobProgress label={t('review.applying')} fraction={progress.fraction} left={progress.left} elapsed={progress.elapsed} late={progress.late} className="px-1">
+          <JobProgress label={t('review.applying')} fraction={progress.fraction} part={progress.part} left={progress.left} elapsed={progress.elapsed} late={progress.late} className="px-1">
             {t(`review.step.${progress.step}`)}
             {progress.stage && ` · ${t(`review.stage.${progress.stage}`, { defaultValue: progress.stage })}`}
             <span className="text-muted-foreground"> · {t('review.stepOf', { n: progress.n, of: progress.of })}</span>

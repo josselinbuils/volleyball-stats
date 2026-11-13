@@ -30,6 +30,13 @@ class TestJobs:
         assert jobs.progress("::progress 0.9\n::stage rallies\n") == (None, "rallies")
         assert jobs.progress("frame=1 time=00:01:30.00 bitrate", total_s=180) == (0.5, None)
 
+    def test_reads_the_stage_s_share_and_the_time_left_a_command_tells(self):
+        found = jobs.told("::stage wrists\n::progress 0.6200 part=0.400 left=1234\n")
+        assert found == {"stage": "wrists", "progress": 0.62, "part": 0.4, "toldLeft": 1234.0}
+        # A new stage forgets the last one's share; an older command's bare share reads as before.
+        assert jobs.told("::progress 0.5 part=0.9 left=10\n::stage teams\n") == {"stage": "teams", "progress": None}
+        assert jobs.told("::progress 0.25\n") == {"stage": None, "progress": 0.25}
+
     def test_reads_the_last_line_shown(self, tmp_path):
         log = tmp_path / "a.log"
         log.write_text("start\nframe=1 time=00:00:01\rframe=2 time=00:00:02\nerror: no court\n")
@@ -76,6 +83,25 @@ class TestStages:
         stages.done, stages.key = 90.0, "match:new"
         # 10 + 80 done of 10 + 80 + 15 (a match not measured yet) + 10.
         assert stages.share() == pytest.approx(90.0 / 115.0, abs=0.01)
+
+    def test_tells_the_stage_s_share_from_its_time_or_its_own_and_the_time_left(self, tmp_path, monkeypatch):
+        clock = [1000.0]
+        monkeypatch.setattr(jobs.time, "time", lambda: clock[0])
+        # By second of a video 100 s long: tracking 2 s, rallies 0.5 s, page 1 s.
+        stages = jobs.Stages(None, ["tracking", "rallies", "page"], {"tracking": 2.0, "rallies": 0.5, "page": 1.0}, told=False, scale=100.0)
+        stages.start("tracking")
+        clock[0] += 50.0
+        stages.share_of_stage(0.25)
+        # A quarter of the tracking in 50 s: 150 s more, then rallies and page as expected.
+        assert (stages.part(), stages.left()) == (0.25, 150.0 + 50.0 + 100.0)
+        assert stages.share() == pytest.approx(50.0 / 350.0)
+        stages.start("rallies")
+        clock[0] += 25.0
+        assert (stages.part(), stages.left()) == (0.5, 25.0 + 100.0)
+        # Past its last duration, the stage's share stops short of the end.
+        clock[0] += 100.0
+        assert stages.part() == jobs.STAGE_CAP and stages.left() == 100.0
+        assert stages.line().startswith(f"{jobs.PROGRESS}") and " part=0.950 left=100" in stages.line()
 
     def test_tells_which_match_of_how_many(self, tmp_path, capsys):
         stages = jobs.Stages(tmp_path / "took.json", ["match:a", "match:b", "shared"], {}, told=True)

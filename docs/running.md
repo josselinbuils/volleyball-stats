@@ -7,7 +7,11 @@
   `court fit --out`), the pipeline (`match --players --anyway`, after the app's own busy check), the videos with the
   other machine (`data_sync`) and the update (`git pull --ff-only --autostash`, `uv sync --inexact`, a restart; refused
   while a job or an apply runs). It opens the page in a window of its own, `stats browser` in a browser tab, `stats server` nowhere (a restart); it refuses to start at a lowered priority (`app.lowered`: zsh's `bg_nice` on a background job, which its jobs would inherit and nothing without root undoes); `stats` alone stops once its last window closes (`--with-window`, `presence.py`: each page says it is open every 30 s and that it goes as it unloads; 5 s for a reload or another match's review to come back; a page silent for 30 min is gone; never while a job or an apply runs), the restarts keeping it; else Ctrl+C or `uv run stats stop` stops it (`/app/quit`, refused while an apply runs); jobs go on. The long ones are jobs (`jobs.py`): a process of their own in a new session, their
-  record and log in `outputs/jobs/`, so they outlive the server's restarts; `match` prints `::progress` while tracking.
+  record and log in `outputs/jobs/`, so they outlive the server's restarts; `match` and `import_match` tell their
+  stages, the share done of the whole and of the stage, and the time left (`jobs.Stages`: `::progress SHARE part=P left=S`, each
+  stage's last duration by second of video in `outputs/pipeline_timings.json` and `import_timings.json`); the bars show both shares,
+  and slide when a job tells none. A job is known by its process's boot and start ticks (`jobs.process_key`), else by `ps`'s start
+  time within 5 min: WSL2 resetting its clock once made a running analysis show as failed (13 Nov).
   A match being prepared shows above the list until its `report.md` exists; one whose pipeline a command ran and no
   process runs any more is offered to run again. A job is the runner's process number and start time (`ps lstart`):
   after a restart, a reused number is no job. Under WSL2 the import lists Windows' drives, a card plugged in after WSL

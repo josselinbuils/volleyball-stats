@@ -219,6 +219,24 @@
       animation: none;
     }
   }
+  /* A bar whose share is not known: a third of it sliding across. */
+  .progress-slide {
+    animation: progress-slide 1.6s ease-in-out infinite;
+  }
+  @keyframes progress-slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-slide {
+      animation: none;
+      opacity: 0.6;
+    }
+  }
   /* A star twinkling on a card's hovered picture. */
   .sparkle {
     fill: white;

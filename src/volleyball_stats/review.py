@@ -1638,7 +1638,8 @@ TIMINGS = "review_timings.json"
 def eta(progress: dict, took: dict[str, float], now: float) -> dict:
     """Where a run of steps (`progress`: their names, the one running since when, its stage since
     when) stands at `now`, from each one's last duration (`took`): the step and its stage, the time
-    spent and left, and whether the stage or step running already takes longer than it did."""
+    spent and left, the share done of the stage (`part`), and whether the stage or step running
+    already takes longer than it did."""
     steps, done, stage = progress["steps"], progress["done"], progress.get("stage")
     step = steps[done]
     if stage:
@@ -1649,7 +1650,9 @@ def eta(progress: dict, took: dict[str, float], now: float) -> dict:
         spent, expected = now - progress["since"], took.get(step, 1.0)
         here = max(0.0, expected - spent)
     left = here + sum(took.get(s, 1.0) for s in steps[done + 1 :])
-    return {"steps": steps, "done": done, "stage": stage, "elapsed": now - progress["started"], "left": left, "late": 0 < expected < spent}
+    # The share done of the stage, or of the step without one, by its last duration.
+    part = min(0.99, spent / expected) if expected > 0 else None
+    return {"steps": steps, "done": done, "stage": stage, "elapsed": now - progress["started"], "left": left, "late": 0 < expected < spent, "part": part}
 
 
 def checked(log: list[dict]) -> list[int]:

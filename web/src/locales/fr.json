@@ -432,6 +432,7 @@
       "scoreboard": "Tableau de score",
       "identity": "Joueurs",
       "jumps": "Sauts d'attaque",
+      "page": "Page de relecture",
       "answers": "Report de vos réponses et notes"
     },
     "toCheck_one": "{{count}} à vérifier",
@@ -1266,6 +1267,7 @@
     "hours": "{{h}} h {{m}} min",
     "left": "Reste environ {{left}} · Fin vers {{end}}",
     "left_soon": "Reste moins d'une minute · Fin vers {{end}}",
+    "done": "{{percent}} fait",
     "busy": "L'ordinateur est occupé (charge {{load}} sur {{cores}} cœurs) : l'analyse serait bien plus lente. Fermez les autres logiciels ou lancez-la quand même.",
     "busyNice": "L'app tourne en priorité basse : l'analyse serait bien plus lente. Relancez-la au premier plan, ou lancez quand même.",
     "run": "Lancer l'analyse",

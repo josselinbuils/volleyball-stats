@@ -45,6 +45,15 @@ class TestImport:
         assert (tmp_path / "outputs" / name / "start.jpg").exists()
         assert sorted(p.name for p in (tmp_path / "data" / name).iterdir()) == [f"{name}.mp4"]
 
+    def test_tells_the_copy_s_progress_then_the_index_s(self, tmp_path, monkeypatch, capsys):
+        self.run(monkeypatch, tmp_path, str(self.card(tmp_path)), "--teams", "A,B")
+
+        out = capsys.readouterr().out.splitlines()
+        stages = [line for line in out if line.startswith("::stage ")]
+        shares = [float(line.split()[1]) for line in out if line.startswith("::progress ")]
+        assert stages == ["::stage copy", "::stage index"]
+        assert shares and shares == sorted(shares) and shares[-1] > 0.5
+
     def test_cuts_from_the_keyframe_before_the_start(self, tmp_path, monkeypatch):
         self.run(monkeypatch, tmp_path, str(self.card(tmp_path)), "--teams", "A,B", "--from", "2.4", "--to", "5", "--date", "03/11/2026")
 

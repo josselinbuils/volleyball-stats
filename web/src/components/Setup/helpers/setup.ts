@@ -28,6 +28,8 @@ export interface Job {
   failed?: string;
   error?: string | null;
   progress?: number | null;
+  /** The share done of the stage running, when the command tells it. */
+  part?: number | null;
   stage?: string | null;
   started: number;
   ended?: number;

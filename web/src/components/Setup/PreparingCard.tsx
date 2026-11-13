@@ -67,9 +67,14 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           </Button>
         )}
       </div>
-      <p className={item.state === 'failed' || item.fitFailed ? 'text-destructive' : undefined}>{status}</p>
+      {job?.running ? (
+        <JobProgress label={status} fraction={job.progress ?? null} part={item.state === 'running' ? job.part : null} left={item.left}>
+          {status}
+        </JobProgress>
+      ) : (
+        <p className={item.state === 'failed' || item.fitFailed ? 'text-destructive' : undefined}>{status}</p>
+      )}
       {item.state === 'failed' && job?.error && !['stopped', 'interrupted'].includes(job.error) && <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">{job.error}</p>}
-      {job?.running && <JobProgress label={status} fraction={job.progress ?? null} left={item.left} />}
       {item.state === 'check' && (
         <div className="grid gap-3 sm:grid-cols-2">
           {item.start && names && (

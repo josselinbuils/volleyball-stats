@@ -34,41 +34,65 @@ TELL_EVERY_S, STAGE_CAP = 1.0, 0.95
 
 class Stages:
     """A command's stages told as it goes, for the app's job: `::stage KIND K/N` ("match 2/5": the second of five
-    "match:NAME" stages of the `plan`, `::stage KIND` for one alone), then every TELL_EVERY_S the share done, from each
-    stage's last duration on this machine kept in `path`, else its kind's in `took`. `plan` may change as it goes. Not
-    `told`, it only keeps the durations."""
+    "match:NAME" stages of the `plan`, `::stage KIND` for one alone), then every TELL_EVERY_S the share done of the
+    whole, of the stage (`part`) and the seconds left (`told`), from each stage's last duration on this machine kept in
+    `path`, else its kind's in `took`, both per unit of `scale` (the video's seconds for the pipeline). A stage that
+    knows its own share tells it (`share_of_stage`). `plan` may change as it goes. Not `told`, it only keeps the
+    durations."""
 
-    def __init__(self, path: Path, plan: list[str], took: dict[str, float], told: bool = True):
-        self.path, self.plan, self.told = path, plan, told
+    def __init__(self, path: Path | None, plan: list[str], took: dict[str, float], told: bool = True, scale: float = 1.0):
+        self.path, self.plan, self.told, self.scale = path, plan, told, max(scale, 1e-9)
         try:
-            self.took = {**took, **json.loads(path.read_text())}
+            self.took = {**took, **json.loads(path.read_text())} if path else dict(took)
         except (OSError, ValueError):
             self.took = dict(took)
-        self.key, self.done, self.since = None, 0.0, time.time()
+        self.key, self.done, self.since, self.own = None, 0.0, time.time(), None
         self.stopped = threading.Event()
         if told:
             threading.Thread(target=self.tell, daemon=True).start()
 
     def expected(self, key: str) -> float:
-        return self.took.get(key, self.took.get(key.split(":")[0], 0.0))
+        return self.scale * self.took.get(key, self.took.get(key.split(":")[0], 0.0))
+
+    def part(self) -> float:
+        """The share done of the stage running: its own when it tells one, else its time over its last duration."""
+        if self.own is not None:
+            return self.own
+        expected = self.expected(self.key or "")
+        return min(STAGE_CAP, (time.time() - self.since) / expected) if expected else 0.0
 
     def share(self) -> float:
-        now = min(time.time() - self.since, STAGE_CAP * self.expected(self.key or ""))
-        return min(1.0, (self.done + now) / max(sum(self.expected(k) for k in self.plan), 1.0))
+        return min(1.0, (self.done + self.part() * self.expected(self.key or "")) / max(sum(self.expected(k) for k in self.plan), 1.0))
+
+    def left(self) -> float:
+        """Seconds left: the stage running's, from its own share's pace when it tells one, then the later stages'."""
+        spent, expected = time.time() - self.since, self.expected(self.key or "")
+        here = spent * (1 - self.own) / self.own if self.own and self.own > 0.01 else max(0.0, expected - spent) if self.own is None else expected
+        later = self.plan[self.plan.index(self.key) + 1 :] if self.key in self.plan else []
+        return here + sum(self.expected(k) for k in later)
+
+    def line(self) -> str:
+        return f"{PROGRESS}{self.share():.4f} part={self.part():.3f} left={self.left():.0f}"
 
     def tell(self) -> None:
         while not self.stopped.wait(TELL_EVERY_S):
             if self.key:
-                print(f"{PROGRESS}{self.share():.3f}", flush=True)
+                print(self.line(), flush=True)
+
+    def share_of_stage(self, share: float) -> None:
+        """The stage running tells its own share done (0-1)."""
+        self.own = min(1.0, max(0.0, share))
 
     def start(self, key: str | None) -> None:
         """The stage `key` of the plan starts, the last one's duration kept; None: the command ends."""
         now = time.time()
         if self.key:
-            self.took[self.key] = now - self.since
-            self.done += self.took[self.key]
-            files.write_text(self.path, json.dumps(self.took, indent=1) + "\n")
-        self.key, self.since = key, now
+            # The share counts it as expected, never going back; the next run expects what it took.
+            self.done += self.expected(self.key)
+            self.took[self.key] = (now - self.since) / self.scale
+            if self.path:
+                files.write_text(self.path, json.dumps(self.took, indent=1) + "\n")
+        self.key, self.since, self.own = key, now, None
         if key is None:
             self.stopped.set()
         if key is None or not self.told:
@@ -76,7 +100,7 @@ class Stages:
         kind = key.split(":")[0]
         alike = [k for k in self.plan if k.split(":")[0] == kind]
         print(f"{STAGE}{kind}{f' {alike.index(key) + 1}/{len(alike)}' if ':' in key and key in alike else ''}", flush=True)
-        print(f"{PROGRESS}{self.share():.3f}", flush=True)
+        print(self.line(), flush=True)
 
 
 class Running(RuntimeError):
@@ -200,20 +224,32 @@ def tail(path: Path) -> str:
     return "\n".join(line.rsplit("\r", 1)[-1] for line in text.split("\n"))
 
 
-def progress(text: str, total_s: float | None = None) -> tuple[float | None, str | None]:
-    """The last progress (0-1) and stage a log tells; ffmpeg's time over `total_s` for a copy."""
-    found, stage = None, None
+def told(text: str, total_s: float | None = None) -> dict:
+    """What a log last tells: the share done (`progress`, 0-1), the stage, the stage's own share (`part`) and the
+    seconds left (`toldLeft`) when it tells them (`Stages`); ffmpeg's time over `total_s` for a copy that tells none."""
+    found: dict = {"progress": None, "stage": None}
     for line in text.split("\n"):
         if line.startswith(PROGRESS):
-            found = float(line.removeprefix(PROGRESS))
+            share, *extra = line.removeprefix(PROGRESS).split()
+            found = {"stage": found["stage"], "progress": float(share)}
+            for item in extra:
+                key, _, value = item.partition("=")
+                if key in ("part", "left") and value:
+                    found["part" if key == "part" else "toldLeft"] = float(value)
         elif line.startswith(STAGE):
-            stage, found = line.removeprefix(STAGE).strip(), None
-    if total_s:
+            found = {"stage": line.removeprefix(STAGE).strip(), "progress": None}
+    if total_s and found["progress"] is None:
         times = FFMPEG_TIME.findall(text.replace("\r", "\n"))
         if times:
             h, m, s = times[-1]
-            found = min(1.0, (int(h) * 3600 + int(m) * 60 + float(s)) / total_s)
-    return found, stage
+            found["progress"] = min(1.0, (int(h) * 3600 + int(m) * 60 + float(s)) / total_s)
+    return found
+
+
+def progress(text: str, total_s: float | None = None) -> tuple[float | None, str | None]:
+    """The last progress (0-1) and stage a log tells (`told`)."""
+    found = told(text, total_s)
+    return found["progress"], found["stage"]
 
 
 def error_of(text: str) -> str | None:
@@ -235,7 +271,7 @@ def state(outputs: Path) -> list[dict]:
         if not job["running"] and "ended" not in job:
             job.update(ended=job.get("started"), failed=job.get("step"), error="interrupted")
         if job["running"]:
-            job["progress"], job["stage"] = progress(text, job.get("total") if job.get("step") == job["steps"][0]["name"] else None)
+            job.update(told(text, job.get("total") if job.get("step") == job["steps"][0]["name"] else None))
         elif job.get("failed") and not job.get("error"):
             job["error"] = error_of(text)
         job.pop("steps")
