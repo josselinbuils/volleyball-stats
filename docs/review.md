@@ -53,6 +53,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ## What it asks
 
+- Who a piece of track is (pieces and merges, most at stake first) comes before the other questions: one answer names
+  every touch on it, and a rally checked in the Match tab answers the rest. Answer them and apply before the Match tab.
 - The viewers' "Signaler" reports ([hosting.md](hosting.md)) are the main source of corrections. "Charger les
   signalements" fetches them; record the clear ones (a named player on a replayed touch, "pas une phase de jeu") as
   pending review answers, leave the rest (no comment, unsure) to the Match tab, which lists each rally reported; then score

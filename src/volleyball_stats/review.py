@@ -530,7 +530,7 @@ class Questions:
         return out
 
     def build(self, asked: set[str]) -> tuple[list[dict], dict[str, dict]]:
-        """The questions not asked yet, most at stake first, and what each answer means (the refs).
+        """The questions not asked yet, who a piece is first (most at stake first), and what each answer means (the refs).
         None that a rally checked answers: who made a touch it shows a named player for, whether it is a rally;
         nor who made a touch already answered elsewhere (the match tab, a rally checked)."""
         out, refs = [], {}
@@ -624,7 +624,9 @@ class Questions:
                 "clip": {"start": round(start / self.fps, 2), "end": round(end / self.fps, 2), "around": RALLY_AROUND_S, "boxes": []},
             })
             refs[qid] = {"rally": {"start": key}}
-        return told + found + missed + touches + sorted(out, key=lambda q: -q["impact"]), refs
+        # Who a piece of track is first: one answer names every touch on it, and a rally checked
+        # in the match tab answers the others.
+        return sorted(out, key=lambda q: -q["impact"]) + told + found + missed + touches, refs
 
 
 def constraints(choice: str, refs: dict, player: Ref | None = None, cut: tuple[Ref, Ref] | None = None) -> dict[str, list]:
