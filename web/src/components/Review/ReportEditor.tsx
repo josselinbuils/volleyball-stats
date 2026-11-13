@@ -712,8 +712,10 @@ export function ReportEditor({
                       edit(row, c);
                     }
                   };
-                  // A fault may be put on a teammate's earlier touch of the rally.
-                  const causes = row.removed || row.result !== 'error' ? [] : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault');
+                  // A fault may be put on the team's touch just before it (and on one picked before, kept shown).
+                  const earlier = row.removed || row.result !== 'error' ? [] : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault');
+                  const last = earlier.reduce<Row | undefined>((a, r) => (!a || r.time > a.time ? r : a), undefined);
+                  const causes = earlier.filter((r) => r === last || r.frame === row.cause).sort((a, b) => a.time - b.time);
                   return (
                     <li
                       key={`t${row.frame}`}

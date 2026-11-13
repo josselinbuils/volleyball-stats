@@ -47,8 +47,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   the other team's fault (both count; a serve's is an ace). An attack blocked for a point is a fault (`web.credited`).
 - That is the statistics' reading only: the labels stay what happened, the attack in play (the owner's rule, `label` on
   the page's touch, `web.labelled`), so a label's point or fault before another touch warns.
-- A fault may be put on a teammate's earlier touch of the rally, a bad set or reception (the Match tab, under the fault's
-  player: "Sa faute" or "À cause de"; `cause` in the `action` answer, `web.blamed`): the statistics count it for that
+- A fault may be put on the team's touch just before it, a bad set or reception (the Match tab, under the fault's
+  player: "Sa faute" or "À cause de" that touch, an older one picked before still shown; `cause` in the `action` answer, `web.blamed`): the statistics count it for that
   touch's player, graded 0, and no longer for the one who made it, whose touch is left ungraded (the owner's rule, 13 Nov).
 
 ## What it asks
