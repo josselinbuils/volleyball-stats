@@ -169,6 +169,12 @@ class TestHighlights:
         assert sum(s["kind"] == "replay" for s in film_["shots"]) == film.HIGHLIGHTS_REPLAYS
         assert (film_["longest"], film_["won"]) == (12, [2, 0])
 
+    def test_sets_without_a_given_score_take_their_last_rally(self, tmp_path):
+        page = {**self.page(), "scores": [None, "8-7"]}
+        film_ = film.highlight_film(page, tmp_path, "")
+
+        assert film_["sets"] == [f"{a}-{b}" for a, b in [page["rallies"][14]["score"], (8, 7)]]
+
     def test_shows_every_set_both_teams_and_each_touch_s_own_player(self, tmp_path):
         film_ = film.highlight_film(self.page(), tmp_path, "")
         lives = [s for s in film_["shots"] if s["kind"] == "live"]

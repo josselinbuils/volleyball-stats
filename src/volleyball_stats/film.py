@@ -25,6 +25,7 @@ import numpy as np
 from volleyball_stats import ball as tracker
 from volleyball_stats import files
 from volleyball_stats.court import Calibration, distort, undistort
+from volleyball_stats.points import set_scores
 
 FILMS = "films"
 MANIFEST = "manifest.json"
@@ -449,8 +450,9 @@ def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
     before = scores_before(rallies)
     used = sorted({s["rally"] for s in shots})
     fast = max((c for c in contacts if c.get("speed") is not None and people.get(str(c.get("person")), {}).get("name")), key=lambda c: c["speed"], default=None)
-    sets = page.get("scores") or [f"{r['score'][0]}-{r['score'][1]}" for k, r in enumerate(rallies) if r.get("score") and (k + 1 == len(rallies) or rallies[k + 1]["set"] != r["set"])]
-    won = [int(a) > int(b) for a, b in (x.split("-") for x in sets)]
+    finals = set_scores(page)
+    sets = [f"{a}-{b}" for a, b in finals]
+    won = [a > b for a, b in finals]
     film = {
         "version": VERSION,
         "stamp": stamp,

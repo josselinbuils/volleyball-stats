@@ -136,6 +136,18 @@ def running_score(found: list[tuple[int | None, int | None]], sets: list[int]) -
     return out
 
 
+def set_scores(page: dict) -> list[tuple[int, int]]:
+    """Each set's final points, team 1's first: as given (teams.json's "scores", None for a set not
+    given), else from its last rally."""
+    last = {r["set"]: tuple(r["score"]) for r in page.get("rallies") or [] if r.get("score")}
+    given = {k: parse_score(s or "") for k, s in enumerate(page.get("scores") or [], 1)}
+    out = []
+    for number in sorted(set(last) | {k for k, s in given.items() if s}):
+        score = given.get(number)
+        out.append(tuple(map(int, score.split("-"))) if score else last[number])
+    return out
+
+
 def set_drift(totals: dict[int, tuple[int, int]], given: list[str | None]) -> dict[int, tuple[int, int] | None]:
     """Per set, estimated (`totals`) minus given final score (teams.json's "25-21", team 1 first),
     team 1 then team 2; None when the set's score is not given."""

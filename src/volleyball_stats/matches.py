@@ -30,7 +30,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, files, jobs, video_copies, web
+from volleyball_stats import club_settings, files, jobs, points, video_copies, web
 from volleyball_stats.web import CLUB, club_page
 
 TEMPLATE = Path(__file__).with_name("matches_site")
@@ -96,12 +96,7 @@ def address(match: dict) -> str:
     return slug(" ".join([match["date"] or match["name"], " vs ".join(t["name"] for t in match["teams"] or [] if t["name"])]))
 
 
-def set_scores(data: dict) -> list[tuple[int, int]]:
-    """Each set's final points, team 1's first: as given, else from its last rally."""
-    if data.get("scores"):
-        return [(int(a), int(b)) for a, b in (score.split("-") for score in data["scores"])]
-    last = {r["set"]: r["score"] for r in data["rallies"] if r.get("score")}
-    return [tuple(last[number]) for number in sorted(last)]
+set_scores = points.set_scores
 
 
 def french_date(date: str | None) -> str | None:

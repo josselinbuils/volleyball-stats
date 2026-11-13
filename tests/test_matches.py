@@ -145,6 +145,11 @@ class TestShare:
     def test_the_sets_come_from_the_last_rallies_when_no_score_is_given(self, tmp_path):
         assert matches.set_scores({"rallies": [{"set": 1, "score": [1, 0]}, {"set": 1, "score": [25, 20]}, {"set": 2, "score": [3, 25]}]}) == [(25, 20), (3, 25)]
 
+    def test_a_set_not_given_takes_its_last_rally(self, tmp_path):
+        rallies = [{"set": 1, "score": [25, 20]}, {"set": 2, "score": [3, 25]}]
+        assert matches.set_scores({"rallies": rallies, "scores": [None, None]}) == [(25, 20), (3, 25)]
+        assert matches.set_scores({"rallies": rallies, "scores": ["25-23", None]}) == [(25, 23), (3, 25)]
+
     def test_the_site_is_tagged_only_with_an_address(self, tmp_path):
         self.page(tmp_path / "m")
         build(tmp_path)
