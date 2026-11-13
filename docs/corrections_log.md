@@ -372,10 +372,11 @@ Waiting on the owner:
   nothing was tuned or trained on. Once reviewed: "Next", items 1 and 2 (the ball model fine-tuned on both matches tracking it;
   `finetune.py` takes one match today).
 
-On disk, not in the repository, to delete when no longer wanted: `outputs/benchmarks/pose/` (46 GB), `ball_finetune/`
-(38 GB), `bench/play/` (22 GB: the frames `play.py` trains held-out models from), `act/` and `act-play/` (11 GB each),
-`reid/` (18 GB), the candidates' weights in `models/pose_candidates/` (7 GB) and `models/reid_candidates/` (2 GB); and
-`outputs/cache/play/` (22 GB: the training's frames, made again when missing).
+On disk, not in the repository: `outputs/benchmarks/bench/play/` (22 GB: the frames `play.py` trains held-out models from)
+and `outputs/cache/play/` (22 GB: the training's frames, made again when missing), kept for the third match's training.
+Deleted on 13 Nov (128 GB): the frames of `pose/`, `reid/`, `act/`, `act-play/` and `ball_finetune/` (their weights, scores,
+runs and scripts kept; each script makes its frames again) and the candidates' weights in `models/pose_candidates/` and
+`models/reid_candidates/`.
 
 Runs: `ls outputs/benchmarks/corrections/*/runs/` (`play-eskb`: the kept change, held out; `play-main`, `play-main2`: the
 merged code, the same numbers; `play-stage`, `play-stage2`: the stage run inside the pipeline, not held out).
