@@ -905,13 +905,13 @@ export function ReportEditor({
                 onValueChange={(v) => v && (v === 'redo' ? pickReplay(whole) : pickWinner(whole, Number(v) as Group))}
               >
                 {GROUPS.map((g) => (
-                  <ToggleGroupItem key={g} value={String(g)} className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                  <ToggleGroupItem key={g} value={String(g)} className="h-9 gap-2 px-3 aria-checked:bg-primary aria-checked:text-primary-foreground">
                     <Swatch color={teamColor(g)} ring={teamRing(g)} />
                     {groupName(t, g)}
                   </ToggleGroupItem>
                 ))}
                 <Tip label={t('review.reportRedoHelp')}>
-                  <ToggleGroupItem value="redo" className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                  <ToggleGroupItem value="redo" className="h-9 gap-2 px-3 aria-checked:bg-primary aria-checked:text-primary-foreground">
                     <RotateCcw aria-hidden />
                     {t('review.reportRedo')}
                   </ToggleGroupItem>
