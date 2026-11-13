@@ -278,6 +278,20 @@ The early attack (Next, "The block right after an attack"): the blocks the net r
 false early "attack" in 2 of 11 (88521 on the first match, 51436 on the second); the other 9 are false blocks after a real
 attack, with the same gaps (11-15 frames), sides and teams: out of a rule's reach (2 corrections at most). Not run.
 
+### A wrong name on the box? (14 Nov, offline on `width-final`, no rerun)
+
+The owner's question after Claude labelled 7 rallies of the first match (90 touches: 16 corrections left against the
+pipeline's 15, its own changes 2 right for 3 wrong; Claude trusted the boxes' names). Scripts `nobox.py`, `touchreads.py`
+(13 min for both matches on the 5080), `rule.py`, `whose.py` in `scripts/`, the reads in `touchreads/`.
+
+- Where no box carries the truth's player (17 / 30), the jersey step read nothing on the picked piece in 14 / 23: its
+  reads (4 boxes a piece of 2 s or more) cannot rename those touches.
+- The picked box's jersey read at 5 moments around every touch (±0.4 s, 0.2 s apart; a number on 208 / 340 touches): where
+  it reads one number twice or more on a wrong name, it is the pipeline's name's 5 / 13 times and the truth's 3 / 1. The
+  boxes carry the right name; the wrong one is the box picked ("Players": two players in line).
+- Renaming a touch to the player whose number its box reads (named touches right, 709 / 910 as run): a number read once
+  fixes 13 and breaks 27; twice, 4 and 3; three times, 2 and 0 on the first match, 0 and 0 on the second. Not kept.
+
 ### Types (11 Nov)
 
 Of the 221 wrong types, 20 are a block the pipeline never saw (one touch serving an attack and a block 0.2 s apart: a touch to
