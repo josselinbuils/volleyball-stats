@@ -69,7 +69,7 @@ POSITIONS_S, HOLD_S = 300, 0.5
 # How the page's players move (`natural_motion`, `benchmarks/players/motion.py`): over OUTLIER_M from the median of OUTLIER_S
 # either side is noise, a hole up to FILL_S at under FILL_M_S is filled while the team has under TEAM_ON_COURT, then a Gaussian of SMOOTH_S.
 OUTLIER_M, OUTLIER_S, FILL_S, FILL_M_S, SMOOTH_S, TEAM_ON_COURT = 0.5, 0.5, 5.0, 7.0, 0.2, 6
-# How finely the page's files place a player, fine enough for a walk to stay even between samples (`docs/plan.md`).
+# How finely the page's files place a player, fine enough for a walk to stay even between samples (`docs/history.md`).
 POSITION_CM = 2
 # The touches that lose a serve, an attack or a block coming at them: not a serve, nor an attack of their own.
 LOSING_TOUCHES = ("pass", "set", "relance", "block", "dig")

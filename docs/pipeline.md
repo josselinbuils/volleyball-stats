@@ -1,7 +1,7 @@
 # Pipeline
 
 How a video becomes statistics, step by step. Each step is scored against hand labels in
-[`benchmarks/`](../benchmarks); to label a new setup's match, see [kili_labelling.md](kili_labelling.md).
+[`benchmarks/`](../benchmarks) and against the review's checked rallies (`benchmarks/corrections`).
 
 - [Steps](#steps)
 - [Status](#status)
@@ -41,7 +41,8 @@ frame or stays unseen near the floor. Most rules were tuned on the first match a
 attribution trains on both: neither is a clean held-out test. For reference, a fixed-camera semi-automatic system reached 77% agreement
 with human scouting ([UFP thesis, 2026](https://bdigital.ufp.pt/bitstreams/9e2cbd9e-89d4-4191-a1bc-7a0533e97f9f/download)).
 
-What is next, with the numbers: [state.md](state.md), [next_steps.md](next_steps.md) and [plan.md](plan.md).
+What is next, with the numbers: [state.md](state.md) and [corrections_log.md](corrections_log.md); before 11 Nov,
+[history.md](history.md).
 Ideas for later: attack efficiency, and a second camera on the opposite sideline if the far side proves
 unreliable.
 

@@ -2,7 +2,7 @@
 
 Started 11 Nov 2026. Goal (the owner's): less work correcting the automatic labels of a match.
 This file is the hand-over: what was measured, tried, kept and dropped, and what to do next.
-Read `state.md` and `next_steps.md` first for what was tried before 11 Nov.
+Read `state.md` first, and `history.md` for what was tried before 11 Nov.
 
 ## How the work is run
 
@@ -95,7 +95,7 @@ rally's touches, turning the rest into floors (one 31 s rally of the second matc
 `outputs/learned/play/` (345 MB, trained on both matches, not in the repository), shared between the machines by the backup.
 
 The ball's width (13 Nov, `benchmarks/attribution/README.md` "The ball's width"): the cue the wrong picks of two players in
-line waited for ("Players": "a depth cue, the ball's size"). `block-net`'s 279 / 345 ran on weights fit on both matches'
+line waited for ("Players": "a depth cue"). `block-net`'s 279 / 345 ran on weights fit on both matches'
 answers; the same weights fit on the other match alone give 283 / 345 (`hw-none`), the control here. With the weights now
 shipped (both matches and the clips, the width in; run `width-final`, not held out): 279 -> 271 and 345 -> 339 against
 `block-net` (players 80 -> 72, 102 -> 96). The wrists stage takes 4-6 min more a match (the widths' pass).
@@ -208,24 +208,40 @@ Where blocks cost corrections (`ctl`, first / second match): blocks to add 9 / 6
 Left: a blocked attack from a picture of the hands at the net (the ball deflected or not), with about 60 blocks a match to
 learn from; the attack's timing (4 of the false blocks are the attack found 0.25 s early).
 
-### Players (11 Nov, `next_steps.md` "Players to fix (11 Nov)")
+### Players (11 Nov)
 
-The 188 wrong players (first / second): the touch is another one, its type wrong too 25 / 22 (18 are a block credited to the
-attack beside it); a wrong pick, the right player among the first two candidates 30 / 36; the right player a later candidate
-or none 6 / 12; no track carrying the right player at that frame 23 / 34 (a wrong identity, or a toucher the tracker lost:
-not told apart; 5 serves a match). No runs: 81 and 102 distinct track pieces. In 59 of 97 wrong picks the ball lies inside
-the picked box, the real toucher 0.4 box heights away: two players in line with the camera.
+The 188 wrong players by cause, each touch at its frame against the tracks and the identity table:
+
+| Cause | First match | Second match |
+| --- | --- | --- |
+| The touch is another (type also wrong, 18 of them a block credited to the attack beside it) | 25 | 22 |
+| Wrong pick: the right player on a track among the first two candidates | 30 | 36 |
+| The right player on a far or 3rd+ candidate, or on a track not a candidate | 6 | 12 |
+| No track carries the right player at that frame (a wrong identity, or a toucher the tracker lost: not told apart; 5 serves a match) | 23 | 34 |
+
+No runs of errors: 81 and 102 distinct track pieces. In 59 of 97 wrong picks the ball lies inside the picked box, the real
+toucher 0.4 box heights away: two players in line with the camera. Of the 57 no-track cases with a pick near the ball, the
+right player is seen on another track within 1 s in 31 (court distance under 3 m in 34), and the pick's identity is its
+track's dominant one in 26 of 43. The pieces' confidence (median 0.99), the runner-up (the truth in 6 of 188) and the
+neighbouring pieces (the truth in 8 of 114 touches within 0.5 s of an edge) tell nothing. Errors per piece edge: 14% within
+0.5 s, 4-6% beyond 1 s, with the same neighbour identity.
+
+Kept: a touch on a piece of track with no identity takes the identity of the same track's nearest piece holding one within
+5 s (`identity.touch_identity`, `NEAR_TOUCH_S`; "Kept"). Of the 28 touches credited to no one (every one a correction), a
+piece of the track within 5 s carries the right player in 16 of 20 (a track's neighbouring pieces share an identity: they
+differ in 2 of 420 touches on pieces under 2 s).
 
 | Idea (right players of 761 / 945 named touches with a candidate, one match trained, the other tested) | Result |
 | --- | --- |
-| The learned order trained on the other match's checked touches (770 / 953 instead of about 180 answers) | 686 / 850 against 687 / 849 as shipped |
-| With the pose (both wrists, elbow, the pose's box), the move toward the ball, the box seen | 687 / 844 at best |
-| With the candidate's distance to the ball's places around the contact | -3 to +11 over the two, by the window: noise |
-| One identity not twice in a row, the touches decoded together (20 / 24 such pairs, the second wrong in 13 / 19) | +3 / +2 at best, offline only |
-| A short piece given its track's neighbours' identity | the neighbours agree with it (2 of 420 differ) |
+| The learned order trained on the other match's checked touches (770 / 953 instead of about 180 answers) | 686 / 850 against 687 / 849 as shipped: saturated |
+| With the pose (both wrists, elbow, the pose's box IoU), the move toward the ball 0.3 s before, the box seen | 687 / 844 at best, +0..8 in sum: noise |
+| With the candidate's distance to the ball's places around the contact (6 to 50 frames before and after, mean, min, share under 0.3) | -3 to +11 over the two, by the window: noise |
+| One identity not twice in a row (32 of 188 errors), the touches decoded together by the learned scores, the repeat costing 0.5 to 100 | +3 / +2 at best (684 / 844 from 681 / 842), offline only: the other touch is mostly a third player's |
+| A short piece (under 1 s: 19% wrong against 11%) given its track's neighbours' identity | the neighbours agree with it (2 of 420 differ) |
 
-Out of reach: two players in line (a perfect order would give 729 / 905: a depth cue, the ball's size or the players in 3D),
-the wrong identity pieces (the identity step keeps 77% of the held-out answers: a better re-identification).
+Out of reach then: two players in line (a perfect order would give 729 / 905: a depth cue, in since 13 Nov with the ball's
+width, "Kept"), the wrong identity pieces (the identity step keeps 77% of the held-out answers: a better re-identification,
+tried in "Re-identification").
 
 ### The wrong names, again (13 Nov, night; runs `cross-*` against `block-net`: 279 / 345)
 
@@ -262,7 +278,7 @@ The early attack (Next, "The block right after an attack"): the blocks the net r
 false early "attack" in 2 of 11 (88521 on the first match, 51436 on the second); the other 9 are false blocks after a real
 attack, with the same gaps (11-15 frames), sides and teams: out of a rule's reach (2 corrections at most). Not run.
 
-### Types (11 Nov, `next_steps.md` "Types to fix (11 Nov)")
+### Types (11 Nov)
 
 Of the 221 wrong types, 20 are a block the pipeline never saw (one touch serving an attack and a block 0.2 s apart: a touch to
 add, counted as a type), 24 follow a wrong team, 26 a false touch just before: 151 are the typing's own.
@@ -283,17 +299,18 @@ and features, a fine-tuned VideoMAE gains 16 and 15 right types (the bar: 15 on 
 play model in, which fixes some of the same floors: 14 and 12, under the bar. Not wired in; none tells a false touch. To try
 again with a third reviewed match.
 
-### Rally windows (11 Nov, `next_steps.md` "Tried and dropped (11 Nov)", runs `win-whole`, `win-whole2`, second match only)
+### Rally windows (11 Nov, runs `win-whole`, `win-whole2`, second match only)
 
 The 79 touches outside every window (first 26 / second 53): the rally's last 1-3 touches after the window's end 26 / 29 (the
 ball seen under 30% of the time in 4 of 5 of those tails; 5 / 6 of them after a whistle that closed the window mid-rally); the
 window starting late 0 / 23 (three rallies of 18, 5 and 3 touches whose server stays behind the end line after serving, so
-`served` sees no serve); no window 0 / 2 (serve faults with the ball unseen).
+`served` sees no serve, as the stand ends 2-12 s after the serve; `whistled` finds it but `alone` refuses it as a window lies
+inside it); no window 0 / 2 (serve faults with the ball unseen).
 
 | Idea | Result |
 | --- | --- |
-| A whistled serve holding windows that start over 8 s after it becomes one window | second match 410 -> 412 (the 31 s rally then dropped by `no_play` / `mark_dead`: its low touches near the camera type "floor") |
-| A "floor" the ball crosses the net within 2 s after is a low touch | second match 410 -> 429 (to add 97 -> 126, winners 7 -> 15: 8 windows lost) |
+| A whistled serve holding windows that start over 8 s after it, no whistle between, becomes one window (`rallies.whistled_whole`) | second match 410 -> 412 (the 31 s rally then dropped by `no_play` / `mark_dead`: its low touches near the camera type "floor"); touches in windows (`checked.py`) second +14, first -8 |
+| A "floor" the ball crosses the net within 2 s after is a low touch (`classify_rally`) | the 31 s rally typed whole (27 contacts, 7 floors -> 1), but second match 410 -> 429 (to add 97 -> 126, winners 7 -> 15: 8 windows lost to `mark_dead` / `no_play` once their contacts turn to touches) |
 
 Not run: the first match on either idea (the second already lost), the school clips' rally benchmark (their ball tracks are not
 in `outputs/`). Out of a rule's reach: the unseen tails (about 40 touches: the ball model), the mid-rally whistles (11: a chain

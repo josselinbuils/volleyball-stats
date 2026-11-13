@@ -183,7 +183,7 @@ one annotator.
   antennas counts as a crossing.
 - Thresholds are in image pixels per second at these clips' court size: a match scales them to its
   court in the picture (`rallies.court_scale`), and on the first ASPOM match's checked rallies 360
-  and 0.17 s stay ([next steps](../../docs/next_steps.md)). The perspective makes x velocities drift slowly
+  and 0.17 s stay ([history](../../docs/history.md)). The perspective makes x velocities drift slowly
   along a flight, which the window length absorbs here.
 - The detector runs on the whole track: dead time (ball held, rolling, warm-up balls on other
   courts) produces contacts too, which the rally windows bound (`match.rally_windows`).

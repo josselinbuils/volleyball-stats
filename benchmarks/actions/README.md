@@ -217,7 +217,7 @@ uv run python benchmarks/actions/relance.py \
   the dead ball (a fault whistle, a ball run cut short), when a touch after the floor is detected
   (a catch), and on balls landing far out. The ball's height from its parabola and the calibration
   (3D by physics, see [docs/literature.md](../../docs/literature.md)) was tried on the first match:
-  real floors fit up to 2 m (2 Nov, [plan.md](../../docs/plan.md)).
+  real floors fit up to 2 m (2 Nov, [history.md](../../docs/history.md)).
 - A ball into the net is only found after a serve. A rule at the net line (contact within a few
   pixels of it, ball then dropping without crossing) needs labelled examples: 2 today, both missed
   by the detector anyway.

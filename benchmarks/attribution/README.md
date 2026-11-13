@@ -316,7 +316,7 @@ touch. Held out set by set in `ranker.py`: 624 -> 630 of 691 and 862 -> 865 of 9
 `ranker.MIN_HEIGHT` or more; the school clips train without it (`VB_NO_WIDTH=1` for the features without it).
 
 **Tried and dropped (2 Nov).** Touch answers as identity pins, where the answered player is on no candidate
-(next_steps' idea), half the answers given and half held out: 608 -> 507 of 673, the wrong pieces' pins pull
+(`history.md`'s idea), half the answers given and half held out: 608 -> 507 of 673, the wrong pieces' pins pull
 whole identities over. Of the 78 wrong named players then: 42 wrong picks, 24 no track holding the player, 12
 the player seen elsewhere. Every track cut between the rallies it spans, re-identified: 678 -> 679 of 761 for 15 min more.
 

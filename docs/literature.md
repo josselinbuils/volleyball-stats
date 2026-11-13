@@ -318,7 +318,7 @@ Datasets:
   [DL-Volleyball-Analysis](https://github.com/DL-Volleyball-Analysis/volleyball-analysis):
   YOLO26s-cls on player crops weighted by ball position, macro-F1 0.678 (block, receive, set,
   spike). **Use** as weak baselines; frame-level crops ignore the contact order this project has.
-  VolleyVision's weights on the two matches (8 Nov, `next_steps.md`): spikes found, defense and sets not; no gain.
+  VolleyVision's weights on the two matches (8 Nov, `history.md`): spikes found, defense and sets not; no gain.
 
 Methods:
 
