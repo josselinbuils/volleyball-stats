@@ -7,8 +7,9 @@ import threading
 import time
 from collections.abc import Callable
 
-# How long a page that left has to come back (a reload, the review of another match) before the app stops.
-AFTER_LEAVING_S = 5.0
+# How long a page that left has to come back (a reload, the review of another match) before the app stops: a reload
+# after an apply comes while the server still works (the pictures), 5 s were too few (13 Nov).
+AFTER_LEAVING_S = 30.0
 # A page heard from no more for so long is gone without saying it (a browser that crashed); a minimized window's
 # timers may slow to once a minute, a sleeping one's longer.
 SILENT_S = 30 * 60.0

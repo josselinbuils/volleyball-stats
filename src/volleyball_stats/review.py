@@ -2205,6 +2205,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     history: list[dict] = []
     lock = threading.Lock()
     later = threading.Event()
+    # Set while that work runs, for the app not to stop under it.
+    after_apply = threading.Event()
     generation = [0]
     stale_photos = match / STALE_PHOTOS
     # Why the last new pictures failed, until the next build.
@@ -2359,6 +2361,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         players' pictures, kept on the page if no build came since, then the numbers they read."""
         while True:
             later.wait()
+            after_apply.set()
             later.clear()
             try:
                 built = generation[0]
@@ -2376,6 +2379,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 questions.read_pictures(picture)
             except Exception:
                 traceback.print_exc()
+            finally:
+                after_apply.clear()
 
     def run_steps(steps: list) -> None:
         progress.update(steps=[name for name, _ in steps], started=time.time())
@@ -2878,7 +2883,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     threading.Thread(target=afterwards, daemon=True).start()
     if can_back_up:
         threading.Thread(target=backing, daemon=True).start()
-    presence.watch(lambda: not progress and not any(j["running"] for j in jobs.state(app.OUTPUTS)), lock)
+    # Never in an apply nor the work it leaves for later (the pictures).
+    presence.watch(lambda: not progress and not later.is_set() and not after_apply.is_set() and not any(j["running"] for j in jobs.state(app.OUTPUTS)), lock)
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
         app.open_browser(url)
