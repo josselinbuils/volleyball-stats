@@ -183,6 +183,8 @@
     "undo": "Undo the last answer",
     "changePhoto": "Change their card's picture",
     "currentPhoto": "Their card's current picture",
+    "photoUpdating": "Photo being updated",
+    "photosFailed": "The photos could not be updated.",
     "photoN": "Picture {{n}}",
     "setStartAt": "New set at {{time}}",
     "setStartAsk": "A set starts at {{time}}? The analysis will run again.",

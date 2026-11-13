@@ -776,9 +776,11 @@ class TestPhotos:
 
         # The picture as cut, without the upscaler.
         monkeypatch.setattr(web, "upscaler", lambda: None)
-        photos(tmp_path, video, people, tmp_path / "players")
+        photos(tmp_path, video, people, tmp_path / "players", record=tmp_path / web.PHOTO_SHOWN)
 
         assert people[0]["photo"].startswith("players/0.webp?v=")
+        # Where it was taken, for an apply to keep it on that player.
+        assert json.loads((tmp_path / web.PHOTO_SHOWN).read_text())["players/0.webp"]["track"] == 1
         # The 10x30 box from a little above its top down to its waist (55 %), 3 wide for 4 tall.
         assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (17, 13)
         assert "photo" not in people[1]
@@ -1068,13 +1070,28 @@ class TestReceived:
 
 
 class TestKeptPhotos:
-    def test_keeps_a_players_picture_unless_its_file_is_gone(self, tmp_path):
-        people = {"0": {"team": 1, "number": 3, "photo": "players/0.webp?v=a"}, "1": {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}}
+    def site(self, tmp_path, people):
         (tmp_path / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people})};\n")
         (tmp_path / "players").mkdir()
-        (tmp_path / "players" / "0.webp").write_bytes(b"x")
-        built = {5: {"team": 1, "number": 3}, 6: {"team": 2, "number": 4}, 7: {"team": 2, "number": 9}}
+        for key in people:
+            (tmp_path / "players" / f"{key}.webp").write_bytes(b"x")
 
-        web.kept_photos(built, tmp_path)
+    def test_keeps_each_picture_on_the_player_it_shows(self, tmp_path):
+        # An apply moved the player of #3's picture to #8, and #3 to someone else.
+        self.site(tmp_path, {"0": {"team": 1, "number": 3, "photo": "players/0.webp?v=a"}, "1": {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}})
+        (tmp_path / web.PHOTO_SHOWN).write_text(json.dumps({"players/0.webp": {"track": 7, "frame": 150}, "players/1.webp": {"track": 9, "frame": 50}}))
+        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity,runner_up,confidence\n7,100,200,1,8,,1\n9,0,100,2,4,,1\n")
+        built = {5: {"team": 1, "number": 3}, 6: {"team": 1, "number": 8}, 7: {"team": 2, "number": 4}}
 
-        assert built == {5: {"team": 1, "number": 3, "photo": "players/0.webp?v=a"}, 6: {"team": 2, "number": 4}, 7: {"team": 2, "number": 9}}
+        web.kept_photos(built, tmp_path, tmp_path)
+
+        assert built == {5: {"team": 1, "number": 3}, 6: {"team": 1, "number": 8, "photo": "players/0.webp?v=a"}, 7: {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}}
+
+    def test_without_where_it_was_taken_keeps_a_named_players_picture_only(self, tmp_path):
+        self.site(tmp_path, {"0": {"team": 1, "number": 3, "name": "Ana", "photo": "players/0.webp?v=a"}, "1": {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}})
+        (tmp_path / "players" / "1.webp").unlink()
+        built = {5: {"team": 1, "number": 6, "name": "Ana"}, 6: {"team": 2, "number": 4}}
+
+        web.kept_photos(built, tmp_path, tmp_path)
+
+        assert built == {5: {"team": 1, "number": 6, "name": "Ana", "photo": "players/0.webp?v=a"}, 6: {"team": 2, "number": 4}}

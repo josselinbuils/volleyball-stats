@@ -10,6 +10,9 @@ import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
+import { ErrorNote } from '@/components/ErrorNote';
+import { usePhotos } from '@/hooks/usePhotos';
+import { explain } from '@/lib/errors';
 import { NameField } from '@/components/Review/NameField';
 import { offeredNames, unnamedFirst } from '@/components/Review/helpers/players';
 import { TeamEditor } from '@/components/Review/TeamEditor';
@@ -117,9 +120,11 @@ export function Names({
     }
   };
   const edit = (p: Named, value: Given) => setGiven((g) => new Map(g).set(keyOf(p), value));
+  const photos = usePhotos();
 
   return (
     <div className="grid gap-6">
+      {photos.error && <ErrorNote {...explain(t, photos.error, 'review.photosFailed')} />}
       {GROUPS.map((g) => {
         const mine = unnamedFirst(players.filter((p) => p.team === g));
         if (!mine.length) {
@@ -160,6 +165,7 @@ export function Names({
                   nameOf={(team, n) => given.get(`${team}:${n}`)?.name.trim() || null}
                   onSaved={onSaved}
                   onError={onError}
+                  stalePhoto={photos.pending}
                 />
               ))}
             </div>
@@ -186,6 +192,7 @@ function NameCard({
   nameOf,
   onSaved,
   onError,
+  stalePhoto,
 }: {
   player: Named;
   g: Group;
@@ -203,6 +210,8 @@ function NameCard({
   nameOf: (team: Group, identity: number) => string | null;
   onSaved: (saved: Saved) => void;
   onError: () => void;
+  /** The card's picture is out of date: the new one is being made. */
+  stalePhoto: boolean;
 }) {
   const { t } = useTranslation();
   const taken = new Set(others.map((o) => o.name).filter(Boolean));
@@ -222,7 +231,7 @@ function NameCard({
     <div data-card tabIndex={-1} className="grid content-start gap-2.5 rounded-lg border bg-card p-3 outline-none focus-within:ring-2 focus-within:ring-ring/60">
       <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
       <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
-      <PhotoPicker player={p} onError={onError} />
+      <PhotoPicker player={p} stale={stalePhoto} onError={onError} />
       {film && (
         <Button
           variant="outline"

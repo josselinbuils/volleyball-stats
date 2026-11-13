@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, LoaderCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Tip } from '@/components/Tip';
 import { match } from '@/lib/match';
 import { post, review, type Named } from '@/lib/review';
 
 /** The player's card picture as the match page shows it, and the other moments to pick for it; a pick
- * rebuilds the pages, then the review reloads. */
-export function PhotoPicker({ player, onError }: { player: Named; onError: () => void }) {
+ * rebuilds the pages, then the review reloads. While `stale` (an apply came since), the picture shows as out of date,
+ * or a placeholder for none, and none can be picked. */
+export function PhotoPicker({ player, stale, onError }: { player: Named; stale: boolean; onError: () => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const found = review?.photos?.[`${player.team}:${player.identity}`] ?? [];
   const current = Object.values(match.people).find((x) => x.team === player.team && x.number === player.identity)?.photo;
-  if (!found.length && !current) {
+  if (!found.length && !current && !stale) {
     return null;
   }
   const pick = async (frame: number, box: number[]) => {
@@ -31,15 +33,24 @@ export function PhotoPicker({ player, onError }: { player: Named; onError: () =>
   return (
     <div className="grid gap-2">
       <div className="flex items-end gap-3">
-        {current && <img src={current} alt={t('review.currentPhoto')} className="h-24 w-18 rounded-md bg-muted object-cover object-top" />}
+        {stale ? (
+          <Tip label={t('review.photoUpdating')}>
+            <div className="relative grid h-24 w-18 place-items-center overflow-hidden rounded-md bg-muted" role="img" aria-label={t('review.photoUpdating')}>
+              {current && <img src={current} alt="" className="absolute inset-0 size-full object-cover object-top opacity-40" />}
+              <LoaderCircle aria-hidden className="relative size-5 animate-spin text-foreground" />
+            </div>
+          </Tip>
+        ) : (
+          current && <img src={current} alt={t('review.currentPhoto')} className="h-24 w-18 rounded-md bg-muted object-cover object-top" />
+        )}
         {found.length > 0 && (
-          <Button variant="outline" size="sm" className="bg-card" disabled={saving} onClick={() => setOpen((o) => !o)}>
+          <Button variant="outline" size="sm" className="bg-card" disabled={saving || stale} onClick={() => setOpen((o) => !o)}>
             <ImageIcon aria-hidden />
             {saving ? t('review.saving') : t('review.changePhoto')}
           </Button>
         )}
       </div>
-      {open && (
+      {open && !stale && (
         <div className="grid grid-cols-4 gap-1.5">
           {found.map((m, k) => (
             <button

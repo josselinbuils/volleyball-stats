@@ -94,6 +94,9 @@ LIKE, PHOTO_VECTORS = 0.08, "photo_vectors.npz"
 # team:identity for the review to offer; the one the user picked instead, by name, in
 # MATCH/PHOTO_PICKED.
 PHOTO_CHOICES, PHOTO_CANDIDATES, PHOTO_PICKED = 8, "photo_candidates.json", "photo_choices.json"
+# Where the review's card pictures were taken, by file (players/KEY.webp): the track and frame, for an
+# apply to keep each picture on the player it shows until the new ones come (`kept_photos`).
+PHOTO_SHOWN = "photo_shown.json"
 # Raise it when what `photos` keeps of a moment's scores changes.
 SCORES_FORMAT = 1
 # The moments framed so far, by frame and box.
@@ -1390,9 +1393,10 @@ def scores_stamp(video: Path) -> str:
     return files.cache_stamp(video, [POSE_MODEL, REID], f"{SCORES_FORMAT}:{CROP_MARGIN}:" + files.code_text(looks, framed, describe, load_reid))
 
 
-def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}) -> dict[int, tuple]:
+def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}, record: Path | None = None) -> dict[int, tuple]:
     """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: their
-    best moment (PHOTO_PICKS), framed; returns each pictured player's (frame, box, head)."""
+    best moment (PHOTO_PICKS), framed; returns each pictured player's (frame, box, head). `record`
+    (PHOTO_SHOWN) gets where each picture was taken."""
     from volleyball_stats.decode import frames_at
     from volleyball_stats.review import ALONE, IDENTITY_CROPS, Questions, load_log, piece_key
 
@@ -1577,11 +1581,15 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
             part = face(image, box, scores[name(frame, box)][4])
             if part.size:
                 cv2.imwrite(str(kept_at(frame, box)), upscaled(up, part) if up else touched_up(part), [cv2.IMWRITE_WEBP_QUALITY, 80])
+    taken_at = {}
     for frame, pairs in chosen.items():
         for key, box in pairs:
             if kept_at(frame, box).exists():
                 shutil.copyfile(kept_at(frame, box), folder / f"{key}.webp")
                 people[key]["photo"] = versioned(folder / f"{key}.webp", folder.name)
+                taken_at[f"{folder.name}/{key}.webp"] = {"track": questions.track_at(frame, box), "frame": frame}
+    if record:
+        files.write_text(record, json.dumps(taken_at))
     return picked
 
 
@@ -1638,9 +1646,9 @@ def build(
     blurred = {3 - (club or 1)} if footage == "blur-opponents" else {"none": None, "full": set(), "blur-all": {1, 2}}[footage]
     if pictures:
         shutil.rmtree(site / "players", ignore_errors=True)
-        photos(match, video, data["people"], site / "players", pictured)
+        photos(match, video, data["people"], site / "players", pictured, match / PHOTO_SHOWN if review else None)
     else:
-        kept_photos(data["people"], site)
+        kept_photos(data["people"], site, match)
     # The logo's folder, and the one older builds named brand/.
     for folder in ("club", "brand"):
         shutil.rmtree(site / folder, ignore_errors=True)
@@ -1663,15 +1671,32 @@ def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictur
     return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True)
 
 
-def kept_photos(people: dict[int, dict], site: Path) -> None:
-    """`people` with the pictures the page at `site` shows of the same (team, number), if still there."""
+def kept_photos(people: dict[int, dict], site: Path, match: Path) -> None:
+    """`people` with the pictures the page at `site` shows, each on the player it shows now: the
+    (team, number) whose piece holds where it was taken (PHOTO_SHOWN), else the player of the same
+    name; none for the others until the new pictures come. An apply moves numbers between players."""
     from volleyball_stats.review import page_data
 
-    shown = page_data(site)
-    known = {(p.get("team"), p.get("number")): p["photo"] for p in (shown or {}).get("people", {}).values() if p.get("photo") and (site / p["photo"].split("?")[0]).exists()}
+    path = match / PHOTO_SHOWN
+    taken = json.loads(path.read_text()) if path.exists() else {}
+    find = finder(read_identities(match / "identities.csv")) if taken and (match / "identities.csv").exists() else None
+    by_card: dict[tuple[int, int], str] = {}
+    by_name: dict[str, str] = {}
+    for p in (page_data(site) or {}).get("people", {}).values():
+        file = (p.get("photo") or "").split("?")[0]
+        if not file or not (site / file).exists():
+            continue
+        at = taken.get(file)
+        if at and at.get("track") is not None and find:
+            now = find(at["track"], at["frame"])
+            if now:
+                by_card.setdefault(now, p["photo"])
+        elif p.get("name"):
+            by_name.setdefault(p["name"], p["photo"])
     for person in people.values():
-        if (person["team"], person["number"]) in known:
-            person["photo"] = known[person["team"], person["number"]]
+        found = by_card.get((person["team"], person["number"])) or by_name.get(person.get("name") or "")
+        if found:
+            person["photo"] = found
 
 
 def refresh_photos(match: Path, video: Path, site: Path) -> dict:
@@ -1679,7 +1704,7 @@ def refresh_photos(match: Path, video: Path, site: Path) -> dict:
     from volleyball_stats.review import page_data
 
     people = page_data(site)["people"]
-    photos(match, video, people, site / "players", {1, 2})
+    photos(match, video, people, site / "players", {1, 2}, match / PHOTO_SHOWN)
     return people
 
 

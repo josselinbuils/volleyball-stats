@@ -191,6 +191,23 @@ def mount(drive: str) -> Path:
     return target
 
 
+def release(paths: list[Path]) -> None:
+    """Under WSL2, the Windows drives (but C) holding `paths` unmounted: a drive mounted in WSL stays in use for
+    Windows, which then cannot eject the card. One still in use (another import from it) is left."""
+    if doctor.system() != "wsl":
+        return
+    for drive in sorted({p.resolve().parts[2] for p in paths if len(p.resolve().parts) > 2 and p.resolve().parts[1] == "mnt"}):
+        target = Path("/mnt") / drive
+        if re.fullmatch(r"[abd-z]", drive) and os.path.ismount(target):
+            try:
+                subprocess.run(
+                    ["wsl.exe", *(["-d", os.environ["WSL_DISTRO_NAME"]] if os.environ.get("WSL_DISTRO_NAME") else []), "-u", "root", "--", "umount", str(target)],
+                    capture_output=True, timeout=60, stdin=subprocess.DEVNULL, cwd="/mnt/c",
+                )
+            except (OSError, subprocess.SubprocessError):
+                pass
+
+
 def sources() -> list[dict]:
     """The folders where a match's video may be: the cards and drives mounted, those with a camera's DCIM first; under
     WSL2, each Windows drive (mounted when picked) and the Windows downloads."""

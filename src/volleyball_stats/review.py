@@ -128,7 +128,7 @@ class Questions:
         # Where each box's feet stand on the court, in meters.
         self.court_of = table[:, 6:]
         table = table[:, :6].round().astype(np.int32)
-        self.frame_of, self.box_of = table[:, 0], table[:, 2:]
+        self.frame_of, self.track_of, self.box_of = table[:, 0], table[:, 1], table[:, 2:]
         by_track = np.lexsort((table[:, 0], table[:, 1]))
         tracks, firsts = np.unique(table[by_track, 1], return_index=True)
         self.rows = {int(t): by_track[a:b] for t, a, b in zip(tracks, firsts, [*firsts[1:], len(by_track)])}
@@ -170,6 +170,12 @@ class Questions:
         rows = self.rows[track]
         frames = self.frame_of[rows]
         return rows[np.searchsorted(frames, start) : np.searchsorted(frames, end, side="right")]
+
+    def track_at(self, frame: int, box: tuple) -> int | None:
+        """The track of the box `box` at `frame`, None for none."""
+        lo, hi = np.searchsorted(self.frame_of, frame), np.searchsorted(self.frame_of, frame, side="right")
+        found = np.nonzero((self.box_of[lo:hi] == np.array(box)).all(axis=1))[0]
+        return int(self.track_of[lo + found[0]]) if len(found) else None
 
     def box(self, track: int, frame: int) -> tuple:
         rows = self.rows[track]
@@ -2199,6 +2205,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     later = threading.Event()
     generation = [0]
     stale_photos = match / STALE_PHOTOS
+    # Why the last new pictures failed, until the next build.
+    photos_error: list[str | None] = [None]
     # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.4 s.
     readers = threading.Semaphore(READERS)
     kept = match / "crops"
@@ -2325,6 +2333,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         def own() -> None:
             web.review_page(match, video, court, theme, pictures)
             generation[0] += 1
+            photos_error[0] = None
             if pictures:
                 stale_photos.unlink(missing_ok=True)
             else:
@@ -2352,7 +2361,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             try:
                 built = generation[0]
                 if stale_photos.exists():
-                    people = web.refresh_photos(match, video, match / "review")
+                    try:
+                        people = web.refresh_photos(match, video, match / "review")
+                    except Exception as error:
+                        photos_error[0] = str(error) or type(error).__name__
+                        raise
                     with lock:
                         if built == generation[0]:
                             web.patch_people(match / "review", people)
@@ -2398,6 +2411,17 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         teams = web.read_teams(match)
         return [t["name"] for t in teams["teams"]] if teams else [None, None]
 
+    def card_photos() -> dict:
+        """Each player's card picture first, then the other best moments for one, as picked by
+        web.photos; whether the cards' pictures are out of date (an apply came since), why the new
+        ones failed."""
+        offered = match / web.PHOTO_CANDIDATES
+        photos = {
+            who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
+            for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
+        }
+        return {"photos": photos, "photosPending": stale_photos.exists() and not photos_error[0], "photosError": photos_error[0]}
+
     def review_js() -> bytes:
         log = load_log(answers)
         found, _ = questions.build({entry["id"] for entry in log})
@@ -2415,13 +2439,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 who = t if t == "not_player" else t and identity.lookup(questions.table, t["track"], t["frame"])
                 odd[piece_key(o)] = who if isinstance(who, str) or who is None else f"{who[0]}:{who[1]}"
         conflicts = questions.conflicts(log, identity.read_names(match))
-        # Each player's card picture first, then the other best moments for one, as picked by web.photos.
-        offered = match / web.PHOTO_CANDIDATES
-        photos = {
-            who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
-            for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
-        }
-        data = {"width": width, "height": height, "matchEnd": given_end(match), "sets": given_sets(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "picks": sorted(film.read_picks(match)), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, "photos": photos, "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
+        data = {"width": width, "height": height, "matchEnd": given_end(match), "sets": given_sets(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "picks": sorted(film.read_picks(match)), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, **card_photos(), "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
             "learning": pooled_runs(match.parent),
             "comparison": last_comparison(match),
             "fetched": fetched_log or None,
@@ -2482,6 +2500,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 with lock:
                     body = review_js()
                 return self.send(body, "text/javascript")
+            if url.path == "/photos":
+                with lock:
+                    people = {k: p.get("photo") for k, p in ((page_data(match / "review") or {}).get("people") or {}).items()}
+                    body = {**card_photos(), "people": people}
+                return self.send(json.dumps(body).encode(), "application/json")
             if url.path == "/progress":
                 state = dict(progress)
                 return self.send(json.dumps(eta(state, took, time.time()) if state else {}).encode(), "application/json")

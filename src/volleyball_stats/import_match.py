@@ -210,6 +210,10 @@ def main() -> None:
         parser.error(f"{needed / 1e9:.0f} GB free needed in {target.parent}")
 
     join(chapters, target, start, end, args.out.parent / TIMINGS if args.out.name == "matches" else None)
+    from volleyball_stats.app import release
+
+    # The card is no longer needed: Windows can eject it.
+    release(list(args.source))
     out = args.out / name
     out.mkdir(parents=True, exist_ok=True)
     files.write_text(out / "teams.json", json.dumps({"teams": [{"name": n, "colour": c} for n, c in names], "date": day}, indent=2, ensure_ascii=False) + "\n")

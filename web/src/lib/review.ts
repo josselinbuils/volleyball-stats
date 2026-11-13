@@ -165,6 +165,10 @@ interface ReviewData {
   conflicts: Conflict[];
   /** Each player's (`team:identity`) card picture first, then the other moments to pick for it. */
   photos?: Record<string, PhotoMoment[]>;
+  /** The cards' pictures are out of date (an apply came since): the new ones are being made. */
+  photosPending?: boolean;
+  /** Why the new pictures failed. */
+  photosError?: string | null;
   /** The hosted pages (when the match is hosted): their last update's time (none yet since the server started), why it failed, whether a change came since. */
   hosted?: Hosted | null;
   films?: FilmCounts;
@@ -260,6 +264,18 @@ export function onServerBusy(listener: () => void): () => void {
 /** Sends an answer, a name, pictures marked as someone else, a team's name and colour, an undo or
  * the apply request to the review server. */
 /** What stopped the server's last run, until dismissed: null without one, or without a server. */
+/** The cards' pictures as they now are: the moments to pick, whether they are still out of date, why the new ones
+ * failed, and each person's picture on the match page, by their key. */
+export type Photos = Pick<ReviewData, 'photos' | 'photosPending' | 'photosError'> & { people: Record<string, string | null> };
+
+export async function readPhotos(): Promise<Photos> {
+  const response = await fetch('photos');
+  if (!response.ok) {
+    throw new Error(`photos:${response.status}`);
+  }
+  return (await response.json()) as Photos;
+}
+
 export async function readFailure(): Promise<Failure | null> {
   try {
     const failure = (await (await fetch('failure')).json()) as Partial<Failure>;
