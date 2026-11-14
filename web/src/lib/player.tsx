@@ -63,6 +63,11 @@ export function seek(media: Media, time: number): void {
 }
 
 /** Plays the video if paused, else pauses it. */
+/** The box holding `media` and its controls, the one going full screen: the video's `[data-player]` ancestor. */
+export function boxOf(media: Media | null): HTMLElement | null {
+  return (media instanceof HTMLVideoElement && media.closest<HTMLElement>('[data-player]')) || (media?.parentElement ?? null);
+}
+
 export function togglePlay(video: Media | null): void {
   if (video?.paused) {
     video.play().catch(() => {});
@@ -105,7 +110,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       update({ title, clips, at });
       // The box holding the video and its controls, not the video, scaled by the zoom past that box.
-      const box = video?.parentElement?.getBoundingClientRect();
+      const box = boxOf(video)?.getBoundingClientRect();
       if (!box) {
         return;
       }

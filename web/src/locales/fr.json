@@ -651,6 +651,12 @@
   "zoomInView": "Zoomer",
   "zoomOutView": "Dézoomer",
   "exitFullscreen": "Quitter le plein écran",
+  "fullLayout": {
+    "label": "Disposition",
+    "video": "Vidéo seule",
+    "side": "Terrain à côté",
+    "inset": "Terrain dans un coin"
+  },
   "sideFilter": "Côté",
   "bothSides": "Les deux côtés",
   "teamFilter": "Équipe",

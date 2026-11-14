@@ -651,6 +651,12 @@
   "zoomInView": "Zoom in",
   "zoomOutView": "Zoom out",
   "exitFullscreen": "Exit full screen",
+  "fullLayout": {
+    "label": "Layout",
+    "video": "Video only",
+    "side": "Court beside",
+    "inset": "Court in a corner"
+  },
   "sideFilter": "Side",
   "bothSides": "Both sides",
   "teamFilter": "Team",

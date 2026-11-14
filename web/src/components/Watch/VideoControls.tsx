@@ -7,13 +7,14 @@ import { clock } from '@/lib/format';
 import { contacts, match } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
 import { nearTouch, SLOW_RATE } from '@/helpers/slow';
-import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
+import { boxOf, seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
 import { around, isDownload, merged, placer, seekLine, unshifted, within } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 import { useWatchList } from '@/components/Watch/useWatchList';
 import { WatchPanel } from '@/components/Watch/WatchPanel';
+import { LayoutMenu, type Layout } from '@/components/Watch/LayoutMenu';
 
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
@@ -37,8 +38,9 @@ const HELD_MS = 500;
 // Chromium (Chrome, Edge, Android) reports a video's loaded parts at their bytes' share of the file (`placer`).
 const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.some((b) => b.brand === 'Chromium') ?? false;
 
-/** The video's controls, its timeline limited to the set the page shows; `light` on a light background. */
-export function VideoControls({ light = false, follow, onFollow }: { light?: boolean; follow?: boolean; onFollow?: () => void }) {
+/** The video's controls, its timeline limited to the set the page shows; `light` on a light background. With `onLayout`, full
+ * screen offers its layouts. */
+export function VideoControls({ light = false, follow, onFollow, layout, onLayout }: { light?: boolean; follow?: boolean; onFollow?: () => void; layout?: Layout; onLayout?: (next: Layout) => void }) {
   const { t } = useTranslation();
   const { video, loop, setLoop, playlist } = usePlayer();
   // In a playlist, the clip playing and those after it.
@@ -194,13 +196,14 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   });
 
   // iPhones put only a video full screen, not the court's replay.
-  const fullscreen = !!video?.parentElement?.requestFullscreen || (video !== null && 'webkitEnterFullscreen' in video);
+  const box = boxOf(video);
+  const fullscreen = !!box?.requestFullscreen || (video !== null && 'webkitEnterFullscreen' in video);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
-    } else if (video?.parentElement?.requestFullscreen) {
+    } else if (box?.requestFullscreen) {
       // A phone turns to landscape, the court's shape, until full screen ends; iPhones cannot lock it.
-      video.parentElement
+      box
         .requestFullscreen()
         .then(() => {
           if (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600) {
@@ -288,6 +291,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
           {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
         </VideoButton>
       )}
+      {state.full && layout && onLayout && <LayoutMenu layout={layout} onLayout={onLayout} className={cn(second)} />}
       {stepped && <span aria-hidden className="hidden max-sm:order-1 max-sm:block max-sm:basis-full" />}
       {stepped && (
         <VideoButton light={light} className="max-sm:ml-auto" label={t('watchList')} pressed={listed} onClick={() => setListed(!listed)}>

@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils';
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
-function DropdownMenuContent({ className, align = 'end', sideOffset = 4, ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+function DropdownMenuContent({ className, align = 'end', sideOffset = 4, container, ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & { container?: Element | null }) {
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={container}>
       <DropdownMenuPrimitive.Content
         align={align}
         sideOffset={sideOffset}

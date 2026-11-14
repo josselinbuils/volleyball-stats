@@ -38,6 +38,10 @@ moments.
   under the player's controls, in the sheet too. In full screen, where the bar under the player is out of sight, the
   control bar adds previous and next, and "Liste" opens the same list over the picture (`Watch/WatchPanel.tsx`); on a
   phone held upright the bar's buttons take two rows, previous, play, next, the list and full screen on the first.
+- Full screen's "Disposition" (`Watch/LayoutMenu.tsx`, kept in the browser) shows the video alone, the court's replay
+  beside it (under it on a screen held upright) or in its bottom right corner. The page's own replay moves there, its
+  2D/3D/TV choice and 3D view kept, dark as the video around it; only full screen has a layout (the `multi-view-layout`
+  branch's resizable four views were too complex).
 - Beside it, the court seen from above follows the play: the players, the ball with a trail as long
   as it is fast, and a ring around the player touching it.
 - Each player keeps one mark for the whole match: their number, then once named their jersey number, or without one

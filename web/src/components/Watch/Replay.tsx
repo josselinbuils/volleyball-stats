@@ -258,7 +258,8 @@ export function ReplayCaption({ className }: { className?: string }) {
   const { t } = useTranslation();
   const players = usePlayers();
   return (
-    <div className={cn('mt-3 grid gap-2', className)}>
+    // Beside the video in full screen, the court's ends name the teams.
+    <div className={cn('mt-3 grid gap-2 [[data-player]:fullscreen_&]:hidden', className)}>
       <Legend>
         {GROUPS.map((g) => (
           <span key={g} className="inline-flex min-w-0 items-center gap-2">

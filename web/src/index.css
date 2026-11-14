@@ -143,6 +143,11 @@
     /* The scrollbar's room kept: the page keeps its width from a short tab to a long one. */
     scrollbar-gutter: stable;
   }
+  /* Full screen fills the screen, without the hidden page's scrollbar room. */
+  html:has(:fullscreen) {
+    scrollbar-gutter: auto;
+    overflow: hidden;
+  }
   body {
     @apply bg-background text-foreground antialiased;
   }

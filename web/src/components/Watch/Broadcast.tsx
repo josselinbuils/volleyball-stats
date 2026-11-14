@@ -180,7 +180,7 @@ export function BroadcastControls({ voice, onVoice }: { voice: boolean; onVoice:
   const clips = useMemo(() => broadcastClips(rallies, chosen, match.duration, timeouts), [rallies, chosen]);
   const [canSpeak] = useState(() => match.voice || speaks());
   return (
-    <div className="mt-3 grid gap-2">
+    <div className="mt-3 grid gap-2 [[data-player]:fullscreen_&]:hidden">
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" disabled={!clips.length} onClick={() => play((tr) => tr('broadcast.watching'), clips)}>
           <Play aria-hidden />

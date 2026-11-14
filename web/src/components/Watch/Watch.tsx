@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { LoaderCircle, Lock } from 'lucide-react';
 import { VideoError } from '@/components/VideoError';
@@ -7,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { SetBadge } from '@/components/SetBadge';
 import { loadBall, useBall } from '@/lib/ball';
 import { useFormat } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { match, timeoutAt, timeoutLabel } from '@/lib/match';
 import { Clock } from '@/lib/clock';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
@@ -18,6 +20,7 @@ import { RallyCards } from '@/components/Watch/RallyCards';
 import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
+import { useLayout } from '@/components/Watch/LayoutMenu';
 import { askVideo } from '@/components/VideoChoice';
 import { smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
@@ -119,6 +122,26 @@ export function Watch() {
     return () => observer.disconnect();
   }, [video]);
   const src = match.small && !full && !follow && !wide ? match.small : BIG;
+  // Full screen shows the court's replay beside the video or in its corner, as chosen. The same replay moves there from
+  // the page (its 3D view kept, not drawn again), its place in the page keeping its height meanwhile.
+  const [layout, setLayout] = useLayout();
+  const courtFull = full && layout !== 'video';
+  const [host] = useState(() => {
+    const div = document.createElement('div');
+    div.style.display = 'contents';
+    return div;
+  });
+  const slot = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const place = slot.current;
+    const target = courtFull ? panel.current : place;
+    if (!place || !target) {
+      return;
+    }
+    place.style.minHeight = courtFull ? `${place.offsetHeight}px` : '';
+    target.appendChild(host);
+  }, [courtFull, layout, host]);
   // A copy taking over carries on where the video stands, playing if it was.
   useEffect(() => {
     if (!(video instanceof HTMLVideoElement) || !src || video.getAttribute('src') === src) {
@@ -210,32 +233,57 @@ export function Watch() {
             <Scoreboard />
             <div className="relative">
               {!full && <Feedback />}
-              {/* Full screen takes the video with its controls. */}
-              <div className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
-                {full && <Feedback />}
-                {!LOCAL && playlist && reached === playlist.clips && playlist.at + 1 < playlist.clips.length && <Preload src={src} clips={playlist.clips} at={playlist.at} />}
-                {/* What plays, over the video: the bar below is out of sight from the stats and in full screen; else a timeout. */}
-                {(playlist || pause) && (
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-8.5rem)] truncate rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm"
+              {/* Full screen takes the video with its controls, and the court's replay as chosen. */}
+              <div data-player className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
+                {/* Beside the video, under it on a screen held upright (both centred); else in its bottom right corner. */}
+                <div className={cn('relative [:fullscreen>&]:flex [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1', courtFull && layout === 'side' && 'portrait:flex-col portrait:justify-center')}>
+                  {/* The video's own box: the zoom stays inside it. */}
+                  <div
+                    className={cn(
+                      'relative overflow-hidden [:fullscreen_&]:min-h-0 [:fullscreen_&]:min-w-0 [:fullscreen_&]:flex-[3]',
+                      courtFull && layout === 'side' && '[:fullscreen_&]:portrait:flex-none',
+                    )}
                   >
-                    {playlist ? `${playlist.title(t)} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}` : pause && timeoutLabel(t, pause)}
-                  </span>
-                )}
-                {/* Nothing loads before the video is first played or moved (`seek`). */}
-                <video
-                  ref={setVideo}
-                  poster={match.poster}
-                  playsInline
-                  preload="none"
-                  aria-label={t('video')}
-                  onClick={() => togglePlay(video)}
-                  className="block aspect-video w-full cursor-pointer [:fullscreen>&]:aspect-auto [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1"
-                />
-                {video instanceof HTMLVideoElement && <Buffering video={video} />}
-                {video instanceof HTMLVideoElement && <VideoError video={video} />}
-                <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} />
+                    {full && <Feedback />}
+                    {!LOCAL && playlist && reached === playlist.clips && playlist.at + 1 < playlist.clips.length && <Preload src={src} clips={playlist.clips} at={playlist.at} />}
+                    {/* What plays, over the video: the bar below is out of sight from the stats and in full screen; else a timeout. */}
+                    {(playlist || pause) && (
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-8.5rem)] truncate rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm"
+                      >
+                        {playlist ? `${playlist.title(t)} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}` : pause && timeoutLabel(t, pause)}
+                      </span>
+                    )}
+                    {/* Nothing loads before the video is first played or moved (`seek`). */}
+                    <video
+                      ref={setVideo}
+                      poster={match.poster}
+                      playsInline
+                      preload="none"
+                      aria-label={t('video')}
+                      onClick={() => togglePlay(video)}
+                      className={cn(
+                        'block aspect-video w-full cursor-pointer [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full',
+                        courtFull && layout === 'side' && '[:fullscreen_&]:portrait:aspect-video [:fullscreen_&]:portrait:h-auto',
+                      )}
+                    />
+                    {video instanceof HTMLVideoElement && <Buffering video={video} />}
+                    {video instanceof HTMLVideoElement && <VideoError video={video} />}
+                  </div>
+                  {/* Dark as the video around it, in a 16/10 box: centred beside the video, or that box in its corner. */}
+                  {courtFull && (
+                    <div
+                      className={cn(
+                        'dark text-foreground',
+                        layout === 'side' ? 'flex min-h-0 min-w-0 flex-[2] flex-col justify-center portrait:flex-none' : 'absolute right-3 bottom-3 z-[5] w-[30%] min-w-60',
+                      )}
+                    >
+                      <div ref={panel} className={cn('relative aspect-[16/10] w-full overflow-hidden bg-background', layout === 'inset' && 'rounded-lg shadow-lg ring-1 ring-white/20')} />
+                    </div>
+                  )}
+                </div>
+                <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} layout={layout} onLayout={setLayout} />
               </div>
             </div>
             <PlaylistBar />
@@ -244,7 +292,8 @@ export function Watch() {
           <div className="min-w-0 lg:order-last lg:col-span-2 lg:mt-2">
             <RallyCards />
           </div>
-          <Replay />
+          <div ref={slot} className="min-w-0" />
+          {createPortal(<Replay />, host)}
         </PlayerSheet>
       </CardContent>
     </Card>
@@ -275,13 +324,9 @@ function Buffering({ video }: { video: HTMLVideoElement }) {
   if (!shown) {
     return null;
   }
-  // Over the picture, the controls below it; in full screen over the whole screen.
+  // Over the picture, in the video's own box.
   return (
-    <div
-      role="status"
-      aria-label={t('videoLoading')}
-      className="pointer-events-none absolute inset-x-0 top-0 grid aspect-video place-items-center [:fullscreen>&]:bottom-0 [:fullscreen>&]:aspect-auto"
-    >
+    <div role="status" aria-label={t('videoLoading')} className="pointer-events-none absolute inset-0 grid place-items-center">
       <span className="rounded-full bg-black/60 p-2.5 text-white backdrop-blur-sm">
         <LoaderCircle aria-hidden className="size-8 animate-spin" />
       </span>

@@ -54,9 +54,9 @@ function rgb(color: string): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/** The page's colours for the scene: read when asked, its theme can change. */
-export function sceneColors(): SceneState['colors'] {
-  const css = getComputedStyle(document.documentElement);
+/** The colours around `element` for the scene: read when asked, its theme can change (full screen's is dark). */
+export function sceneColors(element: Element): SceneState['colors'] {
+  const css = getComputedStyle(element);
   const get = (name: string) => rgb(css.getPropertyValue(`--${name}`).trim());
   return {
     team: [get('team1'), get('team2')],
@@ -74,12 +74,21 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
   const box = useRef<HTMLDivElement>(null);
   const scene = useRef<Scene | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
-  // The theme, the `dark` class on <html>: the scene recolours when it changes, paused or not.
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  // The theme, the `dark` class on <html>, or the scene moving into full screen's dark panel (its size changes): it
+  // recolours, paused or not.
+  const [theme, setTheme] = useState(0);
   useEffect(() => {
-    const observer = new MutationObserver(() => setDark(document.documentElement.classList.contains('dark')));
+    const recolour = () => setTheme((n) => n + 1);
+    const observer = new MutationObserver(recolour);
     observer.observe(document.documentElement, { attributeFilter: ['class'] });
-    return () => observer.disconnect();
+    const resized = new ResizeObserver(recolour);
+    if (box.current) {
+      resized.observe(box.current);
+    }
+    return () => {
+      observer.disconnect();
+      resized.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -105,8 +114,8 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
     if (status !== 'ready' || !scene.current) {
       return;
     }
-    scene.current.update({ ...state, colors: sceneColors() });
-  }, [state, status, dark]);
+    scene.current.update({ ...state, colors: sceneColors(box.current ?? document.documentElement) });
+  }, [state, status, theme]);
 
   return (
     <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-muted/40 [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full [:fullscreen_&]:rounded-none">
