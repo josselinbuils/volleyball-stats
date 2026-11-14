@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { autoView, boxAt, exchangeAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
+import { coarse, frameTime, nudgeOf } from '@/components/Review/helpers/scrub';
 import { Tip } from '@/components/Tip';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
@@ -30,6 +31,10 @@ const HOLD_RATE = 0.25;
 const ZOOM_STEP = 1.5;
 /** A press moving this far drags the zoomed view: no click, no slowing down. */
 const DRAG_PX = 4;
+/** A drag on the bar resting this long goes frame by frame again from there. */
+const SETTLE_MS = 300;
+/** A press on the bar this close to its thumb grabs it where it stands. */
+const THUMB_PX = 8;
 /** Whether the match's sound is off, kept in this browser. */
 const MUTED_KEY = 'review.muted';
 /** Whether the automatic zoom is on, kept in this browser. */
@@ -65,7 +70,7 @@ function saveFlag(key: string, on: boolean) {
 }
 
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
- * its progress bar moves it (drag, click or arrows); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
+ * its progress bar moves it (drag, click or arrows; where a pixel of it spans more than a frame, a small drag pauses it and moves it frame by frame); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
  * `free`: the match plays on from the clip with its sound, no loop, the arrow keys moving it; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
  * `extra`: at the right end of the speeds' line. */
 export function ClipVideo({
@@ -104,6 +109,10 @@ export function ClipVideo({
   const [anchor, setAnchor] = useState(clip.start);
   const anchored = useRef(clip.start);
   const dragging = useRef(false);
+  // Where a drag on the bar goes frame by frame from (see helpers/scrub), null once it follows the pointer; the frames it moved.
+  const fine = useRef<{ x: number; frame: number; n: number } | null>(null);
+  const settle = useRef(0);
+  const [nudge, setNudge] = useState<number | null>(null);
   // A press held on the video: slowed down while it lasts, no play or pause on its release.
   const held = useRef(false);
   const holdTimer = useRef(0);
@@ -227,6 +236,52 @@ export function ClipVideo({
     if (place?.width) {
       moveTo(from + ((event.clientX - place.left) / place.width) * (to - from));
     }
+  };
+  // Where the bar is coarser than the video, a small drag moves it frame by frame, a larger one follows the pointer.
+  const precise = () => coarse((bar.current?.getBoundingClientRect().width ?? 0) / (to - from), match.fps);
+  const fineFrom = (x: number) => {
+    fine.current = precise() && video.current ? { x, frame: Math.round(video.current.currentTime * match.fps), n: 0 } : null;
+  };
+  const pressBar = (event: PointerEvent<HTMLDivElement>) => {
+    // No text selection, nor the browser's drag of it (a "no drop" cursor) while seeking.
+    event.preventDefault();
+    event.currentTarget.focus({ preventScroll: true });
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragging.current = true;
+    const place = event.currentTarget.getBoundingClientRect();
+    const thumb = place.left + ((Math.min(to, Math.max(from, video.current?.currentTime ?? time)) - from) / (to - from)) * place.width;
+    if (!precise() || Math.abs(event.clientX - thumb) > THUMB_PX) {
+      moveToPointer(event);
+    }
+    fineFrom(event.clientX);
+  };
+  const dragBar = (event: PointerEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      return;
+    }
+    window.clearTimeout(settle.current);
+    const f = fine.current;
+    const n = f && nudgeOf(event.clientX - f.x);
+    if (f && n !== null) {
+      if (n !== f.n) {
+        f.n = n;
+        video.current?.pause();
+        moveTo(frameTime(f.frame + n, match.fps));
+        setNudge(n);
+      }
+      return;
+    }
+    fine.current = null;
+    setNudge(null);
+    moveToPointer(event);
+    const x = event.clientX;
+    settle.current = window.setTimeout(() => fineFrom(x), SETTLE_MS);
+  };
+  const dropBar = () => {
+    dragging.current = false;
+    fine.current = null;
+    window.clearTimeout(settle.current);
+    setNudge(null);
   };
   // Fields and menus keep their arrows, and the bar when focused handles its own (it prevents the default).
   useEffect(() => {
@@ -450,17 +505,10 @@ export function ClipVideo({
         aria-valuenow={Math.round(time)}
         aria-valuetext={clock(time)}
         className="group flex h-5 cursor-pointer touch-none items-center rounded-sm outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        onPointerDown={(event) => {
-          // No text selection, nor the browser's drag of it (a "no drop" cursor) while seeking.
-          event.preventDefault();
-          event.currentTarget.focus({ preventScroll: true });
-          event.currentTarget.setPointerCapture(event.pointerId);
-          dragging.current = true;
-          moveToPointer(event);
-        }}
-        onLostPointerCapture={() => (dragging.current = false)}
+        onPointerDown={pressBar}
+        onLostPointerCapture={dropBar}
         onDragStart={(event) => event.preventDefault()}
-        onPointerMove={(event) => event.currentTarget.hasPointerCapture(event.pointerId) && moveToPointer(event)}
+        onPointerMove={dragBar}
         onKeyDown={(event) => {
           const next = keys[event.key];
           if (next) {
@@ -477,6 +525,15 @@ export function ClipVideo({
             <div key={m} className="absolute -inset-y-1.5 w-1 -translate-x-1/2 rounded-full bg-primary" style={{ left: share(m) }} />
           ))}
           <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-sm transition-transform group-hover:scale-125" style={{ left: share(time) }} />
+          {/* The frames a small drag moved. */}
+          {nudge !== null && nudge !== 0 && (
+            <div
+              className="pointer-events-none absolute bottom-full mb-2.5 -translate-x-1/2 rounded-sm bg-foreground px-1.5 py-0.5 text-xs font-medium text-background tabular-nums"
+              style={{ left: share(time) }}
+            >
+              {new Intl.NumberFormat(i18n.language, { signDisplay: 'always' }).format(nudge)}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
