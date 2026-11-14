@@ -55,6 +55,8 @@ const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-s
 const HOLD_MS = 3000;
 /** A touch's row lights up, and the video's caption names it, as the video slows down at it. */
 const TOUCH_LEAD_S = SLOW_BEFORE_S;
+/** A fault may be put on this many of the team's touches just before it. */
+const CAUSE_TOUCHES = 2;
 /** The list shows this many rallies before and after the one the video is in. */
 const AROUND_RALLIES = 2;
 /** A rally started this close to a serve already has its serve. */
@@ -900,14 +902,14 @@ export function ReportEditor({
                       .map((row) => {
                         const remove = () => (row.added ? setAdded((all) => all.filter((a) => a.frame !== row.frame)) : edit(row, { player: 'none' }));
                         const change = (said: Fix) => changeRow(row, said);
-                        // A fault may be put on the team's touch just before it (and on one picked before, kept shown).
-                        // A playing fault is always its player's.
-                        const earlier =
+                        // A fault may be put on one of the team's two touches just before it (and on one picked before, kept
+                        // shown). A playing fault is always its player's.
+                        const earlier = (
                           row.removed || row.result !== 'error' || row.type === 'fault'
                             ? []
-                            : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault');
-                        const last = earlier.reduce<Row | undefined>((a, r) => (!a || r.time > a.time ? r : a), undefined);
-                        const causes = earlier.filter((r) => r === last || r.frame === row.cause).sort((a, b) => a.time - b.time);
+                            : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault')
+                        ).sort((a, b) => a.time - b.time);
+                        const causes = earlier.filter((r, n) => n >= earlier.length - CAUSE_TOUCHES || r.frame === row.cause);
                         return (
                           <li
                             key={`t${row.frame}`}
