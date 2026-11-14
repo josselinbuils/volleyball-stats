@@ -7,7 +7,7 @@ import { Timeline } from '@/components/RallyCharts/Timeline';
 export function RallyCharts() {
   const { t } = useTranslation();
   return (
-    <Card>
+    <Card id="rallies">
       <CardHeader>
         <CardTitle>
           <h2 className="text-lg font-semibold">

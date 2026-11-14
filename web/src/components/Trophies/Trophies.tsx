@@ -75,7 +75,7 @@ export function Trophies() {
     return null;
   }
   return (
-    <Card>
+    <Card id="trophies">
       <CardHeader>
         <CardTitle>
           <h2 className="text-lg font-semibold">

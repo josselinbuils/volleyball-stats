@@ -12,6 +12,7 @@ import { Clock } from '@/lib/clock';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import type { Clip } from '@/lib/playlist';
 import { Feedback } from '@/components/Watch/Feedback';
+import { PlayerSheet } from '@/components/Watch/PlayerSheet';
 import { PlaylistBar } from '@/components/Watch/PlaylistBar';
 import { RallyCards } from '@/components/Watch/RallyCards';
 import { Replay, ReplayCaption } from '@/components/Watch/Replay';
@@ -148,7 +149,7 @@ export function Watch() {
 
   if (!match.video) {
     return (
-      <Card>
+      <Card id="replay">
         <CardHeader>
           <CardTitle>
             <h2 className="text-lg font-semibold">
@@ -166,7 +167,7 @@ export function Watch() {
         </CardHeader>
         <CardContent className="grid gap-8">
           {/* Wide screens: the legend and the rally controls in a column beside the court. */}
-          <div className="mx-auto grid w-full max-w-3xl min-w-0 gap-3 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-6">
+          <PlayerSheet title={t('replayTitle')} className="mx-auto grid w-full max-w-3xl min-w-0 gap-3 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-6">
             <Scoreboard />
             {/* Full screen: the view fills the screen above the controls, its title bar over it. */}
             <div ref={court} className="overflow-hidden lg:col-start-1 rounded-lg border bg-card [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
@@ -178,10 +179,11 @@ export function Watch() {
               </div>
             </div>
             <div className="grid content-start gap-3 lg:col-start-2 lg:row-start-2">
-              <ReplayCaption className="lg:mt-0" />
+              {/* Narrower, under the court: the playlist's controls first, in sight with it. */}
+              <ReplayCaption className="max-lg:order-last lg:mt-0" />
               <PlaylistBar />
             </div>
-          </div>
+          </PlayerSheet>
           <RallyCards />
         </CardContent>
       </Card>
@@ -189,7 +191,7 @@ export function Watch() {
   }
 
   return (
-    <Card>
+    <Card id="replay">
       <CardHeader>
         <CardTitle>
           <h2 className="text-lg font-semibold">
@@ -200,7 +202,7 @@ export function Watch() {
         <CardDescription>{t('videoCaption')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-8">
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <PlayerSheet title={t('video')} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
           <div className="min-w-0">
             <Scoreboard />
             <div className="relative">
@@ -236,7 +238,7 @@ export function Watch() {
             <PlaylistBar />
           </div>
           <Replay />
-        </div>
+        </PlayerSheet>
         <RallyCards />
       </CardContent>
     </Card>

@@ -11,7 +11,7 @@ import { isTouch } from '@/helpers/contacts';
 import { useSet } from '@/lib/sets';
 import { matchTitle, tabTitle } from '@/components/Header/helpers/title';
 import { pointSplit, setScores, setsWon } from '@/components/Header/helpers/score';
-import { SetFilter } from '@/components/Header/SetFilter';
+import { StickyBar } from '@/components/Header/StickyBar';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
 import { Tip } from '@/components/Tip';
@@ -81,7 +81,7 @@ export function Header() {
           {hasTeams && <TeamLegend />}
         </div>
       </header>
-      <SetFilter />
+      <StickyBar />
       {/* The score beside the other figures two by two, which together take its height. */}
       <div className={cn('grid gap-3 px-1', hasTeams && score && 'lg:grid-cols-2')}>
         {hasTeams && score && (

@@ -10,10 +10,13 @@ import { Story } from '@/components/Story/Story';
 import { Trophies } from '@/components/Trophies/Trophies';
 import { Watch } from '@/components/Watch/Watch';
 import { PlayerProvider } from '@/lib/player';
+import { usePhone } from '@/lib/phone';
 import { match } from '@/lib/match';
 import { SetProvider } from '@/lib/sets';
 
 export function App() {
+  // A phone's viewer mostly comes for their own match: it comes first there, its picker otherwise far down.
+  const phone = usePhone();
   return (
     <PlayerProvider>
       <SetProvider>
@@ -21,11 +24,12 @@ export function App() {
         <VideoChoice />
         <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:pt-5 max-sm:gap-4">
           <Header />
+          {phone && <MyMatch />}
           <Story />
           <PlayersTable />
           <Watch />
           <CourtChart />
-          <MyMatch />
+          {!phone && <MyMatch />}
           <Trophies />
           <Coach />
           <RallyCharts />

@@ -49,7 +49,7 @@ export function PlayersTable() {
     }));
 
   return (
-    <Card>
+    <Card id="stats">
       <CardHeader>
         <CardTitle>
           <h2 className="text-lg font-semibold">

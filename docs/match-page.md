@@ -161,6 +161,10 @@ Without player tracks, everything counts each side of the net instead of each te
   the background is outlined in grey; Team 2's changes when the two look alike.
 - **Set filter:** with several sets, one filter at the top of the screen shows a single set. Every
   section follows it, and the video's timeline then covers that set only.
+- **The bar at the top:** it stays on screen while the page scrolls, with the set filter and a link to each section, the
+  one on screen marked (`Header/StickyBar.tsx`); on a phone the links take a row of their own, scrolling sideways.
+- **Phones** (under 640 px): "Mon match" comes right after the header. Something played while the replay is out of sight
+  opens the video and court in a sheet from the bottom (`Watch/PlayerSheet.tsx`); "Fermer" stops it, the page where it was.
 - **Theme:** a switch next to the language picks the light, dark or automatic theme (the system's,
   by default), remembered by the browser.
 - **Loading:** the players' positions come in one file per 5 minutes (`positions/N.js`), loaded as the replay reaches them, the next one a little ahead; the balls dropped between two players read theirs from `data.js`.

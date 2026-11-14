@@ -62,7 +62,7 @@ export function CourtChart() {
   const playFrom = (c: Contact) => play(title, contactClips(shown, match.duration), shown.indexOf(c as (typeof shown)[number]));
 
   return (
-    <Card>
+    <Card id="court">
       <CardHeader>
         <CardTitle>
           <h2 className="text-lg font-semibold">

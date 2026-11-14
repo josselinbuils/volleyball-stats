@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { TFunction } from 'i18next';
 import type { Clock } from '@/lib/clock';
 import { rallies, type Rally } from '@/lib/match';
+import { isPhone } from '@/lib/phone';
 import { PAD, rallyAt, type Clip } from '@/lib/playlist';
 
 /** What plays the moments: the video, or the clock replaying the court when the page has none. */
@@ -25,6 +26,10 @@ interface Player {
   setLoop: (loop: boolean) => void;
   video: Media | null;
   setVideo: (video: Media | null) => void;
+  /** On a phone, the player is out of sight where something was played: it comes up in a sheet over the page. */
+  sheet: boolean;
+  /** Stops and closes the sheet, the page where it was. */
+  closeSheet: () => void;
 }
 
 const PlayerContext = createContext<Player | null>(null);
@@ -78,6 +83,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [video, setVideo] = useState<Media | null>(null);
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loop, setLoop] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const looping = useRef(false);
   // The playlist for the loop and the event handlers, ahead of the next render.
   const current = useRef<Playlist | null>(null);
@@ -98,10 +104,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
       update({ title, clips, at });
-      // The box holding the video and its controls, not the video, scaled by the zoom past that box. Only the page
-      // scrolls: scrollIntoView would also scroll that box's hidden overflow, moving the controls inside it.
+      // The box holding the video and its controls, not the video, scaled by the zoom past that box.
       const box = video?.parentElement?.getBoundingClientRect();
-      if (box && (box.top < 0 || box.bottom > innerHeight)) {
+      if (!box) {
+        return;
+      }
+      const seen = (Math.min(box.bottom, innerHeight) - Math.max(box.top, 0)) / box.height;
+      if (isPhone() && seen < 0.5) {
+        setSheet(true);
+      } else if (box.top < 0 || box.bottom > innerHeight) {
+        // Only the page scrolls: scrollIntoView would also scroll that box's hidden overflow, moving the controls inside it.
         const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
         scrollTo({ top: scrollY + box.top + (box.height - innerHeight) / 2, behavior: smooth ? 'smooth' : 'auto' });
       }
@@ -120,6 +132,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     video?.pause();
     update(null);
   }, [video, update]);
+  const closeSheet = useCallback(() => {
+    stop();
+    setSheet(false);
+  }, [stop]);
 
   useEffect(() => {
     looping.current = loop;
@@ -202,6 +218,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [video, update]);
 
-  const value = useMemo(() => ({ playlist, play, go, stop, loop, setLoop, video, setVideo }), [playlist, play, go, stop, loop, video]);
+  const value = useMemo(() => ({ playlist, play, go, stop, loop, setLoop, video, setVideo, sheet, closeSheet }), [playlist, play, go, stop, loop, video, sheet, closeSheet]);
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

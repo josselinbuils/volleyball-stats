@@ -31,7 +31,7 @@ export function Story() {
   const leader = setsWon(finals)[0] > setsWon(finals)[1] ? 1 : 2;
 
   return (
-    <Card>
+    <Card id="story">
       <CardHeader>
         <CardTitle>
           <h2 className="text-lg font-semibold">

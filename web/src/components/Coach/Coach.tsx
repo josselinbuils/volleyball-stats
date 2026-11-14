@@ -43,7 +43,7 @@ export function Coach() {
   }
   const { things: lost, setters: setting, jumpers: jumping, defended, received } = read[picked - 1];
   return (
-    <Card>
+    <Card id="coach">
       <CardHeader>
         <CardTitle>
           <h2 className="text-lg font-semibold">

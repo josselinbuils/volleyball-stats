@@ -1,35 +1,15 @@
-import { useSyncExternalStore, type ComponentProps, type ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-
-// Phones: the court takes most of the width, the players standing far behind an end line spill
-// over the edge.
-const SMALL = '(max-width: 639px)';
-
-function useSmall(): boolean {
-  return useSyncExternalStore(
-    (listener) => {
-      const query = matchMedia(SMALL);
-      query.addEventListener('change', listener);
-      return () => query.removeEventListener('change', listener);
-    },
-    () => matchMedia(SMALL).matches,
-  );
-}
+import { usePhone } from '@/lib/phone';
 
 /** A top view of the court in court metres: x along the length, net at 0, y toward the camera,
  * which films from beyond the near sideline (bottom). `ends` names the halves (default: none),
  * `camera` marks the camera's side. */
-export function Court({
-  zones = false,
-  ends,
-  camera = true,
-  className,
-  children,
-  ...props
-}: { zones?: boolean; ends?: [ReactNode, ReactNode]; camera?: boolean } & ComponentProps<'svg'>) {
+export function Court({ zones = false, ends, camera = true, className, children, ...props }: { zones?: boolean; ends?: [ReactNode, ReactNode]; camera?: boolean } & ComponentProps<'svg'>) {
   const { t } = useTranslation();
-  const small = useSmall();
+  // Phones: the court takes most of the width, the players standing far behind an end line spill over the edge.
+  const small = usePhone();
   return (
     <div className={className}>
       <svg viewBox={small ? '-10.2 -6 20.4 12' : '-12.5 -6.5 25 13'} className="block h-auto w-full overflow-visible" {...props}>

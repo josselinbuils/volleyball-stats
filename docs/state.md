@@ -80,12 +80,11 @@ The pipeline's weak spots and what is left to do, most useful first.
     timeouts taken for set breaks. Fixed the same day (`teams.likely_starts`, its 30 rallies a set set on the three matches,
     this one included) and the match run again (13 Nov, 17:01): 4 sets. Waiting on its review, then
     [corrections_log.md](corrections_log.md) "Next", item 1.
-18. Phones (13 Nov, nothing started): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
-    horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). To do, most useful first (the owner picks; 1-3 first was the advice):
-    1. The replay comes to the viewer: a number tapped scrolls the page to the player (`lib/player.tsx` `play`), the viewer losing their
-       place in a page of 9,500 px; on a phone, the video and court in a sheet from the bottom, "Fermer" back where they were.
-    2. "Mon match" first on a phone: its picker is 4,400 px down; the name is remembered, their card could come first.
-    3. Section links in the sticky bar beside the set filter (`Header/SetFilter.tsx`), scrolling sideways.
+18. Phones (13 Nov; 1-3 done on 14 Nov): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
+    horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). To do, most useful first (the owner picks):
+    1-3. Done (14 Nov): on a phone, something played while the replay is out of sight opens it in a sheet from the bottom
+       ("Fermer" stops it, the page where it was); "Mon match" right after the header; the sticky bar links to the
+       sections, the one on screen marked, the links scrolling sideways (on wide screens too).
     4. The stats table: Joueur and two columns show, the group headings ("Services") scroll away, leaving a bare "Total"; one group at
        a time on a phone (Touches, Services, Réceptions, Passes, Attaques, Bilan).
     5. Touch wording: 24 French texts say "Cliquez" or "Survolez" (`numbersNoteNamed`: hovering a number for a name is impossible
