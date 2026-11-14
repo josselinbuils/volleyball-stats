@@ -756,10 +756,10 @@ def reports(match: Path) -> list[dict]:
 
 # Over this long between two touches, in seconds, one is often missing (first match, before the review: 10 of 14 hid one).
 GAP_S = 2.5
-# A touch's ball under LOW_ATTACK_M typed attack, or from HIGH_RELANCE_M typed relance, past a team's first touch, is doubtful
-# (one hand is an attack, both hands a relance: the owner's rule, 14 Nov): the owner's attacks leave at 2.6-2.7 m, relances at 1.8-1.9 m
-# (medians, three matches); 35 such touches on their checked rallies. A place at the floor (`ball3d.BALL_R`) is no height.
-LOW_ATTACK_M, HIGH_RELANCE_M = 1.8, 2.6
+# A relance on a 3rd touch from HIGH_RELANCE_M is doubtful (one hand is an attack, both hands a relance: the owner's rule, 14 Nov):
+# the owner's attacks leave at 2.6-2.7 m, relances at 1.8-1.9 m (medians, three matches). A place at the floor (`ball3d.BALL_R`) is no
+# height. Dropped: an attack under 1.8 m, the owner kept all 8 answered (a hit's ball falls fast: its place is likely taken low).
+HIGH_RELANCE_M = 2.6
 
 
 def read_places(path: Path) -> list:
@@ -771,9 +771,8 @@ def read_places(path: Path) -> list:
 
 
 def odd_heights(page: dict, places: list) -> dict[int, dict[str, list[float]]]:
-    """The times of the touches doubtful by their height, by rally index and reason: "lowAttack", an attack played under
-    LOW_ATTACK_M (a team's first touch aside: after the other team's touch but a serve, or after a block), "highRelance", a
-    relance from HIGH_RELANCE_M on a team's 3rd touch or later."""
+    """The times of the touches doubtful by their height, by rally index and reason: "highRelance", a relance from
+    HIGH_RELANCE_M on a team's 3rd touch or later (on a 1st or 2nd touch it is asked as such: `relanceFirst`, `relanceSecond`)."""
     height = {int(places[k]): places[k + 3] for k in range(0, len(places), 4)}
     out: dict[int, dict[str, list[float]]] = defaultdict(dict)
     before, run = None, 0
@@ -784,13 +783,9 @@ def odd_heights(page: dict, places: list) -> dict[int, dict[str, list[float]]]:
             before, run = None, 0
         same = before is not None and before["type"] != "block" and (before.get("team") or before["side"]) == (c.get("team") or c["side"])
         run = run + 1 if same else 0 if c["type"] == "block" else 1
-        first = run == 1 and before is not None and before["type"] != "serve"
         z = height.get(i)
-        if not first and z is not None and z > ball3d.BALL_R:
-            # A relance on a 1st or 2nd touch is asked as such (`relanceFirst`, `relanceSecond`).
-            reason = "lowAttack" if c["type"] == "attack" and z < LOW_ATTACK_M else "highRelance" if c["type"] == "relance" and run >= 3 and z >= HIGH_RELANCE_M else None
-            if reason:
-                out[c["rally"]].setdefault(reason, []).append(c["t"])
+        if c["type"] == "relance" and run >= 3 and z is not None and z > ball3d.BALL_R and z >= HIGH_RELANCE_M:
+            out[c["rally"]].setdefault("highRelance", []).append(c["t"])
         before = c
     return out
 # A team's six players serve in turn: under this many turns apart, it is not the same player's turn.
@@ -835,7 +830,7 @@ def unusual(page: dict, places: list | None = None) -> list[dict]:
     their start (no winner and a set's final score: their end), `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
-    touch after a fault or a point (either ends the rally), a relance as a team's first or second touch, an attack played low or a relance high
+    touch after a fault or a point (either ends the rally), a relance as a team's first or second touch, a relance played high
     (`odd_heights`, from the touches' 3D `places`, the page's own when it holds them), served by the team that lost the set's point
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order

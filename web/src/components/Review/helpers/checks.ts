@@ -20,7 +20,7 @@ export type Problem =
 type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | 'ace' | HeightDoubt;
 
 /** A touch whose ball's height doubts of its action (`review.odd_heights`): reported by the server, not found here. */
-export type HeightDoubt = 'lowAttack' | 'highRelance';
+export type HeightDoubt = 'highRelance';
 
 // Over this long between two touches, in seconds, one is often missing (review.GAP_S).
 const GAP_S = 2.5;

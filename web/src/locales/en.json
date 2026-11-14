@@ -992,7 +992,6 @@
         "samePlayer": "The same player touches the ball twice in a row",
         "relanceFirst": "A free ball as first touch: it is a dig",
         "relanceSecond": "A free ball as second touch: it is a set",
-        "lowAttack": "An attack played low: with both hands?",
         "highRelance": "A free ball played high: with one hand?",
         "afterPoint": "An action follows a point in the same rally",
         "gap": "Long pause between two touches",

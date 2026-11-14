@@ -17,7 +17,6 @@ import type { HeightDoubt } from '@/components/Review/helpers/checks';
 
 // The automatic reports doubting of a touch's action by its height: the problem each flags, on a touch of that action.
 const HEIGHT_DOUBTS: Record<string, { problem: HeightDoubt; type: string }> = {
-  'auto.lowAttack': { problem: 'lowAttack', type: 'attack' },
   'auto.highRelance': { problem: 'highRelance', type: 'relance' },
 };
 
