@@ -18,8 +18,8 @@ The rules on what may go online are in `CLAUDE.md`.
 ## Without a server: the export
 
 "Exporter le site" (a card of the Site tab, an item of the review's menu; `ExportSite.tsx`, `/app/export`) zips the
-public pages of the matches picked, with their list (`matches.export`, `outputs/export/site.zip`, downloaded as
-`matchs.zip` with a `matchs/` folder): as an upload builds them, without what needs the server (no video behind a password,
+public pages of the matches picked, with their list (`matches.export`, `outputs/export/site.zip`, downloaded named in
+the page's language: `matchs.zip` with a `matchs/` folder, `matches` in English): as an upload builds them, without what needs the server (no video behind a password,
 no "Signaler", no link previews) nor the gzip copies. Any static host serves it (shared hosting by FTP, GitHub Pages,
 Netlify...), and its `index.html` opens from disk. Each export rebuilds the matches: 16 s for two, more the first time a
 match's commentary voice is made. The download is offered while the matches ticked are those of the last zip.

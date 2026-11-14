@@ -580,12 +580,12 @@ class TestExport:
         monkeypatch.setattr(matches.web, "publish", publish)
         out = tmp_path / "outputs" / matches.EXPORT
 
-        matches.export([(match, tmp_path / "first.mp4", Path("court.json"))], "none", out)
+        matches.export([(match, tmp_path / "first.mp4", Path("court.json"))], "none", out, folder="matches")
 
         # No video nor pictures, no report endpoint nor link to a password's page: what needs the server.
         assert built == ["voice", {"footage": "none", "club": 2, "pictures": False}]
         names = matches.zipfile.ZipFile(out).namelist()
-        assert "matchs/index.html" in names and "matchs/2026-10-29/data.js" in names
+        assert "matches/index.html" in names and "matches/2026-10-29/data.js" in names
         assert not [n for n in names if n.endswith(".gz")]
         assert [p.name for p in out.parent.iterdir()] == ["site.zip"]
 

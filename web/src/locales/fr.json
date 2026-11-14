@@ -837,7 +837,8 @@
     "again": "Exporter à nouveau",
     "running": "Export…",
     "download": "Télécharger ({{size}})",
-    "done": "Exporté le {{at}}."
+    "done": "Exporté le {{at}}.",
+    "folder": "matchs"
   },
   "server": {
     "title": "Site",

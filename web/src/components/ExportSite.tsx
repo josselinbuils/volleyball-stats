@@ -22,12 +22,11 @@ interface Ready {
 interface ExportState {
   matches: Ready[];
   job: Told | null;
-  /** The last zip, while no export runs: its size, when, and the matches it holds (null: unknown). */
-  file: { size: number; at: number; matches: string[] | null } | null;
+  /** The last zip, while no export runs: its size, when, the matches it holds (null: unknown) and its folder. */
+  file: { size: number; at: number; matches: string[] | null; folder: string } | null;
 }
 
 const POLL_MS = 1500;
-const FILE_NAME = 'matchs.zip';
 
 /** The site zipped to put on a host of one's own: the matches to take, the export's bar, then the file to download. */
 export function ExportSite() {
@@ -83,7 +82,7 @@ export function ExportSite() {
   const held = state.file && (!state.file.matches || (state.file.matches.length === picked.length && picked.every((p) => state.file?.matches?.includes(p))));
   const start = () =>
     run('export', async () => {
-      const r = await call<ExportState>('export', { matches: picked });
+      const r = await call<ExportState>('export', { matches: picked, folder: t('export.folder') });
       if (r.ok) {
         setState(r);
       }
@@ -127,7 +126,7 @@ export function ExportSite() {
         {held && state.file && !running ? (
           <>
             <Button asChild>
-              <a href="/app/export/file" download={FILE_NAME}>
+              <a href="/app/export/file" download={`${state.file.folder}.zip`}>
                 <Download aria-hidden />
                 {t('export.download', { size: f.size(state.file.size) })}
               </a>

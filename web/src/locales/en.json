@@ -837,7 +837,8 @@
     "again": "Export again",
     "running": "Exporting…",
     "download": "Download ({{size}})",
-    "done": "Exported {{at}}."
+    "done": "Exported {{at}}.",
+    "folder": "matches"
   },
   "server": {
     "title": "Site",

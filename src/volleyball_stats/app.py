@@ -637,7 +637,7 @@ def server_state() -> dict:
 
 def export_state(listed: list[dict]) -> dict:
     """The export's dialog: the matches it can take (their pipeline ended, their files there), its job, and its last
-    zip's size, time and matches while no export runs."""
+    zip's size, time, matches and folder while no export runs."""
     from volleyball_stats import matches
 
     job = next((j for j in jobs.state(OUTPUTS) if j["id"] == EXPORT), None)
@@ -648,22 +648,27 @@ def export_state(listed: list[dict]) -> dict:
     record = jobs.record_of(OUTPUTS, EXPORT)
     args = json.loads(record.read_text())["steps"][0]["args"] if job and record.exists() else None
     held = [Path(args[k + 1]).name for k, a in enumerate(args) if a == "--match"] if args else None
+    folder = next((args[k + 1] for k, a in enumerate(args) if a == "--folder"), matches.EXPORT_FOLDER) if args else matches.EXPORT_FOLDER
     keys = ("name", "path", "date", "title", "teams")
     return {
         "matches": [{k: m.get(k) for k in keys} for m in listed if m.get("ready") and not m.get("missing")],
         "job": job,
-        "file": {"size": zipped.stat().st_size, "at": zipped.stat().st_mtime, "matches": held} if done else None,
+        "file": {"size": zipped.stat().st_size, "at": zipped.stat().st_mtime, "matches": held, "folder": folder} if done else None,
     }
 
 
-def export(names: list[str], listed: list[dict]) -> None:
-    """Starts zipping the matches `names` of `listed` (matches.export); LookupError for one it cannot take."""
+def export(names: list[str], listed: list[dict], folder: str | None = None) -> None:
+    """Starts zipping the matches `names` of `listed` (matches.export) in `folder`, named in the page's language; LookupError
+    for a match it cannot take, ValueError for a folder no plain name."""
     from volleyball_stats import matches
 
     ready = {m["path"] for m in export_state(listed)["matches"]}
     if not names or any(n not in ready for n in names):
         raise LookupError(names)
-    command = ["volleyball_stats.matches", "--export", str(OUTPUTS / matches.EXPORT)]
+    folder = folder or matches.EXPORT_FOLDER
+    if not re.fullmatch(r"[\w-]+", folder):
+        raise ValueError(folder)
+    command = ["volleyball_stats.matches", "--export", str(OUTPUTS / matches.EXPORT), "--folder", folder]
     for name in names:
         command += ["--match", str(MATCHES / name)]
     jobs.start(OUTPUTS, EXPORT, EXPORT, [(EXPORT, command)])
@@ -791,7 +796,7 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
             jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES)])])
             return reply(server_state())
         if route == "export":
-            export([str(n) for n in body["matches"]], listed())
+            export([str(n) for n in body["matches"]], listed(), body.get("folder") and str(body["folder"]))
             return reply(export_state(listed()))
         if route == "server/delete":
             server.delete(OUTPUTS, str(body["day"]))

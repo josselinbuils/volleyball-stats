@@ -64,7 +64,8 @@ SHARED_TAGS = re.compile(r"[ \t]*<meta (?:property=\"og:|name=\"twitter:)[^>]*>\
 # the site read from the server, each match rebuilt ("match:NAME"), the site uploaded and checked.
 TOOK = {"mirror": 10.0, "match": 15.0, "upload": 30.0}
 TIMINGS = "hosting_timings.json"
-# The site exported for a host of one's own (`export`): outputs/EXPORT, its folder inside the zip, its stages' durations.
+# The site exported for a host of one's own (`export`): outputs/EXPORT, its folder inside the zip unless named in the
+# page's language, its stages' durations.
 EXPORT, EXPORT_FOLDER, EXPORT_TIMINGS = "export/site.zip", "matchs", "export_timings.json"
 EXPORT_TOOK = {"match": 10.0, "zip": 5.0}
 
@@ -593,15 +594,17 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
             raise RuntimeError(f"{page} does not open with its password")
 
 
-def export(chosen: list[tuple[Path, Path, Path]], theme: str, out: Path, told: jobs.Stages | None = None) -> None:
+def export(chosen: list[tuple[Path, Path, Path]], theme: str, out: Path, told: jobs.Stages | None = None, folder: str = EXPORT_FOLDER) -> None:
     """The public pages of `chosen` (match, video, court) and their list zipped in `out`, as `host` puts them online but
     without what needs its server: the video behind a password, the viewers' reports, the link previews' address. A site
-    to open from disk or put on any host, in its EXPORT_FOLDER. Its stages `told` as it goes."""
+    to open from disk or put on any host, in its `folder`. Its stages `told` as it goes."""
+    if not re.fullmatch(r"[\w-]+", folder):
+        raise ValueError(folder)
     told = told or jobs.Stages(files.root(chosen[0][0]) / EXPORT_TIMINGS, [*(f"match:{m.name}" for m, *_ in chosen), "zip"], EXPORT_TOOK)
     out.parent.mkdir(parents=True, exist_ok=True)
     try:
         with tempfile.TemporaryDirectory(dir=out.parent) as tmp:
-            site = Path(tmp) / EXPORT_FOLDER
+            site = Path(tmp) / folder
             for match, video, court in chosen:
                 told.start(f"match:{match.name}")
                 if not video.exists():
@@ -636,6 +639,7 @@ def main() -> None:
     parser.add_argument("--url", help="The list's address, to tag the pages for link previews")
     parser.add_argument("--export", type=Path, metavar="ZIP", help="Zip the public pages of the --match folders and their list, to put on any host")
     parser.add_argument("--match", type=Path, action="append", default=[], help="A match folder to export (outputs/matches/MATCH), again for each")
+    parser.add_argument("--folder", default=EXPORT_FOLDER, help=f"The folder inside the zip (default: {EXPORT_FOLDER})")
     args = parser.parse_args()
     from volleyball_stats import sync
 
@@ -646,7 +650,7 @@ def main() -> None:
         for match in args.match:
             given = json.loads((match / files.SOURCE).read_text())
             chosen.append((match, Path(given["video"]), Path(given["court"])))
-        return export(chosen, args.theme, args.export)
+        return export(chosen, args.theme, args.export, folder=args.folder)
 
     if args.host:
         # Never an older version online: the server has a newer copy of this match.

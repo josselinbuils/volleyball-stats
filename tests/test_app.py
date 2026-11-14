@@ -97,14 +97,15 @@ class TestApp:
         assert app.handle("POST", "/app/export", "", {"matches": ["two"]}, listed)[2] == 400
         assert app.handle("POST", "/app/export", "", {"matches": []}, listed)[2] == 400
         assert app.handle("GET", "/app/export/file", "", {}, listed)[2] == 404
-        assert app.handle("POST", "/app/export", "", {"matches": ["one"]}, listed)[2] == 200
-        assert started == [["volleyball_stats.matches", "--export", str(place / "outputs" / "export" / "site.zip"), "--match", str(place / "outputs" / "matches" / "one")]]
+        assert app.handle("POST", "/app/export", "", {"matches": ["one"], "folder": "../x"}, listed)[2] == 400
+        assert app.handle("POST", "/app/export", "", {"matches": ["one"], "folder": "matches"}, listed)[2] == 200
+        assert started == [["volleyball_stats.matches", "--export", str(place / "outputs" / "export" / "site.zip"), "--folder", "matches", "--match", str(place / "outputs" / "matches" / "one")]]
         # Once done: the zip, and the matches it holds.
         self.job(place, "export", kind="export", steps=[{"name": "export", "args": started[0]}])
         (place / "outputs" / "export" / "site.zip").parent.mkdir(parents=True)
         (place / "outputs" / "export" / "site.zip").write_bytes(b"zip")
         answer = json.loads(app.handle("GET", "/app/export", "", {}, listed)[0])
-        assert answer["file"]["size"] == 3 and answer["file"]["matches"] == ["one"]
+        assert answer["file"]["size"] == 3 and answer["file"]["matches"] == ["one"] and answer["file"]["folder"] == "matches"
         assert app.handle("GET", "/app/export/file", "", {}, listed)[:2] == (place / "outputs" / "export" / "site.zip", "application/zip")
 
     def test_refuses_to_quit_while_applying(self):
