@@ -13,6 +13,13 @@ import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { ReportEditor, type Caption } from '@/components/Review/ReportEditor';
 import { slowStarts } from '@/components/Review/helpers/scrub';
+import type { HeightDoubt } from '@/components/Review/helpers/checks';
+
+// The automatic reports doubting of a touch's action by its height: the problem each flags, on a touch of that action.
+const HEIGHT_DOUBTS: Record<string, { problem: HeightDoubt; type: string }> = {
+  'auto.lowAttack': { problem: 'lowAttack', type: 'attack' },
+  'auto.highRelance': { problem: 'highRelance', type: 'relance' },
+};
 
 /** The whole match to correct: its video, the bar of its rallies, touches and the viewers' reports
  * under it, the touches around where it stands beside it, each rally's reports left to handle under
@@ -93,6 +100,8 @@ export function MatchTab({
   const flags = live.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
   // A viewer's report flags the touch they saw; an automatic one is about the rally.
   const seen = flags.filter((r) => !r.auto);
+  // An automatic report doubting of a touch's action by its height flags that touch.
+  const doubts = flags.flatMap((r) => (r.kind && r.kind in HEIGHT_DOUBTS ? (r.at ?? []).map((time) => ({ time, ...HEIGHT_DOUBTS[r.kind!] })) : []));
   // Checked, with no report open on it nor corrections not saved since.
   const open = new Set(live.map((q) => q.rally));
   const [unsaved, setUnsaved] = useState<Set<number>>(new Set());
@@ -186,6 +195,7 @@ export function MatchTab({
             onRallies={setSpans}
             isPlaying={() => playing.current}
             reports={seen}
+            doubts={doubts}
             players={players}
             nameOf={nameOf}
             now={listNow}

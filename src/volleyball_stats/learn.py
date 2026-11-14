@@ -249,6 +249,9 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     shutil.copy2(match / "rallies.csv", before / "rallies.csv")
     if (match / "review" / "data.js").exists():
         shutil.copy2(match / "review" / "data.js", before / "review-data.js")
+        (before / "review-ball3d.js").unlink(missing_ok=True)
+        if (match / "review" / "ball3d.js").exists():
+            shutil.copy2(match / "review" / "ball3d.js", before / "review-ball3d.js")
     with subprocess.Popen(
         [sys.executable, "-m", "volleyball_stats.match", str(video), "--court", str(court), "--players", "--no-page", "--out", str(match.parent)],
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True, bufsize=1,
@@ -277,7 +280,7 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
         review.write_comments(match, rekey.moved_comments(review.read_comments(match), old, new, lead, adopted))
     if (before / "review-data.js").exists():
         page, _ = web.match_data(match, video, Calibration.load(court))
-        review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page)))
+        review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page, review.read_places(before / "review-ball3d.js"))))
     return record(match, video, court, replaced)
 
 

@@ -991,6 +991,8 @@
         "afterFault": "An action follows a fault in the same rally",
         "samePlayer": "The same player touches the ball twice in a row",
         "relanceFirst": "A free ball as first touch: it is a dig",
+        "lowAttack": "An attack played low: with both hands?",
+        "highRelance": "A free ball played high: with one hand?",
         "afterPoint": "An action follows a point in the same rally",
         "gap": "Long pause between two touches",
         "serverOrder": "Server out of rotation order",

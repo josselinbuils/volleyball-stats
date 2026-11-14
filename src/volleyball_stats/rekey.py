@@ -103,9 +103,9 @@ def moved(log: list[dict], before: list[Window], after: list[Window], lead: int,
     return [entry(e) for e in log]
 
 
-def renamed_reports(before: dict, after: dict) -> dict[str, str]:
-    """The automatic reports' keys of page `before` (its data.js MATCH) to those of page `after`
-    (`web.match_data`'s): the same reason on the rally it overlaps most."""
+def renamed_reports(before: dict, after: dict, places: list | None = None) -> dict[str, str]:
+    """The automatic reports' keys of page `before` (its data.js MATCH, its touches' 3D `places` from its ball3d.js) to those of
+    page `after` (`web.match_data`'s): the same reason on the rally it overlaps most."""
     def windows(page: dict) -> list[Window]:
         return [(round(r["start"] * 100), round(r["end"] * 100)) for r in page["rallies"]]
 
@@ -119,7 +119,7 @@ def renamed_reports(before: dict, after: dict) -> dict[str, str]:
     at_before, at_after = rally_at(before), rally_at(after)
     new = {(r["kind"], at_after[r["time"]]): r["key"] for r in review.unusual(after)}
     out = {}
-    for r in review.unusual(before):
+    for r in review.unusual(before, places):
         k = to.get(at_before[r["time"]])
         if k is not None and (r["kind"], k) in new:
             out[r["key"]] = new[(r["kind"], k)]
@@ -175,7 +175,7 @@ def main() -> None:
     review.save(path, log)
     review.write_comments(args.match, moved_comments(review.read_comments(args.match), before, after, lead, adopted))
     page, _ = web.match_data(args.match, args.video, Calibration.load(args.court))
-    keys = renamed_reports(read_page(args.page_before), page)
+    keys = renamed_reports(read_page(args.page_before), page, review.read_places(args.page_before.with_name("review-ball3d.js")))
     review.save(path, with_reports(log, keys))
     print(f"{len(keys)} automatic reports renamed")
 

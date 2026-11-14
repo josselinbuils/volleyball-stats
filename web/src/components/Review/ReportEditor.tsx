@@ -55,6 +55,8 @@ const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-s
 const HOLD_MS = 3000;
 /** A touch's row lights up, and the video's caption names it, as the video slows down at it. */
 const TOUCH_LEAD_S = SLOW_BEFORE_S;
+// A doubt's touch is the one this close to its time, in seconds.
+const DOUBT_NEAR_S = 0.1;
 /** A fault may be put on this many of the team's touches just before it. */
 const CAUSE_TOUCHES = 2;
 /** The list shows this many rallies before and after the one the video is in. */
@@ -103,6 +105,7 @@ const RAIL_EDGE_PX = 64;
  * such; saving sends them all, with the new ones. */
 export function ReportEditor({
   reports,
+  doubts = [],
   players,
   nameOf,
   now,
@@ -133,6 +136,8 @@ export function ReportEditor({
 }: {
   /** The moments viewers reported: their touches are flagged. */
   reports: { time: number }[];
+  /** The touches an automatic report doubts of (an attack played low, a relance high), while it is open: flagged as long as their action stands. */
+  doubts?: { time: number; problem: Problem; type: string }[];
   players: Named[];
   nameOf: NameOf;
   /** Where the video stands: its touch's row is highlighted and kept in view. */
@@ -584,7 +589,14 @@ export function ReportEditor({
     if (fixOf(k)?.play === false || joins(k - 1)) {
       continue;
     }
-    found.set(k, problemsAt(k, checked.has(keyOf(k)) && !unsaved.has(keyOf(k))));
+    const f = problemsAt(k, checked.has(keyOf(k)) && !unsaved.has(keyOf(k)));
+    mineOf(k).forEach((row, n) => {
+      const doubt = doubts.filter((d) => !row.removed && d.type === row.type && Math.abs(d.time - row.time) < DOUBT_NEAR_S).map((d) => d.problem);
+      if (doubt.length) {
+        f.touch.set(n, [...(f.touch.get(n) ?? []), ...doubt]);
+      }
+    });
+    found.set(k, f);
   }
   const problemsOf = (row: Row): Problem[] => {
     const k = joinStart(row.rally, joins);

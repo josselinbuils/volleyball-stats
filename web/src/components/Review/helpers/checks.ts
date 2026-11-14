@@ -16,7 +16,10 @@ export type Problem =
   | DoubtfulProblem;
 
 /** What may well be right after all, in an amateur match: a rally checked shows none of them. */
-type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | 'ace';
+type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | 'ace' | HeightDoubt;
+
+/** A touch whose ball's height doubts of its action (`review.odd_heights`): reported by the server, not found here. */
+export type HeightDoubt = 'lowAttack' | 'highRelance';
 
 // Over this long between two touches, in seconds, one is often missing (review.GAP_S).
 const GAP_S = 2.5;

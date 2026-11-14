@@ -991,6 +991,8 @@
         "afterFault": "Une action suit une faute dans le même échange",
         "samePlayer": "Le même joueur touche le ballon 2 fois de suite",
         "relanceFirst": "Une relance en première touche : c'est une défense",
+        "lowAttack": "Une attaque jouée bas : à deux mains ?",
+        "highRelance": "Une relance jouée haut : d'une main ?",
         "afterPoint": "Une action suit un point dans le même échange",
         "gap": "Longue pause entre deux touches",
         "serverOrder": "Serveur hors de l'ordre de rotation",

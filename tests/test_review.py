@@ -302,6 +302,19 @@ class TestReports:
         page["contacts"].append(c(1.0, "pass", 2))
         assert [r["kind"] for r in unusual(page)] == ["auto.afterFault"]
 
+    def test_an_attack_played_low_or_a_relance_high_is_a_doubt_on_its_touch(self):
+        def c(t, kind, team):
+            return {"t": t, "type": kind, "team": team, "side": "left" if team == 1 else "right", "rally": 0, "result": "play"}
+
+        page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 5.0, "set": 1, "winner": 1}], "contacts": [c(0.1, "serve", 1), c(1.0, "pass", 2), c(1.8, "set", 2), c(2.6, "attack", 2), c(3.4, "relance", 1)]}
+        # index, x, y, height: the attack at 1.5 m, the first-touch relance (asked as such) high, a floor-level place no height.
+        places = [3, 0, 0, 1.5, 4, 0, 0, 2.9]
+        found = [r for r in unusual(page, places) if r["kind"] in ("auto.lowAttack", "auto.highRelance")]
+        assert [(r["kind"], r["at"], r["time"]) for r in found] == [("auto.lowAttack", [2.6], 0.0)]
+        assert not [r for r in unusual(page, [3, 0, 0, 0.11]) if r["kind"] == "auto.lowAttack"]
+        page["ball3d"] = [3, 0, 0, 2.7]
+        assert not [r for r in unusual(page, places) if r["kind"] == "auto.lowAttack"]
+
     def test_a_relance_as_first_touch_is_reported(self):
         def c(t, kind, team):
             return {"t": t, "type": kind, "team": team, "side": "left" if team == 1 else "right", "rally": 0, "result": "play"}

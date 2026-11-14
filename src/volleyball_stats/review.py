@@ -38,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import app, applog, attribution, backup, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
@@ -160,7 +160,7 @@ class Questions:
         done = set(checked(load_log(self.match / "identity_answers.json")))
         still = board_still(self.page, texts, done) if self.page else []
         over = not_over(self.page, crossings(self.match, self.calibration, self.fps), done) if self.page and self.calibration else []
-        self.reports = sorted(reports(self.match) + (unusual(self.page) if self.page else []) + missed + board + still + over, key=lambda r: r.get("time") or 0)
+        self.reports = sorted(reports(self.match) + (unusual(self.page, read_places(self.match / "review" / "ball3d.js")) if self.page else []) + missed + board + still + over, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -756,6 +756,40 @@ def reports(match: Path) -> list[dict]:
 
 # Over this long between two touches, in seconds, one is often missing (first match, before the review: 10 of 14 hid one).
 GAP_S = 2.5
+# A touch's ball under LOW_ATTACK_M typed attack, or from HIGH_RELANCE_M typed relance, past a team's first touch, is doubtful
+# (one hand is an attack, both hands a relance: the owner's rule, 14 Nov): the owner's attacks leave at 2.6-2.7 m, relances at 1.8-1.9 m
+# (medians, three matches); 35 such touches on their checked rallies. A place at the floor (`ball3d.BALL_R`) is no height.
+LOW_ATTACK_M, HIGH_RELANCE_M = 1.8, 2.6
+
+
+def read_places(path: Path) -> list:
+    """The touches' 3D places of a ball3d.js (`web.write_page`), flat: index, x, y, z; [] without one."""
+    if not path.exists():
+        return []
+    text = path.read_text()
+    return json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
+
+
+def odd_heights(page: dict, places: list) -> dict[int, dict[str, list[float]]]:
+    """The times of the touches doubtful by their height, by rally index and reason: "lowAttack", an attack played under
+    LOW_ATTACK_M, "highRelance", a relance from HIGH_RELANCE_M, a team's first touch aside (after the other team's touch but
+    a serve, or after a block)."""
+    height = {int(places[k]): places[k + 3] for k in range(0, len(places), 4)}
+    out: dict[int, dict[str, list[float]]] = defaultdict(dict)
+    before = None
+    for i, c in sorted(enumerate(page["contacts"]), key=lambda x: (x[1]["rally"], x[1]["t"])):
+        if c["type"] in web.NO_PLAYER or c["type"] == "fault":
+            continue
+        if before is not None and before["rally"] != c["rally"]:
+            before = None
+        first = before is not None and (before["type"] == "block" or (before["type"] != "serve" and (before.get("team") or before["side"]) != (c.get("team") or c["side"])))
+        z = height.get(i)
+        if not first and z is not None and z > ball3d.BALL_R:
+            reason = "lowAttack" if c["type"] == "attack" and z < LOW_ATTACK_M else "highRelance" if c["type"] == "relance" and z >= HIGH_RELANCE_M else None
+            if reason:
+                out[c["rally"]].setdefault(reason, []).append(c["t"])
+        before = c
+    return out
 # A team's six players serve in turn: under this many turns apart, it is not the same player's turn.
 ROTATION = 6
 # A touch scoring has its ball cross the net from this many frames after it to this long after its rally's end.
@@ -793,12 +827,13 @@ def rotation_slips(page: dict) -> set[int]:
     return slips
 
 
-def unusual(page: dict) -> list[dict]:
+def unusual(page: dict, places: list | None = None) -> list[dict]:
     """The rallies of the review's `page` (its data.js) that do not look like one, as reports at
     their start (no winner and a set's final score: their end), `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
-    touch after a fault or a point (either ends the rally), a relance as a team's first touch, served by the team that lost the set's point
+    touch after a fault or a point (either ends the rally), a relance as a team's first touch, an attack played low or a relance high
+    (`odd_heights`, from the touches' 3D `places`, the page's own when it holds them), served by the team that lost the set's point
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order
     (`rotation_slips`), and, on the first rally either plays, two players of a team with one jersey.
@@ -809,6 +844,8 @@ def unusual(page: dict) -> list[dict]:
     people = page.get("people") or {}
     name = lambda c: people.get(str(c.get("person")), {}).get("name")  # noqa: E731
     slips = rotation_slips(page)
+    places = page["ball3d"] if isinstance(page.get("ball3d"), list) else places
+    heights = odd_heights(page, places) if places else {}
     for k, r in enumerate(rallies):
         touches = [c for c in page["contacts"] if c["rally"] == k and c["type"] not in web.NO_PLAYER]
         # The touches of the ball, playing faults aside.
@@ -855,9 +892,13 @@ def unusual(page: dict) -> list[dict]:
             why.append("gap")
         if k in slips:
             why.append("serverOrder")
+        why += list(heights.get(k, {}))
         for reason in why:
             said = f"auto:{reason}:{r['start']}" + (f":{score}" if reason == "scoreOff" else "")
             about = {"shown": name(serves[0])} if reason == "serverOrder" and name(serves[0]) else {}
+            if reason in heights.get(k, {}):
+                # The touches it is about, which the Match tab flags.
+                about = {"at": heights[k][reason]}
             out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["end"] if reason in ("noWinner", "scoreOff") else r["start"], "kind": f"auto.{reason}", "comment": None, **about})
     wearing: dict[tuple[int, int], set[int]] = defaultdict(set)
     for p, q in people.items():
@@ -987,7 +1028,7 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
         "kind": "report", "team": 1, "identity": None, "impact": 0, "seconds": round(rally["end"] - rally["start"], 1), "contacts": len(touches),
         "set": rally.get("set"), "time": round(rally["start"], 2), "crops": [], "choices": [],
         "clip": {"start": round(rally["start"], 2), "end": round(rally["end"], 2), "around": RALLY_AROUND_S, "boxes": []},
-        "reports": [{"kind": report.get("kind"), "shown": report.get("shown"), "comment": report.get("comment") or "", "time": round(at, 2), "received": report.get("received")}],
+        "reports": [{"kind": report.get("kind"), "shown": report.get("shown"), "comment": report.get("comment") or "", "time": round(at, 2), "received": report.get("received"), **({"at": report["at"]} if report.get("at") else {})}],
         "touches": touches, "winner": rally.get("winner"),
     }
     key = rally.get("key", round(rally["start"] * fps)) if k is not None else None
