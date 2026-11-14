@@ -8,11 +8,15 @@ picture 1.4x: VMAF zoomed 89.6 against 85.8 at 1080p for AV1, 86.8 against 82.1 
 those missing or at another height, in `reencoded/` beside the source, from one reading of it: decoding 4K costs more
 than the encoders' share. A copy only appears once whole.
 
-Encoded on an NVIDIA GPU when ffmpeg can (NVENC), else on the CPU. On 18 s of the Avia match, VMAF whole / zoomed 1.37x /
-1.8x (docs/hosting.md): H.264 1440p 90.9 / 88.2 / 83.3 at 3.0 Mb/s against x264's 90.3 / 86.8 / 80.9 at 3.3; 720p 80.1 /
-71.9 / 59.2 at 0.73 against 79.7 / 71.0 / 57.4 at 0.74; AV1 92.1 / 89.6 / 85.1 at 2.8 against SVT-AV1's 92.0 / 89.6 /
-84.9 at 1.55 (1.8 times larger). The three from a minute of 4K on the RTX 5080: 29 s against 123.
-ponytail: the resize stays on the CPU (scale_cuda's lanczos lost 0.5-1.7 points, 18 s a minute); VideoToolbox not tried.
+On an NVIDIA GPU the frames stay there, decoded, resized (scale_cuda) and encoded (NVENC) without coming back to the
+CPU; else decoded on the GPU when it can, resized on the CPU and each copy encoded on the GPU when it can there, else by
+x264 and SVT-AV1. On 18 s of the Avia match, VMAF whole / zoomed 1.37x / 1.8x (docs/hosting.md), all on the GPU: H.264
+1440p 90.3 / 86.2 / 82.8 at 3.0 Mb/s against x264's 90.3 / 86.8 / 80.9 at 3.3; 720p 79.2 / 70.0 / 58.3 at 0.73 against
+79.7 / 71.0 / 57.4 at 0.74; AV1 91.6 / 87.8 / 84.9 at 2.8 against SVT-AV1's 92.0 / 89.6 / 84.9 at 1.55. The three from
+20 s of 4K on the RTX 5080: 5.0 s against 11-12 resized on the CPU (the main thread's limit, ffmpeg 6.1 or 8.1 alike),
+about 40 on the CPU alone. NVENC's presets p4 to p7 gave the same scores, p4 the fastest.
+ponytail: scale_cuda's lanczos is a little softer than swscale's on the way down (AV1 zoomed 1.37x: 87.8 against 89.6);
+scale_npp's supersampling would match, outside the redistributable builds. VideoToolbox not tried.
 """
 
 import argparse
@@ -23,7 +27,7 @@ from pathlib import Path
 from volleyball_stats import decode
 
 H264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "28", "-maxrate", "8M", "-bufsize", "16M"]
-NVENC = ["-preset", "p7", "-tune", "hq", "-multipass", "fullres", "-rc", "vbr", "-b:v", "0"]
+NVENC = ["-preset", "p4", "-tune", "hq", "-rc", "vbr", "-b:v", "0"]
 # Every 2 s: the jumps between clips do not freeze.
 KEYFRAMES = ["-g", "50"]
 COPIES = {
@@ -56,14 +60,23 @@ def encoding(key: str) -> list[str]:
     return flags if decode.nvenc(codec) else COPIES[key][2]
 
 
+def on_gpu(keys: list[str], flags: tuple[str, ...]) -> bool:
+    """Whether the `keys` copies are made without the frames leaving the GPU: decoded there (`flags`), resized and encoded too."""
+    return flags == ("-hwaccel", "cuda") and decode.scale_cuda() and all(decode.nvenc(ON_GPU[key][0]) for key in keys)
+
+
 def command(video: Path, keys: list[str], flags: tuple[str, ...] = ()) -> list[str]:
-    """ffmpeg's command writing the `keys` copies of `video` from one decoding."""
+    """ffmpeg's command writing the `keys` copies of `video` from one decoding, `flags` decoding it."""
     labels = [f"[c{k}]" for k in range(len(keys))]
-    scaled = ";".join(f"{label}scale=-2:{COPIES[key][1]}:flags=lanczos[v{k}]" for k, (key, label) in enumerate(zip(keys, labels)))
+    gpu = on_gpu(keys, flags)
+    resize = "scale_cuda=-2:{}:interp_algo=lanczos:format=yuv420p" if gpu else "scale=-2:{}:flags=lanczos"
+    scaled = ";".join(f"{label}{resize.format(COPIES[key][1])}[v{k}]" for k, (key, label) in enumerate(zip(keys, labels)))
     outputs = []
     for k, key in enumerate(keys):
         outputs += ["-map", f"[v{k}]", "-map", "0:a:0?", *encoding(key), *KEYFRAMES, "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(part(paths(video)[key]))]
-    return ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-y", *flags, "-i", str(video), "-filter_complex", f"[0:v]fps=25,format=yuv420p,split={len(keys)}{''.join(labels)};{scaled}", *outputs]
+    frames = ["-hwaccel_output_format", "cuda"] if gpu else []
+    picture = "" if gpu else "format=yuv420p,"
+    return ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-y", *flags, *frames, "-i", str(video), "-filter_complex", f"[0:v]fps=25,{picture}split={len(keys)}{''.join(labels)};{scaled}", *outputs]
 
 
 def duration(path: Path) -> float:

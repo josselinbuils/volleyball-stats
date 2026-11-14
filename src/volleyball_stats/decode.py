@@ -70,6 +70,16 @@ def nvenc(codec: str) -> bool:
 
 
 @functools.cache
+def scale_cuda() -> bool:
+    """Whether ffmpeg resizes on an NVIDIA GPU here (scale_cuda: frames that stay on it)."""
+    probe = ["ffmpeg", "-v", "error", "-init_hw_device", "cuda", "-f", "lavfi", "-i", "color=s=256x256:d=0.1", "-frames:v", "1", "-vf", "hwupload_cuda,scale_cuda=128:128", "-f", "null", "-"]
+    try:
+        return subprocess.run(probe, capture_output=True).returncode == 0
+    except OSError:
+        return False
+
+
+@functools.cache
 def hardware(video: Path) -> tuple[str, ...]:
     """ffmpeg's flags decoding `video` on the GPU; none when it cannot."""
     if cuda(video):

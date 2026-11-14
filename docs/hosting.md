@@ -152,24 +152,29 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   the former one removed from `reencoded/`; updating every match makes them first, as each match's upload does.
 - `--small-video`: a 720p H.264 one (same with `scale=1280:720`, -56% against 1080p, -78% against 1440p) the page plays while its player is
   small; the 1440p copy in full screen, zoomed or over 1600 screen pixels wide, the video carrying on where it stood.
-- On an NVIDIA GPU the copies are encoded there (`video_copies.ON_GPU`, `decode.nvenc`; 14 Nov), else on the CPU as above:
-  `-preset p7 -tune hq -multipass fullres -rc vbr -b:v 0`, H.264 at `-cq 33` (1440p) and `-cq 34` (720p), AV1 at
-  `-cq 40`. Same harness:
+- On an NVIDIA GPU the frames stay there (`video_copies.on_gpu`, `decode.scale_cuda`, `decode.nvenc`; 14 Nov): decoded,
+  resized by `scale_cuda` (lanczos) and encoded by NVENC (`-preset p4 -tune hq -rc vbr -b:v 0`, H.264 at `-cq 33` for 1440p
+  and `-cq 34` for 720p, AV1 at `-cq 40`), else as above, each copy on NVENC when it can there. Same harness:
 
   | Copy on the RTX 5080 | kb/s | Whole | Zoom 1.37x | Zoom 1.8x |
   |---|---|---|---|---|
-  | AV1 1440p CQ 40 | 2778 | 92.1 | 89.6 | 85.1 |
-  | AV1 1440p CQ 44 | 1803 | 90.2 | 87.2 | 82.0 |
-  | H.264 1440p CQ 33 | 3041 | 90.9 | 88.2 | 83.3 |
-  | H.264 720p CQ 34 | 732 | 80.1 | 71.9 | 59.2 |
+  | AV1 1440p CQ 40, resized on the CPU | 2778 | 92.1 | 89.6 | 85.1 |
+  | AV1 1440p CQ 40, all on the GPU | 2837 | 91.6 | 87.8 | 84.9 |
+  | AV1 1440p CQ 38, all on the GPU | 3534 | 92.4 | 88.8 | 86.2 |
+  | H.264 1440p CQ 33, resized on the CPU | 3041 | 90.9 | 88.2 | 83.3 |
+  | H.264 1440p CQ 33, all on the GPU | 3013 | 90.3 | 86.2 | 82.8 |
+  | H.264 720p CQ 34, all on the GPU | 729 | 79.2 | 70.0 | 58.3 |
 
-  The H.264 copies as good at the same size or smaller; the AV1 one as good, 1.8 times larger (about +0.6 GB a match). The
-  three from a minute of the 4K source: 29 s against 123 on the CPU (a match in about 30 min instead of 2 to 4 h);
-  SVT-AV1 `-preset 8` beside the GPU's H.264: 47 s, 6% larger, 0.5 lower. Rejected: NVENC's spatial and temporal AQ with a
-  lookahead (VMAF 0.4-1.3 lower at the same CQ, larger), `scale_cuda` for the resize (18 s a minute, 0.5-1.7 lower).
+  The three copies from 20 s of 4K: 5.0 s all on the GPU, 11-12 s resized on the CPU (one ffmpeg thread fetches the 4K
+  frames, resizes and feeds both encoders in turn: ffmpeg 8.1's threads 8% faster, three ffmpeg runs 15%), about 40 s on
+  the CPU alone (x264, SVT-AV1). All on the GPU, ffmpeg 6.1 and 8.1 alike (5.7 s at p5), three runs no faster. NVENC's
+  presets: p7 with two passes 9.5 s, p7 6.8, p6 6.2, p5 5.6, p4 4.8, the same scores at p4, p5 and p7 (AV1 91.6-91.7 /
+  87.8 / 84.9). `scale_cuda`'s lanczos is a little softer on the way down (no shift; its bicubic worse: 88.8 / 84.8 / 78.5).
+  Rejected: NVENC's spatial and temporal AQ with a lookahead (VMAF 0.4-1.3 lower at the same CQ, larger).
 - The films and highlights too (`film.encoding`): `h264_nvenc` at `-cq 38`, VMAF 83.9 at 0.90 Mb/s against x264 medium CRF
   29's 83.3 at 0.99 (720x1280), 85.3 at 1.49 against 84.5 at 1.64 (1920x1080), on 10 s of the Avia match; x264 took two
-  cores from the drawing.
+  cores from the drawing. Their source decoded on the GPU (`film.decoder`, through yuv420p: the CPU's pixels): read 1.6x
+  faster, three films at once 125 s against 133 (the drawing, on the CPU, takes the rest).
 - A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21 frames to decode a jump instead of 131
   with `-g 250`, for +30% size in H.264, +60% in AV1.
 - The copies keep their source's date, so an upload skips an unchanged video.

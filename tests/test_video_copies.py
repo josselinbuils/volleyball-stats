@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -27,6 +28,17 @@ class TestVideoCopies:
         assert self.stream(made["small"]) == "h264,720,25/1"
         assert all(video_copies.duration(path) == pytest.approx(2.0, abs=0.1) for path in made.values())
         assert sorted(p.name for p in (tmp_path / "reencoded").iterdir()) == ["m_1440p.mp4", "m_720p.mp4", "m_av1.mp4"]
+
+    def test_frames_stay_on_the_gpu_only_when_it_decodes_resizes_and_encodes_them(self, monkeypatch):
+        video = Path("m.mp4")
+        monkeypatch.setattr(video_copies.decode, "scale_cuda", lambda: True)
+        monkeypatch.setattr(video_copies.decode, "nvenc", lambda codec: True)
+        on = " ".join(video_copies.command(video, ["light", "av1"], ("-hwaccel", "cuda")))
+        assert "-hwaccel_output_format cuda" in on and "scale_cuda=-2:1440" in on and "format=yuv420p,split" not in on
+        monkeypatch.setattr(video_copies.decode, "nvenc", lambda codec: codec == "h264")
+        off = " ".join(video_copies.command(video, ["light", "av1"], ("-hwaccel", "cuda")))
+        assert "scale_cuda" not in off and "scale=-2:1440:flags=lanczos" in off and "h264_nvenc" in off and "libsvtav1" in off
+        assert "scale_cuda" not in " ".join(video_copies.command(video, ["light"], ()))
 
     def test_only_those_missing(self, tmp_path, monkeypatch):
         video = tmp_path / "m.mp4"
