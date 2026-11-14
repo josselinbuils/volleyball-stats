@@ -94,3 +94,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     cached `chromium_headless_shell-1148` lacks `libnss3` in WSL (`apt-get download libnss3 libnspr4`, `dpkg -x` them in a scratch
     folder, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu`), driven by `playwright` installed in a scratch folder (not in `web/`)
     with `devices['iPhone 13']`; Windows' Edge headless cannot go under about 500 px wide.
+19. "Infos sur la vidéo" (14 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail and each measured serve's speed
+    drawn on the video. Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
+    dark mode, an iPhone, the review's own clips (no overlay there). Next, once the owner has looked: the attack jump's
+    height at the hit and the name of who touches.

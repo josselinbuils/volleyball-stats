@@ -52,8 +52,11 @@ STEP_S = 0.1
 # A player is on the court with their feet within SERVE_M behind an end line (serving) and SIDE_M
 # outside a sideline; the bench stands farther.
 SERVE_M, SIDE_M = 3.0, 1.0
-# The ball's place in the picture during the rallies, every BALL_STEP_S, for the video's zoom on it.
+# The ball's place in the picture during the rallies, every BALL_STEP_S, for the video's zoom on it and its trail; a
+# frame in between too where a straight line between those two would miss the ball by BALL_CORNER of the picture's
+# width: a touch's corner (about half the ball; 0.003 to 0.006 add 15% to 7% of samples on the Avia match).
 BALL_STEP_S = 0.08
+BALL_CORNER = 0.004
 POSTER_WIDTH = 800
 # What the page shows of the video: nothing, all of it, or the video with some players blurred.
 FOOTAGE = ("none", "full", "blur-opponents", "blur-all")
@@ -868,20 +871,40 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 
-def ball_track(match: Path, size: tuple[int, int], fps: float) -> dict:
-    """ball.js's content: the ball's place where it is seen in the rallies (their lead included),
-    every BALL_STEP_S, as flat [frame, x, y, ...] samples, x and y fractions of the picture."""
+def ball_track(match: Path, size: tuple[int, int], fps: float, times: np.ndarray | None = None) -> dict:
+    """ball.js's content: the ball's place where it is seen in the rallies (their lead included), every BALL_STEP_S and
+    at the corners between (BALL_CORNER), as flat [seconds, x, y, ...] samples, x and y fractions of the picture. The
+    seconds are each frame's real ones (`times`, film.frame_times), which the video plays it at: a frame's number drifts
+    from them by a few frames over a match, and the trail drawn on the video would leave the ball; without them, the
+    frame's number over `fps`."""
     lead, step = round(LEAD_S * fps), max(1, round(BALL_STEP_S * fps))
     rows, _ = rally_table(match)
     windows = ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rows], answers(match, "end"))
     windows = [(start - lead, end) for start, end in merge_rallies(windows, rows, [{}] * len(rows), {a["start"] for a in answers(match, "join")})[0]]
-    samples: list[float] = []
+    seen: dict[int, tuple[float, float]] = {}
     with open(match / "ball.csv") as f:
         for row in csv.DictReader(f):
             frame = int(row["frame"])
-            if row["visible"] == "1" and frame % step == 0 and any(a <= frame <= b for a, b in windows):
-                samples += [frame, round(float(row["x"]) / size[0], 3), round(float(row["y"]) / size[1], 3)]
-    return {"fps": fps, "samples": samples}
+            if row["visible"] == "1" and any(a <= frame <= b for a, b in windows):
+                seen[frame] = (float(row["x"]) / size[0], float(row["y"]) / size[1])
+
+    def kept(frame: int) -> bool:
+        before = frame - frame % step
+        if before == frame:
+            return True
+        a, b = seen.get(before), seen.get(before + step)
+        if a is None or b is None:
+            return False
+        share = (frame - before) / step
+        off = [a[k] + (b[k] - a[k]) * share - seen[frame][k] for k in (0, 1)]
+        return float(np.hypot(off[0], off[1] * size[1] / size[0])) > BALL_CORNER
+
+    samples: list[float] = []
+    for frame in sorted(seen):
+        if kept(frame):
+            seconds = float(times[frame]) if times is not None and frame < len(times) else frame / fps
+            samples += [round(seconds, 3), round(seen[frame][0], 3), round(seen[frame][1], 3)]
+    return {"samples": samples}
 
 
 def natural_motion(samples: list[list[float]], seconds: float, teams: dict[int, int]) -> list[list[float]]:
@@ -1179,7 +1202,7 @@ def frames_index(path: Path) -> list[list[float]] | None:
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None, films: Path | None = None) -> None:
     """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, the commentary's `voice` (`speech.voice_index`) and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
-    the `ball`'s places in ball.js, which the page loads to zoom on it."""
+    the `ball`'s places in ball.js, which the page loads to zoom on it and draw its trail."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
@@ -1669,9 +1692,13 @@ def build(
     data["club"] = club_page(theme, site)
     data["videoPage"] = link if blurred is None else None
     data["feedback"] = feedback
-    ball = ball_track(match, decode.size(video), data["fps"]) if blurred is not None and (match / "ball.csv").exists() else None
+    ball = None
+    if blurred is not None and (match / "ball.csv").exists():
+        from volleyball_stats import film
+
+        ball = ball_track(match, decode.size(video), data["fps"], film.frame_times(match, video))
     if blurred is not None and (match / "players.csv").exists():
-        samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3) / [data["fps"], 1, 1]
+        samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3)
         data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER], samples)
     write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data), match / "films")
     if not review:

@@ -1054,6 +1054,8 @@
     "unreached": "The site does not answer: try again."
   },
   "autoZoom": "Auto zoom",
+  "videoOverlay": "Info on the video",
+  "kmh": "{{speed}} km/h",
   "story": {
     "film": "Highlights",
     "title": "The story of the match",

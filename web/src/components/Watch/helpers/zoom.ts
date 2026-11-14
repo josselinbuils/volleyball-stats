@@ -21,11 +21,11 @@ export type Camera = { x: number; y: number; zoom: number };
 /** The ball's place at `time` (fractions of the picture), its samples within SMOOTH_S averaged;
  * null without any: between rallies, or the ball out of sight. */
 export function ballAt(ball: Ball, time: number): { x: number; y: number } | null {
-  const { fps, samples } = ball;
-  // The first sample at or after the window's start, by bisection over the frames.
+  const { samples } = ball;
+  // The first sample at or after the window's start, by bisection over the seconds.
   let lo = 0;
   let hi = samples.length / 3;
-  const from = (time - SMOOTH_S) * fps;
+  const from = time - SMOOTH_S;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
     if (samples[3 * mid] < from) {
@@ -37,7 +37,7 @@ export function ballAt(ball: Ball, time: number): { x: number; y: number } | nul
   let x = 0;
   let y = 0;
   let n = 0;
-  for (let k = lo; k < samples.length / 3 && samples[3 * k] <= (time + SMOOTH_S) * fps; k += 1) {
+  for (let k = lo; k < samples.length / 3 && samples[3 * k] <= time + SMOOTH_S; k += 1) {
     x += samples[3 * k + 1];
     y += samples[3 * k + 2];
     n += 1;

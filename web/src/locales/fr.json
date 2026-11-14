@@ -1054,6 +1054,8 @@
     "unreached": "Le site ne répond pas : réessayez."
   },
   "autoZoom": "Zoom auto",
+  "videoOverlay": "Infos sur la vidéo",
+  "kmh": "{{speed}} km/h",
   "story": {
     "film": "Highlights",
     "title": "L'histoire du match",

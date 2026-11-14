@@ -32,6 +32,16 @@ moments.
   starting, read back, at its keyframe (`seekBar.isDownload`). Against the bytes the network delivered (headless Chrome,
   on the host and locally, 720p and AV1 copies, early and late in the match, plain play and jumps, playlists of rallies
   and of touches): each part within 1 s of what is loaded; loaded parts drawn late or short in 3-13% of samples, up to 5 s.
+- "Infos sur la vidéo" (`Watch/Overlay.tsx`, `helpers/overlay.ts`; on unless turned off, kept in the browser) draws on the
+  video what the pipeline knows: the ball's trail over its last 0.5 s, as long as the ball is fast, and each measured
+  serve's speed beside the ball until the next touch. A canvas in the video's box, drawn by the zoom's loop for the frame
+  on screen (`requestVideoFrameCallback`), so it moves with the zoom. `ball.js` holds the ball's place by each frame's
+  real seconds (`web.ball_track`, `film.frame_times`): the camera drops 5 to 10 frames a match, a frame's number then
+  runs up to 45 ms off the video, one to two balls for a fast one, and the hosted copies play 25 frames a second on the
+  source's timeline. A place every 0.08 s, and the frames between where a straight line would miss the ball by 0.004 of
+  the picture's width, the corners at touches: on the Avia match a line between the 0.08 s places alone misses it by
+  2.6 px in 4K at the median but 60 at the 99th percentile; the corners add 11% of places (`ball.js` 246 to 305 KB, 80
+  to 93 compressed). Seen on paused frames of its 720p copy at 114 s, 2658 s and 4434 s: the trail ends behind the ball.
 - What plays is listed under the player (`Watch/RallyCards.tsx`, `useWatchList.ts`): the set's rallies, or while other
   moments play (a number, a chart, a trophy...) one card per moment, its touch lit among its rally's letters, under the
   playlist's title and "3 sur 10". The one playing stands out, kept in view; a card plays from it. On a phone it stands

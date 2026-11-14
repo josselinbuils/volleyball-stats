@@ -334,9 +334,27 @@ class TestBallTrack:
         # 10 fps: every frame, the rally from 3 frames before its start; frame 32 unseen.
         found = ball_track(tmp_path, (1000, 500), 10.0)
 
-        frames = found["samples"][::3]
-        assert frames == [18, 20, 22, 24, 26, 28, 30, 34, 36, 38, 40]
-        assert found["samples"][:3] == [18, 0.18, 0.18] and found["fps"] == 10.0
+        seconds = found["samples"][::3]
+        assert seconds == [1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.4, 3.6, 3.8, 4.0]
+        assert found["samples"][:3] == [1.8, 0.18, 0.18] and "fps" not in found
+
+    def test_keeps_a_frame_between_two_steps_only_where_it_is_off_their_line(self, tmp_path):
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n100,200\n")
+        rows = ["100,1,100,100", "101,1,125,200", "102,1,150,100", "104,1,200,100"]
+        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n")
+
+        # 50 fps: a step of 4 frames; frame 101 is 0.2 of the height off the line, frame 102 on it.
+        found = ball_track(tmp_path, (1000, 500), 50.0)
+
+        assert found["samples"][::3] == [2.0, 2.02, 2.08]
+
+    def test_gives_the_seconds_of_the_frames_times_when_it_has_them(self, tmp_path):
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n20,40\n")
+        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n20,1,100,100\n22,1,200,100\n")
+
+        found = ball_track(tmp_path, (1000, 500), 10.0, np.arange(100) * 0.1 + 0.05)
+
+        assert found["samples"][0] == 2.05
 
 
 class TestEnded:

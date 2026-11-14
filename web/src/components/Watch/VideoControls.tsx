@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ListVideo, Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX } from 'lucide-react';
+import { ListVideo, Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Spline, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { VideoButton } from '@/components/VideoButton';
@@ -38,9 +38,25 @@ const HELD_MS = 500;
 // Chromium (Chrome, Edge, Android) reports a video's loaded parts at their bytes' share of the file (`placer`).
 const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.some((b) => b.brand === 'Chromium') ?? false;
 
-/** The video's controls, its timeline limited to the set the page shows; `light` on a light background. With `onLayout`, full
- * screen offers its layouts. */
-export function VideoControls({ light = false, follow, onFollow, layout, onLayout }: { light?: boolean; follow?: boolean; onFollow?: () => void; layout?: Layout; onLayout?: (next: Layout) => void }) {
+/** The video's controls, its timeline limited to the set the page shows; `light` on a light background. With `onDrawn`,
+ * the switch of what is drawn on the video; with `onLayout`, full screen offers its layouts. */
+export function VideoControls({
+  light = false,
+  follow,
+  onFollow,
+  drawn,
+  onDrawn,
+  layout,
+  onLayout,
+}: {
+  light?: boolean;
+  follow?: boolean;
+  onFollow?: () => void;
+  drawn?: boolean;
+  onDrawn?: () => void;
+  layout?: Layout;
+  onLayout?: (next: Layout) => void;
+}) {
   const { t } = useTranslation();
   const { video, loop, setLoop, playlist } = usePlayer();
   // In a playlist, the clip playing and those after it.
@@ -283,6 +299,11 @@ export function VideoControls({ light = false, follow, onFollow, layout, onLayou
       {onFollow && (
         <VideoButton light={light} className={cn(second)} label={t('autoZoom')} pressed={follow} onClick={onFollow}>
           <ScanSearch aria-hidden />
+        </VideoButton>
+      )}
+      {onDrawn && (
+        <VideoButton light={light} className={cn(second)} label={t('videoOverlay')} pressed={drawn} onClick={onDrawn}>
+          <Spline aria-hidden />
         </VideoButton>
       )}
       {/* The court's replay has no sound. */}

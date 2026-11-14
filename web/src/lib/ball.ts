@@ -1,10 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import { match, versioned } from '@/lib/match';
 
-/** The ball's place where it is seen in the rallies: flat [frame, x, y, ...] samples, x and y
- * fractions of the picture. */
+/** The ball's place where it is seen in the rallies: flat [seconds, x, y, ...] samples, x and y
+ * fractions of the picture, by time. */
 export interface Ball {
-  fps: number;
   samples: number[];
 }
 
@@ -25,7 +24,7 @@ function settle(next: State) {
   listeners.forEach((listener) => listener());
 }
 
-/** Loads ball.js once, when the video first zooms on the ball. */
+/** Loads ball.js once, when the video first zooms on the ball or draws its trail. */
 export function loadBall() {
   if (state !== 'idle') {
     return;

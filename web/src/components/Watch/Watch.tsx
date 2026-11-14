@@ -21,12 +21,24 @@ import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 import { useLayout } from '@/components/Watch/LayoutMenu';
+import { Overlay, type Paint } from '@/components/Watch/Overlay';
 import { askVideo } from '@/components/VideoChoice';
 import { smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
 // A jump in the video this long cuts to its view: no pan across the court.
 const CUT_S = 0.5;
 const WHOLE = { x: 0.5, y: 0.5, zoom: 1 };
+const UNZOOMED = { scale: 1, x: 0, y: 0 };
+// Whether the video shows the ball's trail and the serves' speeds, kept in this browser: shown unless turned off.
+const DRAWN_KEY = 'videoOverlay';
+
+function savedDrawn(): boolean {
+  try {
+    return localStorage.getItem(DRAWN_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 // What web.py's --av1-video takes: 1440p, 8-bit, level 5.0; a browser that cannot play it takes the H.264 copy.
 const AV1 = 'video/mp4; codecs="av01.0.12M.08"';
 const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? match.av1 : match.video;
@@ -52,11 +64,22 @@ export function Watch() {
   const [follow, setFollow] = useState(match.views.length > 0);
   const ball = useBall();
   const camera = useRef({ now: { ...WHOLE }, speed: { x: 0, y: 0, zoom: 0 } });
+  // What the pipeline knows drawn on the video (`Overlay`), by the zoom's loop: the two move as one.
+  const [drawn, setDrawn] = useState(savedDrawn);
+  const toggleDrawn = () => {
+    setDrawn(!drawn);
+    try {
+      localStorage.setItem(DRAWN_KEY, drawn ? '0' : '1');
+    } catch {
+      // Kept for this page only.
+    }
+  };
+  const paint = useRef<Paint>(null);
   useEffect(() => {
-    if (follow) {
+    if (follow || drawn) {
       loadBall();
     }
-  }, [follow]);
+  }, [follow, drawn]);
   useEffect(() => {
     if (!(video instanceof HTMLVideoElement)) {
       return;
@@ -76,22 +99,27 @@ export function Watch() {
       }
       shown = time;
       spring(now, speed, target, dt);
-      if (!follow && Math.abs(now.zoom - 1) < 0.002) {
+      const whole = !follow && Math.abs(now.zoom - 1) < 0.002;
+      let view = UNZOOMED;
+      if (whole) {
         Object.assign(now, WHOLE);
         Object.assign(speed, { x: 0, y: 0, zoom: 0 });
         video.style.transform = '';
-        return;
-      }
-      if (video.videoWidth) {
-        const v = zoomOn(now, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, Math.max(1, now.zoom));
+      } else if (video.videoWidth) {
+        view = zoomOn(now, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, Math.max(1, now.zoom));
         video.style.transformOrigin = '0 0';
-        video.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.scale})`;
+        video.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+      }
+      paint.current?.(view);
+      // Unzoomed, only the overlay keeps the loop going.
+      if (whole && !drawn) {
+        return;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [video, follow, ball]);
+  }, [video, follow, ball, drawn]);
   // A playlist's next clips load once the video has reached its first one: both at once would
   // slow its start.
   const [reached, setReached] = useState<Clip[] | null>(null);
@@ -268,6 +296,7 @@ export function Watch() {
                         courtFull && layout === 'side' && '[:fullscreen_&]:portrait:aspect-video [:fullscreen_&]:portrait:h-auto',
                       )}
                     />
+                    {drawn && video instanceof HTMLVideoElement && typeof ball === 'object' && <Overlay video={video} ball={ball} paint={paint} />}
                     {video instanceof HTMLVideoElement && <Buffering video={video} />}
                     {video instanceof HTMLVideoElement && <VideoError video={video} />}
                   </div>
@@ -283,7 +312,7 @@ export function Watch() {
                     </div>
                   )}
                 </div>
-                <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} layout={layout} onLayout={setLayout} />
+                <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} drawn={drawn} onDrawn={ball === 'none' ? undefined : toggleDrawn} layout={layout} onLayout={setLayout} />
               </div>
             </div>
             <PlaylistBar />

@@ -3,7 +3,7 @@ import { AHEAD_S, ballAt, frameAt, smoothFrameAt, spring, zoomOn } from '@/compo
 
 describe('ballAt', () => {
   // 10 fps: a sample every frame from 1 s to 2 s, the ball moving right.
-  const ball = { fps: 10, samples: Array.from({ length: 11 }, (_, k) => [10 + k, 0.1 + k * 0.01, 0.5]).flat() };
+  const ball = { samples: Array.from({ length: 11 }, (_, k) => [1 + k / 10, 0.1 + k * 0.01, 0.5]).flat() };
 
   it('averages the samples within half a second', () => {
     const at = ballAt(ball, 1.5)!;
