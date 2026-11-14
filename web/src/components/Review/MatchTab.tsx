@@ -112,7 +112,7 @@ export function MatchTab({
 
   return (
     <Card>
-      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6 pt-6">
+      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6">
         <div
           ref={block}
           className={cn(

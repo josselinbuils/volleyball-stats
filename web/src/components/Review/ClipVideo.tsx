@@ -543,10 +543,10 @@ export function ClipVideo({
             <VideoButton label={t(paused ? 'review.playVideo' : 'review.pauseVideo')} onClick={playPause}>
               {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
             </VideoButton>
-            {showTime && <span className="min-w-12 px-1 text-sm tabular-nums">{clock(time)}</span>}
-            {/* The zoom's buttons, a space after them (not before the speed's: a line wrapped on a phone starts flush). */}
+            {/* A space after the time and after the zoom's buttons (not before what follows: a line wrapped on a phone starts flush). */}
+            {showTime && <span className="mr-3 min-w-12 px-1 text-sm tabular-nums">{clock(time)}</span>}
             {(free || clip.boxes.length > 0) && (
-              <div className="mr-2 flex gap-x-1">
+              <div className="mr-4 flex gap-x-1">
                 {free && (
                   <>
                     <VideoButton label={t('review.zoomMore')} tip={t('review.pinchNote')} onClick={() => zoomBy(ZOOM_STEP)}>
