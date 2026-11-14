@@ -31,6 +31,7 @@ import {
   rallyAt,
   rallyOf,
   runningScores,
+  splitAfter,
   timeoutsAfter,
   withAdded,
   withSplits,
@@ -296,6 +297,20 @@ export function ReportEditor({
       setSplits((all) => [...all, frame]);
     }
     onPause(frame / match.fps);
+  };
+
+  // The rally's touches after its new end go to a new rally, started at the first of them.
+  const endHere = () => {
+    const at = Math.round(timeOf() * 100) / 100;
+    editRally(here, { end: at });
+    const frame = splitAfter(
+      (kept.get(here) ?? []).map((row) => row.time),
+      at,
+      match.fps,
+    );
+    if (frame !== undefined && !shown.some((r) => r.key === frame)) {
+      setSplits((all) => [...all, frame]);
+    }
   };
 
   // The list follows the video, its touch (else its rally) centred, except while a field in it is
@@ -938,7 +953,7 @@ export function ReportEditor({
               {t('review.reportJoin', { n: here + 2 })}
             </label>
             <span className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="bg-card" disabled={now <= rally.start} onClick={() => editRally(here, { end: Math.round(timeOf() * 100) / 100 })}>
+              <Button variant="outline" size="sm" className="bg-card" disabled={now <= rally.start} onClick={endHere}>
                 <CircleStop aria-hidden />
                 {t('review.reportEndHere', { time: clock(now) })}
               </Button>

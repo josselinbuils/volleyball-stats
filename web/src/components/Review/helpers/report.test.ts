@@ -16,6 +16,7 @@ import {
   runningScores,
   timeoutsAfter,
   withAdded,
+  splitAfter,
   withSplits,
   matchFinished,
 } from '@/components/Review/helpers/report';
@@ -177,6 +178,15 @@ describe('freeFrame', () => {
   it('keeps a frame next to a touch, and moves on from one holding a touch', () => {
     expect(freeFrame([100], 101)).toBe(101);
     expect(freeFrame([100, 101], 100)).toBe(102);
+  });
+});
+
+describe('splitAfter', () => {
+  it('starts the new rally at the first touch after the end, where that touch falls in it', () => {
+    expect(splitAfter([12.3, 18.1, 15.04], 14, 25)).toBe(376);
+    expect(withSplits([{ start: 10, end: 20, set: 1, winner: 1, key: 250 }], [splitAfter([12.3, 15.04], 14, 25)!], 25)[1].start).toBeLessThanOrEqual(15.04);
+    expect(splitAfter([12.3], 14, 25)).toBeUndefined();
+    expect(splitAfter([], 14, 25)).toBeUndefined();
   });
 });
 

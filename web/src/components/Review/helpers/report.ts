@@ -224,6 +224,13 @@ export function withSplits(rallies: Pick<Rally, 'start' | 'end' | 'set' | 'winne
   return out;
 }
 
+/** The frame "End the rally at `at`" starts a new rally at, for the rally's touches after it (`times`): the first one's,
+ * so that it falls in the new rally; undefined without one. */
+export function splitAfter(times: number[], at: number, fps: number): number | undefined {
+  const next = Math.min(...times.filter((t) => t > at));
+  return Number.isFinite(next) ? Math.floor(next * fps + 1e-6) : undefined;
+}
+
 /** The index in `pieces` of a page touch at `time` of the page's rally `origin`: the last part of
  * that rally started by then. */
 export function pieceOf(pieces: Piece[], origin: number, time: number): number {

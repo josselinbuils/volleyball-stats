@@ -107,7 +107,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 ### Correcting
 
 - Beside the video, the touches around it: correct, add (a serve before a rally starts it, and the touches added after it
-  are that rally's), remove, end a rally (`end` answers), join two rallies (`join` answers), start a rally at a moment
+  are that rally's), remove, end a rally (`end` answers; its touches after that start a new rally at the first of them,
+  `helpers/report.ts` `splitAfter`), join two rallies (`join` answers), start a rally at a moment
   (`split` answers: one missed, or the second of two taken for one; `web.rally_table`).
 - Rallies are named by their `rallies.csv` start (`key` on the page), which an added serve moves. A line between rallies
   shows the score after each one; a rally header turns orange with a warning.
