@@ -34,6 +34,7 @@ import { ExportDialog } from '@/components/ExportSite';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { LateCauses } from '@/components/LateCauses';
 import { Tip } from '@/components/Tip';
+import { BackLink } from '@/components/BackLink';
 
 type Action = 'undo' | 'apply' | 'rerun' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
@@ -261,6 +262,7 @@ export function ReviewHeader({
   const [exportOpen, setExportOpen] = useState(false);
   return (
     <header className="grid gap-1.5 px-1">
+      <BackLink href="/matches/" label={t('review.allMatches')} className="mb-1.5" />
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div className="flex min-w-0 items-center gap-1">
           <MatchSwitch title={title} disabled={busy !== null} mayLeave={mayLeave} onFailed={onFailed} />

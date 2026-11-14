@@ -14,7 +14,8 @@ import { StickyBar } from '@/components/Header/StickyBar';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
 import { Tip } from '@/components/Tip';
-import { windowTitle } from '@/lib/appServer';
+import { onAppServer, windowTitle } from '@/lib/appServer';
+import { BackLink } from '@/components/BackLink';
 
 export function Header() {
   const { t } = useTranslation();
@@ -59,6 +60,8 @@ export function Header() {
       <header className="grid gap-6 px-1">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
+            {/* In the app, the page is the review's preview. */}
+            {onAppServer() && <BackLink href="/review" label={t('backToReview')} className="mb-3 flex w-fit" />}
             <p className="text-sm font-medium text-muted-foreground">
               {t('report')}
               {match.date && (
