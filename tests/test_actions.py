@@ -372,11 +372,14 @@ class TestRelancesByTouch:
 
         assert self.kinds(typed)[-1] == "relance"
 
-    def test_a_second_touch_relance_is_a_set(self):
-        typed = [(0, 0, 0, "attack", "right"), (40, 0, 0, "dig", "left"), (70, 0, 0, "relance", "left")]
+    def test_a_second_touch_relance_its_side_plays_on_is_a_set(self):
+        dug = [(0, 0, 0, "attack", "right"), (40, 0, 0, "dig", "left")]
 
-        assert self.kinds(typed)[-1] == "set"
-        assert self.kinds([(0, 0, 0, "serve", "right"), (40, 0, 0, "pass", "left"), (70, 0, 0, "relance", "left")])[-1] == "set"
+        assert self.kinds([*dug, (70, 0, 0, "relance", "left"), (85, 0, 0, "floor", "left"), (100, 0, 0, "attack", "left")])[2] == "set"
+        assert self.kinds([*dug, (70, 0, 0, "relance", "left"), (100, 0, 0, "dig", "right")])[2] == "relance"
+        # The rally's last touch: nothing tells. A set the other side plays next stays: its 3rd touch is often missed.
+        assert self.kinds([*dug, (70, 0, 0, "relance", "left")])[-1] == "relance"
+        assert self.kinds([*dug, (70, 0, 0, "set", "left"), (100, 0, 0, "dig", "right")])[2] == "set"
 
     def test_after_a_serve_stays(self):
         assert self.kinds([(0, 0, 0, "serve", "left"), (50, 0, 0, "relance", "right")])[-1] == "relance"

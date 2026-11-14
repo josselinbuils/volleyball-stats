@@ -40,9 +40,18 @@ describe('problems', () => {
     expect(marks(problems([c('serve', 1), c('pass', 2), c('set', 2), c('relance', 2)], 2, null, true, true))).toEqual({});
   });
 
-  it('marks a relance as second touch, even in a checked rally', () => {
-    expect(marks(problems([c('serve', 1), c('pass', 2), c('relance', 2)], 1, null, true, true))[2]).toEqual(['relanceSecond']);
-    expect(marks(problems([c('attack', 1), c('block', 2), c('dig', 2), c('relance', 2)], 1, null, true, true))[3]).toEqual(['relanceSecond']);
+  it("marks a team's second touch by what follows, even in a checked rally: a relance its team plays on, a set the other team plays next", () => {
+    const of = (rally: Checked[]) => marks(problems(rally, 1, null, true, true));
+    expect(of([c('serve', 1), c('pass', 2), c('relance', 2), c('attack', 2)])[2]).toEqual(['relanceSecond']);
+    expect(of([c('attack', 1), c('block', 2), c('dig', 2), c('relance', 2), c('set', 2)])[3]).toEqual(['relanceSecond']);
+    expect(of([c('serve', 1), c('pass', 2), c('set', 2), c('dig', 1)])[2]).toEqual(['setOver']);
+    expect(of([c('serve', 1), c('pass', 2), c('set', 2), c('block', 1)])[2]).toEqual(['setOver']);
+    // Before the rally is checked its 3rd touch is often missing: a doubt then (setToOtherTeam).
+    expect(marks(problems([c('serve', 1), c('pass', 2), c('set', 2), c('dig', 1)], 1, null, true))[2]).toEqual(['setToOtherTeam']);
+    expect(of([c('serve', 1), c('pass', 2), c('relance', 2), c('dig', 1)])).toEqual({});
+    expect(of([c('serve', 1), c('pass', 2), c('set', 2), c('attack', 2)])).toEqual({});
+    // The rally's last touch: nothing tells.
+    expect(of([c('serve', 1), c('pass', 2), c('relance', 2)])).toEqual({});
   });
 
   it('marks a fault after a point: the labels say what happened, the statistics read the point', () => {
@@ -98,8 +107,8 @@ describe('problems', () => {
       expect(of([c('relance', 1), c('set', 1)])[1]).toEqual(['overThenSameTeam']);
       expect(of([c('set', 1), c('dig', 2)])[0]).toEqual(['setToOtherTeam']);
       expect(of([c('dig', 1), c('set', 1), c('set', 1), c('dig', 2)])[2]).toEqual(['twoSets', 'setToOtherTeam']);
-      // Both hands on a team's 2nd touch make a set, sent over or not.
-      expect(of([c('serve', 1), c('pass', 2), c('set', 2), c('dig', 1)])).toEqual({});
+      // A relance on a team's 2nd touch its team plays on is a problem already, not doubted too.
+      expect(of([c('serve', 1), c('pass', 2), c('relance', 2), c('attack', 2)])).toEqual({ 2: ['relanceSecond'] });
       expect(of([c('attack', 1), c('set', 2)])[1]).toEqual(['setFirst']);
       expect(of([c('set', 1), c('set', 1)])[1]).toEqual(['twoSets']);
       expect(of([c('attack', 1), c('block', 2), c('dig', 1)])).toEqual({});
@@ -108,7 +117,7 @@ describe('problems', () => {
     it('marks a rally ending oddly, not one to replay nor one a playing fault ends', () => {
       const pass = c('pass', 2);
       expect(of([c('serve', 1), pass, c('set', 2), c('set', 2)], true)[3]).toEqual(['twoSets', 'endsOnSet']);
-      expect(of([c('serve', 1), pass, c('set', 2, '', 'point')], true)).toEqual({});
+      expect(of([c('serve', 1), pass, c('set', 2, '', 'point')], true)).toEqual({ 2: ['endsOnSet'] });
       expect(of([c('serve', 1), pass, c('dig', 2, '', 'point')], true)[2]).toEqual(['digLater', 'pointOnTouch']);
       expect(of([c('serve', 1), pass, c('set', 2), c('relance', 2, '', 'point')], true)).toEqual({});
       // An ace is no doubt: 1 of 11 on a correction (first match, 14 Nov).

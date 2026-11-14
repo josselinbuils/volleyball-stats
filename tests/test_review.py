@@ -323,8 +323,15 @@ class TestReports:
         assert unusual(page) == []
         page["contacts"].append(c(3.5, "relance", 1))
         assert [r["kind"] for r in unusual(page)] == ["auto.relanceFirst"]
+        # A team's 2nd touch with both hands: a set when its team plays on, a relance when the other team plays next.
         page["contacts"][2]["type"] = "relance"
         assert [r["kind"] for r in unusual(page)] == ["auto.relanceSecond", "auto.relanceFirst"]
+        page["contacts"][2:] = [c(1.8, "set", 2), c(2.6, "dig", 1)]
+        assert unusual(page) == []
+        page["rallies"][0]["key"] = 5
+        assert [r["kind"] for r in unusual(page, done={5})] == ["auto.setOver"]
+        page["contacts"][2]["type"] = "relance"
+        assert unusual(page) == []
 
     def test_the_server_is_not_checked_after_a_point_the_referee_got_wrong(self):
         def serve(rally, team):

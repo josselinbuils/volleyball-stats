@@ -160,7 +160,7 @@ class Questions:
         done = set(checked(load_log(self.match / "identity_answers.json")))
         still = board_still(self.page, texts, done) if self.page else []
         over = not_over(self.page, crossings(self.match, self.calibration, self.fps), done) if self.page and self.calibration else []
-        self.reports = sorted(reports(self.match) + (unusual(self.page, read_places(self.match / "review" / "ball3d.js")) if self.page else []) + missed + board + still + over, key=lambda r: r.get("time") or 0)
+        self.reports = sorted(reports(self.match) + (unusual(self.page, read_places(self.match / "review" / "ball3d.js"), done) if self.page else []) + missed + board + still + over, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -772,7 +772,7 @@ def read_places(path: Path) -> list:
 
 def odd_heights(page: dict, places: list) -> dict[int, dict[str, list[float]]]:
     """The times of the touches doubtful by their height, by rally index and reason: "highRelance", a relance from
-    HIGH_RELANCE_M on a team's 3rd touch or later (on a 1st or 2nd touch it is asked as such: `relanceFirst`, `relanceSecond`)."""
+    HIGH_RELANCE_M on a team's 2nd touch or later (on a 1st it is asked as such: `relanceFirst`)."""
     height = {int(places[k]): places[k + 3] for k in range(0, len(places), 4)}
     out: dict[int, dict[str, list[float]]] = defaultdict(dict)
     before, run = None, 0
@@ -784,7 +784,7 @@ def odd_heights(page: dict, places: list) -> dict[int, dict[str, list[float]]]:
         same = before is not None and before["type"] != "block" and (before.get("team") or before["side"]) == (c.get("team") or c["side"])
         run = run + 1 if same else 0 if c["type"] == "block" else 1
         z = height.get(i)
-        if c["type"] == "relance" and run >= 3 and z is not None and z > ball3d.BALL_R and z >= HIGH_RELANCE_M:
+        if c["type"] == "relance" and run >= 2 and z is not None and z > ball3d.BALL_R and z >= HIGH_RELANCE_M:
             out[c["rally"]].setdefault("highRelance", []).append(c["t"])
         before = c
     return out
@@ -825,12 +825,14 @@ def rotation_slips(page: dict) -> set[int]:
     return slips
 
 
-def unusual(page: dict, places: list | None = None) -> list[dict]:
+def unusual(page: dict, places: list | None = None, done: set[int] = frozenset()) -> list[dict]:
     """The rallies of the review's `page` (its data.js) that do not look like one, as reports at
     their start (no winner and a set's final score: their end), `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
-    touch after a fault or a point (either ends the rally), a relance as a team's first or second touch, a relance played high
+    touch after a fault or a point (either ends the rally), a relance as a team's first touch or as its second its team plays
+    on, on a rally of `done` (checked, by key) a set as its second the other team plays next (before, its 3rd touch is often
+    missed: the editor doubts of it), a relance played high
     (`odd_heights`, from the touches' 3D `places`, the page's own when it holds them), served by the team that lost the set's point
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order
@@ -867,17 +869,23 @@ def unusual(page: dict, places: list | None = None) -> list[dict]:
             why.append("afterFault")
         if any(web.labelled(a) == "point" for a in touches[:-1]):
             why.append("afterPoint")
-        run, side, second = 0, None, False
-        for c in played:
+        run, side, second, over = 0, None, False, False
+        for n, c in enumerate(played):
             who = c.get("team") or c["side"]
             run, side = (0 if c["type"] == "block" else run + 1 if who == side else 1), who
-            # Both hands on a team's second touch make a set, even sent over.
-            second = second or (c["type"] == "relance" and run == 2)
+            # Both hands on a team's second touch make a relance when the other team plays next, a set when its own plays on.
+            after = played[n + 1] if n + 1 < len(played) else None
+            if run == 2 and after:
+                on = after["type"] != "block" and (after.get("team") or after["side"]) == who
+                second = second or (c["type"] == "relance" and on)
+                over = over or (c["type"] == "set" and not on and r.get("key") in done)
             if run > 3:
                 why.append("fourTouches")
                 break
         if second:
             why.append("relanceSecond")
+        if over:
+            why.append("setOver")
         before = rallies[k - 1] if k else None
         if serves and serves[0].get("team") and before and before["set"] == r["set"] and before.get("winner") and not before.get("wrongCall") and serves[0]["team"] != before["winner"]:
             why.append("server")

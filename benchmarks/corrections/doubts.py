@@ -1,5 +1,5 @@
 """How often the review editor's doubts (`checks.ts`, `doubtful`) sit on a correction, on a scored run of this benchmark:
-before and after a team's 2nd-touch set is spared (`relanceSecond`), each doubt's share against chance.
+each doubt's share against chance.
 
     uv run python benchmarks/corrections/doubts.py MATCH RUN
 
@@ -28,13 +28,12 @@ def overlapping(start, end):
     return best if best and min(end, int(best["end_frame"])) > max(start, int(best["start_frame"])) else None
 
 
-def doubtful(touches, exempt):
+def doubtful(touches):
     """checks.ts `doubtful` on the touches of the ball: [(index, problem)]."""
     out = []
     runs = []
     for n, c in enumerate(touches):
         runs.append(0 if c["type"] == "block" else runs[n - 1] + 1 if n and touches[n - 1]["team"] == c["team"] else 1)
-    set_over = lambda n: exempt and touches[n]["type"] == "set" and runs[n] == 2  # noqa: E731
     for n in range(1, len(touches)):
         before, c = touches[n - 1], touches[n]
         same = before["team"] == c["team"]
@@ -44,9 +43,10 @@ def doubtful(touches, exempt):
             out.append((n, "doubleTouch"))
         if blocked:
             continue
-        if same and before["type"] in ("attack", "relance"):
+        # A relance on a team's 2nd touch its team plays on is a problem already (relanceSecond).
+        if same and (before["type"] == "attack" or (before["type"] == "relance" and runs[n - 1] != 2)):
             out.append((n, "overThenSameTeam"))
-        if not same and before["type"] == "set" and not set_over(n - 1):
+        if not same and before["type"] == "set":
             out.append((n - 1, "setToOtherTeam"))
         if not same and c["type"] == "set":
             out.append((n, "setFirst"))
@@ -56,7 +56,7 @@ def doubtful(touches, exempt):
             out.append((n, "twoSets"))
     if touches:
         last = touches[-1]
-        if last["type"] == "set" and not set_over(len(touches) - 1):
+        if last["type"] == "set":
             out.append((len(touches) - 1, "endsOnSet"))
         elif last["result"] == "point" and last["type"] in ("pass", "dig"):
             out.append((len(touches) - 1, "pointOnTouch"))
@@ -80,7 +80,7 @@ def near(f):
     return any(x["kind"] != "winner" and abs(x["frame"] - f) <= fps for x in fixes)
 
 
-all_touches, flags = [], {False: [], True: []}
+all_touches, flags = [], []
 for r in truth["rallies"]:
     w = overlapping(r["start_frame"], r["end_frame"])
     winner = points.get(w["start_frame"], {}).get("winner") if w else None
@@ -89,18 +89,11 @@ for r in truth["rallies"]:
     if touches and winner:
         touches[-1]["result"] = "point" if touches[-1]["team"] == winner else "error"
     all_touches += touches
-    for exempt in (False, True):
-        flags[exempt] += [(touches[n]["f"], p) for n, p in doubtful(touches, exempt)]
+    flags += [(touches[n]["f"], p) for n, p in doubtful(touches)]
 
 chance = (sum(on_touch(c["f"]) for c in all_touches), sum(near(c["f"]) for c in all_touches), len(all_touches))
 print(f"{name} [{run}]: {chance[2]} pipeline touches in {len(truth['rallies'])} checked rallies; by chance {chance[0] / chance[2]:.0%} on the touch, {chance[1] / chance[2]:.0%} within 1 s")
-for exempt in (False, True):
-    fl = flags[exempt]
-    print(f"\n{'after' if exempt else 'before'} (2nd-touch set exempt: {exempt}): {len(fl)} flags, {sum(on_touch(f) for f, _ in fl) / len(fl):.0%} on the touch, {sum(near(f) for f, _ in fl) / len(fl):.0%} within 1 s")
-    for p, n in Counter(p for _, p in fl).most_common():
-        hits = [f for f, q in fl if q == p]
-        print(f"  {p:18} {n:4}  on the touch {sum(map(on_touch, hits)):3} ({sum(map(on_touch, hits)) / n:.0%})  within 1 s {sum(map(near, hits)):3} ({sum(map(near, hits)) / n:.0%})")
-dropped = [f for f in {x for x in flags[False]} - set(flags[True])]
-print(f"\ndropped: {len(dropped)}: {Counter(p for _, p in dropped)}, on the touch {sum(on_touch(f) for f, _ in dropped)}, within 1 s {sum(near(f) for f, _ in dropped)}")
-for f, p in sorted(dropped):
-    print(f"  {p} at {f / fps:.2f} s: {[x['kind'] + ':' + str(x.get('truth_type', '')) for x in fixes if x['kind'] != 'winner' and abs(x['frame'] - f) <= fps]}")
+print(f"{len(flags)} flags, {sum(on_touch(f) for f, _ in flags) / len(flags):.0%} on the touch, {sum(near(f) for f, _ in flags) / len(flags):.0%} within 1 s")
+for p, n in Counter(p for _, p in flags).most_common():
+    hits = [f for f, q in flags if q == p]
+    print(f"  {p:18} {n:4}  on the touch {sum(map(on_touch, hits)):3} ({sum(map(on_touch, hits)) / n:.0%})  within 1 s {sum(map(near, hits)):3} ({sum(map(near, hits)) / n:.0%})")

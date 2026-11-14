@@ -422,15 +422,20 @@ def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, lon
 
 def relances_by_touch(typed: list[Typed]) -> list[Typed]:
     """`typed` with the relances played as a team's first touch (after the other side's touch but a serve, or after a block)
-    retyped "dig", as its second "set": the owner's rule (14 Nov), both hands sending the ball back make a relance on the 3rd
-    touch only (a set the other team plays next is a set gone over)."""
+    retyped "dig", those on its second touch its own side plays on "set": the owner's rule (14 Nov), both hands on a team's
+    second touch make a relance when the other team plays next, a set when its own plays on. A set the other side plays next
+    stays (the review asks): its 3rd touch is often missed, and retyped "relance" corrections went 282 -> 291 and 350 -> 361
+    against the answers with the rule applied, on play-main's output."""
     out, before, count = list(typed), None, 0
-    for k, (frame, x, y, kind, side) in enumerate(typed):
-        if kind == "floor":
-            continue
+    played = [k for k, t in enumerate(typed) if t[3] != "floor"]
+    for n, k in enumerate(played):
+        frame, x, y, kind, side = typed[k]
+        after = typed[played[n + 1]] if n + 1 < len(played) else None
         count = 0 if kind == "block" else count + 1 if before and before[3] != "block" and before[4] == side else 1
-        if kind == "relance" and before and before[3] != "serve" and count <= 2:
-            out[k] = (frame, x, y, "dig" if count == 1 else "set", side)
+        if kind == "relance" and before and before[3] != "serve" and count == 1:
+            out[k] = (frame, x, y, "dig", side)
+        elif kind == "relance" and count == 2 and after and after[4] == side:
+            out[k] = (frame, x, y, "set", side)
         before = typed[k]
     return out
 

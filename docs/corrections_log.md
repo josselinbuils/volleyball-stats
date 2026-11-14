@@ -381,6 +381,12 @@ better ball track.
   2nd-touch relances and sets sent over leave at the same height (2.1 and 2.0 m, medians), labelled relance 22 times and set 13.
   On `play-main`'s output: 281 -> 284 and 351 -> 350 against the answers as they are, 286 -> 275 and 356 -> 338 against them
   with both rules applied (24 second-touch relances on the three matches' checked rallies, asked again).
+- Changed the same day (the owner: a 2nd-touch ball sent over is often a deliberate relance): both hands on a team's second
+  touch make a relance when the other team plays next, a set when its own plays on. The pipeline only turns a 2nd-touch
+  relance its side plays on into a set: retyping a 2nd-touch set the other side plays next as a relance gave 291 and 361
+  instead of 282 and 350 against the answers with the rule applied (on `play-main`'s output: of its 34 such sets on the
+  checked rallies, 14 relances, 19 sets whose 3rd touch it missed, 1 attack). The review reports them on checked rallies
+  (`setOver`), doubts of them before.
 
 ## State (13 Nov): hand-over
 

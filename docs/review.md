@@ -47,8 +47,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 - Attack or relance by what is seen, never by intent (the owner's rule, 14 Nov): a ball sent over with one hand (a hit, a tip,
   a placed ball, jumped or not) is an attack, on any touch; one played with both hands (forearm or overhead pass) is a dig (or
-  reception) on the first touch, a set on the second, sent over or not (a set gone over: the statistics' sets not attacked),
-  a relance on the third (`actions.relances_by_touch`, `relanceFirst`, `relanceSecond`).
+  reception) on the first touch; on the second, a relance when the other team plays next, a set when its own plays on (by
+  what follows: a set gone over by mistake counts as a relance); a relance on the third (`actions.relances_by_touch`,
+  `relanceFirst`, `relanceSecond`, `setOver`).
 
 - A serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that touch staying
   the other team's fault (both count; a serve's is an ace). An attack blocked for a point is a fault (`web.credited`).
@@ -177,9 +178,11 @@ Automatic reports (`review.unusual`) flag:
 
 - no serve first, two serves, a reception not right after a serve, a serve not followed by a reception, four touches in a
   row, the wrong server, no touch, no winner, over 2.5 s between two touches, a server out of rotation order;
-- a relance as a team's first touch (`relanceFirst`, after the other team's touch but a serve, or after a block) or second
-  (`relanceSecond`): a dig or a set by the owner's rule (14 Nov), on checked rallies too;
-- a relance from 2.6 m on a 3rd touch (`highRelance`, `review.odd_heights`, from the touches' 3D places in ball3d.js, kept across a rerun in `before-rerun/review-ball3d.js`): a
+- a relance as a team's first touch (`relanceFirst`, after the other team's touch but a serve, or after a block) or as its
+  second its team plays on (`relanceSecond`): a dig or a set by the owner's rule (14 Nov), on checked rallies too; on a checked
+  rally, a set as a team's second touch the other team plays next (`setOver`): a relance (before, its 3rd touch is often
+  missing: the editor's doubt "a set going to the other team" stands for it);
+- a relance from 2.6 m on a 2nd touch or later (`highRelance`, `review.odd_heights`, from the touches' 3D places in ball3d.js, kept across a rerun in `before-rerun/review-ball3d.js`): a
   doubt, the touch flagged in the Match tab while its action stands; "Traité" keeps the action, validating handles it. An attack under 1.8 m was doubted too, dropped: the owner kept all 8
   answered;
 - a set ending off the score given (`scoreOff`, asked again once the score moves; the list shows the running score);
@@ -197,10 +200,9 @@ after its touches; the others at its start or their touch.
 
 The editor also flags what may be right after all, on its touch and gone once the rally is checked (`checks.ts`,
 `doubtful`): a touch seen twice, a team playing on after its attack or relance, a set going to the other team, a set as
-first touch, a dig or reception after the team's own touch, two sets in a row, a rally ending on a set (a team's 2nd-touch
-set neither: sent over by the owner's rule, `relanceSecond`), a point on a
+first touch, a dig or reception after the team's own touch, two sets in a row, a rally ending on a set, a point on a
 reception or dig (not a relance: it happens). Scored on the pipeline's rallies against the corrections: a flag sits on a
-correction 82-100% of the time on both matches, 40% by chance (4 Nov); 83% of 24 on the first match, 20% by chance, on 14
-Nov's pipeline (`benchmarks/corrections/doubts.py`). Dropped then: the 2nd-touch sets (30 flags, 7 on a correction by
-today's rule), an ace (1 of 11). Rejected: over 2 s between touches (61% on the first match), a floor contact on a player (47%), a team change without a net crossing (37 left on checked rallies:
+correction 82-100% of the time on both matches, 40% by chance (4 Nov); on 14 Nov's pipeline against the answers with the
+relance rule applied (`benchmarks/corrections/doubts.py`), 58% of 53 and 60% of 103, 20% and 22% by chance (a set going to
+the other team 40% and 48%, a rally ending on a set 40% and 31%). Dropped: an ace (1 of 11 on the first match). Rejected: over 2 s between touches (61% on the first match), a floor contact on a player (47%), a team change without a net crossing (37 left on checked rallies:
 crossings go unseen).

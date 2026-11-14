@@ -9,6 +9,7 @@ export type Problem =
   | 'samePlayer'
   | 'relanceFirst'
   | 'relanceSecond'
+  | 'setOver'
   | 'afterFault'
   | 'afterPoint'
   | 'server'
@@ -100,9 +101,15 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     if (run === 4) {
       mark(k, 'fourTouches');
     }
-    // Both hands on a team's second touch make a set, even sent over.
-    if (c.type === 'relance' && run === 2) {
-      mark(k, 'relanceSecond');
+    // Both hands on a team's second touch make a relance when the other team plays next, a set when its own plays on.
+    const after = n + 1 < played.length ? touches[played[n + 1]] : undefined;
+    if (run === 2 && after) {
+      const on = after.type !== 'block' && after.team === c.team;
+      if (c.type === 'relance' && on) {
+        mark(k, 'relanceSecond');
+      } else if (c.type === 'set' && !on && validated) {
+        mark(k, 'setOver');
+      }
     }
   });
   if (serves.length && previous !== null && touches[serves[0]].team !== previous) {
@@ -119,10 +126,9 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
 
 /** Marks what `DoubtfulProblem` lists on `played`, the touches of the ball by their index. On the two matches reviewed, 82-100% of these flags sit on a correction. */
 function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k: number, p: Problem) => void): void {
-  // Each touch's rank in its team's run; a team's 2nd touch with both hands is a set, sent over or not (relanceSecond).
+  // Each touch's rank in its team's run: a relance on a team's 2nd touch its team plays on is already a problem (relanceSecond).
   const runs: number[] = [];
   played.forEach((k, n) => runs.push(touches[k].type === 'block' ? 0 : n && touches[played[n - 1]].team === touches[k].team ? runs[n - 1] + 1 : 1));
-  const setOver = (n: number) => touches[played[n]].type === 'set' && runs[n] === 2;
   played.forEach((k, n) => {
     if (!n) {
       return;
@@ -141,10 +147,10 @@ function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k
     if (blocked) {
       return;
     }
-    if (same && (before.type === 'attack' || before.type === 'relance')) {
+    if (same && (before.type === 'attack' || (before.type === 'relance' && runs[n - 1] !== 2))) {
       mark(k, 'overThenSameTeam');
     }
-    if (!same && before.type === 'set' && !setOver(n - 1)) {
+    if (!same && before.type === 'set') {
       mark(b, 'setToOtherTeam');
     }
     if (!same && c.type === 'set') {
@@ -163,7 +169,7 @@ function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k
     return;
   }
   const last = touches[end]!;
-  if (last.type === 'set' && !setOver(played.length - 1)) {
+  if (last.type === 'set') {
     mark(end, 'endsOnSet');
   } else if (last.result === 'point' && ['pass', 'dig'].includes(last.type)) {
     mark(end, 'pointOnTouch');
