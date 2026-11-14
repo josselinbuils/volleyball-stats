@@ -111,7 +111,8 @@ describe('problems', () => {
       expect(of([c('serve', 1), pass, c('set', 2, '', 'point')], true)).toEqual({});
       expect(of([c('serve', 1), pass, c('dig', 2, '', 'point')], true)[2]).toEqual(['digLater', 'pointOnTouch']);
       expect(of([c('serve', 1), pass, c('set', 2), c('relance', 2, '', 'point')], true)).toEqual({});
-      expect(of([c('serve', 1, '', 'point')], true)[0]).toEqual(['ace']);
+      // An ace is no doubt: 1 of 11 on a correction (first match, 14 Nov).
+      expect(of([c('serve', 1, '', 'point')], true)).toEqual({});
       expect(of([c('serve', 1), pass, c('set', 2)])).toEqual({});
       expect(of([c('serve', 1), pass, c('set', 2), c('fault', 1, '', 'error')], true)).toEqual({});
     });

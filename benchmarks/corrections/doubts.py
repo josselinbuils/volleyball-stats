@@ -58,8 +58,6 @@ def doubtful(touches, exempt):
         last = touches[-1]
         if last["type"] == "set" and not set_over(len(touches) - 1):
             out.append((len(touches) - 1, "endsOnSet"))
-        elif last["result"] == "point" and last["type"] == "serve":
-            out.append((len(touches) - 1, "ace"))
         elif last["result"] == "point" and last["type"] in ("pass", "dig"):
             out.append((len(touches) - 1, "pointOnTouch"))
     return out

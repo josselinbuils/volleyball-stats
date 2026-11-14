@@ -1015,8 +1015,7 @@
         "digLater": "A dig or reception after the team's own touch",
         "twoSets": "Two sets in a row",
         "endsOnSet": "The rally ends on a set",
-        "pointOnTouch": "A point on a reception or dig",
-        "ace": "An ace: did nobody touch the ball?"
+        "pointOnTouch": "A point on a reception or dig"
       }
     },
     "details": "Add details",

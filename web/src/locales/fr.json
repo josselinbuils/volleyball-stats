@@ -1015,8 +1015,7 @@
         "digLater": "Une défense ou une réception après une touche de l'équipe",
         "twoSets": "Deux passes de suite",
         "endsOnSet": "L'échange finit sur une passe",
-        "pointOnTouch": "Un point sur une réception ou une défense",
-        "ace": "Un ace : personne n'a touché le ballon ?"
+        "pointOnTouch": "Un point sur une réception ou une défense"
       }
     },
     "details": "Préciser",

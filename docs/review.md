@@ -199,8 +199,8 @@ The editor also flags what may be right after all, on its touch and gone once th
 `doubtful`): a touch seen twice, a team playing on after its attack or relance, a set going to the other team, a set as
 first touch, a dig or reception after the team's own touch, two sets in a row, a rally ending on a set (a team's 2nd-touch
 set neither: sent over by the owner's rule, `relanceSecond`), a point on a
-reception or dig (not a relance: it happens), an ace. Scored on the pipeline's rallies against the corrections: a flag
-sits on a correction 82-100% of the time on both matches, 40% by chance (4 Nov); 60% on the first match, 20% by
-chance, on 14 Nov's pipeline (`benchmarks/corrections/doubts.py`): the 2nd-touch sets spared were 30 flags, 7 on a correction by today's rule. Rejected: over 2 s between touches (61% on the
-first match), a floor contact on a player (47%), a team change without a net crossing (37 left on checked rallies:
+reception or dig (not a relance: it happens). Scored on the pipeline's rallies against the corrections: a flag sits on a
+correction 82-100% of the time on both matches, 40% by chance (4 Nov); 83% of 24 on the first match, 20% by chance, on 14
+Nov's pipeline (`benchmarks/corrections/doubts.py`). Dropped then: the 2nd-touch sets (30 flags, 7 on a correction by
+today's rule), an ace (1 of 11). Rejected: over 2 s between touches (61% on the first match), a floor contact on a player (47%), a team change without a net crossing (37 left on checked rallies:
 crossings go unseen).

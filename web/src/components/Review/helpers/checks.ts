@@ -17,7 +17,7 @@ export type Problem =
   | DoubtfulProblem;
 
 /** What may well be right after all, in an amateur match: a rally checked shows none of them. */
-type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | 'ace' | HeightDoubt;
+type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | HeightDoubt;
 
 /** A touch whose ball's height doubts of its action (`review.odd_heights`): reported by the server, not found here. */
 export type HeightDoubt = 'highRelance';
@@ -165,8 +165,6 @@ function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k
   const last = touches[end]!;
   if (last.type === 'set' && !setOver(played.length - 1)) {
     mark(end, 'endsOnSet');
-  } else if (last.result === 'point' && last.type === 'serve') {
-    mark(end, 'ace');
   } else if (last.result === 'point' && ['pass', 'dig'].includes(last.type)) {
     mark(end, 'pointOnTouch');
   }
