@@ -583,6 +583,8 @@
     "zoomLess": "Zoom out",
     "autoZoom": "Auto zoom",
     "auto": "Auto",
+    "slowTouches": "Slow down at each touch",
+    "touches": "Touches",
     "playVideo": "Play",
     "pauseVideo": "Pause",
     "soundOn": "Turn the sound on",

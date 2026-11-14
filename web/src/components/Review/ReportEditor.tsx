@@ -98,6 +98,7 @@ export function ReportEditor({
   onHandled,
   onWarnings,
   onUnsaved,
+  onTouches,
   saved,
   comments,
   onComment,
@@ -136,6 +137,8 @@ export function ReportEditor({
   onWarnings?: (found: { times: number[]; warned: number[]; joined: number[] }) => void;
   /** The rallies with corrections not saved yet, by their key. */
   onUnsaved?: (keys: number[]) => void;
+  /** The moments of the ball's touches as they stand with the corrections, sorted. */
+  onTouches?: (times: number[]) => void;
   /** The touch the video is on in its rally, as it stands with the corrections: to show over the video. */
   onCaption?: (caption: { team: Group; text: string } | null) => void;
   saved: Partial<ReportChanges>;
@@ -263,6 +266,10 @@ export function ReportEditor({
   useEffect(() => {
     onUnsaved?.(unsavedKeys);
   }, [unsavedJson]);
+  const touchesJson = JSON.stringify(allRows.filter((row) => !row.removed && row.type !== 'fault').map((row) => row.time));
+  useEffect(() => {
+    onTouches?.(JSON.parse(touchesJson));
+  }, [touchesJson]);
 
   // The touch the video is on: the last one started, highlighted until 3 s after it; a removed one
   // gives way to the touch still there.

@@ -583,6 +583,8 @@
     "zoomLess": "Dézoomer",
     "autoZoom": "Zoom auto",
     "auto": "Auto",
+    "slowTouches": "Ralentir à chaque touche",
+    "touches": "Touches",
     "playVideo": "Lire",
     "pauseVideo": "Pause",
     "soundOn": "Activer le son",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nudgeOf } from '@/components/Review/helpers/scrub';
+import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nearTouch, nudgeOf, SLOW_AFTER_S, SLOW_BEFORE_S } from '@/components/Review/helpers/scrub';
 
 describe('nudgeOf', () => {
   it('moves a frame every FINE_PX, none past FINE_SPAN_PX', () => {
@@ -27,5 +27,19 @@ describe('frameTime', () => {
       expect(Math.round(frameTime(frame, 50) * 50)).toBe(frame);
     }
     expect(frameTime(-1, 50)).toBe(0);
+  });
+});
+
+describe('nearTouch', () => {
+  const touches = [10, 12, 20];
+  it('holds from SLOW_BEFORE_S before a touch to SLOW_AFTER_S after it', () => {
+    expect(nearTouch(touches, 10 - SLOW_BEFORE_S - 0.01)).toBe(false);
+    expect(nearTouch(touches, 10 - SLOW_BEFORE_S)).toBe(true);
+    expect(nearTouch(touches, 10)).toBe(true);
+    expect(nearTouch(touches, 10 + SLOW_AFTER_S)).toBe(true);
+    expect(nearTouch(touches, 10 + SLOW_AFTER_S + 0.01)).toBe(false);
+    expect(nearTouch(touches, 12.1)).toBe(true);
+    expect(nearTouch(touches, 25)).toBe(false);
+    expect(nearTouch([], 10)).toBe(false);
   });
 });

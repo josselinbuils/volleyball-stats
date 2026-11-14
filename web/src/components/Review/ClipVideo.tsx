@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pause, Play, ScanSearch, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { Pause, Play, ScanSearch, Snail, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { VideoError } from '@/components/VideoError';
 import { Button } from '@/components/ui/button';
 import { SkipIcon } from '@/components/SkipIcon';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { autoView, boxAt, exchangeAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
-import { coarse, frameTime, nudgeOf } from '@/components/Review/helpers/scrub';
+import { coarse, frameTime, nearTouch, nudgeOf } from '@/components/Review/helpers/scrub';
 import { Tip } from '@/components/Tip';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
@@ -37,6 +37,9 @@ const THUMB_PX = 8;
 const MUTED_KEY = 'review.muted';
 /** Whether the automatic zoom is on, kept in this browser. */
 const AUTO_KEY = 'review.autoZoom';
+/** Whether the video slows down at each touch, kept in this browser; how slow. */
+const SLOW_KEY = 'review.slowTouches';
+const SLOW_RATE = 0.25;
 /** Where the caption stands (its top centre, fractions of the video), as the user dragged it, kept
  * in this browser; centred above the court until then. */
 const CAPTION_KEY = 'review.captionAt';
@@ -70,6 +73,7 @@ function saveFlag(key: string, on: boolean) {
 /** The video looping over `clip`, the player outlined in yellow, which stands out from both jerseys and the floor, and zoomed on them unless the whole frame is asked for;
  * its progress bar moves it (drag, click or arrows; where a pixel of it spans more than a frame, a small drag pauses it and moves it frame by frame); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
  * `free`: the match plays on from the clip with its sound, no loop, the arrow keys moving it; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
+ * `touches`: the ball's touches (times, sorted), which a button beside the speeds slows the video down at.
  * `extra`: at the right end of the speeds' line. */
 export function ClipVideo({
   clip,
@@ -83,6 +87,7 @@ export function ClipVideo({
   onTime,
   caption,
   autoPlay = true,
+  touches,
   extra,
 }: {
   clip: Clip;
@@ -96,6 +101,7 @@ export function ClipVideo({
   onTime?: (time: number) => void;
   caption?: { team: Group; text: string } | null;
   autoPlay?: boolean;
+  touches?: number[];
   extra?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
@@ -121,6 +127,10 @@ export function ClipVideo({
   const [muted, setMuted] = useState(() => !free || savedFlag(MUTED_KEY));
   const views = free && match.views.length ? match.views : null;
   const [auto, setAuto] = useState(() => savedFlag(AUTO_KEY));
+  const [slow, setSlow] = useState(() => savedFlag(SLOW_KEY));
+  // Read by the playing loop.
+  const slowAt = useRef<number[] | null>(null);
+  slowAt.current = slow && touches ? touches : null;
   const zoomedByHand = useRef(false);
   zoomedByHand.current = pinched !== null && pinched.w < width;
   const following = useRef(false);
@@ -181,7 +191,8 @@ export function ClipVideo({
         anchored.current = v.currentTime;
         setAnchor(v.currentTime);
       }
-      const rate = held.current ? HOLD_RATE : clip.slow && v.currentTime >= clip.start && v.currentTime <= clip.end ? Math.min(clip.slow, picked) : picked;
+      const slowed = clip.slow && v.currentTime >= clip.start && v.currentTime <= clip.end ? clip.slow : slowAt.current && nearTouch(slowAt.current, v.currentTime) ? SLOW_RATE : 1;
+      const rate = held.current ? HOLD_RATE : Math.min(slowed, picked);
       if (v.playbackRate !== rate) {
         v.playbackRate = rate;
       }
@@ -617,6 +628,24 @@ export function ClipVideo({
               {`${new Intl.NumberFormat(i18n.language).format(s)}×`}
             </Button>
           ))}
+          {touches && (
+            <Tip label={t('review.slowTouches')}>
+              <Button
+                variant={slow ? 'default' : 'outline'}
+                size="sm"
+                className={slow ? undefined : 'bg-card'}
+                aria-label={t('review.slowTouches')}
+                aria-pressed={slow}
+                onClick={() => {
+                  saveFlag(SLOW_KEY, !slow);
+                  setSlow(!slow);
+                }}
+              >
+                <Snail aria-hidden />
+                {t('review.touches')}
+              </Button>
+            </Tip>
+          )}
         </div>
         {extra && <div className="ml-auto">{extra}</div>}
       </div>

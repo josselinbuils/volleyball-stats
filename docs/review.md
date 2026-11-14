@@ -96,6 +96,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   serve, from the rally before's end and showing the server by the ball (often too far back to be tracked), and one for
   the exchange, each kept while it fits (`framing.py`; on the two matches 1.1 changes a rally at 1.4× median). Zooming by
   hand overrides it until the next rally, its button resuming it sooner.
+- "Touches" (the snail, beside the speeds, kept in the browser): the video plays at 0.25× from 0.5 s before each touch
+  to 0.3 s after it, the touches as corrected (`helpers/scrub.ts`), apart from the auto zoom.
 - Under it, a zoomable bar of every rally, touch, report (red flag) and warning (orange flag: on its touch, else the
   rally's start; an automatic report only where the editor finds no warning on its rally). It colours each rally (orange
   warning, green checked, grey to check) and its arrows go to the next one to check.

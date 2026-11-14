@@ -79,6 +79,7 @@ export function MatchTab({
   const listPlace = useRef({ top: 0, scrolled: 0 });
   const go = (time: number, play?: boolean) => setSeek((s) => ({ time: Math.max(0, time), n: (s?.n ?? 0) + 1, play }));
   // The warnings as the editor finds them.
+  const [touchTimes, setTouchTimes] = useState<number[]>([]);
   const [found, setFound] = useState<{ times: number[]; warned: number[]; joined: number[] }>({ times: [], warned: [], joined: [] });
   const live = liveReports(reports, new Set(found.joined));
   const flags = live.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
@@ -126,6 +127,7 @@ export function MatchTab({
               autoPlay={false}
               caption={caption}
               marks={flags.map((r) => r.time)}
+              touches={touchTimes}
               showTime
               onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 ? at : n))}
               extra={
@@ -154,6 +156,7 @@ export function MatchTab({
             place={listPlace}
             onWarnings={setFound}
             onUnsaved={(keys) => setUnsaved(new Set(keys))}
+            onTouches={setTouchTimes}
             reports={seen}
             players={players}
             nameOf={nameOf}
