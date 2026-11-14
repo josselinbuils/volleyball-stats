@@ -2884,7 +2884,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Review the doubtful player identities on the video, in the browser.")
-    parser.add_argument("match", type=Path, nargs="?", help="The match's outputs directory (outputs/matches/VIDEO), run with --players. Default: the list of the matches")
+    parser.add_argument("match", type=Path, nargs="?", help="The match's outputs directory (outputs/matches/VIDEO) or its name, as /current gives it. Default: the list of the matches")
     parser.add_argument("--outputs", type=Path, default=Path("outputs/matches"), help="Where the list of the matches looks")
     parser.add_argument("--video", type=Path, help="Default: the match's source.json")
     parser.add_argument("--court", type=Path, help="Court calibration JSON the match was run with. Default: the match's source.json")
@@ -2899,6 +2899,8 @@ def main() -> None:
     presence.ON = args.with_window
     if args.match is None:
         return serve_list(args.outputs, args.theme, args.port, not args.no_browser, args.roster)
+    if not args.match.exists() and (args.outputs / args.match).is_dir():
+        args.match = args.outputs / args.match
     source = args.match / files.SOURCE
     given = json.loads(source.read_text()) if source.exists() else {}
     video, court = args.video or given.get("video"), args.court or given.get("court")
