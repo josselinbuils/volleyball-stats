@@ -108,6 +108,16 @@ class TestApp:
         assert answer["file"]["size"] == 3 and answer["file"]["matches"] == ["one"] and answer["file"]["folder"] == "matches"
         assert app.handle("GET", "/app/export/file", "", {}, listed)[:2] == (place / "outputs" / "export" / "site.zip", "application/zip")
 
+    def test_the_update_starts_unless_answers_are_being_applied(self, monkeypatch):
+        started = []
+        monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append(steps[0][1]))
+        monkeypatch.setattr(app, "learn_state", lambda listed: {})
+
+        assert app.handle("POST", "/app/learn", "", {}, list, lambda: True)[2] == 409
+        assert not started
+        assert app.handle("POST", "/app/learn", "", {}, list, lambda: False)[2] == 200
+        assert started == [["volleyball_stats.learn", "--update", str(app.MATCHES)]]
+
     def test_refuses_to_quit_while_applying(self):
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: False)[2] == 200

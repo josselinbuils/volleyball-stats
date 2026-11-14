@@ -24,8 +24,6 @@ import {
   type Backup,
   type FilmCounts,
   type Hosted,
-  type Comparison,
-  type LearnRun,
   type Named,
   type Question,
   type ReportChanges,
@@ -45,8 +43,12 @@ import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 import { MatchTab } from '@/components/Review/MatchTab';
-import { Progress } from '@/components/Review/Progress';
 import { JobProgress } from '@/components/JobProgress';
+import type { Told } from '@/components/JobLine';
+import type { AppState } from '@/components/Setup/helpers/setup';
+import { startUpdate, UpdateProgress, type Due } from '@/components/Update';
+import { call } from '@/lib/app';
+import { explain, type Explained } from '@/lib/errors';
 import { matchFinished } from '@/components/Review/helpers/report';
 import { ReviewHeader } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
@@ -60,11 +62,13 @@ const MERGE_KEYS: Record<string, string> = { '1': 'same', '2': 'different', s: '
 const TOUCH_KEYS: Record<string, string> = { '1': 'proposed', x: 'nobody', p: 'not_play', s: 'skip' };
 const RALLY_KEYS: Record<string, string> = { '1': 'rally', p: 'not_play', s: 'skip' };
 const REPORT_KEYS: Record<string, string> = { s: 'skip' };
-type Tab = 'questions' | 'names' | 'match' | 'progress';
+type Tab = 'questions' | 'names' | 'match';
 // The tab survives the reload that applies the answers.
 /** The page's rallies, by the key the review checks them by. */
 const keys = rallies.map((r) => r.key ?? Math.round(r.start * match.fps));
-const HASHES: Record<Tab, string> = { names: '', questions: '#questions', match: '#match', progress: '#progress' };
+const HASHES: Record<Tab, string> = { names: '', questions: '#questions', match: '#match' };
+// How often the review asks how the app's update goes.
+const UPDATE_POLL_MS = 3000;
 
 /** The review: the players' names, then the identity step's doubts one at a time, answered on the
  * video and shown with the names given. */
@@ -85,13 +89,12 @@ export function Review({
   roster,
   conflicts,
   hosted,
-  learning = [],
-  comparison = null,
   fetched,
   backup: savedBackup,
   films: savedFilms,
   filmsError,
-  learned: wasLearned = false,
+  due: wasDue = null,
+  updating = false,
 }: {
   width: number;
   height: number;
@@ -109,13 +112,14 @@ export function Review({
   roster: [Suggestion[], Suggestion[]];
   conflicts: Conflict[];
   hosted?: Hosted | null;
-  learning?: LearnRun[];
-  comparison?: Comparison | null;
   fetched?: { at: string; count: number; error: string | null } | null;
   backup?: Backup | null;
   films?: FilmCounts;
   filmsError?: string | null;
-  learned?: boolean;
+  /** Why the match waits for the app's update, null when up to date. */
+  due?: Due | null;
+  /** The app's update runs: the review waits for it. */
+  updating?: boolean;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -130,10 +134,10 @@ export function Review({
   const [comments, setComments] = useState(savedComments);
   const [picks, setPicks] = useState(() => new Set(savedPicks));
   const [timeouts, setTimeouts] = useState(savedTimeouts);
-  const [learned, setLearned] = useState(wasLearned);
+  const [due, setDue] = useState(wasDue);
   const onSaved = (saved: Saved) => {
-    if (saved.learned !== undefined) {
-      setLearned(saved.learned);
+    if (saved.due !== undefined) {
+      setDue(saved.due);
     }
     if (saved.corrections !== undefined) {
       setCorrections(saved.corrections);
@@ -149,7 +153,7 @@ export function Review({
     }
   };
   const films = savedFilms ?? { players: { total: 0, stale: [] }, highlights: { total: 0, stale: [] } };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'rerun' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights' | null>(null);
+  const [busy, setBusy] = useState<'apply' | 'undo' | 'update' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights' | null>(updating ? 'update' : null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -394,7 +398,7 @@ export function Review({
   const [progress, setProgress] = useState<{ fraction: number; part: number | null; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(
     null,
   );
-  const reload = async (path: 'undo' | 'apply' | 'rerun' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
+  const reload = async (path: 'undo' | 'apply' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
     setBusy(path);
     // The server's steps and the time left, from how long each one took last time.
     const poll = window.setInterval(async () => {
@@ -440,6 +444,54 @@ export function Review({
       setFailure(failed);
       setError(!failed);
     }
+  };
+
+  // The app's update (learn.update): it may make this match again, so the page waits for it, then reloads on what it made.
+  const [update, setUpdate] = useState<Told | null>(null);
+  const [updateError, setUpdateError] = useState<Explained | null>(null);
+  const followUpdate = useCallback(() => {
+    setBusy('update');
+    setUpdateError(null);
+    const check = async () => {
+      const found = await call<AppState>('state');
+      if (!found.ok) {
+        return;
+      }
+      const job = found.learn.job;
+      if (job?.running) {
+        setUpdate(job);
+        return;
+      }
+      window.clearInterval(timer);
+      if (job?.failed) {
+        setUpdate(null);
+        setBusy(null);
+        setUpdateError(explain(t, job.error));
+        return;
+      }
+      location.reload();
+    };
+    const timer = window.setInterval(() => void check(), UPDATE_POLL_MS);
+    void check();
+  }, [t]);
+  useEffect(() => {
+    if (updating) {
+      followUpdate();
+    }
+  }, [updating, followUpdate]);
+  const startOne = async () => {
+    if (!(await mayLeave())) {
+      return;
+    }
+    setBusy('update');
+    const found = await call<AppState>('state');
+    const started = await startUpdate(t, found.ok ? Math.max(1, found.learn.due.length) : 1);
+    if (started === null) {
+      followUpdate();
+      return;
+    }
+    setBusy(null);
+    setUpdateError(started === 'cancelled' ? null : started);
   };
 
   const split = async ({ team, identity }: Conflict) => {
@@ -515,6 +567,8 @@ export function Review({
             })
           }
           mayLeave={mayLeave}
+          due={due}
+          onUpdate={() => void startOne()}
           here={
             tab === 'match'
               ? {
@@ -550,9 +604,11 @@ export function Review({
             {progress.stage && ` · ${t(`review.stage.${progress.stage}`, { defaultValue: progress.stage })}`}
           </JobProgress>
         )}
-        {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchDone} learned={learned} />}
+        {update && <UpdateProgress job={update} className="px-1" />}
+        {updateError && <ErrorNote {...updateError} className="px-1" />}
+        {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchDone} />}
         <p className="px-1 text-muted-foreground">
-          {t({ names: 'review.namesIntro', questions: reviewed ? 'review.introReviewed' : 'review.intro', match: 'review.matchIntro', progress: 'review.progressIntro' }[tab])}
+          {t({ names: 'review.namesIntro', questions: reviewed ? 'review.introReviewed' : 'review.intro', match: 'review.matchIntro' }[tab])}
           {tab === 'names' && (
             <Tip label={t('review.keys')}>
               <span role="img" tabIndex={0} aria-label={t('review.keys')} className="ml-1.5 inline-flex rounded-sm align-middle outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
@@ -594,9 +650,7 @@ export function Review({
             onCancel={() => setConflict(null)}
           />
         )}
-        {tab === 'progress' ? (
-          <Progress runs={learning} comparison={comparison} reviewed={reviewed} busy={busy !== null} learning={busy === 'rerun'} onLearn={() => void reload('rerun')} />
-        ) : tab === 'names' ? (
+        {tab === 'names' ? (
           <Names
             players={players}
             roster={roster}

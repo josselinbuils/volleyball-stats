@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats import files, presence, review as review_module, web
+from volleyball_stats import analysis, files, presence, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -746,10 +746,10 @@ class TestWaiting:
         log = [{**self.entry, "applied": True}]
         (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
 
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "learned": False}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "due": None}
         assert waiting(tmp_path, [])["changed"]
         write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Julie", "jersey": None}])
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "learned": False}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "due": None}
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
         assert waiting(tmp_path, log)["changed"]
 
@@ -762,13 +762,13 @@ class TestWaiting:
 
     def test_learned_while_the_last_learning_run_saw_the_answers_as_they_stand(self, tmp_path):
         log = [{**self.entry, "applied": False}]
-        assert not waiting(tmp_path, log)["learned"]
+        assert not learned(tmp_path, log)
 
         (tmp_path / "learn.json").write_text(json.dumps([{"time": "2026-11-09 10:00", "answers": answers_stamp(log)}]))
-        assert waiting(tmp_path, log)["learned"]
+        assert learned(tmp_path, log)
         # Applying changes nothing the run saw; another answer does.
-        assert waiting(tmp_path, [{**self.entry, "applied": True}])["learned"]
-        assert not waiting(tmp_path, log + [{"id": "piece:3:0", "choice": "skip"}])["learned"]
+        assert learned(tmp_path, [{**self.entry, "applied": True}])
+        assert not learned(tmp_path, log + [{"id": "piece:3:0", "choice": "skip"}])
 
     def test_jersey_numbers_copied_through_the_server_to_the_second_are_no_change(self, tmp_path):
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
@@ -1189,14 +1189,49 @@ class TestSetPhoto:
 
 
 class TestLastComparison:
+    @staticmethod
+    def runs(folder, runs):
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "learn.json").write_text(json.dumps(runs))
+
     def test_the_last_run_against_what_it_replaced(self, tmp_path):
-        (tmp_path / "learn.json").write_text(json.dumps([{"scores": {"who": [1, 2]}}, {"scores": {"who": [2, 2]}, "before": {"who": [1, 2]}}]))
+        self.runs(tmp_path / "a", [{"time": "1", "scores": {"who": [1, 2]}}, {"time": "2", "scores": {"who": [2, 2]}, "before": {"who": [1, 2]}}])
         assert last_comparison(tmp_path) == {"before": {"who": [1, 2]}, "after": {"who": [2, 2]}}
+
+    def test_the_last_update_summed_over_its_matches(self, tmp_path):
+        self.runs(tmp_path / "a", [{"time": "2", "update": "u2", "scores": {"who": [2, 2]}, "before": {"who": [1, 2]}}])
+        self.runs(tmp_path / "b", [{"time": "3", "update": "u2", "scores": {"who": [3, 4]}, "before": {"who": [3, 4]}}])
+        # An older update's run is not the last one's.
+        self.runs(tmp_path / "c", [{"time": "1", "update": "u1", "scores": {"who": [9, 9]}, "before": {"who": [0, 9]}}])
+
+        assert last_comparison(tmp_path) == {"before": {"who": [4, 6]}, "after": {"who": [5, 6]}}
 
     def test_none_when_the_last_run_measured_nothing_before_it(self, tmp_path):
         assert last_comparison(tmp_path) is None
-        (tmp_path / "learn.json").write_text(json.dumps([{"scores": {}, "before": {}}, {"scores": {}}]))
+        self.runs(tmp_path / "a", [{"time": "1", "scores": {}, "before": {}}, {"time": "2", "scores": {}}])
         assert last_comparison(tmp_path) is None
+
+
+class TestDue:
+    entry = {"id": "piece:1:0", "choice": "0", "applied": True}
+
+    def test_answers_since_its_last_learning_then_other_code(self, tmp_path):
+        assert due(tmp_path, [self.entry]) is None
+        (tmp_path / "report.md").touch()
+        assert due(tmp_path, [self.entry]) == "answers"
+
+        (tmp_path / "learn.json").write_text(json.dumps([{"time": "1", "answers": answers_stamp([self.entry])}]))
+        assert due(tmp_path, [self.entry]) == "rules"
+        analysis.write(tmp_path, analysis.fingerprint(tmp_path))
+        assert due(tmp_path, [self.entry]) is None
+        analysis.write(tmp_path, "older")
+        assert due(tmp_path, []) == "rules"
+
+    def test_a_fully_checked_match_waits_only_for_new_answers(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(review_module, "reviewed", lambda page, log: True)
+        (tmp_path / "report.md").touch()
+        assert due(tmp_path, []) is None
+        assert due(tmp_path, [self.entry]) == "answers"
 
 
 class TestNotOver:

@@ -31,15 +31,27 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   without it (`outputs/matches/MATCH/publish.json`). "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds
   every match online and uploads them at once. "Exporter le site" (the same menu, a server set or not) zips the pages for
   any host ([hosting.md](hosting.md#without-a-server-the-export)).
-- "Apprendre de mes réponses" (the Progrès tab; checked while its last run saw the answers as they stand: `review.learned`,
-  `learn.json`'s `answers`) retrains the learned attribution and reruns the pipeline (`learn --rerun`: 3 min on the M4 with
-  the poses cached, 40 without). It moves the answers onto the new windows itself (`learn.rerun`, `rekey`; a rally the
-  review added that the pipeline now finds moves onto its window).
-- On a match whose every rally is checked it only retrains and measures (`learn.retrain`, shown in "Progrès"), then trains
-  the play model again when such matches' checked rallies changed since its last training (`learn.train_play`,
-  `play_training`: a quarter of an hour on an NVIDIA card, hours without). The match stays as reviewed (`review.reviewed`),
-  and the review asks only what teaches the next matches: who made a touch, a piece or two players whose answer may mend
-  a touch the training reads (`review.untaught`).
+- "Mettre à jour" (the list of the matches, above its tabs; in a review, beside "À mettre à jour") brings every match
+  waiting up to date in one job of the app (`learn.update`, `app.LEARN`, it outlives the review switching matches). A match
+  waits (`review.due`, a dot and "À mettre à jour" on its card, the reason on hover) for its answers given since its last
+  learning (`review.learned`, `learn.json`'s `answers`: "Nouvelles réponses") or for other code or models than those its
+  analysis was made with ("Nouvelles règles": `analysis.py`'s fingerprint of the pipeline's modules, comments and docstrings
+  left out, of the learned order of who touched and of the play model, kept in the match's `analysis.json` by each run;
+  web.py is not part of it, an apply rebuilds the pages). The job trains the learned attribution once on every match's
+  answers (each match's held-out scores in its `ranker.json`), then reruns the pipeline of each match waiting, those the
+  new learned order makes older included (`learn.rerun`: 3 min on the M4 with the poses cached, 40 without), rebuilds its
+  pages and applies its answers (`review.rebuilt`). It moves the answers onto the new windows itself (`rekey`; a rally the
+  review added that the pipeline now finds moves onto its window). While it runs a review refuses every change (409
+  `updating`) and waits; once it ends the review's server reads its match again (`follow`, by its page's time) and the page
+  reloads.
+- A match whose every rally is checked keeps its labels: only new answers make it wait, and the update only measures it
+  (`learn.measured`), then trains the play model again when such matches' checked rallies changed since its last training
+  (`learn.train_play`, `play_training`: a quarter of an hour on an NVIDIA card, hours without). The match stays as reviewed
+  (`review.reviewed`), and the review asks only what teaches the next matches: who made a touch, a piece or two players
+  whose answer may mend a touch the training reads (`review.untaught`).
+- The list's "Progrès" tab (`Progress/Progress.tsx`, in `app.js`: never hosted) shows every run's scores on the answers of
+  all the matches measured so far (`review.pooled_runs`) and what the last update changed, summed over its matches on the
+  same answers (`review.last_comparison`, its runs' `update` in `learn.json`).
 - `uv run python -m volleyball_stats.learn outputs/matches/MATCH --video VIDEO --court COURT` scores every step on the
   answers and the checked rallies, against its last run (`learn.json`).
 

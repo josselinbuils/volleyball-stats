@@ -474,7 +474,7 @@ The stage (`playing.predict`) streams the video at 8 fps and runs on an NVIDIA c
 The whole pipeline run once on a scratch copy of the first match with the final weights (run `play-stage`, not held out:
 the model has seen the match): the corrections come to 280.
 
-Training (`play_training.py`, on any machine): "Apprendre de mes réponses" on a match whose every rally is checked trains
+Training (`play_training.py`, on any machine): the app's "Mettre à jour", taking a match whose every rally is checked, trains
 the model again on every such match here (their videos and reviews on this machine), when their checked rallies changed
 since its last training (`trained.json` beside the weights) and never on fewer matches than the weights know. The recipe
 above (2000 steps of 8 clips), each match's frames kept in `outputs/cache/play/` (10-12 GB a match, safe to delete). The

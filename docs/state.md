@@ -24,12 +24,12 @@ The pipeline's weak spots and what is left to do, most useful first.
 3. `docs/history.md` "The page": the 3D ball and TV mode's limits.
 4. Rally ends and winners. Done (5 Nov, `benchmarks/rallies/README.md`): `no_play` keeps rallies with touches and no serve seen,
    short whistled serves count, a ball bounced 20 times is no rally; rallies missed 2 -> 0 of 129 and 9 -> 2 of 150, false windows
-   2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Apprendre de mes réponses".
+   2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Mettre à jour".
    12 of the second match's 18 wrong winners are rallies with no window. Left: ends with the ball out of sight or another court's
    whistle (50:00-60:00 F1 ±1 s 0.58; four end rules tried, none gains; 7 Nov, the players' speed and the cheer after a
    point dropped too), then how rallies end (in, out, fault). A learned play / no-play clip model (`playing.py`, `history.md` "Left"
    item 14) is in the pipeline since 12 Nov where its weights are (`outputs/learned/play/`, shared by the backup): 50:00-60:00 F1 ±1 s 0.58 -> 0.67,
-   the touches outside every window 26 -> 8 and 53 -> 2; trained again by "Apprendre de mes réponses" on a fully checked match; runs on the Mac too (1 h 30 a match on its GPU), kept to the camera's own 4K footage (worse windows on the one other match there is).
+   the touches outside every window 26 -> 8 and 53 -> 2; trained again by "Mettre à jour" when it takes a fully checked match; runs on the Mac too (1 h 30 a match on its GPU), kept to the camera's own 4K footage (worse windows on the one other match there is).
 5. Done (5 Nov): the checked rallies as labels (`checked.py` scores `match.py`'s windows). The 6 false windows left have
    no feature apart from real rallies: review questions.
 6. Done (5 Nov, `docs/history.md`): the pose on every touch type and the serve rotation, both dropped.

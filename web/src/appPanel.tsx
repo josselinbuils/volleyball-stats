@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@/i18n';
+import { ProgressTab } from '@/components/Progress/Progress';
 import { SiteTab } from '@/components/SiteTab';
 import { Setup } from '@/components/Setup/Setup';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -22,6 +23,17 @@ export function mountSite(element: HTMLElement) {
     <StrictMode>
       <TooltipProvider delayDuration={200}>
         <SiteTab />
+      </TooltipProvider>
+    </StrictMode>,
+  );
+}
+
+/** The "Progrès" tab's screen in `element`. */
+export function mountProgress(element: HTMLElement) {
+  createRoot(element).render(
+    <StrictMode>
+      <TooltipProvider delayDuration={200}>
+        <ProgressTab />
       </TooltipProvider>
     </StrictMode>,
   );

@@ -11,9 +11,11 @@ the match folder): what the answers teach, after each review or pipeline change.
   winner on the page against the pipeline's own.
 
     uv run python -m volleyball_stats.learn outputs/matches/VIDEO --video VIDEO --court COURT_JSON [--rerun]
+    uv run python -m volleyball_stats.learn --update outputs/matches
 
-With --rerun (the review's "Apprendre de mes réponses"), the learned attribution is trained again on every reviewed match's
-answers (`train`), the pipeline runs again and the answers move onto its rally windows.
+With --rerun, the learned attribution is trained again on every reviewed match's answers (`train`), the pipeline runs
+again and the answers move onto its rally windows. --update (the app's "Mettre à jour") does so once for every match
+waiting (`review.due`): one training, then each match's pipeline again, a fully checked one only measured.
 """
 
 import argparse
@@ -28,7 +30,7 @@ from pathlib import Path
 
 import cv2
 
-from volleyball_stats import actions, files, identity, review, web
+from volleyball_stats import actions, files, identity, jobs, review, web
 from volleyball_stats.court import Calibration
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,6 +41,9 @@ RANKER = "ranker.json"
 SAME_S = 0.2
 # How far a window's start may be from its labelled serve.
 SERVE_S = 1.5
+# The update's durations here (`update`), and before any: a training, a match's pipeline again, the play model's training.
+TIMINGS = "learn_timings.json"
+TOOK = {"training": 120.0, "match": 900.0, "play": 900.0}
 
 Score = tuple[int, int]
 
@@ -196,22 +201,22 @@ def report(now: dict[str, Score], before: dict[str, Score] | None) -> str:
     return "\n".join(lines)
 
 
-def reviewed(match: Path) -> list[str]:
-    """The other matches beside `match` with review answers, as ranker.py takes them."""
+def answered(outputs: Path) -> list[str]:
+    """The matches of `outputs` with review answers and their video here, as ranker.py takes them."""
     found = []
-    for source in sorted(match.parent.glob(f"*/{files.SOURCE}")):
-        other, given = source.parent, json.loads(source.read_text())
-        if other != match and (other / "identity_answers.json").exists() and (ROOT / given["video"]).exists():
-            found.append(f"{other}:{ROOT / given['video']}:{ROOT / given['court']}")
+    for source in sorted(outputs.glob(f"*/{files.SOURCE}")):
+        match, given = source.parent, json.loads(source.read_text())
+        if (match / "identity_answers.json").exists() and (ROOT / given["video"]).exists():
+            found.append(f"{match}:{ROOT / given['video']}:{ROOT / given['court']}")
     return found
 
 
-def train(match: Path, video: Path, court: Path) -> None:
+def train(outputs: Path) -> None:
     """The learned order of who touched the ball (ranker.py) trained again on the answers of every
-    reviewed match and the school clips' labels, kept only if it gains on the rule on the matches'
-    touches held out set by set; `match`'s held-out scores in ranker.json for `scores`."""
+    reviewed match of `outputs` and the school clips' labels, kept only if it gains on the rule on the matches'
+    touches held out set by set; each match's held-out scores in its ranker.json for `scores`."""
     subprocess.run(
-        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), f"{match}:{video}:{court}", *reviewed(match), "--write", "--if-better", "--summary", str(match / RANKER)],
+        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), *answered(outputs), "--write", "--if-better", "--summaries"],
         cwd=ROOT, stdin=subprocess.DEVNULL, check=True,
     )
 
@@ -229,18 +234,19 @@ def train_play(match: Path) -> None:
     subprocess.run([sys.executable, "-m", "volleyball_stats.play_training", str(match)], cwd=ROOT, stdin=subprocess.DEVNULL, check=True)
 
 
-def retrain(match: Path, video: Path, court: Path) -> dict[str, Score]:
-    """`train` alone, the match left as it is, measured in learn.json like a rerun."""
-    replaced = {k: v for k, v in scores(match, video, court).items() if k not in from_training(match)}
-    train(match, video, court)
-    return record(match, video, court, replaced)
+def measured(match: Path, video: Path, court: Path, update: str | None = None) -> dict[str, Score]:
+    """The match left as it is, measured in learn.json like a rerun: a fully checked one after a training."""
+    return record(match, video, court, {k: v for k, v in scores(match, video, court).items() if k not in from_training(match)}, update)
 
 
-def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None] = lambda _: None) -> dict[str, Score]:
+def rerun(
+    match: Path, video: Path, court: Path, on_stage: Callable[[str], None] = lambda _: None, on_share: Callable[[float], None] = lambda _: None, update: str | None = None
+) -> dict[str, Score]:
     """The pipeline run again on the match (match.py, the trackers' outputs and the poses kept), the
     answers moved onto its rally windows (`rekey`), then every step scored, kept in learn.json with
     what the replaced results scored on the same answers (the held-out scores are the training's).
-    `on_stage` is told each step as it starts (match.STAGE lines), "answers" for the last one."""
+    `on_stage` is told each step as it starts (match.STAGE lines), "answers" for the last one, `on_share` the share
+    of the pipeline done; `update` names the app's update it is part of."""
     from volleyball_stats import match as pipeline, rekey
 
     replaced = {k: v for k, v in scores(match, video, court).items() if k not in from_training(match)}
@@ -259,6 +265,8 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
         for line in run.stdout:
             if line.startswith(pipeline.STAGE):
                 on_stage(line.removeprefix(pipeline.STAGE).strip())
+            elif line.startswith(jobs.PROGRESS):
+                on_share(float(line.removeprefix(jobs.PROGRESS).split()[0]))
             else:
                 sys.stdout.write(line)
     if run.returncode:
@@ -267,7 +275,7 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     path = match / "identity_answers.json"
     if not path.exists():
-        return record(match, video, court, replaced)
+        return record(match, video, court, replaced, update)
     shutil.copy2(path, before / "identity_answers.json")
     lead = round(actions.LEAD_S * fps)
     old, new = rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv")
@@ -281,24 +289,71 @@ def rerun(match: Path, video: Path, court: Path, on_stage: Callable[[str], None]
     if (before / "review-data.js").exists():
         page, _ = web.match_data(match, video, Calibration.load(court))
         review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page, review.read_places(before / "review-ball3d.js"))))
-    return record(match, video, court, replaced)
+    return record(match, video, court, replaced, update)
 
 
-def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | None = None) -> dict[str, Score]:
-    """`scores`, added to learn.json with those of the results they `replaced`; printed against the last ones."""
+def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | None = None, update: str | None = None) -> dict[str, Score]:
+    """`scores`, added to learn.json with those of the results they `replaced` and the app's `update` they are part
+    of; printed against the last ones."""
     path = match / HISTORY
     history = json.loads(path.read_text()) if path.exists() else []
     now = scores(match, video, court)
     print(report(now, history[-1]["scores"] if history else None))
     # The answers it saw: the review asks for another run once they change.
     stamp = review.answers_stamp(review.load_log(match / "identity_answers.json"))
-    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now, "answers": stamp, **({"before": replaced} if replaced else {})})
+    history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now, "answers": stamp, **({"before": replaced} if replaced else {}), **({"update": update} if update else {})})
     files.write_text(path, json.dumps(history, indent=1) + "\n")
     return now
 
 
+def waiting(outputs: Path) -> list[tuple[Path, Path, Path]]:
+    """The matches of `outputs` an update would take (`review.due`), with their video and court, oldest first."""
+    found = []
+    for source in sorted(outputs.glob(f"*/{files.SOURCE}")):
+        match, given = source.parent, json.loads(source.read_text())
+        video, court = Path(given["video"]), Path(given["court"])
+        if video.exists() and court.exists() and review.due(match):
+            found.append((match, video, court))
+    return found
+
+
+def update(outputs: Path) -> None:
+    """Every match of `outputs` waiting brought up to date: the learned order trained once on all their answers, then
+    each one's pipeline again with its pages, the answers applied (`review.rebuilt`); a fully checked one only measured,
+    the play model then trained again if one taught it something. Its stages told as it goes (jobs.Stages)."""
+    found = waiting(outputs)
+    if not found:
+        print("Every match is up to date.", flush=True)
+        return
+    told = jobs.Stages(files.root(found[0][0]) / TIMINGS, ["training", *(f"match:{m.name}" for m, *_ in found)], TOOK)
+    started = time.strftime("%Y-%m-%d %H:%M:%S")
+    told.start("training")
+    train(outputs)
+    # A new learned order makes every match's analysis older: each one not fully checked waits too.
+    found = waiting(outputs)
+    told.plan = ["training", *(f"match:{m.name}" for m, *_ in found)]
+    taught = None
+    for match, video, court in found:
+        told.start(f"match:{match.name}")
+        print(f"{match.name}:", flush=True)
+        if review.reviewed(review.page_data(match / "review"), review.load_log(match / "identity_answers.json")):
+            measured(match, video, court, started)
+            taught = taught or (match if play_due(match) else None)
+        else:
+            rerun(match, video, court, on_share=told.share_of_stage, update=started)
+            review.rebuilt(match, video, court)
+    if taught:
+        told.plan.append("play")
+        told.start("play")
+        train_play(taught)
+    told.start(None)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    if "--update" in sys.argv:
+        parser.add_argument("--update", type=Path, required=True, help="Bring every match of this folder up to date")
+        return update(parser.parse_args().update)
     parser.add_argument("match", type=Path)
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--court", type=Path, required=True)
@@ -306,7 +361,7 @@ def main() -> None:
     parser.add_argument("--rerun", action="store_true", help="Run the pipeline again first, the answers moved onto its rallies")
     args = parser.parse_args()
     if args.rerun:
-        train(args.match, args.video, args.court)
+        train(args.match.parent)
         rerun(args.match, args.video, args.court)
     elif args.labels:
         print(report(scores(args.match, args.video, args.court, args.labels), None))

@@ -1,10 +1,8 @@
-import { Fragment, useState } from 'react';
-import { ArrowDown, ArrowUp, RefreshCw } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
+import { ArrowDown, ArrowUp, LoaderCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { compared } from '@/components/Review/helpers/comparison';
-import { Tip } from '@/components/Tip';
-import { ask } from '@/components/ask';
-import { Button } from '@/components/ui/button';
+import { compared } from '@/components/Progress/helpers/comparison';
+import { ErrorNote } from '@/components/ErrorNote';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFormat } from '@/lib/format';
 import type { Comparison, LearnRun } from '@/lib/review';
@@ -55,79 +53,65 @@ const W = 240;
 const H = 56;
 const PAD = 6;
 
-/** The last run against the results it replaced, then in a history each step's share right on the
- * answers of all the matches over the analysis runs (learn.json, each counting every match so far):
- * the last run, its change since the one before and a curve of every run, then a table of all of them;
- * above them the button making a new run (`onLearn`), `reviewed` saying it leaves the match as it is. */
-export function Progress({
-  runs,
-  comparison,
-  reviewed,
-  busy,
-  learning,
-  onLearn,
-}: {
-  runs: LearnRun[];
-  comparison: Comparison | null;
-  reviewed: boolean;
-  busy: boolean;
-  /** The learning asked here runs. */
-  learning: boolean;
-  onLearn: () => void;
-}) {
+/** The Progrès tab of the list of the matches (app.js): the measures of every update, loaded from the app's server. */
+export function ProgressTab() {
+  const { t } = useTranslation();
+  const [found, setFound] = useState<{ runs: LearnRun[]; comparison: Comparison | null } | 'failed' | null>(null);
+  useEffect(() => {
+    fetch('/app/learning')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(setFound)
+      .catch(() => setFound('failed'));
+  }, []);
+  if (found === 'failed') {
+    return <ErrorNote text={t('progress.failed')} log className="px-1" />;
+  }
+  if (!found) {
+    return (
+      <p className="m-0 flex items-center gap-2 px-1 text-muted-foreground">
+        <LoaderCircle aria-hidden className="size-4 animate-spin" />
+        {t('progress.loading')}
+      </p>
+    );
+  }
+  return <Progress runs={found.runs} comparison={found.comparison} />;
+}
+
+/** The last update against the results it replaced, then in a history each step's share right on the answers of all
+ * the matches over the updates (learn.json, each counting every match so far): the last one, its change since the one
+ * before and a curve of every one, then a table of all of them. */
+export function Progress({ runs, comparison }: { runs: LearnRun[]; comparison: Comparison | null }) {
   const { t } = useTranslation();
   const f = useFormat();
   // learn.json's local time, yyyy-mm-dd hh:mm.
   const when = (run: LearnRun) => f.when(run.time.replace(' ', 'T'));
 
-  const learn = (
-    <Tip label={t(reviewed ? 'review.rerunNoteReviewed' : 'review.rerunNote')}>
-      <Button
-        variant="outline"
-        className="justify-self-start bg-card"
-        busy={learning}
-        disabled={busy}
-        onClick={() =>
-          void ask({ title: t('review.rerun'), text: t(reviewed ? 'review.rerunConfirmReviewed' : 'review.rerunConfirm'), confirm: t('review.rerunStart') }).then((yes) => yes && onLearn())
-        }
-      >
-        <RefreshCw aria-hidden />
-        {t('review.rerun')}
-      </Button>
-    </Tip>
-  );
   if (!runs.length) {
-    return (
-      <div className="grid gap-6">
-        {learn}
-        <p className="m-0 rounded-lg border bg-card px-4 py-3 text-muted-foreground">{t('review.progress.none')}</p>
-      </div>
-    );
+    return <p className="m-0 rounded-lg border bg-card px-4 py-3 text-muted-foreground">{t('progress.none')}</p>;
   }
   const last = runs[runs.length - 1];
   const checked = last.scores['checked: rallies']?.[0];
   const matches = new Set(runs.map((r) => r.match)).size;
   return (
     <div className="grid gap-6">
-      {learn}
       <p className="m-0 px-1 text-sm text-muted-foreground">
-        {t('review.progress.runs', { count: runs.length, last: when(last), commit: last.commit })}
-        {checked ? ` ${t('review.progress.checked', { count: checked })}` : ''}
-        {matches > 1 ? ` ${t('review.progress.matches', { count: matches })}` : ''}
+        {t('progress.runs', { count: runs.length, last: when(last), commit: last.commit })}
+        {checked ? ` ${t('progress.checked', { count: checked })}` : ''}
+        {matches > 1 ? ` ${t('progress.matches', { count: matches })}` : ''}
       </p>
-      {comparison ? <Verdict comparison={comparison} /> : <p className="m-0 rounded-lg border bg-card px-4 py-3 text-muted-foreground">{t('review.progress.verdictSoon')}</p>}
+      {comparison ? <Verdict comparison={comparison} /> : <p className="m-0 rounded-lg border bg-card px-4 py-3 text-muted-foreground">{t('progress.verdictSoon')}</p>}
       <details open={!comparison}>
-        <summary className="cursor-pointer px-1 font-medium">{t('review.progress.history')}</summary>
+        <summary className="cursor-pointer px-1 font-medium">{t('progress.history')}</summary>
         <div className="mt-3 grid gap-6">
           {GROUPS.map(([group, measures]) => {
             const shown = measures.filter(([key]) => runs.some((r) => r.scores[key]?.[1]));
             return (
               shown.length > 0 && (
                 <section key={group} className="grid gap-3">
-                  <h2 className="m-0 px-1 text-base font-semibold">{t(`review.progress.group.${group}`)}</h2>
+                  <h2 className="m-0 px-1 text-base font-semibold">{t(`progress.group.${group}`)}</h2>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {shown.map(([key, label]) => (
-                      <Tile key={key} label={t(`review.progress.measure.${label}`)} points={runs.map((r) => ({ run: r, score: r.scores[key] }))} when={when} f={f} />
+                      <Tile key={key} label={t(`progress.measure.${label}`)} points={runs.map((r) => ({ run: r, score: r.scores[key] }))} when={when} f={f} />
                     ))}
                   </div>
                 </section>
@@ -135,7 +119,7 @@ export function Progress({
             );
           })}
           <section className="grid gap-3">
-            <h2 className="m-0 px-1 text-base font-semibold">{t('review.progress.table')}</h2>
+            <h2 className="m-0 px-1 text-base font-semibold">{t('progress.table')}</h2>
             <MeasureTable runs={runs} when={when} />
           </section>
         </div>
@@ -155,7 +139,7 @@ function MeasureTable({ runs, when }: { runs: LearnRun[]; when: (run: LearnRun) 
       <Table className="tabular-nums">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="sticky left-0 z-10 bg-card pl-4 font-normal text-muted-foreground">{t('review.progress.measureColumn')}</TableHead>
+            <TableHead className="sticky left-0 z-10 bg-card pl-4 font-normal text-muted-foreground">{t('progress.measureColumn')}</TableHead>
             {newest.map((r, k) => (
               <TableHead key={k} className={cn('h-auto py-2 text-right', k > 0 && 'font-normal text-muted-foreground', edge(k))}>
                 {when(r)}
@@ -172,12 +156,12 @@ function MeasureTable({ runs, when }: { runs: LearnRun[]; when: (run: LearnRun) 
                 <Fragment key={group}>
                   <TableRow className="bg-muted/50 hover:bg-muted/50">
                     <TableCell colSpan={newest.length + 1} className="pl-4 font-medium">
-                      <span className="sticky left-4">{t(`review.progress.group.${group}`)}</span>
+                      <span className="sticky left-4">{t(`progress.group.${group}`)}</span>
                     </TableCell>
                   </TableRow>
                   {shown.map(([key, label]) => (
                     <TableRow key={key} className="hover:bg-transparent">
-                      <TableCell className="sticky left-0 z-10 max-w-40 min-w-36 bg-card pl-4 whitespace-normal sm:max-w-none sm:whitespace-nowrap">{t(`review.progress.measure.${label}`)}</TableCell>
+                      <TableCell className="sticky left-0 z-10 max-w-40 min-w-36 bg-card pl-4 whitespace-normal sm:max-w-none sm:whitespace-nowrap">{t(`progress.measure.${label}`)}</TableCell>
                       {newest.map((r, k) => {
                         const score = r.scores[key];
                         return (
@@ -215,7 +199,7 @@ function Verdict({ comparison }: { comparison: Comparison }) {
     comparison,
     measures.map(([key]) => key),
   );
-  const label = (key: string) => t(`review.progress.measure.${measures.find(([k]) => k === key)![1]}`);
+  const label = (key: string) => t(`progress.measure.${measures.find(([k]) => k === key)![1]}`);
   const counts = [
     { name: 'better', count: better.length, tone: better.length ? 'text-emerald-700 dark:text-emerald-400' : '' },
     { name: 'worse', count: worse.length, tone: worse.length ? 'text-destructive' : '' },
@@ -224,12 +208,12 @@ function Verdict({ comparison }: { comparison: Comparison }) {
   const score = ([right, total]: [number, number]) => `${right}/${total}`;
   return (
     <section className="grid gap-3 rounded-lg border bg-card p-4">
-      <h2 className="m-0 text-base font-semibold">{t('review.progress.verdict')}</h2>
+      <h2 className="m-0 text-base font-semibold">{t('progress.verdict')}</h2>
       <div className="flex flex-wrap gap-x-6 gap-y-2">
         {counts.map(({ name, count, tone }) => (
           <div key={name} className="flex items-baseline gap-2">
             <span className={cn('text-3xl font-semibold tabular-nums', tone)}>{count}</span>
-            <span className="text-sm text-muted-foreground">{t(`review.progress.${name}`)}</span>
+            <span className="text-sm text-muted-foreground">{t(`progress.${name}`)}</span>
           </div>
         ))}
       </div>
@@ -276,12 +260,12 @@ function Tile({ label, points, when, f }: { label: string; points: Point[]; when
         {before && delta !== 0 && (
           <span className={cn('ml-auto flex items-center gap-0.5 text-sm font-medium', delta > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive')}>
             {delta > 0 ? <ArrowUp aria-hidden className="size-4" /> : <ArrowDown aria-hidden className="size-4" />}
-            {t('review.progress.delta', { count: Math.abs(delta), sign: delta > 0 ? '+' : '−' })}
+            {t('progress.delta', { count: Math.abs(delta), sign: delta > 0 ? '+' : '−' })}
           </span>
         )}
       </div>
       {/* The lines stretch with the tile; the dots, HTML on top, stay round. */}
-      <div className="relative h-14" role="img" aria-label={t('review.progress.curve', { label })} onMouseLeave={() => setHover(null)}>
+      <div className="relative h-14" role="img" aria-label={t('progress.curve', { label })} onMouseLeave={() => setHover(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible" aria-hidden>
           {[0, 0.5, 1].map((v) => (
             <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} className="stroke-border" strokeWidth={1} vectorEffect="non-scaling-stroke" />
@@ -302,7 +286,7 @@ function Tile({ label, points, when, f }: { label: string; points: Point[]; when
           <button
             key={k}
             type="button"
-            aria-label={t('review.progress.read', { when: when(p.run), commit: p.run.commit, right: p.score[0], total: p.score[1], share: f.pct(share(p)) })}
+            aria-label={t('progress.read', { when: when(p.run), commit: p.run.commit, right: p.score[0], total: p.score[1], share: f.pct(share(p)) })}
             onMouseEnter={() => setHover(k)}
             onFocus={() => setHover(k)}
             onBlur={() => setHover(null)}
@@ -314,7 +298,7 @@ function Tile({ label, points, when, f }: { label: string; points: Point[]; when
         ))}
       </div>
       <p className="m-0 text-xs text-muted-foreground tabular-nums" aria-live="polite">
-        {t('review.progress.read', { when: when(read.run), commit: read.run.commit, right: read.score[0], total: read.score[1], share: f.pct(share(read)) })}
+        {t('progress.read', { when: when(read.run), commit: read.run.commit, right: read.score[0], total: read.score[1], share: f.pct(share(read)) })}
       </p>
     </div>
   );

@@ -126,12 +126,13 @@ def main() -> None:
     parser.add_argument("--l2", type=float, default=0.01)
     parser.add_argument("--write", action="store_true", help=f"Write the weights fit on everything to {ranker.WEIGHTS}")
     parser.add_argument("--if-better", action="store_true", help="With --write, only when the matches' held-out touches gain on the rule")
-    parser.add_argument("--summary", type=Path, help="Write the first match's held-out scores there (JSON: touches, rule, learned, kept)")
+    parser.add_argument("--summaries", action="store_true", help="Write each match's held-out scores in its folder's ranker.json (JSON: touches, rule, learned, kept)")
     args = parser.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
     data = [d for m in args.matches for d in from_match(*map(Path, m.split(":")))] + [d for c in args.clips for d in from_clip(c)]
-    total, matches, first = [0, 0, 0], [0, 0, 0], [0, 0, 0]
-    first_name = Path(args.matches[0].split(":")[0]).name if args.matches else None
+    total, matches = [0, 0, 0], [0, 0, 0]
+    folders = [Path(m.split(":")[0]) for m in args.matches]
+    each = {f.name: [0, 0, 0] for f in folders}
     for g in sorted({d["group"] for d in data}):
         test = [d for d in data if d["group"] == g]
         model = ranker.fit(trainable([d for d in data if d["group"] != g]), args.l2)
@@ -142,8 +143,9 @@ def main() -> None:
         # The school clips are 720p: the model runs on the matches' footage only.
         if g not in args.clips:
             matches = [matches[0] + len(test), matches[1] + rule, matches[2] + learned]
-        if g.startswith(f"{first_name} set "):
-            first = [first[0] + len(test), first[1] + rule, first[2] + learned]
+        for name, found in each.items():
+            if g.startswith(f"{name} set "):
+                found[:] = [found[0] + len(test), found[1] + rule, found[2] + learned]
     print(f"{'held out, all':24} {total[0]:4} touches: rule {total[1]:4}, learned {total[2]:4}")
     kept = args.write and (not args.if_better or matches[2] > matches[1])
     if kept:
@@ -152,8 +154,10 @@ def main() -> None:
         print(f"{ranker.WEIGHTS} written")
     elif args.write:
         print(f"{ranker.WEIGHTS} kept: no gain on the rule held out ({matches[2]} against {matches[1]} of {matches[0]})")
-    if args.summary:
-        args.summary.write_text(json.dumps({"touches": first[0], "rule": first[1], "learned": first[2], "kept": kept}) + "\n")
+    if args.summaries:
+        for folder in folders:
+            found = each[folder.name]
+            (folder / "ranker.json").write_text(json.dumps({"touches": found[0], "rule": found[1], "learned": found[2], "kept": kept}) + "\n")
 
 
 if __name__ == "__main__":

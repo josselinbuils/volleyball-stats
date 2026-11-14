@@ -38,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
@@ -715,12 +715,26 @@ def pooled_runs(outputs: Path) -> list[dict]:
     return out
 
 
-def last_comparison(match: Path) -> dict | None:
-    """The scores of `match`'s last run (learn.json) and of the results it replaced, on the same
-    answers; None if that run did not measure them."""
-    path = match / "learn.json"
-    last = json.loads(path.read_text())[-1] if path.exists() else {}
-    return {"before": last["before"], "after": last["scores"]} if "before" in last else None
+def last_comparison(outputs: Path) -> dict | None:
+    """The scores of the last update's runs (learn.json, its `update`; the newest run alone before 14 Nov 2026) and of
+    the results they replaced, on the same answers, summed over its matches; None if it did not measure them."""
+    lasts = [runs[-1] for path in sorted(outputs.glob("*/learn.json")) if (runs := json.loads(path.read_text()))]
+    if not lasts:
+        return None
+    newest = max(lasts, key=lambda r: r["time"])
+    same = [r for r in lasts if "before" in r and (r is newest or (newest.get("update") and r.get("update") == newest["update"]))]
+    if not same:
+        return None
+
+    def summed(found: list[dict]) -> dict[str, list[int]]:
+        out: dict[str, list[int]] = {}
+        for scores in found:
+            for key, (right, total) in scores.items():
+                sums = out.setdefault(key, [0, 0])
+                sums[0], sums[1] = sums[0] + right, sums[1] + total
+        return out
+
+    return {"before": summed([r["before"] for r in same]), "after": summed([r["scores"] for r in same])}
 
 
 def page_data(site: Path) -> dict | None:
@@ -1810,7 +1824,7 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
         "corrections": corrections(log, shown),
         "checked": checked(log),
         "films": film.status(match),
-        "learned": learned(match, log),
+        "due": due(match, log),
     }
 
 
@@ -1825,6 +1839,34 @@ def learned(match: Path, log: list[dict]) -> bool:
     path = match / "learn.json"
     runs = json.loads(path.read_text()) if path.exists() else []
     return bool(runs) and runs[-1].get("answers") == answers_stamp(log)
+
+
+def due(match: Path, log: list[dict] | None = None) -> str | None:
+    """Why the app's update would take `match` (learn.update): "answers" given since it last learned from them, "rules"
+    when other code or models made its analysis (analysis.py); None for one up to date, or not analysed yet. A fully
+    checked match keeps its labels: only new answers make it wait."""
+    if not (match / "report.md").exists():
+        return None
+    log = load_log(match / "identity_answers.json") if log is None else log
+    if log and not learned(match, log):
+        return "answers"
+    if reviewed(page_data(match / "review"), log):
+        return None
+    return "rules" if analysis.made_by(match) != analysis.fingerprint(match) else None
+
+
+def rebuilt(match: Path, video: Path, court: Path, theme: str = web.CLUB) -> None:
+    """`match`'s pages made again once its pipeline ran again outside the review (learn.update), its answers then
+    applied, as the review's own reruns leave them."""
+    web.review_page(match, video, court, theme)
+    (match / STALE_PHOTOS).unlink(missing_ok=True)
+    if (match / "page.json").exists():
+        web.publish(match, video, court, theme, {})
+    path = match / "identity_answers.json"
+    log = [{**e, "applied": True} for e in load_log(path)]
+    if path.exists():
+        save(path, log)
+    files.write_text(match / APPLIED, json.dumps(state(match, log)))
 
 
 def undo(log: list[dict], history: list[dict]) -> tuple[list[dict], list[dict] | None, str | None, bool]:
@@ -2004,6 +2046,8 @@ def match_list(out: Path) -> list[dict]:
             item = {"name": folder.name, "date": saved.get("date"), "title": saved.get("title"), "teams": saved.get("teams"), "scores": scores, "sets": sum(map(bool, scores)), "rallies": 0}
         item["path"] = folder.name
         item["ready"] = all(p.exists() for p in (folder / "report.md", Path(given["video"]), Path(given["court"])))
+        if item["ready"]:
+            item["due"] = due(folder)
         if not Path(given["video"]).exists():
             item["missing"] = "video"
         elif not Path(given["court"]).exists() and (folder / "report.md").exists():
@@ -2369,11 +2413,38 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             # The films made are kept: the next press makes those left.
             filmed["error"] = str(error) or type(error).__name__
 
+    def page_mark() -> int | None:
+        """When the review's page was last written."""
+        path = match / "review" / "data.js"
+        return path.stat().st_mtime_ns if path.exists() else None
+
+    # The review's page as this server last wrote or read it: another one comes from the app's update.
+    page_seen = [page_mark()]
+
+    def updating() -> bool:
+        """Whether the app's update runs (learn.update): it may make this match again under the review."""
+        return jobs.is_running(outputs, app.LEARN)
+
+    def follow() -> None:
+        """The match made again outside this server (the app's update): read again once that update has ended, the
+        answers moved onto its rallies (no undo across it)."""
+        if page_seen[0] == page_mark() or progress or updating():
+            return
+        with lock:
+            questions.load()
+            history.clear()
+            shown.clear()
+            shown.update(e["id"] for e in load_log(answers))
+            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
+            generation[0] += 1
+            page_seen[0] = page_mark()
+
     def pages(pictures: bool = True) -> list:
         """The steps rebuilding the review's page, its pictures later (`afterwards`) unless `pictures`,
         and the published one with its own choices."""
         def own() -> None:
             web.review_page(match, video, court, theme, pictures)
+            page_seen[0] = page_mark()
             generation[0] += 1
             photos_error[0] = None
             if pictures:
@@ -2412,6 +2483,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     with lock:
                         if built == generation[0]:
                             web.patch_people(match / "review", people)
+                            page_seen[0] = page_mark()
                             stale_photos.unlink(missing_ok=True)
                             hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
                 questions.read_pictures(picture)
@@ -2485,8 +2557,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 odd[piece_key(o)] = who if isinstance(who, str) or who is None else f"{who[0]}:{who[1]}"
         conflicts = questions.conflicts(log, identity.read_names(match))
         data = {"width": width, "height": height, "matchEnd": given_end(match), "sets": given_sets(match), "answered": len(log), **waiting(match, log, shown), "comments": commented(read_comments(match), questions.page, log), "picks": sorted(film.read_picks(match)), "timeouts": timeouts.shown(match, questions.fps), "questions": found, "players": players, "roster": names, "odd": odd, "conflicts": conflicts, **card_photos(), "hosted": {**hosted, "chosen": "video" in json.loads((match / matches.PUBLISH).read_text())} if (match / matches.PUBLISH).exists() else None,
-            "learning": pooled_runs(match.parent),
-            "comparison": last_comparison(match),
+            "updating": updating(),
             "fetched": fetched_log or None,
             "backup": backup_state(),
             "filmsError": filmed["error"],
@@ -2542,6 +2613,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 page = list_page(url.path, match.parent, theme)
                 return self.send(*page) if page else self.send(b"Not found", "text/plain", 404)
             if url.path == "/review.js":
+                follow()
                 with lock:
                     body = review_js()
                 return self.send(body, "text/javascript")
@@ -2663,6 +2735,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if body["name"] != match.name:
                     switch(command, lock)
                 return None
+            # The app's update makes this match again: nothing changes under it, and what it made is read first.
+            if updating():
+                return self.send(b'{"error":"updating"}', "application/json", 409)
+            follow()
             undone, undo_applied = None, False
             with lock:
                 log = load_log(answers)
@@ -2857,22 +2933,14 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     step, kind = ("highlights", "highlights") if self.path == "/highlights" else (self.path[1:], "players")
                     run_steps([(step, lambda: filming(kind, names)), *pages()])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
-                elif self.path in ("/rerun", "/sets"):
+                elif self.path == "/sets":
                     from volleyball_stats import learn
 
-                    if self.path == "/sets":
-                        set_start(match, questions.fps, body.get("add"), body.get("remove"))
-
-                    # A match whose every rally is checked only teaches the next ones: it stays as reviewed, its sets apart.
-                    if self.path == "/rerun" and reviewed(questions.page, log):
-                        play = [("playTraining", lambda: learn.train_play(match))] if learn.play_due(match) else []
-                        run_steps([("training", lambda: learn.retrain(match, video, court)), *play])
-                        return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
+                    set_start(match, questions.fps, body.get("add"), body.get("remove"))
                     # The pipeline again, its identities with every answer: an apply too. Undo
                     # stops here: the answers moved onto the new rallies.
                     own, *published = pages()
-                    training = [("training", lambda: learn.train(match, video, court))] if self.path == "/rerun" else []
-                    run_steps([*training, ("pipeline", lambda: learn.rerun(match, video, court, staged)), own, ("questions", questions.load), *published])
+                    run_steps([("pipeline", lambda: learn.rerun(match, video, court, staged)), own, ("questions", questions.load), *published])
                     history.clear()
                     log = load_log(answers)
                     for entry in log:

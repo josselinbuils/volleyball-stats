@@ -50,6 +50,8 @@ BACKUP = "backup"
 VERIFY = "verify"
 # The site zipped for a host of one's own (matches.export).
 EXPORT = "export"
+# Every match waiting brought up to date (learn.update).
+LEARN = "learn"
 # What the server prints, for the page (applog.py).
 LOG = OUTPUTS / "app.log"
 
@@ -691,8 +693,21 @@ def update() -> None:
             raise RuntimeError((sync.stderr.strip().splitlines() or [f"uv sync: exit {sync.returncode}"])[-1])
 
 
+def learn_state(listed: list[dict]) -> dict:
+    """The update (learn.update): the matches waiting for it and why (`review.due`), and its job."""
+    job = next((j for j in jobs.state(OUTPUTS) if j["id"] == LEARN), None)
+    return {"due": [{"name": m["path"], "why": m["due"]} for m in listed if m.get("due")], "job": {**job, **told(job, time.time())} if job and job["running"] else job}
+
+
+def learning() -> dict:
+    """The Progrès tab: every update's scores on all the matches' answers, and what the last one changed."""
+    from volleyball_stats import review
+
+    return {"runs": review.pooled_runs(MATCHES), "comparison": review.last_comparison(MATCHES)}
+
+
 def state(listed: list[dict]) -> dict:
-    return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system(), "backup": server.warning(OUTPUTS)}
+    return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system(), "backup": server.warning(OUTPUTS), "learn": learn_state(listed)}
 
 
 def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False, club_changed=lambda: None, open_match: str | None = None) -> tuple[bytes, str, int] | None:
@@ -711,6 +726,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
                 return reply(doctor.checks(DATA.parent))
             if route == "log":
                 return reply({"text": jobs.tail(LOG)})
+            if route == "learning":
+                return reply(learning())
             if route == "server":
                 return reply(server_state())
             if route == "server/copies":
@@ -798,6 +815,12 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if route == "export":
             export([str(n) for n in body["matches"]], listed(), body.get("folder") and str(body["folder"]))
             return reply(export_state(listed()))
+        if route == "learn":
+            # Not under an apply: the open match's review would write as its pipeline runs again.
+            if busy():
+                return reply({"error": "busy"}, 409)
+            jobs.start(OUTPUTS, LEARN, LEARN, [(LEARN, ["volleyball_stats.learn", "--update", str(MATCHES)])])
+            return reply(learn_state(listed()))
         if route == "server/delete":
             server.delete(OUTPUTS, str(body["day"]))
             return reply({})

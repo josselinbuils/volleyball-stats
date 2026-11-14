@@ -28,7 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, ball, ball3d, ballsize, contacts, court, decode, files, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, files, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -433,6 +433,8 @@ def main() -> None:
 
     out = args.out / args.video.stem
     out.mkdir(parents=True, exist_ok=True)
+    # The code and models this run starts with, kept once it ends.
+    made = analysis.fingerprint(out)
     if args.players and args.court:
         files.write_source(out, args.video, args.court, args.squad)
     sets = args.sets and args.sets.split(",")
@@ -603,6 +605,8 @@ def main() -> None:
         text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks, names, contact_teams, sets, settled["date"], settled["title"])
         text += "\n" + "\n".join(f"- {line}" for line in points.summary(found_points, settled["scores"])) + "\n"
     (out / "report.md").write_text(text)
+    if args.players:
+        analysis.write(out, made)
     print(text, end="")
     print(out / "report.md")
     if with_page:

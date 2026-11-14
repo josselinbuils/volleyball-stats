@@ -1,3 +1,4 @@
+import type { LearnState } from '@/components/Update';
 import type { Team } from '@/lib/match';
 
 /** A check of the machine (doctor.py): its status and the values its text shows. */
@@ -22,7 +23,7 @@ export interface Check {
 /** A job (jobs.py) as the app shows it. */
 export interface Job {
   id: string;
-  kind: 'import' | 'court' | 'pipeline' | 'models' | 'videos' | 'hosting' | 'backup' | 'verify' | 'export';
+  kind: 'import' | 'court' | 'pipeline' | 'models' | 'videos' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn';
   running: boolean;
   step?: string | null;
   failed?: string;
@@ -67,6 +68,7 @@ export interface AppState {
   system: 'mac' | 'wsl' | 'linux';
   /** What is wrong with the copies on the server (server.warning), null when they are fine. */
   backup: { kind: 'off' | 'failed' | 'old' | 'differ'; error?: string; at?: string | null; problems?: string[] } | null;
+  learn: LearnState;
 }
 
 export interface Source {

@@ -10,6 +10,7 @@ import { Doctor, checkText } from './Doctor';
 import { ImportDialog } from './ImportDialog';
 import { PreparingCard } from './PreparingCard';
 import { VideosDialog } from './VideosDialog';
+import { UpdateLine } from '@/components/Update';
 import { explain, type Explained } from '@/lib/errors';
 import { call } from '@/lib/app';
 import { useFormat } from '@/lib/format';
@@ -48,7 +49,8 @@ export function Setup() {
     void refresh();
     void recheck();
   }, [refresh, recheck]);
-  const running = !!state && (state.preparing.some((p) => p.job?.running) || !!state.videos?.running || !!state.models?.running);
+  const updating = !!state?.learn.job?.running;
+  const running = !!state && (state.preparing.some((p) => p.job?.running) || !!state.videos?.running || !!state.models?.running || updating);
   useEffect(() => {
     const timer = window.setInterval(() => void refresh(), running || dialog ? BUSY_MS : IDLE_MS);
     return () => window.clearInterval(timer);
@@ -64,6 +66,14 @@ export function Setup() {
     }
     wasRunning.current = state.preparing.filter((p) => p.state === 'running').map((p) => p.name);
   }, [state]);
+  // The update ended: the cards say again which matches wait for one.
+  const wasUpdating = useRef(false);
+  useEffect(() => {
+    if (wasUpdating.current && !updating) {
+      location.reload();
+    }
+    wasUpdating.current = updating;
+  }, [updating]);
   // Models downloaded: their check passes.
   const modelsRunning = !!state?.models?.running;
   const [starting, run] = useRunning();
@@ -139,6 +149,7 @@ export function Setup() {
           {t('app.doctor.open')}
         </Button>
       </div>
+      {state && <UpdateLine learn={state.learn} onChange={refresh} />}
       {state && state.preparing.length > 0 && (
         <div className="grid gap-3">
           <h2 className="px-1 text-lg font-semibold">{t('app.preparing')}</h2>

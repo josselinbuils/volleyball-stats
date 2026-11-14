@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from volleyball_stats import learn
 from volleyball_stats.learn import from_answers, near, record, report
 
@@ -49,15 +51,43 @@ class TestFromAnswers:
         assert out["rallies: dropped"] == (1, 1)
 
 
-class TestReviewed:
-    def test_the_other_answered_matches_with_their_video(self, tmp_path, monkeypatch):
+class TestAnswered:
+    def test_the_answered_matches_with_their_video(self, tmp_path, monkeypatch):
         monkeypatch.setattr(learn, "ROOT", tmp_path)
         (tmp_path / "a.mp4").touch()
-        for name, answered, video in (("open", True, "a.mp4"), ("other", True, "a.mp4"), ("unanswered", False, "a.mp4"), ("no_video", True, "gone.mp4")):
+        for name, answered, video in (("one", True, "a.mp4"), ("other", True, "a.mp4"), ("unanswered", False, "a.mp4"), ("no_video", True, "gone.mp4")):
             folder = tmp_path / "matches" / name
             folder.mkdir(parents=True)
             (folder / "source.json").write_text(json.dumps({"video": video, "court": "c.json"}))
             if answered:
                 (folder / "identity_answers.json").write_text("{}")
 
-        assert learn.reviewed(tmp_path / "matches" / "open") == [f"{tmp_path / 'matches' / 'other'}:{tmp_path / 'a.mp4'}:{tmp_path / 'c.json'}"]
+        assert learn.answered(tmp_path / "matches") == [f"{tmp_path / 'matches' / n}:{tmp_path / 'a.mp4'}:{tmp_path / 'c.json'}" for n in ("one", "other")]
+
+
+class TestUpdate:
+    def test_trains_once_then_brings_each_match_waiting_up_to_date(self, tmp_path, monkeypatch):
+        a, b, c = (tmp_path / "matches" / n for n in "abc")
+        for m in (a, b, c):
+            m.mkdir(parents=True)
+        done = []
+        # The training makes `b` wait too; `c` is fully checked: only measured.
+        found = iter([[(a, a, a), (c, c, c)], [(a, a, a), (b, b, b), (c, c, c)]])
+        monkeypatch.setattr(learn, "waiting", lambda outputs: next(found))
+        monkeypatch.setattr(learn, "train", lambda outputs: done.append("training"))
+        monkeypatch.setattr(learn, "rerun", lambda m, v, court, on_share, update: done.append(f"rerun {m.name}"))
+        monkeypatch.setattr(learn, "measured", lambda m, v, court, update: done.append(f"measured {m.name}"))
+        monkeypatch.setattr(learn, "play_due", lambda m: False)
+        monkeypatch.setattr(learn.review, "rebuilt", lambda m, v, court: done.append(f"pages {m.name}"))
+        monkeypatch.setattr(learn.review, "page_data", lambda site: site.parent.name)
+        monkeypatch.setattr(learn.review, "reviewed", lambda page, log: page == "c")
+
+        learn.update(tmp_path / "matches")
+
+        assert done == ["training", "rerun a", "pages a", "rerun b", "pages b", "measured c"]
+
+    def test_nothing_when_every_match_is_up_to_date(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(learn, "waiting", lambda outputs: [])
+        monkeypatch.setattr(learn, "train", lambda outputs: pytest.fail("trained"))
+
+        learn.update(tmp_path)

@@ -34,9 +34,10 @@ import { ExportDialog } from '@/components/ExportSite';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { LateCauses } from '@/components/LateCauses';
 import { Tip } from '@/components/Tip';
+import type { Due } from '@/components/Update';
 import { BackLink } from '@/components/BackLink';
 
-type Action = 'undo' | 'apply' | 'rerun' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
+type Action = 'undo' | 'apply' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
 
 /** Between two items of the status line, which wraps on a phone. */
@@ -173,6 +174,8 @@ export function ReviewHeader({
   busy,
   run,
   mayLeave,
+  due,
+  onUpdate,
   here,
   onFailed,
 }: {
@@ -191,8 +194,12 @@ export function ReviewHeader({
   filmsError?: string | null;
   films: FilmCounts;
   pending: { answers: number; changed: boolean; names: boolean };
-  busy: Action | null;
+  /** What runs: one of the actions, or the app's update. */
+  busy: Action | 'update' | null;
   run: (action: Action, body?: object) => void;
+  /** Why the match waits for the app's update, null when up to date; `onUpdate` starts it. */
+  due?: Due | null;
+  onUpdate?: () => void;
   /** Whether the page may go, corrections not saved being lost. */
   mayLeave: () => Promise<boolean>;
   /** On the Match tab: where the video stands, ending the match there (taken away with ''), and the set starts to change
@@ -253,6 +260,20 @@ export function ReviewHeader({
               {busy === 'host' ? t('review.hosting') : t('review.host')}
             </Button>
           )}
+        </span>
+      </Tip>,
+    );
+  }
+  if (due) {
+    status.push(
+      <Tip label={t(`update.why.${due}`)}>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
+          {t('update.badge')}
+          <Button variant="outline" size="sm" className="ml-1.5 bg-card" busy={busy === 'update'} disabled={busy !== null} onClick={onUpdate}>
+            <RefreshCw aria-hidden />
+            {t('update.start')}
+          </Button>
         </span>
       </Tip>,
     );

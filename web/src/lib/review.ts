@@ -1,3 +1,4 @@
+import type { Due } from '@/components/Update';
 import i18n from 'i18next';
 import { ask } from '@/components/ask';
 import type { PageChange } from '@/lib/hostedChanges';
@@ -173,9 +174,10 @@ interface ReviewData {
   hosted?: Hosted | null;
   films?: FilmCounts;
   filmsError?: string | null;
-  /** The analysis runs' scores on the answers (learn.json): each measure's right and total. */
-  learning?: LearnRun[];
-  comparison?: Comparison | null;
+  /** Why the match waits for the app's update (review.due), null when up to date. */
+  due?: Due | null;
+  /** The app's update runs (learn.update): the review waits for it. */
+  updating?: boolean;
   /** The last fetch of the viewers' reports from the hosting: when, how many for this match, why it failed. */
   fetched?: { at: string; count: number; error: string | null } | null;
   /** The copies of the data on the hosting server (none without one): the last one's time and failure, whether the review makes them by itself. */
@@ -186,9 +188,10 @@ export type Backup = { at: string | null; error: string | null; auto: boolean };
 
 export type Scores = Record<string, [number, number]>;
 
+/** An update's run of one match (learn.json), scored on the answers of every match measured so far. */
 export type LearnRun = { time: string; commit: string; match?: string; scores: Scores };
 
-/** This match's last run and the results it replaced, on the same answers. */
+/** The last update's runs and the results they replaced, on the same answers. */
 export type Comparison = { before: Scores; after: Scores };
 
 /** By kind of film: how many there should be, how many are missing or out of date. */
@@ -233,8 +236,8 @@ export interface Saved {
   /** The match's new name, after a team's: the server is restarting on it. */
   renamed?: string;
   timeouts?: Timeout[];
-  /** The last learning run saw the answers as they stand. */
-  learned?: boolean;
+  /** Why the match waits for the app's update, null when up to date. */
+  due?: Due | null;
 }
 
 // The requests to the review server under way, by kind, for the page's indicator.
@@ -320,7 +323,6 @@ export async function post(
     | 'odd'
     | 'undo'
     | 'apply'
-    | 'rerun'
     | 'sets'
     | 'host'
     | 'hostAll'

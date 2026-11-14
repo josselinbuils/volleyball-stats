@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
+import { Tip } from '@/components/Tip';
+import type { Due } from '@/components/Update';
 import { Behind } from '@/components/Behind';
 import { ClubBar } from '@/components/ClubBar';
 import { Season } from '@/components/Season/Season';
@@ -36,6 +38,8 @@ export interface ListedMatch {
   remote?: boolean;
   /** In the review: its video is not on this machine. */
   missing?: 'video' | 'court';
+  /** In the review: why it waits for the update, null when up to date. */
+  due?: Due | null;
 }
 
 export interface MatchList {
@@ -47,15 +51,15 @@ export interface MatchList {
 
 declare global {
   interface Window {
-    VolleyAppBundle?: { mount: (element: HTMLElement) => void; mountSite: (element: HTMLElement) => void };
+    VolleyAppBundle?: { mount: (element: HTMLElement) => void; mountSite: (element: HTMLElement) => void; mountProgress: (element: HTMLElement) => void };
   }
 }
 
 /** The match pages, newest first, each a card linking to it. In the review, the app's screens above them (app.js):
  * importing a match and preparing it until its review opens. */
-type View = 'matches' | 'season' | 'site';
+type View = 'matches' | 'season' | 'progress' | 'site';
 // The tabs' own addresses: the list's with these hashes.
-const HASHES: Record<View, string> = { matches: '', season: '#saison', site: '#site' };
+const HASHES: Record<View, string> = { matches: '', season: '#saison', progress: '#progres', site: '#site' };
 
 export function Matches({ matches: here, club, review = false }: MatchList) {
   const { t } = useTranslation();
@@ -75,6 +79,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
   const listed = review ? matches.filter((m) => m.ready || m.remote || m.missing) : matches;
   const setup = useRef<HTMLDivElement>(null);
   const siteBox = useRef<HTMLDivElement>(null);
+  const progressBox = useRef<HTMLDivElement>(null);
   const loaded = useRef(false);
   useEffect(() => {
     if (!review || loaded.current) {
@@ -84,9 +89,10 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
     const script = document.createElement('script');
     script.src = 'app.js';
     script.onload = () => {
-      if (setup.current && siteBox.current) {
+      if (setup.current && siteBox.current && progressBox.current) {
         window.VolleyAppBundle?.mount(setup.current);
         window.VolleyAppBundle?.mountSite(siteBox.current);
+        window.VolleyAppBundle?.mountProgress(progressBox.current);
       }
     };
     document.head.append(script);
@@ -94,7 +100,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
   const [opening, setOpening] = useState<string | null>(null);
   const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
   const hasSeason = seasonTeams(matches, club?.teams).length > 0;
-  const views: View[] = ['matches', ...(hasSeason ? (['season'] as const) : []), ...(review ? (['site'] as const) : [])];
+  const views: View[] = ['matches', ...(hasSeason ? (['season'] as const) : []), ...(review ? (['progress', 'site'] as const) : [])];
   const [view, setView] = useState<View>(() => views.find((v) => v !== 'matches' && location.hash === HASHES[v]) ?? 'matches');
   // A link to a tab (the copies' warning opens the server's) switches to it.
   useEffect(() => {
@@ -137,12 +143,15 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
               setView(v);
               history.replaceState(null, '', HASHES[v] || location.pathname + location.search);
             }}
-            tabs={views.map((id) => ({ id, label: t({ matches: 'matches.title', season: 'season.title', site: 'server.title' }[id]) }))}
+            tabs={views.map((id) => ({ id, label: t({ matches: 'matches.title', season: 'season.title', progress: 'progress.tab', site: 'server.title' }[id]) }))}
           />
         )}
-        <p className="px-1 text-muted-foreground">{t(view === 'site' ? 'server.intro' : view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}</p>
+        <p className="px-1 text-muted-foreground">
+          {t(view === 'site' ? 'server.intro' : view === 'progress' ? 'progress.intro' : view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}
+        </p>
         {review && <div ref={siteBox} className={view === 'site' ? undefined : 'hidden'} />}
-        {view === 'site' ? null : view === 'season' ? (
+        {review && <div ref={progressBox} className={view === 'progress' ? undefined : 'hidden'} />}
+        {view === 'site' || view === 'progress' ? null : view === 'season' ? (
           <Season matches={matches} club={club?.teams} />
         ) : listed.length ? (
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -207,6 +216,14 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
+                      {review && m.due && !m.remote && (
+                        <Tip label={t(`update.why.${m.due}`)}>
+                          <span className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground">
+                            <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
+                            {t('update.badge')}
+                          </span>
+                        </Tip>
+                      )}
                     </Card>
                   </a>
                 </li>

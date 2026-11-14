@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next';
 export type Explained = { text: string; detail: string | null; log: boolean };
 
 // The codes a server's refusal names, said the same way everywhere.
-const KNOWN: Record<string, string> = { network: 'error.noAnswer', busy: 'error.busy' };
+const KNOWN: Record<string, string> = { network: 'error.noAnswer', busy: 'error.busy', updating: 'error.updating' };
 
 /** A server's refusal `error` in words: its code's sentence when known, else `fallback`'s with the server's words as the detail. */
 export function explain(t: TFunction, error: string | null | undefined, fallback = 'error.failed'): Explained {
