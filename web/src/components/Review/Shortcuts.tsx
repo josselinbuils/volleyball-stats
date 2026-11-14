@@ -10,7 +10,7 @@ const KBD = 'justify-self-start rounded border px-1.5 text-xs text-muted-foregro
 
 function Keys({ rows }: { rows: [string, string][] }) {
   return (
-    <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
+    <dl className="col-span-2 grid grid-cols-subgrid items-center gap-y-2">
       {rows.map(([key, label]) => (
         <Fragment key={key}>
           <dt>
@@ -33,20 +33,30 @@ export function Shortcuts() {
         <Keyboard aria-hidden />
       </VideoButton>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent container={document.fullscreenElement} aria-describedby={undefined}>
+        <DialogContent
+          container={document.fullscreenElement}
+          aria-describedby={undefined}
+          // On the dialog, not its close button: nothing there to press.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement).focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t('review.shortcuts')}</DialogTitle>
           </DialogHeader>
-          <Keys
-            rows={[
-              [t('review.spaceKey'), t('review.shortcutPlay')],
-              ['← →', t('review.shortcutStep', { s: ARROW_STEP_S })],
-              [ADD_KEY.toUpperCase(), t('review.shortcutAdd')],
-              [VALIDATE_KEY.toUpperCase(), t('review.shortcutValidate')],
-            ]}
-          />
-          <h3 className="font-medium">{t('review.shortcutType')}</h3>
-          <Keys rows={Object.entries(TYPE_KEYS).map(([key, type]) => [key.toUpperCase(), t(`types.${type}`)])} />
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2">
+            <Keys
+              rows={[
+                [t('review.spaceKey'), t('review.shortcutPlay')],
+                ['← →', t('review.shortcutStep', { s: ARROW_STEP_S })],
+                [ADD_KEY.toUpperCase(), t('review.shortcutAdd')],
+                [VALIDATE_KEY.toUpperCase(), t('review.shortcutValidate')],
+              ]}
+            />
+            <h3 className="col-span-2 mt-2 font-medium">{t('review.shortcutType')}</h3>
+            <Keys rows={Object.entries(TYPE_KEYS).map(([key, type]) => [key.toUpperCase(), t(`types.${type}`)])} />
+          </div>
         </DialogContent>
       </Dialog>
     </>
