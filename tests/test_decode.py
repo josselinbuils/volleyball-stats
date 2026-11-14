@@ -8,6 +8,10 @@ from volleyball_stats import decode
 from volleyball_stats.decode import SEEK, frame_at, frames, frames_at, scaled
 
 
+def test_nvenc_is_false_for_an_encoder_ffmpeg_lacks():
+    assert decode.nvenc("nonexistent") is False
+
+
 class TestScaled:
     def test_scales_a_wide_video_down_to_the_width_with_an_even_height(self):
         assert scaled(3840, 2160) == (1280, 720)

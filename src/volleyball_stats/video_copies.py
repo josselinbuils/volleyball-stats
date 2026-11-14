@@ -7,6 +7,12 @@ same quality; `small`, 720p H.264, plays while the player is small. 1440p for th
 picture 1.4x: VMAF zoomed 89.6 against 85.8 at 1080p for AV1, 86.8 against 82.1 for H.264 (docs/hosting.md). Makes
 those missing or at another height, in `reencoded/` beside the source, from one reading of it: decoding 4K costs more
 than the encoders' share. A copy only appears once whole.
+
+Encoded on an NVIDIA GPU when ffmpeg can (NVENC), else on the CPU. On 18 s of the Avia match, VMAF whole / zoomed 1.37x /
+1.8x (docs/hosting.md): H.264 1440p 90.9 / 88.2 / 83.3 at 3.0 Mb/s against x264's 90.3 / 86.8 / 80.9 at 3.3; 720p 80.1 /
+71.9 / 59.2 at 0.73 against 79.7 / 71.0 / 57.4 at 0.74; AV1 92.1 / 89.6 / 85.1 at 2.8 against SVT-AV1's 92.0 / 89.6 /
+84.9 at 1.55 (1.8 times larger). The three from a minute of 4K on the RTX 5080: 29 s against 123.
+ponytail: the resize stays on the CPU (scale_cuda's lanczos lost 0.5-1.7 points, 18 s a minute); VideoToolbox not tried.
 """
 
 import argparse
@@ -17,12 +23,19 @@ from pathlib import Path
 from volleyball_stats import decode
 
 H264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "28", "-maxrate", "8M", "-bufsize", "16M"]
+NVENC = ["-preset", "p7", "-tune", "hq", "-multipass", "fullres", "-rc", "vbr", "-b:v", "0"]
 # Every 2 s: the jumps between clips do not freeze.
 KEYFRAMES = ["-g", "50"]
 COPIES = {
     "light": ("_1440p", 1440, H264),
     "av1": ("_av1", 1440, ["-c:v", "libsvtav1", "-preset", "6", "-crf", "40"]),
     "small": ("_720p", 720, H264),
+}
+# On an NVIDIA GPU: its codec and flags, at the CPU's quality.
+ON_GPU = {
+    "light": ("h264", ["-c:v", "h264_nvenc", *NVENC, "-cq", "33", "-maxrate", "8M", "-bufsize", "16M"]),
+    "av1": ("av1", ["-c:v", "av1_nvenc", *NVENC, "-cq", "40"]),
+    "small": ("h264", ["-c:v", "h264_nvenc", *NVENC, "-cq", "34", "-maxrate", "8M", "-bufsize", "16M"]),
 }
 TOLERANCE_S = 1.0
 FOLDER = "reencoded"
@@ -37,13 +50,19 @@ def part(path: Path) -> Path:
     return path.with_name(f"{path.stem}.part.mp4")
 
 
+def encoding(key: str) -> list[str]:
+    """ffmpeg's flags encoding the `key` copy: on the GPU when ffmpeg can there."""
+    codec, flags = ON_GPU[key]
+    return flags if decode.nvenc(codec) else COPIES[key][2]
+
+
 def command(video: Path, keys: list[str], flags: tuple[str, ...] = ()) -> list[str]:
     """ffmpeg's command writing the `keys` copies of `video` from one decoding."""
     labels = [f"[c{k}]" for k in range(len(keys))]
     scaled = ";".join(f"{label}scale=-2:{COPIES[key][1]}:flags=lanczos[v{k}]" for k, (key, label) in enumerate(zip(keys, labels)))
     outputs = []
     for k, key in enumerate(keys):
-        outputs += ["-map", f"[v{k}]", "-map", "0:a:0?", *COPIES[key][2], *KEYFRAMES, "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(part(paths(video)[key]))]
+        outputs += ["-map", f"[v{k}]", "-map", "0:a:0?", *encoding(key), *KEYFRAMES, "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(part(paths(video)[key]))]
     return ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-y", *flags, "-i", str(video), "-filter_complex", f"[0:v]fps=25,format=yuv420p,split={len(keys)}{''.join(labels)};{scaled}", *outputs]
 
 

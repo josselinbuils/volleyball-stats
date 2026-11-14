@@ -60,6 +60,16 @@ def cuda(video: Path) -> bool:
 
 
 @functools.cache
+def nvenc(codec: str) -> bool:
+    """Whether ffmpeg encodes `codec` ("h264", "av1") on an NVIDIA GPU here: listed is not enough, AV1 needs an RTX 40 or later."""
+    probe = ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=s=256x256:d=0.1", "-frames:v", "1", "-c:v", f"{codec}_nvenc", "-f", "null", "-"]
+    try:
+        return subprocess.run(probe, capture_output=True).returncode == 0
+    except OSError:
+        return False
+
+
+@functools.cache
 def hardware(video: Path) -> tuple[str, ...]:
     """ffmpeg's flags decoding `video` on the GPU; none when it cannot."""
     if cuda(video):

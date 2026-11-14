@@ -72,10 +72,8 @@ def pixelate(image: np.ndarray, frame_boxes: list[Box]) -> np.ndarray:
 
 def encoder(video: Path) -> list[str]:
     """ffmpeg's video encoding: NVIDIA's hardware encoder beside its decoder, else x264."""
-    if decode.cuda(video):
-        listed = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
-        if "h264_nvenc" in listed:
-            return ["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "23"]
+    if decode.cuda(video) and decode.nvenc("h264"):
+        return ["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "23"]
     return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22"]
 
 

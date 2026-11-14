@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 from volleyball_stats import ball as tracker
-from volleyball_stats import files
+from volleyball_stats import decode, files
 from volleyball_stats.court import Calibration, distort, undistort
 from volleyball_stats.points import set_scores
 
@@ -855,6 +855,15 @@ def decoder(video: Path, times: np.ndarray, frame: int, count: int) -> subproces
     )
 
 
+def encoding() -> list[str]:
+    """ffmpeg's flags encoding a film: on an NVIDIA GPU when ffmpeg can there, else x264. On 10 s of the Avia match, VMAF
+    83.9 at 0.90 Mb/s against x264's 83.3 at 0.99 (720x1280), 85.3 at 1.49 against 84.5 at 1.64 (1920x1080); x264 took
+    two cores of the CPU the frames are drawn on."""
+    if decode.nvenc("h264"):
+        return ["-c:v", "h264_nvenc", "-preset", "p7", "-tune", "hq", "-multipass", "fullres", "-rc", "vbr", "-b:v", "0", "-cq", "38"]
+    return ["-c:v", "libx264", "-preset", "medium", "-crf", "29"]
+
+
 def hardware() -> list[str]:
     return ["-hwaccel", "videotoolbox"] if sys.platform == "darwin" else []
 
@@ -1289,7 +1298,7 @@ class Maker:
         self.below = " · ".join(x for x in (film["teams"][film["team"] - 1] if film["teams"] and film["team"] else None, self.long_date(film["date"])) if x).upper()
         silent = out.with_suffix(".video.mp4")
         encoder = subprocess.Popen(
-            ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{WIDTH}x{HEIGHT}", "-r", str(int(FPS)), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "29", "-g", "50", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(silent)],
+            ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{WIDTH}x{HEIGHT}", "-r", str(int(FPS)), "-i", "-", *encoding(), "-g", "50", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(silent)],
             stdin=subprocess.PIPE,
         )
         for shot in film["shots"]:

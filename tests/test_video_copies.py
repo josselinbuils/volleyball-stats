@@ -36,6 +36,7 @@ class TestVideoCopies:
         ran = []
         monkeypatch.setattr(video_copies.subprocess, "run", lambda command, **kwargs: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
         monkeypatch.setattr(video_copies.decode, "hardware", lambda path: ())
+        monkeypatch.setattr(video_copies.decode, "nvenc", lambda codec: False)
 
         with pytest.raises(RuntimeError, match="no encoder"):
             video_copies.make(video)

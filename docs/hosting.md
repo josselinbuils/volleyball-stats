@@ -152,6 +152,24 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   the former one removed from `reencoded/`; updating every match makes them first, as each match's upload does.
 - `--small-video`: a 720p H.264 one (same with `scale=1280:720`, -56% against 1080p, -78% against 1440p) the page plays while its player is
   small; the 1440p copy in full screen, zoomed or over 1600 screen pixels wide, the video carrying on where it stood.
+- On an NVIDIA GPU the copies are encoded there (`video_copies.ON_GPU`, `decode.nvenc`; 14 Nov), else on the CPU as above:
+  `-preset p7 -tune hq -multipass fullres -rc vbr -b:v 0`, H.264 at `-cq 33` (1440p) and `-cq 34` (720p), AV1 at
+  `-cq 40`. Same harness:
+
+  | Copy on the RTX 5080 | kb/s | Whole | Zoom 1.37x | Zoom 1.8x |
+  |---|---|---|---|---|
+  | AV1 1440p CQ 40 | 2778 | 92.1 | 89.6 | 85.1 |
+  | AV1 1440p CQ 44 | 1803 | 90.2 | 87.2 | 82.0 |
+  | H.264 1440p CQ 33 | 3041 | 90.9 | 88.2 | 83.3 |
+  | H.264 720p CQ 34 | 732 | 80.1 | 71.9 | 59.2 |
+
+  The H.264 copies as good at the same size or smaller; the AV1 one as good, 1.8 times larger (about +0.6 GB a match). The
+  three from a minute of the 4K source: 29 s against 123 on the CPU (a match in about 30 min instead of 2 to 4 h);
+  SVT-AV1 `-preset 8` beside the GPU's H.264: 47 s, 6% larger, 0.5 lower. Rejected: NVENC's spatial and temporal AQ with a
+  lookahead (VMAF 0.4-1.3 lower at the same CQ, larger), `scale_cuda` for the resize (18 s a minute, 0.5-1.7 lower).
+- The films and highlights too (`film.encoding`): `h264_nvenc` at `-cq 38`, VMAF 83.9 at 0.90 Mb/s against x264 medium CRF
+  29's 83.3 at 0.99 (720x1280), 85.3 at 1.49 against 84.5 at 1.64 (1920x1080), on 10 s of the Avia match; x264 took two
+  cores from the drawing.
 - A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21 frames to decode a jump instead of 131
   with `-g 250`, for +30% size in H.264, +60% in AV1.
 - The copies keep their source's date, so an upload skips an unchanged video.
