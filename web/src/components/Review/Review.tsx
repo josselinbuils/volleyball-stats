@@ -536,10 +536,18 @@ export function Review({
           }}
         />
         {progress && (
-          <JobProgress label={t('review.applying')} fraction={progress.fraction} part={progress.part} left={progress.left} elapsed={progress.elapsed} late={progress.late} className="px-1">
+          <JobProgress
+            label={t('review.applying')}
+            fraction={progress.fraction}
+            step={t('review.stepOf', { n: progress.n, of: progress.of })}
+            part={progress.part}
+            left={progress.left}
+            elapsed={progress.elapsed}
+            late={progress.late}
+            className="px-1"
+          >
             {t(`review.step.${progress.step}`)}
             {progress.stage && ` · ${t(`review.stage.${progress.stage}`, { defaultValue: progress.stage })}`}
-            <span className="text-muted-foreground"> · {t('review.stepOf', { n: progress.n, of: progress.of })}</span>
           </JobProgress>
         )}
         {players.length > 0 && <ReviewTabs tab={tab} show={show} named={named} players={players.length} questions={open.length} reports={reports.length} matchDone={matchDone} learned={learned} />}
