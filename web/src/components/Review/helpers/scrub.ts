@@ -38,3 +38,21 @@ export function nearTouch(touches: readonly number[], time: number): boolean {
   }
   return lo < touches.length && touches[lo] <= time + SLOW_BEFORE_S;
 }
+
+/** Whether the slowed span of one of `touches` (times, sorted) starts between `from` and `to`, either way: the moment
+ * the touch shown beside the video changes with the video slowing down. */
+export function slowStarts(touches: readonly number[], from: number, to: number): boolean {
+  const [lo, hi] = from < to ? [from, to] : [to, from];
+  let a = 0;
+  let b = touches.length;
+  // The first touch whose span starts after lo.
+  while (a < b) {
+    const mid = (a + b) >> 1;
+    if (touches[mid] - SLOW_BEFORE_S <= lo) {
+      a = mid + 1;
+    } else {
+      b = mid;
+    }
+  }
+  return a < touches.length && touches[a] - SLOW_BEFORE_S <= hi;
+}

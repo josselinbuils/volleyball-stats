@@ -11,6 +11,7 @@ import { liveReports, openingTime, REPORT_LEAD_S } from '@/components/Review/hel
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { ReportEditor } from '@/components/Review/ReportEditor';
+import { slowStarts } from '@/components/Review/helpers/scrub';
 
 /** The whole match to correct: its video, the bar of its rallies, touches and the viewers' reports
  * under it, the touches around where it stands beside it, each rally's reports left to handle under
@@ -80,6 +81,9 @@ export function MatchTab({
   const go = (time: number, play?: boolean) => setSeek((s) => ({ time: Math.max(0, time), n: (s?.n ?? 0) + 1, play }));
   // The warnings as the editor finds them.
   const [touchTimes, setTouchTimes] = useState<number[]>([]);
+  // For the video's loop, which keeps the first onTime given.
+  const touchesNow = useRef(touchTimes);
+  touchesNow.current = touchTimes;
   const [found, setFound] = useState<{ times: number[]; warned: number[]; joined: number[] }>({ times: [], warned: [], joined: [] });
   const live = liveReports(reports, new Set(found.joined));
   const flags = live.flatMap((q) => q.reports ?? []).map((r) => ({ ...r, auto: r.kind?.startsWith('auto.') ?? false }));
@@ -129,7 +133,7 @@ export function MatchTab({
               marks={flags.map((r) => r.time)}
               touches={touchTimes}
               showTime
-              onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 ? at : n))}
+              onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 || slowStarts(touchesNow.current, n, at) ? at : n))}
               extra={
                 document.fullscreenEnabled && (
                   <VideoButton label={t(full ? 'review.exitFullScreen' : 'review.fullScreen')} onClick={toggleFull}>

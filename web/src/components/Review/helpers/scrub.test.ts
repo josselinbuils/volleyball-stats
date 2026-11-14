@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nearTouch, nudgeOf, SLOW_AFTER_S, SLOW_BEFORE_S } from '@/components/Review/helpers/scrub';
+import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nearTouch, nudgeOf, SLOW_AFTER_S, SLOW_BEFORE_S, slowStarts } from '@/components/Review/helpers/scrub';
 
 describe('nudgeOf', () => {
   it('moves a frame every FINE_PX, none past FINE_SPAN_PX', () => {
@@ -41,5 +41,18 @@ describe('nearTouch', () => {
     expect(nearTouch(touches, 12.1)).toBe(true);
     expect(nearTouch(touches, 25)).toBe(false);
     expect(nearTouch([], 10)).toBe(false);
+  });
+});
+
+describe('slowStarts', () => {
+  const touches = [10, 12];
+  it('holds when a slowed span starts between the two times, either way', () => {
+    const start = 10 - SLOW_BEFORE_S;
+    expect(slowStarts(touches, start - 0.05, start)).toBe(true);
+    expect(slowStarts(touches, start, start + 0.05)).toBe(false);
+    expect(slowStarts(touches, start + 0.05, start - 0.05)).toBe(true);
+    expect(slowStarts(touches, 10.5, 11)).toBe(false);
+    expect(slowStarts(touches, 5, 20)).toBe(true);
+    expect(slowStarts([], 5, 20)).toBe(false);
   });
 });

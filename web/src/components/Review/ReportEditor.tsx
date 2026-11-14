@@ -39,14 +39,15 @@ import {
 import { problems, warningTimes, type Problem } from '@/components/Review/helpers/checks';
 import { labelled } from '@/helpers/contacts';
 import { Tip } from '@/components/Tip';
+import { SLOW_BEFORE_S } from '@/components/Review/helpers/scrub';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
 const RESULTS = ['play', 'point', 'error'] as const;
 const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
 /** After the user scrolls the list, it stops following the video this long. */
 const HOLD_MS = 3000;
-/** A touch's row lights up this long before the touch. */
-const TOUCH_LEAD_S = 0.2;
+/** A touch's row lights up, and the video's caption names it, as the video slows down at it. */
+const TOUCH_LEAD_S = SLOW_BEFORE_S;
 /** The list shows this many rallies before and after the one the video is in. */
 const AROUND_RALLIES = 2;
 
