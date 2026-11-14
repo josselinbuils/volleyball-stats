@@ -24,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from volleyball_stats import decode
+from volleyball_stats import decode, jobs
 
 H264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "28", "-maxrate", "8M", "-bufsize", "16M"]
 NVENC = ["-preset", "p4", "-tune", "hq", "-rc", "vbr", "-b:v", "0"]
@@ -98,9 +98,9 @@ def current(key: str, path: Path) -> bool:
     return path.exists() and height(path) == COPIES[key][1]
 
 
-def make(video: Path, kept: dict[str, Path] | None = None) -> dict[str, Path]:
-    """The copies of `video`, the `kept` ones still current taken as they are, the others made; RuntimeError if ffmpeg
-    fails or one comes out cut short."""
+def make(video: Path, kept: dict[str, Path] | None = None, share: jobs.Share = jobs.quiet) -> dict[str, Path]:
+    """The copies of `video`, the `kept` ones still current taken as they are, the others made, the share of the video
+    encoded told as it goes; RuntimeError if ffmpeg fails or one comes out cut short."""
     made = paths(video) | {key: path for key, path in (kept or {}).items() if current(key, path)}
     missing = [key for key, path in made.items() if not current(key, path)]
     if not missing:
@@ -108,10 +108,10 @@ def make(video: Path, kept: dict[str, Path] | None = None) -> dict[str, Path]:
     parts = [part(made[key]) for key in missing]
     (video.parent / FOLDER).mkdir(exist_ok=True)
     try:
-        run = subprocess.run(command(video, missing, decode.hardware(video)), capture_output=True, text=True)
+        expected = duration(video)
+        run = jobs.ffmpeg(command(video, missing, decode.hardware(video)), expected, share)
         if run.returncode:
             raise RuntimeError((run.stderr.strip().splitlines() or [f"ffmpeg: exit {run.returncode}"])[-1])
-        expected = duration(video)
         for path in parts:
             if abs(duration(path) - expected) > TOLERANCE_S:
                 raise RuntimeError(f"{path.name} lasts {duration(path):.1f} s instead of {expected:.1f} s")

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -28,17 +29,17 @@ TAIL_BYTES = 64 << 10
 JOB_ID = re.compile(r"[\w.-]+")
 
 
-# How often a job's Stages tell the share done, and the most of a stage's share told before it ends.
-TELL_EVERY_S, STAGE_CAP = 1.0, 0.95
+# How often a job's Stages tell the share done.
+TELL_EVERY_S = 1.0
 
 
 class Stages:
     """A command's stages told as it goes, for the app's job: `::stage KIND K/N` ("match 2/5": the second of five
     "match:NAME" stages of the `plan`, `::stage KIND` for one alone), then every TELL_EVERY_S the share done of the
-    whole, of the stage (`part`) and the seconds left (`told`), from each stage's last duration on this machine kept in
-    `path`, else its kind's in `took`, both per unit of `scale` (the video's seconds for the pipeline). A stage that
-    knows its own share tells it (`share_of_stage`). `plan` may change as it goes. Not `told`, it only keeps the
-    durations."""
+    whole, of the stage (`part`) and the seconds left (`told`). Only counted work moves the share (the owner's rule): the
+    stage running tells its own share (`share_of_stage`, `counter`), else it holds; the stages are weighted by their last
+    duration on this machine kept in `path`, else their kind's in `took`, both per unit of `scale` (the video's seconds
+    for the pipeline). `plan` may change as it goes. Not `told`, it only keeps the durations."""
 
     def __init__(self, path: Path | None, plan: list[str], took: dict[str, float], told: bool = True, scale: float = 1.0):
         self.path, self.plan, self.told, self.scale = path, plan, told, max(scale, 1e-9)
@@ -46,6 +47,7 @@ class Stages:
             self.took = {**took, **json.loads(path.read_text())} if path else dict(took)
         except (OSError, ValueError):
             self.took = dict(took)
+        self.kept = dict(self.took)
         self.key, self.done, self.since, self.own = None, 0.0, time.time(), None
         self.stopped = threading.Event()
         if told:
@@ -55,11 +57,8 @@ class Stages:
         return self.scale * self.took.get(key, self.took.get(key.split(":")[0], 0.0))
 
     def part(self) -> float:
-        """The share done of the stage running: its own when it tells one, else its time over its last duration."""
-        if self.own is not None:
-            return self.own
-        expected = self.expected(self.key or "")
-        return min(STAGE_CAP, (time.time() - self.since) / expected) if expected else 0.0
+        """The share done of the stage running, as it counts it; 0 until it does: the bar holds."""
+        return self.own or 0.0
 
     def share(self) -> float:
         return min(1.0, (self.done + self.part() * self.expected(self.key or "")) / max(sum(self.expected(k) for k in self.plan), 1.0))
@@ -72,7 +71,8 @@ class Stages:
         return here + sum(self.expected(k) for k in later)
 
     def line(self) -> str:
-        return f"{PROGRESS}{self.share():.4f} part={self.part():.3f} left={self.left():.0f}"
+        part = "" if self.own is None else f"{self.own:.3f}"
+        return f"{PROGRESS}{self.share():.4f} part={part} left={self.left():.0f}"
 
     def tell(self) -> None:
         while not self.stopped.wait(TELL_EVERY_S):
@@ -83,15 +83,26 @@ class Stages:
         """The stage running tells its own share done (0-1)."""
         self.own = min(1.0, max(0.0, share))
 
+    def counter(self, total: float) -> Callable[[float], None]:
+        """A tick for the stage running to count its work with: each call adds that much done of `total`."""
+        done = [0.0]
+
+        def tick(n: float = 1.0) -> None:
+            done[0] += n
+            self.share_of_stage(done[0] / total if total > 0 else 1.0)
+
+        return tick
+
     def start(self, key: str | None) -> None:
         """The stage `key` of the plan starts, the last one's duration kept; None: the command ends."""
         now = time.time()
         if self.key:
-            # The share counts it as expected, never going back; the next run expects what it took.
+            # The share counts it as expected, never going back; the next run expects what it took (the weights of
+            # this one stay as they were, else the share would jump).
             self.done += self.expected(self.key)
-            self.took[self.key] = (now - self.since) / self.scale
+            self.kept[self.key] = (now - self.since) / self.scale
             if self.path:
-                files.write_text(self.path, json.dumps(self.took, indent=1) + "\n")
+                files.write_text(self.path, json.dumps(self.kept, indent=1) + "\n")
         self.key, self.since, self.own = key, now, None
         if key is None:
             self.stopped.set()
@@ -101,6 +112,77 @@ class Stages:
         alike = [k for k in self.plan if k.split(":")[0] == kind]
         print(f"{STAGE}{kind}{f' {alike.index(key) + 1}/{len(alike)}' if ':' in key and key in alike else ''}", flush=True)
         print(self.line(), flush=True)
+
+
+Share = Callable[[float], None]
+
+
+def quiet(_: float) -> None:
+    """A share told to nobody."""
+
+
+def parts(tell: Share, weights: dict[str, float]) -> Callable[[str], Share]:
+    """A step cut in parts of fixed `weights` (their share of its work, measured once), each counting its own share
+    (0-1): `part(name)(share)` tells the step's share, the parts before it counted as done."""
+    names, total = list(weights), sum(weights.values()) or 1.0
+
+    def part(name: str) -> Share:
+        before = sum(weights[n] for n in names[: names.index(name)])
+        return lambda share: tell((before + weights[name] * min(1.0, max(0.0, share))) / total)
+
+    return part
+
+
+def every(count: int, tell: Share, step: int = 0) -> Callable[[int], None]:
+    """For a loop over `count` items: `seen(k)` after the item k (0-based) tells k+1 / count, every `step` items (about
+    a hundred times in all by default), and at the last one."""
+    step = step or max(1, count // 100)
+
+    def seen(k: int) -> None:
+        if (k + 1) % step == 0 or k + 1 == count:
+            tell((k + 1) / count)
+
+    return seen
+
+
+def tell(share: float) -> None:
+    """A share told on stdout, for the process that started this one (`follow`)."""
+    print(f"{PROGRESS}{share:.4f}", flush=True)
+
+
+def follow(command: list[str], share: Share) -> None:
+    """Runs `command`, its shares told (`tell`) passed to `share`, its other lines through; CalledProcessError when it
+    fails, as `subprocess.run(check=True)`."""
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True, bufsize=1)
+    assert process.stdout is not None
+    for line in process.stdout:
+        if line.startswith(PROGRESS):
+            share(float(line.removeprefix(PROGRESS).split()[0]))
+        else:
+            sys.stdout.write(line)
+    if process.wait():
+        raise subprocess.CalledProcessError(process.returncode, command)
+
+
+def ffmpeg(command: list[str], seconds: float, share: Share) -> subprocess.CompletedProcess:
+    """Runs ffmpeg's `command` (starting "ffmpeg"), its share done told from the time it wrote over the `seconds` of
+    video it writes; returns how it ended, its errors kept, as `subprocess.run(capture_output=True, text=True)`."""
+    process = subprocess.Popen([command[0], "-progress", "pipe:1", "-nostats", *command[1:]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    errors: list[str] = []
+    # Read apart, else a full pipe of errors would stop ffmpeg.
+    reader = threading.Thread(target=lambda: errors.extend(process.stderr), daemon=True)
+    reader.start()
+    assert process.stdout is not None
+    for line in process.stdout:
+        key, _, value = line.strip().partition("=")
+        if key == "out_time_us" and value.isdigit() and seconds > 0:
+            share(min(1.0, int(value) / 1e6 / seconds))
+    process.wait()
+    reader.join()
+    # Its last report comes before its end.
+    if process.returncode == 0:
+        share(1.0)
+    return subprocess.CompletedProcess(command, process.returncode, "", "".join(errors))
 
 
 class Running(RuntimeError):

@@ -1740,23 +1740,29 @@ TIMINGS = "review_timings.json"
 
 
 def eta(progress: dict, took: dict[str, float], now: float) -> dict:
-    """Where a run of steps (`progress`: their names, the one running since when, its stage since
-    when) stands at `now`, from each one's last duration (`took`): the step and its stage, the time
-    spent and left, the share done of the stage (`part`), and whether the stage or step running
-    already takes longer than it did."""
-    steps, done, stage = progress["steps"], progress["done"], progress.get("stage")
+    """Where a run of steps (`progress`: their names, the one running since when, its stage since when, the share it
+    counted, `own`) stands at `now`. Only counted work moves it (the owner's rule): the whole run's share (`fraction`),
+    each step and stage weighted by its last duration (`weights`, kept as the run started, else `took`), the running
+    one's counted share (`part`, None while it counts nothing: the bar holds); the time spent and left, from the pace
+    of the counted share, else the last duration; and whether the step or stage runs longer than it did (`late`)."""
+    weights = progress.get("weights") or took
+    steps, done, stage, own = progress["steps"], progress["done"], progress.get("stage"), progress.get("own")
     step = steps[done]
     if stage:
         later = [s for s in STAGES[STAGES.index(stage) + 1 :] if s not in ("tracking", "play")] if stage in STAGES else []
-        spent, expected = now - progress["stage_since"], took.get(f"{step}:{stage}", 0.0)
-        here = max(0.0, expected - spent) + sum(took.get(f"{step}:{s}", 0.0) for s in later)
+        spent, expected = now - progress["stage_since"], weights.get(f"{step}:{stage}", 0.0)
+        rest = sum(weights.get(f"{step}:{s}", 0.0) for s in later)
     else:
-        spent, expected = now - progress["since"], took.get(step, 1.0)
-        here = max(0.0, expected - spent)
-    left = here + sum(took.get(s, 1.0) for s in steps[done + 1 :])
-    # The share done of the stage, or of the step without one, by its last duration.
-    part = min(0.99, spent / expected) if expected > 0 else None
-    return {"steps": steps, "done": done, "stage": stage, "elapsed": now - progress["started"], "left": left, "late": 0 < expected < spent, "part": part}
+        spent, expected = now - progress["since"], weights.get(step, 1.0)
+        rest = 0.0
+    counted = own is not None and own > 0.01
+    here = spent * (1 - own) / own if counted else max(0.0, expected - spent)
+    left = here + rest + sum(weights.get(s, 1.0) for s in steps[done + 1 :])
+    whole = weights.get(step, 1.0)
+    within = min(whole, progress.get("passed", 0.0) + (own or 0.0) * (expected if stage else whole))
+    fraction = (sum(weights.get(s, 1.0) for s in steps[:done]) + within) / max(sum(weights.get(s, 1.0) for s in steps), 1e-9)
+    late = spent / own > expected > 0 if counted else 0 < expected < spent
+    return {"steps": steps, "done": done, "stage": stage, "elapsed": now - progress["started"], "left": left, "late": late, "part": own, "fraction": min(1.0, fraction)}
 
 
 def checked(log: list[dict]) -> list[int]:
@@ -2407,7 +2413,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
     def filming(kind: str, names: list[str] | None = None) -> None:
         try:
-            film.build(match, video, court, staged, names, kind)
+            film.build(match, video, court, staged, names, kind, shared)
             filmed["error"] = None
         except Exception as error:  # noqa: BLE001
             # The films made are kept: the next press makes those left.
@@ -2443,7 +2449,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         """The steps rebuilding the review's page, its pictures later (`afterwards`) unless `pictures`,
         and the published one with its own choices."""
         def own() -> None:
-            web.review_page(match, video, court, theme, pictures)
+            web.review_page(match, video, court, theme, pictures, shared)
             page_seen[0] = page_mark()
             generation[0] += 1
             photos_error[0] = None
@@ -2457,7 +2463,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
         steps = [("review", own)]
         if (match / "page.json").exists():
-            steps.append(("page", lambda: web.publish(match, video, court, theme, {})))
+            steps.append(("page", lambda: web.publish(match, video, court, theme, {}, share=shared)))
         return steps
 
     def club_changed() -> None:
@@ -2493,11 +2499,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 after_apply.clear()
 
     def run_steps(steps: list) -> None:
-        progress.update(steps=[name for name, _ in steps], started=time.time())
+        # The weights of the share stay as the run started: the durations it records go to the next one.
+        progress.update(steps=[name for name, _ in steps], started=time.time(), weights=dict(took))
         failure.clear()
         try:
             for k, (name, work) in enumerate(steps):
-                progress.update(done=k, since=time.time(), stage=None)
+                progress.update(done=k, since=time.time(), stage=None, own=None, passed=0.0)
                 try:
                     work()
                 except Exception as error:
@@ -2510,11 +2517,19 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             progress.clear()
 
     def staged(name: str | None) -> None:
-        """The running step's stage `name` starts (None: the step ends): the last one's time is kept."""
+        """The running step's stage `name` starts (None: the step ends): the last one's time is kept, its weight counted
+        as done."""
         now, step = time.time(), progress["steps"][progress["done"]]
         if progress.get("stage"):
-            took[f"{step}:{progress['stage']}"] = now - progress["stage_since"]
-        progress.update(stage=name, stage_since=now)
+            key = f"{step}:{progress['stage']}"
+            took[key] = now - progress["stage_since"]
+            progress["passed"] = progress.get("passed", 0.0) + progress["weights"].get(key, 0.0)
+        progress.update(stage=name, stage_since=now, own=None)
+
+    def shared(share: float) -> None:
+        """The running step, or its stage, counted that share of its work (0-1)."""
+        if progress:
+            progress["own"] = min(1.0, max(0.0, share))
 
     def warm() -> None:
         """Cuts the review's pictures ahead of the user, READERS at a time."""
@@ -2919,12 +2934,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     if "video" not in config:
                         config = matches.choose(match, bool(body["video"]), body.get("password"))
                     # Hours of encoding only for a match that goes online with its video.
-                    copies = [("copies", lambda: matches.add_copies(match, video))] if config["video"] and matches.copies_missing(config) else []
+                    copies = [("copies", lambda: matches.add_copies(match, video, shared))] if config["video"] and matches.copies_missing(config) else []
                     run_steps([*copies, ("hosting", hosting)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/hostAll" and (match / matches.PUBLISH).exists():
                     # As each match's own upload: the video copies missing or at a former height made first.
-                    copies = [("copies", lambda m=m, v=v: matches.add_copies(m, v)) for m, v, _, c in matches.online(match.parent) if c["video"] and v.exists() and matches.copies_missing(c)]
+                    copies = [("copies", lambda m=m, v=v: matches.add_copies(m, v, shared)) for m, v, _, c in matches.online(match.parent) if c["video"] and v.exists() and matches.copies_missing(c)]
                     run_steps([*copies, ("hostingAll", lambda: hosting(every=True))])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path in ("/films", "/film", "/highlights"):
@@ -2968,7 +2983,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if rebuilt:
                     # The review's own page first: the questions ask what it leaves unidentified.
                     own, *published = pages(pictures=False)
-                    steps = [("players", lambda: identity.rerun(match, video, squad)), own, ("questions", questions.load)]
+                    steps = [("players", lambda: identity.rerun(match, video, squad, shared)), own, ("questions", questions.load)]
                     if self.path == "/apply":
                         steps.append(("roster", lambda: remember(roster, match.name, identity.named(questions.table, identity.read_names(match)), questions.vectors, team_names())))
                     run_steps(steps + published)

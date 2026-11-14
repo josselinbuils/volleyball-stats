@@ -856,7 +856,7 @@ class TestPublish:
 
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"footage": "full", "light": "v_1080p.mp4", "link": None}, tmp_path / "hosted")
 
-        assert built == [{"light": Path("v_1080p.mp4"), "link": None, "feedback": None, "av1": None, "small": None}]
+        assert [{k: v for k, v in b.items() if k != "share"} for b in built] == [{"light": Path("v_1080p.mp4"), "link": None, "feedback": None, "av1": None, "small": None}]
 
     def test_pictures_both_teams_of_the_club(self, tmp_path, monkeypatch):
         built = []

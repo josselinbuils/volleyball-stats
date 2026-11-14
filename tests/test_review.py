@@ -482,12 +482,28 @@ class TestReports:
         took = {"training": 100.0, "pipeline": 900.0, "pipeline:actions": 300.0, "pipeline:wrists": 400.0, "pipeline:teams": 500.0, "review": 10.0}
         run = {"steps": ["training", "pipeline", "review"], "done": 1, "started": 0.0, "since": 100.0, "stage": "wrists", "stage_since": 500.0}
 
-        # 100 s of the wrists' 400 spent; the teams and the review to come; no tracking, the other stages unknown.
-        assert eta(run, took, 600.0) == {"steps": run["steps"], "done": 1, "stage": "wrists", "elapsed": 600.0, "left": 300.0 + 500.0 + 10.0, "late": False, "part": 0.25}
+        # 100 s of the wrists' 400 spent, nothing counted: the bar holds at the training's share; the teams and the review to come.
+        held = eta(run, took, 600.0)
+        assert {k: held[k] for k in ("left", "late", "part")} == {"left": 300.0 + 500.0 + 10.0, "late": False, "part": None}
+        assert held["fraction"] == pytest.approx(100.0 / 1010.0)
         late = eta(run, took, 1000.0)
         assert (late["left"], late["late"]) == (510.0, True)
         # Before its first stage, a step counts as a whole.
         assert eta({**run, "stage": None, "done": 0, "since": 0.0}, took, 40.0)["left"] == 60.0 + 900.0 + 10.0
+
+    def test_counted_work_moves_the_share_and_sets_the_pace(self):
+        took = {"players": 40.0, "review": 10.0}
+        run = {"steps": ["players", "review"], "done": 0, "started": 0.0, "since": 0.0, "own": 0.25}
+
+        # A quarter counted in 30 s: 90 s more, though the last run took 40 in all.
+        found = eta(run, took, 30.0)
+        assert (found["part"], found["left"], found["late"]) == (0.25, 90.0 + 10.0, True)
+        assert found["fraction"] == pytest.approx(10.0 / 50.0)
+        # The run's own weights, not the durations it already recorded.
+        assert eta({**run, "weights": {"players": 10.0, "review": 10.0}}, took, 30.0)["fraction"] == pytest.approx(2.5 / 20.0)
+        # The stages finished count as done within the step.
+        staged = {"steps": ["films"], "done": 0, "started": 0.0, "since": 0.0, "stage": "filmsRender", "stage_since": 10.0, "own": 0.5, "passed": 10.0}
+        assert eta(staged, {"films": 110.0, "films:filmsBall": 10.0, "films:filmsRender": 100.0}, 20.0)["fraction"] == pytest.approx(60.0 / 110.0)
 
     def test_a_correction_a_frame_off_names_the_touch_there(self):
         out = report_answer({"touches": [{"frame": 2101, "type": "dig"}]}, self.teams, self.windows, {}, 20)

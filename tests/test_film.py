@@ -250,7 +250,7 @@ class TestBuild:
         planned = {name: {"hash": name, "file": f"{name}.mp4"} for name in ("Élodie", film.HIGHLIGHTS)}
         monkeypatch.setattr(film, "read_page", lambda _: {"rallies": []})
         monkeypatch.setattr(film, "plan", lambda *_: planned)
-        monkeypatch.setattr(film.subprocess, "run", lambda command, check: None)
+        monkeypatch.setattr(film.jobs, "follow", lambda command, share: None)
         assert film.build(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", kind="highlights") == [film.HIGHLIGHTS]
         assert list(film.manifest(tmp_path)) == [film.HIGHLIGHTS]
         assert film.build(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", kind="players") == ["Élodie"]
@@ -263,14 +263,18 @@ class TestBuild:
         monkeypatch.setattr(film, "read_page", lambda _: page)
         asked = []
 
-        def run(command, check):
+        told = []
+
+        def run(command, share):
             asked.append(command[-2:])
+            share(0.5)
+            told.append(command[-2])
             if command[-2:] == ["--make", "Other"] and fail:
                 raise subprocess.CalledProcessError(1, command)
             if command[-2] == "--make":
                 (tmp_path / "films" / film.plan(page, tmp_path / "review", "")[command[-1]]["file"]).write_bytes(b"film")
 
-        monkeypatch.setattr(film.subprocess, "run", run)
+        monkeypatch.setattr(film.jobs, "follow", run)
         fail = True
         with pytest.raises(subprocess.CalledProcessError):
             film.build(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json")

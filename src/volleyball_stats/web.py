@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, decode, defense, files, framing, icon, jumps, timeouts
+from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, timeouts
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -738,8 +738,9 @@ def drop_rallies(windows: list[tuple[int, int]], rows: list[dict], scores: list[
     return *kept, [r for r in actions if not any(a - lead <= int(r["frame"]) <= b for a, b in out)]
 
 
-def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict, dict | None]:
-    """data.js's match and the player positions, None without player tracks."""
+def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.Share = jobs.quiet) -> tuple[dict, dict | None]:
+    """data.js's match and the player positions, None without player tracks; the share of players.csv read told as it
+    goes."""
     cap = cv2.VideoCapture(str(video))
     fps, frame_count, height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     cap.release()
@@ -789,8 +790,12 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     def rows() -> Iterator[dict]:
         with open(match / "players.csv") as f:
             header = f.readline().rstrip().split(",")
+            told = 0
             for line in f:
                 frame = int(line[: line.index(",")])
+                if frame - told > frame_count / 100:
+                    told = frame
+                    share(frame / max(frame_count, 1))
                 # With teams, only the rows used: most are skipped unparsed.
                 if with_teams and frame % step and frame not in near:
                     continue
@@ -1678,24 +1683,31 @@ def build(
     av1: Path | None = None,
     small: Path | None = None,
     review: bool = False,
+    share: jobs.Share = jobs.quiet,
 ) -> dict:
     """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
     pictures of the `pictured` teams' players; `light` a lighter copy of `video` on its timeline for
     the page to play with the full footage, `av1` an AV1 copy played first where the browser can, `small` a 720p one played in a small player, and `link`, on a page without footage, where the same
     page with it is (behind a password); `feedback` where viewers report what is wrong in a moment
     (none: they are not asked); `review` keeps the review's screens (review-app.js) beside it; returns data.js's match.
-    ValueError for `light`, `av1` or `small` with a footage to blur (blurring works on the tracked video)."""
+    The share done told as it goes (`share`). ValueError for `light`, `av1` or `small` with a footage to blur (blurring
+    works on the tracked video)."""
     if (light or av1 or small) and footage != "full":
         raise ValueError("--light-video, --av1-video and --small-video go with --footage full")
+    # Its parts' shares of the time, measured on the second match (15 Nov): players.csv read for the samples, the rest of
+    # the data, the pictures, the ball, the zoom's views, the files written.
+    part = jobs.parts(share, {"rows": 3.6, "data": 3.5, "photos": 2.0 if pictures else 0.0, "ball": 1.5, "views": 1.7, "write": 4.1})
     calibration = Calibration.load(court)
     calibration.check(decode.size(video))
-    data, players = match_data(match, video, calibration)
+    data, players = match_data(match, video, calibration, part("rows"))
+    part("data")(1.0)
     blurred = {3 - (club or 1)} if footage == "blur-opponents" else {"none": None, "full": set(), "blur-all": {1, 2}}[footage]
     if pictures:
         shutil.rmtree(site / "players", ignore_errors=True)
         photos(match, video, data["people"], site / "players", pictured, match / PHOTO_SHOWN if review else None)
     else:
         kept_photos(data["people"], site, match)
+    part("photos")(1.0)
     # The logo's folder, and the one older builds named brand/.
     for folder in ("club", "brand"):
         shutil.rmtree(site / folder, ignore_errors=True)
@@ -1708,19 +1720,22 @@ def build(
 
         ball = ball_track(match, decode.size(video), data["fps"], film.frame_times(match, video))
         ball["feet"] = feet_on_picture(data["contacts"], calibration, decode.size(video))
+    part("ball")(1.0)
     if blurred is not None and (match / "players.csv").exists():
         samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3)
         data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER], samples)
+    part("views")(1.0)
     write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data), match / "films")
+    part("write")(1.0)
     if not review:
         (site / "review-app.js").unlink(missing_ok=True)
     return data
 
 
-def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictures: bool = True) -> dict:
+def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictures: bool = True, share: jobs.Share = jobs.quiet) -> dict:
     """The review's own page in MATCH/review/, with the video and every picture: the published one
     stays as it was built. Without `pictures`, each player keeps their last one (`refresh_photos`)."""
-    return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True)
+    return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True, share=share)
 
 
 def kept_photos(people: dict[int, dict], site: Path, match: Path) -> None:
@@ -1774,7 +1789,7 @@ def patch_people(site: Path, people: dict) -> None:
     index.write_text(index.read_text().replace(f"data.js?v={old}", f"data.js?v={new}"))
 
 
-def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None) -> tuple[dict, dict]:
+def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None, share: jobs.Share = jobs.quiet) -> tuple[dict, dict]:
     """The page to publish, MATCH/site/ built with page.json's choices, those `given` (not None)
     replacing theirs and saved back, or `site` (to host) with only those `given`: no footage nor
     pictures unless asked; returns data.js's match and the choices. ValueError for a choice needing a
@@ -1793,7 +1808,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     light = Path(settings["light"]) if settings["light"] else None
     av1 = Path(settings["av1"]) if settings["av1"] else None
     small = Path(settings["small"]) if settings["small"] else None
-    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"], av1=av1, small=small)
+    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"], av1=av1, small=small, share=share)
     return data, settings
 
 

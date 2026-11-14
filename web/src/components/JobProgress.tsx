@@ -14,8 +14,8 @@ const SHORT = 600;
 
 /** A long run's bar: what it does (`children`) with its share done beside, then below its step (`step`, "this step"
  * when only its share `part` is told) and the time left, when it ends and the time spent with `elapsed` (only the time
- * left for a short run), or that it takes longer than expected when `late`. Without a share told, the bar follows the
- * time spent and left; without either, it slides. */
+ * left for a short run), or that it takes longer than expected when `late`. The bar is the work counted (`fraction`),
+ * never the time spent (the owner's rule); without a share told, it slides. */
 export function JobProgress({
   label,
   fraction,
@@ -40,7 +40,7 @@ export function JobProgress({
   const { t, i18n } = useTranslation();
   const duration = useDuration();
   const percent = (x: number) => new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }).format(Math.min(0.99, Math.max(0, x)));
-  const share = fraction ?? (left != null && elapsed != null ? Math.min(0.99, elapsed / Math.max(1, elapsed + left)) : null);
+  const share = fraction;
   const end = left != null && new Date(Date.now() + left * 1000).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
   const short = (elapsed ?? 0) + (left ?? 0) < SHORT;
   // Under a minute left, said as such, not "about".

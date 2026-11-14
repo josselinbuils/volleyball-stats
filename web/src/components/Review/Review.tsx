@@ -400,13 +400,22 @@ export function Review({
   );
   const reload = async (path: 'undo' | 'apply' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
     setBusy(path);
-    // The server's steps and the time left, from how long each one took last time.
+    // The server's steps, the share of the work they counted and the time left.
     const poll = window.setInterval(async () => {
       try {
-        const p = (await (await fetch('progress')).json()) as { steps?: string[]; done: number; stage: string | null; elapsed: number; left: number; late: boolean; part?: number | null };
+        const p = (await (await fetch('progress')).json()) as {
+          steps?: string[];
+          done: number;
+          stage: string | null;
+          elapsed: number;
+          left: number;
+          late: boolean;
+          part?: number | null;
+          fraction: number;
+        };
         if (p.steps) {
           setProgress({
-            fraction: Math.min(0.99, p.elapsed / Math.max(1, p.elapsed + p.left)),
+            fraction: p.fraction,
             part: p.part ?? null,
             step: p.steps[p.done],
             stage: p.stage,

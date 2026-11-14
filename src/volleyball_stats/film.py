@@ -13,6 +13,7 @@ import json
 import re
 import subprocess
 import sys
+import threading
 import time
 import unicodedata
 from collections.abc import Callable
@@ -23,7 +24,7 @@ import cv2
 import numpy as np
 
 from volleyball_stats import ball as tracker
-from volleyball_stats import decode, files
+from volleyball_stats import decode, files, jobs
 from volleyball_stats.court import Calibration, distort, undistort
 from volleyball_stats.points import set_scores
 
@@ -884,7 +885,7 @@ def shown_span(shot: dict, t: float) -> tuple[float, float]:
     return (t - REPLAY_BEFORE_S, t + REPLAY_AFTER_S) if shot["kind"] == "replay" else (shot["from"], shot["from"] + shot["length"] * shot["speed"])
 
 
-def search_ball(match: Path, video: Path, court: Path, films: dict[str, dict], page: dict) -> dict:
+def search_ball(match: Path, video: Path, court: Path, films: dict[str, dict], page: dict, share: jobs.Share = jobs.quiet) -> dict:
     """The ball searched again around where the first pass puts it, in the frames these films show and no search has seen. Kept."""
     import torch
 
@@ -1025,8 +1026,12 @@ def search_ball(match: Path, video: Path, court: Path, films: dict[str, dict], p
     def save() -> None:
         files.write_text(path, json.dumps({"seen": sorted(seen), "found": {str(q): v for q, v in found.items()}, "sizes": sizes, "sized": sorted(sized), "rejected": {str(q): v for q, v in rejected.items()}}, separators=(",", ":")))
 
+    # The share done: the frames not searched yet, rally after rally.
+    total, searched = max(sum(len(f - seen) for f in wanted.values()), 1), 0
     for k, frames in sorted(wanted.items()):
         new = sorted(frames - seen)
+        share(searched / total)
+        searched += len(new)
         rally_marks = marks_of[k]
         if not new:
             if frames <= sized:
@@ -1282,8 +1287,8 @@ class Maker:
         v = b - a if (b - a)[1] <= 0 else a - b
         return float(np.arctan2(v[0], -v[1]))
 
-    def make(self, film: dict, out: Path) -> None:
-        """The film of `film` (`plan`) in the file `out`, H.264 with its sound."""
+    def make(self, film: dict, out: Path, share: jobs.Share = jobs.quiet) -> None:
+        """The film of `film` (`plan`) in the file `out`, H.264 with its sound; the share of its shots made told as it goes."""
         use_format(film.get("format", "tall"))
         self.film = film
         self.name = film["name"]
@@ -1300,8 +1305,12 @@ class Maker:
             ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{WIDTH}x{HEIGHT}", "-r", str(int(FPS)), "-i", "-", *encoding(), "-g", "50", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(silent)],
             stdin=subprocess.PIPE,
         )
+        length, made = max(sum(shot["length"] for shot in film["shots"]), 1e-9), 0.0
         for shot in film["shots"]:
             self.shoot(shot, encoder)
+            made += shot["length"]
+            # The sound and the muxing after the shots: a few seconds.
+            share(0.95 * made / length)
         encoder.stdin.close()
         encoder.wait()
         sound = out.with_suffix(".pcm")
@@ -1830,9 +1839,10 @@ def children(match: Path, video: Path, court: Path) -> list[str]:
     return [sys.executable, "-m", "volleyball_stats.film", str(match), "--video", str(video), "--court", str(court)]
 
 
-def build(match: Path, video: Path, court: Path, staged: Callable[[str | None], None] = lambda _: None, names: list[str] | None = None, kind: str | None = None) -> list[str]:
+def build(match: Path, video: Path, court: Path, staged: Callable[[str | None], None] = lambda _: None, names: list[str] | None = None, kind: str | None = None, share: jobs.Share = jobs.quiet) -> list[str]:
     """Makes the films missing or out of date, or those `names`, of `kind` alone if given, each in its own process so that the review
-    stays free, the ball's search first; a film made is kept even if a later one fails. Returns those made."""
+    stays free, the ball's search first; a film made is kept even if a later one fails. Returns those made. Each stage's
+    share done told as it goes (`share`): the frames searched, then the films' shots made, by their length."""
     page = read_page(match / "review")
     films = plan(page, match / "review", tracking_stamp(match)) if page else {}
     made = manifest(match)
@@ -1842,11 +1852,19 @@ def build(match: Path, video: Path, court: Path, staged: Callable[[str | None], 
     if not todo:
         return []
     staged("filmsBall")
-    subprocess.run([*children(match, video, court), "--search", ",".join(todo)], check=True)
+    jobs.follow([*children(match, video, court), "--search", ",".join(todo)], share)
     staged("filmsRender")
+    lengths = {n: sum(shot["length"] for shot in films[n].get("shots", [])) for n in todo}
+    shares, told = dict.fromkeys(todo, 0.0), threading.Lock()
 
     def one(name: str) -> str:
-        subprocess.run([*children(match, video, court), "--make", name], check=True)
+        def mine(x: float) -> None:
+            with told:
+                shares[name] = x
+                share(sum(lengths[n] * shares[n] for n in todo) / max(sum(lengths.values()), 1e-9))
+
+        jobs.follow([*children(match, video, court), "--make", name], mine)
+        mine(1.0)
         return name
 
     failed = None
@@ -1882,12 +1900,12 @@ def main() -> None:
         page = read_page(args.match / "review")
         films = plan(page, args.match / "review", tracking_stamp(args.match))
         if args.search:
-            search_ball(args.match, args.video, args.court, {n: films[n] for n in args.search.split(",")}, page)
+            search_ball(args.match, args.video, args.court, {n: films[n] for n in args.search.split(",")}, page, jobs.tell)
         else:
             film = films[args.make]
             target = args.match / FILMS / film["file"]
             draft = target.with_name(f"draft-{target.name}")
-            Maker(args.match, args.video, args.court, page).make(film, draft)
+            Maker(args.match, args.video, args.court, page).make(film, draft, jobs.tell)
             draft.replace(target)
         return
     started = time.time()

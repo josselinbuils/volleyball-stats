@@ -390,11 +390,11 @@ def copies_missing(config: dict) -> bool:
     return bool(copies_gone(config)) or not all(video_copies.current(key, Path(config[key]).expanduser()) for key in video_copies.COPIES)
 
 
-def add_copies(match: Path, video: Path) -> dict:
+def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> dict:
     """The video's copies made if missing or former, then listed (rename refuses a listed copy that is gone); a former
-    one in the copies' folder removed."""
+    one in the copies' folder removed. The share encoded told as it goes."""
     listed = {key: Path(path).expanduser() for key in video_copies.COPIES if (path := json.loads((match / PUBLISH).read_text()).get(key))}
-    made = video_copies.make(video, listed)
+    made = video_copies.make(video, listed, share)
     for key, path in listed.items():
         if path.resolve() != made[key].resolve() and path.parent.name == video_copies.FOLDER:
             path.unlink(missing_ok=True)

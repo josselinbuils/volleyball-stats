@@ -17,8 +17,10 @@ doubt, asked in the review. See benchmarks/attribution/README.md for the numbers
 
 import argparse
 import csv
+import itertools
 import warnings
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -68,13 +70,13 @@ Candidate = tuple[float, float, int]
 PLAYER_COLUMNS = "frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y"
 
 
-def read_players(path: Path) -> list[Row]:
-    """Rows of a CSV written by players.write_csv."""
+def read_players(path: Path, share: Callable[[float], None] = lambda _: None) -> list[Row]:
+    """Rows of a CSV written by players.write_csv; the share of the file read told as it goes."""
     with open(path) as f:
         header = f.readline().strip()
     if header == PLAYER_COLUMNS:
         try:
-            return numeric_players(path)
+            return numeric_players(path, share)
         except ValueError:
             pass
     with open(path) as f:
@@ -85,16 +87,28 @@ def read_players(path: Path) -> list[Row]:
         ]
 
 
-def numeric_players(path: Path) -> list[Row]:
-    """`read_players` through numpy, more than ten times faster to parse. ValueError for a blank number."""
-    with warnings.catch_warnings():
+# Lines of players.csv parsed at a time: the share read is told between them.
+CHUNK_LINES = 200_000
+
+
+def numeric_players(path: Path, share: Callable[[float], None] = lambda _: None) -> list[Row]:
+    """`read_players` through numpy, more than ten times faster to parse, CHUNK_LINES at a time. ValueError for a blank
+    number."""
+    size, read, out = max(path.stat().st_size, 1), 0, []
+    with open(path) as f, warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        numbers = np.loadtxt(path, delimiter=",", skiprows=1, usecols=(0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11), ndmin=2)
-        teams = np.loadtxt(path, delimiter=",", skiprows=1, usecols=(2,), dtype=str, ndmin=1)
-    return [
-        Row(frame, track, (r[0], r[1], r[2], r[3]), r[4], (r[5], r[6]), (r[7], r[8]), team)
-        for frame, track, r, team in zip(numbers[:, 0].astype(int).tolist(), numbers[:, 1].astype(int).tolist(), numbers[:, 2:].tolist(), teams.tolist())
-    ]
+        read += len(f.readline())
+        while lines := list(itertools.islice(f, CHUNK_LINES)):
+            numbers = np.loadtxt(lines, delimiter=",", usecols=(0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11), ndmin=2)
+            teams = np.loadtxt(lines, delimiter=",", usecols=(2,), dtype=str, ndmin=1)
+            out += [
+                Row(frame, track, (r[0], r[1], r[2], r[3]), r[4], (r[5], r[6]), (r[7], r[8]), team)
+                for frame, track, r, team in zip(numbers[:, 0].astype(int).tolist(), numbers[:, 1].astype(int).tolist(), numbers[:, 2:].tolist(), teams.tolist())
+            ]
+            read += sum(map(len, lines))
+            share(min(1.0, read / size))
+    share(1.0)
+    return out
 
 
 def distance(ball: tuple[float, float], box: Box, reach: float = 0.0) -> float:

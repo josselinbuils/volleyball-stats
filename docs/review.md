@@ -15,8 +15,11 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   `#match`; its page without the review at http://127.0.0.1:8765/page; http://127.0.0.1:8765 is always the list. Each
   page links back at its top (the app's window has no back button): the page to the review, the review to the list.
 - `uv run stats stop` refuses while an apply runs (`curl -s 127.0.0.1:8765/progress` gives `{}` once none does).
-- The progress names each step and the pipeline's stage, with the time left from each one's last duration
-  (`outputs/matches/MATCH/review_timings.json`).
+- The progress names each step and the pipeline's stage. Only counted work moves the bar (the owner's rule, 15 Nov):
+  each step tells its own share (`shared`, `eta`'s `own`: the apply's rows of `players.csv` and page parts, the films'
+  frames searched and shots made, the copies' ffmpeg time), else it holds; steps and stages weigh their last duration
+  (`outputs/matches/MATCH/review_timings.json`, kept as the run started). The time left: the counted pace, else the
+  last duration.
 - A run that fails opens an alert with its step and error, even after a reload, until closed (`/failure`); the traceback
   is in the app's log.
 - The app's log: what the server prints, kept in `outputs/app.log` too (`applog.py`, trimmed past 2 MB), shown by

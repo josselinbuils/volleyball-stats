@@ -46,7 +46,8 @@ class TestVideoCopies:
         video_copies.paths(video)["light"].write_bytes(b"")
         monkeypatch.setattr(video_copies, "height", lambda path: 1440 if path.exists() else None)
         ran = []
-        monkeypatch.setattr(video_copies.subprocess, "run", lambda command, **kwargs: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
+        monkeypatch.setattr(video_copies.jobs, "ffmpeg", lambda command, seconds, share: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
+        monkeypatch.setattr(video_copies, "duration", lambda path: 60.0)
         monkeypatch.setattr(video_copies.decode, "hardware", lambda path: ())
         monkeypatch.setattr(video_copies.decode, "nvenc", lambda codec: False)
 
@@ -75,7 +76,8 @@ class TestVideoCopies:
             path.write_text(str(h))
         monkeypatch.setattr(video_copies, "height", lambda path: int(path.read_text()) if path.exists() else None)
         ran = []
-        monkeypatch.setattr(video_copies.subprocess, "run", lambda command, **kwargs: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
+        monkeypatch.setattr(video_copies.jobs, "ffmpeg", lambda command, seconds, share: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
+        monkeypatch.setattr(video_copies, "duration", lambda path: 60.0)
         monkeypatch.setattr(video_copies.decode, "hardware", lambda path: ())
 
         with pytest.raises(RuntimeError, match="no encoder"):

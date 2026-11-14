@@ -455,7 +455,7 @@ class TestAddCopies:
     def test_lists_them_once_made(self, tmp_path, monkeypatch):
         (tmp_path / matches.PUBLISH).write_text("{}")
         made = {key: tmp_path / f"{key}.mp4" for key in ("light", "av1", "small")}
-        monkeypatch.setattr(matches.video_copies, "make", lambda video, kept: made)
+        monkeypatch.setattr(matches.video_copies, "make", lambda video, kept, share: made)
 
         config = matches.add_copies(tmp_path, Path("m.mp4"))
 
@@ -469,7 +469,7 @@ class TestAddCopies:
             path.write_bytes(b"")
         (tmp_path / matches.PUBLISH).write_text(json.dumps({"light": str(former), "av1": str(elsewhere), "small": str(kept)}))
         made = {"light": folder / "m_1440p.mp4", "av1": folder / "m_av1.mp4", "small": kept}
-        monkeypatch.setattr(matches.video_copies, "make", lambda video, listed: made)
+        monkeypatch.setattr(matches.video_copies, "make", lambda video, listed, share: made)
 
         matches.add_copies(tmp_path, Path("m.mp4"))
 

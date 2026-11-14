@@ -38,7 +38,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, files
+from volleyball_stats import decode, files, jobs
 from volleyball_stats.court import zone
 from volleyball_stats.players import Row
 from volleyball_stats.teams import match_end, side_group
@@ -119,14 +119,16 @@ class Segment:
         return self.frames[-1]
 
 
-def covers(rows: list[Row]) -> dict[Key, float]:
+def covers(rows: list[Row], share: jobs.Share = jobs.quiet) -> dict[Key, float]:
     """Share of each (frame, track) box lying under the box of another track of the frame, the most
-    covering one; boxes nobody covers are left out (0)."""
+    covering one; boxes nobody covers are left out (0). The share of frames done told as it goes."""
     by_frame: dict[int, list[Row]] = {}
     for r in rows:
         by_frame.setdefault(r.frame, []).append(r)
     out: dict[Key, float] = {}
-    for frame, here in by_frame.items():
+    seen = jobs.every(len(by_frame), share)
+    for k, (frame, here) in enumerate(by_frame.items()):
+        seen(k)
         b = np.array([r.box for r in here])
         area = np.maximum((b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1]), 1e-6)
         w = np.clip(np.minimum(b[:, None, 2], b[None, :, 2]) - np.maximum(b[:, None, 0], b[None, :, 0]), 0, None)
@@ -139,14 +141,18 @@ def covers(rows: list[Row]) -> dict[Key, float]:
     return out
 
 
-def split(rows: list[Row], cover: dict[Key, float], cuts: dict[int, list[int]] | None = None) -> list[Segment]:
+def split(rows: list[Row], cover: dict[Key, float], cuts: dict[int, list[int]] | None = None, share: jobs.Share = jobs.quiet) -> list[Segment]:
     """Each track cut in the middle of each crowd episode and after its frames in `cuts` (where the
-    user saw the tracked player change), sorted by start."""
+    user saw the tracked player change), sorted by start. The share of rows done told as it goes."""
     by_track: dict[int, list[Row]] = {}
     for r in sorted(rows, key=lambda r: r.frame):
         by_track.setdefault(r.track, []).append(r)
     out = []
+    done, step = 0, max(1, len(rows) // 100)
     for track, track_rows in by_track.items():
+        done += len(track_rows)
+        if done // step != (done - len(track_rows)) // step:
+            share(done / max(len(rows), 1))
         episodes: list[list[int]] = []
         for r in track_rows:
             if cover.get((r.frame, track), 0.0) >= CROWD:
@@ -780,6 +786,7 @@ def identify(
     names: list[tuple[dict, str]] | None = None,
     until: int | None = None,
     numbers: dict[str, int] | None = None,
+    share: jobs.Share = jobs.quiet,
 ) -> tuple[list[Segment], dict]:
     """The segments of the players' tracks with their team, identity number (0 for none) and doubt,
     and the doubts' questions (`doubts`). `answers` (identity_answers.json, segments referred to as
@@ -791,15 +798,17 @@ def identify(
     names the user gave, (ref, name), likewise (`name_links`), each named player keeping their card and taking
     the segments reading their jersey number (`numbers`, by name casefolded; `kept_cards`). Each "team" answer gives its piece
     that team, whichever side it stands on, and from frame `until` (the end of the match) nothing is
-    anyone."""
+    anyone. The share of its work done told as it goes (`share`)."""
+    # Its parts' shares of the time, measured on the second match (13 Nov): the rest is under a second.
+    part = jobs.parts(share, {"covers": 9.7, "split": 5.0, "rest": 2.4})
     answers = answers or {}
-    cover = covers(rows)
+    cover = covers(rows, part("covers"))
     cuts: dict[int, list[int]] = {}
     for c in answers.get("cut", []):
         cuts.setdefault(c["track"], []).append(c["frame"])
     for track, frames in ended_cuts(rows, until).items() if until is not None else ():
         cuts.setdefault(track, []).extend(frames)
-    segments = split(rows, cover, cuts)
+    segments = split(rows, cover, cuts, part("split"))
     before = previous_labels(segments, previous)
     dropped = {k for ref in answers.get("not_player", []) for k in resolve(ref, segments, before)}
     if until is not None:
@@ -869,6 +878,7 @@ def identify(
         if found:
             touches[found[0]] = touches.get(found[0], 0) + 1
     found = doubts(segments, wv, weights, cannot, fps, touches, answered)
+    part("rest")(1.0)
     return sorted(hold(segments, windows) + removed, key=lambda s: (s.start, s.track)), found
 
 
@@ -983,9 +993,11 @@ def named(table: list[tuple[int, int, int, int, int]], names: list[dict]) -> dic
     return out
 
 
-def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]], left: list[int | None], fps: float, squad: tuple[int, int] | None = None, contacts: Iterable[Key] = ()) -> list[tuple[int, int, int, int, int]]:
+def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]], left: list[int | None], fps: float, squad: tuple[int, int] | None = None, contacts: Iterable[Key] = (), share: jobs.Share = jobs.quiet) -> list[tuple[int, int, int, int, int]]:
     """`identify` with the match folder's answers, previous numbers and embedding cache; writes
-    identities.csv and identity_candidates.json and returns identities.csv's rows."""
+    identities.csv and identity_candidates.json and returns identities.csv's rows. The share done told as it goes."""
+    # Its parts' shares of the time, measured on the second match (13 Nov).
+    part = jobs.parts(share, {"previous": 4.7, "identify": 17.1})
     answers_path, path = match / "identity_answers.json", match / "identities.csv"
     answers = json.loads(answers_path.read_text()) if answers_path.exists() else None
     entries = read_names(match)
@@ -997,13 +1009,18 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
         for r in rows:
             frames.setdefault(r.track, []).append(r.frame)
         previous = {}
-        for track, start, end, team, number_ in read_identities(path):
+        known = read_identities(path)
+        seen = jobs.every(len(known), part("previous"))
+        for k, (track, start, end, team, number_) in enumerate(known):
+            seen(k)
             if number_:
                 previous.update(((f, track), (team, number_)) for f in frames.get(track, []) if start <= f <= end)
     from volleyball_stats import jerseys
 
     end = match_end(match)
-    segments, found = identify(video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names, until=None if end is None else round(end * fps), numbers=numbers)
+    segments, found = identify(
+        video, rows, windows, left, fps, match / "embeddings.npz", answers, previous, squad, contacts, jerseys.load(match), names=names, until=None if end is None else round(end * fps), numbers=numbers, share=part("identify")
+    )
     write_identities(path, segments)
     files.write_text(match / "identity_candidates.json", json.dumps(found, indent=1) + "\n")
     return read_identities(path)
@@ -1017,10 +1034,13 @@ def parse_squad(text: str) -> tuple[int, int]:
     return parts[0], parts[-1]
 
 
-def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None) -> list[tuple[int, int, int, int, int]]:
-    """`run` on a match folder run with --players, its actions.csv's identity column refreshed."""
+def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None, share: jobs.Share = jobs.quiet) -> list[tuple[int, int, int, int, int]]:
+    """`run` on a match folder run with --players, its actions.csv's identity column refreshed. The share done told as it
+    goes (the review's apply)."""
     from volleyball_stats.attribution import read_players
 
+    # Its parts' shares of the time, measured on the second match (13 Nov): reading players.csv, then `run`.
+    part = jobs.parts(share, {"read": 11.0, "run": 21.8})
     with open(match / "rallies.csv") as f:
         rallies = list(csv.DictReader(f))
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies]
@@ -1029,8 +1049,8 @@ def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None) -> lis
     with open(actions) as f:
         typed = list(csv.DictReader(f))
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-    rows = read_players(match / "players.csv")
-    table = run(match, video, rows, windows, left, fps, squad, [(int(r["frame"]), int(r["track"])) for r in typed if r.get("track")])
+    rows = read_players(match / "players.csv", part("read"))
+    table = run(match, video, rows, windows, left, fps, squad, [(int(r["frame"]), int(r["track"])) for r in typed if r.get("track")], part("run"))
     find = finder(table)
     for r in typed:
         found = find(int(r["track"]), int(r["frame"])) if r.get("track") else None
