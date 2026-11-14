@@ -75,7 +75,20 @@ export interface Row {
  * then the rows' strengths and things to work on when `insights`; each count and each of those
  * plays its touches. The ratings show their mean grades. A column's title sorts the rows
  * by it, most first, then fewest first, then back to their order. */
-export function StatsTable({ first, rows, columns = COLUMNS, insights = false }: { first: string; rows: Row[]; columns?: typeof COLUMNS; insights?: boolean }) {
+export function StatsTable({
+  first,
+  rows,
+  columns = COLUMNS,
+  insights = false,
+  time = true,
+}: {
+  first: string;
+  rows: Row[];
+  columns?: typeof COLUMNS;
+  insights?: boolean;
+  /** The players' time on the court beside their names, when the rows have it. */
+  time?: boolean;
+}) {
   const { t } = useTranslation();
   const f = useFormat();
   const [sort, setSort] = useState<{ stat: Stat | 'time'; desc: boolean } | null>(null);
@@ -91,11 +104,13 @@ export function StatsTable({ first, rows, columns = COLUMNS, insights = false }:
   const value = (r: Row, stat: Stat | 'time') => (stat === 'time' ? (r.seconds ?? -1) : rating(stat) ? (mean(r, stat as Stat) ?? -1) : r.stats[stat as Stat].length);
   const order = (stat: Stat | 'time') => (sort?.stat === stat ? (sort.desc ? 'descending' : 'ascending') : undefined);
   // The players' time on the court, beside their names.
-  const timed = rows.some((r) => r.seconds !== undefined);
+  const timed = time && rows.some((r) => r.seconds !== undefined);
   const body = rows.filter((r) => !r.total);
   const sorted = sort ? [...body].sort((a, b) => (value(b, sort.stat) - value(a, sort.stat)) * (sort.desc ? 1 : -1)) : body;
   // A line parts each group from its neighbours.
   const parts = (k: number) => k > 0 && columns[k - 1].of !== columns[k].of;
+  // Their titles over the groups, when there are several.
+  const grouped = new Set(columns.map((c) => c.of)).size + (insights ? 1 : 0) > 1;
   const tip = (r: Row, stat: Stat) =>
     stat === 'attackRated'
       ? t('stats.attackRatingDetail', {
@@ -137,7 +152,7 @@ export function StatsTable({ first, rows, columns = COLUMNS, insights = false }:
       ))}
       {insights &&
         [true, false].map((strength) => (
-          <TableCell key={String(strength)} className={cn('min-w-44 px-2 py-1.5', strength && 'border-l')}>
+          <TableCell key={String(strength)} className={cn('min-w-44 px-2 py-1.5', strength && columns.length > 0 && 'border-l')}>
             <div className="flex items-center gap-1">
               {strength && r.badge}
               {r.insights
@@ -151,46 +166,56 @@ export function StatsTable({ first, rows, columns = COLUMNS, insights = false }:
     </TableRow>
   );
   const totals = rows.filter((r) => r.total);
+  // Each column's title, under its group's when there are several.
+  const heads = (
+    <>
+      {columns.map(({ stat, label }, k) => (
+        <TableHead key={stat} aria-sort={order(stat)} className={cn(HEAD, 'h-8 min-w-14 max-sm:min-w-12', parts(k) && 'border-l')}>
+          <ColumnTitle title={t(`stats.columns.${label}`)} about={t(`stats.about.${stat}`)} order={order(stat)} onSort={() => sortBy(stat)} />
+        </TableHead>
+      ))}
+      {insights &&
+        (['strengths', 'toWorkOn'] as const).map((key) => (
+          <TableHead key={key} className={cn(HEAD, 'h-8', key === 'strengths' && columns.length > 0 && 'border-l')}>
+            <ColumnTitle title={t(`stats.insights.${key}`)} about={t(`stats.about.${key}`)} />
+          </TableHead>
+        ))}
+    </>
+  );
 
   return (
     <Table className="tabular-nums">
       <TableHeader>
-        <TableRow className="border-b-0 hover:bg-transparent">
-          <TableHead rowSpan={2} className={cn(FIRST, 'text-muted-foreground')}>
+        <TableRow className={cn('hover:bg-transparent', grouped && 'border-b-0')}>
+          <TableHead rowSpan={grouped ? 2 : 1} className={cn(FIRST, 'text-muted-foreground')}>
             {first}
           </TableHead>
           {timed && (
-            <TableHead rowSpan={2} aria-sort={order('time')} className={cn(HEAD, 'min-w-16 border-r')}>
+            <TableHead rowSpan={grouped ? 2 : 1} aria-sort={order('time')} className={cn(HEAD, 'min-w-16 border-r')}>
               <ColumnTitle title={t('stats.columns.time')} about={t('stats.about.time')} order={order('time')} onSort={() => sortBy('time')} />
             </TableHead>
           )}
-          {columns.map(
-            ({ of }, k) =>
-              (k === 0 || parts(k)) && (
-                <TableHead key={of} colSpan={columns.filter((c) => c.of === of).length} className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}>
-                  {t(`stats.names.${of}`)}
+          {grouped ? (
+            <>
+              {columns.map(
+                ({ of }, k) =>
+                  (k === 0 || parts(k)) && (
+                    <TableHead key={of} colSpan={columns.filter((c) => c.of === of).length} className={cn(HEAD, 'h-8 border-b font-semibold text-foreground', parts(k) && 'border-l')}>
+                      {t(`stats.names.${of}`)}
+                    </TableHead>
+                  ),
+              )}
+              {insights && (
+                <TableHead colSpan={2} className={cn(HEAD, 'h-8 border-b border-l font-semibold text-foreground')}>
+                  {t('stats.insights.title')}
                 </TableHead>
-              ),
-          )}
-          {insights && (
-            <TableHead colSpan={2} className={cn(HEAD, 'h-8 border-b border-l font-semibold text-foreground')}>
-              {t('stats.insights.title')}
-            </TableHead>
+              )}
+            </>
+          ) : (
+            heads
           )}
         </TableRow>
-        <TableRow className="hover:bg-transparent">
-          {columns.map(({ stat, label }, k) => (
-            <TableHead key={stat} aria-sort={order(stat)} className={cn(HEAD, 'h-8 min-w-14', parts(k) && 'border-l')}>
-              <ColumnTitle title={t(`stats.columns.${label}`)} about={t(`stats.about.${stat}`)} order={order(stat)} onSort={() => sortBy(stat)} />
-            </TableHead>
-          ))}
-          {insights &&
-            (['strengths', 'toWorkOn'] as const).map((key) => (
-              <TableHead key={key} className={cn(HEAD, 'h-8', key === 'strengths' && 'border-l')}>
-                <ColumnTitle title={t(`stats.insights.${key}`)} about={t(`stats.about.${key}`)} />
-              </TableHead>
-            ))}
-        </TableRow>
+        {grouped && <TableRow className="hover:bg-transparent">{heads}</TableRow>}
       </TableHeader>
       <TableBody>{sorted.map(row)}</TableBody>
       {totals.length > 0 && <TableFooter className="bg-transparent">{totals.map(row)}</TableFooter>}

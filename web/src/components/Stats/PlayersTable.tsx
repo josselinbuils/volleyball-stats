@@ -8,6 +8,7 @@ import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { GROUPS, groupName, hasTeams, match, playerLabel, playerMark, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { playerKey } from '@/helpers/players';
+import { usePhone } from '@/lib/phone';
 import { useSet } from '@/lib/sets';
 import { bestPlayer, playingTime } from '@/components/Stats/helpers/best';
 import { drops, type Drop } from '@/components/Stats/helpers/between';
@@ -16,12 +17,19 @@ import { lines } from '@/components/Stats/helpers/stats';
 import { Mvp } from '@/components/Stats/Mvp';
 import { COLUMNS, StatsTable } from '@/components/Stats/StatsTable';
 
+// The column groups in their order, then the strengths and things to work on.
+const GROUPS_SHOWN = [...new Set(COLUMNS.map((c) => c.of)), 'insights'] as const;
+type Shown = (typeof GROUPS_SHOWN)[number];
+
 /** What each player of a team did with the ball, a count per action and how it ended, and the whole
  * team's; without identified players, the team's alone (each side of the net's without teams). */
 export function PlayersTable() {
   const { t } = useTranslation();
   const { set, contacts, rallies } = useSet();
   const [group, setGroup] = useState<Group>(1);
+  // A phone shows one group of columns at a time: the whole table is many screens wide, its group titles scrolling away.
+  const phone = usePhone();
+  const [shown, setShown] = useState<Shown>('touches');
   const withPlayers = hasTeams && Object.values(match.people).some((p) => p.number !== null);
   const dropped = useMemo(() => drops(contacts, match.people), [contacts]);
   const seconds = (person: number) => playingTime(person, set);
@@ -86,7 +94,34 @@ export function PlayersTable() {
             ))}
           </ToggleGroup>
         </div>
-        <StatsTable first={t('players.player')} rows={rows} columns={COLUMNS} insights={withPlayers} />
+        {phone && (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={shown}
+            onValueChange={(v) => {
+              if (v) {
+                setShown(v as Shown);
+              }
+            }}
+            aria-label={t('stats.groupsLabel')}
+            className="-mx-4 w-auto justify-start overflow-x-auto px-4 py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {GROUPS_SHOWN.filter((g) => g !== 'insights' || withPlayers).map((g) => (
+              <ToggleGroupItem key={g} value={g} className="h-9 shrink-0 bg-card px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                {g === 'insights' ? t('stats.insights.title') : t(`stats.names.${g}`)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
+        <StatsTable
+          first={t('players.player')}
+          rows={rows}
+          columns={phone ? COLUMNS.filter((c) => c.of === shown) : COLUMNS}
+          insights={withPlayers && (!phone || shown === 'insights')}
+          time={!phone || shown === 'touches'}
+        />
         <p className="text-[13px] text-muted-foreground">{`${t('stats.noteTitles')} ${t('stats.noteVideo')}`}</p>
       </CardContent>
     </Card>

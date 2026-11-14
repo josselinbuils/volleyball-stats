@@ -24,6 +24,38 @@
   "prev": "Previous",
   "next": "Next",
   "stop": "Stop",
+  "touch": {
+    "videoCaption": "Tap a rally to watch it.",
+    "replayCaption": "Tap a rally to watch it.",
+    "captions": {
+      "contacts": "Each dot is a touch, where it was played. Tap it to watch it.",
+      "zones": "Share of the touches in each zone of each half. Tap a zone to watch its touches.",
+      "directions": "Where the serves and attacks went. Tap a flight to watch it."
+    },
+    "timelineCaption": "Each bar is a rally, taller when it lasts longer. Tap it to watch it.",
+    "histCaption": "Rallies by number of touches. Tap a bar to watch them.",
+    "numbersNoteNamed": "Tap a number or initial to see the player's name.",
+    "stats": {
+    "noteTitles": "Tap a column's title for its detail and to sort.",
+      "about": {
+        "strengths": "What a player brings to the team: what they do better than the others, their presence on the court, their reliability, what they give the others and their points when it counts. Two at most, the rarest in their team first, each from a minimum. Tap to replay these moments.",
+        "toWorkOn": "The one thing a player misses most clearly compared with the rest of their team, with at least 5 attempts on each side and a 20-point gap. Tap to replay these moments."
+      }
+    },
+    "players": {
+      "caption": "What each player did with the ball. Tap a number to watch those moments again.",
+      "captionSides": "Without player tracking, touches are counted per side of the net, as seen from the camera. Tap a number to watch those moments again."
+    },
+    "story": {
+      "caption": "Who leads, and by how much, rally after rally. Tap a moment or the curve to watch it again."
+    },
+    "trophies": {
+      "caption": "Tap a trophy to watch those moments."
+    },
+    "coach": {
+      "caption": "Ideas for training, drawn from the recognised touches. Tap a line to watch them."
+    }
+  },
   "sheetClose": "Close",
   "sections": "Sections",
   "nav": {
@@ -694,6 +726,7 @@
       "setAssists": "The winning attacks right after their sets, by a teammate.",
       "setFaults": "The sets lost: the ball lands, goes out or into the net."
     },
+    "groupsLabel": "Columns shown",
     "noteTitles": "Hover or tap a column's title for its detail, click to sort.",
     "noteVideo": "Touches can be missing or given to the wrong player.",
     "ratingDetail": "Perfect: {{perfect}} · Good: {{good}} · Poor: {{poor}} · Faults: {{missed}}",

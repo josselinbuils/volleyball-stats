@@ -38,6 +38,11 @@ void i18n.use(initReactI18next).init({
   initAsync: false,
   interpolation: { escapeValue: false },
 });
+// A touch screen taps where a mouse clicks or hovers: the texts saying so in their `touch` version.
+if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) {
+  i18n.addResourceBundle('fr', 'translation', fr.touch, true, true);
+  i18n.addResourceBundle('en', 'translation', en.touch, true, true);
+}
 document.documentElement.lang = i18n.language;
 i18n.on('languageChanged', (lang) => {
   document.documentElement.lang = lang;

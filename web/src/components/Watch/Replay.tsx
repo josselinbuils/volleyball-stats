@@ -94,8 +94,10 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
         : idleCamera(time);
   const firstTouch = rally?.contacts.find(isTouch);
   const server = firstTouch && bodyOf(firstTouch, places?.get(firstTouch.i) ?? null, dots, match.people);
-  // The player under the pointer, named above their mark.
+  // The player under the mouse, named above their mark; on a touch screen the one tapped, until the next tap.
   const [hover, setHover] = useState<number | null>(null);
+  // A tap on a player: it names them instead of playing or pausing.
+  const named = useRef(false);
   const hovered = dots.find((d) => d.person === hover);
   const tip = hovered && playerLabel(t, hovered.person);
   const pause = playing ? null : timeoutAt(time);
@@ -128,11 +130,19 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
       </div>
       <div
         className="cursor-default select-none [:fullscreen_&]:min-h-0 [:fullscreen_&]:flex-1"
+        onPointerDownCapture={() => {
+          named.current = false;
+        }}
         onPointerDown={(e) => {
           down.current = { x: e.clientX, y: e.clientY };
+          // A tap away from a name shown only hides it.
+          if (e.pointerType !== 'mouse' && !named.current && hover !== null) {
+            named.current = true;
+            setHover(null);
+          }
         }}
         onClick={(e) => {
-          if (Math.hypot(e.clientX - down.current.x, e.clientY - down.current.y) < 5) {
+          if (!named.current && Math.hypot(e.clientX - down.current.x, e.clientY - down.current.y) < 5) {
             togglePlay(video);
           }
         }}
@@ -170,7 +180,17 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
               const team = match.people[person]?.team ?? 1;
               const mark = playerMark(person);
               return (
-                <g key={person} onPointerEnter={() => setHover(person)} onPointerLeave={() => setHover((h) => (h === person ? null : h))}>
+                <g
+                  key={person}
+                  onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(person)}
+                  onPointerLeave={(e) => e.pointerType === 'mouse' && setHover((h) => (h === person ? null : h))}
+                  onPointerDown={(e) => {
+                    if (e.pointerType !== 'mouse') {
+                      named.current = true;
+                      setHover((h) => (h === person ? null : person));
+                    }
+                  }}
+                >
                   <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} stroke={teamEdge(team)} />
                   {mark !== null && (
                     <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>

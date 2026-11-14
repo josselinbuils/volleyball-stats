@@ -11,6 +11,7 @@ import { SetBadge } from '@/components/SetBadge';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { color, contacts as all, GROUPS, groupName, hasTeams, match, placed, playerLabel, playerNumber, teamColor, teamRing, TYPES, type ActionType, type Contact, type Group } from '@/lib/match';
+import { isPhone } from '@/lib/phone';
 import { usePlayer } from '@/lib/player';
 import { playerKey } from '@/helpers/players';
 import { contactClips } from '@/lib/playlist';
@@ -28,7 +29,8 @@ export function CourtChart() {
   const { t } = useTranslation();
   const { play } = usePlayer();
   const { rallies, contacts } = useSet();
-  const [view, setView] = useState<View>('contacts');
+  // A phone opens on the zones: its thousand dots crowd a court this small.
+  const [view, setView] = useState<View>(() => (isPhone() ? 'zones' : 'contacts'));
   const [chosen, setType] = useState<ActionType | 'all'>('all');
   const [group, setGroup] = useState<Group | 'both'>('both');
   const [chosenPlayer, setPlayer] = useState('all');

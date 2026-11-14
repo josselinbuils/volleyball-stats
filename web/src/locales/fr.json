@@ -24,6 +24,38 @@
   "prev": "Précédent",
   "next": "Suivant",
   "stop": "Arrêter",
+  "touch": {
+    "videoCaption": "Appuyez sur un échange pour le revoir.",
+    "replayCaption": "Appuyez sur un échange pour le revoir.",
+    "captions": {
+      "contacts": "Chaque point est une touche, là où elle a été jouée. Appuyez dessus pour la revoir.",
+      "zones": "Part des touches dans chaque zone de chaque demi-terrain. Appuyez sur une zone pour revoir ses touches.",
+      "directions": "Où sont allés les services et les attaques. Appuyez sur un trajet pour le revoir."
+    },
+    "timelineCaption": "Chaque barre est un échange, plus haute s'il dure longtemps. Appuyez dessus pour le revoir.",
+    "histCaption": "Échanges selon leur nombre de touches. Appuyez sur une barre pour les revoir.",
+    "numbersNoteNamed": "Appuyez sur un numéro ou une initiale pour voir le nom du joueur.",
+    "stats": {
+    "noteTitles": "Appuyez sur le titre d'une colonne pour son détail et pour trier.",
+      "about": {
+        "strengths": "Ce qu'un joueur apporte à son équipe : ce qu'il réussit mieux que les autres, sa présence sur le terrain, sa fiabilité, ce qu'il donne aux autres et ses points quand ça compte. Deux au plus, les plus rares de son équipe d'abord, chacun à partir d'un minimum. Appuyez dessus pour revoir ces moments.",
+        "toWorkOn": "Le point qu'un joueur rate le plus nettement par rapport au reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Appuyez dessus pour revoir ces moments."
+      }
+    },
+    "players": {
+      "caption": "Ce que chaque joueur et chaque joueuse a fait du ballon. Appuyez sur un nombre pour revoir ces moments.",
+      "captionSides": "Sans le suivi des joueurs, les touches sont comptées par côté du filet, vu depuis la caméra. Appuyez sur un nombre pour revoir ces moments."
+    },
+    "story": {
+      "caption": "Qui mène, de combien, échange après échange. Appuyez sur un moment ou sur la courbe pour le revoir."
+    },
+    "trophies": {
+      "caption": "Appuyez sur un trophée pour revoir ces moments."
+    },
+    "coach": {
+      "caption": "Des pistes pour l'entraînement, tirées des touches reconnues. Appuyez sur une ligne pour les revoir."
+    }
+  },
   "sheetClose": "Fermer",
   "sections": "Sections",
   "nav": {
@@ -694,6 +726,7 @@
       "setAssists": "Les attaques gagnantes juste après ses passes, par un coéquipier.",
       "setFaults": "Les passes perdues : le ballon tombe, part dehors ou dans le filet."
     },
+    "groupsLabel": "Colonnes affichées",
     "noteTitles": "Survolez ou touchez le titre d'une colonne pour son détail, cliquez pour trier.",
     "noteVideo": "Des touches peuvent manquer ou être données au mauvais joueur.",
     "ratingDetail": "Parfaites : {{perfect}} · Bonnes : {{good}} · Difficiles : {{poor}} · Fautes : {{missed}}",

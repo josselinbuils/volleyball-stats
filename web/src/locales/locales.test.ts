@@ -37,6 +37,14 @@ describe('locales', () => {
     expect(duplicates('{"a": {"more": "x"}, "more": "y", "b": {"more": "z", "more": "w"}}')).toEqual(['more']);
   });
 
+  it('give touch screens a text only in place of one', () => {
+    for (const locale of ['fr', 'en']) {
+      const all = read(locale) as { touch: unknown };
+      const base = new Set(keys(all));
+      expect(keys(all.touch).filter((k) => !base.has(k))).toEqual([]);
+    }
+  });
+
   it('name the same texts in both languages', () => {
     const fr = new Set(keys(read('fr')));
     const en = new Set(keys(read('en')));
