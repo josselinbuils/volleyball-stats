@@ -82,6 +82,8 @@
   "timeoutOf": "Temps mort {{ofTeam}}",
   "lastTouch": "dernière touche : {{type}}, {{who}}",
   "rallies": "Échanges",
+  "watchClip": "Voir ce moment, puis les suivants",
+  "watchList": "Liste",
   "watchRally": "Revoir cet échange, puis les suivants",
   "noRallies": "Aucun échange n'a été trouvé dans cette vidéo.",
   "letters": "Lettres :",

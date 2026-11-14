@@ -82,6 +82,8 @@
   "timeoutOf": "{{team}} timeout",
   "lastTouch": "last touch: {{type}}, {{who}}",
   "rallies": "Rallies",
+  "watchClip": "Watch this moment, then the next ones",
+  "watchList": "List",
   "watchRally": "Watch this rally, then the next ones",
   "noRallies": "No rally was found in this video.",
   "letters": "Letters:",

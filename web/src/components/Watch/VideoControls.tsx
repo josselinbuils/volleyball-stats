@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, Snail, Volume2, VolumeX } from 'lucide-react';
+import { ListVideo, Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { VideoButton } from '@/components/VideoButton';
@@ -10,6 +10,8 @@ import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
 import { around, isDownload, merged, placer, seekLine, unshifted, within } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
+import { useWatchList } from '@/components/Watch/useWatchList';
+import { WatchPanel } from '@/components/Watch/WatchPanel';
 
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
@@ -26,6 +28,9 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   const clips = useRef<[number, number][] | null>(null);
   clips.current = playlist ? playlist.clips.slice(playlist.at).map((c): [number, number] => [c.start, c.end]) : null;
   const { set, rallies } = useSet();
+  // In full screen, where the bar under the player is out of sight: previous and next, and the list of what plays.
+  const { playing, entries, at, step } = useWatchList();
+  const [listed, setListed] = useState(false);
   const span = useMemo(() => allowed(rallies, set === null, match.duration), [rallies, set]);
   // Tenths of a second: enough for the timeline, without a render per frame.
   const time = Math.min(
@@ -172,12 +177,24 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
     </VideoButton>
   );
 
+  const stepped = state.full && entries.length > 0;
   return (
     // On a phone the timeline takes its own row above the buttons. Over the video zoomed, which runs past its box.
-    <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'relative z-10 bg-black text-white')}>
+    <div className={cn('relative flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'z-10 bg-black text-white')}>
+      {stepped && listed && <WatchPanel light={light} onClose={() => setListed(false)} />}
+      {stepped && (
+        <VideoButton light={light} label={t(playing ? 'prev' : 'prevRally')} disabled={at <= 0} onClick={() => step(-1)}>
+          <SkipBack aria-hidden className="fill-current" />
+        </VideoButton>
+      )}
       <VideoButton light={light} label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
         {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
       </VideoButton>
+      {stepped && (
+        <VideoButton light={light} label={t(playing ? 'next' : 'nextRally')} disabled={at < 0 || at >= entries.length - 1} onClick={() => step(1)}>
+          <SkipForward aria-hidden className="fill-current" />
+        </VideoButton>
+      )}
       <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>
         {clock(time)}
       </span>
@@ -224,6 +241,11 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       {match.video && (
         <VideoButton light={light} label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
           {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+        </VideoButton>
+      )}
+      {stepped && (
+        <VideoButton light={light} label={t('watchList')} pressed={listed} onClick={() => setListed(!listed)}>
+          <ListVideo aria-hidden />
         </VideoButton>
       )}
       {fullscreen && (
