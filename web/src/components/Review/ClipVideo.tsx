@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Pause, Play, ScanSearch, Snail, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { VideoError } from '@/components/VideoError';
 import { Button } from '@/components/ui/button';
-import { SkipIcon } from '@/components/SkipIcon';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -20,8 +19,6 @@ const SPEEDS = [1, 0.5, 0.25];
 let picked = 1;
 /** In free play, the bar spans this long before and after where it was anchored, re-anchored once the video leaves it. */
 const FREE_SPAN = [20, 70];
-/** In free play, the step of the buttons going back and forth. */
-const FREE_STEP_S = 10;
 /** In free play, the step of the left and right arrow keys. */
 const ARROW_STEP_S = 1;
 /** A press on the video held this long plays it at HOLD_RATE until released. */
@@ -546,23 +543,6 @@ export function ClipVideo({
         {showTime && <span className="min-w-12 text-sm font-medium tabular-nums">{clock(time)}</span>}
         {free && (
           <div className="flex gap-1">
-            {[-FREE_STEP_S, FREE_STEP_S].map((step) => (
-              <Tip key={step} label={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  className="relative bg-card"
-                  aria-label={t(step < 0 ? 'review.back' : 'review.forward', { s: FREE_STEP_S })}
-                  onClick={() => moveTo(time + step)}
-                >
-                  <SkipIcon seconds={step} />
-                </Button>
-              </Tip>
-            ))}
-          </div>
-        )}
-        {free && (
-          <div className="flex gap-1">
             <Tip label={t('review.pinchNote')}>
               <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t('review.zoomMore')} onClick={() => zoomBy(ZOOM_STEP)}>
                 <ZoomIn aria-hidden />
@@ -632,7 +612,7 @@ export function ClipVideo({
             <Tip label={t('review.slowTouches')}>
               <Button
                 variant={slow ? 'default' : 'outline'}
-                size="sm"
+                size="icon-sm"
                 className={slow ? undefined : 'bg-card'}
                 aria-label={t('review.slowTouches')}
                 aria-pressed={slow}
@@ -642,7 +622,6 @@ export function ClipVideo({
                 }}
               >
                 <Snail aria-hidden />
-                {t('review.touches')}
               </Button>
             </Tip>
           )}
