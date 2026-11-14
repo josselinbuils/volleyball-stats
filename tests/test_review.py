@@ -116,6 +116,7 @@ class TestRedirect:
     def test_each_page_answers_with_and_without_a_trailing_slash(self):
         assert self.sent("/matches?x=1") == (True, {"status": 302, "Location": "/matches/?x=1"})
         assert self.sent("/review/") == (True, {"status": 302, "Location": "/review"})
+        assert self.sent("/page/") == (True, {"status": 302, "Location": "/page"})
         assert self.sent("/matches/")[0] is False
         assert self.sent("/review")[0] is False
 

@@ -2032,7 +2032,7 @@ def pulled(body, out: Path) -> tuple[bytes, str, int]:
 
 
 # Each page's other spelling, with or without a trailing slash, and the page's own: its files are relative to it.
-SPELLINGS = {"/matches": "/matches/", "/review/": "/review"}
+SPELLINGS = {"/matches": "/matches/", "/review/": "/review", "/page/": "/page"}
 
 
 def redirect(handler: BaseHTTPRequestHandler, url) -> bool:
@@ -2525,6 +2525,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return None
             if url.path == "/review":
                 return self.send(with_review((site / "index.html").read_text()).encode(), "text/html; charset=utf-8")
+            if url.path == "/page":
+                return self.send((site / "index.html").read_bytes(), "text/html; charset=utf-8")
             parts = Path(unquote(url.path).lstrip("/")).parts
             path = site.joinpath(*parts)
             if ".." in parts or not path.is_file():

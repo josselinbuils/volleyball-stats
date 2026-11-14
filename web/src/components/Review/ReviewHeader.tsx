@@ -266,7 +266,7 @@ export function ReviewHeader({
           <MatchSwitch title={title} disabled={busy !== null} mayLeave={mayLeave} onFailed={onFailed} />
           <Button variant="ghost" size="icon" asChild>
             <Tip label={t('review.matchPage')}>
-              <a href="./" aria-label={t('review.matchPage')}>
+              <a href="page" aria-label={t('review.matchPage')}>
                 <ExternalLink aria-hidden />
               </a>
             </Tip>

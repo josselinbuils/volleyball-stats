@@ -12,7 +12,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 ## Running it
 
 - A match's review: `uv run stats server MATCH` ([running.md](running.md)): http://127.0.0.1:8765/review, `#questions`,
-  `#match`; http://127.0.0.1:8765 is always the list.
+  `#match`; its page without the review at http://127.0.0.1:8765/page; http://127.0.0.1:8765 is always the list.
 - `uv run stats stop` refuses while an apply runs (`curl -s 127.0.0.1:8765/progress` gives `{}` once none does).
 - The progress names each step and the pipeline's stage, with the time left from each one's last duration
   (`outputs/matches/MATCH/review_timings.json`).
