@@ -45,6 +45,10 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ## The statistics' reading
 
+- Attack or relance by what is seen, never by intent (the owner's rule, 14 Nov): a ball sent over with one hand (a hit, a tip,
+  a placed ball, jumped or not) is an attack, on any touch; one sent over with both hands (forearm or overhead pass) is a
+  relance on the 2nd or 3rd touch, a dig (or reception) on the first (`actions.first_touch_digs`, `relanceFirst`).
+
 - A serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that touch staying
   the other team's fault (both count; a serve's is an ace). An attack blocked for a point is a fault (`web.credited`).
 - That is the statistics' reading only: the labels stay what happened, the attack in play (the owner's rule, `label` on
@@ -172,6 +176,8 @@ Automatic reports (`review.unusual`) flag:
 
 - no serve first, two serves, a reception not right after a serve, a serve not followed by a reception, four touches in a
   row, the wrong server, no touch, no winner, over 2.5 s between two touches, a server out of rotation order;
+- a relance as a team's first touch (`relanceFirst`, after the other team's touch but a serve, or after a block): a dig by the
+  owner's rule (14 Nov), on checked rallies too;
 - a set ending off the score given (`scoreOff`, asked again once the score moves; the list shows the running score);
 - the score board gaining more points than rallies played between two readings, the next one keeping that lead, a rally to
   replay allowed to explain one (`missedPoint`, `review.missed_points`: none on the first match, 26 of its 129 rallies

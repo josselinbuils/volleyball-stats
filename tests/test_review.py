@@ -302,6 +302,15 @@ class TestReports:
         page["contacts"].append(c(1.0, "pass", 2))
         assert [r["kind"] for r in unusual(page)] == ["auto.afterFault"]
 
+    def test_a_relance_as_first_touch_is_reported(self):
+        def c(t, kind, team):
+            return {"t": t, "type": kind, "team": team, "side": "left" if team == 1 else "right", "rally": 0, "result": "play"}
+
+        page = {"teams": [{}, {}], "rallies": [{"start": 0.0, "end": 5.0, "set": 1, "winner": 1}], "contacts": [c(0.1, "serve", 1), c(1.0, "pass", 2), c(1.8, "set", 2), c(2.6, "relance", 2)]}
+        assert unusual(page) == []
+        page["contacts"].append(c(3.5, "relance", 1))
+        assert [r["kind"] for r in unusual(page)] == ["auto.relanceFirst"]
+
     def test_the_server_is_not_checked_after_a_point_the_referee_got_wrong(self):
         def serve(rally, team):
             return {"t": float(rally), "type": "serve", "team": team, "side": "left" if team == 1 else "right", "rally": rally, "result": "error"}

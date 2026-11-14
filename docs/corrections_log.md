@@ -372,6 +372,11 @@ better ball track.
 - A first touch after the other team's attack that sends the ball straight back over (11 Nov): a relance when the player
   meant it, a dig when not. So no single type for it: only a cue of intent could retype it (how hard the attack came in,
   arms above the head or a low forearm save; not tried, 23 such touches on the two matches, relance 13, dig 10).
+- Settled (14 Nov), by what is seen, not intent: one hand sending the ball over is an attack on any touch, both hands a relance
+  on the 2nd or 3rd touch only, a dig on the first (`actions.first_touch_digs`, the review's `relanceFirst` report). On
+  `play-main`'s output (types only change; attribution reads dig and relance alike): 281 -> 284 and 351 -> 348 against the
+  answers as they are, 289 -> 278 and 357 -> 342 against them with the rule applied (8 and 8 first-touch relances in the
+  checked rallies, 3 on the 12 Nov match's, asked again in the review).
 
 ## State (13 Nov): hand-over
 

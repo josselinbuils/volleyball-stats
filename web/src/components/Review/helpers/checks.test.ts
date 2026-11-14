@@ -34,6 +34,12 @@ describe('problems', () => {
     expect(marks(found)).toEqual({});
   });
 
+  it('marks a relance as first touch, even in a checked rally', () => {
+    expect(marks(problems([c('serve', 1), c('pass', 2), c('relance', 1)], 1, null, true, true))[2]).toEqual(['relanceFirst']);
+    expect(marks(problems([c('attack', 1), c('block', 2), c('relance', 2)], 1, null, true, true))[2]).toEqual(['relanceFirst']);
+    expect(marks(problems([c('serve', 1), c('pass', 2), c('set', 2), c('relance', 2)], 2, null, true, true))).toEqual({});
+  });
+
   it('marks a fault after a point: the labels say what happened, the statistics read the point', () => {
     for (const type of ['attack', 'block'] as const) {
       const rally = [c('serve', 1, '1:2'), c('pass', 2, '2:1'), c(type, 2, '2:4', 'point'), c('dig', 1, '1:3', 'error')];

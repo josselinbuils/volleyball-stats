@@ -68,6 +68,10 @@ In frame order, within a rally window (`rallies.py` windows start 0.33 s earlier
    attacks, 6 of them the owner's corrections. Sets sent straight over were left: 1 retyped as an
    attack, 4 seen and kept, 20 never seen.
 
+7. After the relances (`mark_relances`, `by_flight`): a **relance** as a team's first touch (after the other side's touch but
+   a serve, or after a block) is a **dig** (`first_touch_digs`, the owner's rule of 14 Nov: both hands on a first touch is a
+   dig, sent over or not).
+
 **Side**: left or right of the net's image line, the line through the calibrated net feet on both
 sidelines (`--net-x` without a calibration). The camera stands (nearly) in the net plane, so the plane
 projects to that line whatever the ball's height. The floor projection's sign (court x) is not used:

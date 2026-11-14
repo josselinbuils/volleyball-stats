@@ -37,7 +37,7 @@
     "histCaption": "Rallies by number of touches. Tap a bar to watch them.",
     "numbersNoteNamed": "Tap a number or initial to see the player's name.",
     "stats": {
-    "noteTitles": "Tap a column's title for its detail and to sort.",
+      "noteTitles": "Tap a column's title for its detail and to sort.",
       "about": {
         "strengths": "What a player brings to the team: what they do better than the others, their presence on the court, their reliability, what they give the others and their points when it counts. Two at most, the rarest in their team first, each from a minimum. Tap to replay these moments.",
         "toWorkOn": "The one thing a player misses most clearly compared with the rest of their team, with at least 5 attempts on each side and a 20-point gap. Tap to replay these moments."
@@ -706,11 +706,11 @@
       "unattacked": "The receptions after which the team sends the ball back or loses it without attacking.",
       "rated": "The receptions' mean rating, out of 5, from where the next touch is played: 5 within 1.5 m of the setter's target (1 m off the net, between zones 2 and 3), 3.3 within 3 m, 1.7 further or sent straight over the net, 0 for a fault.",
       "sets": "The team's second touches, the ones that set up the attack.",
-      "attacks": "The third touches, hit above the head to send the ball to the other team.",
+      "attacks": "The balls sent to the other team with one hand: a hit, a tip or a placed ball.",
       "kills": "The attacks that win the point outright: they land in the other court with nobody touching them. A dig or block of the other team that loses the ball counts as its fault.",
       "attackFaults": "The attacks out, into the net, landing on the player's own side or blocked for a point.",
       "defended": "The attacks the other team touches and keeps in play, with a dig or a block.",
-      "relances": "The third touches sent back without attacking, with a forearm or an overhead pass.",
+      "relances": "The third touches sent back with both hands, with a forearm or an overhead pass.",
       "relanceFaults": "The free balls out, into the net or landing on the player's own side.",
       "blocks": "The balls touched at the net right after the other team's attack.",
       "blockPoints": "The blocks that land in the other court.",
@@ -990,6 +990,7 @@
         "serveNotReceived": "A serve followed by something other than a reception",
         "afterFault": "An action follows a fault in the same rally",
         "samePlayer": "The same player touches the ball twice in a row",
+        "relanceFirst": "A free ball as first touch: it is a dig",
         "afterPoint": "An action follows a point in the same rally",
         "gap": "Long pause between two touches",
         "serverOrder": "Server out of rotation order",

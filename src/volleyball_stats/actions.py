@@ -420,6 +420,19 @@ def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, lon
     return out
 
 
+def first_touch_digs(typed: list[Typed]) -> list[Typed]:
+    """`typed` with the relances played as a team's first touch (after the other side's touch but a serve, or after a block)
+    retyped "dig": the owner's rule (14 Nov), a ball sent back with both hands is a relance on the 2nd or 3rd touch only."""
+    out, before = list(typed), None
+    for k, (frame, x, y, kind, side) in enumerate(typed):
+        if kind == "floor":
+            continue
+        if kind == "relance" and before and (before[3] == "block" or (before[4] != side and before[3] != "serve")):
+            out[k] = (frame, x, y, "dig", side)
+        before = typed[k]
+    return out
+
+
 def read_rows(path: Path) -> list[list[int]]:
     with open(path) as f:
         return [[int(v) for v in row.values()] for row in csv.DictReader(f)]
@@ -446,6 +459,7 @@ def main() -> None:
     typed = classify(contacts, crossings, windows, args.fps, args.net_x, calibration)
     if args.video:
         typed = mark_relances(args.video, typed, args.fps)
+        typed = first_touch_digs(typed)
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.contacts.stem.removesuffix('_contacts')}_actions.csv"
     with open(path, "w", newline="") as f:

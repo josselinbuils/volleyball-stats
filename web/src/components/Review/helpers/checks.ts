@@ -1,6 +1,19 @@
 /** What looks wrong in a rally, as the review's automatic reports find it (review.unusual). */
 export type Problem =
-  'empty' | 'noServe' | 'twoServes' | 'passWithoutServe' | 'serveNotReceived' | 'fourTouches' | 'samePlayer' | 'afterFault' | 'afterPoint' | 'server' | 'noWinner' | 'gap' | DoubtfulProblem;
+  | 'empty'
+  | 'noServe'
+  | 'twoServes'
+  | 'passWithoutServe'
+  | 'serveNotReceived'
+  | 'fourTouches'
+  | 'samePlayer'
+  | 'relanceFirst'
+  | 'afterFault'
+  | 'afterPoint'
+  | 'server'
+  | 'noWinner'
+  | 'gap'
+  | DoubtfulProblem;
 
 /** What may well be right after all, in an amateur match: a rally checked shows none of them. */
 type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | 'ace';
@@ -58,6 +71,10 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     }
     if (before && before.type !== 'block' && before.player && before.player === c.player) {
       mark(k, 'samePlayer');
+    }
+    // A team's first touch (after the other team's touch but a serve, or after a block) is a dig, never a relance.
+    if (c.type === 'relance' && before && (before.type === 'block' || (before.team !== c.team && before.type !== 'serve'))) {
+      mark(k, 'relanceFirst');
     }
     if (before?.time !== undefined && c.time !== undefined && c.time - before.time > GAP_S) {
       mark(k, 'gap');

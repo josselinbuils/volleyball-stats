@@ -798,7 +798,7 @@ def unusual(page: dict) -> list[dict]:
     their start (no winner and a set's final score: their end), `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
-    touch after a fault or a point (either ends the rally), served by the team that lost the set's point
+    touch after a fault or a point (either ends the rally), a relance as a team's first touch, served by the team that lost the set's point
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order
     (`rotation_slips`), and, on the first rally either plays, two players of a team with one jersey.
@@ -848,6 +848,9 @@ def unusual(page: dict) -> list[dict]:
         score = r.get("score") and f"{r['score'][0]}-{r['score'][1]}"
         if given and score and score != given and (k + 1 == len(rallies) or rallies[k + 1]["set"] != r["set"]):
             why.append("scoreOff")
+        # A team's first touch (after the other team's touch but a serve, or after a block) is a dig, never a relance.
+        if any(b["type"] == "relance" and (a["type"] == "block" or (a["type"] != "serve" and (a.get("team") or a["side"]) != (b.get("team") or b["side"]))) for a, b in pairs):
+            why.append("relanceFirst")
         if any(b["t"] - a["t"] > GAP_S for a, b in pairs):
             why.append("gap")
         if k in slips:
