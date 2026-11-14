@@ -55,12 +55,12 @@ of players already seen in earlier matches.
     <td width="50%"><img src="docs/images/trophies.webp" alt="The trophies: the best server, attacker, defender and more"><br><b>Trophies:</b> what players did well</td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/app.webp" alt="The app: the matches, one being analysed, one waiting for its court, and the buttons to import a match, swap videos, set the club and check the installation"><br><b>The app:</b> import a match, follow its analysis</td>
+    <td width="50%"><img src="docs/images/app.webp" alt="The app: two matches to update, one match being analysed, one waiting for its court, and the buttons to import a match, sync the videos, set the club and run the diagnostics"><br><b>The app:</b> import a match, follow its analysis, keep every match up to date</td>
     <td width="50%"><img src="docs/images/app-court.webp" alt="Placing the court: a click on each point the small court shows, with a magnifier"><br><b>A new gym:</b> click the court's points once</td>
   </tr>
 </table>
 
-Screenshots of a real match, with the players' names hidden; the court to place is a drawing.
+Screenshots of a real match, with the players' names hidden; the matches being prepared are staged and the court to place is a drawing.
 
 ## How it works
 
@@ -112,6 +112,8 @@ for the stand, the camera settings and the lens calibration.
    Check the sides and the court's lines on two pictures, then start the analysis: hours for a 2-hour match.
 3. **Review:** once analysed, the match opens in the review. Name each player from their pictures, answer the
    questions about the players it is unsure of, then apply: the match page is rebuilt in seconds.
+4. **Update:** your answers teach the analysis. When matches wait for it (new answers, or a new version of the code),
+   "Update" on the list runs them again, all at once; its "Progress" tab shows what the answers taught.
 
 "Club" sets your club's name, logo, colours, teams and sponsors, the same on every page. The match page is in
 `outputs/matches/MATCH/site/index.html`. The app's Site tab zips the pages for any host ("Export the site"), or uploads
