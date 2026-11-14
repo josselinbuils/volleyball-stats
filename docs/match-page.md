@@ -33,8 +33,11 @@ moments.
   on the host and locally, 720p and AV1 copies, early and late in the match, plain play and jumps, playlists of rallies
   and of touches): each part within 1 s of what is loaded; loaded parts drawn late or short in 3-13% of samples, up to 5 s.
 - "Infos sur la vidéo" (`Watch/Overlay.tsx`, `helpers/overlay.ts`; on unless turned off, kept in the browser) draws on the
-  video what the pipeline knows: the ball's trail over its last 0.5 s, as long as the ball is fast, and each measured
-  serve's speed beside the ball until the next touch. A canvas in the video's box, drawn by the zoom's loop for the frame
+  video what the pipeline knows: the ball's trail over its last 0.5 s, as long as the ball is fast, each measured
+  serve's speed beside the ball until the next touch, and at each touch who touched it (name, else number, and team
+  dot) under their feet, with "↑ 47 cm" on an attack whose jump is measured; each tag 0.7 to 1.2 s, the next waiting.
+  The feet's place: the touch's court place through the calibration (`web.feet_on_picture`, `ball.js`'s `feet`, +17 KB
+  on the Avia match), under the ball at 99.9% of its touches. A canvas in the video's box, drawn by the zoom's loop for the frame
   on screen (`requestVideoFrameCallback`), so it moves with the zoom. `ball.js` holds the ball's place by each frame's
   real seconds (`web.ball_track`, `film.frame_times`): the camera drops 5 to 10 frames a match, a frame's number then
   runs up to 45 ms off the video, one to two balls for a fast one, and the hosted copies play 25 frames a second on the

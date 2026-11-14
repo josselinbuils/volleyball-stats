@@ -576,6 +576,21 @@ class TestMergeRallies:
         assert [(p["winner"], p["score_1"], p["score_2"]) for p in s] == [("2", "0", "1"), ("1", "1", "1"), ("2", "0", "1")]
 
 
+class TestFeetOnPicture:
+    def test_places_each_touchs_player_in_the_picture(self):
+        # Court metres taken as pixels: a 100 x 50 picture.
+        calibration = Calibration(homography=np.eye(3))
+        contacts = [
+            {"type": "serve", "person": 3, "x": 50.0, "y": 10.0},
+            {"type": "floor", "person": None, "x": 20.0, "y": 20.0},
+            {"type": "pass", "person": None, "x": 30.0, "y": 30.0},
+            {"type": "set", "person": 4, "x": None, "y": None},
+            {"type": "attack", "person": 4, "x": 25.0, "y": 40.0},
+        ]
+
+        assert web.feet_on_picture(contacts, calibration, (100, 50)) == [0, 0.5, 0.2, 4, 0.25, 0.8]
+
+
 class TestBallNear:
     def test_a_ball_frame_near_two_touches_places_both(self, tmp_path):
         ball = tmp_path / "ball.csv"

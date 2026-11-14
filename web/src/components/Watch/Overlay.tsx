@@ -1,9 +1,10 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { ArrowUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Ball } from '@/lib/ball';
 import { useFormat } from '@/lib/format';
-import { contacts } from '@/lib/match';
-import { GAP_S, TRAIL_S, onScreen, placeAt, serveSpeeds, speedAt, stamps, trailAt, type Shown, type View } from '@/components/Watch/helpers/overlay';
+import { contacts, match, playerLabel, teamColor } from '@/lib/match';
+import { GAP_S, TRAIL_S, onScreen, placeAt, serveSpeeds, speedAt, stamps, touchTags, trailAt, type Shown, type Tag, type View } from '@/components/Watch/helpers/overlay';
 
 /** The trail's half width at the ball, as a share of the picture's width on the screen (the ball is about 0.008 wide), and in px at least. */
 const WIDTH = 0.003;
@@ -18,15 +19,17 @@ const EDGE_PX = 1;
 const EDGE_OPACITY = 0.35;
 /** Seconds a serve's speed fades in and out. */
 const FADE_S = 0.15;
-/** The speed's label, from the ball, in px. */
+/** The speed's label, from the ball, in px; a touch's tag, under the feet. */
 const OFFSET_PX = 12;
+const UNDER_PX = 4;
 const SPEEDS = serveSpeeds(contacts);
 
 /** Draws the overlay for a view of the picture; the video's zoom calls it each frame, with the view it just set. */
 export type Paint = (view: View) => void;
 
-/** What the pipeline knows, drawn on the video in its box: the ball's trail, and each measured serve's speed beside the
- * ball. Drawn by `paint`, for the frame the video shows (its own clock runs ahead of the picture). */
+/** What the pipeline knows, drawn on the video in its box: the ball's trail, each measured serve's speed beside the
+ * ball, and at each touch who touched it under their feet, with an attack's jump. Drawn by `paint`, for the frame the
+ * video shows (its own clock runs ahead of the picture). */
 export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball: Ball; paint: RefObject<Paint | null> }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -35,6 +38,24 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
   const label = useRef<HTMLSpanElement>(null);
   const text = useRef<(speed: number) => string>(() => '');
   text.current = (speed) => t('kmh', { speed: f.num(speed) });
+  const tagBox = useRef<HTMLDivElement>(null);
+  const tagDot = useRef<HTMLSpanElement>(null);
+  const tagName = useRef<HTMLSpanElement>(null);
+  const tagJump = useRef<HTMLSpanElement>(null);
+  const tagJumpText = useRef<HTMLSpanElement>(null);
+  // Each tag's player (name, else number) and team, and its attack's jump in cm.
+  const tags = useMemo(
+    () =>
+      touchTags(contacts, ball.feet ?? []).flatMap((tag) => {
+        const c = contacts[tag.contact];
+        const who = playerLabel(t, c.person);
+        const team = c.person === null ? undefined : match.people[c.person]?.team;
+        return who && team ? [{ ...tag, who, team, jump: c.type === 'attack' && c.jump ? t('cm', { cm: f.num(Math.round(c.jump * 100)) }) : null }] : [];
+      }),
+    [ball, t, f],
+  );
+  const tagsNow = useRef(tags);
+  tagsNow.current = tags;
 
   useEffect(() => {
     // The time of the frame on screen, where the browser tells it.
@@ -50,10 +71,12 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
     }
     let drawn = '';
     let labelled: Shown | null = null;
+    let tagged: Tag | null = null;
     paint.current = (view) => {
       const [wrap, surface, tag] = [box.current, canvas.current, label.current];
+      const [tagEl, dot, name, jump, jumpText] = [tagBox.current, tagDot.current, tagName.current, tagJump.current, tagJumpText.current];
       const [width, height] = [video.clientWidth, video.clientHeight];
-      if (!wrap || !surface || !tag || !video.videoWidth || !width) {
+      if (!wrap || !surface || !tag || !tagEl || !dot || !name || !jump || !jumpText || !video.videoWidth || !width) {
         return;
       }
       const time = shown ?? video.currentTime;
@@ -99,6 +122,25 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
           ctx.fill();
         }
       }
+      // Who touched, under their feet where they stood at the touch.
+      const touched = speedAt(tagsNow.current, time);
+      if (touched) {
+        if (touched !== tagged) {
+          tagged = touched;
+          const shown = touched as (typeof tagsNow.current)[number];
+          dot.style.background = teamColor(shown.team);
+          name.textContent = shown.who;
+          jump.hidden = !shown.jump;
+          jumpText.textContent = shown.jump ?? '';
+        }
+        const feet = screen.at(touched.at);
+        const x = Math.max(4, Math.min(width - tagEl.offsetWidth - 4, feet.x - tagEl.offsetWidth / 2));
+        const y = Math.max(4, Math.min(height - tagEl.offsetHeight - 4, feet.y + UNDER_PX));
+        tagEl.style.transform = `translate(${x}px, ${y}px)`;
+        tagEl.style.opacity = String(Math.max(0, Math.min(1, (time - touched.from) / FADE_S, (touched.until - time) / FADE_S)));
+      } else {
+        tagEl.style.opacity = '0';
+      }
       // The speed follows the ball, at its last place while it is briefly unseen.
       const speed = speedAt(SPEEDS, time);
       const last = trail[trail.length - 1];
@@ -129,6 +171,14 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
     <div ref={box} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <canvas ref={canvas} className="absolute inset-0 size-full" />
       <span ref={label} className="absolute top-0 left-0 rounded-full bg-black/70 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-white tabular-nums opacity-0" />
+      <div ref={tagBox} className="absolute top-0 left-0 flex items-center gap-1.5 rounded-full bg-black/70 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-white tabular-nums opacity-0">
+        <span ref={tagDot} className="size-2 shrink-0 rounded-full ring-1 ring-white/70" />
+        <span ref={tagName} />
+        <span ref={tagJump} hidden className="flex items-center gap-0.5">
+          <ArrowUp className="size-3" />
+          <span ref={tagJumpText} />
+        </span>
+      </div>
     </div>
   );
 }

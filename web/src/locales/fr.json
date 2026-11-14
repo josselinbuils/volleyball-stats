@@ -1058,6 +1058,7 @@
   "autoZoom": "Zoom auto",
   "videoOverlay": "Infos sur la vidéo",
   "kmh": "{{speed}} km/h",
+  "cm": "{{cm}} cm",
   "story": {
     "film": "Highlights",
     "title": "L'histoire du match",

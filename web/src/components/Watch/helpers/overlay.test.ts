@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '@/lib/match';
-import { onScreen, placeAt, serveSpeeds, speedAt, stamps, trailAt } from '@/components/Watch/helpers/overlay';
+import { onScreen, placeAt, serveSpeeds, speedAt, stamps, touchTags, trailAt } from '@/components/Watch/helpers/overlay';
 
 // The ball seen every 0.1 s from 1 s to 1.5 s moving right, then again at 2 s.
 const ball = { samples: [1, 0.1, 0.5, 1.1, 0.2, 0.5, 1.2, 0.3, 0.5, 1.3, 0.4, 0.5, 1.4, 0.5, 0.5, 1.5, 0.6, 0.5, 2, 0.9, 0.5] };
@@ -98,5 +98,36 @@ describe('serveSpeeds', () => {
     expect(speedAt(shown, 10.5)?.speed).toBe(62);
     expect(speedAt(shown, 11.3)).toBeNull();
     expect(speedAt(shown, 10)).toBeNull();
+  });
+});
+
+describe('touchTags', () => {
+  const touch = (t: number, rally: number, more: Partial<Contact> = {}) => ({ t, rally, type: 'pass', ...more }) as Contact;
+
+  it('shows each touch from just before it to the next one, an attack from its takeoff', () => {
+    const contacts = [touch(10, 0), touch(11, 0, { type: 'set' }), touch(12, 0, { type: 'attack', air: [-0.3, 0.3] }), touch(20, 1)];
+    const feet = [0, 0.1, 0.8, 1, 0.2, 0.8, 2, 0.3, 0.8, 3, 0.4, 0.8];
+    const tags = touchTags(contacts, feet);
+    expect(tags.map((g) => [g.contact, g.from, g.until])).toEqual([
+      [0, 9.8, 10.8],
+      [1, 10.8, 11.7],
+      [2, 11.7, 13.2],
+      [3, 19.8, 21.2],
+    ]);
+    expect(tags[1].at).toEqual({ x: 0.2, y: 0.8 });
+    expect(speedAt(tags, 11.1)?.contact).toBe(1);
+    expect(speedAt(tags, 14)).toBeNull();
+  });
+
+  it('shows a tag a while before the next one, the next waiting', () => {
+    const tags = touchTags([touch(10, 0, { type: 'attack' }), touch(10.2, 0, { type: 'block' })], [0, 0.1, 0.8, 1, 0.2, 0.8]);
+    expect(tags.map((g) => [g.contact, g.from, g.until])).toEqual([
+      [0, 9.8, expect.closeTo(10.5)],
+      [1, expect.closeTo(10.5), expect.closeTo(11.4)],
+    ]);
+  });
+
+  it('is not held back by an untagged touch', () => {
+    expect(touchTags([touch(10, 0), touch(10.3, 0, { type: 'floor' })], [0, 0.1, 0.8]).map((g) => g.until)).toEqual([11.2]);
   });
 });

@@ -10,6 +10,13 @@ const SPEED_FROM_S = 0.15;
 /** until the next touch, or this long after the hit. */
 const SPEED_FOR_S = 2;
 
+/** A touch's tag shows from this long before it (a jump's takeoff from earlier), */
+const TAG_BEFORE_S = 0.2;
+/** until the next touch's shows, or this long after it. */
+const TAG_FOR_S = 1.2;
+/** And this long at least. */
+const TAG_MIN_S = 0.7;
+
 /** A place in the picture (fractions of it), or on the screen (px). */
 export type Point = { x: number; y: number };
 /** A point of the trail, `age` the seconds since the ball was there. */
@@ -125,8 +132,36 @@ export function serveSpeeds(contacts: Contact[]): Shown[] {
   });
 }
 
-/** The speed showing at `time`, `shown` by time. */
-export function speedAt(shown: Shown[], time: number): Shown | null {
+/** The speed or tag showing at `time`, `shown` by time. */
+export function speedAt<T extends { from: number; until: number }>(shown: T[], time: number): T | null {
   const last = shown.findLast((s) => s.from <= time);
   return last && time < last.until ? last : null;
+}
+
+/** A touch's tag under its player's feet `at` (fractions of the picture), `contact` its index, and the seconds it shows
+ * between. */
+export type Tag = { from: number; until: number; contact: number; at: Point };
+
+/** When and where each touch's tag shows: `feet` (ball.js's, flat [contact's index, x, y, ...]) for the touches whose
+ * player is known; from just before it, an attack's takeoff when earlier, to the next tag, TAG_FOR_S at most. Each one
+ * shows TAG_MIN_S at least, to be read (an attack's jump before the block), the next one waiting. */
+export function touchTags(contacts: Contact[], feet: number[]): Tag[] {
+  const tags: Tag[] = [];
+  for (let k = 0; k < feet.length / 3; k += 1) {
+    const contact = feet[3 * k];
+    const c = contacts[contact];
+    if (!c) {
+      continue;
+    }
+    let from = c.t - Math.max(TAG_BEFORE_S, -(c.air?.[0] ?? 0));
+    const last = tags[tags.length - 1];
+    if (last && contacts[last.contact].rally === c.rally) {
+      from = Math.max(from, last.from + TAG_MIN_S);
+      last.until = Math.min(last.until, from);
+    }
+    if (c.t + TAG_FOR_S > from) {
+      tags.push({ from, until: c.t + TAG_FOR_S, contact, at: { x: feet[3 * k + 1], y: feet[3 * k + 2] } });
+    }
+  }
+  return tags;
 }
