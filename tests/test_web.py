@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import club_settings, web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -236,6 +236,14 @@ class TestContacts:
         assert "receiver" not in found[4]
         brief(found, typed, table, {}, {}, {})  # without players' times, nothing changes
         assert found[1]["person"] == 0
+
+    def test_a_player_the_review_shows_no_card_for_is_no_identified_player(self):
+        table = {0: {"team": 2, "number": 20}, 1: {"team": 2, "number": 4}, 2: {"team": 1, "number": 20}, 3: {"team": 1, "number": None}}
+
+        unjoined(table, {(2, 20)})
+
+        # Their touches, time and places then name no one, as a track without identity's.
+        assert [p["number"] for p in table.values()] == [None, 4, 20, None]
 
     def test_a_receiver_of_the_serve_s_own_team_makes_it_their_missed_reception(self):
         # The window started late: its first touch, the left team's, was taken for a serve.

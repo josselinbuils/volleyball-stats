@@ -16,10 +16,12 @@ from volleyball_stats.identity import (
     ended_cuts,
     finder,
     jersey_links,
+    leftovers,
     lookup,
     name_links,
     named,
     number,
+    on_court,
     resolve,
     sharpen,
     split,
@@ -350,3 +352,14 @@ class TestDoubts:
         answered = doubts(segments, v, np.ones(3), cannot, FPS, {}, {2})
         assert answered["segments"] == []
         assert segments[2].runner_up == 2 and segments[2].confidence < 1
+
+
+class TestLeftovers:
+    def test_an_unnamed_sliver_of_a_team_s_time_is_no_card(self):
+        seconds = {(2, 1): 2700.0, (2, 2): 2500.0, (2, 3): 2900.0, (2, 18): 93.0, (2, 19): 90.0, (1, 4): 100.0, (1, 5): 120.0}
+        assert leftovers(seconds, {(2, 19): {"name": "Théo"}}) == {(2, 18)}
+
+    def test_time_on_court_adds_each_identity_s_pieces(self):
+        # track, start, end, team, identity; identity 0 is no one.
+        table = [(1, 0, 49, 1, 3), (2, 100, 149, 1, 3), (3, 0, 24, 2, 3), (4, 0, 99, 1, 0)]
+        assert on_court(table, 50.0) == {(1, 3): 2.0, (2, 3): 0.5}

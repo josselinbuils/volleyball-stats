@@ -882,6 +882,31 @@ def write_identities(path: Path, segments: list[Segment]) -> None:
         ])
 
 
+# An unnamed identity on court under this share of its team's median time.
+LEFTOVER = 0.1
+
+
+def on_court(table: list[tuple[int, int, int, int, int]], fps: float) -> dict[tuple[int, int], float]:
+    """Seconds on court of each (team, identity) of identities.csv's `table`."""
+    seconds: dict[tuple[int, int], float] = {}
+    for _, start, end, team, number in table:
+        if number:
+            seconds[team, number] = seconds.get((team, number), 0.0) + (end - start + 1) / fps
+    return seconds
+
+
+def leftovers(seconds: dict[tuple[int, int], float], names: dict[tuple[int, int], dict]) -> set[tuple[int, int]]:
+    """The unnamed identities on court under LEFTOVER of their team's median time (`seconds`): what
+    the tracking could not join to anyone, bits of several players that no name holds together.
+    The review offers no card for them and the page credits them nothing (web.unjoined): one rule
+    for both, so a touch never names a player the review cannot show.
+    ponytail: a substitute playing under a tenth of the usual time goes too; tell them apart (one
+    face, long pieces) if one goes missing."""
+    teams = {team for team, _ in seconds}
+    typical = {team: float(np.median([v for (t, _), v in seconds.items() if t == team])) for team in teams}
+    return {k for k, v in seconds.items() if not (names.get(k) or {}).get("name") and v < LEFTOVER * typical[k[0]]}
+
+
 def read_identities(path: Path) -> list[tuple[int, int, int, int, int]]:
     """identities.csv rows: track, start frame, end frame, team, identity."""
     with open(path) as f:

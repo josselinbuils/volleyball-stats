@@ -40,7 +40,7 @@ from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, NO_PLAYER, box_at
 from volleyball_stats.court import LENGTH, WIDTH, Calibration, zone
-from volleyball_stats.identity import finder, named, read_identities, read_names
+from volleyball_stats.identity import finder, leftovers, named, on_court, read_identities, read_names
 from volleyball_stats.points import landing
 from volleyball_stats.teams import match_end, parse_colour, parse_date, recording_date
 
@@ -425,6 +425,15 @@ def brief(found: list[dict], typed: list[dict], table: dict[int, dict], times: d
             contact.update(person=None, brief=True)
         if frame not in missed and slip(contact.get("receiver"), contact["set"]):
             del contact["receiver"]
+
+
+def unjoined(table: dict[int, dict], scraps: set[tuple[int, int]]) -> None:
+    """The players of `table` the review shows no card for (`scraps`, identity.leftovers) lose
+    their number: tracks that are no identified player on the whole page, an earlier answer naming
+    one too, so nothing on it names a player the review cannot show."""
+    for person in table.values():
+        if (person["team"], person["number"]) in scraps:
+            person["number"] = None
 
 
 def people(track_team: dict[int, int], identities: list[tuple[int, int, int, int, int]], names: dict[tuple[int, int], dict] | None = None) -> tuple[Who, dict[int, dict]]:
@@ -823,6 +832,7 @@ def match_data(match: Path, video: Path, calibration: Calibration) -> tuple[dict
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)
+    unjoined(table, leftovers(on_court(identities, fps), given))
     brief(found, actions, table, times, said, missed)
     if with_teams:
         jumped(found, table, finder(identities), by_frame, match, video, calibration, fps)

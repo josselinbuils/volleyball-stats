@@ -62,7 +62,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   signalements" fetches them; record the clear ones (a named player on a replayed touch, "pas une phase de jeu") as
   pending review answers, leave the rest (no comment, unsure) to the Match tab, which lists each rally reported; then score
   and fix the steps they point at.
-- Every touch its page credits to no named player (a player on court under `web.BRIEF_S` of a set is a tracking slip), and
+- Every touch its page credits to no named player (a player on court under `web.BRIEF_S` of a set is a tracking slip;
+  an unnamed identity under a tenth of its team's median time, `identity.leftovers`, gets no card in the review and no
+  number on the page, `web.unjoined`: one rule for both, so no touch names a player the review cannot offer), and
   who missed every ace its page counts as a missed reception (`review.aces`, read from the page): the page should show no
   unidentified player.
 

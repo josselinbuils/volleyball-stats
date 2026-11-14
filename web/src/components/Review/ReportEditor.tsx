@@ -223,6 +223,9 @@ export function ReportEditor({
   const here = rallyAt(shown, now);
   const first = Math.max(0, here - AROUND_RALLIES);
   const last = Math.min(shown.length - 1, here + AROUND_RALLIES);
+  // A player the list cannot offer is no one: the field and the video's caption show the same.
+  const offered = new Set(players.map((p) => `${p.team}:${p.identity}`));
+  const listed = (player: string) => (offered.has(player) ? player : '');
   // Every touch, to check every rally; those of the rallies around listed.
   const allRows: Row[] = [
     ...touches.map(({ contact: c, frame, player }) => {
@@ -234,14 +237,14 @@ export function ReportEditor({
         team: fix.player && fix.player !== 'none' ? teamOf(fix.player) : (c.team as Group),
         type: fix.type ?? c.type,
         result: fix.result ?? labelled(c),
-        player: fix.player === 'none' ? '' : (fix.player ?? player),
+        player: fix.player === 'none' ? '' : listed(fix.player ?? player),
         cause: fix.cause ?? c.cause ?? 0,
         removed: fix.player === 'none',
         added: false,
         contact: c,
       };
     }),
-    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: a.player ?? '', cause: a.cause ?? 0, removed: false, added: true })),
+    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: listed(a.player ?? ''), cause: a.cause ?? 0, removed: false, added: true })),
   ].sort((a, b) => a.time - b.time);
   const rows = allRows.filter((row) => row.rally >= first && row.rally <= last);
   // The touches kept, by rally.
