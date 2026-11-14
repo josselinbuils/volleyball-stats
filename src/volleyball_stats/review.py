@@ -2808,7 +2808,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     run_steps([*copies, ("hosting", hosting)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/hostAll" and (match / matches.PUBLISH).exists():
-                    run_steps([("hostingAll", lambda: hosting(every=True))])
+                    # As each match's own upload: the video copies missing or at a former height made first.
+                    copies = [("copies", lambda m=m, v=v: matches.add_copies(m, v)) for m, v, _, c in matches.online(match.parent) if c["video"] and v.exists() and matches.copies_missing(c)]
+                    run_steps([*copies, ("hostingAll", lambda: hosting(every=True))])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path in ("/films", "/film", "/highlights"):
                     # The page then shows them, the hosted one on its next upload; "/film" makes the player `name`'s alone.

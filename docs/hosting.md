@@ -149,7 +149,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   Pixels beat bits: at the same size, 1440p CRF 40 beats 1080p CRF 34. About 3.7 GB a match instead of 2.3, the AV1
   copy about +45% to encode. ponytail: HEVC would give Safari without AV1 the H.264 copy's quality at -37%, as a fourth
   copy. A copy made at another height is made again on the match's next upload with its video (`video_copies.current`),
-  the former one removed from `reencoded/`; updating every match hosts it as it is.
+  the former one removed from `reencoded/`; updating every match makes them first, as each match's upload does.
 - `--small-video`: a 720p H.264 one (same with `scale=1280:720`, -56% against 1080p, -78% against 1440p) the page plays while its player is
   small; the 1440p copy in full screen, zoomed or over 1600 screen pixels wide, the video carrying on where it stood.
 - A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21 frames to decode a jump instead of 131

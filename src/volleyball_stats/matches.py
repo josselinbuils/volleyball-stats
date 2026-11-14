@@ -547,8 +547,8 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
         if "video" not in c:
             raise RuntimeError(f"{named(match)}with or without the video: not chosen")
         # Before the build, which removes the copies of the video it finds in the site folder. Without
-        # them the build would take the source, tens of GB. A copy at a former height still plays: the match's own upload
-        # makes it again.
+        # them the build would take the source, tens of GB. A copy at a former height still plays (the review makes it
+        # again before an upload).
         if c["video"] and (gone := copies_gone(c)):
             raise RuntimeError(f"{named(match)}video copies not found: {', '.join(gone)}")
         if c["video"] and not c.get("videoKey"):
