@@ -73,7 +73,7 @@ function saveFlag(key: string, on: boolean) {
  * its progress bar moves it (drag, click or arrows; where a pixel of it spans more than a frame, a small drag pauses it and moves it frame by frame); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
  * `free`: the match plays on from the clip with its sound, no loop, the arrow keys moving it; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
  * `touches`: the ball's touches (times, sorted), which a button beside the speeds slows the video down at.
- * `extra`: at the right end of the speeds' line. */
+ * `extra`: at the right end of the buttons' line, after the sound's. */
 export function ClipVideo({
   clip,
   width,
@@ -544,68 +544,79 @@ export function ClipVideo({
               {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
             </VideoButton>
             {showTime && <span className="min-w-12 px-1 text-sm tabular-nums">{clock(time)}</span>}
-            {free && (
-              <>
-                <VideoButton label={t('review.zoomMore')} tip={t('review.pinchNote')} onClick={() => zoomBy(ZOOM_STEP)}>
-                  <ZoomIn aria-hidden />
-                </VideoButton>
-                <VideoButton label={t('review.zoomLess')} tip={t('review.pinchNote')} disabled={view.w >= width} onClick={() => zoomBy(1 / ZOOM_STEP)}>
-                  <ZoomOut aria-hidden />
-                </VideoButton>
-                {views && (
-                  <VideoButton label={t('review.autoZoom')} pressed={autoShown} onClick={toggleAuto}>
-                    <ScanSearch aria-hidden />
+            {/* The zoom's buttons, a space after them (not before the speed's: a line wrapped on a phone starts flush). */}
+            {(free || clip.boxes.length > 0) && (
+              <div className="mr-2 flex gap-x-1">
+                {free && (
+                  <>
+                    <VideoButton label={t('review.zoomMore')} tip={t('review.pinchNote')} onClick={() => zoomBy(ZOOM_STEP)}>
+                      <ZoomIn aria-hidden />
+                    </VideoButton>
+                    <VideoButton label={t('review.zoomLess')} tip={t('review.pinchNote')} disabled={view.w >= width} onClick={() => zoomBy(1 / ZOOM_STEP)}>
+                      <ZoomOut aria-hidden />
+                    </VideoButton>
+                    {views && (
+                      <VideoButton label={t('review.autoZoom')} pressed={autoShown} onClick={toggleAuto}>
+                        <ScanSearch aria-hidden />
+                      </VideoButton>
+                    )}
+                  </>
+                )}
+                {/* No outline, nothing to zoom on. */}
+                {clip.boxes.length > 0 && (
+                  <VideoButton
+                    label={t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
+                    onClick={() => {
+                      setPinched(null);
+                      setZoom((z) => !z);
+                    }}
+                  >
+                    {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
                   </VideoButton>
                 )}
-              </>
+              </div>
             )}
-            {/* No outline, nothing to zoom on. */}
-            {clip.boxes.length > 0 && (
-              <VideoButton
-                label={t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
-                onClick={() => {
-                  setPinched(null);
-                  setZoom((z) => !z);
-                }}
-              >
-                {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
-              </VideoButton>
-            )}
-            {touches && (
-              <VideoButton
-                label={t('review.slowTouches')}
-                pressed={slow}
-                onClick={() => {
-                  saveFlag(SLOW_KEY, !slow);
-                  setSlow(!slow);
-                }}
-              >
-                <Snail aria-hidden />
-              </VideoButton>
-            )}
-            <div role="group" aria-label={t('review.speed')} className="flex gap-x-1">
-              {SPEEDS.map((s) => (
+            <div className="flex gap-x-1">
+              {touches && (
                 <VideoButton
-                  key={s}
-                  label={`${new Intl.NumberFormat(i18n.language).format(s)}×`}
-                  tip={t('review.speed')}
-                  pressed={s === speed}
-                  className="px-1.5"
+                  label={t('review.slowTouches')}
+                  pressed={slow}
                   onClick={() => {
-                    picked = s;
-                    setSpeed(s);
+                    saveFlag(SLOW_KEY, !slow);
+                    setSlow(!slow);
                   }}
                 >
-                  {`${new Intl.NumberFormat(i18n.language).format(s)}×`}
+                  <Snail aria-hidden />
                 </VideoButton>
-              ))}
+              )}
+              <div role="group" aria-label={t('review.speed')} className="flex gap-x-1">
+                {SPEEDS.map((s) => (
+                  <VideoButton
+                    key={s}
+                    label={`${new Intl.NumberFormat(i18n.language).format(s)}×`}
+                    tip={t('review.speed')}
+                    pressed={s === speed}
+                    className="px-1.5"
+                    onClick={() => {
+                      picked = s;
+                      setSpeed(s);
+                    }}
+                  >
+                    {`${new Intl.NumberFormat(i18n.language).format(s)}×`}
+                  </VideoButton>
+                ))}
+              </div>
             </div>
-            {free && (
-              <VideoButton label={t(muted ? 'review.soundOn' : 'review.soundOff')} onClick={toggleMuted}>
-                {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
-              </VideoButton>
+            {(free || extra) && (
+              <div className="ml-auto flex gap-x-1">
+                {free && (
+                  <VideoButton label={t(muted ? 'review.soundOn' : 'review.soundOff')} onClick={toggleMuted}>
+                    {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+                  </VideoButton>
+                )}
+                {extra}
+              </div>
             )}
-            {extra && <div className="ml-auto flex">{extra}</div>}
           </div>
         </div>
       </div>

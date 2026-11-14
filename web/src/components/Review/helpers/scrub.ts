@@ -20,8 +20,8 @@ export function frameTime(frame: number, fps: number): number {
 }
 
 /** Playing with "slow at touches" on, the video slows down from SLOW_BEFORE_S before each touch to SLOW_AFTER_S after it. */
-export const SLOW_BEFORE_S = 0.5;
-export const SLOW_AFTER_S = 0.3;
+export const SLOW_BEFORE_S = 0.3;
+export const SLOW_AFTER_S = 0.15;
 
 /** Whether `time` is in the slowed span of one of `touches` (times, sorted). */
 export function nearTouch(touches: readonly number[], time: number): boolean {
