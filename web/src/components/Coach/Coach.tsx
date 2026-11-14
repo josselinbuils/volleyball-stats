@@ -68,7 +68,7 @@ export function Coach() {
           className="bg-card"
         >
           {GROUPS.map((g) => (
-            <ToggleGroupItem key={g} value={String(g)} className="h-9 min-w-0 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground">
+            <ToggleGroupItem key={g} value={String(g)} className="h-9 min-w-0 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
               <span className="truncate">{groupName(t, g)}</span>
             </ToggleGroupItem>
           ))}

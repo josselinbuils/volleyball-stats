@@ -36,7 +36,7 @@ export function SetFilter() {
         className="bg-card"
       >
         {['all', ...sets.map(String)].map((v) => (
-          <ToggleGroupItem key={v} value={v} className="h-9 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground">
+          <ToggleGroupItem key={v} value={v} className="h-9 px-4 text-[15px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
             {v === 'all' ? t('allSets') : t('set', { n: v })}
           </ToggleGroupItem>
         ))}
