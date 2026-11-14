@@ -91,8 +91,8 @@ function Status({ ok, children }: { ok: boolean; children: ReactNode }) {
   );
 }
 
-/** The "Serveur" tab of the review's list: the hosting server, the matches online and the backups. */
-export function ServerTab() {
+/** The "Site" tab of the review's list: the hosting server, the matches online, the export and the backups. */
+export function SiteTab() {
   const { t } = useTranslation();
   const f = useFormat();
   const [state, setState] = useState<ServerState | null>(null);

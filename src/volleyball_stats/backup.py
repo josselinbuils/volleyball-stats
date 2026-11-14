@@ -10,7 +10,7 @@ went in outputs/backup_state.json (`state`). The video is too big for that serve
 
     uv run python -m volleyball_stats.backup outputs/matches/2026-10-29-aspom-1-vs-aspom-2
 
-goes through `sync.push`, as the app does. The app's "Serveur" tab restores a match or what sits beside the matches from
+goes through `sync.push`, as the app does. The app's "Site" tab restores a match or what sits beside the matches from
 any copy (`server.restore`).
 """
 

@@ -43,7 +43,7 @@ PROBED: dict[tuple, object] = {}
 TOOK_VIDEO_S = 4013.0
 VIDEOS = "videos"
 MODELS = "models"
-# The "Serveur" tab's jobs: every match online rebuilt and uploaded, every match changed copied to the server, the copies
+# The "Site" tab's jobs: every match online rebuilt and uploaded, every match changed copied to the server, the copies
 # checked against this machine's.
 HOSTING = "hosting"
 BACKUP = "backup"
@@ -619,7 +619,7 @@ def videos_state() -> dict | None:
 
 
 def server_state() -> dict:
-    """The "Serveur" tab: the server, whether this machine copies its matches by itself, how its last copies and check
+    """The "Site" tab: the server, whether this machine copies its matches by itself, how its last copies and check
     went, and the tab's jobs."""
     found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP, VERIFY)}
     last = backup.state(OUTPUTS)

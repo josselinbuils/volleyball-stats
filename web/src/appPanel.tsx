@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@/i18n';
-import { ServerTab } from '@/components/ServerTab';
+import { SiteTab } from '@/components/SiteTab';
 import { Setup } from '@/components/Setup/Setup';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -16,12 +16,12 @@ export function mount(element: HTMLElement) {
   );
 }
 
-/** The "Serveur" tab's screen in `element`. */
-export function mountServer(element: HTMLElement) {
+/** The "Site" tab's screen in `element`. */
+export function mountSite(element: HTMLElement) {
   createRoot(element).render(
     <StrictMode>
       <TooltipProvider delayDuration={200}>
-        <ServerTab />
+        <SiteTab />
       </TooltipProvider>
     </StrictMode>,
   );

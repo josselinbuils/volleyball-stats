@@ -345,7 +345,7 @@ def club_team(match: Path, theme: str) -> int:
 
 
 def ensure_publish(match: Path, video: Path, theme: str) -> None:
-    """Gives an imported match a publish.json, the hosting the server's (`sync.server`: the "Serveur" tab's, else another
+    """Gives an imported match a publish.json, the hosting the server's (`sync.server`: the "Site" tab's, else another
     match's), for its upload and backups."""
     from volleyball_stats import sync
 

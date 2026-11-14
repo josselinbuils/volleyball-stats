@@ -4,7 +4,7 @@ The rules on what may go online are in `CLAUDE.md`.
 
 - [Without a server: the export](#without-a-server-the-export)
 - [Your own server](#your-own-server)
-- [The Serveur tab](#the-serveur-tab)
+- [The Site tab](#the-site-tab)
 - [The server](#the-server)
 - [Uploading](#uploading)
 - [The video and its password](#the-video-and-its-password)
@@ -17,7 +17,7 @@ The rules on what may go online are in `CLAUDE.md`.
 
 ## Without a server: the export
 
-"Exporter le site" (a card of the Serveur tab, an item of the review's menu; `ExportSite.tsx`, `/app/export`) zips the
+"Exporter le site" (a card of the Site tab, an item of the review's menu; `ExportSite.tsx`, `/app/export`) zips the
 public pages of the matches picked, with their list (`matches.export`, `outputs/export/site.zip`, downloaded as
 `matchs.zip` with a `matchs/` folder): as an upload builds them, without what needs the server (no video behind a password,
 no "Signaler", no link previews) nor the gzip copies. Any static host serves it (shared hosting by FTP, GitHub Pages,
@@ -26,7 +26,8 @@ match's commentary voice is made. The download is offered while the matches tick
 
 ## Your own server
 
-Everything the Serveur tab does needs a Linux server reachable by SSH with a key, as root (the backups go to
+The Site tab's "Serveur" card, for the uploads, the video's password, the viewers' reports and the backups, needs a Linux
+server reachable by SSH with a key, as root (the backups go to
 `/root/backups/volleyball-stats`, `backup.ROOT`; the passwords' list reloads nginx), and rsync on both sides: Windows (WSL2)
 and macOS have both. Tested against nginx 1.24 (Ubuntu 24.04's) unprivileged, with [`nginx.conf`](nginx.conf): the video
 refused without its key then opened with it (`matches.protected`, `key_command`, `opens`), a report logged, a gzip copy sent.
@@ -45,7 +46,7 @@ refused without its key then opened with it (`matches.protected`, `key_command`,
 
 2. On the machine running the app: `ssh-keygen -t ed25519 -f ~/.ssh/volleyball`, then
    `ssh-copy-id -i ~/.ssh/volleyball root@SERVER`.
-3. In the Serveur tab: `root@SERVER`, `/srv/volleyball/site/`, `~/.ssh/volleyball`, `https://stats.example.org/`, then
+3. In the Site tab's "Serveur" card: `root@SERVER`, `/srv/volleyball/site/`, `~/.ssh/volleyball`, `https://stats.example.org/`, then
    "Tester".
 
 The app keeps `video_key.conf` and nginx `feedback/feedback.log` beside the site's folder (`matches.key_command`,
@@ -56,13 +57,13 @@ the path before the config's locations and patterns, as the owner's server below
 composes it (the owner's). Left out of `nginx.conf`: the owner's crawler block (below) and Cloudflare (whose visitor's
 address, `$http_cf_connecting_ip`, keys the limits there).
 
-## The Serveur tab
+## The Site tab
 
-The app's "Serveur" tab (on the list, `#serveur`, `server.py`, `ServerTab.tsx` in `app.js`, never hosted):
+The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.js`, never hosted):
 
-- sets the server: address, site folder, ssh key, public address, in `outputs/server.json`, written into every match's
-  `publish.json` (a new match takes it from there, `matches.ensure_publish`); "Tester" checks it answers and holds the
-  folder;
+- sets the server (its "Serveur" card, linking to [setting one up](#your-own-server)): address, site folder, ssh key,
+  public address, in `outputs/server.json`, written into every match's `publish.json` (a new match takes it from there,
+  `matches.ensure_publish`); "Tester" checks it answers and holds the folder;
 - lists the matches online, each "À jour" or "En retard" with its link (`server.online`). "En retard" once the page's data
   or the code of the match's page, the list or the 3D view changed since its upload (`review.read_hosted`; the review's
   tip lists each cause on its line);
@@ -179,7 +180,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 - With "Sauvegarde automatique" on, every 10 minutes a match changed here since it was last sent or brought
   (`sync.changed`) is sent, and what sits beside the matches (courts and their clicks, roster, lens, the club, the viewers'
   reports, the models trained on the reviewed matches: `learned/`, 345 MB) is kept in step with the server
-  (`sync.keep_shared`). The review's "Sauvegarder sur le serveur" and the Serveur tab's "Sauvegarder maintenant"
+  (`sync.keep_shared`). The review's "Sauvegarder sur le serveur" and the Site tab's "Sauvegarder maintenant"
   (`sync push --all`) do it at once; `uv run python -m volleyball_stats.backup outputs/matches/MATCH` goes through
   `sync.push` too.
 - The choice is each machine's own (`outputs/backup.json`), on by default once a server is set.
@@ -207,7 +208,7 @@ match (the owner's rule, 8 Nov: no machine holds one).
   sent the last copy and when, and the one sending a copy now); a copy goes only from the server's version (`.sync.json` in
   the match's folder, never copied, says which this machine started from).
 - Opening a match, once the machine keeps its matches there (`sync.active`: automatic copies on, a server set in the
-  Serveur tab, or a match pushed or pulled; otherwise the review reaches the server only when asked), the review first
+  Site tab, or a match pushed or pulled; otherwise the review reaches the server only when asked), the review first
   brings the server's newer copy when nothing changed here (`sync.check`, 15 s at most).
 - Changed on both sides (at opening, or a copy refused later), it asks which to keep, "Modifié ici et sur MACHINE": "Celle
   de MACHINE" pulls it (this machine's changes kept in `backup-sync-<time>/`), "Celle d'ici" sends this one, the server's
@@ -217,7 +218,7 @@ match (the owner's rule, 8 Nov: no machine holds one).
 - A pull also brings the courts, lens, club and sponsors this machine lacks, and the roster is joined, each match's names
   from this machine where its copy is not behind the server's.
 - By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all | push outputs/matches/MATCH`; a machine
-  with no match yet first sets the server in the Serveur tab (the key copied there).
+  with no match yet first sets the server in the Site tab (the key copied there).
 - The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting: the
   Mac, WSL2 being unreachable from outside: two Windows PCs cannot sync, the dialog says so on Windows), never through
   the server.

@@ -87,7 +87,7 @@ export function Setup() {
             </span>
             {state.backup.error && <span className="text-xs [overflow-wrap:anywhere] text-muted-foreground">{state.backup.error}</span>}
             <Button size="sm" variant="outline" className="w-fit bg-card" asChild>
-              <a href="#serveur">{t('app.backup.open')}</a>
+              <a href="#site">{t('app.backup.open')}</a>
             </Button>
           </AlertDescription>
         </Alert>

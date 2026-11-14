@@ -114,8 +114,8 @@ for the stand, the camera settings and the lens calibration.
    questions about the players it is unsure of, then apply: the match page is rebuilt in seconds.
 
 "Club" sets your club's name, logo, colours, teams and sponsors, the same on every page. The match page is in
-`outputs/matches/MATCH/site/index.html`; the review's "Put online" hosts it on your server
-([setting one up](docs/hosting.md#your-own-server)), and "Export the site" zips the pages for any host. When a new version of the code is out,
+`outputs/matches/MATCH/site/index.html`. The app's Site tab zips the pages for any host ("Export the site"), or uploads
+them to your own server ([setting one up](docs/hosting.md#your-own-server)), the review's "Put online" then. When a new version of the code is out,
 the app offers to update.
 
 Developers start it with `uv run stats` (`uv run stats --help` for the others). Each step also has its command, with every option:

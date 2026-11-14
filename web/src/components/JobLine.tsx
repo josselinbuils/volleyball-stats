@@ -5,7 +5,7 @@ import { explain } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
 import type { Job } from '@/components/Setup/helpers/setup';
 
-/** A job of the Serveur tab, with its stage ("match": the `n`th of `of`) and the seconds spent and left while it runs. */
+/** A job of the Site tab, with its stage ("match": the `n`th of `of`) and the seconds spent and left while it runs. */
 export type Told = Job & { n?: number | null; of?: number | null; elapsed?: number; left?: number | null };
 
 /** A job's last run: running (its bar, what it does and the time left), failed with its reason, or done and when

@@ -28,7 +28,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - Each apply rebuilds the pages.
 - "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password, or
   without it (`outputs/matches/MATCH/publish.json`). "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds
-  every match online and uploads them at once.
+  every match online and uploads them at once. "Exporter le site" (the same menu, a server set or not) zips the pages for
+  any host ([hosting.md](hosting.md#without-a-server-the-export)).
 - "Apprendre de mes réponses" (the Progrès tab; checked while its last run saw the answers as they stand: `review.learned`,
   `learn.json`'s `answers`) retrains the learned attribution and reruns the pipeline (`learn --rerun`: 3 min on the M4 with
   the poses cached, 40 without). It moves the answers onto the new windows itself (`learn.rerun`, `rekey`; a rally the

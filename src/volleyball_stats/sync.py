@@ -51,7 +51,7 @@ HOSTING = ("upload", "key", "url", "site")
 
 
 def server(outputs: Path) -> dict | None:
-    """The hosting server's `upload`, `key`, `url` and `site`: outputs/server.json's (the app's "Serveur" tab), completed
+    """The hosting server's `upload`, `key`, `url` and `site`: outputs/server.json's (the app's "Site" tab), completed
     by a match's publish.json; None without an address and key."""
     given = (json.loads(p.read_text()) for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")))
     found = next((c for c in given if c.get("upload") and c.get("key")), {})
@@ -101,7 +101,7 @@ def set_auto(outputs: Path, on: bool) -> None:
 
 def active(outputs: Path) -> bool:
     """Whether this machine keeps its matches on the server: automatic copies on, a server set in the
-    Serveur tab, or a match pushed or pulled. Otherwise the review reaches the server only when asked."""
+    Site tab, or a match pushed or pulled. Otherwise the review reaches the server only when asked."""
     return auto(outputs) or (outputs / SERVER).exists() or any((outputs / "matches").glob(f"*/{STATE}"))
 
 
@@ -375,7 +375,7 @@ def pull(name: str, outputs: Path = DEFAULT_OUTPUTS, copy: str | None = None) ->
     it is, and the match left to send again: it becomes the newest. LookupError if the server has no such copy."""
     config = server(outputs)
     if config is None:
-        raise LookupError("no server: set it in the Serveur tab")
+        raise LookupError("no server: set it in the Site tab")
     found = remote(config, "list")["matches"]
     if name not in found:
         raise LookupError(name)

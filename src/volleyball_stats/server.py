@@ -1,4 +1,4 @@
-"""The hosting server, set in the app's "Serveur" tab: its address, the site's folder there, the ssh key and the public
+"""The hosting server, set in the app's "Site" tab: its address, the site's folder there, the ssh key and the public
 address, in outputs/server.json (sync.SERVER), which every match's publish.json follows. The matches go online there,
 and the backups go there too (backup.py).
 """

@@ -840,9 +840,9 @@
     "done": "Exported {{at}}."
   },
   "server": {
-    "title": "Server",
-    "intro": "The site, online or exported, and its backups.",
-    "connection": "Connection",
+    "title": "Site",
+    "intro": "The site, online or exported, and the backups.",
+    "connection": "Server",
     "need": "A Linux server reachable by SSH, with nginx.",
     "guide": "Setting it up",
     "address": "Address",
