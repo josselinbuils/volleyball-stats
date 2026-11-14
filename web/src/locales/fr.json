@@ -828,10 +828,23 @@
     "losses_other": "{{count}} défaites",
     "intro": "Les résultats de l'équipe et l'évolution des joueurs au fil des matchs."
   },
+  "export": {
+    "title": "Exporter le site",
+    "intro": "Les pages des matchs, sans vidéo ni photos, à déposer chez n'importe quel hébergeur.",
+    "loading": "Chargement des matchs…",
+    "none": "Aucun match prêt.",
+    "start": "Exporter",
+    "again": "Exporter à nouveau",
+    "running": "Export…",
+    "download": "Télécharger ({{size}})",
+    "done": "Exporté le {{at}}."
+  },
   "server": {
     "title": "Serveur",
-    "intro": "Le site en ligne et ses sauvegardes.",
+    "intro": "Le site, en ligne ou exporté, et ses sauvegardes.",
     "connection": "Connexion",
+    "need": "Un serveur Linux joignable en SSH, avec nginx.",
+    "guide": "Le préparer",
     "address": "Adresse",
     "folder": "Dossier du site",
     "key": "Clé SSH",
@@ -856,7 +869,8 @@
       "check": "Match {{n}} sur {{of}}",
       "upload": "Envoi sur le serveur",
       "shared": "Club, terrains, joueurs et signalements",
-      "list": "Lecture des sauvegardes"
+      "list": "Lecture des sauvegardes",
+      "zip": "Création du fichier"
     },
     "backups": "Sauvegardes",
     "auto": "Sauvegarde automatique",

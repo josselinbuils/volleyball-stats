@@ -453,21 +453,29 @@ class TestAddCopies:
         assert config == {key: str(path.resolve()) for key, path in made.items()}
 
 
+def test_sends_the_reports_beside_the_list():
+    assert matches.feedback_address("https://example.org/volleyball/") == "/volleyball/feedback"
+    assert matches.feedback_address("https://stats.example.org/") == "/feedback"
+    assert matches.feedback_address(None) is None
+
+
 class TestKeyCommand:
     @staticmethod
     def run(tmp_path, folder, key):
         service = tmp_path / "docker" / "volleyball-stats"
         bin_ = tmp_path / "bin"
         bin_.mkdir(exist_ok=True)
-        fake = bin_ / "docker"
-        fake.write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/docker.log\n')
-        fake.chmod(0o755)
+        for name in ("docker", "nginx"):
+            fake = bin_ / name
+            fake.write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/{name}.log\n')
+            fake.chmod(0o755)
         subprocess.run(["sh", "-c", matches.key_command(service, folder, key)], check=True, env={**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"})
         return service / "video_key.conf"
 
     def test_gives_the_folder_its_key_in_place_leaving_the_others_then_reloads(self, tmp_path):
         service = tmp_path / "docker" / "volleyball-stats"
         service.mkdir(parents=True)
+        (service.parent / "docker-compose.yml").write_text("services:\n  volleyballstats:\n    image: nginx\n")
         keys = service / "video_key.conf"
         keys.write_text('"old-match:111" 1;\n"m:222" 1;\n')
         inode = keys.stat().st_ino
@@ -478,6 +486,20 @@ class TestKeyCommand:
         assert keys.stat().st_ino == inode
         assert sorted(p.name for p in service.iterdir()) == ["video_key.conf"]
         assert "nginx -t -q && nginx -s reload" in (tmp_path / "docker.log").read_text()
+
+    def test_reloads_the_servers_own_nginx_without_the_owners_compose(self, tmp_path):
+        service = tmp_path / "srv" / "site-parent"
+        service.mkdir(parents=True)
+        (service / "video_key.conf").write_text("")
+
+        bin_ = tmp_path / "bin"
+        bin_.mkdir()
+        for name in ("docker", "nginx"):
+            (bin_ / name).write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/{name}.log\n')
+            (bin_ / name).chmod(0o755)
+        subprocess.run(["sh", "-c", matches.key_command(service, "m", "333")], check=True, env={**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"})
+
+        assert (tmp_path / "nginx.log").read_text() == "-t -q\n-s reload\n" and not (tmp_path / "docker.log").exists()
 
     def test_starts_an_empty_list(self, tmp_path):
         service = tmp_path / "docker" / "volleyball-stats"
@@ -537,3 +559,44 @@ class TestAdoptFilms:
         (match / "films").mkdir(parents=True)
         assert matches.adopt_films(match, self.page(tmp_path)) == 0
         assert not (match / "films" / "manifest.json").exists()
+
+
+class TestExport:
+    def test_zips_the_public_pages_and_their_list_without_the_servers_parts(self, tmp_path, monkeypatch):
+        built = []
+        match = tmp_path / "outputs" / "matches" / "first"
+        match.mkdir(parents=True)
+        (match / "publish.json").write_text(json.dumps({"club": 2, "video": True, "videoKey": "abc"}))
+        (tmp_path / "first.mp4").write_bytes(b"")
+        monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
+        monkeypatch.setattr(matches, "make_voice", lambda match: built.append("voice"))
+
+        def publish(match, video, court, theme, given, site):
+            built.append(given)
+            site.mkdir(parents=True)
+            (site / "data.js").write_text(f"window.MATCH = {json.dumps({'name': 'first', 'date': '2026-10-29', 'teams': None, 'rallies': []})};\n")
+            return {}, {}
+
+        monkeypatch.setattr(matches.web, "publish", publish)
+        out = tmp_path / "outputs" / matches.EXPORT
+
+        matches.export([(match, tmp_path / "first.mp4", Path("court.json"))], "none", out)
+
+        # No video nor pictures, no report endpoint nor link to a password's page: what needs the server.
+        assert built == ["voice", {"footage": "none", "club": 2, "pictures": False}]
+        names = matches.zipfile.ZipFile(out).namelist()
+        assert "matchs/index.html" in names and "matchs/2026-10-29/data.js" in names
+        assert not [n for n in names if n.endswith(".gz")]
+        assert [p.name for p in out.parent.iterdir()] == ["site.zip"]
+
+    def test_leaves_the_last_zip_when_a_match_fails(self, tmp_path, monkeypatch):
+        match = tmp_path / "outputs" / "matches" / "first"
+        match.mkdir(parents=True)
+        out = tmp_path / "outputs" / matches.EXPORT
+        out.parent.mkdir(parents=True)
+        out.write_bytes(b"before")
+
+        with pytest.raises(RuntimeError, match="video not found"):
+            matches.export([(match, tmp_path / "gone.mp4", Path("court.json"))], "none", out)
+
+        assert out.read_bytes() == b"before" and [p.name for p in out.parent.iterdir()] == ["site.zip"]

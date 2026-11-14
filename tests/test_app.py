@@ -88,6 +88,25 @@ class TestApp:
         }
         assert app.handle("POST", "/app/server", "", {**body, "address": "nobody"}, list)[2] == 400
 
+    def test_exports_only_the_matches_ready(self, place, monkeypatch):
+        started = []
+        monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append(steps[0][1]))
+        listed = lambda: [{"path": "one", "name": "one", "ready": True}, {"path": "two", "ready": False}, {"path": "three", "ready": True, "missing": "video"}]  # noqa: E731
+        answer = json.loads(app.handle("GET", "/app/export", "", {}, listed)[0])
+        assert [m["path"] for m in answer["matches"]] == ["one"] and answer["file"] is None
+        assert app.handle("POST", "/app/export", "", {"matches": ["two"]}, listed)[2] == 400
+        assert app.handle("POST", "/app/export", "", {"matches": []}, listed)[2] == 400
+        assert app.handle("GET", "/app/export/file", "", {}, listed)[2] == 404
+        assert app.handle("POST", "/app/export", "", {"matches": ["one"]}, listed)[2] == 200
+        assert started == [["volleyball_stats.matches", "--export", str(place / "outputs" / "export" / "site.zip"), "--match", str(place / "outputs" / "matches" / "one")]]
+        # Once done: the zip, and the matches it holds.
+        self.job(place, "export", kind="export", steps=[{"name": "export", "args": started[0]}])
+        (place / "outputs" / "export" / "site.zip").parent.mkdir(parents=True)
+        (place / "outputs" / "export" / "site.zip").write_bytes(b"zip")
+        answer = json.loads(app.handle("GET", "/app/export", "", {}, listed)[0])
+        assert answer["file"]["size"] == 3 and answer["file"]["matches"] == ["one"]
+        assert app.handle("GET", "/app/export/file", "", {}, listed)[:2] == (place / "outputs" / "export" / "site.zip", "application/zip")
+
     def test_refuses_to_quit_while_applying(self):
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: False)[2] == 200

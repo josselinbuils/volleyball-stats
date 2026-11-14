@@ -2,6 +2,8 @@
 
 The rules on what may go online are in `CLAUDE.md`.
 
+- [Without a server: the export](#without-a-server-the-export)
+- [Your own server](#your-own-server)
 - [The Serveur tab](#the-serveur-tab)
 - [The server](#the-server)
 - [Uploading](#uploading)
@@ -12,6 +14,47 @@ The rules on what may go online are in `CLAUDE.md`.
 - [Backup](#backup)
 - [Two machines](#two-machines)
 - [The club](#the-club)
+
+## Without a server: the export
+
+"Exporter le site" (a card of the Serveur tab, an item of the review's menu; `ExportSite.tsx`, `/app/export`) zips the
+public pages of the matches picked, with their list (`matches.export`, `outputs/export/site.zip`, downloaded as
+`matchs.zip` with a `matchs/` folder): as an upload builds them, without what needs the server (no video behind a password,
+no "Signaler", no link previews) nor the gzip copies. Any static host serves it (shared hosting by FTP, GitHub Pages,
+Netlify...), and its `index.html` opens from disk. Each export rebuilds the matches: 16 s for two, more the first time a
+match's commentary voice is made. The download is offered while the matches ticked are those of the last zip.
+
+## Your own server
+
+Everything the Serveur tab does needs a Linux server reachable by SSH with a key, as root (the backups go to
+`/root/backups/volleyball-stats`, `backup.ROOT`; the passwords' list reloads nginx), and rsync on both sides: Windows (WSL2)
+and macOS have both. Tested against nginx 1.24 (Ubuntu 24.04's) unprivileged, with [`nginx.conf`](nginx.conf): the video
+refused without its key then opened with it (`matches.protected`, `key_command`, `opens`), a report logged, a gzip copy sent.
+
+1. On the server, for a site at `https://stats.example.org/` in `/srv/volleyball/site/`:
+
+   ```bash
+   sudo apt install nginx rsync
+   sudo mkdir -p /srv/volleyball/site /srv/volleyball/feedback
+   sudo touch /srv/volleyball/video_key.conf          # the videos' passwords, written by the app
+   sudo chown www-data /srv/volleyball/feedback       # the viewers' reports, written by nginx
+   sudo cp nginx.conf /etc/nginx/conf.d/volleyball.conf   # this repository's docs/nginx.conf, its names changed
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot --nginx -d stats.example.org          # HTTPS
+   ```
+
+2. On the machine running the app: `ssh-keygen -t ed25519 -f ~/.ssh/volleyball`, then
+   `ssh-copy-id -i ~/.ssh/volleyball root@SERVER`.
+3. In the Serveur tab: `root@SERVER`, `/srv/volleyball/site/`, `~/.ssh/volleyball`, `https://stats.example.org/`, then
+   "Tester".
+
+The app keeps `video_key.conf` and nginx `feedback/feedback.log` beside the site's folder (`matches.key_command`,
+`feedback.fetch`); the pages send the reports to `feedback` under the public address (`matches.feedback_address`). Under a
+path (`https://example.org/volleyball/`), name the site's folder after it (`/srv/www/volleyball/`, `root /srv/www;`) and put
+the path before the config's locations and patterns, as the owner's server below. After the passwords' list, the app runs
+`nginx -t -q && nginx -s reload`, inside a `volleyballstats` docker compose service when the folder above the site's one
+composes it (the owner's). Left out of `nginx.conf`: the owner's crawler block (below) and Cloudflare (whose visitor's
+address, `$http_cf_connecting_ip`, keys the limits there).
 
 ## The Serveur tab
 
@@ -27,6 +70,7 @@ The app's "Serveur" tab (on the list, `#serveur`, `server.py`, `ServerTab.tsx` i
   "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them) and "Vérifier"
   (`sync verify`). Each has a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
   duration on this machine, `outputs/hosting_timings.json`, `outputs/backup_timings.json`);
+- zips the site to put on any host ("Exporter le site", [above](#without-a-server-the-export));
 - shows how the last copy and check went, switches the automatic backup and lists the copies on the server: its used and
   free room, each day's own size (its files no other copy shares, `find -links 1`: what removing it frees), a copy
   restored from or removed from there (never a match's newest, the one a pull brings), and how many copies the server
@@ -110,7 +154,8 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 
 ## Viewers' reports
 
-- Hosted pages are built with `--feedback /volleyball/feedback`: one tap on "Signaler" reports the moment, "Préciser" then
+- Hosted pages are built with `--feedback` at `feedback` under the public address (`matches.feedback_address`:
+  `/volleyball/feedback` here): one tap on "Signaler" reports the moment, "Préciser" then
   adds what is wrong and a comment to the same report (its `id`).
 - The service's nginx logs each POST (2 KB, 5 a minute per visitor) to `volleyball-stats/feedback/feedback.log`.
 - The review's "Charger les signalements" (`feedback.fetch`) copies it to `outputs/feedback/feedback-DATE.log` (the review

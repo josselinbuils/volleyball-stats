@@ -10,6 +10,7 @@ import {
   CloudUpload,
   DatabaseBackup,
   Ellipsis,
+  FolderDown,
   ExternalLink,
   History,
   LoaderCircle,
@@ -29,6 +30,7 @@ import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
 import { review, type Backup, type FilmCounts, type Hosted } from '@/lib/review';
 import { ClubDialog } from '@/components/ClubDialog';
+import { ExportDialog } from '@/components/ExportSite';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { LateCauses } from '@/components/LateCauses';
 import { Tip } from '@/components/Tip';
@@ -254,9 +256,9 @@ export function ReviewHeader({
       </Tip>,
     );
   }
-  // The menu's groups: the match's end on the Match tab, the uploads and films, the copies.
-  const shared = !!hosted || films.players.total > 0 || films.highlights.total > 0;
+  // The menu's groups: the match's end on the Match tab, the uploads, export and films, the copies.
   const [clubOpen, setClubOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   return (
     <header className="grid gap-1.5 px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -302,7 +304,7 @@ export function ReviewHeader({
                       {t('review.matchEndRemove', { time: review.matchEnd })}
                     </DropdownMenuItem>
                   )}
-                  {shared && <DropdownMenuSeparator />}
+                  <DropdownMenuSeparator />
                 </>
               )}
               {hosted && (
@@ -319,6 +321,10 @@ export function ReviewHeader({
                   {t('review.hostAll')}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onSelect={() => setExportOpen(true)}>
+                <FolderDown aria-hidden />
+                {t('export.title')}
+              </DropdownMenuItem>
               {films.players.total > 0 && (
                 <DropdownMenuItem disabled={!films.players.stale.length} onSelect={() => run('films')}>
                   <Clapperboard aria-hidden />
@@ -331,7 +337,7 @@ export function ReviewHeader({
                   {films.highlights.stale.length ? t('review.highlights') : t('review.highlightsDone')}
                 </DropdownMenuItem>
               )}
-              {(here || shared) && <DropdownMenuSeparator />}
+              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setClubOpen(true)}>
                 <Shield aria-hidden />
                 {t('app.club.open')}
@@ -390,6 +396,7 @@ export function ReviewHeader({
         />
       )}
       {clubOpen && <ClubDialog onClose={() => setClubOpen(false)} />}
+      {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
     </header>
   );
 }

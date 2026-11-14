@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tip } from '@/components/Tip';
-import { JobProgress } from '@/components/JobProgress';
+import { JobLine, type Told } from '@/components/JobLine';
+import { ExportSite } from '@/components/ExportSite';
 import { LateCauses } from '@/components/LateCauses';
 import { INPUT, call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
 import type { PageChange } from '@/lib/hostedChanges';
 import { useRunning } from '@/hooks/useRunning';
-import type { Job } from '@/components/Setup/helpers/setup';
 
 /** The hosting server as server.py reads it. */
 interface Server {
@@ -22,9 +22,6 @@ interface Server {
   key: string;
   url: string;
 }
-
-/** A job of the tab, with its stage ("match": the `n`th of `of`) and the seconds spent and left while it runs. */
-type Told = Job & { n?: number | null; of?: number | null; elapsed?: number; left?: number | null };
 
 /** A match online: its page's address, and when it last went up (`day` when not today), whether it changed since and what. */
 interface Online {
@@ -71,6 +68,8 @@ const FIELDS = [
   { key: 'url', placeholder: 'https://' },
 ] as const;
 const BUSY_MS = 3000;
+// How to set up a server for the tab.
+const GUIDE = 'https://github.com/josselinbuils/volleyball-stats/blob/main/docs/hosting.md#your-own-server';
 
 function Loading({ text }: { text: string }) {
   return (
@@ -79,27 +78,6 @@ function Loading({ text }: { text: string }) {
       {text}
     </p>
   );
-}
-
-/** A job's last run: running (its bar, what it does and the time left), failed with its reason, or done and when
- * (unless `quiet`: the card already says it). */
-function JobLine({ job, running, quiet }: { job: Told | null; running: string; quiet?: boolean }) {
-  const { t } = useTranslation();
-  const f = useFormat();
-  if (!job || (quiet && !job.running && !job.failed)) {
-    return null;
-  }
-  if (job.running) {
-    return (
-      <JobProgress label={running} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed}>
-        {job.stage ? t(`server.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: running }) : running}
-      </JobProgress>
-    );
-  }
-  if (job.failed) {
-    return <ErrorNote {...explain(t, job.error)} />;
-  }
-  return <p className="text-muted-foreground">{t('server.done', { at: f.when(new Date((job.ended ?? job.started) * 1000).toISOString()) })}</p>;
 }
 
 /** A line of the backups' state: fine (muted, a check) or wrong (red, a warning), with what it adds below. */
@@ -277,6 +255,13 @@ export function ServerTab() {
     <div className="grid gap-3 lg:grid-cols-2">
       <Card className="gap-3 px-4 py-3.5 lg:row-span-2">
         <h2 className="text-lg font-semibold">{t('server.connection')}</h2>
+        <p className="text-muted-foreground">
+          {t('server.need')}{' '}
+          <a href={GUIDE} target="_blank" rel="noreferrer" className="font-medium text-foreground underline-offset-4 hover:underline">
+            {t('server.guide')}
+            <ExternalLink aria-hidden className="ml-1 inline size-3.5 align-[-2px] text-muted-foreground" />
+          </a>
+        </p>
         <form onSubmit={save} className="grid gap-3">
           {FIELDS.map(({ key, placeholder }) => (
             <label key={key} className="grid gap-1 font-medium">
@@ -359,6 +344,10 @@ export function ServerTab() {
         </div>
         {hostError && <ErrorNote {...hostError} />}
         <JobLine job={state.hosting} running={t('server.hosting')} />
+      </Card>
+      <Card className="gap-3 px-4 py-3.5">
+        <h2 className="text-lg font-semibold">{t('export.title')}</h2>
+        <ExportSite />
       </Card>
       <Card className="gap-3 px-4 py-3.5">
         <h2 className="text-lg font-semibold">{t('server.backups')}</h2>

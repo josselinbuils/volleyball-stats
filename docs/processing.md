@@ -247,3 +247,6 @@ cut from them) without every player's consent. To host the matches:
 
 With every player's consent, `--footage ... --copy-video` adds the video: the server then needs HTTP
 range requests too.
+
+The app does all of it: "Exporter le site" (the Serveur tab, the review's menu) zips the site for any host, "Mettre en ligne"
+uploads it to a server set in the Serveur tab, nginx configured as [hosting.md](hosting.md#your-own-server) says.

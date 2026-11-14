@@ -22,7 +22,7 @@ export interface Check {
 /** A job (jobs.py) as the app shows it. */
 export interface Job {
   id: string;
-  kind: 'import' | 'court' | 'pipeline' | 'models' | 'videos' | 'hosting' | 'backup' | 'verify';
+  kind: 'import' | 'court' | 'pipeline' | 'models' | 'videos' | 'hosting' | 'backup' | 'verify' | 'export';
   running: boolean;
   step?: string | null;
   failed?: string;

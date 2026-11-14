@@ -2,6 +2,7 @@
 
     uv run python -m volleyball_stats.matches SITE [--theme NAME]
     uv run python -m volleyball_stats.matches --all outputs/matches [--theme NAME]
+    uv run python -m volleyball_stats.matches --export ZIP --match outputs/matches/MATCH [--match ...]
 
 Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the match's date and teams
 (SITE/2026-10-25-aspom-begles-vs-talence/) to make its address. SITE/index.html lists them newest
@@ -9,7 +10,8 @@ first from their data.js, each linking to its folder. The list is a page of its 
 from web/ with `npm run build`), its matches in matches.js. `host` rebuilds a match's two hosted pages
 and uploads the site, as the review does after each change when the match folder holds publish.json;
 `host_all` (`--all`) rebuilds every match online, each carrying the code as built, and uploads them at once; those with a
-newer copy on the server (`sync.behind`) stay as they are online.
+newer copy on the server (`sync.behind`) stay as they are online. `export` (`--export`) zips the public pages and their
+list instead, for a host of one's own.
 """
 
 import argparse
@@ -22,9 +24,12 @@ import re
 import shlex
 import shutil
 import subprocess
+import tempfile
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import cv2
@@ -38,8 +43,10 @@ APP_JS = "app.js"
 # The list's own folders, which no match folder may take.
 RESERVED = ("assets", "club")
 REDIRECTS = "redirects.json"
-# Where a match folder says how to host it, and where hosted pages send the viewers' reports.
-PUBLISH, FEEDBACK = "publish.json", "/volleyball/feedback"
+# Where a match folder says how to host it.
+PUBLISH = "publish.json"
+# The owner's server: the docker compose service whose nginx serves the site (docs/hosting.md); any other reloads nginx itself.
+SERVICE = "volleyballstats"
 VIDEO_SALT = "volleyball:"
 # Text files from COMPRESS_FROM bytes get a gzip copy the host sends as it is (nginx gzip_static):
 # compressing players.js (5.7 MB) per request cost the first match's host over a second of CPU.
@@ -57,6 +64,9 @@ SHARED_TAGS = re.compile(r"[ \t]*<meta (?:property=\"og:|name=\"twitter:)[^>]*>\
 # the site read from the server, each match rebuilt ("match:NAME"), the site uploaded and checked.
 TOOK = {"mirror": 10.0, "match": 15.0, "upload": 30.0}
 TIMINGS = "hosting_timings.json"
+# The site exported for a host of one's own (`export`): outputs/EXPORT, its folder inside the zip, its stages' durations.
+EXPORT, EXPORT_FOLDER, EXPORT_TIMINGS = "export/site.zip", "matchs", "export_timings.json"
+EXPORT_TOOK = {"match": 10.0, "zip": 5.0}
 
 
 def update_stages(outputs: Path, names: list[str]) -> jobs.Stages:
@@ -379,12 +389,21 @@ def add_copies(match: Path, video: Path) -> dict:
 
 
 def key_command(service: Path, folder: str, key: str) -> str:
-    """The server's shell command making `key` the one that opens the video of `folder`. The list is
-    written in place, being mounted in the container by its inode."""
+    """The server's shell command making `key` the one that opens the video of `folder`, then nginx reloaded: in the
+    SERVICE container when the folder above `service` composes it, else on the server. The list is written in place,
+    a container mounting it by its inode."""
     keys, compose = service / "video_key.conf", shlex.quote(str(service.parent))
     listed = shlex.quote(f'"{folder}:')
     line = shlex.quote(f'"{folder}:{key}" 1;')
-    return f"cd {compose} && conf={shlex.quote(str(keys))} && kept=$(grep -vF {listed} \"$conf\"); printf '%s\\n' \"$kept\" {line} | grep . > \"$conf.new\" && cat \"$conf.new\" > \"$conf\" && rm \"$conf.new\" && docker compose exec -T volleyballstats sh -c 'nginx -t -q && nginx -s reload'"
+    reload = "nginx -t -q && nginx -s reload"
+    composed = f"grep -qs '^  {SERVICE}:' docker-compose.yml docker-compose.yaml compose.yml compose.yaml"
+    return f"cd {compose} && conf={shlex.quote(str(keys))} && kept=$(grep -vF {listed} \"$conf\"); printf '%s\\n' \"$kept\" {line} | grep . > \"$conf.new\" && cat \"$conf.new\" > \"$conf\" && rm \"$conf.new\" && if {composed}; then docker compose exec -T {SERVICE} sh -c '{reload}'; else {reload}; fi"
+
+
+def feedback_address(url: str | None) -> str | None:
+    """Where the hosted pages send the viewers' reports: `feedback` beside the list at `url` (/volleyball/feedback for
+    https://example.org/volleyball/); none without it."""
+    return f"{urllib.parse.urlparse(url).path.rstrip('/')}/feedback" if url else None
 
 
 def install_key(config: dict, folder: str) -> None:
@@ -508,6 +527,7 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
     if any((c["site"], c["upload"]) != (config["site"], config["upload"]) for *_, c in hosted):
         raise RuntimeError("the matches are hosted in different places")
     site = Path(config["site"]).expanduser()
+    feedback = feedback_address(config.get("url"))
     named = lambda match: f"{match.name}: " if len(hosted) > 1 else ""  # noqa: E731
     # ponytail: a match whose video is gone stops the update of all; skip it, keeping its page, if that happens.
     for match, video, _, c in hosted:
@@ -533,10 +553,10 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
         if c["video"]:
             adopt_films(match, folder / "video")
             path = lambda key: str(Path(c[key]).expanduser())  # noqa: E731
-            web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": FEEDBACK}, folder / "video")
+            web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": feedback}, folder / "video")
         else:
             shutil.rmtree(folder / "video", ignore_errors=True)
-        public = {"footage": "none", "club": c.get("club", 1), "pictures": False, "feedback": FEEDBACK, **({"link": "video/"} if c["video"] else {})}
+        public = {"footage": "none", "club": c.get("club", 1), "pictures": False, "feedback": feedback, **({"link": "video/"} if c["video"] else {})}
         web.publish(match, video, court, theme, public, folder)
     told.start("upload")
     paths = {m["name"]: m["path"] for m in build(site, theme, config["url"])}
@@ -573,6 +593,37 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
             raise RuntimeError(f"{page} does not open with its password")
 
 
+def export(chosen: list[tuple[Path, Path, Path]], theme: str, out: Path, told: jobs.Stages | None = None) -> None:
+    """The public pages of `chosen` (match, video, court) and their list zipped in `out`, as `host` puts them online but
+    without what needs its server: the video behind a password, the viewers' reports, the link previews' address. A site
+    to open from disk or put on any host, in its EXPORT_FOLDER. Its stages `told` as it goes."""
+    told = told or jobs.Stages(files.root(chosen[0][0]) / EXPORT_TIMINGS, [*(f"match:{m.name}" for m, *_ in chosen), "zip"], EXPORT_TOOK)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with tempfile.TemporaryDirectory(dir=out.parent) as tmp:
+            site = Path(tmp) / EXPORT_FOLDER
+            for match, video, court in chosen:
+                told.start(f"match:{match.name}")
+                if not video.exists():
+                    raise RuntimeError(f"{match.name}: video not found: {video}")
+                ensure_review_page(match, video, court, theme)
+                make_voice(match)
+                given = json.loads((match / PUBLISH).read_text()) if (match / PUBLISH).exists() else {}
+                web.publish(match, video, court, theme, {"footage": "none", "club": given.get("club") or club_team(match, theme), "pictures": False}, site / match.name)
+            told.start("zip")
+            build(site, theme)
+            # The gzip copies are for a server sending them as they are (nginx gzip_static): any host compresses by itself.
+            made = Path(tmp) / out.name
+            with zipfile.ZipFile(made, "w", zipfile.ZIP_DEFLATED) as z:
+                for path in sorted(site.rglob("*")):
+                    if path.is_file() and path.suffix != ".gz":
+                        z.write(path, path.relative_to(site.parent).as_posix())
+            made.replace(out)
+    finally:
+        told.stopped.set()
+    told.start(None)
+
+
 def main() -> None:
     themes = sorted(p.parent.name for p in club_settings.THEMES.glob(f"*/{club_settings.THEME_FILE}"))
     parser = argparse.ArgumentParser(description="List the match pages of a site folder on its index page.")
@@ -583,8 +634,19 @@ def main() -> None:
     parser.add_argument("--court", type=Path)
     parser.add_argument("--theme", default=CLUB, help=f"Club theme: {CLUB} (the app's), one of branding/NAME/brand.json ({', '.join(themes)}) or none (default: {CLUB})")
     parser.add_argument("--url", help="The list's address, to tag the pages for link previews")
+    parser.add_argument("--export", type=Path, metavar="ZIP", help="Zip the public pages of the --match folders and their list, to put on any host")
+    parser.add_argument("--match", type=Path, action="append", default=[], help="A match folder to export (outputs/matches/MATCH), again for each")
     args = parser.parse_args()
     from volleyball_stats import sync
+
+    if args.export:
+        if not args.match:
+            parser.error("--export needs --match")
+        chosen = []
+        for match in args.match:
+            given = json.loads((match / files.SOURCE).read_text())
+            chosen.append((match, Path(given["video"]), Path(given["court"])))
+        return export(chosen, args.theme, args.export)
 
     if args.host:
         # Never an older version online: the server has a newer copy of this match.

@@ -828,10 +828,23 @@
     "losses_other": "{{count}} losses",
     "intro": "The team's results and how its players progress, match after match."
   },
+  "export": {
+    "title": "Export the site",
+    "intro": "The matches' pages, without video or pictures, to put on any web host.",
+    "loading": "Loading the matches…",
+    "none": "No match ready.",
+    "start": "Export",
+    "again": "Export again",
+    "running": "Exporting…",
+    "download": "Download ({{size}})",
+    "done": "Exported {{at}}."
+  },
   "server": {
     "title": "Server",
-    "intro": "The site online and its backups.",
+    "intro": "The site, online or exported, and its backups.",
     "connection": "Connection",
+    "need": "A Linux server reachable by SSH, with nginx.",
+    "guide": "Setting it up",
     "address": "Address",
     "folder": "Site folder",
     "key": "SSH key",
@@ -856,7 +869,8 @@
       "check": "Match {{n}} of {{of}}",
       "upload": "Uploading to the server",
       "shared": "Club, courts, players and reports",
-      "list": "Reading the backups"
+      "list": "Reading the backups",
+      "zip": "Making the file"
     },
     "backups": "Backups",
     "auto": "Automatic backup",
