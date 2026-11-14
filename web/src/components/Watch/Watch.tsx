@@ -19,7 +19,7 @@ import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 import { askVideo } from '@/components/VideoChoice';
-import { ballAt, frameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
+import { smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
 // A jump in the video this long cuts to its view: no pan across the court.
 const CUT_S = 0.5;
@@ -45,7 +45,7 @@ export function Watch() {
   const pause = useVideoTime(timeoutAt);
   const court = useRef<HTMLDivElement>(null);
   // The automatic zoom, on from the start where the match has views, frames the players as the review does, moving only
-  // to keep the ball in; the view springs to it each frame, back to the whole picture when off.
+  // to keep the ball in, looking a second ahead and behind; the view springs to it each frame, back to the whole picture when off.
   const [follow, setFollow] = useState(match.views.length > 0);
   const ball = useBall();
   const camera = useRef({ now: { ...WHOLE }, speed: { x: 0, y: 0, zoom: 0 } });
@@ -66,7 +66,7 @@ export function Watch() {
       const dt = Math.min(0.05, Math.max(0, stamp - last) / 1000);
       last = stamp;
       const time = video.currentTime;
-      const target = follow ? frameAt(match.views, time, typeof ball === 'object' ? ballAt(ball, time) : null) : WHOLE;
+      const target = follow ? smoothFrameAt(match.views, time, typeof ball === 'object' ? ball : null) : WHOLE;
       if (Math.abs(time - shown) > CUT_S) {
         Object.assign(now, target);
         Object.assign(speed, { x: 0, y: 0, zoom: 0 });

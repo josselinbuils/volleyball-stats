@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ballAt, frameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
+import { AHEAD_S, ballAt, frameAt, smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
 describe('ballAt', () => {
   // 10 fps: a sample every frame from 1 s to 2 s, the ball moving right.
@@ -70,5 +70,29 @@ describe('zoomOn', () => {
     const v = zoomOn({ x: 0.5, y: 0.5 }, 1000, 1000, 1920, 1080, 2);
     expect(v.x).toBe(-500);
     expect(v.y).toBe(-500);
+  });
+});
+
+describe('smoothFrameAt', () => {
+  const views: [number, number, number, number][] = [
+    [0, 0.2, 0, 0.6],
+    [10, 0, 0, 0.6],
+    [10.5, 0.4, 0, 0.6],
+  ];
+
+  it('holds a view away from any change', () => {
+    expect(smoothFrameAt(views, 5, null).x).toBeCloseTo(0.5, 6);
+  });
+
+  it('sets off before a change', () => {
+    expect(smoothFrameAt(views, 10 - AHEAD_S / 2, null).x).toBeLessThan(0.5);
+    expect(smoothFrameAt(views, 10 - AHEAD_S - 0.1, null).x).toBeCloseTo(0.5, 6);
+  });
+
+  it('turns a view shown briefly into a small detour', () => {
+    // Half a second at 0.3, between 0.5 and 0.7: the camera goes back left by a quarter of the way at most.
+    const xs = Array.from({ length: 41 }, (_, k) => smoothFrameAt(views, 8 + k * 0.1, null).x);
+    expect(Math.min(...xs)).toBeGreaterThan(0.5 - 0.2 / 4 - 1e-6);
+    expect(xs[40]).toBeCloseTo(0.7, 6);
   });
 });

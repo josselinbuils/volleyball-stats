@@ -7,6 +7,11 @@ export const SMOOTH_S = 0.5;
 const EDGE = 0.15;
 /** The view without the review's: half the picture, in its middle. */
 const NO_VIEW: MatchView = [0, 0.25, 0.25, 0.5];
+/** Seconds before and after the moment whose views are averaged into the one followed: the video being recorded, the
+ * view sets off ahead of a change, and two changes close together (the rally's end, then the next serve's view) make one move. */
+export const AHEAD_S = 1;
+/** Moments averaged over those seconds. */
+const AHEAD_STEPS = 20;
 /** The view's spring, in radians a second: it settles within about 5 / FOLLOW seconds. */
 const FOLLOW = 5;
 
@@ -49,6 +54,20 @@ export function frameAt(views: MatchView[], time: number, ball: { x: number; y: 
     return Math.min(1 - w, Math.max(0, moved)) + w / 2;
   };
   return { x: keep(x, ball?.x), y: keep(y, ball?.y), zoom: 1 / w };
+}
+
+/** The automatic zoom at `time` as followed: `frameAt` averaged within AHEAD_S, `ball` (or none) placed by `ballAt`. */
+export function smoothFrameAt(views: MatchView[], time: number, ball: Ball | null): Camera {
+  const sum = { x: 0, y: 0, zoom: 0 };
+  for (let k = 0; k <= AHEAD_STEPS; k += 1) {
+    const at = time + AHEAD_S * ((2 * k) / AHEAD_STEPS - 1);
+    const f = frameAt(views, at, ball && ballAt(ball, at));
+    sum.x += f.x;
+    sum.y += f.y;
+    sum.zoom += f.zoom;
+  }
+  const n = AHEAD_STEPS + 1;
+  return { x: sum.x / n, y: sum.y / n, zoom: sum.zoom / n };
 }
 
 /** `now` and its `speed` moved `dt` seconds toward `target` by a critically damped spring: the view

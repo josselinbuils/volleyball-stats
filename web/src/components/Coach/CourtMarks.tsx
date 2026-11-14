@@ -10,7 +10,7 @@ const WING = 0.2;
  * toward the players' right, y away from the net. */
 export function HalfCourt({ children }: { children: ReactNode }) {
   return (
-    <svg aria-hidden viewBox="-5 -2.2 10 11.7" className="block h-auto max-h-72 w-full">
+    <svg aria-hidden viewBox="-5 -2.2 10 11.7" className="block h-auto max-h-72 w-full lg:max-h-60">
       <rect x={-4.5} y={-2} width={9} height={2} className="fill-court opacity-50" />
       <rect x={-4.5} y={0} width={9} height={9} className="fill-court" />
       <rect x={-4.5} y={0} width={9} height={9} className="court-line" />
