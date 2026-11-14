@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Card } from '@/components/ui/card';
@@ -152,17 +153,21 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
             {listed.map((m) => {
               const names = m.teams?.map((team, k) => team.name ?? t('team', { n: k + 1 }));
               const scores = (m.scores ?? []).filter(Boolean);
+              // In the review, a card waits for its pipeline, and all wait while one opens.
+              const busy = opening === m.path;
+              const clickable = !review || ((m.ready || m.remote) && opening === null);
               // From the disk, a folder opens as a file listing: its page is named.
               return (
                 <li key={m.path}>
                   <a
                     href={location.protocol === 'file:' ? `${m.path}index.html` : m.path}
-                    aria-disabled={review && (!(m.ready || m.remote) || opening !== null)}
+                    aria-disabled={!clickable}
+                    aria-busy={busy || undefined}
                     onClick={
                       review
                         ? (event) => {
                             event.preventDefault();
-                            if ((m.ready || m.remote) && opening === null) {
+                            if (clickable) {
                               open(m.path, m.remote);
                             }
                           }
@@ -170,17 +175,17 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
                     }
                     className={cn(
                       'group block h-full rounded-[10px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
-                      review && !m.ready && 'opacity-60',
-                      review && !m.ready && !m.remote && 'cursor-default',
+                      ((review && !m.ready) || (opening !== null && !busy)) && 'opacity-60',
+                      busy ? 'cursor-wait' : !clickable && 'cursor-default',
                     )}
                   >
-                    <Card className="h-full gap-1.5 px-4 py-3.5 transition-colors group-hover:bg-muted">
+                    <Card className={cn('h-full gap-1.5 px-4 py-3.5 transition-colors', clickable && 'group-hover:bg-muted')}>
                       {m.date && (
                         <time dateTime={m.date} className="text-sm font-medium text-muted-foreground">
                           {f.date(m.date)}
                         </time>
                       )}
-                      <h2 className="text-lg leading-snug font-semibold [overflow-wrap:anywhere] group-hover:underline">
+                      <h2 className={cn('text-lg leading-snug font-semibold [overflow-wrap:anywhere]', clickable && 'group-hover:underline')}>
                         {m.title ?? (names ? t('matchTitle', { one: names[0], two: names[1] }) : m.name)}
                       </h2>
                       {m.teams && names && (
@@ -193,7 +198,8 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
                           ))}
                         </span>
                       )}
-                      <span className="text-sm text-muted-foreground tabular-nums">
+                      <span className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
+                        {busy && <LoaderCircle aria-hidden className="size-3.5 shrink-0 animate-spin" />}
                         {[
                           m.sets > 0 && t('matches.setsN', { count: m.sets }),
                           m.rallies > 0 && t('ralliesN', { count: m.rallies }),
