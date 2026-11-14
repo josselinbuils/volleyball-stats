@@ -119,6 +119,10 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
 
 /** Marks what `DoubtfulProblem` lists on `played`, the touches of the ball by their index. On the two matches reviewed, 82-100% of these flags sit on a correction. */
 function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k: number, p: Problem) => void): void {
+  // Each touch's rank in its team's run; a team's 2nd touch with both hands is a set, sent over or not (relanceSecond).
+  const runs: number[] = [];
+  played.forEach((k, n) => runs.push(touches[k].type === 'block' ? 0 : n && touches[played[n - 1]].team === touches[k].team ? runs[n - 1] + 1 : 1));
+  const setOver = (n: number) => touches[played[n]].type === 'set' && runs[n] === 2;
   played.forEach((k, n) => {
     if (!n) {
       return;
@@ -140,7 +144,7 @@ function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k
     if (same && (before.type === 'attack' || before.type === 'relance')) {
       mark(k, 'overThenSameTeam');
     }
-    if (!same && before.type === 'set') {
+    if (!same && before.type === 'set' && !setOver(n - 1)) {
       mark(b, 'setToOtherTeam');
     }
     if (!same && c.type === 'set') {
@@ -159,7 +163,7 @@ function doubtful(touches: Checked[], played: number[], teams: boolean, mark: (k
     return;
   }
   const last = touches[end]!;
-  if (last.type === 'set') {
+  if (last.type === 'set' && !setOver(played.length - 1)) {
     mark(end, 'endsOnSet');
   } else if (last.result === 'point' && last.type === 'serve') {
     mark(end, 'ace');

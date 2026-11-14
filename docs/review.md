@@ -197,7 +197,8 @@ after its touches; the others at its start or their touch.
 
 The editor also flags what may be right after all, on its touch and gone once the rally is checked (`checks.ts`,
 `doubtful`): a touch seen twice, a team playing on after its attack or relance, a set going to the other team, a set as
-first touch, a dig or reception after the team's own touch, two sets in a row, a rally ending on a set, a point on a
+first touch, a dig or reception after the team's own touch, two sets in a row, a rally ending on a set (a team's 2nd-touch
+set neither: sent over by the owner's rule, `relanceSecond`), a point on a
 reception or dig (not a relance: it happens), an ace. Scored on the pipeline's rallies against the corrections: a flag
 sits on a correction 82-100% of the time on both matches, 40% by chance. Rejected: over 2 s between touches (61% on the
 first match), a floor contact on a player (47%), a team change without a net crossing (37 left on checked rallies:
