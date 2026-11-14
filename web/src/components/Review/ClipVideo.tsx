@@ -449,13 +449,17 @@ export function ClipVideo({
         aria-valuemax={Math.round(to)}
         aria-valuenow={Math.round(time)}
         aria-valuetext={clock(time)}
-        className="group flex h-5 cursor-pointer touch-none items-center rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="group flex h-5 cursor-pointer touch-none items-center rounded-sm outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50"
         onPointerDown={(event) => {
+          // No text selection, nor the browser's drag of it (a "no drop" cursor) while seeking.
+          event.preventDefault();
+          event.currentTarget.focus({ preventScroll: true });
           event.currentTarget.setPointerCapture(event.pointerId);
           dragging.current = true;
           moveToPointer(event);
         }}
         onLostPointerCapture={() => (dragging.current = false)}
+        onDragStart={(event) => event.preventDefault()}
         onPointerMove={(event) => event.currentTarget.hasPointerCapture(event.pointerId) && moveToPointer(event)}
         onKeyDown={(event) => {
           const next = keys[event.key];
