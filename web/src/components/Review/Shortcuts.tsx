@@ -6,20 +6,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ARROW_STEP_S } from '@/components/Review/ClipVideo';
 import { ADD_KEY, TYPE_KEYS, VALIDATE_KEY } from '@/components/Review/ReportEditor';
 
-const KBD = 'justify-self-start rounded border px-1.5 text-xs text-muted-foreground';
-
-function Keys({ rows }: { rows: [string, string][] }) {
+/** A titled list of keys, its keys in the column the dialog's sections share. */
+function Section({ title, rows }: { title: string; rows: [string, string][] }) {
   return (
-    <dl className="col-span-2 grid grid-cols-subgrid items-center gap-y-2">
-      {rows.map(([key, label]) => (
-        <Fragment key={key}>
-          <dt>
-            <kbd className={KBD}>{key}</kbd>
-          </dt>
-          <dd>{label}</dd>
-        </Fragment>
-      ))}
-    </dl>
+    <section className="col-span-2 grid grid-cols-subgrid gap-y-2">
+      <h3 className="col-span-2 text-xs font-medium text-muted-foreground">{title}</h3>
+      <dl className="col-span-2 grid grid-cols-subgrid items-center gap-y-2">
+        {rows.map(([key, label]) => (
+          <Fragment key={key}>
+            <dt>
+              <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border bg-muted px-1.5 font-sans text-xs font-medium">{key}</kbd>
+            </dt>
+            <dd>{label}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -45,17 +47,22 @@ export function Shortcuts() {
           <DialogHeader>
             <DialogTitle>{t('review.shortcuts')}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2">
-            <Keys
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-4">
+            <Section
+              title={t('review.shortcutsVideo')}
               rows={[
                 [t('review.spaceKey'), t('review.shortcutPlay')],
                 ['← →', t('review.shortcutStep', { s: ARROW_STEP_S })],
+              ]}
+            />
+            <Section
+              title={t('review.shortcutsRally')}
+              rows={[
                 [ADD_KEY.toUpperCase(), t('review.shortcutAdd')],
                 [VALIDATE_KEY.toUpperCase(), t('review.shortcutValidate')],
               ]}
             />
-            <h3 className="col-span-2 mt-2 font-medium">{t('review.shortcutType')}</h3>
-            <Keys rows={Object.entries(TYPE_KEYS).map(([key, type]) => [key.toUpperCase(), t(`types.${type}`)])} />
+            <Section title={t('review.shortcutType')} rows={Object.entries(TYPE_KEYS).map(([key, type]) => [key.toUpperCase(), t(`types.${type}`)])} />
           </div>
         </DialogContent>
       </Dialog>

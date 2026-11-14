@@ -511,6 +511,8 @@
     "withKey": "{{label}} ({{key}})",
     "spaceKey": "Espace",
     "shortcuts": "Raccourcis clavier",
+    "shortcutsVideo": "Vidéo",
+    "shortcutsRally": "Échange",
     "shortcutPlay": "Lire ou mettre en pause",
     "shortcutStep": "Reculer ou avancer de {{s}} s",
     "shortcutAdd": "Ajouter une touche ici",

@@ -511,6 +511,8 @@
     "withKey": "{{label}} ({{key}})",
     "spaceKey": "Space",
     "shortcuts": "Keyboard shortcuts",
+    "shortcutsVideo": "Video",
+    "shortcutsRally": "Rally",
     "shortcutPlay": "Play or pause",
     "shortcutStep": "Back or forward {{s}} s",
     "shortcutAdd": "Add a touch here",
