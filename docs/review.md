@@ -88,7 +88,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ### The video
 
-- It plays the match freely, with its sound (a button cuts it), the arrow keys moving it by 1 s.
+- It plays the match freely, with its sound (a button cuts it), the arrow keys moving it by 1 s. Its controls sit in a
+  black bar under it, as on the match page (`VideoButton`, shared), full screen at its right end.
 - Its seek bar goes frame by frame on a small drag (a frame every 3 px, ±12, the count above the thumb; it pauses the
   video), follows the pointer past that until released. A press on the thumb grabs it where it stands
   (`helpers/scrub.ts`).

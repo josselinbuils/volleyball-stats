@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Maximize, Minimize } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { VideoButton } from '@/components/VideoButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { match, rallies, type Group } from '@/lib/match';
@@ -132,10 +132,9 @@ export function MatchTab({
               onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 ? at : n))}
               extra={
                 document.fullscreenEnabled && (
-                  <Button variant="outline" size="sm" className="bg-card" onClick={toggleFull}>
+                  <VideoButton label={t(full ? 'review.exitFullScreen' : 'review.fullScreen')} onClick={toggleFull}>
                     {full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
-                    {t(full ? 'review.exitFullScreen' : 'review.fullScreen')}
-                  </Button>
+                  </VideoButton>
                 )
               }
             />

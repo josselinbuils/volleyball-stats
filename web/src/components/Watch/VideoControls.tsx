@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
-import { Tip } from '@/components/Tip';
+import { VideoButton } from '@/components/VideoButton';
 import { clock } from '@/lib/format';
 import { match } from '@/lib/match';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
@@ -165,27 +165,19 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       (video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null)?.webkitEnterFullscreen?.();
     }
   };
-  const button = cn(
-    'inline-flex size-9 max-sm:size-8 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-3 [&_svg]:size-5',
-    light ? 'hover:bg-foreground/10 focus-visible:ring-ring/50' : 'hover:bg-white/15 focus-visible:ring-white/70',
-  );
   const skip = (by: number) => video && seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + by)));
   const skipButton = (by: number) => (
-    <Tip label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })}>
-      <button type="button" className={cn(button, 'relative', by < 0 && 'max-sm:ml-auto')} aria-label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
-        <SkipIcon seconds={by} />
-      </button>
-    </Tip>
+    <VideoButton light={light} className={cn('relative', by < 0 && 'max-sm:ml-auto')} label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
+      <SkipIcon seconds={by} />
+    </VideoButton>
   );
 
   return (
     // On a phone the timeline takes its own row above the buttons. Over the video zoomed, which runs past its box.
     <div className={cn('flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'relative z-10 bg-black text-white')}>
-      <Tip label={t(state.paused ? 'playVideo' : 'pauseVideo')}>
-        <button type="button" className={button} aria-label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
-          {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
-        </button>
-      </Tip>
+      <VideoButton light={light} label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
+        {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
+      </VideoButton>
       <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>
         {clock(time)}
       </span>
@@ -217,43 +209,27 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       </span>
       {skipButton(-SKIP)}
       {skipButton(SKIP)}
-      <Tip label={t('slowVideo')}>
-        <button
-          type="button"
-          className={cn(button, state.slow && (light ? 'bg-foreground/15' : 'bg-white/25'))}
-          aria-pressed={state.slow}
-          aria-label={t('slowVideo')}
-          onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}
-        >
-          <Snail aria-hidden />
-        </button>
-      </Tip>
-      <Tip label={t('loopVideo')}>
-        <button type="button" className={cn(button, loop && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={loop} aria-label={t('loopVideo')} onClick={() => setLoop(!loop)}>
-          <Repeat1 aria-hidden />
-        </button>
-      </Tip>
+      <VideoButton light={light} label={t('slowVideo')} pressed={state.slow} onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}>
+        <Snail aria-hidden />
+      </VideoButton>
+      <VideoButton light={light} label={t('loopVideo')} pressed={loop} onClick={() => setLoop(!loop)}>
+        <Repeat1 aria-hidden />
+      </VideoButton>
       {onFollow && (
-        <Tip label={t('autoZoom')}>
-          <button type="button" className={cn(button, follow && (light ? 'bg-foreground/15' : 'bg-white/25'))} aria-pressed={follow} aria-label={t('autoZoom')} onClick={onFollow}>
-            <ScanSearch aria-hidden />
-          </button>
-        </Tip>
+        <VideoButton light={light} label={t('autoZoom')} pressed={follow} onClick={onFollow}>
+          <ScanSearch aria-hidden />
+        </VideoButton>
       )}
       {/* The court's replay has no sound. */}
       {match.video && (
-        <Tip label={t(state.muted ? 'unmuteVideo' : 'muteVideo')}>
-          <button type="button" className={button} aria-label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
-            {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
-          </button>
-        </Tip>
+        <VideoButton light={light} label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
+          {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+        </VideoButton>
       )}
       {fullscreen && (
-        <Tip label={t(state.full ? 'exitFullscreen' : 'fullscreen')}>
-          <button type="button" className={button} aria-label={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
-            {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
-          </button>
-        </Tip>
+        <VideoButton light={light} label={t(state.full ? 'exitFullscreen' : 'fullscreen')} onClick={toggleFullscreen}>
+          {state.full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+        </VideoButton>
       )}
     </div>
   );

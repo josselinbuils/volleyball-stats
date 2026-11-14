@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type Re
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, ScanSearch, Snail, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { VideoError } from '@/components/VideoError';
-import { Button } from '@/components/ui/button';
+import { VideoButton } from '@/components/VideoButton';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -344,8 +344,7 @@ export function ClipVideo({
       el.removeEventListener('gesturechange', gesture);
     };
   }, [width, height]);
-  // The native controls would zoom with the video: a click plays or pauses it instead.
-  const own = zoom || pinched !== null;
+  // A click on the video plays or pauses it: the bar under it holds the controls.
   const playPause = () => {
     const v = video.current;
     if (v) {
@@ -422,10 +421,11 @@ export function ClipVideo({
     saveFlag(MUTED_KEY, !muted);
   };
   return (
-    <div className="grid min-h-0 gap-2 lg:[:fullscreen_&]:grid-rows-[minmax(0,1fr)_auto_auto]">
-      {/* In full screen, the room the rest leaves: the video fits it whole. */}
+    // One black block, the controls under the picture.
+    <div className="grid min-h-0 overflow-hidden rounded-lg bg-black text-white lg:[:fullscreen_&]:grid-rows-[minmax(0,1fr)_auto]">
+      {/* In full screen, the room the bar leaves: the video fits it whole. */}
       <div className="lg:[:fullscreen_&]:@container-size">
-        <div ref={frame} className="relative aspect-video overflow-hidden rounded-lg bg-black lg:[:fullscreen_&]:mx-auto lg:[:fullscreen_&]:w-[min(100cqw,100cqh*16/9)]">
+        <div ref={frame} className="relative aspect-video overflow-hidden lg:[:fullscreen_&]:mx-auto lg:[:fullscreen_&]:w-[min(100cqw,100cqh*16/9)]">
           <div
             className={cn('absolute inset-0 origin-top-left', free && !pinched && 'transition-transform duration-700 ease-in-out motion-reduce:transition-none')}
             style={{ transform: `scale(${width / view.w}) translate(${(-100 * view.x) / width}%, ${(-100 * view.y) / height}%)` }}
@@ -435,8 +435,7 @@ export function ClipVideo({
               src={match.video ?? undefined}
               muted={muted}
               playsInline
-              controls={!own}
-              onClick={own ? toggle : undefined}
+              onClick={toggle}
               onPlay={() => setPaused(false)}
               onPause={() => setPaused(true)}
               onPointerDown={press}
@@ -493,140 +492,116 @@ export function ClipVideo({
           )}
         </div>
       </div>
-      <div
-        ref={bar}
-        role="slider"
-        tabIndex={0}
-        aria-label={t('review.position')}
-        aria-valuemin={Math.round(from)}
-        aria-valuemax={Math.round(to)}
-        aria-valuenow={Math.round(time)}
-        aria-valuetext={clock(time)}
-        className="group flex h-5 cursor-pointer touch-none items-center rounded-sm outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        onPointerDown={pressBar}
-        onLostPointerCapture={dropBar}
-        onDragStart={(event) => event.preventDefault()}
-        onPointerMove={dragBar}
-        onKeyDown={(event) => {
-          const next = keys[event.key];
-          if (next) {
-            event.preventDefault();
-            moveTo(next(event.shiftKey ? 5 : 1));
-          }
-        }}
-      >
-        <div className="relative h-1.5 w-full rounded-full bg-muted">
-          {bands.map(([a, b]) => (
-            <div key={a} className="absolute inset-y-0 rounded-full bg-[#ffd400]" style={{ left: share(a), right: `calc(100% - ${share(b)})` }} />
-          ))}
-          {marks.map((m) => (
-            <div key={m} className="absolute -inset-y-1.5 w-1 -translate-x-1/2 rounded-full bg-primary" style={{ left: share(m) }} />
-          ))}
-          <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-sm transition-transform group-hover:scale-125" style={{ left: share(time) }} />
-          {/* The frames a small drag moved. */}
-          {nudge !== null && nudge !== 0 && (
-            <div
-              className="pointer-events-none absolute bottom-full mb-2.5 -translate-x-1/2 rounded-sm bg-foreground px-1.5 py-0.5 text-xs font-medium text-background tabular-nums"
-              style={{ left: share(time) }}
-            >
-              {new Intl.NumberFormat(i18n.language, { signDisplay: 'always' }).format(nudge)}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Tip label={t(paused ? 'review.playVideo' : 'review.pauseVideo')}>
-          <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t(paused ? 'review.playVideo' : 'review.pauseVideo')} onClick={playPause}>
-            {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
-          </Button>
-        </Tip>
-        {showTime && <span className="min-w-12 text-sm font-medium tabular-nums">{clock(time)}</span>}
-        {free && (
-          <div className="flex gap-1">
-            <Tip label={t('review.pinchNote')}>
-              <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t('review.zoomMore')} onClick={() => zoomBy(ZOOM_STEP)}>
-                <ZoomIn aria-hidden />
-              </Button>
-            </Tip>
-            <Tip label={t('review.pinchNote')}>
-              <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t('review.zoomLess')} disabled={view.w >= width} onClick={() => zoomBy(1 / ZOOM_STEP)}>
-                <ZoomOut aria-hidden />
-              </Button>
-            </Tip>
-            {views && (
-              <Tip label={t('review.autoZoom')}>
-                <Button
-                  variant={autoShown ? 'default' : 'outline'}
-                  size="sm"
-                  className={autoShown ? undefined : 'bg-card'}
-                  aria-label={t('review.autoZoom')}
-                  aria-pressed={autoShown}
-                  onClick={toggleAuto}
-                >
-                  <ScanSearch aria-hidden />
-                  {t('review.auto')}
-                </Button>
-              </Tip>
+      <div className="grid gap-0.5 px-2 pt-1.5 pb-1">
+        <div
+          ref={bar}
+          role="slider"
+          tabIndex={0}
+          aria-label={t('review.position')}
+          aria-valuemin={Math.round(from)}
+          aria-valuemax={Math.round(to)}
+          aria-valuenow={Math.round(time)}
+          aria-valuetext={clock(time)}
+          className="group flex h-5 cursor-pointer touch-none items-center rounded-sm outline-none select-none focus-visible:ring-3 focus-visible:ring-white/70"
+          onPointerDown={pressBar}
+          onLostPointerCapture={dropBar}
+          onDragStart={(event) => event.preventDefault()}
+          onPointerMove={dragBar}
+          onKeyDown={(event) => {
+            const next = keys[event.key];
+            if (next) {
+              event.preventDefault();
+              moveTo(next(event.shiftKey ? 5 : 1));
+            }
+          }}
+        >
+          <div className="relative h-1.5 w-full rounded-full bg-white/20">
+            {bands.map(([a, b]) => (
+              <div key={a} className="absolute inset-y-0 rounded-full bg-[#ffd400]" style={{ left: share(a), right: `calc(100% - ${share(b)})` }} />
+            ))}
+            {marks.map((m) => (
+              <div key={m} className="absolute -inset-y-1.5 w-1 -translate-x-1/2 rounded-full bg-primary" style={{ left: share(m) }} />
+            ))}
+            <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform group-hover:scale-125" style={{ left: share(time) }} />
+            {/* The frames a small drag moved. */}
+            {nudge !== null && nudge !== 0 && (
+              <div
+                className="pointer-events-none absolute bottom-full mb-2.5 -translate-x-1/2 rounded-sm bg-white px-1.5 py-0.5 text-xs font-medium text-black tabular-nums"
+                style={{ left: share(time) }}
+              >
+                {new Intl.NumberFormat(i18n.language, { signDisplay: 'always' }).format(nudge)}
+              </div>
             )}
           </div>
-        )}
-        {/* No outline, nothing to zoom on. */}
-        {clip.boxes.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-card"
-            onClick={() => {
-              setPinched(null);
-              setZoom((z) => !z);
-            }}
-          >
-            {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
-            {t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
-          </Button>
-        )}
-        {free && (
-          <Tip label={t(muted ? 'review.soundOn' : 'review.soundOff')}>
-            <Button variant="outline" size="icon-sm" className="bg-card" aria-label={t(muted ? 'review.soundOn' : 'review.soundOff')} onClick={toggleMuted}>
-              {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
-            </Button>
-          </Tip>
-        )}
-        <div role="group" aria-label={t('review.speed')} className="flex gap-1">
-          {SPEEDS.map((s) => (
-            <Button
-              key={s}
-              variant={s === speed ? 'default' : 'outline'}
-              size="sm"
-              className={s === speed ? undefined : 'bg-card'}
-              aria-pressed={s === speed}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-1">
+          <VideoButton label={t(paused ? 'review.playVideo' : 'review.pauseVideo')} onClick={playPause}>
+            {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
+          </VideoButton>
+          {showTime && <span className="min-w-12 px-1 text-sm tabular-nums">{clock(time)}</span>}
+          {free && (
+            <>
+              <VideoButton label={t('review.zoomMore')} tip={t('review.pinchNote')} onClick={() => zoomBy(ZOOM_STEP)}>
+                <ZoomIn aria-hidden />
+              </VideoButton>
+              <VideoButton label={t('review.zoomLess')} tip={t('review.pinchNote')} disabled={view.w >= width} onClick={() => zoomBy(1 / ZOOM_STEP)}>
+                <ZoomOut aria-hidden />
+              </VideoButton>
+              {views && (
+                <VideoButton label={t('review.autoZoom')} pressed={autoShown} onClick={toggleAuto}>
+                  <ScanSearch aria-hidden />
+                </VideoButton>
+              )}
+            </>
+          )}
+          {/* No outline, nothing to zoom on. */}
+          {clip.boxes.length > 0 && (
+            <VideoButton
+              label={t(zoom ? 'review.zoomOut' : 'review.zoomIn')}
               onClick={() => {
-                picked = s;
-                setSpeed(s);
+                setPinched(null);
+                setZoom((z) => !z);
               }}
             >
-              {`${new Intl.NumberFormat(i18n.language).format(s)}×`}
-            </Button>
-          ))}
+              {zoom ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />}
+            </VideoButton>
+          )}
           {touches && (
-            <Tip label={t('review.slowTouches')}>
-              <Button
-                variant={slow ? 'default' : 'outline'}
-                size="icon-sm"
-                className={slow ? undefined : 'bg-card'}
-                aria-label={t('review.slowTouches')}
-                aria-pressed={slow}
+            <VideoButton
+              label={t('review.slowTouches')}
+              pressed={slow}
+              onClick={() => {
+                saveFlag(SLOW_KEY, !slow);
+                setSlow(!slow);
+              }}
+            >
+              <Snail aria-hidden />
+            </VideoButton>
+          )}
+          <div role="group" aria-label={t('review.speed')} className="flex gap-x-1">
+            {SPEEDS.map((s) => (
+              <VideoButton
+                key={s}
+                label={`${new Intl.NumberFormat(i18n.language).format(s)}×`}
+                tip={t('review.speed')}
+                pressed={s === speed}
+                className="px-1.5"
                 onClick={() => {
-                  saveFlag(SLOW_KEY, !slow);
-                  setSlow(!slow);
+                  picked = s;
+                  setSpeed(s);
                 }}
               >
-                <Snail aria-hidden />
-              </Button>
-            </Tip>
+                {`${new Intl.NumberFormat(i18n.language).format(s)}×`}
+              </VideoButton>
+            ))}
+          </div>
+          {free && (
+            <VideoButton label={t(muted ? 'review.soundOn' : 'review.soundOff')} onClick={toggleMuted}>
+              {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+            </VideoButton>
           )}
+          {extra && <div className="ml-auto flex">{extra}</div>}
         </div>
-        {extra && <div className="ml-auto">{extra}</div>}
       </div>
     </div>
   );
