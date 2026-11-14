@@ -233,7 +233,7 @@ function ColumnTitle({ title, about, order, onSort }: { title: string; about: st
       <TooltipTrigger asChild>
         <button
           type="button"
-          className={cn('inline-flex items-center gap-0.5 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50', order && 'font-semibold text-foreground')}
+          className={cn('tap relative inline-flex items-center gap-0.5 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50', order && 'font-semibold text-foreground')}
           onClick={(e) => {
             // Kept open: the trigger's own click handler would close it.
             e.preventDefault();

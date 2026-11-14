@@ -44,7 +44,7 @@ export function RallyCards() {
     <div className="min-w-0">
       <h3 className="font-semibold">{t('rallies')}</h3>
       {rallies.length ? (
-        <ol ref={list} className="relative mt-3 grid auto-cols-[9.5rem] grid-flow-col gap-2 overflow-x-auto p-0.5 pb-2 sm:auto-cols-[12rem]">
+        <ol ref={list} className="relative mt-3 grid auto-cols-[9.5rem] grid-flow-col items-start gap-2 overflow-x-auto p-0.5 pb-2 sm:auto-cols-[12rem]">
           {rallies.map((r, k) => (
             <li key={r.i}>
               <Tip label={t('watchRally')}>

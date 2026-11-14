@@ -159,7 +159,7 @@ export function Watch() {
           </CardTitle>
           <CardDescription>{t('replayCaption')}</CardDescription>
           {match.videoPage && (
-            <Button variant="outline" size="sm" className="mt-2 justify-self-start bg-card" onClick={askVideo}>
+            <Button variant="outline" size="sm" className="tap relative mt-2 justify-self-start bg-card" onClick={askVideo}>
               <Lock aria-hidden />
               {t('videoPage')}
             </Button>

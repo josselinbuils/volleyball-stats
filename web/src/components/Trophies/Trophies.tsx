@@ -86,7 +86,7 @@ export function Trophies() {
         <CardDescription>{t('trophies.caption')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-2 p-0">
+        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-2 p-0 max-sm:grid-cols-2">
           {won.map((trophy) => (
             <Award key={trophy.kind} trophy={trophy} />
           ))}
@@ -117,15 +117,16 @@ function Award({ trophy }: { trophy: Trophy }) {
         <button
           type="button"
           onClick={() => play((tr) => [tr(`trophies.names.${trophy.kind}`), winners(tr, trophy)].filter(Boolean).join(', '), clips(trophy))}
-          className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex h-full w-full items-start gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left max-sm:grid max-sm:grid-cols-[auto_minmax(0,1fr)] max-sm:content-start max-sm:items-center max-sm:gap-x-2 max-sm:gap-y-0.5 transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <span aria-hidden className="inline-grid size-9 shrink-0 place-items-center rounded-full text-[#3a2a00] shadow-sm" style={{ background: GOLD_CSS }}>
-            <Icon className="size-5" />
+          <span aria-hidden className="inline-grid size-9 shrink-0 place-items-center rounded-full text-[#3a2a00] shadow-sm max-sm:size-7" style={{ background: GOLD_CSS }}>
+            <Icon className="size-5 max-sm:size-4" />
           </span>
-          <span className="grid min-w-0 gap-0.5">
+          {/* A phone: the icon beside the trophy's name, the rest under both. */}
+          <span className="grid min-w-0 gap-0.5 max-sm:contents">
             <b className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{name}</b>
-            {who && <span className="font-semibold [overflow-wrap:anywhere]">{who}</span>}
-            <span className="text-[13px] text-muted-foreground">{detail}</span>
+            {who && <span className="font-semibold [overflow-wrap:anywhere] max-sm:col-span-2">{who}</span>}
+            <span className="text-[13px] text-muted-foreground max-sm:col-span-2">{detail}</span>
           </span>
         </button>
       </Tip>

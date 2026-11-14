@@ -2,6 +2,17 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* Touch screens: a tap area of at least 44 px around a small control (positioned), its look unchanged. */
+@utility tap {
+  @media (pointer: coarse) {
+    &::after {
+      content: '';
+      position: absolute;
+      inset: min(0px, calc(50% - 22px));
+    }
+  }
+}
+
 /* index.html sets .dark on <html> before the first paint, from the saved theme or the system's. */
 @custom-variant dark (&:where(.dark, .dark *));
 

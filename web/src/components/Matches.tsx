@@ -6,11 +6,10 @@ import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
 import { Behind } from '@/components/Behind';
 import { ClubBar } from '@/components/ClubBar';
-import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { Season } from '@/components/Season/Season';
 import { seasonTeams } from '@/components/Season/helpers/season';
 import { Swatch } from '@/components/Swatch';
-import { ThemeSwitch } from '@/components/ThemeSwitch';
+import { Settings } from '@/components/Settings';
 import { useFormat } from '@/lib/format';
 import { openMatch, pullMatch } from '@/lib/openMatch';
 import { withRemote } from '@/lib/remoteMatches';
@@ -119,17 +118,14 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
 
   return (
     <>
-      <ClubBar club={club} />
+      <ClubBar club={club} settings />
       <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:gap-4 max-sm:pt-5">
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
             {failed && <ErrorNote text={t(failed === 'pull' ? 'matches.pullFailed' : 'matches.openFailed')} log className="mt-1 text-sm" />}
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
-            <ThemeSwitch />
-            <LanguageSwitch />
-          </div>
+          {!club && <Settings />}
         </header>
         {review && <Behind />}
         {review && <div ref={setup} />}

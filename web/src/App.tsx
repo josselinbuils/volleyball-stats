@@ -20,7 +20,7 @@ export function App() {
   return (
     <PlayerProvider>
       <SetProvider>
-        <ClubBar club={match.club} />
+        <ClubBar club={match.club} settings />
         <VideoChoice />
         <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:pt-5 max-sm:gap-4">
           <Header />

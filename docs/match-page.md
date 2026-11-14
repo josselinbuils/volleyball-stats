@@ -166,11 +166,15 @@ Without player tracks, everything counts each side of the net instead of each te
 - **Phones** (under 640 px): "Mon match" comes right after the header. Something played while the replay is out of sight
   opens the video and court in a sheet from the bottom (`Watch/PlayerSheet.tsx`); "Fermer" stops it, the page where it was.
   The statistics show one group of columns at a time, picked above the table ("Temps" with "Touches"); the score curve
-  has a row per set, on one scale; "Sur le terrain" opens on "Par zone".
+  has a row per set, on one scale; "Sur le terrain" opens on "Par zone". The score bar above the replay puts the set and "Score estimé" on
+  a line above the teams, the court's header leaves the last touch to the bar under the court, the trophies stand two a
+  row.
 - **Touch screens** (a coarse pointer): the texts say "Appuyez" where a mouse clicks or hovers (their `touch` versions in
-  `locales/`); a tap on a player of the court replay shows their name, the next tap elsewhere hides it.
-- **Theme:** a switch next to the language picks the light, dark or automatic theme (the system's,
-  by default), remembered by the browser.
+  `locales/`); a tap on a player of the court replay shows their name, the next tap elsewhere hides it. Small controls get a
+  tap area of at least 44 px, unseen (the `tap` utility in `index.css`); the curve's rallies and timeouts stay narrow,
+  a rally every few pixels.
+- **Theme and language:** two menus on the club's band (beside the title without one, `Settings.tsx`): the light, dark or
+  automatic theme (the system's, by default) and French or English, remembered by the browser.
 - **Loading:** the players' positions come in one file per 5 minutes (`positions/N.js`), loaded as the replay reaches them, the next one a little ahead; the balls dropped between two players read theirs from `data.js`.
 
 ## Change the page

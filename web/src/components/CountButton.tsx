@@ -30,7 +30,7 @@ export function CountButton({ title, picked, value, tip, className }: { title: (
       <Button
         variant="ghost"
         aria-label={`${shown} · ${title(t)} · ${hint}`}
-        className={cn('min-w-12 bg-primary/10 text-base font-semibold text-link hover:bg-primary hover:text-primary-foreground max-sm:min-w-10', className)}
+        className={cn('tap relative min-w-12 bg-primary/10 text-base font-semibold text-link hover:bg-primary hover:text-primary-foreground max-sm:min-w-10', className)}
         onClick={() => play(title, contactClips(picked, match.duration))}
       >
         {shown}

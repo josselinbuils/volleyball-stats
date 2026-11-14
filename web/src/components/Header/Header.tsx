@@ -3,8 +3,7 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { CountButton } from '@/components/CountButton';
-import { LanguageSwitch } from '@/components/LanguageSwitch';
-import { ThemeSwitch } from '@/components/ThemeSwitch';
+import { Settings } from '@/components/Settings';
 import { clock, ofName, useFormat } from '@/lib/format';
 import { GROUPS, groupName, hasTeams, match, rallies as allRallies, teamColor, teamRing } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
@@ -71,10 +70,8 @@ export function Header() {
             </p>
             <h1 className="mt-0.5 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{matchTitle(t) ?? match.name}</h1>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row">
-            <ThemeSwitch />
-            <LanguageSwitch />
-          </div>
+          {/* On the club's band when there is one. */}
+          {!match.club && <Settings />}
         </div>
         <div className="-mt-3 grid gap-2.5">
           <p className="text-muted-foreground">{t(hasTeams ? 'intro' : 'introSides')}</p>

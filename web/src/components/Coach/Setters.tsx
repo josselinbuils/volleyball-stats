@@ -68,7 +68,7 @@ function Row({ label, title, attacks, most }: { label: string; title: (t: TFunct
           type="button"
           aria-label={`${label}, ${detail}`}
           onClick={() => play(title, contactClips(attacks, match.duration))}
-          className="grid w-full grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="grid w-full grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm pointer-coarse:py-2 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <span className="truncate">{label}</span>
           <span aria-hidden className="flex h-2 overflow-hidden rounded-full bg-muted">

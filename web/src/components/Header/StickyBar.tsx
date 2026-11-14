@@ -54,7 +54,7 @@ function SectionLinks() {
     let frame = 0;
     const update = () => {
       frame = 0;
-      const line = bar.getBoundingClientRect().bottom + GAP + 1;
+      const line = bar.getBoundingClientRect().bottom + 2 * GAP;
       setCurrent(ids.findLast((id) => (document.getElementById(id)?.getBoundingClientRect().top ?? Infinity) <= line) ?? null);
     };
     const onScroll = () => {

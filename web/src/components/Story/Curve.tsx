@@ -198,7 +198,7 @@ function Chart({ chapters, moments, top, bottom, named, height }: { chapters: Ch
                     ),
                   )
                 }
-                className="absolute inset-y-0 w-2 -translate-x-1/2 cursor-pointer rounded-sm outline-none hover:bg-foreground/10 focus-visible:ring-3 focus-visible:ring-ring/60"
+                className="absolute inset-y-0 w-2 -translate-x-1/2 cursor-pointer pointer-coarse:after:absolute pointer-coarse:after:inset-y-0 pointer-coarse:after:-inset-x-1.5 pointer-coarse:after:content-[''] rounded-sm outline-none hover:bg-foreground/10 focus-visible:ring-3 focus-visible:ring-ring/60"
                 style={{ left: `${px(o.x)}%` }}
               >
                 <span aria-hidden className="absolute inset-y-0 left-1/2 border-l-2 border-dashed border-foreground/60" />
@@ -226,7 +226,7 @@ function Chart({ chapters, moments, top, bottom, named, height }: { chapters: Ch
                     ),
                   )
                 }
-                className="absolute inline-grid size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-foreground text-xs font-semibold text-background ring-2 ring-card outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+                className="tap absolute inline-grid size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-foreground text-xs font-semibold text-background ring-2 ring-card outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
                 style={{ left: `${left}%`, top: y }}
               >
                 {n}

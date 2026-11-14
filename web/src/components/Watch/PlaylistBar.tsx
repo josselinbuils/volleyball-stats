@@ -14,7 +14,8 @@ import { Tip } from '@/components/Tip';
 /** What is playing, with the playlist's controls; else the rally the video is on, the one
  * highlighted below, with controls to move to another one and play from it. Under it the action on
  * screen and how it ended: a touch's clip's own touch, else the rally's last touch so far. Its height
- * is the same in every state: nothing below it moves when playback starts, changes or stops. */
+ * is the same in every state: nothing below it moves when playback starts, changes or stops; on a phone, where the
+ * lines are fewer, it takes theirs. */
 export function PlaylistBar() {
   const { t } = useTranslation();
   const f = useFormat();
@@ -39,8 +40,8 @@ export function PlaylistBar() {
     // Laid out by its own width: it also stands in a narrow column beside the court.
     <div className="@container mt-3">
       <div className="grid gap-x-3 gap-y-2.5 rounded-lg bg-muted px-3 py-2.5 @md:grid-cols-[minmax(0,1fr)_auto] @md:items-center">
-        <div className="h-20 min-w-0 text-sm leading-5 text-muted-foreground">
-          <div aria-live="polite" className="h-15">
+        <div className="h-20 min-w-0 text-sm leading-5 text-muted-foreground max-sm:h-auto">
+          <div aria-live="polite" className="h-15 max-sm:h-auto">
             {playlist && clip ? (
               <>
                 <span className="block truncate text-xs leading-5 font-semibold tracking-wide text-link uppercase">

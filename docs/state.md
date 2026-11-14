@@ -80,17 +80,16 @@ The pipeline's weak spots and what is left to do, most useful first.
     timeouts taken for set breaks. Fixed the same day (`teams.likely_starts`, its 30 rallies a set set on the three matches,
     this one included) and the match run again (13 Nov, 17:01): 4 sets. Waiting on its review, then
     [corrections_log.md](corrections_log.md) "Next", item 1.
-18. Phones (13 Nov; 1-6 done on 14 Nov): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
-    horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). To do, most useful first (the owner picks):
+18. Phones (13 Nov; done on 14 Nov): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
+    horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). Done, in the order advised:
     1-3. Done (14 Nov): on a phone, something played while the replay is out of sight opens it in a sheet from the bottom
        ("Fermer" stops it, the page where it was); "Mon match" right after the header; the sticky bar links to the
        sections, the one on screen marked, the links scrolling sideways (on wide screens too).
     4-6. Done (14 Nov): one group of the stats table at a time on a phone; "Appuyez" on touch screens and a tap naming a
        player on the court replay; the score curve a row per set (its marks clear of each other everywhere), "Par zone" first.
-    7. Tap targets: 1,551 under 32 px (theme and language 31x28, the curve's rallies 8 px wide, stat chips 41x28): larger invisible areas.
-    8. The theme and language switches into the black top bar: beside the title they wrap the date and title onto four lines.
-    9. The replay's header cut ("A.. 0 – 0 A..", "Entre deux…"); the rally cards and "Échange sélectionné" mostly empty.
-    10. The 11 trophies two a row.
+    7-10. Done (14 Nov): unseen tap areas of 44 px (the curve's and timeline's rallies left: a few pixels each); the
+       theme and language as two menus on the club's band; the replay's score bar on two lines and its header without the
+       last touch on a phone, the rally cards and the selected rally's box their own height; the trophies two a row.
     Not looked at: 3D and TV mode on a real phone, the review, dark mode, "Mon match" with a player picked. How to look: Playwright's
     cached `chromium_headless_shell-1148` lacks `libnss3` in WSL (`apt-get download libnss3 libnspr4`, `dpkg -x` them in a scratch
     folder, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu`), driven by `playwright` installed in a scratch folder (not in `web/`)

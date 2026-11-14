@@ -9,6 +9,7 @@ import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { isTouch } from '@/helpers/contacts';
 import { playerKey, playersAt } from '@/helpers/players';
 import { useBall3d } from '@/lib/ball3d';
+import { usePhone } from '@/lib/phone';
 import { filesKey, loadPlayersAt, positionsPending, usePlayers } from '@/lib/players';
 import { rallyAt } from '@/lib/playlist';
 import { ballAt, landingsAt, lastTouch, sidesAt, touchesAt, trailAt } from '@/components/Watch/helpers/replay';
@@ -101,8 +102,10 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
   const hovered = dots.find((d) => d.person === hover);
   const tip = hovered && playerLabel(t, hovered.person);
   const pause = playing ? null : timeoutAt(time);
+  // A phone leaves the last touch to the bar under the court: beside the view's buttons it would be cut.
+  const phone = usePhone();
   let now = playing ? t('rally', { n: playing.i + 1 }) : pause ? timeoutLabel(t, pause) : t('betweenRallies');
-  if (last) {
+  if (last && !phone) {
     const who = [groupName(t, last.g), playerLabel(t, last.person)].filter(Boolean).join(', ');
     now += ` · ${t('lastTouch', { type: t(`types.${last.type}`).toLowerCase(), who })}`;
   }
@@ -120,7 +123,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
         {canDraw3d() && (
           <ToggleGroup type="single" variant="outline" size="sm" spacing={0} value={view} onValueChange={(v) => v && choose(v as View)} aria-label={t('scene3d.label')} className="shrink-0 bg-card">
             {VIEWS.map((v) => (
-              <ToggleGroupItem key={v} value={v} className="px-2.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+              <ToggleGroupItem key={v} value={v} className="tap relative px-2.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                 {t(`scene3d.${v}`)}
               </ToggleGroupItem>
             ))}
@@ -191,6 +194,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
                     }
                   }}
                 >
+                  {/* A finger's reach around the mark. */}
+                  <circle cx={x} cy={y} r={1.2} fill="transparent" className="hidden pointer-coarse:inline" />
                   <circle cx={x} cy={y} r={0.7} className="player-mark" fill={teamColor(team)} stroke={teamEdge(team)} />
                   {mark !== null && (
                     <text x={x} y={y} className="player-text" fill={`var(--team${team}-text)`}>
