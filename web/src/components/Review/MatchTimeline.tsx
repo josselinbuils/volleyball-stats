@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { clock } from '@/lib/format';
-import { contacts, groupName, match, playerLabel, rallies, teamColor, teamEdge, type Group } from '@/lib/match';
+import { contacts, groupName, match, playerLabel, teamColor, teamEdge, type Group } from '@/lib/match';
+import type { Span } from '@/components/Review/helpers/report';
 import { isTouch, labelled } from '@/helpers/contacts';
 import type { ReportChanges, Timeout } from '@/lib/review';
 import { tickStep, zoomed } from '@/components/Review/helpers/timeline';
@@ -24,6 +25,7 @@ const HEIGHT = 64;
  * It zooms (buttons, or ctrl/⌘ and the wheel or a pinch, around the pointer) and scrolls sideways,
  * following the video unless just scrolled. */
 export function MatchTimeline({
+  rallies,
   now,
   saved,
   reports,
@@ -34,6 +36,8 @@ export function MatchTimeline({
   timeouts,
   onSeek,
 }: {
+  /** As they stand with the corrections. */
+  rallies: Span[];
   now: number;
   saved: Partial<ReportChanges>;
   reports: { time: number }[];
@@ -122,7 +126,7 @@ export function MatchTimeline({
   const step = tickStep(scale || 1);
   const total = Math.max(width, match.duration * scale);
   const sets = rallies.filter((r, k) => k === 0 || r.set !== rallies[k - 1].set);
-  const toCheck = rallies.filter((r) => r.key === undefined || warned.has(r.key) || !green.has(r.key));
+  const toCheck = rallies.filter((r) => warned.has(r.key) || !green.has(r.key));
   const previous = toCheck.findLast((r) => r.end < now);
   const next = toCheck.find((r) => r.start > now + 0.5);
   const seekTo = (event: MouseEvent<SVGSVGElement>) => {
@@ -183,35 +187,29 @@ export function MatchTimeline({
               </rect>
             ))}
             {rallies.map((r) => (
-              <g key={r.i}>
+              <g key={r.key}>
                 <rect
                   x={r.start * scale}
                   y={14}
                   width={Math.max(3, (r.end - r.start) * scale)}
                   height={26}
                   rx={Math.min(3, ((r.end - r.start) * scale) / 2)}
-                  className={
-                    r.key !== undefined && warned.has(r.key)
-                      ? 'fill-amber-400 dark:fill-amber-600'
-                      : r.key !== undefined && green.has(r.key)
-                        ? 'fill-emerald-300 dark:fill-emerald-800'
-                        : 'fill-muted-foreground/25'
-                  }
+                  className={warned.has(r.key) ? 'fill-amber-400 dark:fill-amber-600' : green.has(r.key) ? 'fill-emerald-300 dark:fill-emerald-800' : 'fill-muted-foreground/25'}
                 >
-                  <title>{`${t('review.reportRally', { n: r.i + 1, from: clock(r.start), to: clock(r.end) })}${r.winner ? ` · ${t('review.wonBy', { team: groupName(t, r.winner) })}` : r.redo ? ` · ${t('review.reportRedo')}` : ''}${r.wrongCall ? ` · ${t('review.reportWrongCall')}` : ''}`}</title>
+                  <title>{`${t('review.reportRally', { n: r.n, from: clock(r.start), to: clock(r.end) })}${r.winner ? ` · ${t('review.wonBy', { team: groupName(t, r.winner) })}` : r.redo ? ` · ${t('review.reportRedo')}` : ''}${r.wrongCall ? ` · ${t('review.reportWrongCall')}` : ''}`}</title>
                 </rect>
                 {r.winner && <rect x={r.start * scale} y={36} width={Math.max(1, (r.end - r.start) * scale)} height={4} fill={teamColor(r.winner)} stroke={teamEdge(r.winner)} strokeWidth={0.75} />}
                 {/* Its number, where the band has room for it. */}
                 {(r.end - r.start) * scale >= 22 && (
                   <text x={r.start * scale + 3} y={24} className="pointer-events-none fill-muted-foreground text-[9px] tabular-nums">
-                    {r.i + 1}
+                    {r.n}
                   </text>
                 )}
               </g>
             ))}
             {sets.map((r) => (
               <g key={`s${r.set}`}>
-                {r.i > 0 && <line x1={r.start * scale - 4} x2={r.start * scale - 4} y1={0} y2={44} className="stroke-foreground" strokeDasharray="3 3" />}
+                {r !== rallies[0] && <line x1={r.start * scale - 4} x2={r.start * scale - 4} y1={0} y2={44} className="stroke-foreground" strokeDasharray="3 3" />}
                 <text x={r.start * scale + 2} y={10} className="fill-muted-foreground text-[10px]">
                   {t('set', { n: r.set })}
                 </text>
@@ -237,9 +235,9 @@ export function MatchTimeline({
               <circle key={k} cx={time * scale} cy={7} r={2.5} className="fill-muted-foreground" />
             ))}
             {rallies.flatMap((r) =>
-              r.key !== undefined && comments[r.key]
+              comments[r.key]
                 ? [
-                    <path key={`c${r.i}`} d={`M ${((r.start + r.end) / 2) * scale} 3 l 4 4 l -4 4 l -4 -4 z`} className="fill-sky-500">
+                    <path key={`c${r.key}`} d={`M ${((r.start + r.end) / 2) * scale} 3 l 4 4 l -4 4 l -4 -4 z`} className="fill-sky-500">
                       <title>{comments[r.key]}</title>
                     </path>,
                   ]

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nearTouch, nudgeOf, SLOW_AFTER_S, SLOW_BEFORE_S, slowStarts } from '@/components/Review/helpers/scrub';
+import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nudgeOf, slowStarts, stretchedTime, stretchedX } from '@/components/Review/helpers/scrub';
+import { SLOW_BEFORE_S } from '@/helpers/slow';
 
 describe('nudgeOf', () => {
   it('moves a frame every FINE_PX, none past FINE_SPAN_PX', () => {
@@ -30,20 +31,6 @@ describe('frameTime', () => {
   });
 });
 
-describe('nearTouch', () => {
-  const touches = [10, 12, 20];
-  it('holds from SLOW_BEFORE_S before a touch to SLOW_AFTER_S after it', () => {
-    expect(nearTouch(touches, 10 - SLOW_BEFORE_S - 0.01)).toBe(false);
-    expect(nearTouch(touches, 10 - SLOW_BEFORE_S)).toBe(true);
-    expect(nearTouch(touches, 10)).toBe(true);
-    expect(nearTouch(touches, 10 + SLOW_AFTER_S)).toBe(true);
-    expect(nearTouch(touches, 10 + SLOW_AFTER_S + 0.01)).toBe(false);
-    expect(nearTouch(touches, 12.1)).toBe(true);
-    expect(nearTouch(touches, 25)).toBe(false);
-    expect(nearTouch([], 10)).toBe(false);
-  });
-});
-
 describe('slowStarts', () => {
   const touches = [10, 12];
   it('holds when a slowed span starts between the two times, either way', () => {
@@ -54,5 +41,26 @@ describe('slowStarts', () => {
     expect(slowStarts(touches, 10.5, 11)).toBe(false);
     expect(slowStarts(touches, 5, 20)).toBe(true);
     expect(slowStarts([], 5, 20)).toBe(false);
+  });
+});
+
+describe('stretchedTime', () => {
+  const fps = 50;
+  it('moves a frame every FINE_PX near the press, then at the bar scale with no skip', () => {
+    expect(stretchedTime(2 * FINE_PX, 10, 0.1, fps)).toEqual({ time: frameTime(502, fps), nudge: 2 });
+    const edge = stretchedTime(FINE_SPAN_PX, 10, 0.1, fps).time;
+    const past = stretchedTime(FINE_SPAN_PX + 1, 10, 0.1, fps).time;
+    expect(past - edge).toBeLessThan(0.11);
+    expect(past).toBeGreaterThan(edge);
+    expect(stretchedTime(-FINE_SPAN_PX - 10, 10, 0.1, fps).time).toBeCloseTo(10 - FINE_SPAN_PX / FINE_PX / fps - 1, 5);
+  });
+});
+
+describe('stretchedX', () => {
+  it('puts the time back under the pointer', () => {
+    for (const dx of [-80, -FINE_SPAN_PX - 5, 30, 200]) {
+      const t0 = frameTime(500, 50);
+      expect(stretchedX(stretchedTime(dx, t0, 0.1, 50).time, t0, 0.1, 50)).toBeCloseTo(dx, 0);
+    }
   });
 });

@@ -4,13 +4,14 @@ import { Maximize, Minimize } from 'lucide-react';
 import { VideoButton } from '@/components/VideoButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { match, rallies, type Group } from '@/lib/match';
+import { match, rallies } from '@/lib/match';
 import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
-import { liveReports, openingTime, REPORT_LEAD_S } from '@/components/Review/helpers/report';
+import { liveReports, openingTime, pageSpans, REPORT_LEAD_S, type Span } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
-import { ReportEditor } from '@/components/Review/ReportEditor';
+import { PlayerSelect } from '@/components/Review/PlayerSelect';
+import { ReportEditor, type Caption } from '@/components/Review/ReportEditor';
 import { slowStarts } from '@/components/Review/helpers/scrub';
 
 /** The whole match to correct: its video, the bar of its rallies, touches and the viewers' reports
@@ -67,7 +68,10 @@ export function MatchTab({
   const { t } = useTranslation();
   const [now, setNow] = useState(0);
   const [seek, setSeek] = useState<{ time: number; n: number; play?: boolean }>();
-  const [caption, setCaption] = useState<{ team: Group; text: string } | null>(null);
+  const [caption, setCaption] = useState<Caption | null>(null);
+  // The rallies as they stand with the corrections, on both bars.
+  const [spans, setSpans] = useState<Span[]>(() => pageSpans(rallies, match.fps));
+  const playing = useRef(false);
   const [clip] = useState(() => {
     const at = openingTime(rallies, checked, reports, match.fps);
     return { start: at, end: at, around: 0, boxes: [] };
@@ -130,6 +134,23 @@ export function MatchTab({
               free
               autoPlay={false}
               caption={caption}
+              captionEdit={
+                caption?.setPlayer &&
+                ((close) => (
+                  <PlayerSelect
+                    players={players}
+                    nameOf={nameOf}
+                    value={caption.player}
+                    empty={t('review.pickPlayer')}
+                    label={t('review.reportPlayer')}
+                    autoFocus
+                    onDone={close}
+                    onChange={(who) => who && caption.setPlayer?.(who)}
+                  />
+                ))
+              }
+              spans={spans}
+              onPaused={(paused) => (playing.current = !paused)}
               marks={flags.map((r) => r.time)}
               touches={touchTimes}
               showTime
@@ -143,6 +164,7 @@ export function MatchTab({
               }
             />
             <MatchTimeline
+              rallies={spans}
               now={now}
               saved={saved}
               reports={seen}
@@ -160,6 +182,8 @@ export function MatchTab({
             onWarnings={setFound}
             onUnsaved={(keys) => setUnsaved(new Set(keys))}
             onTouches={setTouchTimes}
+            onRallies={setSpans}
+            isPlaying={() => playing.current}
             reports={seen}
             players={players}
             nameOf={nameOf}
@@ -170,9 +194,9 @@ export function MatchTab({
             onSave={(changes, rally, onward) =>
               onSave(changes, rally).then(() => {
                 setRound((r) => r + 1);
-                const k = rallies.findIndex((r) => (r.key ?? Math.round(r.start * match.fps)) === rally);
-                if (onward && k >= 0 && rallies[k + 1]) {
-                  go(rallies[k + 1].start - REPORT_LEAD_S, true);
+                const k = spans.findIndex((r) => r.key === rally);
+                if (onward && k >= 0 && spans[k + 1]) {
+                  go(spans[k + 1].start - REPORT_LEAD_S, true);
                 }
               })
             }

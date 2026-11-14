@@ -98,10 +98,14 @@ export function liveReports<Q extends { rally?: number | null; reports?: { kind:
   });
 }
 
-/** The touch most likely added after `before` (none: the rally's first, a serve by `server`): a
- * serve's reception, a free ball's or an attack's dig by the other team; a reception's or a dig's
- * set, a set's attack by the same team; after a block, a dig on the blockers' side. */
-export function nextTouch(before: { type: string; team: Group } | undefined, server: Group): { type: string; team: Group } {
+/** Under this long after an attack, the other team's touch is a block (on the three matches: blocks 0.02-0.54 s
+ * after it, median 0.2 s; digs 0.1-1.7 s, median 0.8 s). */
+export const BLOCK_S = 0.4;
+
+/** The touch most likely added `apart` seconds after `before` (none: the rally's first, a serve by `server`): a
+ * serve's reception, a free ball's or an attack's dig by the other team, a block just after an attack; a reception's or
+ * a dig's set, a set's attack by the same team; after a block, a dig on the blockers' side. */
+export function nextTouch(before: { type: string; team: Group } | undefined, server: Group, apart = Infinity): { type: string; team: Group } {
   if (!before) {
     return { type: 'serve', team: server };
   }
@@ -110,6 +114,7 @@ export function nextTouch(before: { type: string; team: Group } | undefined, ser
     case 'serve':
       return { type: 'pass', team: other };
     case 'attack':
+      return { type: apart < BLOCK_S ? 'block' : 'dig', team: other };
     case 'relance':
       return { type: 'dig', team: other };
     case 'pass':
@@ -189,6 +194,14 @@ export function withAdded<R extends Pick<Rally, 'start' | 'end'>>(rallies: R[], 
     }
   }
   return out;
+}
+
+/** A rally as it stands with the corrections, for the bars: `n` its number in the editor's list. */
+export type Span = { key: number; n: number; start: number; end: number; set: number; winner: Group | null; redo: boolean; wrongCall: boolean };
+
+/** The page's rallies as spans, before the editor gives them with the corrections. */
+export function pageSpans(rallies: Pick<Rally, 'key' | 'start' | 'end' | 'set' | 'winner' | 'redo' | 'wrongCall'>[], fps: number): Span[] {
+  return rallies.map((r, k) => ({ key: r.key ?? Math.round(r.start * fps), n: k + 1, start: r.start, end: r.end, set: r.set, winner: r.winner, redo: !!r.redo, wrongCall: !!r.wrongCall }));
 }
 
 /** A rally as the editor lists it: the page's (`origin` its index), or one started by the review

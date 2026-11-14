@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { VideoButton } from '@/components/VideoButton';
 import { clock } from '@/lib/format';
-import { match } from '@/lib/match';
+import { contacts, match } from '@/lib/match';
+import { isTouch } from '@/helpers/contacts';
+import { nearTouch, SLOW_RATE } from '@/helpers/slow';
 import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
@@ -15,6 +17,21 @@ import { WatchPanel } from '@/components/Watch/WatchPanel';
 
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
+/** Whether the video slows down at each touch, kept in this browser. */
+const SLOW_KEY = 'slowTouches';
+/** The ball's touches, sorted: the slow mode slows down at them. */
+const TOUCH_TIMES = contacts
+  .filter(isTouch)
+  .map((c) => c.t)
+  .sort((a, b) => a - b);
+
+function savedSlow(): boolean {
+  try {
+    return localStorage.getItem(SLOW_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 // How often the seek bar reads what the browser holds of the video.
 const HELD_MS = 500;
 // Chromium (Chrome, Edge, Android) reports a video's loaded parts at their bytes' share of the file (`placer`).
@@ -43,9 +60,36 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
   const [state, setState] = useState({
     paused: true,
     muted: false,
-    slow: false,
     full: false,
   });
+  const [slow, setSlow] = useState(savedSlow);
+  const toggleSlow = () => {
+    setSlow(!slow);
+    try {
+      localStorage.setItem(SLOW_KEY, slow ? '0' : '1');
+    } catch {
+      // Kept for this page only.
+    }
+  };
+  // Slowed down only around each touch, as in the review.
+  useEffect(() => {
+    if (!video || !slow) {
+      return;
+    }
+    let frame = 0;
+    const tick = () => {
+      const rate = nearTouch(TOUCH_TIMES, video.currentTime) ? SLOW_RATE : 1;
+      if (video.playbackRate !== rate) {
+        video.playbackRate = rate;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      video.playbackRate = 1;
+    };
+  }, [video, slow]);
 
   useEffect(() => {
     if (!video) {
@@ -55,7 +99,6 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       setState({
         paused: video.paused,
         muted: video.muted,
-        slow: video.playbackRate < 1,
         full: document.fullscreenElement !== null,
       });
     // The video stays inside the allowed stretch: before it, it starts there; past it, it stops.
@@ -73,7 +116,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
         video.currentTime = span.start;
       }
     };
-    const events = ['play', 'pause', 'volumechange', 'ratechange'] as const;
+    const events = ['play', 'pause', 'volumechange'] as const;
     events.forEach((e) => video.addEventListener(e, sync));
     document.addEventListener('fullscreenchange', sync);
     video.addEventListener('timeupdate', keep);
@@ -228,7 +271,7 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       </span>
       {skipButton(-SKIP)}
       {skipButton(SKIP)}
-      <VideoButton light={light} className={cn(second)} label={t('slowVideo')} pressed={state.slow} onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}>
+      <VideoButton light={light} className={cn(second)} label={t('slowTouches')} pressed={slow} onClick={toggleSlow}>
         <Snail aria-hidden />
       </VideoButton>
       <VideoButton light={light} className={cn(second)} label={t('loopVideo')} pressed={loop} onClick={() => setLoop(!loop)}>

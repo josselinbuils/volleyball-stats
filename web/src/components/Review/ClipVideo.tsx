@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { autoView, boxAt, exchangeAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
-import { coarse, frameTime, nearTouch, nudgeOf } from '@/components/Review/helpers/scrub';
+import { coarse, frameTime, stretchedTime, stretchedX } from '@/components/Review/helpers/scrub';
+import { nearTouch, SLOW_RATE } from '@/helpers/slow';
 import { Tip } from '@/components/Tip';
 
 /** Half a second of context around a clip, played in a loop, unless the clip says otherwise. */
@@ -34,9 +35,10 @@ const THUMB_PX = 8;
 const MUTED_KEY = 'review.muted';
 /** Whether the automatic zoom is on, kept in this browser. */
 const AUTO_KEY = 'review.autoZoom';
-/** Whether the video slows down at each touch, kept in this browser; how slow. */
+/** Whether the video slows down at each touch, kept in this browser. */
 const SLOW_KEY = 'review.slowTouches';
-const SLOW_RATE = 0.25;
+/** A press on the caption moving this far drags it: no click. */
+const CAPTION_DRAG_PX = 4;
 /** The control bar's height under the video (its seek bar, gap, buttons and padding), to fit both in full screen. */
 const BAR_REM = 4.25;
 /** Where the caption stands (its top centre, fractions of the video), as the user dragged it, kept
@@ -73,6 +75,9 @@ function saveFlag(key: string, on: boolean) {
  * its progress bar moves it (drag, click or arrows; where a pixel of it spans more than a frame, a small drag pauses it and moves it frame by frame); with `showTime` the match time under it, `marks` (times) drawn on that bar, `onTime` told where it stands.
  * `free`: the match plays on from the clip with its sound, no loop, the arrow keys moving it; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
  * `touches`: the ball's touches (times, sorted), which a button beside the speeds slows the video down at.
+ * `spans`: in free play, the rallies drawn on the bar, as they stand with the corrections (the page's by default).
+ * `captionEdit`: what a click on the caption opens under it, the video paused, until `close` is called or the caption changes.
+ * `onPaused`: told whenever the video pauses or plays.
  * `extra`: at the right end of the buttons' line, after the sound's. */
 export function ClipVideo({
   clip,
@@ -87,6 +92,9 @@ export function ClipVideo({
   caption,
   autoPlay = true,
   touches,
+  spans,
+  captionEdit,
+  onPaused,
   extra,
 }: {
   clip: Clip;
@@ -98,9 +106,12 @@ export function ClipVideo({
   showTime?: boolean;
   free?: boolean;
   onTime?: (time: number) => void;
-  caption?: { team: Group; text: string } | null;
+  caption?: { team: Group; text: string; key?: string } | null;
   autoPlay?: boolean;
   touches?: number[];
+  spans?: { start: number; end: number }[];
+  captionEdit?: (close: () => void) => ReactNode;
+  onPaused?: (paused: boolean) => void;
   extra?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
@@ -112,8 +123,10 @@ export function ClipVideo({
   const [anchor, setAnchor] = useState(clip.start);
   const anchored = useRef(clip.start);
   const dragging = useRef(false);
-  // Where a drag on the bar goes frame by frame from (see helpers/scrub), null once it follows the pointer, until released; the frames it moved.
-  const fine = useRef<{ x: number; frame: number; n: number } | null>(null);
+  // Where a drag on the bar goes frame by frame from, the bar stretched around it while it lasts (see helpers/scrub):
+  // the press's x in the bar, its time, the bar's seconds a pixel and width; the frames it moved.
+  const [stretch, setStretch] = useState<{ x: number; time: number; sPerPx: number; width: number } | null>(null);
+  const fine = useRef(stretch);
   const [nudge, setNudge] = useState<number | null>(null);
   // A press held on the video: slowed down while it lasts, no play or pause on its release.
   const held = useRef(false);
@@ -143,18 +156,31 @@ export function ClipVideo({
   const grab = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [captionAt, setCaptionAt] = useState(savedCaption);
-  const captionDrag = useRef<{ x: number; y: number; from: { x: number; y: number } } | null>(null);
+  const captionDrag = useRef<{ x: number; y: number; from: { x: number; y: number }; moved: boolean } | null>(null);
+  // The caption whose editor is open, by its key.
+  const [editing, setEditing] = useState<string | null>(null);
   const dragCaption = (event: PointerEvent) => {
     const drag = captionDrag.current;
     const r = frame.current?.getBoundingClientRect();
-    if (drag && r?.width) {
+    if (drag && !drag.moved && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) >= CAPTION_DRAG_PX) {
+      drag.moved = true;
+    }
+    if (drag?.moved && r?.width) {
       const clamp = (v: number) => Math.min(0.95, Math.max(0.02, v));
       setCaptionAt({ x: clamp(drag.from.x + (event.clientX - drag.x) / r.width), y: clamp(drag.from.y + (event.clientY - drag.y) / r.height) });
     }
   };
   const dropCaption = () => {
-    if (captionDrag.current) {
+    const drag = captionDrag.current;
+    if (drag) {
       captionDrag.current = null;
+      if (!drag.moved) {
+        if (captionEdit && caption?.key) {
+          video.current?.pause();
+          setEditing(editing === caption.key ? null : caption.key);
+        }
+        return;
+      }
       try {
         localStorage.setItem(CAPTION_KEY, JSON.stringify(captionAt));
       } catch {
@@ -229,8 +255,12 @@ export function ClipVideo({
   // Where the bar stands, and the outlined parts of it: the clip, or in free play the rallies there.
   const from = free ? Math.max(0, anchor - FREE_SPAN[0]) : Math.max(0, clip.start - around);
   const to = free ? Math.min(match.duration, anchor + FREE_SPAN[1]) : clip.end + around;
-  const bands = free ? rallies.filter((r) => r.end > from && r.start < to).map((r) => [r.start, r.end]) : [[clip.start, clip.end]];
-  const share = (at: number) => `${(100 * (Math.min(to, Math.max(from, at)) - from)) / (to - from)}%`;
+  const bands = free ? (spans ?? rallies).filter((r) => r.end > from && r.start < to).map((r) => [r.start, r.end]) : [[clip.start, clip.end]];
+  // Stretched by a drag going frame by frame, the bar keeps the thumb under the pointer.
+  const share = (at: number) =>
+    stretch
+      ? `${Math.min(100, Math.max(0, (100 * (stretch.x + stretchedX(at, stretch.time, stretch.sPerPx, match.fps))) / stretch.width))}%`
+      : `${(100 * (Math.min(to, Math.max(from, at)) - from)) / (to - from)}%`;
   const moveTo = (at: number) => {
     const v = video.current;
     if (v) {
@@ -257,30 +287,32 @@ export function ClipVideo({
     if (!precise() || Math.abs(event.clientX - thumb) > THUMB_PX) {
       moveToPointer(event);
     }
-    fine.current = precise() && video.current ? { x: event.clientX, frame: Math.round(video.current.currentTime * match.fps), n: 0 } : null;
+    fine.current =
+      precise() && video.current
+        ? { x: event.clientX - place.left, time: frameTime(Math.round(video.current.currentTime * match.fps), match.fps), sPerPx: (to - from) / place.width, width: place.width }
+        : null;
+    setStretch(fine.current);
   };
   const dragBar = (event: PointerEvent<HTMLDivElement>) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
       return;
     }
     const f = fine.current;
-    const n = f && nudgeOf(event.clientX - f.x);
-    if (f && n !== null) {
-      if (n !== f.n) {
-        f.n = n;
-        video.current?.pause();
-        moveTo(frameTime(f.frame + n, match.fps));
-        setNudge(n);
-      }
+    if (!f) {
+      moveToPointer(event);
       return;
     }
-    fine.current = null;
-    setNudge(null);
-    moveToPointer(event);
+    const at = stretchedTime(event.clientX - event.currentTarget.getBoundingClientRect().left - f.x, f.time, f.sPerPx, match.fps);
+    if (at.nudge !== null) {
+      video.current?.pause();
+    }
+    moveTo(at.time);
+    setNudge(at.nudge);
   };
   const dropBar = () => {
     dragging.current = false;
     fine.current = null;
+    setStretch(null);
     setNudge(null);
   };
   // Fields and menus keep their arrows, and the bar when focused handles its own (it prevents the default).
@@ -442,8 +474,14 @@ export function ClipVideo({
               muted={muted}
               playsInline
               onClick={toggle}
-              onPlay={() => setPaused(false)}
-              onPause={() => setPaused(true)}
+              onPlay={() => {
+                setPaused(false);
+                onPaused?.(false);
+              }}
+              onPause={() => {
+                setPaused(true);
+                onPaused?.(true);
+              }}
               onPointerDown={press}
               onPointerMove={drag}
               onPointerUp={release}
@@ -471,11 +509,11 @@ export function ClipVideo({
           </div>
           <VideoError video={video} />
           {caption && (
-            <Tip label={t('review.captionMove')}>
+            <Tip label={t(captionEdit && caption.key ? 'review.captionEdit' : 'review.captionMove')}>
               <span
                 onPointerDown={(event) => {
                   event.currentTarget.setPointerCapture(event.pointerId);
-                  captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt };
+                  captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt, moved: false };
                 }}
                 onPointerMove={dragCaption}
                 onPointerUp={dropCaption}
@@ -495,6 +533,17 @@ export function ClipVideo({
                 <span className="truncate">{caption.text}</span>
               </span>
             </Tip>
+          )}
+          {/* Under the caption, as wide as a field needs. */}
+          {caption && captionEdit && editing !== null && editing === caption.key && (
+            <div
+              className="absolute z-20 w-64 max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-md bg-popover text-popover-foreground shadow-md"
+              style={{ left: `${captionAt.x * 100}%`, top: `calc(${captionAt.y * 100}% + 2.5rem)` }}
+              // Left for anything else: closed.
+              onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setEditing(null)}
+            >
+              {captionEdit(() => setEditing(null))}
+            </div>
           )}
         </div>
         <div className="grid gap-0.5 px-2 pt-1.5 pb-1">

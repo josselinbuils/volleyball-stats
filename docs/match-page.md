@@ -19,7 +19,7 @@ moments.
 - Above the video: the set and its score (estimated, or the final score you gave once the set is
   over). During a timeout, "Temps mort" and its team over the video and beside the court; in TV mode its card, the
   rally before it held 3 s for it.
-- The video player skips 10 s back or forward. Its "Zoom auto", on from the start where the match has views, frames the players as the review's
+- The video player skips 10 s back or forward; its snail ("Ralentir à chaque touche", kept in the browser) slows it to 0.25× around each touch only, as the review's. Its "Zoom auto", on from the start where the match has views, frames the players as the review's
   (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump; one hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar

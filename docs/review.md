@@ -94,31 +94,40 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - It plays the match freely, with its sound (a button cuts it), the arrow keys moving it by 1 s. Its controls sit in a
   black bar under it, as on the match page (`VideoButton`, shared), full screen at its right end.
 - Its seek bar goes frame by frame on a small drag (a frame every 3 px, ±12, the count above the thumb; it pauses the
-  video), follows the pointer past that until released. A press on the thumb grabs it where it stands
-  (`helpers/scrub.ts`).
+  video), the bar stretched around the press meanwhile so the thumb stays under the pointer; past that it moves at the
+  bar's scale from there, skipping no frames, until released. A press on the thumb grabs it where it stands
+  (`helpers/scrub.ts` `stretchedTime`).
 - Zoom: buttons, ⌘ or Ctrl + wheel or a pinch, a drag moves the view. "Zoom auto" frames all the players: a view for the
   serve, from the rally before's end and showing the server by the ball (often too far back to be tracked), and one for
   the exchange, each kept while it fits (`framing.py`; on the two matches 1.1 changes a rally at 1.4× median). Zooming by
   hand overrides it until the next rally, its button resuming it sooner.
 - The snail beside the speeds ("Ralentir à chaque touche", kept in the browser): the video plays at 0.25× from 0.3 s before each touch
-  to 0.15 s after it, the touches as corrected (`helpers/scrub.ts`); the caption over the video and the list's lit row
+  to 0.15 s after it, the touches as corrected (`helpers/slow.ts`, the match page's snail too); the caption over the video and the list's lit row
   change to that touch as it slows down (0.3 s before it, slowed or not), a space apart from the zoom's buttons; the sound's
   button at the right end, beside full screen.
+- A click on the caption opens a player field under it (the video paused): the touch named takes the player picked; a
+  drag moves the caption.
+- Played to the end of a rally not checked, the video stops there, once until moved back, to check it; "Valider" plays
+  on from the next one.
 - Under it, a zoomable bar of every rally, touch, report (red flag) and warning (orange flag: on its touch, else the
   rally's start; an automatic report only where the editor finds no warning on its rally). It colours each rally (orange
-  warning, green checked, grey to check) and its arrows go to the next one to check.
+  warning, green checked, grey to check) and its arrows go to the next one to check. Both bars show the rallies as
+  corrected (an end moved, a rally started, joined or deleted) before they are saved.
 
 ### Correcting
 
 - Beside the video, the touches around it: correct, add (a serve before a rally starts it, and the touches added after it
   are that rally's), remove, end a rally (`end` answers; its touches after that start a new rally at the first of them,
   `helpers/report.ts` `splitAfter`), join two rallies (`join` answers), start a rally at a moment
-  (`split` answers: one missed, or the second of two taken for one; `web.rally_table`).
+  (`split` answers: one missed, or the second of two taken for one; `web.rally_table`), with its serve (none within 1 s
+  there yet) by the rally before's winner, its player field ready.
+- A touch added guesses its action from the one before (`nextTouch`): after an attack, a block under 0.4 s later (on the
+  three matches blocks came 0.02-0.54 s after it, median 0.2 s; digs 0.1-1.7 s, median 0.8 s), else a dig.
 - Rallies are named by their `rallies.csv` start (`key` on the page), which an added serve moves. A line between rallies
-  shows the score after each one; a rally header turns orange with a warning.
+  shows the score after each one; a rally's whole surface turns orange with a warning, else light green once checked.
 - A rally's winner follows its last touch (`web.followed`).
 - "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in the review: always a
-  fault, no touch of the ball in the checks, counted in its player's faults.
+  fault, no touch of the ball in the checks, counted in its player's faults, never put on a touch before it.
 - "À rejouer" (`redo`, beside the winners): the rally stays, its touches in play, nobody scores; picking a winner takes it
   back.
 - "Erreur d'arbitrage" (`referee` answers, `wrongCall` on the page): the winner stays the team that got the point, the
@@ -136,7 +145,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ### Checking a rally
 
-- "Valider" in a rally's header saves and checks it: green, its reports handled, until a new report. The button then
+- "Valider" in a rally's header saves and checks it: green, its reports handled, until a new report. With a warning that
+  checking leaves (not a doubt), it asks first ("Valider quand même"). A press in the list holds it still 3 s, as leaving a
+  field does: scrolling to the video's touch moved the button from under the pointer, and the click was lost. The button then
   becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections.
 - A rally checked is locked as it showed: its winner (`pinned`), touches (`locked`: a rerun loses or adds none), their
   players and actions (`touch`, `action`); no question its check answers is asked. Unchecking unlocks it.

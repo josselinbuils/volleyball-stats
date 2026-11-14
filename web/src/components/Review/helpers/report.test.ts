@@ -235,6 +235,8 @@ describe('nextTouch', () => {
     expect(nextTouch({ type: 'pass', team: 2 }, 1)).toEqual({ type: 'set', team: 2 });
     expect(nextTouch({ type: 'set', team: 2 }, 1)).toEqual({ type: 'attack', team: 2 });
     expect(nextTouch({ type: 'attack', team: 2 }, 1)).toEqual({ type: 'dig', team: 1 });
+    expect(nextTouch({ type: 'attack', team: 2 }, 1, 0.2)).toEqual({ type: 'block', team: 1 });
+    expect(nextTouch({ type: 'attack', team: 2 }, 1, 0.6)).toEqual({ type: 'dig', team: 1 });
     expect(nextTouch({ type: 'relance', team: 1 }, 1)).toEqual({ type: 'dig', team: 2 });
     expect(nextTouch({ type: 'dig', team: 1 }, 1)).toEqual({ type: 'set', team: 1 });
     expect(nextTouch({ type: 'block', team: 1 }, 1)).toEqual({ type: 'dig', team: 1 });
