@@ -43,12 +43,12 @@ import { Tip } from '@/components/Tip';
 import { ask } from '@/components/ask';
 import { SLOW_BEFORE_S } from '@/helpers/slow';
 
-const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
+export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
 /** Outside the fields, a key gives the touch named over the video its action, by its French name's letter. */
-const TYPE_KEYS: Record<string, (typeof TYPES)[number]> = { s: 'serve', r: 'pass', p: 'set', a: 'attack', l: 'relance', c: 'block', d: 'dig', f: 'fault' };
+export const TYPE_KEYS: Record<string, (typeof TYPES)[number]> = { s: 'serve', r: 'pass', p: 'set', a: 'attack', l: 'relance', c: 'block', d: 'dig', f: 'fault' };
 /** Outside the fields, this key validates the rally on the video, this one adds a touch at its moment. */
-const VALIDATE_KEY = 'v';
-const ADD_KEY = 'n';
+export const VALIDATE_KEY = 'v';
+export const ADD_KEY = 'n';
 const RESULTS = ['play', 'point', 'error'] as const;
 const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
 /** After the user scrolls the list, it stops following the video this long. */
@@ -603,9 +603,6 @@ export function ReportEditor({
     const mine = mineOf(k);
     return row.removed ? [] : (found.get(k)?.touch.get(mine.indexOf(row)) ?? []);
   };
-  const typeKeys = Object.entries(TYPE_KEYS)
-    .map(([key, type]) => `${key.toUpperCase()} ${t(`types.${type}`)}`)
-    .join(' · ');
   const describe = (list: Problem[]) => list.map((p) => t(`feedback.kinds.auto.${p}`)).join(' · ');
   const rallyProblems = (k: number) => {
     const f = found.get(k);
@@ -962,15 +959,13 @@ export function ReportEditor({
                                 <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground line-through">{t(`types.${row.type}`)}</span>
                               ) : (
                                 <>
-                                  <Tip label={typeKeys}>
-                                    <select className={SELECT} aria-label={t('review.reportType')} value={row.type} onChange={(e) => setType(row, e.target.value)}>
-                                      {TYPES.map((type) => (
-                                        <option key={type} value={type}>
-                                          {t(`types.${type}`)}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </Tip>
+                                  <select className={SELECT} aria-label={t('review.reportType')} value={row.type} onChange={(e) => setType(row, e.target.value)}>
+                                    {TYPES.map((type) => (
+                                      <option key={type} value={type}>
+                                        {t(`types.${type}`)}
+                                      </option>
+                                    ))}
+                                  </select>
                                   <select
                                     className={SELECT}
                                     aria-label={t('review.reportResult')}

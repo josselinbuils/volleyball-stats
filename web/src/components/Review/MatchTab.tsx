@@ -12,6 +12,7 @@ import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { ReportEditor, type Caption } from '@/components/Review/ReportEditor';
+import { Shortcuts } from '@/components/Review/Shortcuts';
 import { slowStarts } from '@/components/Review/helpers/scrub';
 import type { HeightDoubt } from '@/components/Review/helpers/checks';
 
@@ -165,11 +166,14 @@ export function MatchTab({
               showTime
               onTime={(at: number) => setNow((n) => (Math.abs(n - at) >= 0.1 || slowStarts(touchesNow.current, n, at) ? at : n))}
               extra={
-                document.fullscreenEnabled && (
-                  <VideoButton label={t(full ? 'review.exitFullScreen' : 'review.fullScreen')} onClick={toggleFull}>
-                    {full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
-                  </VideoButton>
-                )
+                <>
+                  <Shortcuts />
+                  {document.fullscreenEnabled && (
+                    <VideoButton label={t(full ? 'review.exitFullScreen' : 'review.fullScreen')} onClick={toggleFull}>
+                      {full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+                    </VideoButton>
+                  )}
+                </>
               }
             />
             <MatchTimeline

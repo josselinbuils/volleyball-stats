@@ -21,7 +21,7 @@ let picked = 1;
 /** In free play, the bar spans this long before and after where it was anchored, re-anchored once the video leaves it. */
 const FREE_SPAN = [20, 70];
 /** In free play, the step of the left and right arrow keys. */
-const ARROW_STEP_S = 1;
+export const ARROW_STEP_S = 1;
 /** A press on the video held this long plays it at HOLD_RATE until released. */
 const HOLD_MS = 250;
 const HOLD_RATE = 0.25;
