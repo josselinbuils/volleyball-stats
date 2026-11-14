@@ -17,12 +17,14 @@ export type Due = 'answers' | 'rules';
 /** The update (app.learn_state): the matches waiting for it and why, and its job. */
 export type LearnState = { due: { name: string; why: Due }[]; job: Told | null };
 
-/** Asks before the update of `count` matches, then starts it: null once started, else why it did not. */
-export async function startUpdate(t: TFunction, count: number): Promise<Explained | null | 'cancelled'> {
-  if (!(await ask({ title: t('update.confirmTitle', { count }), text: t('update.confirm'), confirm: t('update.start') }))) {
+/** Asks before the update of `count` matches, or of the match whose review is open (`here`), then starts it: null once
+ * started, else why it did not. */
+export async function startUpdate(t: TFunction, count: number, here = false): Promise<Explained | null | 'cancelled'> {
+  const title = here ? t('update.confirmHereTitle') : t('update.confirmTitle', { count });
+  if (!(await ask({ title, text: t(here ? 'update.confirmHere' : 'update.confirm'), confirm: t('update.start') }))) {
     return 'cancelled';
   }
-  const started = await call('learn', {});
+  const started = await call('learn', here ? { here: true } : {});
   return started.ok ? null : explain(t, started.error);
 }
 

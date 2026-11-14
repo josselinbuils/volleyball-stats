@@ -86,6 +86,30 @@ class TestUpdate:
 
         assert done == ["training", "rerun a", "pages a", "rerun b", "pages b", "measured c"]
 
+    def test_only_the_match_named_after_the_same_training(self, tmp_path, monkeypatch):
+        a, b = (tmp_path / "matches" / n for n in "ab")
+        done = []
+        monkeypatch.setattr(learn, "waiting", lambda outputs: [(a, a, a), (b, b, b)])
+        monkeypatch.setattr(learn, "train", lambda outputs: done.append("training"))
+        monkeypatch.setattr(learn, "rerun", lambda m, v, court, on_share, update: done.append(f"rerun {m.name}"))
+        monkeypatch.setattr(learn, "play_due", lambda m: False)
+        monkeypatch.setattr(learn.review, "rebuilt", lambda m, v, court: done.append(f"pages {m.name}"))
+        monkeypatch.setattr(learn.review, "page_data", lambda site: None)
+        monkeypatch.setattr(learn.review, "reviewed", lambda page, log: False)
+        monkeypatch.setattr(learn.review, "load_log", lambda path: [])
+        (tmp_path / "matches").mkdir()
+
+        learn.update(tmp_path / "matches", "b")
+
+        assert done == ["training", "rerun b", "pages b"]
+
+    def test_nothing_when_the_match_named_is_up_to_date(self, tmp_path, monkeypatch):
+        a = tmp_path / "a"
+        monkeypatch.setattr(learn, "waiting", lambda outputs: [(a, a, a)])
+        monkeypatch.setattr(learn, "train", lambda outputs: pytest.fail("trained"))
+
+        learn.update(tmp_path, "b")
+
     def test_nothing_when_every_match_is_up_to_date(self, tmp_path, monkeypatch):
         monkeypatch.setattr(learn, "waiting", lambda outputs: [])
         monkeypatch.setattr(learn, "train", lambda outputs: pytest.fail("trained"))

@@ -484,8 +484,7 @@ export function Review({
       return;
     }
     setBusy('update');
-    const found = await call<AppState>('state');
-    const started = await startUpdate(t, found.ok ? Math.max(1, found.learn.due.length) : 1);
+    const started = await startUpdate(t, 1, true);
     if (started === null) {
       followUpdate();
       return;

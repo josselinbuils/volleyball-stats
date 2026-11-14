@@ -623,10 +623,12 @@
     "due_one": "{{count}} match à mettre à jour",
     "due_other": "{{count}} matchs à mettre à jour",
     "start": "Mettre à jour",
-    "running": "Mise à jour des matchs",
+    "running": "Mise à jour",
     "confirmTitle_one": "Mettre à jour {{count}} match ?",
     "confirmTitle_other": "Mettre à jour {{count}} matchs ?",
     "confirm": "De quelques minutes à 40 minutes par match. La vérification attend la fin ; vos réponses sont gardées.",
+    "confirmHereTitle": "Mettre à jour ce match ?",
+    "confirmHere": "De quelques minutes à 40 minutes. La vérification attend la fin ; vos réponses sont gardées.",
     "stage": {
       "training": "Apprentissage de vos réponses",
       "match": "Match {{n}} sur {{of}}",

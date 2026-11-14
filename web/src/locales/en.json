@@ -623,10 +623,12 @@
     "due_one": "{{count}} match to update",
     "due_other": "{{count}} matches to update",
     "start": "Update",
-    "running": "Updating the matches",
+    "running": "Updating",
     "confirmTitle_one": "Update {{count}} match?",
     "confirmTitle_other": "Update {{count}} matches?",
     "confirm": "A few minutes to 40 minutes per match. The review waits until it ends; your answers are kept.",
+    "confirmHereTitle": "Update this match?",
+    "confirmHere": "A few minutes to 40 minutes. The review waits until it ends; your answers are kept.",
     "stage": {
       "training": "Learning from your answers",
       "match": "Match {{n}} of {{of}}",

@@ -117,6 +117,11 @@ class TestApp:
         assert not started
         assert app.handle("POST", "/app/learn", "", {}, list, lambda: False)[2] == 200
         assert started == [["volleyball_stats.learn", "--update", str(app.MATCHES)]]
+        # From a match's review, that match only.
+        app.handle("POST", "/app/learn", "", {"here": True}, list, lambda: False, open_match="m")
+        assert started[-1] == ["volleyball_stats.learn", "--update", str(app.MATCHES), "--only", "m"]
+        app.handle("POST", "/app/learn", "", {"here": True}, list, lambda: False)
+        assert started[-1] == ["volleyball_stats.learn", "--update", str(app.MATCHES)]
 
     def test_refuses_to_quit_while_applying(self):
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409

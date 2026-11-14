@@ -11,11 +11,12 @@ the match folder): what the answers teach, after each review or pipeline change.
   winner on the page against the pipeline's own.
 
     uv run python -m volleyball_stats.learn outputs/matches/VIDEO --video VIDEO --court COURT_JSON [--rerun]
-    uv run python -m volleyball_stats.learn --update outputs/matches
+    uv run python -m volleyball_stats.learn --update outputs/matches [--only NAME]
 
 With --rerun, the learned attribution is trained again on every reviewed match's answers (`train`), the pipeline runs
 again and the answers move onto its rally windows. --update (the app's "Mettre à jour") does so once for every match
-waiting (`review.due`): one training, then each match's pipeline again, a fully checked one only measured.
+waiting (`review.due`): one training, then each match's pipeline again, a fully checked one only measured. With --only
+NAME (the button inside a match's review), that match alone after the same training; the others keep waiting.
 """
 
 import argparse
@@ -317,20 +318,22 @@ def waiting(outputs: Path) -> list[tuple[Path, Path, Path]]:
     return found
 
 
-def update(outputs: Path) -> None:
-    """Every match of `outputs` waiting brought up to date: the learned order trained once on all their answers, then
-    each one's pipeline again with its pages, the answers applied (`review.rebuilt`); a fully checked one only measured,
-    the play model then trained again if one taught it something. Its stages told as it goes (jobs.Stages)."""
-    found = waiting(outputs)
+def update(outputs: Path, only: str | None = None) -> None:
+    """Every match of `outputs` waiting brought up to date, or the one named `only`: the learned order trained once on
+    all the matches' answers, then each one's pipeline again with its pages, the answers applied (`review.rebuilt`); a
+    fully checked one only measured, the play model then trained again if one taught it something. Its stages told as
+    it goes (jobs.Stages)."""
+    pick = lambda: [m for m in waiting(outputs) if only is None or m[0].name == only]  # noqa: E731
+    found = pick()
     if not found:
-        print("Every match is up to date.", flush=True)
+        print("Nothing to update.", flush=True)
         return
     told = jobs.Stages(files.root(found[0][0]) / TIMINGS, ["training", *(f"match:{m.name}" for m, *_ in found)], TOOK)
     started = time.strftime("%Y-%m-%d %H:%M:%S")
     told.start("training")
     train(outputs)
     # A new learned order makes every match's analysis older: each one not fully checked waits too.
-    found = waiting(outputs)
+    found = pick()
     told.plan = ["training", *(f"match:{m.name}" for m, *_ in found)]
     taught = None
     for match, video, court in found:
@@ -353,7 +356,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     if "--update" in sys.argv:
         parser.add_argument("--update", type=Path, required=True, help="Bring every match of this folder up to date")
-        return update(parser.parse_args().update)
+        parser.add_argument("--only", help="That match only (its folder's name), after the same training")
+        args = parser.parse_args()
+        return update(args.update, args.only)
     parser.add_argument("match", type=Path)
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--court", type=Path, required=True)

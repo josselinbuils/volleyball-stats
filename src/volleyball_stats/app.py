@@ -819,7 +819,9 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
             # Not under an apply: the open match's review would write as its pipeline runs again.
             if busy():
                 return reply({"error": "busy"}, 409)
-            jobs.start(OUTPUTS, LEARN, LEARN, [(LEARN, ["volleyball_stats.learn", "--update", str(MATCHES)])])
+            # From a match's review, that match only (the owner's rule); from the list, every match waiting.
+            only = ["--only", open_match] if body.get("here") and open_match else []
+            jobs.start(OUTPUTS, LEARN, LEARN, [(LEARN, ["volleyball_stats.learn", "--update", str(MATCHES), *only])])
             return reply(learn_state(listed()))
         if route == "server/delete":
             server.delete(OUTPUTS, str(body["day"]))
