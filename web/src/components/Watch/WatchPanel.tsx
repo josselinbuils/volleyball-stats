@@ -25,7 +25,7 @@ export function WatchPanel({ light, onClose }: { light: boolean; onClose: () => 
   return (
     <div
       className={cn(
-        'absolute right-2 bottom-full z-20 mb-2 flex max-h-[calc(100dvh-7rem)] w-80 max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-lg text-sm',
+        'absolute right-2 bottom-full z-20 mb-2 flex max-h-[min(28rem,calc(100dvh-7rem))] w-80 max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-lg text-sm',
         light ? 'border bg-popover text-popover-foreground shadow-md' : 'bg-black/75 text-white backdrop-blur-sm',
       )}
     >

@@ -34,9 +34,10 @@ moments.
   and of touches): each part within 1 s of what is loaded; loaded parts drawn late or short in 3-13% of samples, up to 5 s.
 - What plays is listed under the player (`Watch/RallyCards.tsx`, `useWatchList.ts`): the set's rallies, or while other
   moments play (a number, a chart, a trophy...) one card per moment, its touch lit among its rally's letters, under the
-  playlist's title and "3 sur 10". The one playing stands out, kept in view; a card plays from it. In full screen, where
-  the bar under the player is out of sight, the control bar adds previous and next, and "Liste" opens the same list
-  over the picture (`Watch/WatchPanel.tsx`).
+  playlist's title and "3 sur 10". The one playing stands out, kept in view; a card plays from it. On a phone it stands
+  under the player's controls, in the sheet too. In full screen, where the bar under the player is out of sight, the
+  control bar adds previous and next, and "Liste" opens the same list over the picture (`Watch/WatchPanel.tsx`); on a
+  phone held upright the bar's buttons take two rows, previous, play, next, the list and full screen on the first.
 - Beside it, the court seen from above follows the play: the players, the ball with a trail as long
   as it is fast, and a ring around the player touching it.
 - Each player keeps one mark for the whole match: their number, then once named their jersey number, or without one

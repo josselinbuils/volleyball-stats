@@ -183,8 +183,11 @@ export function Watch() {
               <ReplayCaption className="max-lg:order-last lg:mt-0" />
               <PlaylistBar />
             </div>
+            {/* In the sheet too: what plays, to pick from. */}
+            <div className="mt-5 min-w-0 lg:col-span-2">
+              <RallyCards />
+            </div>
           </PlayerSheet>
-          <RallyCards />
         </CardContent>
       </Card>
     );
@@ -237,9 +240,12 @@ export function Watch() {
             </div>
             <PlaylistBar />
           </div>
+          {/* In the sheet too, under the player on a phone: what plays, to pick from. */}
+          <div className="min-w-0 lg:order-last lg:col-span-2 lg:mt-2">
+            <RallyCards />
+          </div>
           <Replay />
         </PlayerSheet>
-        <RallyCards />
       </CardContent>
     </Card>
   );

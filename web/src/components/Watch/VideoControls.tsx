@@ -171,13 +171,15 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
     }
   };
   const skip = (by: number) => video && seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + by)));
+  // Full screen on a phone held upright: two rows of buttons under the timeline, moving through the list on the first.
+  const stepped = state.full && entries.length > 0;
+  const second = stepped && 'max-sm:order-2';
   const skipButton = (by: number) => (
-    <VideoButton light={light} className={cn('relative', by < 0 && 'max-sm:ml-auto')} label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
+    <VideoButton light={light} className={cn('relative', by < 0 && 'max-sm:ml-auto', second)} label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
       <SkipIcon seconds={by} />
     </VideoButton>
   );
 
-  const stepped = state.full && entries.length > 0;
   return (
     // On a phone the timeline takes its own row above the buttons. Over the video zoomed, which runs past its box.
     <div className={cn('relative flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'z-10 bg-black text-white')}>
@@ -226,25 +228,26 @@ export function VideoControls({ light = false, follow, onFollow }: { light?: boo
       </span>
       {skipButton(-SKIP)}
       {skipButton(SKIP)}
-      <VideoButton light={light} label={t('slowVideo')} pressed={state.slow} onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}>
+      <VideoButton light={light} className={cn(second)} label={t('slowVideo')} pressed={state.slow} onClick={() => video && (video.playbackRate = state.slow ? 1 : 0.5)}>
         <Snail aria-hidden />
       </VideoButton>
-      <VideoButton light={light} label={t('loopVideo')} pressed={loop} onClick={() => setLoop(!loop)}>
+      <VideoButton light={light} className={cn(second)} label={t('loopVideo')} pressed={loop} onClick={() => setLoop(!loop)}>
         <Repeat1 aria-hidden />
       </VideoButton>
       {onFollow && (
-        <VideoButton light={light} label={t('autoZoom')} pressed={follow} onClick={onFollow}>
+        <VideoButton light={light} className={cn(second)} label={t('autoZoom')} pressed={follow} onClick={onFollow}>
           <ScanSearch aria-hidden />
         </VideoButton>
       )}
       {/* The court's replay has no sound. */}
       {match.video && (
-        <VideoButton light={light} label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
+        <VideoButton light={light} className={cn(second)} label={t(state.muted ? 'unmuteVideo' : 'muteVideo')} onClick={() => video && (video.muted = !video.muted)}>
           {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
         </VideoButton>
       )}
+      {stepped && <span aria-hidden className="hidden max-sm:order-1 max-sm:block max-sm:basis-full" />}
       {stepped && (
-        <VideoButton light={light} label={t('watchList')} pressed={listed} onClick={() => setListed(!listed)}>
+        <VideoButton light={light} className="max-sm:ml-auto" label={t('watchList')} pressed={listed} onClick={() => setListed(!listed)}>
           <ListVideo aria-hidden />
         </VideoButton>
       )}
