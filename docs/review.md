@@ -90,8 +90,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 - It plays the match freely, with its sound (a button cuts it), the arrow keys moving it by 1 s.
 - Its seek bar goes frame by frame on a small drag (a frame every 3 px, ±12, the count above the thumb; it pauses the
-  video), follows the pointer past that, and goes frame by frame again where the drag rests 0.3 s. A press on the thumb
-  grabs it where it stands (`helpers/scrub.ts`).
+  video), follows the pointer past that until released. A press on the thumb grabs it where it stands
+  (`helpers/scrub.ts`).
 - Zoom: buttons, ⌘ or Ctrl + wheel or a pinch, a drag moves the view. "Zoom auto" frames all the players: a view for the
   serve, from the rally before's end and showing the server by the ball (often too far back to be tracked), and one for
   the exchange, each kept while it fits (`framing.py`; on the two matches 1.1 changes a rally at 1.4× median). Zooming by

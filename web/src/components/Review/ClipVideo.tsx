@@ -31,8 +31,6 @@ const HOLD_RATE = 0.25;
 const ZOOM_STEP = 1.5;
 /** A press moving this far drags the zoomed view: no click, no slowing down. */
 const DRAG_PX = 4;
-/** A drag on the bar resting this long goes frame by frame again from there. */
-const SETTLE_MS = 300;
 /** A press on the bar this close to its thumb grabs it where it stands. */
 const THUMB_PX = 8;
 /** Whether the match's sound is off, kept in this browser. */
@@ -109,9 +107,8 @@ export function ClipVideo({
   const [anchor, setAnchor] = useState(clip.start);
   const anchored = useRef(clip.start);
   const dragging = useRef(false);
-  // Where a drag on the bar goes frame by frame from (see helpers/scrub), null once it follows the pointer; the frames it moved.
+  // Where a drag on the bar goes frame by frame from (see helpers/scrub), null once it follows the pointer, until released; the frames it moved.
   const fine = useRef<{ x: number; frame: number; n: number } | null>(null);
-  const settle = useRef(0);
   const [nudge, setNudge] = useState<number | null>(null);
   // A press held on the video: slowed down while it lasts, no play or pause on its release.
   const held = useRef(false);
@@ -239,9 +236,6 @@ export function ClipVideo({
   };
   // Where the bar is coarser than the video, a small drag moves it frame by frame, a larger one follows the pointer.
   const precise = () => coarse((bar.current?.getBoundingClientRect().width ?? 0) / (to - from), match.fps);
-  const fineFrom = (x: number) => {
-    fine.current = precise() && video.current ? { x, frame: Math.round(video.current.currentTime * match.fps), n: 0 } : null;
-  };
   const pressBar = (event: PointerEvent<HTMLDivElement>) => {
     // No text selection, nor the browser's drag of it (a "no drop" cursor) while seeking.
     event.preventDefault();
@@ -253,13 +247,12 @@ export function ClipVideo({
     if (!precise() || Math.abs(event.clientX - thumb) > THUMB_PX) {
       moveToPointer(event);
     }
-    fineFrom(event.clientX);
+    fine.current = precise() && video.current ? { x: event.clientX, frame: Math.round(video.current.currentTime * match.fps), n: 0 } : null;
   };
   const dragBar = (event: PointerEvent<HTMLDivElement>) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
       return;
     }
-    window.clearTimeout(settle.current);
     const f = fine.current;
     const n = f && nudgeOf(event.clientX - f.x);
     if (f && n !== null) {
@@ -274,13 +267,10 @@ export function ClipVideo({
     fine.current = null;
     setNudge(null);
     moveToPointer(event);
-    const x = event.clientX;
-    settle.current = window.setTimeout(() => fineFrom(x), SETTLE_MS);
   };
   const dropBar = () => {
     dragging.current = false;
     fine.current = null;
-    window.clearTimeout(settle.current);
     setNudge(null);
   };
   // Fields and menus keep their arrows, and the bar when focused handles its own (it prevents the default).
