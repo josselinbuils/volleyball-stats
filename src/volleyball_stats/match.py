@@ -507,7 +507,7 @@ def main() -> None:
     typed = actions.mark_relances(args.video, typed, fps, out / "relances.json")
     if calibration is not None and calibration.lens:
         typed = actions.by_flight(typed, ball3d.flight_places(typed, windows, round(actions.LEAD_S * fps), track_path, calibration, fps), fps)
-    typed = actions.first_touch_digs(typed)
+    typed = actions.relances_by_touch(typed)
     timings["actions"] = time.perf_counter() - start
 
     tracks, touchers, gaps, found_teams, settled = None, [None] * len(typed), [None] * len(typed), None, None

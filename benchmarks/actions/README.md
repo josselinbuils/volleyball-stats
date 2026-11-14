@@ -69,8 +69,8 @@ In frame order, within a rally window (`rallies.py` windows start 0.33 s earlier
    attack, 4 seen and kept, 20 never seen.
 
 7. After the relances (`mark_relances`, `by_flight`): a **relance** as a team's first touch (after the other side's touch but
-   a serve, or after a block) is a **dig** (`first_touch_digs`, the owner's rule of 14 Nov: both hands on a first touch is a
-   dig, sent over or not).
+   a serve, or after a block) is a **dig**, as its second a **set** (`relances_by_touch`, the owner's rule of 14 Nov: both
+   hands make a dig on the first touch, a set on the second, sent over or not, a relance on the third).
 
 **Side**: left or right of the net's image line, the line through the calibrated net feet on both
 sidelines (`--net-x` without a calibration). The camera stands (nearly) in the net plane, so the plane

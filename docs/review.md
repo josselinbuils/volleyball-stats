@@ -46,8 +46,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 ## The statistics' reading
 
 - Attack or relance by what is seen, never by intent (the owner's rule, 14 Nov): a ball sent over with one hand (a hit, a tip,
-  a placed ball, jumped or not) is an attack, on any touch; one sent over with both hands (forearm or overhead pass) is a
-  relance on the 2nd or 3rd touch, a dig (or reception) on the first (`actions.first_touch_digs`, `relanceFirst`).
+  a placed ball, jumped or not) is an attack, on any touch; one played with both hands (forearm or overhead pass) is a dig (or
+  reception) on the first touch, a set on the second, sent over or not (a set gone over: the statistics' sets not attacked),
+  a relance on the third (`actions.relances_by_touch`, `relanceFirst`, `relanceSecond`).
 
 - A serve, an attack or a block the other team's next touch, the rally's last, loses is a point for it, that touch staying
   the other team's fault (both count; a serve's is an ace). An attack blocked for a point is a fault (`web.credited`).
@@ -176,9 +177,9 @@ Automatic reports (`review.unusual`) flag:
 
 - no serve first, two serves, a reception not right after a serve, a serve not followed by a reception, four touches in a
   row, the wrong server, no touch, no winner, over 2.5 s between two touches, a server out of rotation order;
-- a relance as a team's first touch (`relanceFirst`, after the other team's touch but a serve, or after a block): a dig by the
-  owner's rule (14 Nov), on checked rallies too;
-- an attack played under 1.8 m or a relance from 2.6 m, a team's first touch aside (`lowAttack`, `highRelance`,
+- a relance as a team's first touch (`relanceFirst`, after the other team's touch but a serve, or after a block) or second
+  (`relanceSecond`): a dig or a set by the owner's rule (14 Nov), on checked rallies too;
+- an attack played under 1.8 m (a team's first touch aside) or a relance from 2.6 m on a 3rd touch (`lowAttack`, `highRelance`,
   `review.odd_heights`, from the touches' 3D places in ball3d.js, kept across a rerun in `before-rerun/review-ball3d.js`): a
   doubt, the touch flagged in the Match tab while its action stands; "Traité" keeps the action, validating handles it;
 - a set ending off the score given (`scoreOff`, asked again once the score moves; the list shows the running score);

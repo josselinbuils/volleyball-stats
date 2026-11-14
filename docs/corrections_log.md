@@ -377,6 +377,10 @@ better ball track.
   `play-main`'s output (types only change; attribution reads dig and relance alike): 281 -> 284 and 351 -> 348 against the
   answers as they are, 289 -> 278 and 357 -> 342 against them with the rule applied (8 and 8 first-touch relances in the
   checked rallies, 3 on the 12 Nov match's, asked again in the review).
+- Then (14 Nov) both hands on a second touch make a set, sent over or not (`relances_by_touch`, `relanceSecond`): the owner's
+  2nd-touch relances and sets sent over leave at the same height (2.1 and 2.0 m, medians), labelled relance 22 times and set 13.
+  On `play-main`'s output: 281 -> 284 and 351 -> 350 against the answers as they are, 286 -> 275 and 356 -> 338 against them
+  with both rules applied (24 second-touch relances on the three matches' checked rallies, asked again).
 
 ## State (13 Nov): hand-over
 

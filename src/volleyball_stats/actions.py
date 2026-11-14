@@ -420,15 +420,17 @@ def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, lon
     return out
 
 
-def first_touch_digs(typed: list[Typed]) -> list[Typed]:
+def relances_by_touch(typed: list[Typed]) -> list[Typed]:
     """`typed` with the relances played as a team's first touch (after the other side's touch but a serve, or after a block)
-    retyped "dig": the owner's rule (14 Nov), a ball sent back with both hands is a relance on the 2nd or 3rd touch only."""
-    out, before = list(typed), None
+    retyped "dig", as its second "set": the owner's rule (14 Nov), both hands sending the ball back make a relance on the 3rd
+    touch only (a set the other team plays next is a set gone over)."""
+    out, before, count = list(typed), None, 0
     for k, (frame, x, y, kind, side) in enumerate(typed):
         if kind == "floor":
             continue
-        if kind == "relance" and before and (before[3] == "block" or (before[4] != side and before[3] != "serve")):
-            out[k] = (frame, x, y, "dig", side)
+        count = 0 if kind == "block" else count + 1 if before and before[3] != "block" and before[4] == side else 1
+        if kind == "relance" and before and before[3] != "serve" and count <= 2:
+            out[k] = (frame, x, y, "dig" if count == 1 else "set", side)
         before = typed[k]
     return out
 
@@ -459,7 +461,7 @@ def main() -> None:
     typed = classify(contacts, crossings, windows, args.fps, args.net_x, calibration)
     if args.video:
         typed = mark_relances(args.video, typed, args.fps)
-        typed = first_touch_digs(typed)
+        typed = relances_by_touch(typed)
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.contacts.stem.removesuffix('_contacts')}_actions.csv"
     with open(path, "w", newline="") as f:

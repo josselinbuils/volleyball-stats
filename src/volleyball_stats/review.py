@@ -772,20 +772,23 @@ def read_places(path: Path) -> list:
 
 def odd_heights(page: dict, places: list) -> dict[int, dict[str, list[float]]]:
     """The times of the touches doubtful by their height, by rally index and reason: "lowAttack", an attack played under
-    LOW_ATTACK_M, "highRelance", a relance from HIGH_RELANCE_M, a team's first touch aside (after the other team's touch but
-    a serve, or after a block)."""
+    LOW_ATTACK_M (a team's first touch aside: after the other team's touch but a serve, or after a block), "highRelance", a
+    relance from HIGH_RELANCE_M on a team's 3rd touch or later."""
     height = {int(places[k]): places[k + 3] for k in range(0, len(places), 4)}
     out: dict[int, dict[str, list[float]]] = defaultdict(dict)
-    before = None
+    before, run = None, 0
     for i, c in sorted(enumerate(page["contacts"]), key=lambda x: (x[1]["rally"], x[1]["t"])):
         if c["type"] in web.NO_PLAYER or c["type"] == "fault":
             continue
         if before is not None and before["rally"] != c["rally"]:
-            before = None
-        first = before is not None and (before["type"] == "block" or (before["type"] != "serve" and (before.get("team") or before["side"]) != (c.get("team") or c["side"])))
+            before, run = None, 0
+        same = before is not None and before["type"] != "block" and (before.get("team") or before["side"]) == (c.get("team") or c["side"])
+        run = run + 1 if same else 0 if c["type"] == "block" else 1
+        first = run == 1 and before is not None and before["type"] != "serve"
         z = height.get(i)
         if not first and z is not None and z > ball3d.BALL_R:
-            reason = "lowAttack" if c["type"] == "attack" and z < LOW_ATTACK_M else "highRelance" if c["type"] == "relance" and z >= HIGH_RELANCE_M else None
+            # A relance on a 1st or 2nd touch is asked as such (`relanceFirst`, `relanceSecond`).
+            reason = "lowAttack" if c["type"] == "attack" and z < LOW_ATTACK_M else "highRelance" if c["type"] == "relance" and run >= 3 and z >= HIGH_RELANCE_M else None
             if reason:
                 out[c["rally"]].setdefault(reason, []).append(c["t"])
         before = c
@@ -832,7 +835,7 @@ def unusual(page: dict, places: list | None = None) -> list[dict]:
     their start (no winner and a set's final score: their end), `kind` "auto.REASON": no touch, not starting with a serve, two serves, a reception
     not right after a serve, a serve followed by something else than a reception, a team touching
     four times in a row (a block apart), a player touching twice in a row (after a block aside), a
-    touch after a fault or a point (either ends the rally), a relance as a team's first touch, an attack played low or a relance high
+    touch after a fault or a point (either ends the rally), a relance as a team's first or second touch, an attack played low or a relance high
     (`odd_heights`, from the touches' 3D `places`, the page's own when it holds them), served by the team that lost the set's point
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order
@@ -869,13 +872,17 @@ def unusual(page: dict, places: list | None = None) -> list[dict]:
             why.append("afterFault")
         if any(web.labelled(a) == "point" for a in touches[:-1]):
             why.append("afterPoint")
-        run, side = 0, None
+        run, side, second = 0, None, False
         for c in played:
             who = c.get("team") or c["side"]
             run, side = (0 if c["type"] == "block" else run + 1 if who == side else 1), who
+            # Both hands on a team's second touch make a set, even sent over.
+            second = second or (c["type"] == "relance" and run == 2)
             if run > 3:
                 why.append("fourTouches")
                 break
+        if second:
+            why.append("relanceSecond")
         before = rallies[k - 1] if k else None
         if serves and serves[0].get("team") and before and before["set"] == r["set"] and before.get("winner") and not before.get("wrongCall") and serves[0]["team"] != before["winner"]:
             why.append("server")

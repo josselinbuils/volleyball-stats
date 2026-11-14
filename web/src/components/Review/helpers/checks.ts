@@ -8,6 +8,7 @@ export type Problem =
   | 'fourTouches'
   | 'samePlayer'
   | 'relanceFirst'
+  | 'relanceSecond'
   | 'afterFault'
   | 'afterPoint'
   | 'server'
@@ -98,6 +99,10 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     run = c.type === 'block' ? 0 : n && touches[played[n - 1]].team === c.team ? run + 1 : 1;
     if (run === 4) {
       mark(k, 'fourTouches');
+    }
+    // Both hands on a team's second touch make a set, even sent over.
+    if (c.type === 'relance' && run === 2) {
+      mark(k, 'relanceSecond');
     }
   });
   if (serves.length && previous !== null && touches[serves[0]].team !== previous) {

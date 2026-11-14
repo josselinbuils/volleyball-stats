@@ -1,7 +1,7 @@
 import numpy as np
 
 from volleyball_stats import actions
-from volleyball_stats.actions import by_flight, classify, first_touch_digs, classify_rally, late_serves, mark_dead, no_play, player_under, relance_cues, serve_starts, served
+from volleyball_stats.actions import by_flight, classify, relances_by_touch, classify_rally, late_serves, mark_dead, no_play, player_under, relance_cues, serve_starts, served
 from volleyball_stats.court import Calibration
 
 FPS = 30.0
@@ -355,9 +355,9 @@ class TestByFlight:
         assert by_flight(typed, {}, self.FPS)[0][3] == "set"
 
 
-class TestFirstTouchDigs:
+class TestRelancesByTouch:
     def kinds(self, typed):
-        return [t[3] for t in first_touch_digs(typed)]
+        return [t[3] for t in relances_by_touch(typed)]
 
     def test_a_first_touch_relance_is_a_dig(self):
         typed = [(0, 0, 0, "serve", "left"), (50, 0, 0, "pass", "right"), (80, 0, 0, "attack", "right"), (120, 0, 0, "relance", "left")]
@@ -371,6 +371,12 @@ class TestFirstTouchDigs:
         typed = [(0, 0, 0, "dig", "left"), (30, 0, 0, "set", "left"), (60, 0, 0, "floor", "left"), (90, 0, 0, "relance", "left")]
 
         assert self.kinds(typed)[-1] == "relance"
+
+    def test_a_second_touch_relance_is_a_set(self):
+        typed = [(0, 0, 0, "attack", "right"), (40, 0, 0, "dig", "left"), (70, 0, 0, "relance", "left")]
+
+        assert self.kinds(typed)[-1] == "set"
+        assert self.kinds([(0, 0, 0, "serve", "right"), (40, 0, 0, "pass", "left"), (70, 0, 0, "relance", "left")])[-1] == "set"
 
     def test_after_a_serve_stays(self):
         assert self.kinds([(0, 0, 0, "serve", "left"), (50, 0, 0, "relance", "right")])[-1] == "relance"

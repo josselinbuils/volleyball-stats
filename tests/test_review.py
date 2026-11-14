@@ -323,6 +323,8 @@ class TestReports:
         assert unusual(page) == []
         page["contacts"].append(c(3.5, "relance", 1))
         assert [r["kind"] for r in unusual(page)] == ["auto.relanceFirst"]
+        page["contacts"][2]["type"] = "relance"
+        assert [r["kind"] for r in unusual(page)] == ["auto.relanceSecond", "auto.relanceFirst"]
 
     def test_the_server_is_not_checked_after_a_point_the_referee_got_wrong(self):
         def serve(rally, team):
