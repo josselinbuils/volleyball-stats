@@ -63,6 +63,9 @@ const AROUND_RALLIES = 2;
 const SERVE_NEAR_S = 1;
 /** Played to a rally's end, the video stops there again only once moved back this far. */
 const REPLAY_BACK_S = 0.5;
+// Played past an unchecked rally's end, the video stops this long after it (never past the next
+// rally's start): a rally's end may come before the ball reaches the ground.
+const STOP_AFTER_S = 1.5;
 
 /** The touch named over the video: `setPlayer` changes its player, `likely` the players its list offers first. */
 export type Caption = { team: Group; text: string; key: string; player: string; likely: string[]; setPlayer?: (player: string) => void };
@@ -671,9 +674,10 @@ export function ReportEditor({
   useEffect(() => {
     onRallies?.(JSON.parse(spansJson));
   }, [spansJson]);
-  // Played to the end of a rally not checked, the video stops there: time to check it. Once, until moved back.
+  // Played past the end of a rally not checked, the video stops just after it: time to check it. Once, until moved back.
   const lastNow = useRef(now);
   const stoppedAt = useRef<number | null>(null);
+  const stopOf = (k: number) => Math.max(endOfRally(k), Math.min(endOfRally(k) + STOP_AFTER_S, shown[k + 1]?.start ?? Infinity));
   useEffect(() => {
     const from = lastNow.current;
     lastNow.current = now;
@@ -683,7 +687,7 @@ export function ReportEditor({
     if (now <= from || now - from > 1 || !isPlaying()) {
       return;
     }
-    const k = shown.findIndex((_, k) => !joins(k) && fixOf(k)?.play !== false && from < endOfRally(k) && endOfRally(k) <= now);
+    const k = shown.findIndex((_, k) => !joins(k) && fixOf(k)?.play !== false && from < stopOf(k) && stopOf(k) <= now);
     const key = k < 0 ? undefined : keyOf(joinStart(k, joins));
     if (key !== undefined && stoppedAt.current !== key && !(checked.has(key) && !unsaved.has(key))) {
       stoppedAt.current = key;

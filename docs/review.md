@@ -113,7 +113,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   keys to work again.
 - A player field lists first the players with touches in the touch's set, its team's first, most touches first: those
   likely on court; then everyone, as before.
-- Played to the end of a rally not checked, the video stops there, once until moved back, to check it; "Valider" plays
+- Played past the end of a rally not checked, the video stops 1.5 s after it (the ball may still be up at the end found), once until moved back, to check it; "Valider" plays
   on from the next one.
 - Under it, a zoomable bar of every rally, touch, report (red flag) and warning (orange flag: on its touch, else the
   rally's start; an automatic report only where the editor finds no warning on its rally). It colours each rally (orange
