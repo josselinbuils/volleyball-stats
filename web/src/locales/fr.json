@@ -508,6 +508,8 @@
     "validate": "Valider",
     "uncheck": "Invalider",
     "validateRally": "Valider l'échange {{n}}",
+    "withKey": "{{label}} ({{key}})",
+    "spaceKey": "Espace",
     "validateWarned": "L'échange {{n}} a encore des alertes",
     "validateAnyway": "Valider quand même",
     "delete": "Supprimer",

@@ -323,6 +323,12 @@ export function ClipVideo({
     const onKey = (event: KeyboardEvent) => {
       const step = { ArrowLeft: -ARROW_STEP_S, ArrowRight: ARROW_STEP_S }[event.key];
       const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
+      // Space plays or pauses, wherever the focus is but in a field: a button focused is not pressed again.
+      if (event.key === ' ' && video.current && !event.defaultPrevented && !typing && !document.querySelector('[role="dialog"]') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        playPause();
+        return;
+      }
       if (step && video.current && !event.defaultPrevented && !typing && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
         event.preventDefault();
         moveTo(video.current.currentTime + step);
@@ -589,7 +595,11 @@ export function ClipVideo({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-1">
-            <VideoButton label={t(paused ? 'review.playVideo' : 'review.pauseVideo')} onClick={playPause}>
+            <VideoButton
+              label={t(paused ? 'review.playVideo' : 'review.pauseVideo')}
+              tip={free ? t('review.withKey', { label: t(paused ? 'review.playVideo' : 'review.pauseVideo'), key: t('review.spaceKey') }) : undefined}
+              onClick={playPause}
+            >
               {paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
             </VideoButton>
             {/* A space after the time and after the zoom's buttons (not before what follows: a line wrapped on a phone starts flush). */}

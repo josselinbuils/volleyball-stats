@@ -508,6 +508,8 @@
     "validate": "Validate",
     "uncheck": "Unvalidate",
     "validateRally": "Validate rally {{n}}",
+    "withKey": "{{label}} ({{key}})",
+    "spaceKey": "Space",
     "validateWarned": "Rally {{n}} still has warnings",
     "validateAnyway": "Validate anyway",
     "delete": "Delete",

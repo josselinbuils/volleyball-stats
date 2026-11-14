@@ -141,6 +141,7 @@ export function MatchTab({
                     players={players}
                     nameOf={nameOf}
                     value={caption.player}
+                    likely={caption.likely}
                     empty={t('review.pickPlayer')}
                     label={t('review.reportPlayer')}
                     autoFocus

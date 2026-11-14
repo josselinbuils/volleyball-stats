@@ -44,6 +44,11 @@ import { ask } from '@/components/ask';
 import { SLOW_BEFORE_S } from '@/helpers/slow';
 
 const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
+/** Outside the fields, a key gives the touch named over the video its action, by its French name's letter. */
+const TYPE_KEYS: Record<string, (typeof TYPES)[number]> = { s: 'serve', r: 'pass', p: 'set', a: 'attack', l: 'relance', c: 'block', d: 'dig', f: 'fault' };
+/** Outside the fields, this key validates the rally on the video, this one adds a touch at its moment. */
+const VALIDATE_KEY = 'v';
+const ADD_KEY = 'n';
 const RESULTS = ['play', 'point', 'error'] as const;
 const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
 /** After the user scrolls the list, it stops following the video this long. */
@@ -57,8 +62,8 @@ const SERVE_NEAR_S = 1;
 /** Played to a rally's end, the video stops there again only once moved back this far. */
 const REPLAY_BACK_S = 0.5;
 
-/** The touch named over the video: `setPlayer` changes its player. */
-export type Caption = { team: Group; text: string; key: string; player: string; setPlayer?: (player: string) => void };
+/** The touch named over the video: `setPlayer` changes its player, `likely` the players its list offers first. */
+export type Caption = { team: Group; text: string; key: string; player: string; likely: string[]; setPlayer?: (player: string) => void };
 
 /** `cause`: the frame of the teammate's touch a fault is put on, 0 for nobody else. */
 type Fix = { player?: string; type?: string; result?: string; cause?: number };
@@ -234,6 +239,26 @@ export function ReportEditor({
       return Object.keys(next).length ? { ...out, [key]: next } : out;
     });
 
+  // A touch's action or result changed.
+  const changeRow = (row: Row, said: Fix) => {
+    // A touch no longer a fault is put on nobody.
+    const c: Fix = said.result && said.result !== 'error' ? { ...said, cause: 0 } : said;
+    // A point or a fault said on a touch ends the rally: it is no longer to replay.
+    const owner = joinStart(row.rally, joins);
+    if (c.result && c.result !== 'play' && toReplay(owner)) {
+      editRally(owner, { redo: false });
+    }
+    if (row.added) {
+      editAdded(row.frame, c);
+    } else {
+      edit(row, c);
+    }
+  };
+  // A playing fault is always one, its player's.
+  const setType = (row: Row, type: string) => changeRow(row, { type, ...(type === 'fault' ? { result: 'error', cause: 0 } : {}) });
+  // A touch added takes its player's team.
+  const setPlayer = (row: Row, who: string) => (row.added ? editAdded(row.frame, { player: who, team: teamOf(who) }) : changeRow(row, { player: who }));
+
   // The rally the video is in, or just ended, and those shown around it.
   const here = rallyAt(shown, now);
   const first = Math.max(0, here - AROUND_RALLIES);
@@ -269,6 +294,21 @@ export function ReportEditor({
       kept.set(row.rally, [...(kept.get(row.rally) ?? []), row]);
     }
   }
+  // The players with touches in each set, most first: those likely on court, offered first for a touch of their set,
+  // its team's before the other's.
+  const inSet = new Map<number, Map<string, number>>();
+  for (const row of allRows) {
+    const set = shown[row.rally]?.set;
+    if (!row.removed && row.player && set !== undefined) {
+      const counts = inSet.get(set) ?? new Map<string, number>();
+      counts.set(row.player, (counts.get(row.player) ?? 0) + 1);
+      inSet.set(set, counts);
+    }
+  }
+  const likelyFor = (row: Row): string[] =>
+    [...(inSet.get(shown[row.rally]?.set ?? -1) ?? new Map<string, number>())]
+      .sort(([a, x], [b, y]) => Number(teamOf(b) === row.team) - Number(teamOf(a) === row.team) || y - x)
+      .map(([player]) => player);
   /** A rally's touches kept, those of the rallies joined after it too. */
   const mineOf = (k: number): Row[] => [...(kept.get(k) ?? []), ...(joins(k) ? mineOf(k + 1) : [])];
 
@@ -379,11 +419,12 @@ export function ReportEditor({
             text: caption,
             key: `t${named.frame}`,
             player: named.player,
-            setPlayer: named.removed ? undefined : (who) => (named.added ? editAdded(named.frame, { player: who, team: teamOf(who) }) : edit(named, { player: who })),
+            likely: likelyFor(named),
+            setPlayer: named.removed ? undefined : (who) => setPlayer(named, who),
           }
         : null,
     );
-  }, [caption, named?.team, named?.frame, named?.player]);
+  }, [caption, named?.team, named?.frame, named?.player, named && likelyFor(named).join()]);
   useEffect(() => () => onCaption?.(null), []);
   const isCurrent = (o: Timeout) => o.start / match.fps <= now && now < o.end / match.fps;
   const inTimeout = timeouts.find(isCurrent);
@@ -545,6 +586,9 @@ export function ReportEditor({
     const mine = mineOf(k);
     return row.removed ? [] : (found.get(k)?.touch.get(mine.indexOf(row)) ?? []);
   };
+  const typeKeys = Object.entries(TYPE_KEYS)
+    .map(([key, type]) => `${key.toUpperCase()} ${t(`types.${type}`)}`)
+    .join(' · ');
   const describe = (list: Problem[]) => list.map((p) => t(`feedback.kinds.auto.${p}`)).join(' · ');
   const rallyProblems = (k: number) => {
     const f = found.get(k);
@@ -582,6 +626,40 @@ export function ReportEditor({
     }
     await run(String(keyOf(k)), () => onSave(changes, keyOf(k), k === here));
   };
+  // Whether the rally's header offers "Valider".
+  const validatable = (k: number) => !isDeleted(k) && !(checked.has(keyOf(k)) && !unsaved.has(keyOf(k))) && !canDelete(k);
+  const onKey = useRef<(event: KeyboardEvent) => void>(() => {});
+  onKey.current = (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (
+      event.defaultPrevented ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.shiftKey ||
+      target?.closest('input, textarea, select, [contenteditable="true"]') ||
+      document.querySelector('[role="dialog"]')
+    ) {
+      return;
+    }
+    const key = event.key.toLowerCase();
+    const type = TYPE_KEYS[key];
+    if (type && named && !named.removed) {
+      event.preventDefault();
+      setType(named, type);
+    } else if (key === VALIDATE_KEY && shown[here] && validatable(here) && saving === null) {
+      event.preventDefault();
+      void validate(here);
+    } else if (key === ADD_KEY && canAdd) {
+      event.preventDefault();
+      add();
+    }
+  };
+  useEffect(() => {
+    const listen = (event: KeyboardEvent) => onKey.current(event);
+    window.addEventListener('keydown', listen);
+    return () => window.removeEventListener('keydown', listen);
+  }, []);
   const spans: Span[] = shown.flatMap((r, k) =>
     joins(k - 1) || fixOf(k)?.play === false
       ? []
@@ -641,10 +719,12 @@ export function ReportEditor({
       <div className="relative lg:row-span-2 lg:self-stretch lg:[:fullscreen_&]:sticky lg:[:fullscreen_&]:top-0 lg:[:fullscreen_&]:h-[calc(100vh-(--spacing(8)))] lg:[:fullscreen_&]:self-start">
         <div className="flex max-h-[70vh] flex-col gap-2 lg:absolute lg:inset-0 lg:max-h-none">
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
-              <Plus aria-hidden />
-              {t('review.reportAdd', { time: clock(now) })}
-            </Button>
+            <Tip label={t('review.withKey', { label: t('review.reportAdd', { time: clock(now) }), key: ADD_KEY.toUpperCase() })}>
+              <Button variant="outline" className="flex-1 bg-card" disabled={!canAdd} onClick={add}>
+                <Plus aria-hidden />
+                {t('review.reportAdd', { time: clock(now) })}
+              </Button>
+            </Tip>
             <Tip label={t('review.reportStartHelp')}>
               <Button variant="outline" className="flex-1 bg-card" onClick={startHere}>
                 <SquarePlus aria-hidden />
@@ -794,7 +874,7 @@ export function ReportEditor({
                                 </Button>
                               </Tip>
                             ) : (
-                              <Tip label={t('review.validateRally', { n: k + 1 })}>
+                              <Tip label={t('review.withKey', { label: t('review.validateRally', { n: k + 1 }), key: VALIDATE_KEY.toUpperCase() })}>
                                 <Button
                                   variant="outline"
                                   size="xs"
@@ -819,20 +899,7 @@ export function ReportEditor({
                       .filter((row) => row.rally === k)
                       .map((row) => {
                         const remove = () => (row.added ? setAdded((all) => all.filter((a) => a.frame !== row.frame)) : edit(row, { player: 'none' }));
-                        const change = (said: Fix) => {
-                          // A touch no longer a fault is put on nobody.
-                          const c: Fix = said.result && said.result !== 'error' ? { ...said, cause: 0 } : said;
-                          // A point or a fault said on a touch ends the rally: it is no longer to replay.
-                          const owner = joinStart(row.rally, joins);
-                          if (c.result && c.result !== 'play' && toReplay(owner)) {
-                            editRally(owner, { redo: false });
-                          }
-                          if (row.added) {
-                            editAdded(row.frame, c);
-                          } else {
-                            edit(row, c);
-                          }
-                        };
+                        const change = (said: Fix) => changeRow(row, said);
                         // A fault may be put on the team's touch just before it (and on one picked before, kept shown).
                         // A playing fault is always its player's.
                         const earlier =
@@ -877,18 +944,15 @@ export function ReportEditor({
                                 <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground line-through">{t(`types.${row.type}`)}</span>
                               ) : (
                                 <>
-                                  <select
-                                    className={SELECT}
-                                    aria-label={t('review.reportType')}
-                                    value={row.type}
-                                    onChange={(e) => change({ type: e.target.value, ...(e.target.value === 'fault' ? { result: 'error', cause: 0 } : {}) })}
-                                  >
-                                    {TYPES.map((type) => (
-                                      <option key={type} value={type}>
-                                        {t(`types.${type}`)}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <Tip label={typeKeys}>
+                                    <select className={SELECT} aria-label={t('review.reportType')} value={row.type} onChange={(e) => setType(row, e.target.value)}>
+                                      {TYPES.map((type) => (
+                                        <option key={type} value={type}>
+                                          {t(`types.${type}`)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </Tip>
                                   <select
                                     className={SELECT}
                                     aria-label={t('review.reportResult')}
@@ -949,7 +1013,10 @@ export function ReportEditor({
                                 label={t('review.reportPlayer')}
                                 className="h-8 min-w-0 text-sm font-normal"
                                 openOnFocus={false}
-                                onChange={(who) => who && (row.added ? editAdded(row.frame, { player: who, team: teamOf(who) }) : change({ player: who }))}
+                                likely={likelyFor(row)}
+                                // Done, the keys work again.
+                                onDone={() => (document.activeElement as HTMLElement | null)?.blur()}
+                                onChange={(who) => who && setPlayer(row, who)}
                               />
                             )}
                             {causes.length > 0 && (
@@ -972,7 +1039,7 @@ export function ReportEditor({
                       }),
                     // A touch lands at the video's moment: only the rally on the video takes it.
                     <li key={`a${k}`}>
-                      <Tip label={t('review.reportAdd', { time: clock(now) })}>
+                      <Tip label={t('review.withKey', { label: t('review.reportAdd', { time: clock(now) }), key: ADD_KEY.toUpperCase() })}>
                         <Button variant="outline" size="xs" className="w-full bg-card" disabled={k !== here} aria-label={t('review.reportAdd', { time: clock(now) })} onClick={add}>
                           <Plus aria-hidden />
                         </Button>
@@ -1035,18 +1102,27 @@ export function ReportEditor({
                 onValueChange={(v) => v && (v === 'redo' ? pickReplay(whole) : pickWinner(whole, Number(v) as Group))}
               >
                 {GROUPS.map((g) => (
-                  <ToggleGroupItem key={g} value={String(g)} className="h-9 gap-2 px-3 aria-checked:bg-primary aria-checked:text-primary-foreground">
+                  <ToggleGroupItem key={g} value={String(g)} className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                     <Swatch color={teamColor(g)} ring={teamRing(g)} />
                     {groupName(t, g)}
                   </ToggleGroupItem>
                 ))}
                 <Tip label={t('review.reportRedoHelp')}>
-                  <ToggleGroupItem value="redo" className="h-9 gap-2 px-3 aria-checked:bg-primary aria-checked:text-primary-foreground">
+                  <ToggleGroupItem value="redo" className="h-9 gap-2 px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                     <RotateCcw aria-hidden />
                     {t('review.reportRedo')}
                   </ToggleGroupItem>
                 </Tip>
               </ToggleGroup>
+              {/* The winner said, the rally is checked from here. */}
+              {validatable(here) && (
+                <Tip label={t('review.withKey', { label: t('review.validateRally', { n: here + 1 }), key: VALIDATE_KEY.toUpperCase() })}>
+                  <Button variant="outline" className="bg-card" busy={busyOn(here)} disabled={saving !== null} onClick={() => void validate(here)}>
+                    <Check aria-hidden />
+                    {t('review.validate')}
+                  </Button>
+                </Tip>
+              )}
             </span>
             <Tip label={t('review.reportWrongCallHelp')}>
               <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')}>

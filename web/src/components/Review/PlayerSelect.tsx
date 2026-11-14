@@ -18,6 +18,7 @@ export function PlayerSelect({
   players,
   nameOf,
   exclude,
+  likely = [],
   notPlayer = false,
   autoFocus = false,
   openOnFocus = true,
@@ -31,6 +32,8 @@ export function PlayerSelect({
   players: Named[];
   nameOf: NameOf;
   exclude?: { team: Group; identity: number };
+  /** Players ("TEAM:IDENTITY") listed first, in this order: those likely on court. */
+  likely?: string[];
   notPlayer?: boolean;
   autoFocus?: boolean;
   /** Whether the list opens with the focus, or only once typing starts (the field focused first). */
@@ -48,6 +51,10 @@ export function PlayerSelect({
   const field = useRef<HTMLInputElement>(null);
   const { options, value: shown } = playerOptions(players, nameOf, exclude, value);
   // Numbers repeat across teams: each entry names its team.
+  const rank = (key: string) => {
+    const k = likely.indexOf(key);
+    return k < 0 ? likely.length : k;
+  };
   const entries: { key: string; label: string; picture?: string; jersey?: number | null }[] = [
     ...(notPlayer ? [{ key: 'not_player', label: t('review.notPlayer') }] : []),
     ...GROUPS.flatMap((g) =>
@@ -63,7 +70,7 @@ export function PlayerSelect({
             label: `${jersey === null ? '' : `#${jersey} `}${name ?? t('player', { n: p.identity })} · ${groupName(t, g)}`,
           };
         }),
-    ),
+    ).sort((a, b) => rank(a.key) - rank(b.key)),
   ];
   const chosen = entries.find((e) => e.key === shown);
   const current = chosen?.label ?? '';

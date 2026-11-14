@@ -107,6 +107,12 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   button at the right end, beside full screen.
 - A click on the caption opens a player field under it (the video paused): the touch named takes the player picked; a
   drag moves the caption.
+- Keys, outside the fields (their tips say them): Space plays or pauses; the touch named over the video takes its action by
+  its French name's letter (S service, R réception, P passe, A attaque, L relance, C contre, D défense, F faute de jeu); V
+  validates the rally on the video, N adds a touch at its moment. A player picked in a touch's field leaves it, for the
+  keys to work again.
+- A player field lists first the players with touches in the touch's set, its team's first, most touches first: those
+  likely on court; then everyone, as before.
 - Played to the end of a rally not checked, the video stops there, once until moved back, to check it; "Valider" plays
   on from the next one.
 - Under it, a zoomable bar of every rally, touch, report (red flag) and warning (orange flag: on its touch, else the
@@ -145,7 +151,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ### Checking a rally
 
-- "Valider" in a rally's header saves and checks it: green, its reports handled, until a new report. With a warning that
+- "Valider" in a rally's header, or beside its winner under the video, saves and checks it: green, its reports handled, until a new report. With a warning that
   checking leaves (not a doubt), it asks first ("Valider quand même"). A press in the list holds it still 3 s, as leaving a
   field does: scrolling to the video's touch moved the button from under the pointer, and the click was lost. The button then
   becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections.
