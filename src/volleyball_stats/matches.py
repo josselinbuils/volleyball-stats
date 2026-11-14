@@ -380,13 +380,25 @@ def choose(match: Path, video: bool, password: str | None = None) -> dict:
     return update_publish(match, video=True, videoKey=fingerprint(password))
 
 
+def copies_gone(config: dict) -> list[str]:
+    """The copies of the video not listed or not there."""
+    return [key for key in video_copies.COPIES if not config.get(key) or not Path(config[key]).expanduser().exists()]
+
+
 def copies_missing(config: dict) -> bool:
-    return any(not config.get(key) or not Path(config[key]).expanduser().exists() for key in video_copies.COPIES)
+    """Whether a copy of the video is gone, or made at a former height: the match's upload makes it again."""
+    return bool(copies_gone(config)) or not all(video_copies.current(key, Path(config[key]).expanduser()) for key in video_copies.COPIES)
 
 
 def add_copies(match: Path, video: Path) -> dict:
-    """The video's copies made if missing, then listed: rename refuses a listed copy that is gone."""
-    return update_publish(match, **{key: str(path.resolve()) for key, path in video_copies.make(video).items()})
+    """The video's copies made if missing or former, then listed (rename refuses a listed copy that is gone); a former
+    one in the copies' folder removed."""
+    listed = {key: Path(path).expanduser() for key in video_copies.COPIES if (path := json.loads((match / PUBLISH).read_text()).get(key))}
+    made = video_copies.make(video, listed)
+    for key, path in listed.items():
+        if path.resolve() != made[key].resolve() and path.parent.name == video_copies.FOLDER:
+            path.unlink(missing_ok=True)
+    return update_publish(match, **{key: str(path.resolve()) for key, path in made.items()})
 
 
 def key_command(service: Path, folder: str, key: str) -> str:
@@ -535,9 +547,10 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
         if "video" not in c:
             raise RuntimeError(f"{named(match)}with or without the video: not chosen")
         # Before the build, which removes the copies of the video it finds in the site folder. Without
-        # them the build would take the source, tens of GB.
-        if c["video"] and copies_missing(c):
-            raise RuntimeError(f"{named(match)}video copies not found: {', '.join(k for k in video_copies.COPIES if not c.get(k) or not Path(c[k]).expanduser().exists())}")
+        # them the build would take the source, tens of GB. A copy at a former height still plays: the match's own upload
+        # makes it again.
+        if c["video"] and (gone := copies_gone(c)):
+            raise RuntimeError(f"{named(match)}video copies not found: {', '.join(gone)}")
         if c["video"] and not c.get("videoKey"):
             raise RuntimeError(f"{named(match)}the video has no password")
         if not video.exists():

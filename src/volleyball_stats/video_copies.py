@@ -2,9 +2,11 @@
 
     uv run python -m volleyball_stats.video_copies VIDEO
 
-`light`, 1080p H.264, plays in browsers without AV1; `av1`, 1080p, plays in the others, smaller at the
-same quality; `small`, 720p H.264, plays while the player is small. Makes those missing, in `reencoded/`
-beside the source, from one reading of it: decoding 4K costs more than the encoders' share. A copy only appears once whole.
+`light`, 1440p H.264, plays in browsers without AV1; `av1`, 1440p, plays in the others, smaller at the
+same quality; `small`, 720p H.264, plays while the player is small. 1440p for the automatic zoom, which enlarges the
+picture 1.4x: VMAF zoomed 89.6 against 85.8 at 1080p for AV1, 86.8 against 82.1 for H.264 (docs/hosting.md). Makes
+those missing or at another height, in `reencoded/` beside the source, from one reading of it: decoding 4K costs more
+than the encoders' share. A copy only appears once whole.
 """
 
 import argparse
@@ -14,12 +16,12 @@ from pathlib import Path
 
 from volleyball_stats import decode
 
-H264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "28", "-maxrate", "5M", "-bufsize", "10M"]
+H264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "28", "-maxrate", "8M", "-bufsize", "16M"]
 # Every 2 s: the jumps between clips do not freeze.
 KEYFRAMES = ["-g", "50"]
 COPIES = {
-    "light": ("_1080p", 1080, H264),
-    "av1": ("_av1", 1080, ["-c:v", "libsvtav1", "-preset", "6", "-crf", "40"]),
+    "light": ("_1440p", 1440, H264),
+    "av1": ("_av1", 1440, ["-c:v", "libsvtav1", "-preset", "6", "-crf", "40"]),
     "small": ("_720p", 720, H264),
 }
 TOLERANCE_S = 1.0
@@ -50,10 +52,25 @@ def duration(path: Path) -> float:
     return float(subprocess.run(run, capture_output=True, text=True, check=True).stdout)
 
 
-def make(video: Path) -> dict[str, Path]:
-    """The copies of `video`, making those missing; RuntimeError if ffmpeg fails or one comes out cut short."""
-    made = paths(video)
-    missing = [key for key, path in made.items() if not path.exists()]
+def height(path: Path) -> int | None:
+    """The height of `path`'s picture, None if it is no video."""
+    run = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=height", "-of", "csv=p=0", str(path)]
+    try:
+        return int(subprocess.run(run, capture_output=True, text=True, check=True).stdout)
+    except (subprocess.CalledProcessError, ValueError):
+        return None
+
+
+def current(key: str, path: Path) -> bool:
+    """Whether `path` is the `key` copy as made today: there, at its height (a copy made before 1440p is not)."""
+    return path.exists() and height(path) == COPIES[key][1]
+
+
+def make(video: Path, kept: dict[str, Path] | None = None) -> dict[str, Path]:
+    """The copies of `video`, the `kept` ones still current taken as they are, the others made; RuntimeError if ffmpeg
+    fails or one comes out cut short."""
+    made = paths(video) | {key: path for key, path in (kept or {}).items() if current(key, path)}
+    missing = [key for key, path in made.items() if not current(key, path)]
     if not missing:
         return made
     parts = [part(made[key]) for key in missing]

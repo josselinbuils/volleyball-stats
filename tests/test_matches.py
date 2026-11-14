@@ -18,6 +18,15 @@ def timings(tmp_path, monkeypatch):
     monkeypatch.setattr(matches, "TIMINGS", str(tmp_path / matches.TIMINGS))
 
 
+# The tests' copies are placeholders: there, they are as made today.
+CURRENT = matches.video_copies.current
+
+
+@pytest.fixture(autouse=True)
+def placeholder_copies(monkeypatch):
+    monkeypatch.setattr(matches.video_copies, "current", lambda key, path: path.exists())
+
+
 class TestBuild:
     def test_lists_the_match_pages_newest_first_and_loads_the_list_by_its_hash(self, tmp_path):
         for name, date in (("old", "2026-09-01"), ("new", "2026-10-25")):
@@ -446,11 +455,37 @@ class TestAddCopies:
     def test_lists_them_once_made(self, tmp_path, monkeypatch):
         (tmp_path / matches.PUBLISH).write_text("{}")
         made = {key: tmp_path / f"{key}.mp4" for key in ("light", "av1", "small")}
-        monkeypatch.setattr(matches.video_copies, "make", lambda video: made)
+        monkeypatch.setattr(matches.video_copies, "make", lambda video, kept: made)
 
         config = matches.add_copies(tmp_path, Path("m.mp4"))
 
         assert config == {key: str(path.resolve()) for key, path in made.items()}
+
+    def test_removes_a_former_copy_of_the_copies_folder_only(self, tmp_path, monkeypatch):
+        folder = tmp_path / matches.video_copies.FOLDER
+        folder.mkdir()
+        former, elsewhere, kept = folder / "m_1080p.mp4", tmp_path / "mine_av1.mp4", folder / "m_720p.mp4"
+        for path in (former, elsewhere, kept):
+            path.write_bytes(b"")
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"light": str(former), "av1": str(elsewhere), "small": str(kept)}))
+        made = {"light": folder / "m_1440p.mp4", "av1": folder / "m_av1.mp4", "small": kept}
+        monkeypatch.setattr(matches.video_copies, "make", lambda video, listed: made)
+
+        matches.add_copies(tmp_path, Path("m.mp4"))
+
+        assert not former.exists() and elsewhere.exists() and kept.exists()
+
+    def test_a_copy_at_a_former_height_is_missing(self, tmp_path, monkeypatch):
+        copies = {key: tmp_path / f"{key}.mp4" for key in matches.video_copies.COPIES}
+        for key, path in copies.items():
+            path.write_text(str(matches.video_copies.COPIES[key][1]))
+        monkeypatch.setattr(matches.video_copies, "current", CURRENT)
+        monkeypatch.setattr(matches.video_copies, "height", lambda path: int(path.read_text()))
+        config = {key: str(path) for key, path in copies.items()}
+
+        assert not matches.copies_missing(config)
+        copies["av1"].write_text("1080")
+        assert matches.copies_missing(config)
 
 
 def test_sends_the_reports_beside_the_list():

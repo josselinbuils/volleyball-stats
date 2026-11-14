@@ -24,10 +24,10 @@ import { ballAt, frameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom
 // A jump in the video this long cuts to its view: no pan across the court.
 const CUT_S = 0.5;
 const WHOLE = { x: 0.5, y: 0.5, zoom: 1 };
-// What web.py's --av1-video takes: 1080p, 8-bit, level 4.0; a browser that cannot play it takes the H.264 copy.
-const AV1 = 'video/mp4; codecs="av01.0.08M.08"';
+// What web.py's --av1-video takes: 1440p, 8-bit, level 5.0; a browser that cannot play it takes the H.264 copy.
+const AV1 = 'video/mp4; codecs="av01.0.12M.08"';
 const BIG = match.av1 && document.createElement('video').canPlayType(AV1) ? match.av1 : match.video;
-// Wider than this on the screen (in its pixels), the 720p copy would be stretched: the player takes the 1080p one.
+// Wider than this on the screen (in its pixels), the 720p copy would be stretched: the player takes the 1440p one.
 const WIDE_PX = 1600;
 // A playlist's clips loaded ahead of the one playing, one after another.
 const AHEAD = 3;
@@ -108,7 +108,7 @@ export function Watch() {
     document.addEventListener('fullscreenchange', sync);
     return () => document.removeEventListener('fullscreenchange', sync);
   }, []);
-  // The 720p copy while the player is small; the 1080p one in full screen, zoomed or wide.
+  // The 720p copy while the player is small; the 1440p one in full screen, zoomed or wide.
   const [wide, setWide] = useState(false);
   useEffect(() => {
     if (!(video instanceof HTMLVideoElement)) {

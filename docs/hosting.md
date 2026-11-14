@@ -125,12 +125,33 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 
 - A match's video goes in its `video/` folder (`--out outputs/hosted/MATCH/video --footage full --copy-video --club both
   --pictures`); the public build links to it with `--video-page video/`, whose dialog asks the password.
-- `--light-video`: a lighter H.264 copy on the same timeline (`ffmpeg -i VIDEO -vf scale=1920:1080:flags=lanczos,fps=25
-  -c:v libx264 -preset slow -crf 28 -maxrate 5M -bufsize 10M -g 50 -c:a aac -b:a 96k -movflags +faststart`).
+- `--light-video`: a lighter H.264 copy on the same timeline (`ffmpeg -i VIDEO -vf scale=-2:1440:flags=lanczos,fps=25
+  -c:v libx264 -preset slow -crf 28 -maxrate 8M -bufsize 16M -g 50 -c:a aac -b:a 96k -movflags +faststart`).
 - `--av1-video`: an AV1 one the browsers that can play first (same with `-c:v libsvtav1 -preset 6 -crf 40 -g 50`; VMAF
-  90.7 at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s with `-g 250`).
-- `--small-video`: a 720p H.264 one (same with `scale=1280:720`, -56% against 1080p) the page plays while its player is
-  small; the 1080p copy in full screen, zoomed or over 1600 screen pixels wide, the video carrying on where it stood.
+  90.7 at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s with `-g 250`, at 1080p).
+- Both at 1440p (14 Nov), for the automatic zoom, which enlarges the picture 1.4x (median, up to 1.9x on the two
+  matches). VMAF on 18 s of a rally of the Avia match against the 4K source, shown at 1920x1080, the copy enlarged to 4K
+  then cropped as the browser does:
+
+  | Copy | kb/s | Whole | Zoom 1.37x | Zoom 1.8x |
+  |---|---|---|---|---|
+  | AV1 1080p CRF 40 (before) | 999 | 89.9 | 85.8 | 78.6 |
+  | AV1 1440p CRF 40 | 1554 | 92.0 | 89.6 | 84.9 |
+  | AV1 1440p CRF 38 | 1831 | 92.4 | 90.2 | 85.7 |
+  | AV1 1080p CRF 34 | 1593 | 91.3 | 87.5 | 81.1 |
+  | AV1 2160p CRF 40 | 3137 | 93.5 | 92.3 | 90.0 |
+  | H.264 1080p CRF 28 (before) | 1800 | 87.4 | 82.1 | 73.5 |
+  | H.264 1080p CRF 24 | 4409 | 91.3 | 86.8 | 79.7 |
+  | H.264 1440p CRF 28 | 3313 | 90.3 | 86.8 | 80.9 |
+  | HEVC 1440p CRF 28 | 2102 | 90.1 | 86.7 | 80.8 |
+  | H.264 720p CRF 28 (small) | 743 | 79.7 | 71.0 | 57.4 |
+
+  Pixels beat bits: at the same size, 1440p CRF 40 beats 1080p CRF 34. About 3.7 GB a match instead of 2.3, the AV1
+  copy about +45% to encode. ponytail: HEVC would give Safari without AV1 the H.264 copy's quality at -37%, as a fourth
+  copy. A copy made at another height is made again on the match's next upload with its video (`video_copies.current`),
+  the former one removed from `reencoded/`; updating every match hosts it as it is.
+- `--small-video`: a 720p H.264 one (same with `scale=1280:720`, -56% against 1080p, -78% against 1440p) the page plays while its player is
+  small; the 1440p copy in full screen, zoomed or over 1600 screen pixels wide, the video carrying on where it stood.
 - A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21 frames to decode a jump instead of 131
   with `-g 250`, for +30% size in H.264, +60% in AV1.
 - The copies keep their source's date, so an upload skips an unchanged video.
