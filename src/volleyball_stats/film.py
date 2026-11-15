@@ -360,7 +360,7 @@ def lines_of(shots: list[dict], voice: dict | None, name: str) -> list[dict]:
     out, free = [], 0.0
     for shot in shots:
         if shot["kind"] == "live" and not shot.get("hook"):
-            for t, clip, length in voice["lines"]:
+            for t, clip, length, *_ in voice["lines"]:
                 at = shot["start"] + t - shot["from"]
                 if max(shot["start"], free) <= at < shot["start"] + shot["length"]:
                     out.append({"at": at, "file": clip})

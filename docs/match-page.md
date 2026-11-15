@@ -120,7 +120,13 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 - **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions, naming who
   did something, who scored and who gave a point away.
 - **Voice:** a script for speech (`speech.py`), in French, calling every named touch, in full when there is room before the next and
-  else by the player's name, spoken by a voice generated on this machine: Kokoro,
+  else by the player's name, each a different way from the last of its kind (`Ways`), the score saying who took the lead,
+  levelled or pulled away. Between rallies, once the end is said and before the next serve, a remark (`Story`): a set's
+  summary, a comeback, a streak's end, a player's milestone (second ace, fifth attack point), the match's fastest serve or
+  attack, a streak, the longest rally; a welcome, a goodbye, and each timeout. A joke now and then (at most every 8 rallies
+  and once per timeout, never twice in a match, never naming a player): about 15 a match. A line is written as the page
+  shows it ("ace", figures, "km/h") and spelled for the voice; the index keeps those words, which the TV view shows in French
+  with the recorded voice (the page's own lines otherwise). Spoken by a voice generated on this machine: Kokoro,
   the SIWIS voice at 1.2 times its speed. Heard with the video and the court's replay in any view, by the microphone of the
   video's bar (`Commentary.tsx`): on at first where the match's recorded voice speaks the page's language, the choice kept in
   the browser; the match's sound drops to 30% under each line, back after 0.8 s of silence (the player's loop sets the volume,

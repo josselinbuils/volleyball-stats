@@ -17,18 +17,30 @@ const DUCKED = 0.3;
 const DUCK_MS = 150;
 const BACK_MS = 600;
 const QUIET_MS = 800;
+// A recorded line's words stay this long after it is said, at least this long in all.
+const HELD_S = 1.5;
+const SHOWN_S = 3;
 
 export const speaks = () => typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
 
-/** What the commentary says at `time` in `rally` (null between rallies), or of the TV view's `replay`. */
+/** What the commentary says at `time` in `rally` (null between rallies), or of the TV view's `replay`: the recorded
+ * voice's own words where it speaks (remarks between rallies included), else the page's lines. */
 export function useSaid(time: number, rally: number | null, replay: ReplayMoment | null): { text: string | null; line: Line | null } {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const recorded = useRecorded();
   const names = useMemo(() => ({ player: (person: number | null) => (person === null ? null : (match.people[person]?.name ?? null)), team: (g: 1 | 2) => groupName(t, g) }), [t]);
   const said = useMemo(() => commentary(allRallies, names, sets.length), [names]);
-  const line = replay ? null : rally === null ? null : lineAt(said.get(rally), time);
   const who = replay && playerLabel(t, replay.contact.person);
-  const text = replay ? (who ? t('broadcast.replayOf', { name: who, ofName: ofName(who) }) : t('broadcast.replay')) : line && t(`broadcast.lines.${line.key}`, line.vars);
-  return { text: text || null, line };
+  if (replay) {
+    return { text: who ? t('broadcast.replayOf', { name: who, ofName: ofName(who) }) : t('broadcast.replay'), line: null };
+  }
+  // A build before the words were kept has none: the page's lines then.
+  if (recorded && recordedIn(i18n.language) && recorded.lines[0]?.[3] !== undefined) {
+    const row = recorded.lines.findLast(([at]) => at <= time);
+    return { text: row && time - row[0] < Math.max(row[2] + HELD_S, SHOWN_S) ? (row[3] ?? null) : null, line: null };
+  }
+  const line = rally === null ? null : lineAt(said.get(rally), time);
+  return { text: (line && t(`broadcast.lines.${line.key}`, line.vars)) || null, line };
 }
 
 /** The commentary heard with the match while it plays, when it is on: the match's recorded French voice where there is

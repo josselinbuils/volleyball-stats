@@ -2,9 +2,10 @@ import { useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { match, versioned } from '@/lib/match';
 
-/** The commentary's audio: `lines` by time [seconds, file, length], and what a replay says by the name of who it follows. */
+/** The commentary's audio: `lines` by time [seconds, file, length, words as shown], and what a replay says by the name of
+ * who it follows. */
 export interface Recorded {
-  lines: [number, string, number][];
+  lines: [number, string, number, string?][];
   replay: Record<string, string>;
 }
 
