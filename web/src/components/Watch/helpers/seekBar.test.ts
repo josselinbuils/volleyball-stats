@@ -25,14 +25,18 @@ describe('seekLine', () => {
     expect(line.backgroundSize).toBe(`${at(0.25)} 4px, 100% 4px, 100% 4px`);
   });
 
-  it('draws the rallies on their own strip under the line, apart from the loaded parts', () => {
+  it('draws the rallies on the line, brighter where loaded', () => {
     const at = (share: number) => `calc(7px + ${100 * share}% - ${14 * share}px)`;
-    const line = seekLine(0, 0, 100, [[0, 50]], { ...colors, bandColor: 'B' }, [[10, 20]]);
+    const part = (color: string, a: number, b: number) => `transparent ${at(a)}, ${color} ${at(a)} ${at(b)}, transparent ${at(b)}`;
+    // Loaded 0-50 s; rallies 10-20 s (loaded) and 60-70 s (not).
+    const line = seekLine(0, 0, 100, [[0, 50]], { ...colors, bandColor: 'B', bandHeldColor: 'BH' }, [
+      [10, 20],
+      [60, 70],
+    ]);
     expect(line.backgroundImage).toBe(
-      `linear-gradient(P, P), linear-gradient(to right, transparent ${at(0)}, H ${at(0)} ${at(0.5)}, transparent ${at(0.5)}), linear-gradient(R, R), linear-gradient(to right, transparent ${at(0.1)}, B ${at(0.1)} ${at(0.2)}, transparent ${at(0.2)})`,
+      `linear-gradient(P, P), linear-gradient(to right, ${part('BH', 0.1, 0.2)}), linear-gradient(to right, ${part('H', 0, 0.5)}), linear-gradient(to right, ${part('B', 0.1, 0.2)}, ${part('B', 0.6, 0.7)}), linear-gradient(R, R)`,
     );
-    expect(line.backgroundSize).toBe(`${at(0)} 4px, 100% 4px, 100% 4px, 100% 3px`);
-    expect(line.backgroundPosition).toBe('left center, left center, left center, left calc(50% + 5.5px)');
+    expect(line.backgroundSize).toBe(`${at(0)} 4px, 100% 4px, 100% 4px, 100% 4px, 100% 4px`);
   });
 
   it('has no loaded layer before anything loads', () => {

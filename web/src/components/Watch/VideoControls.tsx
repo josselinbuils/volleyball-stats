@@ -205,7 +205,7 @@ export function VideoControls({
       video.removeEventListener('seeked', read);
     };
   }, [video]);
-  // The rallies under the line, as in the review's video.
+  // The rallies on the line, as in the review's video: yellow, brighter where loaded.
   const bands = useMemo(() => rallies.map((r): [number, number] => [r.start, r.end]), [rallies]);
   const line = seekLine(
     time,
@@ -216,7 +216,8 @@ export function VideoControls({
       played: 'var(--primary)',
       heldColor: light ? 'color-mix(in oklab, var(--foreground) 35%, transparent)' : 'rgb(255 255 255 / 0.5)',
       rest: light ? 'color-mix(in oklab, var(--foreground) 15%, transparent)' : 'rgb(255 255 255 / 0.2)',
-      bandColor: light ? 'var(--rally)' : '#ffd400',
+      bandColor: light ? 'color-mix(in oklab, var(--rally) 45%, transparent)' : 'rgb(255 212 0 / 0.45)',
+      bandHeldColor: light ? 'var(--rally)' : '#ffd400',
     },
     bands,
   );
