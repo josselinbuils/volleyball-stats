@@ -78,8 +78,10 @@ The pipeline's weak spots and what is left to do, most useful first.
     output kept aside (`outputs/benchmarks/corrections/2026-11-12-aspom-1-vs-le-haillan-1-automatic`): the first match nothing
     was tuned or trained on. That copy holds 7 sets for 4, the teams (one kit) on the wrong sides in 68 of its 163 rallies:
     timeouts taken for set breaks. Fixed the same day (`teams.likely_starts`, its 30 rallies a set set on the three matches,
-    this one included) and the match run again (13 Nov, 17:01): 4 sets. Waiting on its review, then
-    [corrections_log.md](corrections_log.md) "Next", item 1.
+    this one included) and the match run again (13 Nov, 17:01): 4 sets. Reviewed and learned from (15 Nov): held out, 482
+    corrections (2.92 a rally, 2.1-2.3 on the first two), most from the ball unseen around touches; the rallies the play model
+    sees and no window holds now added (479 -> 470). [corrections_log.md](corrections_log.md) "The third match"; the
+    fine-tuned ball model on it ("Next", item 2) was running on 15 Nov.
 18. Phones (13 Nov; done on 14 Nov): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
     horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). Done, in the order advised:
     1-3. Done (14 Nov): on a phone, something played while the replay is out of sight opens it in a sheet from the bottom
