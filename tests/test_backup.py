@@ -87,3 +87,26 @@ class TestSnapshot:
         copied = tmp_path / "2026-01-02" / "a" / "x"
         assert copied.read_text() == "old" and copied.stat().st_ino == (tmp_path / "2026-01-01" / "a" / "x").stat().st_ino
         assert sorted(p.name for p in tmp_path.iterdir()) == ["2026-01-01", "2026-01-02"]
+
+
+class TestRoom:
+    def test_measures_the_files_a_dry_run_sends_up_found_here(self, tmp_path):
+        from volleyball_stats.backup import sent_bytes, within
+
+        match = tmp_path / "m"
+        (match / "sub").mkdir(parents=True)
+        (match / "a.csv").write_bytes(b"x" * 10)
+        (match / "sub" / "b.json").write_bytes(b"x" * 5)
+        (tmp_path / "roster.json").write_bytes(b"x" * 3)
+        itemized = "<f+++++++++ m/a.csv\n<f.st...... m/sub/b.json\n.d..t...... m/\n*deleting   m/old.csv\n<f+++++++++ roster.json\n>f+++++++++ m/come.csv\n"
+        assert sent_bytes(itemized, within([match, tmp_path / "roster.json"])) == 18
+        assert sent_bytes(itemized, within([match])) == 15
+
+    def test_goes_only_if_a_margin_stays_free_after(self):
+        import pytest
+
+        from volleyball_stats.backup import MARGIN_GB, room
+
+        room(MARGIN_GB + 1, 1024**3 // 2)
+        with pytest.raises(RuntimeError, match="free on the server"):
+            room(MARGIN_GB + 1, 2 * 1024**3)

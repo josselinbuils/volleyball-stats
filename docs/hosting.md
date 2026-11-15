@@ -235,7 +235,10 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 - A match's files replace the copy's; what sits beside the matches is merged, each file the newest of both machines and
   none removed (`--update`), the reports line by line, the roster match by match. A change there alone moves no match's
   version.
-- Kept: the last 30 copies (the tab's count) and each match's newest. None under 5 GB free.
+- Kept: the last 30 copies (the tab's count) and each match's newest. A copy, or an upload, measures what it sends first
+  (an rsync dry run, `backup.sent_bytes`) and goes only if 1 GB stays free after it (`backup.MARGIN_GB`, `room`): the
+  server also runs the owner's websites. A fixed 5 GB floor (1 Nov) stopped the hourly copies of 0.01-0.1 GB on 15 Nov,
+  once an upload's video copies (5 GB a match) had taken the room.
 - Each machine notes how its last copy and check went in `outputs/backup_state.json`; the list warns when copies are off,
   failing, a day behind a change, or differ. Weekly (and the tab's "Vérifier"), `sync verify` compares every match
   unchanged here with its copy byte by byte.

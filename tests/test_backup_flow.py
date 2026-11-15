@@ -25,7 +25,7 @@ class TestBackupFlow:
         monkeypatch.setattr(sync, "remote", lambda config, op, match="-", base=0, force=False, root=None, timeout=60: sync_remote.run(server_root, op, match, machine["name"], base, force))
         hour = {"id": "2026-01-01T10"}
         monkeypatch.setattr(backup, "copy_id", lambda now=None: hour["id"])
-        monkeypatch.setattr(backup, "MIN_FREE_GB", 0)
+        monkeypatch.setattr(backup, "MARGIN_GB", -1e9)
         return tmp_path, root, machine, hour
 
     @staticmethod
@@ -116,7 +116,7 @@ class TestBackupFlow:
         tmp_path, _, _, _ = place
         a = self.machine(tmp_path, "a")
         m = self.match(a)
-        monkeypatch.setattr(backup, "MIN_FREE_GB", 10**9)
+        monkeypatch.setattr(backup, "MARGIN_GB", 1e9)
         with pytest.raises(RuntimeError, match="free"):
             sync.push(m)
         assert "free" in backup.state(a)["error"]

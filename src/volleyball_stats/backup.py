@@ -22,6 +22,7 @@ import re
 import shlex
 import subprocess
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -41,8 +42,12 @@ REMOTE = Path(__file__).with_name("backup_remote.py")
 # How this machine's last copies went.
 STATE_FILE = "backup_state.json"
 KEEP = 30
-# Under this, no copy: the server also runs the owner's websites.
-MIN_FREE_GB = 5
+# Left free on the server after a copy or an upload at least: it also runs the owner's websites. What goes up is
+# measured first (`sent_bytes`); a fixed 5 GB floor (1 Nov) refused hourly copies of 0.01-0.1 GB once an upload of video
+# copies had taken the room (15 Nov).
+MARGIN_GB = 1.0
+# A line of rsync's --itemize-changes for a file going up.
+SENDS = re.compile(r"^<f\S* (.+)$")
 TIMEOUT_S = 3600
 # rsync: a file vanished while it read the folder (the review writing); the next copy takes it. The Mac's openrsync says it
 # as a file it could not open.
@@ -189,6 +194,42 @@ def copy(outputs: Path, own: list[Path], beside: list[Path], config: dict, name:
     note(outputs, at=datetime.now().isoformat(timespec="seconds"), error=None, shared=sent)
 
 
+def dry_run(command: list[str]) -> list[str]:
+    """`command` (rsync's) as a dry run telling each file it would move (--itemize-changes); its options before the
+    paths, as the Mac's openrsync wants them."""
+    return [command[0], "--dry-run", "--itemize-changes", *command[1:]]
+
+
+def sent_bytes(itemized: str, here: Callable[[str], Path | None]) -> int:
+    """The bytes of the files a dry run (`dry_run`'s output) sends up, each file found here by `here`(its name there)."""
+    total = 0
+    for line in itemized.splitlines():
+        found = SENDS.match(line)
+        path = found and here(found[1])
+        if path and path.is_file():
+            total += path.stat().st_size
+    return total
+
+
+def within(paths: list[Path]) -> Callable[[str], Path | None]:
+    """A name rsync gives a file of `paths` (copied as folders, without a trailing slash) to its place here."""
+    return lambda name: next((p.parent / name for p in paths if name == p.name or name.startswith(f"{p.name}/")), None)
+
+
+def room(free_gb: float, need: int) -> None:
+    """RuntimeError when sending `need` bytes would leave under MARGIN_GB of the server's `free_gb`."""
+    if free_gb - need / 1024**3 < MARGIN_GB:
+        raise RuntimeError(f"{need / 1024**3:.1f} GB to send, {free_gb:.1f} GB free on the server")
+
+
+def free_gb(host: str, ssh: list[str], folder: str) -> float:
+    """The GB free on the server where `folder` is."""
+    run = subprocess.run([*ssh, host, f"df -Pk {shlex.quote(folder)} | tail -1"], capture_output=True, text=True, timeout=60)
+    if run.returncode:
+        raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
+    return int(run.stdout.split()[3]) / 1024**2
+
+
 def upload(own: list[Path], beside: list[Path], config: dict, name: str | None, root: str) -> None:
     host, ssh = connection(config)
     day = copy_id()
@@ -199,10 +240,18 @@ def upload(own: list[Path], beside: list[Path], config: dict, name: str | None, 
             raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
         return run.stdout
 
-    free_gb, settings, days = listed(remote(listing(root)))
-    if free_gb < MIN_FREE_GB:
-        raise RuntimeError(f"only {free_gb:.1f} GB free on the server")
+    free, settings, days = listed(remote(listing(root)))
     before = [d for d in sorted(days) if d < day]
+    # What the copy adds: the files changed since the copy it starts as, measured against that one.
+    start = day if day in days or not before else before[-1]
+    need = 0
+    for paths, merge in ((own, False), (beside, True)):
+        if paths:
+            dry = subprocess.run(dry_run(rsync_command(paths, host, ssh, root, start, merge)), capture_output=True, text=True, timeout=TIMEOUT_S)
+            if dry.returncode not in (0, VANISHED) and not vanished(dry.stderr):
+                raise RuntimeError(dry.stderr.strip() or f"rsync: {dry.returncode}")
+            need += sent_bytes(dry.stdout, within(paths))
+    room(free, need)
     if before and day not in days:
         snapshot(host, ssh, root, day, before[-1])
         days[day] = set(days[before[-1]])
