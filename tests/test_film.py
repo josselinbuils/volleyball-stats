@@ -18,6 +18,18 @@ def rally(i, contacts, score, winner=1, number=1, start=None):
 
 
 class TestMoments:
+    def test_the_fastest_serve_and_attack_are_a_named_player_s(self):
+        people = {"1": {"name": "Ana"}, "2": {"name": None}}
+        contacts = [
+            {"type": "serve", "person": 1, "speed": 50},
+            {"type": "serve", "person": 2, "speed": 70},
+            {"type": "attack", "person": 1, "attackSpeed": 60, "speed": 99},
+            {"type": "attack", "person": 1, "attackSpeed": 65},
+        ]
+        assert film.fastest(contacts, people, "serve")["speed"] == 50
+        assert film.fastest(contacts, people, "attack")["attackSpeed"] == 65
+        assert film.fastest([], people, "attack") is None
+
     def test_puts_the_fastest_serve_first_then_the_points_building_up_to_the_best(self):
         serve = contact(0, 10.0, "serve", 1, speed=60)
         slow = contact(1, 20.0, "serve", 1, speed=40)

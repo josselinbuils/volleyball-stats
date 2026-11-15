@@ -96,5 +96,5 @@ The pipeline's weak spots and what is left to do, most useful first.
     with `devices['iPhone 13']`; Windows' Edge headless cannot go under about 500 px wide.
 19. "Vidéo augmentée" (14-15 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail, the score, each measured serve's
     and attack's speed (`ball3d.attack_speed`, 15 Nov) and attack's height and jump on film-like cards, drawn on the video.
-    Attack speeds are not on the stats, trophies or films yet. Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
+    Attack speeds also in "Mon match", the trophies ("Le Canon") and the films (card under the replay, end card). Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
     dark mode, an iPhone, the review's own clips (no overlay there).

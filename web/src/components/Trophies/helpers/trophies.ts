@@ -17,8 +17,9 @@ const COUNTED: { stat: Stat; least: number }[] = [
 ];
 const SERVE_RUN_FROM = 3;
 const DUO_FROM = 3;
-// A fastest serve means little among fewer serves measured.
+// A fastest serve or attack means little among fewer measured.
 const FAST_SERVE_FROM = 5;
+const FAST_ATTACK_FROM = 5;
 // A player's jump, their median, from this many measured jumps.
 const JUMP_FROM = 5;
 
@@ -26,7 +27,7 @@ const JUMP_FROM = 5;
 export type Trophy =
   | { kind: Stat; people: number[]; n: number; contacts: Contact[] }
   | { kind: 'serveRun'; people: number[]; n: number; rallies: number[] }
-  | { kind: 'fastServe'; people: number[]; n: number; contacts: Contact[] }
+  | { kind: 'fastServe' | 'fastAttack'; people: number[]; n: number; contacts: Contact[] }
   | { kind: 'jump'; people: number[]; n: number; contacts: Contact[] }
   | { kind: 'duo'; setter: number; attacker: number; n: number; of: number; contacts: Contact[] }
   | { kind: 'longest'; rally: Rally; n: number; seconds: number };
@@ -48,6 +49,12 @@ export function trophies(found: Line[], contacts: Contact[], rallies: Rally[], p
     const n = Math.max(...timed.map((x) => x.serve.speed as number));
     const won = timed.filter((x) => x.serve.speed === n);
     out.push({ kind: 'fastServe', people: [...new Set(won.map((x) => x.person))], n, contacts: won.map((x) => x.serve) });
+  }
+  const hit = players.flatMap((l) => l.stats.attacks.filter((c) => c.attackSpeed !== undefined).map((attack) => ({ person: l.id, attack })));
+  if (hit.length >= FAST_ATTACK_FROM) {
+    const n = Math.max(...hit.map((x) => x.attack.attackSpeed as number));
+    const won = hit.filter((x) => x.attack.attackSpeed === n);
+    out.push({ kind: 'fastAttack', people: [...new Set(won.map((x) => x.person))], n, contacts: won.map((x) => x.attack) });
   }
   // The highest jumper: each player's median jump in centimetres over their measured attacks.
   const jumpers = players.flatMap((l) => {

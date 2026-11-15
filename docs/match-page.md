@@ -43,7 +43,9 @@ moments.
   speed (with a gauge) and attack's speed (with a gauge, its height and "Détente" below when measured), else its
   height ("Détente" below when measured), from the serve's hit plus 0.15 s or the attack's hit, until the next card,
   2.4 s at most (`statCards`). The films' card (`film.telemetry`): slanted dark panel, red edge, the number slamming in
-  (`outBack`) and counting up to gold over 0.55 s, sized by the video's width (`cqw`). All on the video's clock: paused,
+  (`outBack`) and counting up to gold over 0.55 s, sized by the picture's width (`cqw`) up to 56rem: in full screen on a
+  large screen as in the page's player (the owner found them too big there, 15 Nov), placed on the picture, not its black
+  bars. All on the video's clock: paused,
   it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A canvas in the video's box, drawn by the zoom's loop for the frame
   on screen (`requestVideoFrameCallback`), so it moves with the zoom. `ball.js` holds the ball's place by each frame's
   real seconds (`web.ball_track`, `film.frame_times`): the camera drops 5 to 10 frames a match, a frame's number then
@@ -76,7 +78,7 @@ moments.
 
 "Mon match": a viewer picks their name (remembered on that device) and sees what they did, their touches
 to replay, their best points, their run on serve, who sets whom and their card to save. Their measures: the fastest
-serve and the usual speed, the hitting height and the "Détente" (their median jump, from 5 measured jumps). "L'histoire du
+serve and the usual speed (from 3), the fastest attack and its usual speed (from 5: spikes and tips mix), the hitting height and the "Détente" (their median jump, from 5 measured jumps). "L'histoire du
 match": the score gap rally by rally, a few plain sentences per set and the key moments (runs of 5 points,
 deficits of 4 caught up, set points saved, the longest rally, a timeout after 3 points in a row against its team that
 wins it 4 of the next 6), each replaying; the timeouts (`timeouts.py`, the review's) as dashed lines on the curve, each
@@ -86,7 +88,7 @@ replaying the 6 points after it. Both follow the set filter.
 
 Awards for what players did well, never for faults, from a minimum so that none goes to next to nothing;
 a tie shares one. Each replays its moments. Most touches, winning attacks, winning blocks, aces, digs, sets
-and perfect receptions, the longest run on serve, the fastest serve, the highest median jump ("Le Ressort", from 5
+and perfect receptions, the longest run on serve, the fastest serve, the fastest attack ("Le Canon", from 5 measured), the highest median jump ("Le Ressort", from 5
 measured jumps), the setter and attacker with the most winning attacks, and the longest rally.
 
 ## Mode TV

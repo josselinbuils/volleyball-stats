@@ -128,6 +128,7 @@ function Player({ player }: { player: string }) {
   const main = MAIN.map((stat) => ({ stat, n: line.stats[stat].length })).sort((a, b) => b.n - a.n)[0];
   const measured = measures(line.stats.serves, line.stats.attacks);
   const fastest = measured.fastest;
+  const fastestAttack = measured.fastestAttack;
 
   return (
     <div className="grid gap-6 md:grid-cols-[15rem_minmax(0,1fr)]">
@@ -156,12 +157,18 @@ function Player({ player }: { player: string }) {
             </div>
           )}
         </div>
-        {(fastest || measured.reach !== null || measured.jump !== null) && (
+        {(fastest || fastestAttack || measured.reach !== null || measured.jump !== null) && (
           <Section title={t('myMatch.measures')}>
             {fastest && (
               <Row title={(tr) => tr('myMatch.fastestServe', { speed: fastest.speed })} clips={contactClips([fastest], match.duration)}>
                 <b className="font-semibold">{t('myMatch.fastestServe', { speed: fastest.speed })}</b>
                 {measured.speed !== null && <span className="block text-xs text-muted-foreground">{t('myMatch.usualSpeed', { speed: measured.speed, count: measured.timed })}</span>}
+              </Row>
+            )}
+            {fastestAttack && (
+              <Row title={(tr) => tr('myMatch.fastestAttack', { speed: fastestAttack.attackSpeed })} clips={contactClips([fastestAttack], match.duration)}>
+                <b className="font-semibold">{t('myMatch.fastestAttack', { speed: fastestAttack.attackSpeed })}</b>
+                {measured.attackSpeed !== null && <span className="block text-xs text-muted-foreground">{t('myMatch.usualAttackSpeed', { speed: measured.attackSpeed, count: measured.hit })}</span>}
               </Row>
             )}
             {measured.reach !== null && (

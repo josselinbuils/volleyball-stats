@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { BatteryFull, ChevronsUp, Crosshair, Hammer, Hourglass, Mountain, Music, Shield, ShieldCheck, Timer, Users, Zap, type LucideIcon } from 'lucide-react';
+import { BatteryFull, ChevronsUp, Crosshair, Hammer, Hourglass, Mountain, Music, Rocket, Shield, ShieldCheck, Timer, Users, Zap, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ const ICONS: Record<string, LucideIcon> = {
   perfect: Mountain,
   serveRun: Timer,
   fastServe: Zap,
+  fastAttack: Rocket,
   jump: ChevronsUp,
   duo: Users,
   longest: Hourglass,
@@ -106,8 +107,8 @@ function Award({ trophy }: { trophy: Trophy }) {
   const detail =
     trophy.kind === 'longest'
       ? t('trophies.details.longest', { n: trophy.n, seconds: f.secs(trophy.seconds) })
-      : trophy.kind === 'fastServe'
-        ? t('trophies.details.fastServe', { speed: trophy.n })
+      : trophy.kind === 'fastServe' || trophy.kind === 'fastAttack'
+        ? t(`trophies.details.${trophy.kind}`, { speed: trophy.n })
         : trophy.kind === 'jump'
           ? t('trophies.details.jump', { cm: trophy.n })
           : t(`trophies.details.${trophy.kind}`, { count: trophy.n, of: trophy.kind === 'duo' ? trophy.of : undefined });

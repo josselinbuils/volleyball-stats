@@ -179,6 +179,13 @@ def striking(c: dict) -> float:
     return 3.0 if c["type"] == "block" else (c.get("reach") or 0) if c["type"] == "attack" else (c.get("speed") or 0) / 30
 
 
+def fastest(contacts: list[dict], people: dict, kind: str) -> dict | None:
+    """The fastest measured serve or attack (`kind`) of a named player, None without one."""
+    key = "speed" if kind == "serve" else "attackSpeed"
+    timed = [c for c in contacts if c["type"] == kind and c.get(key) is not None and people.get(str(c.get("person")), {}).get("name")]
+    return max(timed, key=lambda c: c[key], default=None)
+
+
 def scores_before(rallies: list[dict]) -> dict[int, list[int]]:
     out, number, before = {}, None, [0, 0]
     for r in rallies:
@@ -450,7 +457,8 @@ def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
     add("outro", OUTRO_S, moments[-1][0]["t"], 1, moments[-1][0])
     before = scores_before(rallies)
     used = sorted({s["rally"] for s in shots})
-    fast = max((c for c in contacts if c.get("speed") is not None and people.get(str(c.get("person")), {}).get("name")), key=lambda c: c["speed"], default=None)
+    fast = fastest(contacts, people, "serve")
+    hard = fastest(contacts, people, "attack")
     finals = set_scores(page)
     sets = [f"{a}-{b}" for a, b in finals]
     won = [a > b for a, b in finals]
@@ -473,6 +481,8 @@ def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
         "points": 0,
         "fastest": fast["speed"] if fast else 0,
         "fastestName": people[str(fast["person"])]["name"] if fast else None,
+        "fastestAttack": hard["attackSpeed"] if hard else 0,
+        "fastestAttackName": people[str(hard["person"])]["name"] if hard else None,
         "sets": sets,
         "won": [sum(won), len(won) - sum(won)],
         "longest": max((sum(is_touch(c) for c in r["contacts"]) for r in rallies), default=0),
@@ -483,7 +493,7 @@ def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
                 "set": rallies[k]["set"],
                 "before": before[k],
                 "score": rallies[k].get("score"),
-                "touches": [[c["i"], c["t"], c["type"], c.get("person"), c.get("result"), c.get("speed"), c.get("reach"), c.get("x"), c.get("y")] for c in rallies[k]["contacts"]],
+                "touches": [[c["i"], c["t"], c["type"], c.get("person"), c.get("result"), c.get("speed"), c.get("reach"), c.get("x"), c.get("y"), c.get("attackSpeed")] for c in rallies[k]["contacts"]],
             }
             for k in used
         },
@@ -532,6 +542,7 @@ def plan(page: dict, site: Path, stamp: str = "") -> dict[str, dict]:
             "touches": sum(is_touch(c) for c in mine),
             "points": sum(c.get("result") == "point" for c in mine),
             "fastest": max((c["speed"] for c in mine if c.get("speed") is not None), default=0),
+            "fastestAttack": max((c["attackSpeed"] for c in mine if c.get("attackSpeed") is not None), default=0),
             "rallies": {
                 str(k): {
                     "start": rallies[k]["start"],
@@ -539,7 +550,7 @@ def plan(page: dict, site: Path, stamp: str = "") -> dict[str, dict]:
                     "set": rallies[k]["set"],
                     "before": scores_before(rallies)[k],
                     "score": rallies[k].get("score"),
-                    "touches": [[c["i"], c["t"], c["type"], c.get("person"), c.get("result"), c.get("speed"), c.get("reach"), c.get("x"), c.get("y")] for c in rallies[k]["contacts"]],
+                    "touches": [[c["i"], c["t"], c["type"], c.get("person"), c.get("result"), c.get("speed"), c.get("reach"), c.get("x"), c.get("y"), c.get("attackSpeed")] for c in rallies[k]["contacts"]],
                 }
                 for k in used
             },
@@ -1652,8 +1663,11 @@ class Maker:
             return
         c = self.contact(shot)
         x, y, count = int(WIDTH - 380 + (1 - out_back((tau - begin) / 0.3)) * 420), 205, float(ease(begin, begin + 0.55, tau))
-        if c.get("speed") is not None:
-            label, value, unit = "VITESSE", str(int(round(c["speed"] * count))), "KM/H"
+        speed = c.get("speed") if c["type"] == "serve" else c.get("attackSpeed")
+        # An attack's speed with its height and jump below, as the page's card.
+        below = " · ".join(([f"FRAPPE À {c['reach']:.2f} M".replace(".", ",")] if c.get("reach") else []) + ([f"DÉTENTE {round(c['jump'] * 100)} CM"] if c.get("jump") else [])) if speed is not None else ""
+        if speed is not None:
+            label, value, unit = "VITESSE", str(int(round(speed * count))), "KM/H"
         elif c.get("reach"):
             label, value, unit = "HAUTEUR DE FRAPPE", f"{c['reach'] * count:.2f}".replace(".", ","), "M"
         elif self.film.get("kind") == "highlights":
@@ -1666,14 +1680,17 @@ class Maker:
             label, value, unit = "POINT", str(int(round(rank * count))), f"SUR {self.film['points']}"
         else:
             return
-        slant(g, x, y, 340, 170, INK, 0.86)
-        slant(g, x, y, 8, 170, RED)
+        tall = 210 if below else 170
+        slant(g, x, y, 340, tall, INK, 0.86)
+        slant(g, x, y, 8, tall, RED)
         write(g, label, x + 34, y + 38, 26, self.cond, GREY)
         write(g, value, x + 32, y + 138, 104, self.din, GOLD if count >= 1 else WHITE)
         write(g, unit, x + 320 - text_width(unit, self.cond, 34), y + 138, 34, self.cond)
-        if c.get("speed") is not None:
+        if speed is not None:
             cv2.rectangle(g, (x + 30, y + 150), (x + 300, y + 158), (70, 70, 70), -1)
-            cv2.rectangle(g, (x + 30, y + 150), (x + 30 + int(270 * count * min(1, c["speed"] / 110)), y + 158), GOLD, -1)
+            cv2.rectangle(g, (x + 30, y + 150), (x + 30 + int(270 * count * min(1, speed / 110)), y + 158), GOLD, -1)
+        if below:
+            write(g, below, x + 30, y + 192, 22, self.cond, GREY, widest=280)
 
     def point_at(self, shot: dict) -> float | None:
         """When a shot's point is won: at its touch, or in the match's film at the end of a rally another touch ended."""
@@ -1773,11 +1790,15 @@ class Maker:
             rows = [("SETS", None, "   ".join(film["sets"])), ("ÉCHANGE LE PLUS LONG", film["longest"], " TOUCHES")]
             if film["fastest"]:
                 rows.append(("SERVICE LE PLUS RAPIDE", film["fastest"], f" KM/H · {film['fastestName'].upper()}"))
+            if film.get("fastestAttack"):
+                rows.append(("ATTAQUE LA PLUS RAPIDE", film["fastestAttack"], f" KM/H · {film['fastestAttackName'].upper()}"))
         else:
             title = self.name
             rows = [("POINTS", film["points"], ""), ("BALLONS TOUCHÉS", film["touches"], "")]
             if film["fastest"]:
                 rows.append(("SERVICE LE PLUS RAPIDE", film["fastest"], " KM/H"))
+            if film.get("fastestAttack"):
+                rows.append(("ATTAQUE LA PLUS RAPIDE", film["fastestAttack"], " KM/H"))
         write(g, title.upper(), dx + 360 + off, dy + 398, 96, self.italic, widest=620, center=True)
         for k, (label, value, unit) in enumerate(rows):
             begin = 0.35 + k * 0.3

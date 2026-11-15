@@ -70,6 +70,12 @@ describe('myMatch', () => {
       expect(found).toMatchObject({ timed: 3, speed: 50 });
     });
 
+    it('finds the fastest attack, and its usual speed from 5 attacks measured', () => {
+      const hitAt = (...speeds: (number | undefined)[]) => speeds.map((attackSpeed, k) => ({ ...touch(k, 'attack', 1), attackSpeed }));
+      expect(measures([], hitAt(40, undefined, 62, 50))).toMatchObject({ hit: 3, attackSpeed: null, fastestAttack: { attackSpeed: 62 } });
+      expect(measures([], hitAt(40, 30, 62, 50, 45))).toMatchObject({ hit: 5, attackSpeed: 45 });
+    });
+
     it('tells no usual speed from under 3 serves, but still the fastest', () => {
       expect(measures(served(40, 50), [])).toMatchObject({ speed: null, timed: 2, fastest: { speed: 50 } });
     });

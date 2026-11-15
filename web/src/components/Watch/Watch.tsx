@@ -29,7 +29,7 @@ import { smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 const CUT_S = 0.5;
 const WHOLE = { x: 0.5, y: 0.5, zoom: 1 };
 const UNZOOMED = { scale: 1, x: 0, y: 0 };
-// Whether the video shows the ball's trail and the serves' speeds, kept in this browser: shown unless turned off.
+// Whether the video shows the ball's trail, the score and the measured numbers, kept in this browser: shown unless turned off.
 const DRAWN_KEY = 'videoOverlay';
 
 function savedDrawn(): boolean {
@@ -272,7 +272,7 @@ export function Watch() {
                   {/* The video's own box: the zoom stays inside it. */}
                   <div
                     className={cn(
-                      '@container relative overflow-hidden [:fullscreen_&]:min-h-0 [:fullscreen_&]:min-w-0 [:fullscreen_&]:flex-[3]',
+                      'relative overflow-hidden [:fullscreen_&]:min-h-0 [:fullscreen_&]:min-w-0 [:fullscreen_&]:flex-[3]',
                       courtFull && layout === 'side' && '[:fullscreen_&]:portrait:flex-none',
                     )}
                   >

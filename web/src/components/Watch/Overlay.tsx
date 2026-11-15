@@ -40,9 +40,13 @@ const CARDS = statCards(contacts);
 const LANDED_S = 1.5;
 /** The match has a score to show: the score's tower then holds the top left corner. */
 export const SCORED = rallies.some((r) => r.score !== null);
-/** The tower's place and height, which what shows in that corner too (Watch's title of what plays) goes below. */
+/** The tower's place and height in the picture's width (`cqw`, `SIZED`); what shows in that corner too (Watch's title of
+ * what plays) goes below it, where the overlay tells the video's box (`--below-tower`, `--tower-left`). */
 export const TOWER = 'top-[2.5cqw] left-[2.5cqw] h-[max(1.5rem,3.6cqw)]';
-export const BELOW_TOWER = 'top-[calc(2.5cqw+max(1.5rem,3.6cqw)+0.5rem)]';
+export const BELOW_TOWER = 'top-[var(--below-tower,3rem)] left-[var(--tower-left,0.5rem)]';
+/** The box the tower and the cards are sized in (`cqw`): the picture (black bars left out), its left part 56rem wide at
+ * most, so a video in full screen on a large screen shows them as the page's own player does, not as large as the screen. */
+const SIZED = '@container absolute max-w-[56rem]';
 
 /** Draws the overlay for a view of the picture; the video's zoom calls it each frame, with the view it just set. */
 export type Paint = (view: View) => void;
@@ -57,6 +61,7 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const card = useRef<HTMLDivElement>(null);
+  const sized = useRef<HTMLDivElement>(null);
   const label = useRef<HTMLSpanElement>(null);
   const value = useRef<HTMLSpanElement>(null);
   const unit = useRef<HTMLSpanElement>(null);
@@ -98,6 +103,7 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
       request = video.requestVideoFrameCallback(onFrame);
     }
     let drawn = '';
+    let placed = '';
     paint.current = (view) => {
       const [wrap, surface, panel] = [box.current, canvas.current, card.current];
       const [width, height] = [video.clientWidth, video.clientHeight];
@@ -113,6 +119,19 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
       drawn = key;
       // Faded with the video between a playlist's clips.
       wrap.style.opacity = video.style.opacity;
+      const size = [width, height, video.videoWidth, video.videoHeight].join();
+      if (size !== placed && sized.current) {
+        placed = size;
+        const fit = onScreen(width, height, video.videoWidth, video.videoHeight, { scale: 1, x: 0, y: 0 });
+        const [corner, far] = [fit.at({ x: 0, y: 0 }), fit.at({ x: 1, y: 1 })];
+        Object.assign(sized.current.style, { left: `${corner.x}px`, top: `${corner.y}px`, width: `${far.x - corner.x}px`, height: `${far.y - corner.y}px` });
+        const tower = sized.current.querySelector('[data-tower]')?.getBoundingClientRect();
+        const at = wrap.getBoundingClientRect();
+        if (tower && wrap.parentElement) {
+          wrap.parentElement.style.setProperty('--below-tower', `${tower.bottom - at.top + 8}px`);
+          wrap.parentElement.style.setProperty('--tower-left', `${tower.left - at.left}px`);
+        }
+      }
       if (surface.width !== Math.round(width * ratio) || surface.height !== Math.round(height * ratio)) {
         surface.width = Math.round(width * ratio);
         surface.height = Math.round(height * ratio);
@@ -193,24 +212,26 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
   }, [video, ball, paint]);
 
   return (
-    <div ref={box} aria-hidden className="@container pointer-events-none absolute inset-0 overflow-hidden">
+    <div ref={box} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <canvas ref={canvas} className="absolute inset-0 size-full" />
-      {SCORED && <Tower />}
-      <div
-        ref={card}
-        className="invisible absolute bottom-[3cqw] left-[2.5cqw] grid py-[0.8cqw] pr-[2cqw] pl-[1.8cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase"
-        style={{ background: INK, clipPath: 'polygon(1cqw 0, 100% 0, calc(100% - 1cqw) 100%, 0 100%)', minWidth: 'max(5rem, 14.5cqw)' }}
-      >
-        <span className="absolute inset-y-0 left-0 w-[1.6cqw]" style={{ background: RED, clipPath: 'polygon(1cqw 0, 1.6cqw 0, 0.6cqw 100%, 0 100%)' }} />
-        <span ref={label} className="text-[max(0.5rem,1cqw)] font-semibold tracking-wide text-white/75" />
-        <span className="mt-[0.3cqw] flex items-baseline justify-between gap-[0.8cqw]">
-          <span ref={value} className="text-[max(1.05rem,3.4cqw)] font-black tracking-tight italic" />
-          <span ref={unit} className="text-[max(0.55rem,1.25cqw)] font-bold" />
-        </span>
-        <div ref={gauge} className="mt-[0.4cqw] h-[max(2px,0.35cqw)] bg-white/25">
-          <div ref={fill} className="h-full" style={{ background: GOLD }} />
+      <div ref={sized} className={SIZED}>
+        {SCORED && <Tower />}
+        <div
+          ref={card}
+          className="invisible absolute bottom-[3cqw] left-[2.5cqw] grid py-[0.8cqw] pr-[2cqw] pl-[1.8cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase"
+          style={{ background: INK, clipPath: 'polygon(1cqw 0, 100% 0, calc(100% - 1cqw) 100%, 0 100%)', minWidth: 'max(5rem, 14.5cqw)' }}
+        >
+          <span className="absolute inset-y-0 left-0 w-[1.6cqw]" style={{ background: RED, clipPath: 'polygon(1cqw 0, 1.6cqw 0, 0.6cqw 100%, 0 100%)' }} />
+          <span ref={label} className="text-[max(0.5rem,1cqw)] font-semibold tracking-wide text-white/75" />
+          <span className="mt-[0.3cqw] flex items-baseline justify-between gap-[0.8cqw]">
+            <span ref={value} className="text-[max(1.05rem,3.4cqw)] font-black tracking-tight italic" />
+            <span ref={unit} className="text-[max(0.55rem,1.25cqw)] font-bold" />
+          </span>
+          <div ref={gauge} className="mt-[0.4cqw] h-[max(2px,0.35cqw)] bg-white/25">
+            <div ref={fill} className="h-full" style={{ background: GOLD }} />
+          </div>
+          <span ref={below} className="mt-[0.4cqw] text-[max(0.5rem,1cqw)] font-semibold tracking-wide text-white/75" />
         </div>
-        <span ref={below} className="mt-[0.4cqw] text-[max(0.5rem,1cqw)] font-semibold tracking-wide text-white/75" />
       </div>
     </div>
   );
@@ -247,7 +268,7 @@ function Tower() {
     </span>
   );
   return (
-    <div className={`dark absolute ${TOWER} flex items-stretch gap-[0.2cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase`}>
+    <div data-tower className={`dark absolute ${TOWER} flex items-stretch gap-[0.2cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase`}>
       {team(1)}
       {points(1, one)}
       {points(2, two)}
