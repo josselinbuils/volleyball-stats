@@ -17,7 +17,7 @@ BEFORE_S, AFTER_S = 0.8, 0.8
 # The pose crop: a square this many box heights around the attacker.
 CROP = 2.0
 POSE_IMGSZ, MATCH_IOU, KEYPOINT_CONF = 640, 0.3, 0.3
-ANKLES, WRISTS = [15, 16], [9, 10]
+ANKLES, WRISTS, HIPS = [15, 16], [9, 10], [11, 12]
 # A jump: the lower ankle over LIFT_M within CONTACT_S of the contact; airborne while over FLOOR_M around it, its
 # edges where the ankle's rise and fall slow under STOP of their fastest.
 LIFT_M, FLOOR_M, CONTACT_S, STOP = 0.15, 0.05, 0.1, 0.2
@@ -29,6 +29,11 @@ SHORTEST_S, LONGEST_S = 0.3, 0.8
 # The hit: within HIT_S of the ball's contact, the frame the ball is seen nearest a wrist (`benchmarks/jumps`: within 2
 # frames of the hand on the ball for 24 attacks of 27, against 20 for the contact).
 HIT_S = 0.24
+# A second reading of the height: the hips' rise from the frame before takeoff to their highest, which free-falls with
+# them (fitted, their path gives g at 10.2 m/s2). A flight time over AGREE_M from it has an edge wrong: no jump then
+# (`benchmarks/jumps`, 15 Nov: of 48 labelled jumps, 8 dropped; the height's 90% error 16.8 -> 10.5 cm, the worst 33 -> 17;
+# held out 2 of 24 dropped, worst 33 -> 13). Taking the half flight nearer the hips' instead brought none back right.
+AGREE_M = 0.2
 # Holes in the ankles or the track up to this long are bridged.
 HOLE_S = 0.1
 # The run-up: looked for over RUN_UP_S before takeoff, it starts where the player last came under STILL_M nearer the
@@ -228,6 +233,22 @@ def flight(y: np.ndarray, up: np.ndarray, contact: int, fps: float) -> tuple[int
     return first, after, top
 
 
+def hip_rise(keypoints: list, calibration: Calibration, first: int, after: int, metres_px: float) -> float | None:
+    """How far the hips rise in metres from the frame before index `first` (takeoff) to their highest before `after`
+    (landing); None where they are not seen then."""
+    y = np.full(len(keypoints), np.nan)
+    for k, points in enumerate(keypoints):
+        if points is None:
+            continue
+        hips = np.array(points)[HIPS]
+        hips = hips[hips[:, 2] >= KEYPOINT_CONF]
+        if len(hips):
+            y[k] = (undistort(hips[:, :2], calibration.lens) if calibration.lens else hips[:, :2])[:, 1].mean()
+    if first < 1 or np.isnan(y[first - 1]) or np.isnan(y[first:after]).all():
+        return None
+    return float(y[first - 1] - np.nanmin(y[first:after])) / metres_px
+
+
 def run_up(rows: Rows, takeoff: int, fps: float) -> int | None:
     """The frame the run-up to `takeoff` starts: going back from it, where the player had come under STILL_M nearer
     the net over the PAUSE_S before (standing, or backing off); None untracked at takeoff."""
@@ -258,7 +279,7 @@ def hit(frame: int, keypoints: list, ball: dict[int, tuple[float, float]], fps: 
 def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, fps: float, ball: dict[int, tuple[float, float]] | None = None) -> dict | None:
     """One attack's jump: `takeoff` (first frame airborne), `landing` (first back on the floor), `hit` (the frame of
     the hand on the ball, from the `ball`'s sightings), `late` (ms from the flight's top to it, negative before), `height`
-    (m, from the flight time), the distances to the net in metres at takeoff (`takeoff_m`), at the run-up's start
+    (m, from the flight time, the hips' rise agreeing), the distances to the net in metres at takeoff (`takeoff_m`), at the run-up's start
     (`start_m`, with its frame `start`) and how far the jump carried towards it (`drift_m`); None without a jump."""
     # ponytail: one camera on the sideline; a foot hidden at both ends of the flight, or the attacker behind another
     # player, loses the jump (about 30% of the labelled ones). A second camera, or the hips' parabola, would bring some back.
@@ -270,8 +291,9 @@ def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, f
     if P is None or np.isnan(spot).any():
         return None
     foot, head = project(P, np.array([[*spot, 0.0], [*spot, 1.0]]))
+    metres_px = float(np.linalg.norm(head - foot))
     y = ankle_path(keypoints, calibration, hole)
-    jump = flight(y, lift(y, float(np.linalg.norm(head - foot))), frame - frames[0], fps)
+    jump = flight(y, lift(y, metres_px), frame - frames[0], fps)
     if jump is None:
         return None
     first, after, top = jump
@@ -281,6 +303,10 @@ def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, f
         first, after = (first, 2 * top - first) if top - first < after - top else (2 * top - after, after)
     if not SHORTEST_S <= (after - first) / fps <= LONGEST_S or first < 1 or after >= len(frames):
         return None
+    height = G * ((after - first) / fps) ** 2 / 8
+    rise = hip_rise(keypoints, calibration, first, after, metres_px)
+    if rise is not None and abs(height - rise) > AGREE_M:
+        return None
     takeoff, landing = frames[first], frames[after]
     near = np.abs(track[:, 4])
     struck = hit(frame, keypoints, ball or {}, fps)
@@ -289,7 +315,7 @@ def measure(frame: int, rows: Rows, keypoints: list, calibration: Calibration, f
         "landing": landing,
         "hit": struck,
         "late": round((struck - (takeoff + landing - 1) / 2) / fps * 1000),
-        "height": round(G * ((landing - takeoff) / fps) ** 2 / 8, 2),
+        "height": round(height, 2),
         "takeoff_m": None if np.isnan(near[first - 1]) else round(float(near[first - 1]), 2),
         "drift_m": None if np.isnan(near[first - 1]) or np.isnan(near[after]) else round(float(near[first - 1] - near[after]), 2),
     }

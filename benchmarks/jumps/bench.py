@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from volleyball_stats import jumps
+from volleyball_stats.ball3d import G
 from volleyball_stats.court import Calibration
 
 LABELS = Path(__file__).parent / "ground_truth" / "labels.csv"
@@ -53,7 +54,7 @@ def late(contact: int, takeoff: int, landing: int) -> float:
 
 def score(data: dict, verbose: bool = False, quiet: bool = False) -> dict[str, float]:
     found = missed = false = 0
-    takeoffs, landings, lates, apexes, hits, near, starts = [], [], [], [], [], [], []
+    takeoffs, landings, lates, apexes, hits, near, starts, heights = [], [], [], [], [], [], [], []
     for row in data["labels"]:
         if row["attacker"] != "yes":
             continue
@@ -68,6 +69,7 @@ def score(data: dict, verbose: bool = False, quiet: bool = False) -> dict[str, f
             missed += 1
             continue
         found += 1
+        heights.append(got["height"] - G * ((landing - takeoff) / FPS) ** 2 / 8)
         takeoffs.append(got["takeoff"] - takeoff)
         landings.append(got["landing"] - landing)
         contact = number(row["contact"]) or frame
@@ -96,6 +98,8 @@ def score(data: dict, verbose: bool = False, quiet: bool = False) -> dict[str, f
     print(f"  jumps found {found}, missed {missed}, false {false}")
     print(f"  takeoff  |error| median {median(takeoffs):.1f} frames, within 2: {within(takeoffs, 2)}")
     print(f"  landing  |error| median {median(landings):.1f} frames, within 2: {within(landings, 2)}")
+    if heights:
+        print(f"  height (against the labelled flight's) |error| median {median(heights) * 100:.1f} cm, 90% {np.percentile(np.abs(heights), 90) * 100:.1f}, worst {np.max(np.abs(heights)) * 100:.1f}, within 10 cm: {within(heights, 0.1)}")
     print(f"  hit      |error| median {median(hits):.1f} frames, within 2: {within(hits, 2)}")
     print(f"  late     |error| median {median(lates):.0f} ms, within 60 ms: {within(lates, 60)} (the flight's top alone {median(apexes):.0f} ms)")
     print(f"  takeoff distance to the net |error| median {median(near):.2f} m, run-up start {median(starts):.2f} m, within 0.5 m: {within(starts, 0.5)}")

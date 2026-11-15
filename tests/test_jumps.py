@@ -21,8 +21,9 @@ class TestJumps:
         K = np.array([[focal, 0, 1920], [0, focal, 1080], [0, 0, 1]], float)
         return K @ np.c_[R, -R @ eye]
 
-    def attack(self) -> tuple[np.ndarray, list, Calibration]:
-        """A player standing 4.5 m from the net, running to 2 m by frame 70, flying 0.56 s while carried 0.3 m on."""
+    def attack(self, hips: bool = True) -> tuple[np.ndarray, list, Calibration]:
+        """A player standing 4.5 m from the net, running to 2 m by frame 70, flying 0.56 s while carried 0.3 m on; their
+        hips rise with them, or stay at standing height without `hips`."""
         P = self.camera()
         H = P[:, [0, 1, 3]]
         calibration = Calibration(H / H[2, 2], lens={"K": [[1500, 0, 1920], [0, 1500, 1080], [0, 0, 1]], "D": [0, 0, 0, 0], "model": "fisheye"})
@@ -37,11 +38,12 @@ class TestJumps:
                 x, h = -2.0 + 0.3 * u, G * T * T * u * (1 - u) / 2
             else:
                 x, h = -1.7, 0.0
-            feet, head, ankle = distort(project(P, np.array([[x, 1.0, h], [x, 1.0, h + 1.8], [x, 1.0, h + 0.08]])), calibration.lens)
+            feet, head, ankle, hip = distort(project(P, np.array([[x, 1.0, h], [x, 1.0, h + 1.8], [x, 1.0, h + 0.08], [x, 1.0, (h if hips else 0.0) + 0.95]])), calibration.lens)
             court = calibration.to_court(feet[None])[0]
             rows.append([f, feet[0] - 60, head[1], feet[0] + 60, feet[1], *court])
             points = np.zeros((17, 3))
             points[[15, 16]] = [*ankle, 0.9]
+            points[[11, 12]] = [*hip, 0.9]
             keypoints[f] = points.tolist()
         return np.array(rows), [keypoints[f] for f in window(self.CONTACT, self.FPS)], calibration
 
@@ -61,6 +63,12 @@ class TestJumps:
         assert abs(got["height"] - G * 0.56**2 / 8) < 0.06
         assert abs(got["takeoff_m"] - 2.0) < 0.1 and abs(got["drift_m"] - 0.3) < 0.1
         assert abs(got["start_m"] - 4.5) <= 0.1 and 39 <= got["start"] <= 42
+
+    def test_no_jump_where_the_hips_do_not_rise_with_the_flight(self, monkeypatch):
+        monkeypatch.setattr(jumps, "HEEL_UP_S", 0.0)
+        monkeypatch.setattr(jumps, "HEEL_DOWN_S", 0.0)
+        rows, keypoints, calibration = self.attack(hips=False)
+        assert measure(self.CONTACT, rows, keypoints, calibration, self.FPS) is None
 
     def test_no_jump_without_a_flight(self):
         rows, keypoints, calibration = self.attack()

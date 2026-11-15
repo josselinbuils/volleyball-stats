@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import club_settings, web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, unmeasured, wrong_measures, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, unlikely, unmeasured, wrong_measures, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -161,6 +161,16 @@ class TestContacts:
         rewon(rallies, {100: 2, 500: 2})
 
         assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
+
+    def test_a_reading_far_from_its_player_s_others_or_everyone_s_is_left_out(self):
+        jumps = [0.30, 0.32, 0.34, 0.31, 0.33, 0.62]
+        found = [{"type": "attack", "person": 1, "jump": j} for j in jumps] + [{"type": "attack", "person": 2, "jump": j} for j in (0.40, 0.42)]
+        found.append({"type": "serve", "person": 2, "speed": 40})
+
+        unlikely(found)
+
+        assert [c.get("jump") for c in found[:8]] == [0.30, 0.32, 0.34, 0.31, 0.33, None, 0.40, 0.42]
+        assert found[8]["speed"] == 40
 
     def test_a_record_said_wrong_leaves_its_touch(self):
         found = [{"t": 4, "f": 200, "jump": 0.7, "reach": 3.0}, {"t": 5, "f": 250, "jump": 0.4}]

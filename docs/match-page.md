@@ -89,7 +89,8 @@ replaying the 6 points after it. Both follow the set filter.
 Awards for what players did well, never for faults, from a minimum so that none goes to next to nothing;
 a tie shares one. Each replays its moments. Most touches, winning attacks, winning blocks, aces, digs, sets
 and perfect receptions, the longest run on serve, the fastest serve, the fastest attack ("Le Canon", from 5 measured), the highest jump ("Le Ressort", from 5
-measured jumps; each speed and jump trophy a record, the best single value: the owner, 15 Nov; the review asks to confirm each record), the setter and attacker with the most winning attacks, and the longest rally.
+measured jumps; each speed and jump trophy a record, the best single value: the owner, 15 Nov; the review asks to confirm each record;
+a reading far from its player's others or from everyone's is left out of the whole page, trophies and cards included: `web.unlikely`), the setter and attacker with the most winning attacks, and the longest rally.
 
 ## Mode TV
 

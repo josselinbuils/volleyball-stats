@@ -55,6 +55,26 @@ a foot hidden at one end of the flight. Mirroring that end (7 Nov) brought 2 of 
 back (timing off by 10 and 60 ms), none on the first; of all attacks, 86 -> 91 of 134 and 98 -> 116 of 174 get a jump:
 the others have none, or a foot hidden.
 
+## The hips' check (15 Nov)
+
+The height came from the flight time alone: one frame off at each end moves a 0.6 s flight's 44 cm by about 12 cm, and the
+owner found records that looked wrong (a 71 cm jump). The hips free-fall with the player (their path fitted with a free
+curvature gives g at 10.2 m/s2, 10-90%: 8.5-12), so their rise from the frame before takeoff to their highest is a second
+reading of the height. Where the two part by over 0.2 m an edge of the flight is wrong, and the jump is dropped
+(`jumps.AGREE_M`). Against the labelled flights' heights (the labellers' ±1-5 frames are about ±5-10 cm), before -> after:
+
+| | Jumps | Height error, median | 90% | Worst |
+| --- | --- | --- | --- | --- |
+| First match | 10 -> 7 | 6.0 -> 5.9 cm | 16.8 -> 16.8 | 16.8 -> 16.8 |
+| Second match | 14 -> 11 | 4.5 -> 2.8 | 22.7 -> 8.1 | 30.3 -> 8.7 |
+| First match, held out | 11 -> 11 | 2.4 -> 2.4 | 10.3 -> 10.3 | 13.1 -> 13.1 |
+| Second match, held out | 13 -> 11 | 6.4 -> 6.1 | 22.2 -> 9.2 | 33.1 -> 12.2 |
+
+On the three matches' attacks, 112 -> 96, 138 -> 114 and 144 -> 130 jumps; the highest left 53, 64 and 60 cm (were 71, 67,
+64). Tried and dropped: the hips' rise alone (median error 10 cm), its mean with the flight time (90% 18.3 cm), and, where
+the two part, the half flight from the hips' highest to the nearer edge that agrees with them (no jump brought back right,
+one 78 cm off).
+
 ## Held out (7 Nov)
 
 `ground_truth/heldout.csv`: a second draw of 40 attacks (seed 7, 20 per match, none of the first 40), labelled the same

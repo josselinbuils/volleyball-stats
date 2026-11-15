@@ -633,6 +633,37 @@ def unmeasured(found: list[dict], wrong: set[tuple[str, int]], fps: float) -> No
             c.pop(key, None)
 
 
+# A reading far from its player's own (from OWN_FROM of them) or from everyone's is left out: the owner's rule (15 Nov),
+# a trophy or a card never shows one. Far: over FAR_OWN, or FAR_ALL, times the readings' spread (1.4826 times their
+# median distance to their median), that spread at least the measure's own noise (MEASURES' floor; a reach's contact
+# frame +-2 moves it 0.12 m). On the three matches: 1 serve speed of 322, 7 attack speeds of 312, 8 jumps of 340,
+# 10 reaches of 381.
+MEASURES = {"speed": ("serve", 3.0), "attackSpeed": ("attack", 5.0), "jump": ("attack", 0.06), "reach": ("attack", 0.2)}
+OWN_FROM, FAR_OWN, FAR_ALL = 5, 3.0, 4.5
+
+
+def unlikely(found: list[dict]) -> None:
+    """The readings of `found` far from their player's others or from everyone's taken off (MEASURES)."""
+
+    def spread(values: np.ndarray, floor: float) -> float:
+        return max(1.4826 * float(np.median(np.abs(values - np.median(values)))), floor)
+
+    for key, (kind, floor) in MEASURES.items():
+        read = [c for c in found if c["type"] == kind and c.get(key) is not None and c.get("person") is not None]
+        if not read:
+            continue
+        everyone = np.array([c[key] for c in read], float)
+        middle, wide = float(np.median(everyone)), spread(everyone, floor)
+        by: dict[int, list[float]] = {}
+        for c in read:
+            by.setdefault(c["person"], []).append(c[key])
+        own = {p: (float(np.median(v)), spread(np.array(v, float), floor)) for p, v in by.items() if len(v) >= OWN_FROM}
+        for c in read:
+            mine = own.get(c["person"])
+            if abs(c[key] - middle) > FAR_ALL * wide or (mine and abs(c[key] - mine[0]) > FAR_OWN * mine[1]):
+                c.pop(key)
+
+
 def settled_scores(given: list[str | None], rallies: list[dict], checked: set[int]) -> list[str | None]:
     """Each set's final score ("25-21", team 1 first): as given, else its running score once every rally of it is
     checked in the review; None for the rest."""
@@ -917,6 +948,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     data["ball3d"] = touch_places(fitted)
     measure(fitted, fps)
     unmeasured(found, wrong_measures(answers(match, "wrong")), fps)
+    unlikely(found)
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 
