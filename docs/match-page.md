@@ -34,7 +34,8 @@ moments.
   and of touches): each part within 1 s of what is loaded; loaded parts drawn late or short in 3-13% of samples, up to 5 s.
 - "Vidéo augmentée" (`Watch/Overlay.tsx`, `helpers/overlay.ts`; on unless turned off, kept in the browser) draws on the
   video what the pipeline knows, as the films show it: the ball's trail over its last 0.5 s, as long as the ball is
-  fast, warm with a soft glow; and a card in the corner for each measured serve's speed (with a gauge) and attack's
+  fast, warm with a soft glow; and a card in the lower left corner (the playlist's title, "Signaler" and the court's
+  inset hold the others) for each measured serve's speed (with a gauge) and attack's
   height ("Détente" below when measured), from the serve's hit plus 0.15 s or the attack's hit, until the next card,
   2.4 s at most (`statCards`). The films' card (`film.telemetry`): slanted dark panel, red edge, the number slamming in
   (`outBack`) and counting up to gold over 0.55 s, sized by the video's width (`cqw`). All on the video's clock: paused,

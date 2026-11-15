@@ -38,7 +38,8 @@ const CARDS = statCards(contacts);
 export type Paint = (view: View) => void;
 
 /** The augmented video: the ball's trail drawn on the picture, and each measured serve's speed and attack's height and
- * jump on a card in its corner, as the films show them. Drawn by `paint`, for the frame the video shows (its own clock
+ * jump on a card in its lower left corner (the playlist's title, "Signaler" and the court's inset hold the others), as
+ * the films show them. Drawn by `paint`, for the frame the video shows (its own clock
  * runs ahead of the picture): paused, it shows that moment. */
 export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball: Ball; paint: RefObject<Paint | null> }) {
   const { t } = useTranslation();
@@ -184,19 +185,19 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
       <canvas ref={canvas} className="absolute inset-0 size-full" />
       <div
         ref={card}
-        className="invisible absolute top-[4cqw] left-[3cqw] grid py-[1.2cqw] pr-[3cqw] pl-[2.6cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase"
-        style={{ background: INK, clipPath: 'polygon(1.4cqw 0, 100% 0, calc(100% - 1.4cqw) 100%, 0 100%)', minWidth: 'max(7.5rem, 22cqw)' }}
+        className="invisible absolute bottom-[3cqw] left-[2.5cqw] grid py-[0.8cqw] pr-[2cqw] pl-[1.8cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase"
+        style={{ background: INK, clipPath: 'polygon(1cqw 0, 100% 0, calc(100% - 1cqw) 100%, 0 100%)', minWidth: 'max(5rem, 14.5cqw)' }}
       >
-        <span className="absolute inset-y-0 left-0 w-[2.3cqw]" style={{ background: RED, clipPath: 'polygon(1.4cqw 0, 2.3cqw 0, 0.9cqw 100%, 0 100%)' }} />
-        <span ref={label} className="text-[max(0.6rem,1.5cqw)] font-semibold tracking-wide text-white/75" />
-        <span className="mt-[0.4cqw] flex items-baseline justify-between gap-[1.2cqw]">
-          <span ref={value} className="text-[max(1.6rem,5.2cqw)] font-black tracking-tight italic" />
-          <span ref={unit} className="text-[max(0.75rem,1.9cqw)] font-bold" />
+        <span className="absolute inset-y-0 left-0 w-[1.6cqw]" style={{ background: RED, clipPath: 'polygon(1cqw 0, 1.6cqw 0, 0.6cqw 100%, 0 100%)' }} />
+        <span ref={label} className="text-[max(0.5rem,1cqw)] font-semibold tracking-wide text-white/75" />
+        <span className="mt-[0.3cqw] flex items-baseline justify-between gap-[0.8cqw]">
+          <span ref={value} className="text-[max(1.05rem,3.4cqw)] font-black tracking-tight italic" />
+          <span ref={unit} className="text-[max(0.55rem,1.25cqw)] font-bold" />
         </span>
-        <div ref={gauge} className="mt-[0.6cqw] h-[max(3px,0.5cqw)] bg-white/25">
+        <div ref={gauge} className="mt-[0.4cqw] h-[max(2px,0.35cqw)] bg-white/25">
           <div ref={fill} className="h-full" style={{ background: GOLD }} />
         </div>
-        <span ref={below} className="mt-[0.6cqw] text-[max(0.6rem,1.5cqw)] font-semibold tracking-wide text-white/75" />
+        <span ref={below} className="mt-[0.4cqw] text-[max(0.5rem,1cqw)] font-semibold tracking-wide text-white/75" />
       </div>
     </div>
   );
