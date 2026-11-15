@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Contact, Rally } from '@/lib/match';
 import type { TFunction } from 'i18next';
 import type { Format } from '@/lib/format';
-import { clipLabel, contactClips, rallyAt, rallyClips, rallyNear } from '@/lib/playlist';
+import { clipLabel, contactClips, rallyAt, rallyClips, rallyNear, rallyReported } from '@/lib/playlist';
 
 describe('contactClips', () => {
   // The player's key is their number here.
@@ -75,5 +75,20 @@ describe('rallyClips', () => {
       expect(rallyNear(rallies, 90)?.i).toBe(1);
       expect(rallyNear([], 5)).toBeUndefined();
     });
+  });
+});
+
+describe('rallyReported', () => {
+  // Rally 54 of the Avia match ends at 29:09, rally 55 starts at 29:29.
+  const rallies = [
+    { i: 53, start: 1740, end: 1749 },
+    { i: 54, start: 1769, end: 1780 },
+  ];
+  it('files a report between rallies as the review does', () => {
+    expect(rallyReported(rallies, 1745)?.i).toBe(53);
+    // 7 s after the first ends: still it, not the next.
+    expect(rallyReported(rallies, 1756)?.i).toBe(53);
+    expect(rallyReported(rallies, 1767)?.i).toBe(54);
+    expect(rallyReported(rallies, 1760)).toBeUndefined();
   });
 });

@@ -204,7 +204,8 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 
 - Hosted pages are built with `--feedback` at `feedback` under the public address (`matches.feedback_address`:
   `/volleyball/feedback` here): one tap on "Signaler" reports the moment, "Préciser" then
-  adds what is wrong and a comment to the same report (its `id`).
+  adds what is wrong and a comment to the same report (its `id`). Between two rallies it is about the one ending up to 8 s
+  before, else the one starting up to 3 s after (`rallyReported`, as the review files it), named with the moment's time.
 - The service's nginx logs each POST (2 KB, 5 a minute per visitor) to `volleyball-stats/feedback/feedback.log`.
 - The review's "Charger les signalements" (`feedback.fetch`) copies it to `outputs/feedback/feedback-DATE.log` (the review
   reads every `outputs/feedback/*.log`), then empties it online; `uv run python -m volleyball_stats.feedback LOG` lists a

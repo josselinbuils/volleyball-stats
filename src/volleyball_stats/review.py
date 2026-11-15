@@ -760,7 +760,8 @@ def page_data(site: Path) -> dict | None:
 # "fault": a fault made without the ball (net, centre line, rotation), only the review adds it.
 TOUCH_TYPES, RESULTS = ("serve", "pass", "set", "attack", "relance", "block", "dig", "fault"), ("play", "point", "error")
 # A report outside every rally window is about the one starting up to REPORT_BEFORE_S after it or
-# ending up to REPORT_AFTER_S before it (a viewer reports while it plays or just after).
+# ending up to REPORT_AFTER_S before it (a viewer reports while it plays or just after); the page's report button labels
+# it so (web/src/lib/playlist.ts, rallyReported).
 REPORT_BEFORE_S, REPORT_AFTER_S = 3.0, 8.0
 
 
@@ -1087,7 +1088,9 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
         "kind": "report", "team": 1, "identity": None, "impact": 0, "seconds": round(rally["end"] - rally["start"], 1), "contacts": len(touches),
         "set": rally.get("set"), "time": round(rally["start"], 2), "crops": [], "choices": [],
         "clip": {"start": round(rally["start"], 2), "end": round(rally["end"], 2), "around": RALLY_AROUND_S, "boxes": []},
-        "reports": [{"kind": report.get("kind"), "shown": report.get("shown"), "comment": report.get("comment") or "", "time": round(at, 2), "received": report.get("received"), **({"at": report["at"]} if report.get("at") else {})}],
+        # What the viewer's page said it was about: the clip playing; without one, the rally and its time, which the
+        # rally's header and the report's own time say (an older page named the next rally between two, by its start).
+        "reports": [{"kind": report.get("kind"), "shown": report.get("shown") if report.get("clip") else None, "comment": report.get("comment") or "", "time": round(at, 2), "received": report.get("received"), **({"at": report["at"]} if report.get("at") else {})}],
         "touches": touches, "winner": rally.get("winner"),
     }
     key = rally.get("key", round(rally["start"] * fps)) if k is not None else None
@@ -1913,11 +1916,28 @@ def answers_stamp(log: list[dict]) -> str:
     return hashlib.sha256(json.dumps(said, sort_keys=True).encode()).hexdigest()[:16]
 
 
+def silent(answer: dict) -> bool:
+    """Whether `answer` teaches nothing: a report marked handled as the rally stood, no correction, no rally checked."""
+    return (
+        answer.get("choice") == "report"
+        and set(answer) <= {"id", "choice", "applied", "changes"}
+        and not any((answer.get("changes") or {}).values())
+    )
+
+
 def learned(match: Path, log: list[dict]) -> bool:
-    """Whether the match's last learning run (learn.json) saw the answers as they stand."""
+    """Whether the match's last learning run (learn.json) saw the answers as they stand, but for those given since that
+    teach nothing (`silent`): a report marked handled no longer asks for the match to be analysed again."""
     path = match / "learn.json"
     runs = json.loads(path.read_text()) if path.exists() else []
-    return bool(runs) and runs[-1].get("answers") == answers_stamp(log)
+    if not runs:
+        return False
+    n = len(log)
+    while answers_stamp(log[:n]) != runs[-1].get("answers"):
+        if not n or not silent(log[n - 1]):
+            return False
+        n -= 1
+    return True
 
 
 def due(match: Path, log: list[dict] | None = None) -> str | None:

@@ -59,6 +59,17 @@ export function rallyAt<R extends { start: number; end: number }>(rallies: R[], 
   return rallies.find((r) => time >= r.start - PAD && time <= r.end + PAD);
 }
 
+// A report outside every rally is about the one ending up to REPORT_AFTER_S before it (a viewer reports just after), else
+// the one starting up to REPORT_BEFORE_S after it (review.REPORT_AFTER_S, REPORT_BEFORE_S).
+export const REPORT_BEFORE_S = 3;
+export const REPORT_AFTER_S = 8;
+
+/** The rally a viewer's report at `time` is about, as the review files it: the one holding it, else the one ending up to
+ * REPORT_AFTER_S before or starting up to REPORT_BEFORE_S after, the earlier first; none between them. */
+export function rallyReported<R extends { start: number; end: number }>(rallies: R[], time: number): R | undefined {
+  return rallies.find((r) => r.start <= time && time <= r.end) ?? rallies.find((r) => r.start - REPORT_BEFORE_S <= time && time <= r.end + REPORT_AFTER_S);
+}
+
 /** The rally to show at `time` when nothing plays: the one whose clip holds it, else the next one,
  * else the last. */
 export function rallyNear<R extends { start: number; end: number }>(rallies: R[], time: number): R | undefined {

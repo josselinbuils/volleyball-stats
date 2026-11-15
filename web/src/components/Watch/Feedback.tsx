@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { clock, useFormat } from '@/lib/format';
 import { groupName, match } from '@/lib/match';
-import { usePlayer, useVideoTime } from '@/lib/player';
-import { clipLabel, rallyNear } from '@/lib/playlist';
+import { usePlayer } from '@/lib/player';
+import { clipLabel, rallyReported } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
 import { Tip } from '@/components/Tip';
@@ -34,17 +34,14 @@ const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(
 
 /** A viewer reporting what is wrong in the moment shown, from a button over the top right corner of the
  * video, else (`inline`) in the court replay's title bar: one tap sends the moment (the clip playing,
- * else the rally the video is on), then "Préciser" opens a dialog to say what is wrong and comment,
+ * else the rally it is about, `rallyReported`, and the time), then "Préciser" opens a dialog to say what is wrong and comment,
  * sent as the same report to `match.feedback`, to correct the analysis later. */
 export function Feedback({ inline = false }: { inline?: boolean }) {
   const { t } = useTranslation();
   const f = useFormat();
   const { playlist, video } = usePlayer();
   const { rallies } = useSet();
-  const near = useVideoTime((time) => rallyNear(rallies, time)?.i ?? -1);
-  const rally = rallies.find((r) => r.i === near);
   const clip = playlist?.clips[playlist.at];
-  const shown = playlist && clip ? `${playlist.title(t)} · ${clipLabel(clip, t, f, (g) => groupName(t, g))}` : rally ? `${t('rally', { n: rally.i + 1 })} · ${clock(rally.start)}` : '';
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<(typeof KINDS)[number]>('player');
   const [comment, setComment] = useState('');
@@ -73,11 +70,15 @@ export function Feedback({ inline = false }: { inline?: boolean }) {
     }
   };
   const flag = () => {
+    const time = Math.round((video?.currentTime ?? 0) * 100) / 100;
+    // The rally the review files it under (review.report_question), with the moment itself.
+    const rally = rallyReported(rallies, time);
+    const shown = playlist && clip ? `${playlist.title(t)} · ${clipLabel(clip, t, f, (g) => groupName(t, g))}` : rally ? `${t('rally', { n: rally.i + 1 })} · ${clock(time)}` : clock(time);
     const report: Report = {
       id: newId(),
       page: location.pathname,
       match: match.name,
-      time: Math.round((video?.currentTime ?? 0) * 100) / 100,
+      time,
       rally: rally?.i ?? null,
       clip: clip ? { time: clip.time, type: clip.type ?? null, team: clip.team ?? null, player: clip.player ?? null, name: clip.name ?? null } : null,
       shown,

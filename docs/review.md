@@ -39,7 +39,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   it asks "Réanalyser ce match ?" and updates that match only (`/app/learn` with `here`: `learn --update MATCHES
   --only NAME`); the others keep their badge. A match waits (`review.due`, a dot and the reason on its card: the owner's
   naming, 15 Nov) for its answers given since its last learning (`review.learned`, `learn.json`'s `answers`:
-  "Réponses à apprendre", no count: the learning keeps only their hash) or for other code or models than those its
+  "Réponses à apprendre", no count: the learning keeps only their hash; a report marked "Traité" without a correction
+  teaches nothing and does not count, `review.silent`) or for other code or models than those its
   analysis was made with ("Nouvelle version de l'analyse", "Nouvelle version" on the card:
   `analysis.py`'s fingerprint of the pipeline's modules, comments and docstrings left out, of the learned order of who
   touched and of the play model, kept in the match's `analysis.json` by each run; web.py is not part of it, an apply

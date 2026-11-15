@@ -234,6 +234,12 @@ class TestReports:
         assert ref == {"start": 2000, "touches": {"2050": 2, "2100": 1}} and question["rally"] == 2000
         assert report_question({"time": 100.0, "clip": {"time": 12.0}}, self.page, 50.0)[1]["start"] == 500
 
+    def test_a_report_without_a_clip_keeps_its_own_time_not_what_its_page_named(self):
+        question, _ = report_question({"time": 52.0, "clip": None, "kind": "player", "shown": "Échange 2 · 1:10", "comment": ""}, self.page, 50.0)
+
+        assert (question["reports"][0]["shown"], question["reports"][0]["time"]) == (None, 52.0)
+        assert report_question({"time": 100.0, "clip": {"time": 12.0}, "shown": "Service"}, self.page, 50.0)[0]["reports"][0]["shown"] == "Service"
+
     def test_a_moment_in_a_rally_is_about_it_rather_than_the_one_just_before(self):
         page = {**self.page, "rallies": [{"start": 10.0, "end": 36.0, "set": 1, "winner": 1}, *self.page["rallies"][1:]]}
 
@@ -799,6 +805,12 @@ class TestWaiting:
         # Applying changes nothing the run saw; another answer does.
         assert learned(tmp_path, [{**self.entry, "applied": True}])
         assert not learned(tmp_path, log + [{"id": "piece:3:0", "choice": "skip"}])
+        # A report marked handled as its rally stood teaches nothing; one with a correction or checking a rally does.
+        handled = {"id": "report:8d49e5f29622", "choice": "report", "changes": {"touches": []}, "applied": False}
+        assert learned(tmp_path, log + [handled, {"id": "report:a", "choice": "report", "applied": True}])
+        assert not learned(tmp_path, log + [{**handled, "changes": {"touches": [{"frame": 5, "type": "pass"}]}}])
+        assert not learned(tmp_path, log + [{**handled, "checked": [2000]}])
+        assert not learned(tmp_path, log + [handled, {"id": "piece:3:0", "choice": "skip"}])
 
     def test_jersey_numbers_copied_through_the_server_to_the_second_are_no_change(self, tmp_path):
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
