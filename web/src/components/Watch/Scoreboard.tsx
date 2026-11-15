@@ -4,7 +4,7 @@ import { useFormat } from '@/lib/format';
 import { GROUPS, groupName, match, rallies, teamColor, teamRing } from '@/lib/match';
 import { useVideoTime } from '@/lib/player';
 import { exactSet, scoreAt } from '@/components/Watch/helpers/score';
-import { Tip } from '@/components/Tip';
+import { Hint } from '@/components/Tip';
 
 /** The set and its score at the video's time, above the video; on a phone the set and whether the score is final or
  * estimated (nothing when its set adds up to its final score) on a line above the teams, for their names to show. */
@@ -37,9 +37,10 @@ export function Scoreboard() {
         <Swatch color={teamColor(2)} ring={teamRing(2)} />
       </span>
       {(now.final || !exactSet(rallies, match.scores, now.set)) && (
-        <Tip label={now.final ? undefined : t('scoreHint')}>
-          <span className="shrink-0 text-xs text-muted-foreground max-sm:ml-auto">{t(now.final ? 'scoreFinal' : 'scoreEstimated')}</span>
-        </Tip>
+        <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground max-sm:ml-auto">
+          {t(now.final ? 'scoreFinal' : 'scoreEstimated')}
+          {!now.final && <Hint label={t('scoreHint')} />}
+        </span>
       )}
     </div>
   );

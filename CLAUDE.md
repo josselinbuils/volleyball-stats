@@ -49,6 +49,8 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 - A button starting an async action is disabled with a loader inside while it runs (`Button`'s `busy`, `useRunning`),
   the buttons beside it that would start another disabled too.
 - Tooltips in `web/`: `Tip` only, never a `title` (one look everywhere, full screen included; `Tip.test.ts` checks).
+  An explanation goes behind `Hint` (an info icon a tap opens too), never on plain text nor around other tips: a touch
+  screen has no hover. `Tip tap` for a chip whose click does nothing else.
 - Failures in `web/`: `ErrorNote` only (red under what failed, a server's raw words small below it, "Voir le détail" to
   the app's log), its text from `explain` (`lib/errors.ts`), never a raw error code; an action never fails silently
   and nothing waits for good. Confirmations: `ask` (`components/ask.tsx`), never `window.confirm`.

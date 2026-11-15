@@ -97,14 +97,14 @@ function Players({ season }: { season: SeasonData }) {
             </span>
             <span className="flex flex-wrap gap-1.5">
               {p.strengths.map((s) => (
-                <Tip key={s.key} label={t('season.strengthIn', { count: s.matches, of: p.matches })}>
+                <Tip tap key={s.key} label={t('season.strengthIn', { count: s.matches, of: p.matches })}>
                   <span tabIndex={0} className={chipLook(true)}>
                     {t(`stats.insights.${s.key}`, { count: s.n, of: s.of })}
                   </span>
                 </Tip>
               ))}
               {p.rising.map((r) => (
-                <Tip key={r.measure} label={t(r.measure === 'points' ? 'season.risingPoints' : 'season.risingGrade', { from: f.dec(r.from), to: f.dec(r.to) })}>
+                <Tip tap key={r.measure} label={t(r.measure === 'points' ? 'season.risingPoints' : 'season.risingGrade', { from: f.dec(r.from), to: f.dec(r.to) })}>
                   <span tabIndex={0} className={chipLook(true)}>
                     {t(`season.rising.${r.measure}`)}
                   </span>
@@ -112,6 +112,7 @@ function Players({ season }: { season: SeasonData }) {
               ))}
               {p.work && (
                 <Tip
+                  tap
                   label={t('season.lastMatch', {
                     detail: t('stats.insights.detail', {
                       n: p.work.n,
