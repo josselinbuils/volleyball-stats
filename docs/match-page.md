@@ -32,7 +32,7 @@ moments.
   starting, read back, at its keyframe (`seekBar.isDownload`). Against the bytes the network delivered (headless Chrome,
   on the host and locally, 720p and AV1 copies, early and late in the match, plain play and jumps, playlists of rallies
   and of touches): each part within 1 s of what is loaded; loaded parts drawn late or short in 3-13% of samples, up to 5 s.
-- "Infos sur la vidéo" (`Watch/Overlay.tsx`, `helpers/overlay.ts`; on unless turned off, kept in the browser) draws on the
+- "Vidéo augmentée" (`Watch/Overlay.tsx`, `helpers/overlay.ts`; on unless turned off, kept in the browser) draws on the
   video what the pipeline knows: the ball's trail over its last 0.5 s, as long as the ball is fast, each measured
   serve's speed beside the ball until the next touch, and at each touch who touched it (name, else number, and team
   dot) under their feet, with "↑ 47 cm" on an attack whose jump is measured; each tag 0.7 to 1.2 s, the next waiting.

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ListVideo, Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Spline, Volume2, VolumeX } from 'lucide-react';
+import { Captions, ListVideo, Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { VideoButton } from '@/components/VideoButton';
@@ -303,7 +303,7 @@ export function VideoControls({
       )}
       {onDrawn && (
         <VideoButton light={light} className={cn(second)} label={t('videoOverlay')} pressed={drawn} onClick={onDrawn}>
-          <Spline aria-hidden />
+          <Captions aria-hidden />
         </VideoButton>
       )}
       {/* The court's replay has no sound. */}
