@@ -45,8 +45,9 @@ def test_the_serve_then_the_exchange_then_the_whole_picture():
 
     found = views(rows, [rally()], [{"t": 5, "type": "serve", "rally": 0}, {"t": 6, "type": "pass", "rally": 0}])
 
-    assert [v[0] for v in found] == [0, 5.3, 16]
-    assert found[0][1] == 0 and found[0][3] > found[1][3]
+    # The whole picture, the server's view 3 s before the serve, the exchange's.
+    assert [v[0] for v in found] == [0, 2, 5.3, 16]
+    assert found[0][3] == 1 and found[1][1] == 0 and found[1][3] > found[2][3]
     assert found[-1][1:] == [0, 0, 1]
 
 
@@ -89,8 +90,21 @@ def test_a_short_exchange_keeps_the_serves_view():
 
     found = views(rows, [rally(5, 6.5)], [{"t": 5, "type": "serve", "rally": 0}, {"t": 6, "type": "pass", "rally": 0}])
 
-    assert [v[0] for v in found] == [0, 7.5]
+    assert [v[0] for v in found] == [0, 2, 7.5]
 
 
 def test_no_players_no_views():
     assert views(np.empty((0, 6)), [rally()], []) == []
+
+
+def test_the_exchange_is_followed_second_by_second_closer_than_its_whole():
+    # Two players crossing the picture from the left to the right over the rally.
+    rows = np.array([(t / 10, track, 0.05 + t / 300 + dx, 0.3, 0.15 + t / 300 + dx, 0.6) for t in range(201) for track, dx in ((1, 0), (2, 0.1))])
+    touches = [{"t": 5, "type": "serve", "rally": 0}, {"t": 6, "type": "pass", "rally": 0}]
+
+    found = views(rows, [rally(5, 15)], touches)
+    during = [v for v in found if 5.3 <= v[0] < 15]
+
+    assert len(during) > 3
+    assert all(v[3] == pytest.approx(MIN_VIEW) for v in during)
+    assert during[-1][1] > during[0][1]

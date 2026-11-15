@@ -61,15 +61,20 @@ export function sampleNear(ball: Ball, time: number, within: number): { x: numbe
   return best;
 }
 
-/** The automatic zoom at `time`: the review's view of the players then (`views`, framing.py's), moved
- * only as much as keeps `ball` EDGE inside it. */
+/** The automatic zoom at `time`: the review's view of the players then (`views`, framing.py's), widened only as much as
+ * keeps `ball` EDGE inside it, the players' view still in it: sliding to the ball left players out (the owner's call,
+ * 15 Nov: every player and the ball, parts of the court out; benchmarks/framing). */
 export function frameAt(views: MatchView[], time: number, ball: { x: number; y: number } | null): Camera {
   const [, x, y, w] = views.findLast((v) => v[0] <= time) ?? views[0] ?? NO_VIEW;
-  const keep = (from: number, at: number | undefined) => {
-    const moved = at === undefined ? from : Math.min(at - EDGE * w, Math.max(at + EDGE * w - w, from));
-    return Math.min(1 - w, Math.max(0, moved)) + w / 2;
-  };
-  return { x: keep(x, ball?.x), y: keep(y, ball?.y), zoom: 1 / w };
+  const room = EDGE * w;
+  if (!ball || (ball.x >= x + room && ball.x <= x + w - room && ball.y >= y + room && ball.y <= y + w - room)) {
+    return { x: Math.min(1 - w, Math.max(0, x)) + w / 2, y: Math.min(1 - w, Math.max(0, y)) + w / 2, zoom: 1 / w };
+  }
+  const [x1, y1, x2, y2] = [Math.min(x, ball.x - room), Math.min(y, ball.y - room), Math.max(x + w, ball.x + room), Math.max(y + w, ball.y + room)];
+  const size = Math.min(1, Math.max(x2 - x1, y2 - y1));
+  // What it must hold in the middle of the view, the view inside the picture.
+  const place = (from: number, to: number) => Math.min(1 - size, Math.max(0, (from + to - size) / 2)) + size / 2;
+  return { x: place(x1, x2), y: place(y1, y2), zoom: 1 / size };
 }
 
 /** The automatic zoom at `time` as followed: `frameAt` averaged within AHEAD_S, `ball` (or none) placed by `ballAt`. */

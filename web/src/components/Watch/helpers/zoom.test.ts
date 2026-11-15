@@ -31,12 +31,18 @@ describe('frameAt', () => {
     expect(frameAt(views, 5, { x: 0.4, y: 0.3 })).toEqual(frameAt(views, 5, null));
   });
 
-  it('moves just enough to keep the ball off its edges', () => {
-    // The view spans 0.2 to 0.8: the ball at 0.85 needs its right edge at 0.85 + 0.15 × 0.6.
+  it('widens just enough to keep the ball off its edges, the players still in', () => {
+    // The view spans 0.2 to 0.8: the ball at 0.85 needs its right edge at 0.85 + 0.15 × 0.6, its left one staying at 0.2.
     const f = frameAt(views, 5, { x: 0.85, y: 0.3 });
-    expect(f.x + 0.3).toBeCloseTo(0.94, 6);
-    // Never past the picture's edge.
-    expect(frameAt(views, 5, { x: 1, y: 0.3 }).x).toBeCloseTo(0.7, 6);
+    expect(1 / f.zoom).toBeCloseTo(0.74, 6);
+    expect(f.x - 0.37).toBeCloseTo(0.2, 6);
+    // The players' 0 to 0.6 in height still shown.
+    expect(f.y - 0.37).toBeLessThanOrEqual(0);
+    expect(f.y + 0.37).toBeGreaterThanOrEqual(0.6);
+    // Never past the picture's edge: the ball at its edge still in.
+    const edge = frameAt(views, 5, { x: 1, y: 0.3 });
+    expect(edge.x + 0.5 / edge.zoom).toBeCloseTo(1, 6);
+    expect(edge.x - 0.5 / edge.zoom).toBeLessThanOrEqual(0.2);
   });
 });
 

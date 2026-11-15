@@ -17,6 +17,10 @@ AFTER_SERVE_S = 0.3
 HOLD_S, SERVE_LEAD_S = 1.0, 3.0
 # A shorter exchange keeps the serve's view.
 MIN_EXCHANGE_S = 1.0
+# During the exchange a view every FOLLOW_S, of the players seen from BEHIND_S before it to AHEAD_S after: the page
+# averages the views a second either side and eases between them (the owner's call, 15 Nov: closer, every player and
+# the ball kept in, parts of the court out).
+FOLLOW_S, BEHIND_S, AHEAD_S = 1.0, 1.0, 1.5
 # The ball this close to the serve is at the server, who often waits too far back to be tracked.
 BALL_AT_SERVE_S = 0.2
 # Around that ball, in fractions of the picture: the server's body besides MARGIN.
@@ -26,9 +30,9 @@ MIN_TRACK_S = 0.5
 # Around the players, in fractions of the picture; under them only, the rest above for the high balls.
 MARGIN = 0.03
 # The tightest view, in fractions of the picture, should the tracking lose players.
-MIN_VIEW = 0.5
+MIN_VIEW = 0.4
 # A view still showing the players, MARGIN or not, is kept unless this much wider than needed.
-KEPT_WIDER = 1.3
+KEPT_WIDER = 1.15
 STEP_S = 0.1
 
 
@@ -101,7 +105,9 @@ def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict], ball: np.
         show(max(free, served - SERVE_LEAD_S) if served - SERVE_LEAD_S > free else min(free, served), server)
         answered = next((t["t"] for t in own if t["t"] > served and t["type"] != "serve"), None)
         if answered is not None and rally["end"] - answered >= MIN_EXCHANGE_S:
-            show(min(served + AFTER_SERVE_S, answered), players_box(boxes, answered, rally["end"]))
+            first = min(served + AFTER_SERVE_S, answered)
+            for at in np.arange(first, rally["end"], FOLLOW_S):
+                show(at, players_box(boxes, max(answered, at - BEHIND_S), min(rally["end"], at + AHEAD_S)))
         end = rally["end"]
     if shown:
         shown.append([round(end + HOLD_S, 2), 0, 0, 1])
