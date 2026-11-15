@@ -1,4 +1,4 @@
-import type { Rally } from '@/lib/match';
+import type { Group, Rally } from '@/lib/match';
 import { PAD } from '@/lib/playlist';
 
 /** A set's score (team 1, team 2) at a moment, `final` when it is the set's final score as the
@@ -25,4 +25,16 @@ export function scoreAt(rallies: Rally[], time: number, given: (string | null)[]
   const last = scored[k + 1]?.set !== current.set;
   const final = last ? given[current.set - 1]?.match(/^(\d+)-(\d+)$/) : null;
   return { set: current.set, score: final ? [Number(final[1]), Number(final[2])] : (current.score as [number, number]), final: Boolean(final) };
+}
+
+/** The team whose point landed under `within` seconds before `time` (a rally's end), else null. */
+export function justScored(rallies: Rally[], time: number, within: number): Group | null {
+  const last = rallies.findLast((r) => r.end <= time);
+  return last && last.score !== null && time - last.end < within ? last.winner : null;
+}
+
+/** Whether the running score of `set` is right: its final score is known (`given`, "25-21") and its rallies add up to it. */
+export function exactSet(rallies: Rally[], given: (string | null)[], set: number): boolean {
+  const last = rallies.findLast((r) => r.set === set && r.score !== null);
+  return Boolean(last?.score && given[set - 1] === last.score.join('-'));
 }

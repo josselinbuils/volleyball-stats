@@ -2,8 +2,11 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ball } from '@/lib/ball';
 import { useFormat } from '@/lib/format';
-import { contacts } from '@/lib/match';
+import { contacts, groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
+import { Swatch } from '@/components/Swatch';
+import { useVideoTime } from '@/lib/player';
 import { TRAIL_S, ease, onScreen, outBack, shownAt, stamps, statCards, trailAt, type Card, type View } from '@/components/Watch/helpers/overlay';
+import { justScored, scoreAt } from '@/components/Watch/helpers/score';
 
 /** The trail's half width at the ball, as a share of the picture's width on the screen (the ball is about 0.008 wide), and in px at least. */
 const WIDTH = 0.003;
@@ -33,13 +36,20 @@ const OUT_S = 0.25;
 /** The serve speed that fills the gauge (km/h), as the films'. */
 const GAUGE_KMH = 110;
 const CARDS = statCards(contacts);
+/** A point's number stays gold this long after it lands. */
+const LANDED_S = 1.5;
+/** The match has a score to show: the score's tower then holds the top left corner. */
+export const SCORED = rallies.some((r) => r.score !== null);
+/** The tower's place and height, which what shows in that corner too (Watch's title of what plays) goes below. */
+export const TOWER = 'top-[2.5cqw] left-[2.5cqw] h-[max(1.5rem,3.6cqw)]';
+export const BELOW_TOWER = 'top-[calc(2.5cqw+max(1.5rem,3.6cqw)+0.5rem)]';
 
 /** Draws the overlay for a view of the picture; the video's zoom calls it each frame, with the view it just set. */
 export type Paint = (view: View) => void;
 
-/** The augmented video: the ball's trail drawn on the picture, and each measured serve's speed and attack's height and
- * jump on a card in its lower left corner (the playlist's title, "Signaler" and the court's inset hold the others), as
- * the films show them. Drawn by `paint`, for the frame the video shows (its own clock
+/** The augmented video: the ball's trail drawn on the picture, the score in its upper left corner, and each measured
+ * serve's speed and attack's speed, height and jump on a card in its lower left corner ("Signaler" and the court's inset
+ * hold the others), as the films show them. Drawn by `paint`, for the frame the video shows (its own clock
  * runs ahead of the picture): paused, it shows that moment. */
 export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball: Ball; paint: RefObject<Paint | null> }) {
   const { t } = useTranslation();
@@ -63,10 +73,12 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
   }));
   words.current = ({ contact }, count) => {
     const c = contacts[contact];
-    if (c.type === 'serve' && c.speed !== undefined) {
-      return { label: t('overlay.speed'), value: f.num(Math.round(c.speed * count)), unit: t('overlay.kmh'), gauge: count * Math.min(1, c.speed / GAUGE_KMH), below: '' };
-    }
     const jump = c.jump ? t('overlay.jumpOf', { cm: f.num(Math.round(c.jump * 100)) }) : '';
+    const speed = c.type === 'serve' ? c.speed : c.attackSpeed;
+    if (speed !== undefined) {
+      const below = [c.reach ? t('overlay.reachOf', { m: f.dec(c.reach) }) : '', jump].filter(Boolean).join(' · ');
+      return { label: t('overlay.speed'), value: f.num(Math.round(speed * count)), unit: t('overlay.kmh'), gauge: count * Math.min(1, speed / GAUGE_KMH), below };
+    }
     if (c.reach) {
       return { label: t('overlay.reach'), value: f.dec(c.reach * count), unit: t('overlay.m'), gauge: null, below: jump };
     }
@@ -183,6 +195,7 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
   return (
     <div ref={box} aria-hidden className="@container pointer-events-none absolute inset-0 overflow-hidden">
       <canvas ref={canvas} className="absolute inset-0 size-full" />
+      {SCORED && <Tower />}
       <div
         ref={card}
         className="invisible absolute bottom-[3cqw] left-[2.5cqw] grid py-[0.8cqw] pr-[2cqw] pl-[1.8cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase"
@@ -199,6 +212,49 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
         </div>
         <span ref={below} className="mt-[0.4cqw] text-[max(0.5rem,1cqw)] font-semibold tracking-wide text-white/75" />
       </div>
+    </div>
+  );
+}
+
+/** A slanted piece of the tower. */
+const SLANT = { clipPath: 'polygon(0.7cqw 0, 100% 0, calc(100% - 0.7cqw) 100%, 0 100%)' };
+
+/** The score as the films' timing tower: the teams, their points (the one just won gold) and the set; on a narrow video
+ * the teams' colours alone, outlined as on a dark page. */
+function Tower() {
+  const { t } = useTranslation();
+  const f = useFormat();
+  const shown = useVideoTime((time) => {
+    const now = scoreAt(rallies, time, match.scores);
+    return now && `${now.set}:${now.score[0]}:${now.score[1]}:${justScored(rallies, time, LANDED_S) ?? 0}`;
+  });
+  if (!shown) {
+    return null;
+  }
+  const [set, one, two, landed] = shown.split(':').map(Number);
+  const team = (g: Group) => (
+    <span className="relative flex items-center gap-[0.8cqw] py-0 pr-[1.4cqw] pl-[1.2cqw]" style={{ ...SLANT, background: INK }}>
+      <Swatch color={teamColor(g)} ring={teamRing(g)} className="size-[max(0.5rem,1.1cqw)]" />
+      <span className="max-w-[16cqw] truncate text-[max(0.6rem,1.3cqw)] font-bold @max-md:hidden">{groupName(t, g)}</span>
+    </span>
+  );
+  const points = (g: Group, n: number) => (
+    <span
+      className="grid min-w-[max(1.7rem,3.9cqw)] place-items-center px-[0.9cqw] text-[max(0.85rem,2cqw)] font-black italic"
+      style={{ ...SLANT, background: landed === g ? GOLD : 'rgb(60 60 60 / 0.92)', color: landed === g ? INK : 'white' }}
+    >
+      {f.num(n)}
+    </span>
+  );
+  return (
+    <div className={`dark absolute ${TOWER} flex items-stretch gap-[0.2cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase`}>
+      {team(1)}
+      {points(1, one)}
+      {points(2, two)}
+      {team(2)}
+      <span className="grid place-items-center px-[1.3cqw] text-[max(0.55rem,1.1cqw)] font-semibold tracking-wide text-white/75" style={{ ...SLANT, background: INK }}>
+        {t('set', { n: f.num(set) })}
+      </span>
     </div>
   );
 }

@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import club_settings, web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -161,6 +161,11 @@ class TestContacts:
         rewon(rallies, {100: 2, 500: 2})
 
         assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
+
+    def test_a_set_whose_every_rally_is_checked_has_its_running_score_as_final(self):
+        rallies = [{"key": 100, "set": 1, "score": [1, 0]}, {"key": 300, "set": 1, "score": [1, 1]}, {"key": 500, "set": 2, "score": [0, 1]}, {"key": 700, "set": 3, "score": [1, 0]}]
+
+        assert settled_scores([None, None, "25-20"], rallies, {100, 300, 700}) == ["1-1", None, "25-20"]
 
     def test_an_attack_or_a_block_the_other_team_loses_is_a_point_an_attack_blocked_for_one_a_fault(self):
         def c(kind, team, rally, result="play"):

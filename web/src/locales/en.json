@@ -1066,7 +1066,8 @@
     "m": "m",
     "jump": "Vertical leap",
     "cm": "cm",
-    "jumpOf": "Vertical leap {{cm}} cm"
+    "jumpOf": "Vertical leap {{cm}} cm",
+    "reachOf": "Hit at {{m}} m"
   },
   "videoOverlay": "Augmented video",
   "story": {

@@ -58,6 +58,8 @@ export interface Contact {
   receiver?: number | null;
   /** A serve's speed in mid-flight, in km/h, where its flight is well seen. */
   speed?: number;
+  /** An attack's speed over its flight to the next touch, in km/h, where that flight is well seen. */
+  attackSpeed?: number;
   /** An attack's height in metres, where it is well seen: a single one is rough, a player's median holds up. */
   reach?: number;
   /** On an attack with its jump measured, the ms from the flight's top to the contact (negative before it), the jump's

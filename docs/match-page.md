@@ -17,12 +17,15 @@ moments.
 - The match's title and date head the page.
 - Every number and chart element plays its moments in the video or on the animated court.
 - Above the video: the set and its score (estimated, or the final score you gave once the set is
-  over). During a timeout, "Temps mort" and its team over the video and beside the court; in TV mode its card, the
+  over; nothing said in a set whose rallies add up to its final score, `exactSet`). A set's final score is the one given,
+  else its counted one once every rally of it is checked in the review (`web.settled_scores`): no "(estimé)" then. During a timeout, "Temps mort" and its team over the video and beside the court; in TV mode its card, the
   rally before it held 3 s for it.
 - The video player skips 10 s back or forward; its snail ("Ralentir à chaque touche", kept in the browser) slows it to 0.5× around each touch only (`helpers/slow.ts` `PAGE_SLOW_RATE`; the review's clips 0.25×, to answer). Its "Zoom auto", on from the start where the match has views, frames the players as the review's
   (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
-  around each jump; one hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
+  around each jump. A wait for data 2.5 s without more loaded reloads the copy where it stood, its play and speed kept,
+  each try twice as long after the last up to 20 s (`useUnstuck`; a request held by the server, 15 Nov: back in 3 s; asking
+  again for the same moment waited on the stuck request). One hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
   shows in a lighter line what the browser loads from where the video stands, and in a playlist only what it holds of
   the clips to play: on a fast network it loads up to 70 s past each one, which the player jumps over (what it loaded
   once elsewhere may be gone). Read every 0.5 s and at each jump (`video.buffered`). Chromium reports
@@ -34,8 +37,10 @@ moments.
   and of touches): each part within 1 s of what is loaded; loaded parts drawn late or short in 3-13% of samples, up to 5 s.
 - "Vidéo augmentée" (`Watch/Overlay.tsx`, `helpers/overlay.ts`; on unless turned off, kept in the browser) draws on the
   video what the pipeline knows, as the films show it: the ball's trail over its last 0.5 s, as long as the ball is
-  fast, warm with a soft glow; and a card in the lower left corner (the playlist's title, "Signaler" and the court's
-  inset hold the others) for each measured serve's speed (with a gauge) and attack's
+  fast, warm with a soft glow; the score in the upper left corner as the films' timing tower (`Tower`: teams, points,
+  set; the point just won gold 1.5 s; on a narrow video the teams' colours alone; the playlist's title goes below it);
+  and a card in the lower left corner ("Signaler" and the court's inset hold the others) for each measured serve's
+  speed (with a gauge) and attack's speed (with a gauge, its height and "Détente" below when measured), else its
   height ("Détente" below when measured), from the serve's hit plus 0.15 s or the attack's hit, until the next card,
   2.4 s at most (`statCards`). The films' card (`film.telemetry`): slanted dark panel, red edge, the number slamming in
   (`outBack`) and counting up to gold over 0.55 s, sized by the video's width (`cqw`). All on the video's clock: paused,

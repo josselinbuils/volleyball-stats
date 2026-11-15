@@ -619,6 +619,18 @@ def counted(rallies: list[dict]) -> None:
         rally["score"] = list(running)
 
 
+def settled_scores(given: list[str | None], rallies: list[dict], checked: set[int]) -> list[str | None]:
+    """Each set's final score ("25-21", team 1 first): as given, else its running score once every rally of it is
+    checked in the review; None for the rest."""
+    sets = sorted({rally["set"] for rally in rallies})
+    out = list(given) + [None] * (max(sets, default=0) - len(given))
+    for number in sets:
+        played = [rally for rally in rallies if rally["set"] == number]
+        if not out[number - 1] and played[-1].get("score") and all(rally["key"] in checked for rally in played):
+            out[number - 1] = "-".join(map(str, played[-1]["score"]))
+    return out
+
+
 def acted(found: list[dict], typed: list[dict], fixes: dict[int, dict]) -> None:
     """The touches of `found` (from actions CSV rows `typed`) given the type and result the review
     gave (`fixes`, by frame)."""
@@ -859,6 +871,8 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     brief(found, actions, table, times, said, missed)
     if with_teams:
         jumped(found, table, finder(identities), by_frame, match, video, calibration, fps)
+    from volleyball_stats.review import checked
+
     stop = match_end(match)
     data = {
         "name": video.stem,
@@ -873,7 +887,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
         "rallies": rallies,
         "contacts": found,
         "zones": zone_cells(),
-        "scores": teams and teams.get("scores"),
+        "scores": teams and settled_scores(teams.get("scores") or [], rallies, set(checked(answers(match, "log")))),
         # The timeouts found or given, in seconds, those past the end given left out; sets come with teams.
         "timeouts": [
             {"start": round(t["start"] / fps, 2), "end": round(t["end"] / fps, 2), "team": t["team"]}

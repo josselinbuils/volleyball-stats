@@ -1066,7 +1066,8 @@
     "m": "m",
     "jump": "Détente",
     "cm": "cm",
-    "jumpOf": "Détente {{cm}} cm"
+    "jumpOf": "Détente {{cm}} cm",
+    "reachOf": "Frappe à {{m}} m"
   },
   "videoOverlay": "Vidéo augmentée",
   "story": {

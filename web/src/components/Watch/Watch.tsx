@@ -21,7 +21,7 @@ import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 import { useLayout } from '@/components/Watch/LayoutMenu';
-import { Overlay, type Paint } from '@/components/Watch/Overlay';
+import { BELOW_TOWER, Overlay, SCORED, type Paint } from '@/components/Watch/Overlay';
 import { askVideo } from '@/components/VideoChoice';
 import { smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
@@ -52,6 +52,10 @@ const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname
 const PRELOAD_MS = 250;
 // A wait for the video's data shorter than this shows nothing.
 const BUFFERING_MS = 300;
+// A wait this long with nothing more loaded is stuck: the video reloads where it stands, each try twice as long after the
+// last (asking again for that moment waits on the same stuck request: a request held 60 s, 15 Nov).
+const STUCK_MS = 2500;
+const STUCK_MOST_MS = 20000;
 
 export function Watch() {
   const { t } = useTranslation();
@@ -268,7 +272,7 @@ export function Watch() {
                   {/* The video's own box: the zoom stays inside it. */}
                   <div
                     className={cn(
-                      'relative overflow-hidden [:fullscreen_&]:min-h-0 [:fullscreen_&]:min-w-0 [:fullscreen_&]:flex-[3]',
+                      '@container relative overflow-hidden [:fullscreen_&]:min-h-0 [:fullscreen_&]:min-w-0 [:fullscreen_&]:flex-[3]',
                       courtFull && layout === 'side' && '[:fullscreen_&]:portrait:flex-none',
                     )}
                   >
@@ -278,7 +282,10 @@ export function Watch() {
                     {(playlist || pause) && (
                       <span
                         aria-hidden
-                        className="pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-8.5rem)] truncate rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm"
+                        className={cn(
+                          'pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-8.5rem)] truncate rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm',
+                          drawn && SCORED && typeof ball === 'object' && BELOW_TOWER,
+                        )}
                       >
                         {playlist ? `${playlist.title(t)} · ${t('iOfN', { i: f.num(playlist.at + 1), n: f.num(playlist.clips.length) })}` : pause && timeoutLabel(t, pause)}
                       </span>
@@ -329,15 +336,76 @@ export function Watch() {
   );
 }
 
-/** A spinner over `video` while it waits for data, to play on or to show the moment it moved to. */
+/** Whether `video` waits for data, to play on or to show the moment it moved to. */
+const waits = (video: HTMLVideoElement) => !video.error && (video.seeking || (!video.paused && video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA));
+
+/** The seconds `video` holds from where it stands on. */
+function heldAhead(video: HTMLVideoElement): number {
+  const { buffered, currentTime } = video;
+  for (let k = 0; k < buffered.length; k += 1) {
+    if (buffered.start(k) <= currentTime + 0.1 && currentTime <= buffered.end(k)) {
+      return buffered.end(k) - currentTime;
+    }
+  }
+  return 0;
+}
+
+/** Gets `video` going again when a wait for its data makes no progress (a browser's request can hang, mostly after a
+ * jump): it reloads the copy there, its speed and play kept. */
+function useUnstuck(video: HTMLVideoElement) {
+  useEffect(() => {
+    // Since when the wait made no progress, what it held then, and the tries made in it.
+    let since = 0;
+    let held = -1;
+    let tries = 0;
+    // A new jump is a new wait.
+    const restart = () => {
+      since = performance.now();
+      held = -1;
+    };
+    const timer = window.setInterval(() => {
+      if (!waits(video)) {
+        tries = 0;
+        restart();
+        return;
+      }
+      const ahead = heldAhead(video);
+      if (ahead > held + 0.05) {
+        since = performance.now();
+        held = ahead;
+        return;
+      }
+      if (performance.now() - since < Math.min(STUCK_MOST_MS, STUCK_MS * 2 ** tries)) {
+        return;
+      }
+      const { currentTime, paused, playbackRate } = video;
+      video.load();
+      video.currentTime = currentTime;
+      video.playbackRate = playbackRate;
+      if (!paused) {
+        video.play().catch(() => {});
+      }
+      tries += 1;
+      restart();
+    }, 250);
+    video.addEventListener('seeking', restart);
+    return () => {
+      window.clearInterval(timer);
+      video.removeEventListener('seeking', restart);
+    };
+  }, [video]);
+}
+
+/** A spinner over `video` while it waits for data, getting it going again when that wait is stuck. */
 function Buffering({ video }: { video: HTMLVideoElement }) {
   const { t } = useTranslation();
   const [shown, setShown] = useState(false);
+  useUnstuck(video);
   useEffect(() => {
     let timer = 0;
     const check = () => {
       window.clearTimeout(timer);
-      if (!video.error && (video.seeking || (!video.paused && video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA))) {
+      if (waits(video)) {
         timer = window.setTimeout(() => setShown(true), BUFFERING_MS);
       } else {
         setShown(false);

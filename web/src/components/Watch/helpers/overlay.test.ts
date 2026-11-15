@@ -89,11 +89,19 @@ describe('statCards', () => {
   const touch = (t: number, more: Partial<Contact> = {}) => ({ t, type: 'pass', ...more }) as Contact;
 
   it("shows a serve's speed after its hit and an attack's numbers at its hit, until the next card", () => {
-    const contacts = [touch(10, { type: 'serve', speed: 40 }), touch(11), touch(12, { type: 'attack', reach: 3.1 }), touch(20, { type: 'attack' }), touch(30, { type: 'attack', jump: 0.4 })];
+    const contacts = [
+      touch(10, { type: 'serve', speed: 40 }),
+      touch(11),
+      touch(12, { type: 'attack', reach: 3.1 }),
+      touch(20, { type: 'attack' }),
+      touch(30, { type: 'attack', jump: 0.4 }),
+      touch(40, { type: 'attack', attackSpeed: 60 }),
+    ];
     expect(statCards(contacts).map((c) => [c.contact, c.from, c.until])).toEqual([
       [0, 10.15, 12],
       [2, 12, 12 + CARD_S],
       [4, 30, 30 + CARD_S],
+      [5, 40, 40 + CARD_S],
     ]);
     expect(shownAt(statCards(contacts), 11)?.contact).toBe(0);
     expect(shownAt(statCards(contacts), 25)).toBeNull();

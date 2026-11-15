@@ -94,6 +94,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     cached `chromium_headless_shell-1148` lacks `libnss3` in WSL (`apt-get download libnss3 libnspr4`, `dpkg -x` them in a scratch
     folder, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu`), driven by `playwright` installed in a scratch folder (not in `web/`)
     with `devices['iPhone 13']`; Windows' Edge headless cannot go under about 500 px wide.
-19. "Vidéo augmentée" (14-15 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail, each measured serve's speed,
-    and attack's height and jump on film-like cards, drawn on the video. Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
+19. "Vidéo augmentée" (14-15 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail, the score, each measured serve's
+    and attack's speed (`ball3d.attack_speed`, 15 Nov) and attack's height and jump on film-like cards, drawn on the video.
+    Attack speeds are not on the stats, trophies or films yet. Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
     dark mode, an iPhone, the review's own clips (no overlay there).

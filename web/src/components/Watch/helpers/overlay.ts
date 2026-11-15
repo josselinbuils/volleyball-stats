@@ -113,11 +113,11 @@ export const CARD_S = 2.4;
 const SERVE_AFTER_S = 0.15;
 
 /** When each measured number shows on the video, as the films show them: a serve's speed just after its hit, an attack's
- * height or jump at its hit; each until the next card comes, CARD_S at most. */
+ * speed, height or jump at its hit; each until the next card comes, CARD_S at most. */
 export function statCards(contacts: Contact[]): Card[] {
   const cards: Card[] = [];
   contacts.forEach((c, contact) => {
-    const from = c.type === 'serve' && c.speed !== undefined ? c.t + SERVE_AFTER_S : c.type === 'attack' && (c.reach || c.jump) ? c.t : null;
+    const from = c.type === 'serve' && c.speed !== undefined ? c.t + SERVE_AFTER_S : c.type === 'attack' && (c.attackSpeed || c.reach || c.jump) ? c.t : null;
     if (from === null) {
       return;
     }

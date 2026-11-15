@@ -1,4 +1,4 @@
-"""Scores a serve's speed and a player's attack height on a built match, with no radar or tape measure to hand: what the
+"""Scores a serve's and an attack's speed and a player's attack height on a built match, with no radar or tape measure to hand: what the
 picture's scale gives for gravity and the players' heads, how far each measure moves under what could be wrong (contact
 frames, sightings, feet), and whether a player's measures agree with each other.
 
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats.ball3d import attack_height, camera_place, fit_rally, projection, read_sightings, serve_speed
+from volleyball_stats.ball3d import attack_height, attack_speed, camera_place, fit_rally, projection, read_sightings, serve_speed
 from volleyball_stats.court import Calibration, undistort
 
 LEAST_SERVES, LEAST_ATTACKS = 5, 5
@@ -77,6 +77,22 @@ def main(match: Path, court: Path) -> None:
         change = np.array([100 * (other[x] - serves[x]) / serves[x] for x in serves if x in other])
         print(f"  {name:24} kept {len(other):3}, moves {np.median(abs(change)):.1f}% median, {np.percentile(abs(change), 90):.1f}% at 90%, bias {np.median(change):+.1f}%")
     print(f"  {agreement(people(serves, LEAST_SERVES))}")
+
+    def attack_speeds(seen=sightings, edit=lambda c: c) -> dict:
+        return {
+            (k, i): v
+            for k, cs in rallies.items()
+            for i, c in enumerate(cs[:-1])
+            if c["type"] == "attack" and (v := attack_speed(edit(c), edit(cs[i + 1]), seen, P, fps, width)) is not None
+        }
+
+    hits = attack_speeds()
+    told = sum(c["type"] == "attack" for cs in rallies.values() for c in cs)
+    print(f"attack speeds measured {len(hits)} of {told}; km/h 5, 50, 95%, most: {np.percentile(list(hits.values()), [5, 50, 95, 100]).round(1)}")
+    for name, other in (("contact frames +-2", attack_speeds(edit=lambda c: jittered(c, 2))), ("a third fewer sightings", attack_speeds(fewer)), ("feet y +1 m", attack_speeds(edit=moved(1)))):
+        change = np.array([100 * (other[x] - hits[x]) / hits[x] for x in hits if x in other])
+        print(f"  {name:24} kept {len(other):3}, moves {np.median(abs(change)):.1f}% median, {np.percentile(abs(change), 90):.1f}% at 90%, bias {np.median(change):+.1f}%")
+    print(f"  {agreement(people(hits, LEAST_ATTACKS))}")
 
     attacks = heights()
     told = sum(c["type"] == "attack" for cs in rallies.values() for c in cs)

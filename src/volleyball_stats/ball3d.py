@@ -36,6 +36,12 @@ HIGHEST_M, FARTHEST_X, FARTHEST_Y = 6.0, 14.0, 9.0
 SERVE_TRIM_S, SERVE_SHORTEST_S, SERVE_SEEN, SERVE_LEAST_SEEN = 0.2, 0.4, 0.6, 12
 SERVE_AWAY_X, SERVE_FARTHEST_Y, SERVE_SHORTEST_M, SERVE_WORST_4K = 3.0, 7.0, 3.0, 12.0
 AFTER_SERVE = {"pass", "dig", "relance", "set", "attack", "block"}
+# An attack's speed too, over a shorter flight: to the dig, the block or the floor. `benchmarks/ball3d/measures.py`
+# scores them as a serve's (15 Nov, three matches: 74 to 121 attacks measured each, median 37-39 km/h, a contact frame
+# +-2 moves one 1%, the feet 1 m 2-5%; a player's odd and even tries correlate 0.31-0.53, serves 0.68-0.90). Under 0.25 s
+# a frame off is 8%: 93 km/h on one attack at 0.2.
+ATTACK_TRIM_S, ATTACK_SHORTEST_S, ATTACK_LONGEST_S, ATTACK_LEAST_SEEN, ATTACK_SHORTEST_M = 0.06, 0.25, 1.5, 8, 2.0
+AFTER_ATTACK = {"dig", "pass", "relance", "set", "block", "net", "floor"}
 # One attack's height swings with its contact's frame: the page only shows a player's median over several.
 ATTACK_LOWEST_M, ATTACK_HIGHEST_M, ATTACK_AROUND_S, ATTACK_SEEN = 1.8, 3.8, 0.3, 0.65
 
@@ -236,29 +242,61 @@ def touch_places(fitted: Fitted) -> list[float]:
     return out
 
 
+def flight_ends(touch: dict, after: dict, trim_s: float, sightings: dict[int, np.ndarray], P: np.ndarray, fps: float, width: int) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """The ball's places from `touch` to `after`, `trim_s` from each end, and how far each sighting stays from that
+    path, in pixels; None without both touches' feet or a sighting."""
+    trim = round(trim_s * fps)
+    first, last = touch["f"] + trim, after["f"] - trim
+    seen = {f: sightings[f] for f in range(first, last + 1) if f in sightings}
+    if last <= first or touch["x"] is None or after["x"] is None or not seen:
+        return None
+    # The feet say where the flight starts and ends: the ball has left them by these frames.
+    share = trim / (after["f"] - touch["f"])
+    dx, dy = after["x"] - touch["x"], after["y"] - touch["y"]
+    ends = [
+        {"f": first, "type": "flight" if touch["type"] == "serve" else touch["type"], "x": touch["x"] + share * dx, "y": touch["y"] + share * dy},
+        {"f": last, "type": "floor" if after["type"] == "floor" else "flight", "x": after["x"] - share * dx, "y": after["y"] - share * dy},
+    ]
+    (a, b), errors = fit_rally(ends, seen, P, fps, width)
+    return a, b, errors
+
+
+def seen_share(touch: dict, after: dict, trim_s: float, sightings: dict[int, np.ndarray], fps: float) -> tuple[float, int]:
+    """The flight's seconds between `touch` and `after` past `trim_s` from each end, and its frames the ball is seen in."""
+    trim = round(trim_s * fps)
+    first, last = touch["f"] + trim, after["f"] - trim
+    return (last - first) / fps, sum(f in sightings for f in range(first, last + 1))
+
+
 def serve_speed(serve: dict, after: dict, sightings: dict[int, np.ndarray], P: np.ndarray, fps: float, width: int = 3840) -> float | None:
     """A serve's mean speed over the middle of its flight to the touch `after`, in km/h; None if that flight is too
     short, too little seen or out of place."""
-    trim = round(SERVE_TRIM_S * fps)
-    first, last = serve["f"] + trim, after["f"] - trim
-    flight = (last - first) / fps
-    if after["type"] not in AFTER_SERVE or not SERVE_SHORTEST_S <= flight <= LONGEST_S or serve["x"] is None or after["x"] is None:
+    flight, seen = seen_share(serve, after, SERVE_TRIM_S, sightings, fps)
+    if after["type"] not in AFTER_SERVE or not SERVE_SHORTEST_S <= flight <= LONGEST_S or seen < max(SERVE_LEAST_SEEN, SERVE_SEEN * flight * fps):
         return None
-    seen = {f: sightings[f] for f in range(first, last + 1) if f in sightings}
-    if len(seen) < max(SERVE_LEAST_SEEN, SERVE_SEEN * (last - first)):
+    found = flight_ends(serve, after, SERVE_TRIM_S, sightings, P, fps, width)
+    if found is None:
         return None
-    # The feet say where the flight starts and ends: the ball has left them by these frames.
-    share = trim / (after["f"] - serve["f"])
-    dx, dy = after["x"] - serve["x"], after["y"] - serve["y"]
-    ends = [
-        {"f": first, "type": "flight", "x": serve["x"] + share * dx, "y": serve["y"] + share * dy},
-        {"f": last, "type": "flight", "x": after["x"] - share * dx, "y": after["y"] - share * dy},
-    ]
-    (a, b), errors = fit_rally(ends, seen, P, fps, width)
+    a, b, errors = found
     far = np.hypot(*(b[:2] - a[:2]))
     if far < SERVE_SHORTEST_M or a[0] * b[0] >= 0 or abs(a[0]) < SERVE_AWAY_X or max(abs(a[1]), abs(b[1])) > SERVE_FARTHEST_Y or np.median(errors) > SERVE_WORST_4K * width / 3840:
         return None
     return float(far / flight * 3.6)
+
+
+def attack_speed(attack: dict, after: dict, sightings: dict[int, np.ndarray], P: np.ndarray, fps: float, width: int = 3840) -> float | None:
+    """An attack's mean speed over its flight to the touch `after`, in km/h; None if that flight is too short, too
+    little seen or out of place."""
+    flight, seen = seen_share(attack, after, ATTACK_TRIM_S, sightings, fps)
+    if after["type"] not in AFTER_ATTACK or not ATTACK_SHORTEST_S <= flight <= ATTACK_LONGEST_S or seen < max(ATTACK_LEAST_SEEN, SERVE_SEEN * (flight * fps + 1)):
+        return None
+    found = flight_ends(attack, after, ATTACK_TRIM_S, sightings, P, fps, width)
+    if found is None:
+        return None
+    a, b, errors = found
+    # Down at the floor or a defender: its whole path, not only along the floor as a serve's.
+    far = np.linalg.norm(b - a)
+    return float(far / flight * 3.6) if far >= ATTACK_SHORTEST_M and np.median(errors) <= SERVE_WORST_4K * width / 3840 else None
 
 
 def attack_height(attack: dict, place: np.ndarray, sightings: dict[int, np.ndarray], fps: float) -> float | None:
@@ -269,7 +307,8 @@ def attack_height(attack: dict, place: np.ndarray, sightings: dict[int, np.ndarr
 
 
 def measure(fitted: Fitted, fps: float) -> None:
-    """Writes on the contacts each serve's `speed` in km/h and each attack's `reach` in metres, where they hold up."""
+    """Writes on the contacts each serve's `speed` and each attack's `attackSpeed` in km/h, and each attack's `reach` in
+    metres, where they hold up."""
     for touches, places in fitted.rallies:
         for k, (_, c) in enumerate(touches):
             if c["type"] == "serve" and k + 1 < len(touches):
@@ -280,3 +319,6 @@ def measure(fitted: Fitted, fps: float) -> None:
                 reach = attack_height(c, places[k], fitted.sightings, fps)
                 if reach is not None:
                     c["reach"] = round(reach, 2)
+                speed = attack_speed(c, touches[k + 1][1], fitted.sightings, fitted.P, fps, fitted.width) if k + 1 < len(touches) else None
+                if speed is not None:
+                    c["attackSpeed"] = round(speed)

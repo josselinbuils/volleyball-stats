@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Rally } from '@/lib/match';
-import { scoreAt } from '@/components/Watch/helpers/score';
+import { exactSet, justScored, scoreAt } from '@/components/Watch/helpers/score';
 
 describe('scoreAt', () => {
   const rally = (start: number, set: number, score: [number, number] | null) => ({ start, end: start + 5, set, score }) as Rally;
@@ -23,5 +23,33 @@ describe('scoreAt', () => {
 
   it('has no score without one', () => {
     expect(scoreAt([rally(10, 1, null)], 20, [])).toBeNull();
+  });
+});
+
+describe('justScored', () => {
+  const rallies = [
+    { start: 10, end: 15, set: 1, score: [1, 0], winner: 1 },
+    { start: 30, end: 35, set: 1, score: [1, 1], winner: 2 },
+  ] as Rally[];
+
+  it("names the team whose point just landed, for a while after the rally's end", () => {
+    expect(justScored(rallies, 36, 1.5)).toBe(2);
+    expect(justScored(rallies, 37, 1.5)).toBeNull();
+    expect(justScored(rallies, 32, 1.5)).toBeNull();
+    expect(justScored(rallies, 5, 1.5)).toBeNull();
+  });
+});
+
+describe('exactSet', () => {
+  const rallies = [
+    { set: 1, score: [1, 0] },
+    { set: 1, score: [1, 1] },
+    { set: 2, score: [0, 1] },
+  ] as Rally[];
+
+  it('holds when a set adds up to its final score', () => {
+    expect(exactSet(rallies, ['1-1', '25-20'], 1)).toBe(true);
+    expect(exactSet(rallies, ['1-1', '25-20'], 2)).toBe(false);
+    expect(exactSet(rallies, [], 1)).toBe(false);
   });
 });

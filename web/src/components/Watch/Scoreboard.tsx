@@ -3,11 +3,11 @@ import { Swatch } from '@/components/Swatch';
 import { useFormat } from '@/lib/format';
 import { GROUPS, groupName, match, rallies, teamColor, teamRing } from '@/lib/match';
 import { useVideoTime } from '@/lib/player';
-import { scoreAt } from '@/components/Watch/helpers/score';
+import { exactSet, scoreAt } from '@/components/Watch/helpers/score';
 import { Tip } from '@/components/Tip';
 
-/** The set and its score at the video's time, above the video; on a phone the set and whether the score is final on a
- * line above the teams, for their names to show. */
+/** The set and its score at the video's time, above the video; on a phone the set and whether the score is final or
+ * estimated (nothing when its set adds up to its final score) on a line above the teams, for their names to show. */
 export function Scoreboard() {
   const { t } = useTranslation();
   const f = useFormat();
@@ -36,9 +36,11 @@ export function Scoreboard() {
         <span className="truncate">{b}</span>
         <Swatch color={teamColor(2)} ring={teamRing(2)} />
       </span>
-      <Tip label={now.final ? undefined : t('scoreHint')}>
-        <span className="shrink-0 text-xs text-muted-foreground max-sm:ml-auto">{t(now.final ? 'scoreFinal' : 'scoreEstimated')}</span>
-      </Tip>
+      {(now.final || !exactSet(rallies, match.scores, now.set)) && (
+        <Tip label={now.final ? undefined : t('scoreHint')}>
+          <span className="shrink-0 text-xs text-muted-foreground max-sm:ml-auto">{t(now.final ? 'scoreFinal' : 'scoreEstimated')}</span>
+        </Tip>
+      )}
     </div>
   );
 }
