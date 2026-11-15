@@ -500,6 +500,10 @@
     "timeoutEnd": "Fin à {{time}}",
     "reportGo": "Revoir ce moment",
     "reportHandled": "Traité",
+    "recordRight": "Juste",
+    "recordRightNote": "Garde ce record.",
+    "recordWrong": "Fausse",
+    "recordWrongNote": "Retire cette mesure de la page à la prochaine application ; la suivante sera demandée.",
     "reportHandledNote": "Marque ce signalement comme traité et enregistre les corrections en cours.",
     "reportReceived": "Reçu le {{when}}",
     "autoReport": "Vérification automatique",
@@ -1033,6 +1037,11 @@
         "missedPoint": "Plus de points au tableau que d'échanges : un point manqué ?",
         "boardStill": "Tableau inchangé : échange à rejouer ?",
         "notOver": "Point sans passage du filet",
+        "record": {
+          "speed": "Record à confirmer : service le plus rapide",
+          "attackSpeed": "Record à confirmer : attaque la plus rapide",
+          "jump": "Record à confirmer : plus haute détente"
+        },
         "doubleTouch": "La même touche vue deux fois ?",
         "overThenSameTeam": "La même équipe rejoue après une attaque ou une relance",
         "setToOtherTeam": "Une passe suivie par l'autre équipe",

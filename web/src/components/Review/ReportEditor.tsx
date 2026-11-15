@@ -161,8 +161,9 @@ export function ReportEditor({
   onUncheck: (rally: number) => Promise<void>;
   /** The report questions left: each a rally's reports, listed under it. */
   questions: Question[];
-  /** Marks a rally's reports handled, the corrections as they stand saved with them. */
-  onHandled: (question: Question, changes: ReportChanges) => void;
+  /** Marks a rally's reports handled, the corrections as they stand saved with them; `wrong`, a record to confirm said
+   * wrong: its reading leaves the page. */
+  onHandled: (question: Question, changes: ReportChanges, wrong?: boolean) => void;
   /** The warnings as they stand: their moments, the rallies they make orange and the rallies joined, by their key. */
   onWarnings?: (found: { times: number[]; warned: number[]; joined: number[] }) => void;
   /** The rallies with corrections not saved yet, by their key. */
@@ -713,7 +714,8 @@ export function ReportEditor({
   const openQuestions = liveReports(questions, new Set(joinedKeys));
 
   // The reports under their rally's header; those in no rally between the rallies, as the timeouts.
-  const reportRows = (list: Question[]) => list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} />);
+  const reportRows = (list: Question[]) =>
+    list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} onWrong={() => onHandled(q, changes, true)} />);
   const rallyOfReport = (q: Question) => shown.findIndex((r) => r.key === q.rally);
   // What is wrong with a rally as a whole: no touch above its touches, no winner below them.
   const rallyWarning = (k: number, place: 'start' | 'end') => {

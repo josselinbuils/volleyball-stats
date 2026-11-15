@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import analysis, files, presence, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import records, due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -1492,3 +1492,15 @@ class TestSetStart:
         for change in ({"add": 5.0}, {"add": 500.0}, {"remove": "0:00"}, {"remove": "1:00"}):
             with pytest.raises(ValueError):
                 set_start(match, 50.0, **change)
+
+
+class TestRecords:
+    def test_each_trophy_s_record_is_a_report_to_confirm_on_its_touch_from_5_measured(self):
+        def c(kind, t, **measure):
+            return {"type": kind, "t": t, "f": round(t * 50), "person": 1, "rally": 0, **measure}
+
+        jumps = [c("attack", k, jump=0.3 + k / 100) for k in range(5)]
+        page = {"fps": 50, "contacts": [*jumps, c("serve", 10, speed=60), c("attack", 20, attackSpeed=70, jump=None)]}
+        found = records(page)
+        assert [(r["kind"], r["shown"], r["record"]) for r in found] == [("auto.record.jump", "34 cm", {"key": "jump", "frame": 200})]
+        assert found[0]["time"] == 4 and found[0]["id"] == "auto:record:jump:200:34"

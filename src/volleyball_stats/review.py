@@ -160,7 +160,8 @@ class Questions:
         done = set(checked(load_log(self.match / "identity_answers.json")))
         still = board_still(self.page, texts, done) if self.page else []
         over = not_over(self.page, crossings(self.match, self.calibration, self.fps), done) if self.page and self.calibration else []
-        self.reports = sorted(reports(self.match) + (unusual(self.page, read_places(self.match / "review" / "ball3d.js"), done) if self.page else []) + missed + board + still + over, key=lambda r: r.get("time") or 0)
+        best = records(self.page) if self.page else []
+        self.reports = sorted(reports(self.match) + (unusual(self.page, read_places(self.match / "review" / "ball3d.js"), done) if self.page else []) + missed + board + still + over + best, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
         nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
@@ -588,7 +589,10 @@ class Questions:
             if r["key"] in reported or not self.page:
                 continue
             question, ref = report_question(r, self.page, self.fps)
-            group = groups.setdefault(r["key"] if ref["start"] is None else ref["start"], [question, [], ref])
+            # A record to confirm is answered alone: "Fausse" drops its reading.
+            if r.get("record"):
+                ref = {**ref, "record": r["record"]}
+            group = groups.setdefault(r["key"] if ref["start"] is None or r.get("record") else ref["start"], [question, [], ref])
             if group[1]:
                 group[0]["reports"] += question["reports"]
             group[1].append(r["key"])
@@ -934,6 +938,31 @@ def unusual(page: dict, places: list | None = None, done: set[int] = frozenset()
         if len(names) > 1 and first is not None:
             said = f"auto:sameJersey:{team}:{jersey}"
             out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": rallies[first]["start"], "kind": "auto.sameJersey", "comment": None, "shown": f"{jersey} · {', '.join(names)}"})
+    return out
+
+
+# The measures a trophy is a record of (the page's `trophies.ts`): the contacts' key, the touch it is on, its unit's scale and
+# name, from how many measured.
+RECORDS = (("speed", "serve", 1, "km/h"), ("attackSpeed", "attack", 1, "km/h"), ("jump", "attack", 100, "cm"))
+RECORD_FROM = 5
+
+
+def records(page: dict) -> list[dict]:
+    """Each trophy's record (the fastest serve and attack, the highest jump: the best single reading, which a wrong one wins)
+    as a report on its touch to confirm, kind "auto.record.KEY", `shown` its value: "Juste" keeps it, "Fausse" ("wrong")
+    drops that reading from the page (`web.wrong_measures`) and the next best one is asked after the apply. Its id holds the
+    reading: a new one is asked again. Each is a question of its own, `record` (the key and frame) in its ref."""
+    out = []
+    for key, kind, scale, unit in RECORDS:
+        measured = [c for c in page["contacts"] if c["type"] == kind and c.get(key) is not None and c.get("person") is not None]
+        if len(measured) < RECORD_FROM:
+            continue
+        best = max(round(c[key] * scale) for c in measured)
+        for c in measured:
+            if round(c[key] * scale) == best:
+                frame = c.get("f", round(c["t"] * page["fps"]))
+                said = f"auto:record:{key}:{frame}:{best}"
+                out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": c["t"], "kind": f"auto.record.{key}", "comment": None, "shown": f"{best} {unit}", "record": {"key": key, "frame": frame}})
     return out
 
 
@@ -2857,7 +2886,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         asked = {entry["id"] for entry in log}
                         # Before the answer: an undo after a restart takes that one away.
                         log += pinned(questions.page, ok) + locked(questions.page, ok, given) + unlocked(off)
-                        log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), "applied": False})
+                        wrong = choice == "wrong" and not edit and refs[body["id"]]["report"].get("record")
+                        log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), **({"wrong": wrong} if wrong else {}), "applied": False})
                         # The reports on a rally checked are handled with it.
                         log += [{"id": qid, "choice": "checked", "applied": False} for qid, ref in refs.items() if "report" in ref and ref["report"]["start"] in ok and qid not in asked]
                     elif "rally" in refs[body["id"]]:

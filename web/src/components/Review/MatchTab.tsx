@@ -66,7 +66,7 @@ export function MatchTab({
   onSave: (changes: ReportChanges, rally: number) => Promise<void>;
   onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<void>;
   onUncheck: (rally: number) => Promise<void>;
-  onHandled: (report: Question, changes: ReportChanges) => Promise<void>;
+  onHandled: (report: Question, changes: ReportChanges, wrong?: boolean) => Promise<void>;
   /** Where the video stands, to the frame. */
   timeRef: RefObject<number>;
   /** How many rallies have corrections not saved yet. */
@@ -220,7 +220,7 @@ export function MatchTab({
             onUncheck={(rally) => onUncheck(rally)}
             onCaption={setCaption}
             questions={reports}
-            onHandled={(q, changes) => void onHandled(q, changes).then(() => setRound((r) => r + 1))}
+            onHandled={(q, changes, wrong) => void onHandled(q, changes, wrong).then(() => setRound((r) => r + 1))}
             saved={saved}
             comments={comments}
             onComment={onComment}

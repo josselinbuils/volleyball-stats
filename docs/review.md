@@ -214,6 +214,11 @@ Automatic reports (`review.unusual`) flag:
 - the running score parting from the score board's for two readings in a row (`boardOff`, `scoreboard.py`: the board read
   before each serve, a misread one dropped, its sides fitted set by set);
 - one jersey on two players of a team (allowed, the owner's: both may wear no team jersey; handled once).
+- each trophy's record (`review.records`, `record.KEY`: the fastest serve and attack, the highest jump, from 5 measured; ties
+  each), on its touch, its own question: the trophies take the best single reading (the owner, 15 Nov), which a wrong one
+  wins, and the numbers alone do not tell a wrong one (on the three matches the outstanding ones were not all wrong).
+  "Juste" (or checking its rally) keeps it; "Fausse" (`wrong`, the key and frame in its answer) takes that reading off the
+  page at the apply (`web.wrong_measures`), and the next best one is asked then.
 
 A rally between two equal board readings (`boardStill`, to replay or false) and a last touch scoring with no net crossing
 after it, a block apart (`notOver`, `review.crossings`: `net.csv` stops with the windows) are reported too, but never on a

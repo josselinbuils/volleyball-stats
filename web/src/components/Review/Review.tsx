@@ -226,10 +226,10 @@ export function Review({
     setTab(next);
     history.replaceState(null, '', HASHES[next] || location.pathname);
   };
-  // A report marked handled, with the corrections as they stand.
-  const handled = async (report: Question, changes: ReportChanges) => {
+  // A report marked handled, with the corrections as they stand; a record to confirm said wrong (`wrong`), its reading off.
+  const handled = async (report: Question, changes: ReportChanges, wrong = false) => {
     try {
-      const saved = await post('answer', { id: report.id, choice: 'report', changes });
+      const saved = await post('answer', wrong ? { id: report.id, choice: 'wrong' } : { id: report.id, choice: 'report', changes });
       setDone((d) => [...d, report]);
       setQuestions((qs) => qs.filter((q) => q.id !== report.id));
       onSaved(saved);

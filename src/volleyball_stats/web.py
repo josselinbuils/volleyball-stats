@@ -619,6 +619,20 @@ def counted(rallies: list[dict]) -> None:
         rally["score"] = list(running)
 
 
+def wrong_measures(log: list[dict]) -> set[tuple[str, int]]:
+    """The readings the review said wrong (a record's report answered "Fausse", `review.records`), as (the contact's key,
+    its frame)."""
+    return {(e["wrong"]["key"], int(e["wrong"]["frame"])) for e in log if isinstance(e.get("wrong"), dict)}
+
+
+def unmeasured(found: list[dict], wrong: set[tuple[str, int]], fps: float) -> None:
+    """The `wrong` readings (key, frame) taken off the contacts of `found`: no trophy, card or film shows them."""
+    for c in found:
+        frame = c.get("f", round(c["t"] * fps))
+        for key in [key for key, at in wrong if at == frame]:
+            c.pop(key, None)
+
+
 def settled_scores(given: list[str | None], rallies: list[dict], checked: set[int]) -> list[str | None]:
     """Each set's final score ("25-21", team 1 first): as given, else its running score once every rally of it is
     checked in the review; None for the rest."""
@@ -902,6 +916,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     fitted = fit_touches(found, match / "ball.csv", calibration, fps)
     data["ball3d"] = touch_places(fitted)
     measure(fitted, fps)
+    unmeasured(found, wrong_measures(answers(match, "log")), fps)
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 

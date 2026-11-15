@@ -500,6 +500,10 @@
     "timeoutEnd": "End at {{time}}",
     "reportGo": "Watch this moment",
     "reportHandled": "Handled",
+    "recordRight": "Right",
+    "recordRightNote": "Keeps this record.",
+    "recordWrong": "Wrong",
+    "recordWrongNote": "Takes this measure off the page at the next apply; the next one will be asked.",
     "reportHandledNote": "Marks this report as handled and saves the corrections as they stand.",
     "reportReceived": "Received {{when}}",
     "autoReport": "Automatic check",
@@ -1033,6 +1037,11 @@
         "missedPoint": "More points on the board than rallies: a missed point?",
         "boardStill": "Scoreboard unchanged: a rally to replay?",
         "notOver": "A point without the ball crossing the net",
+        "record": {
+          "speed": "Record to confirm: fastest serve",
+          "attackSpeed": "Record to confirm: fastest attack",
+          "jump": "Record to confirm: highest jump"
+        },
         "doubleTouch": "The same touch seen twice?",
         "overThenSameTeam": "The same team plays on after an attack or a relance",
         "setToOtherTeam": "A set followed by the other team",

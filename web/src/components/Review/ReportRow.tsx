@@ -1,15 +1,17 @@
 import { useTranslation } from 'react-i18next';
-import { Check, Flag } from 'lucide-react';
+import { Check, Flag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { clock, useFormat } from '@/lib/format';
 import type { Question } from '@/lib/review';
 import { Tip } from '@/components/Tip';
 
-/** A rally's reports in its list: what each said, the moment to replay, and marking them handled. */
-export function ReportRow({ question, onPlay, onHandled }: { question: Question; onPlay: (time: number) => void; onHandled: () => void }) {
+/** A rally's reports in its list: what each said, the moment to replay, and marking them handled; a record to confirm
+ * (`review.records`) is right (handled) or wrong (`onWrong`: its reading leaves the page). */
+export function ReportRow({ question, onPlay, onHandled, onWrong }: { question: Question; onPlay: (time: number) => void; onHandled: () => void; onWrong: () => void }) {
   const { t } = useTranslation();
   const f = useFormat();
   const at = question.reports?.[0]?.time ?? question.clip.start;
+  const record = question.reports?.some((r) => r.kind?.startsWith('auto.record.'));
   return (
     <li className="grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border border-l-4 border-primary bg-primary/5 p-1.5 text-sm">
       <div className="flex items-center gap-1.5">
@@ -24,12 +26,29 @@ export function ReportRow({ question, onPlay, onHandled }: { question: Question;
             {clock(at)}
           </button>
         </Tip>
-        <Tip label={t('review.reportHandledNote')}>
-          <Button variant="outline" size="xs" className="ml-auto bg-card" onClick={onHandled}>
-            <Check aria-hidden />
-            {t('review.reportHandled')}
-          </Button>
-        </Tip>
+        {record ? (
+          <>
+            <Tip label={t('review.recordRightNote')}>
+              <Button variant="outline" size="xs" className="ml-auto bg-card" onClick={onHandled}>
+                <Check aria-hidden />
+                {t('review.recordRight')}
+              </Button>
+            </Tip>
+            <Tip label={t('review.recordWrongNote')}>
+              <Button variant="outline" size="xs" className="bg-card" onClick={onWrong}>
+                <X aria-hidden />
+                {t('review.recordWrong')}
+              </Button>
+            </Tip>
+          </>
+        ) : (
+          <Tip label={t('review.reportHandledNote')}>
+            <Button variant="outline" size="xs" className="ml-auto bg-card" onClick={onHandled}>
+              <Check aria-hidden />
+              {t('review.reportHandled')}
+            </Button>
+          </Tip>
+        )}
       </div>
       {question.reports?.map((r, k) => (
         <p key={k} className="m-0 px-1.5">

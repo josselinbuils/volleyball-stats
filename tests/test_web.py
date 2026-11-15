@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import club_settings, web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, unmeasured, wrong_measures, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -161,6 +161,14 @@ class TestContacts:
         rewon(rallies, {100: 2, 500: 2})
 
         assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
+
+    def test_a_record_said_wrong_leaves_its_touch(self):
+        log = [{"id": "report:ab", "choice": "wrong", "wrong": {"key": "jump", "frame": 200}}, {"id": "report:cd", "choice": "report"}]
+        found = [{"t": 4, "f": 200, "jump": 0.7, "reach": 3.0}, {"t": 5, "f": 250, "jump": 0.4}]
+
+        unmeasured(found, wrong_measures(log), 50)
+
+        assert found == [{"t": 4, "f": 200, "reach": 3.0}, {"t": 5, "f": 250, "jump": 0.4}]
 
     def test_a_set_whose_every_rally_is_checked_has_its_running_score_as_final(self):
         rallies = [{"key": 100, "set": 1, "score": [1, 0]}, {"key": 300, "set": 1, "score": [1, 1]}, {"key": 500, "set": 2, "score": [0, 1]}, {"key": 700, "set": 3, "score": [1, 0]}]
