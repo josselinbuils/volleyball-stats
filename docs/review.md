@@ -156,6 +156,13 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   there yet) by the rally before's winner, its player field ready.
 - A touch added guesses its action from the one before (`nextTouch`): after an attack, a block under 0.4 s later (on the
   three matches blocks came 0.02-0.54 s after it, median 0.2 s; digs 0.1-1.7 s, median 0.8 s), else a dig.
+- "Ajouter l'attaque" beside a set's doubt ("Une passe suivie par l'autre équipe", "L'échange finit sur une passe"; the
+  owner's, 15 Nov) adds the attack the ball unseen hid, by the set's team, 1.42 s after the set and 0.2 s before the next
+  touch at most (`missedAttackAt`), the video paused there and its player field ready; a rally ending on the set ends on
+  the attack instead (the set's point or fault moves to it). On the three matches' pipeline runs (`add-15nov`), an attack
+  was missing at 46 of the 116 sets doubted so, the rest sets really sent over or ending the rally, or relances and
+  attacks typed as sets (a key fixes those); the time found within 0.2 s 33-84% of the time, 0.3 s 67-95% (on the 397
+  attacks seen after a set: 1.42 s median, 70% within 0.2 s).
 - Rallies are named by their `rallies.csv` start (`key` on the page). A rally starts at its first touch kept, its serve
   (`web.started`, never before the one before ends; the editor's `startOf` as the touches are removed or added): on the
   three matches, 55 of 444 started 0.5-11 s before their serve (touches removed in the review), most others 0.33 s after

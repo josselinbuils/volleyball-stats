@@ -7,6 +7,8 @@ import {
   joinEnd,
   joinStart,
   liveReports,
+  matchFinished,
+  missedAttackAt,
   nextTouch,
   offGiven,
   openingTime,
@@ -14,11 +16,10 @@ import {
   rallyAt,
   rallyOf,
   runningScores,
+  splitAfter,
   timeoutsAfter,
   withAdded,
-  splitAfter,
   withSplits,
-  matchFinished,
 } from '@/components/Review/helpers/report';
 
 describe('comingFirstTouch', () => {
@@ -302,5 +303,17 @@ describe('liveReports', () => {
       { rally: null, reports: [report('auto.gap')] },
     ];
     expect(liveReports(questions, new Set([1]))).toEqual(questions);
+  });
+});
+
+describe('missedAttackAt', () => {
+  it('puts the attack 1.42 s after the set, before the next touch', () => {
+    expect(missedAttackAt(10)).toBe(11.42);
+    expect(missedAttackAt(10, 13)).toBe(11.42);
+    expect(missedAttackAt(10, 11.3)).toBe(11.1);
+  });
+
+  it('finds no room right before the next touch', () => {
+    expect(missedAttackAt(10, 10.8)).toBeNull();
   });
 });

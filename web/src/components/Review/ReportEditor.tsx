@@ -25,6 +25,7 @@ import {
   freeFrame,
   LEAD_S,
   NEXT_TOUCH_S,
+  missedAttackAt,
   nextTouch,
   offGiven,
   pieceOf,
@@ -380,6 +381,25 @@ export function ReportEditor({
       changeRow(before, { result: 'play' });
     }
     setAdded((all) => [...all, { frame, time, ...guess, result: 'play' }]);
+    setFresh({ key: `t${frame}` });
+    onPause(time);
+  };
+  // The attack the editor's doubt on a set says may be missing, by the set's team, after it: the video there, its player
+  // field ready. A rally ending on the set ends on the attack instead.
+  const nextAfter = (row: Row) => mineOf(joinStart(row.rally, joins)).find((r) => r.time > row.time && r.type !== 'fault')?.time;
+  const missedAttack = (row: Row) => {
+    const next = nextAfter(row);
+    const at = missedAttackAt(row.time, next);
+    if (at === null) {
+      return;
+    }
+    const frame = freeFrame([...contacts.map((c) => c.f ?? frameOf(c.t)), ...added.map((a) => a.frame)], frameOf(at));
+    const time = frame / match.fps;
+    const result = next || row.result === 'play' ? 'play' : row.result;
+    if (result !== 'play') {
+      changeRow(row, { result: 'play' });
+    }
+    setAdded((all) => [...all, { frame, time, type: 'attack', team: row.team, result }]);
     setFresh({ key: `t${frame}` });
     onPause(time);
   };
@@ -1066,7 +1086,13 @@ export function ReportEditor({
                             {problemsOf(row).length > 0 && (
                               <p className="m-0 flex items-center gap-1.5 px-1 text-xs text-amber-800 dark:text-amber-300">
                                 <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
-                                {describe(problemsOf(row))}
+                                <span className="min-w-0 flex-1">{describe(problemsOf(row))}</span>
+                                {row.type === 'set' && problemsOf(row).some((p) => p === 'setToOtherTeam' || p === 'endsOnSet') && missedAttackAt(row.time, nextAfter(row)) !== null && (
+                                  <Button variant="outline" size="sm" className="h-7 shrink-0 text-foreground" onClick={() => missedAttack(row)}>
+                                    <Plus aria-hidden />
+                                    {t('review.addMissedAttack')}
+                                  </Button>
+                                )}
                               </p>
                             )}
                             {!row.removed && (

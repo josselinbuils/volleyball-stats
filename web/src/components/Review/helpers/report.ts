@@ -127,6 +127,20 @@ export function nextTouch(before: { type: string; team: Group } | undefined, ser
   }
 }
 
+/** A set's attack comes this long after it (on the three matches' 397 seen: median 1.42 s, 10-90% 1.18-1.68 s), the
+ * touch after the attack at least this long after it (its 10th percentile). */
+export const SET_TO_ATTACK_S = 1.42;
+const ATTACK_TO_NEXT_S = 0.2;
+
+/** When the attack missed after a set at `set` most likely was, the next touch at `next` (none: the rally ended):
+ * 1.42 s after the set, before the next touch; null with no room for one. On the three matches, where the editor doubts
+ * a set (the other team plays next, or the rally ends on it), an attack was missing 46 times of 116, found within 0.2 s
+ * by this 33-84% of the time (within 0.3 s 67-95%). */
+export function missedAttackAt(set: number, next?: number): number | null {
+  const at = Math.min(set + SET_TO_ATTACK_S, (next ?? Infinity) - ATTACK_TO_NEXT_S);
+  return at - set < SET_TO_ATTACK_S / 2 ? null : Math.round(at * 100) / 100;
+}
+
 /** `frame`, else the next one no touch holds: the answers name a touch by its frame. */
 export function freeFrame(taken: number[], frame: number): number {
   const held = new Set(taken);

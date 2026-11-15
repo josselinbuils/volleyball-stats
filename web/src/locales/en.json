@@ -500,6 +500,7 @@
     "timeoutStart": "Start at {{time}}",
     "timeoutEnd": "End at {{time}}",
     "reportGo": "Watch this moment",
+    "addMissedAttack": "Add the attack",
     "reportHandled": "Handled",
     "recordRight": "Right",
     "recordRightNote": "Keeps this record.",

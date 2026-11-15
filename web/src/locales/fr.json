@@ -500,6 +500,7 @@
     "timeoutStart": "Début à {{time}}",
     "timeoutEnd": "Fin à {{time}}",
     "reportGo": "Revoir ce moment",
+    "addMissedAttack": "Ajouter l'attaque",
     "reportHandled": "Traité",
     "recordRight": "Juste",
     "recordRightNote": "Garde ce record.",
