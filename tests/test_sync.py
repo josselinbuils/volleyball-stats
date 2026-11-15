@@ -1,4 +1,6 @@
 import json
+import time
+from datetime import datetime
 
 import pytest
 
@@ -115,6 +117,19 @@ class TestChanged:
 
 class TestPush:
     @staticmethod
+    def local(at: str) -> str:
+        return datetime.strptime(at, "%Y-%m-%dT%H:%M:%S%z").astimezone().strftime("%H:%M")
+
+    def test_the_servers_time_said_in_this_machines(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TZ", "Europe/Paris")
+        time.tzset()
+        try:
+            assert sync.shown({"pushed": "2026-11-15T19:13:32+0000", "pushedBy": "pc"}, tmp_path / "m")["at"] == "20:13"
+        finally:
+            monkeypatch.undo()
+            time.tzset()
+
+    @staticmethod
     def setup(tmp_path, monkeypatch, answers: dict):
         match = tmp_path / "outputs" / "matches" / "m"
         match.mkdir(parents=True)
@@ -136,7 +151,7 @@ class TestPush:
         with pytest.raises(sync.Conflict) as error:
             sync.push(match)
 
-        assert calls == [("begin", 0, False)] and error.value.claim == {"machine": "mac", "at": "14:02", "changed": True}
+        assert calls == [("begin", 0, False)] and error.value.claim == {"machine": "mac", "at": self.local("2026-11-08T14:02:00+0100"), "changed": True}
 
     def test_waits_while_another_machine_sends_it(self, tmp_path, monkeypatch):
         match, _ = self.setup(tmp_path, monkeypatch, {"begin": {"ok": False, "busy": True, "pushing": {"machine": "mac", "at": 0}}})
@@ -150,6 +165,30 @@ class TestPush:
         sync.push(match)
 
         assert calls == [("begin", 0, False), ("merge", None, None), ("backup", None, None), ("commit", 0, False)] and sync.local(match)["version"] == 1
+
+    def test_a_push_cut_off_after_the_servers_commit_is_this_machines_own(self, tmp_path, monkeypatch):
+        match, _ = self.setup(tmp_path, monkeypatch, {"begin": {"ok": True, "version": 4}, "commit": {"ok": True, "version": 5}})
+
+        def stopped(*args):
+            raise SystemExit
+
+        monkeypatch.setattr(sync, "remember", stopped)
+        with pytest.raises(SystemExit):
+            sync.push(match)
+        monkeypatch.undo()
+        (match / "answers.json").write_text("changed since")
+
+        assert sync.settle(match, {"version": 5, "pushedBy": sync.machine(), "pushing": None})
+        assert sync.local(match)["version"] == 5 and "sending" not in sync.local(match) and sync.changed(match)
+
+    def test_another_machines_newer_copy_is_not_taken_for_this_ones(self, tmp_path):
+        match = tmp_path / "m"
+        match.mkdir()
+        (match / sync.STATE).write_text(json.dumps({"version": 4, "signature": None, "sending": {"from": 4, "signature": [0, 0.0]}}))
+
+        assert not sync.settle(match, {"version": 5, "pushedBy": "mac", "pushing": None})
+        assert not sync.settle(match, {"version": 6, "pushedBy": sync.machine(), "pushing": None})
+        assert sync.local(match)["version"] == 4
 
     def test_keeping_this_machines_sends_it_over_the_newer_one(self, tmp_path, monkeypatch):
         match, calls = self.setup(tmp_path, monkeypatch, {"begin": {"ok": True}, "commit": {"ok": True, "version": 3}})
@@ -181,7 +220,7 @@ class TestCheck:
     def test_asks_which_to_keep_when_both_changed(self, tmp_path, monkeypatch):
         match, pulled = self.setup(tmp_path, monkeypatch, version=3, here=2, changed=True)
 
-        assert sync.check(match) == {"machine": "mac", "at": "14:02", "changed": True} and pulled == []
+        assert sync.check(match) == {"machine": "mac", "at": TestPush.local("2026-11-08T14:02:00+0100"), "changed": True} and pulled == []
 
     def test_nothing_when_this_copy_is_the_servers(self, tmp_path, monkeypatch):
         match, pulled = self.setup(tmp_path, monkeypatch, version=2, here=2, changed=True)

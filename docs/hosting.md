@@ -262,7 +262,11 @@ match (the owner's rule, 8 Nov: no machine holds one).
   brings the server's newer copy when nothing changed here (`sync.check`, 15 s at most).
 - Changed on both sides (at opening, or a copy refused later), it asks which to keep, "Modifié ici et sur MACHINE": "Celle
   de MACHINE" pulls it (this machine's changes kept in `backup-sync-<time>/`), "Celle d'ici" sends this one, the server's
-  set aside first in `aside/<time>-v<version>/` beside the dated copies (hard links).
+  set aside first in `aside/<time>-v<version>/` beside the dated copies (hard links). Its time is this machine's (the
+  server's clock is UTC).
+- A push stopped once the server moved its version on, before this machine noted it (the review stopped or restarted
+  mid-copy, 15 Nov: the PC then "changed on both sides" against itself): a `sending` mark left in `.sync.json` before
+  the commit lets the next check or push take the server's version as this machine's own (`sync.settle`).
 - The list of matches offers those only on the server ("À télécharger"), asked once the page shows
   (`/matches/remote.json`: the ssh round trip takes a second).
 - A pull also brings the courts, lens, club and sponsors this machine lacks, and the roster is joined, each match's names

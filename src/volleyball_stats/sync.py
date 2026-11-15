@@ -134,10 +134,21 @@ def remember(match: Path, version: int, signature: tuple[int, float] | None) -> 
     files.write_text(match / STATE, json.dumps({"version": version, "signature": list(signature) if signature else None}) + "\n")
 
 
+def settle(match: Path, record: dict) -> bool:
+    """This machine's own copy taken as the server's: a push cut off once the server had moved its version on (the review
+    stopped mid-push, 15 Nov), its `sending` mark left before the commit. Whether it was."""
+    sent = local(match).get("sending")
+    if not sent or record.get("pushedBy") != machine() or record.get("version") != sent["from"] + 1 or record.get("pushing"):
+        return False
+    remember(match, record["version"], tuple(sent["signature"]))
+    return True
+
+
 def shown(record: dict, match: Path) -> dict:
     """What the review says of the server's newer copy: which machine sent it, when, whether this machine changed its own."""
     at = record.get("pushed")
-    return {"machine": record.get("pushedBy") or "?", "at": at[11:16] if at else None, "changed": changed(match)}
+    # The server's clock is often UTC: said in this machine's time.
+    return {"machine": record.get("pushedBy") or "?", "at": datetime.strptime(at, "%Y-%m-%dT%H:%M:%S%z").astimezone().strftime("%H:%M") if at else None, "changed": changed(match)}
 
 
 # The review waits this long for the server when it opens a match; unreached, it opens as it is (the next push checks).
@@ -152,7 +163,7 @@ def check(match: Path) -> dict | None:
         return None
     try:
         found = remote(config, "status", match.name, timeout=CHECK_S)
-        if not found["day"] or found["version"] == local(match)["version"]:
+        if not found["day"] or found["version"] == local(match)["version"] or settle(match, found):
             return None
         if changed(match):
             return shown(found, match)
@@ -172,10 +183,14 @@ def push(match: Path, force: bool = False) -> None:
     if found.get("busy"):
         raise RuntimeError(f"{found['pushing']['machine']} is sending it: try again in a moment")
     if not found["ok"]:
+        if settle(match, found):
+            return push(match, force)
         raise Conflict(shown(found, match))
     signature = backup.signature([match])
     merge_shared(files.root(match), config)
     backup.backup(match)
+    # Stopped between the commit and `remember`, this machine knows its copy by this mark (`settle`).
+    files.write_text(match / STATE, json.dumps({**local(match), "sending": {"from": found["version"], "signature": list(signature)}}) + "\n")
     # ponytail: a machine pulling while another sends may get a half-written copy; `pull` waiting on `pushing` would close it.
     done = remote(config, "commit", match.name, base)
     if not done["ok"]:
@@ -352,7 +367,7 @@ def behind(found: list[Path]) -> dict[str, str]:
     if not found or not active(files.root(found[0])):
         return {}
     known = listing(files.root(found[0]))
-    return {m.name: known[m.name].get("pushedBy") or "?" for m in found if m.name in known and known[m.name]["version"] > local(m)["version"]}
+    return {m.name: known[m.name].get("pushedBy") or "?" for m in found if m.name in known and known[m.name]["version"] > local(m)["version"] and not settle(m, known[m.name])}
 
 
 def listing(outputs: Path) -> dict[str, dict]:
