@@ -81,7 +81,11 @@ moments.
   their initials (two letters when two teammates without a jersey share one).
 - **3D view:** a switch turns the court into a 3D scene to turn around with the pointer (three.js, in
   its own `scene3d.js` loaded only then):
-  - the players as figures jumping to attack and block;
+  - the players as figures jumping to attack and block, each with their hair (colour, and short, mid-length, a ponytail,
+    long or bald) and skin guessed from their card's picture (`likeness.py`: a human-parsing model, SegFormer trained on
+    ATR, MIT licence, downloaded on first use; [benchmark](../benchmarks/likeness/README.md)) and corrected in the review;
+    only on a page with the video (the review, a local one, the hosted one behind its password), never for a blurred team:
+    elsewhere made-up looks;
   - the ball's height reconstructed, each flight rising as high as gravity requires for its duration,
     and over the net when it crosses it, each touch at a typical height for its action.
 

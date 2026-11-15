@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import type { Look } from '@/lib/looks';
 import { playerMarks } from '@/helpers/players';
 import { ofName } from '@/lib/format';
 
@@ -104,6 +105,8 @@ export interface Person {
   name?: string | null;
   /** A picture of them from the video, beside data.js. */
   photo?: string;
+  /** Their hair and skin for the 3D figures, on a page with the video only. */
+  look?: Look;
   /** Seconds on the court during the rallies, by set number. */
   seconds?: Record<string, number>;
 }

@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, timeouts
+from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, timeouts
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -1513,8 +1513,8 @@ LOADED_REID: list = []
 
 def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}, record: Path | None = None) -> dict[int, tuple]:
     """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: their
-    best moment (PHOTO_PICKS), framed; returns each pictured player's (frame, box, head). `record`
-    (PHOTO_SHOWN) gets where each picture was taken."""
+    best moment (PHOTO_PICKS), framed, and their `look` for the 3D figures from it (`likeness.dress`); returns each
+    pictured player's (frame, box, head). `record` (PHOTO_SHOWN) gets where each picture was taken."""
     from volleyball_stats.decode import frames_apart
     from volleyball_stats.review import ALONE, IDENTITY_CROPS, Questions, load_log, piece_key
 
@@ -1644,8 +1644,8 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
         found = list(dict.fromkeys(found + [m for m in kits[key] if room(m[1])]))
         found = [m for m in found if np.linalg.norm(np.subtract(scores[name(*m)][5], kit)) <= KIT] or found
         seen = np.array([vectors[name(*m)] for m in confirmed[key]])
-        likeness = {m: float(np.median(seen @ vectors[name(*m)])) for m in found}
-        moments[key] = [m for m in found if likeness[m] >= max(likeness.values()) - LIKE]
+        alike = {m: float(np.median(seen @ vectors[name(*m)])) for m in found}
+        moments[key] = [m for m in found if alike[m] >= max(alike.values()) - LIKE]
         # The card's own pictures facing the camera, offered first: the closest moments are often from behind.
         facing_card[key] = sorted({m for m in confirmed[key] if scores[name(*m)][0] > FACED}, key=lambda m: -scores[name(*m)][0])
         fitting_card = [m for m in facing_card[key] if room(m[1]) and np.linalg.norm(np.subtract(scores[name(*m)][5], kit)) <= KIT]
@@ -1708,6 +1708,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
                 taken_at[f"{folder.name}/{key}.webp"] = {"track": questions.track_at(frame, box), "frame": frame}
     if record:
         files.write_text(record, json.dumps(taken_at))
+    likeness.dress(match, people, {key: folder / f"{key}.webp" for key in picked if (folder / f"{key}.webp").exists()})
     return picked
 
 
@@ -1772,7 +1773,16 @@ def build(
         shutil.rmtree(site / "players", ignore_errors=True)
         photos(match, video, data["people"], site / "players", pictured, match / PHOTO_SHOWN if review else None)
     else:
-        kept_photos(data["people"], site, match)
+        kept_photos(data["people"], site, match, ("photo",))
+    # The looks the review made and corrected; only beside the video (the hosted one behind its password),
+    # never for a blurred team.
+    if not review:
+        for person in data["people"].values():
+            person.pop("look", None)
+        kept_photos(data["people"], match / "review", match, ("look",))
+    elif not pictures:
+        kept_photos(data["people"], site, match, ("look",))
+    hide_looks(data["people"], blurred)
     part("photos")(1.0)
     # The logo's folder, and the one older builds named brand/.
     for folder in ("club", "brand"):
@@ -1803,17 +1813,26 @@ def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictur
     return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True, share=share)
 
 
-def kept_photos(people: dict[int, dict], site: Path, match: Path) -> None:
-    """`people` with the pictures the page at `site` shows, each on the player it shows now: the
-    (team, number) whose piece holds where it was taken (PHOTO_SHOWN), else the player of the same
-    name; none for the others until the new pictures come. An apply moves numbers between players."""
+def hide_looks(people: dict[int, dict], blurred: set[int] | None) -> None:
+    """`people` without their looks (hair, skin: taken from the video) on a page without the video (`blurred` None: the
+    open hosted one) and for a blurred team: the video goes online behind its password only."""
+    for person in people.values():
+        if blurred is None or person["team"] in blurred:
+            person.pop("look", None)
+
+
+def kept_photos(people: dict[int, dict], site: Path, match: Path, kept: tuple[str, ...] = ("photo", "look")) -> None:
+    """`people` with the pictures the page at `site` shows and the looks that go with them (`kept`), each on
+    the player it shows now: the (team, number) whose piece holds where it was taken (PHOTO_SHOWN), else
+    the player of the same name; none for the others until the new pictures come. An apply moves numbers
+    between players."""
     from volleyball_stats.review import page_data
 
     path = match / PHOTO_SHOWN
     taken = json.loads(path.read_text()) if path.exists() else {}
     find = finder(read_identities(match / "identities.csv")) if taken and (match / "identities.csv").exists() else None
-    by_card: dict[tuple[int, int], str] = {}
-    by_name: dict[str, str] = {}
+    by_card: dict[tuple[int, int], dict] = {}
+    by_name: dict[str, dict] = {}
     for p in (page_data(site) or {}).get("people", {}).values():
         file = (p.get("photo") or "").split("?")[0]
         if not file or not (site / file).exists():
@@ -1822,13 +1841,14 @@ def kept_photos(people: dict[int, dict], site: Path, match: Path) -> None:
         if at and at.get("track") is not None and find:
             now = find(at["track"], at["frame"])
             if now:
-                by_card.setdefault(now, p["photo"])
+                by_card.setdefault(now, p)
         elif p.get("name"):
-            by_name.setdefault(p["name"], p["photo"])
+            by_name.setdefault(p["name"], p)
     for person in people.values():
         found = by_card.get((person["team"], person["number"])) or by_name.get(person.get("name") or "")
-        if found:
-            person["photo"] = found
+        for field in kept:
+            if found and found.get(field):
+                person[field] = found[field]
 
 
 def refresh_photos(match: Path, video: Path, site: Path) -> dict:

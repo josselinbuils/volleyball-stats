@@ -235,6 +235,26 @@
     "photoUpdating": "Photo being updated",
     "photosFailed": "The photos could not be updated.",
     "photoN": "Picture {{n}}",
+    "look": "3D look",
+    "lookSkin": "Skin",
+    "lookHair": "Hair",
+    "lookStyle": "Hairstyle",
+    "skinN": "Tone {{n}}",
+    "hair": {
+      "black": "Black",
+      "dark": "Dark brown",
+      "brown": "Brown",
+      "blond": "Blond",
+      "red": "Red",
+      "grey": "Grey"
+    },
+    "style": {
+      "bald": "Bald",
+      "short": "Short",
+      "mid": "Mid-length",
+      "ponytail": "Ponytail",
+      "long": "Long"
+    },
     "setStartAt": "New set at {{time}}",
     "setStartAsk": "A set starts at {{time}}? The analysis will run again.",
     "setRemove": "Remove set {{n}}'s start",

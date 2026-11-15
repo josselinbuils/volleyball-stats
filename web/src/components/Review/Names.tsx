@@ -10,6 +10,7 @@ import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
+import { LookPicker } from '@/components/Review/LookPicker';
 import { ErrorNote } from '@/components/ErrorNote';
 import { usePhotos } from '@/hooks/usePhotos';
 import { useRunning } from '@/hooks/useRunning';
@@ -274,6 +275,7 @@ function NameCard({
       <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
       <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
       <PhotoPicker player={p} stale={stalePhoto} onError={onError} />
+      <LookPicker player={p} stale={stalePhoto} onError={onError} />
       {film && (
         <Button
           variant="outline"

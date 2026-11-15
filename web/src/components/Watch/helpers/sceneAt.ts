@@ -45,6 +45,7 @@ export function sceneAt({
         label: playerMark(person) ?? '',
         tip: tipOf(person),
         taped: hasTapedFeet(match.people[person]?.name),
+        look: match.people[person]?.look,
       };
     }),
     ball: rally ? ballBeforeServe(rally, moment, server, places, ball3dAt(rally.contacts, moment, places)) : null,

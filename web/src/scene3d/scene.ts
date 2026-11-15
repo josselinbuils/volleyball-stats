@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Sponsor } from '@/lib/match';
+import { HAIRS as HAIR_COLOURS, SKINS, lookKey, type Look } from '@/lib/looks';
 import { addHall, at, painted } from '@/scene3d/hall';
 import { turnedTo } from '@/scene3d/turn';
 
@@ -23,8 +24,8 @@ export interface FigurePose {
 
 /** What the scene shows at a moment. Colours are CSS colours. */
 export interface SceneState {
-  /** `tip` names the player under the pointer, shown above them; `taped`: adhesive tape on their feet. */
-  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string; tip?: string; pose?: FigurePose; taped?: boolean }[];
+  /** `tip` names the player under the pointer, shown above them; `taped`: adhesive tape on their feet; `look` their hair and skin. */
+  players: { key: number; x: number; y: number; jump: number; team: 1 | 2; label: string; tip?: string; pose?: FigurePose; taped?: boolean; look?: Look }[];
   ball: Point3 | null;
   trail: Point3[];
   rings: { x: number; y: number; f: number }[];
@@ -96,8 +97,8 @@ function badge(text: string, background: string, color: string): THREE.Sprite {
 // The hovered player's name: its height on screen in pixels.
 const TIP_PX = 26;
 
-// The figures' skin, and hair colours given out by player key: made up, not the players' own.
-const SKIN = 0xe2b48e;
+// Without a look, the figures' skin, and hair colours given out by player key: made up.
+const SKIN = SKINS[1];
 const HAIRS = [0x2b1d14, 0x4a2f1d, 0x6e4a2a, 0x161210, 0xa7834f];
 
 /** Paints the hall's scoreboard on `canvas`: each team's name over its points, the set between them;
@@ -232,7 +233,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   scene.add(sun);
   const castShadows = (object: THREE.Object3D) => object.traverse((o) => (o.castShadow = o instanceof THREE.Mesh));
 
-  const solid = (color = 0xffffff) => new THREE.MeshLambertMaterial({ color });
+  const solid = (color: THREE.ColorRepresentation = 0xffffff) => new THREE.MeshLambertMaterial({ color });
   // The lines, black in this gym, over the floor: the boundary, the centre line and the attack lines, 5 cm wide.
   const lines = new THREE.Group();
   const line = new THREE.MeshBasicMaterial({ color: 0x17140c, depthWrite: false });
@@ -291,15 +292,22 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   // soft shadow and their number above them; made as they first show.
   const shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false });
   const disc = new THREE.CircleGeometry(1, 24);
-  const bodies = new Map<number, { group: THREE.Group; shadow: THREE.Mesh; label: string; team: number; taped: boolean }>();
+  const bodies = new Map<number, { group: THREE.Group; shadow: THREE.Mesh; label: string; team: number; taped: boolean; look: string }>();
   const teamMaterials = [solid(), solid()];
   const shortsMaterials = [solid(), solid()];
-  const skin = solid(SKIN);
+  // The skins and hairs worn, one material per colour.
+  const colours = new Map<string, THREE.Material>();
+  const coloured = (color: string | number) => {
+    const id = String(color);
+    if (!colours.has(id)) {
+      colours.set(id, solid(color));
+    }
+    return colours.get(id)!;
+  };
   const white = solid(0xf2f2f2);
   const pads = solid(0x222222);
   const tape = solid(0x8f959c);
   const eye = solid(0x1c1410);
-  const hairs = HAIRS.map((color) => solid(color));
   // The figures' shapes, shared by all of them.
   const shapes = {
     shoe: new THREE.BoxGeometry(0.12, 0.08, 0.23),
@@ -318,12 +326,21 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     neck: new THREE.CylinderGeometry(0.06, 0.06, 0.1, 10),
     head: new THREE.SphereGeometry(0.25, 24, 18),
     hair: new THREE.SphereGeometry(0.265, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    // Over the ears to the nape; a band round the back of a bald head; falling on the shoulders; a ponytail.
+    hairMid: new THREE.SphereGeometry(0.272, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.64),
+    fringe: new THREE.TorusGeometry(0.245, 0.04, 6, 18, Math.PI * 1.1),
+    hairBack: new THREE.CylinderGeometry(0.255, 0.21, 0.42, 18, 1, true, Math.PI / 2, Math.PI),
+    bun: new THREE.SphereGeometry(0.075, 12, 10),
+    tail: new THREE.CapsuleGeometry(0.055, 0.2, 4, 10),
     number: new THREE.PlaneGeometry(0.22, 0.22),
   };
   // The shirt numbers and badges, one per team and label, shared by the figures showing them.
-  const looks = new Map<string, { numbers: THREE.MeshBasicMaterial; badge: THREE.Sprite }>();
-  /** A figure in `shirt` and `shorts`, jointed at the hips and shoulders (`userData.limbs`, its right side first). */
-  const figure = (hair: number, shirt: THREE.Material, shorts: THREE.Material, taped = false) => {
+  const marks = new Map<string, { numbers: THREE.MeshBasicMaterial; badge: THREE.Sprite }>();
+  /** A figure in `shirt` and `shorts` with `look`'s hair and skin, else made-up ones (the hair's colour by `key`), jointed at the
+   * hips and shoulders (`userData.limbs`, its right side first). */
+  const figure = (key: number, shirt: THREE.Material, shorts: THREE.Material, taped = false, look?: Look) => {
+    const skin = coloured(look?.skin ? SKINS[look.skin - 1] : SKIN);
+    const hair = coloured(look?.hair ? HAIR_COLOURS[look.hair] : HAIRS[Math.abs(key) % HAIRS.length]);
     const group = new THREE.Group();
     const part = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
       const mesh = new THREE.Mesh(geometry, material);
@@ -366,7 +383,22 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     part(torso, shapes.neck, skin, 0, 1.15 - HIP);
     part(torso, shapes.head, skin, 0, 1.38 - HIP);
     // A cap of hair over the top, tilted back to leave the forehead bare.
-    part(torso, shapes.hair, hairs[Math.abs(hair) % hairs.length], 0, 1.4 - HIP).rotation.x = -0.35;
+    const style = look?.style ?? 'short';
+    if (style === 'short') {
+      part(torso, shapes.hair, hair, 0, 1.4 - HIP).rotation.x = -0.35;
+    } else if (style === 'bald') {
+      // What is left round the back, at the ears' height.
+      const band = part(torso, shapes.fringe, hair, 0, 1.36 - HIP);
+      band.rotation.set(Math.PI / 2, 0, Math.PI * 0.95);
+    } else {
+      part(torso, shapes.hairMid, hair, 0, 1.4 - HIP).rotation.x = style === 'ponytail' ? -0.42 : -0.58;
+      if (style === 'long') {
+        part(torso, shapes.hairBack, hair, 0, 1.2 - HIP, -0.02);
+      } else if (style === 'ponytail') {
+        part(torso, shapes.bun, hair, 0, 1.5 - HIP, -0.23);
+        part(torso, shapes.tail, hair, 0, 1.33 - HIP, -0.3).rotation.x = 0.3;
+      }
+    }
     group.userData.limbs = { torso, legs, arms };
     return group;
   };
@@ -397,29 +429,30 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   castShadows(stand);
   castShadows(referee);
   scene.add(stand, referee);
-  const player = (key: number, team: number, label: string, taped: boolean, colors: SceneState['colors']) => {
+  const player = (key: number, team: number, label: string, taped: boolean, look: Look | undefined, colors: SceneState['colors']) => {
     const known = bodies.get(key);
-    if (known && known.label === label && known.team === team && known.taped === taped) {
+    const worn = lookKey(look);
+    if (known && known.label === label && known.team === team && known.taped === taped && known.look === worn) {
       return known;
     }
     if (known) {
       scene.remove(known.group, known.shadow);
     }
-    const group = figure(key, teamMaterials[team - 1], shortsMaterials[team - 1], taped);
+    const group = figure(key, teamMaterials[team - 1], shortsMaterials[team - 1], taped, look);
     const id = `${team}:${label}`;
-    let look = looks.get(id);
-    if (!look) {
-      look = { numbers: shirtNumber(label, colors.teamText[team - 1]), badge: badge(label, colors.team[team - 1], colors.teamText[team - 1]) };
-      looks.set(id, look);
+    let mark = marks.get(id);
+    if (!mark) {
+      mark = { numbers: shirtNumber(label, colors.teamText[team - 1]), badge: badge(label, colors.team[team - 1], colors.teamText[team - 1]) };
+      marks.set(id, mark);
     }
     for (const side of [1, -1]) {
-      const mesh = new THREE.Mesh(shapes.number, look.numbers);
+      const mesh = new THREE.Mesh(shapes.number, mark.numbers);
       mesh.position.set(0, 0.9 - HIP, side * 0.158);
       mesh.rotation.y = side === 1 ? 0 : Math.PI;
       (group.userData.limbs as { torso: THREE.Group }).torso.add(mesh);
     }
     // A clone shares its material, so its texture.
-    const number = look.badge.clone();
+    const number = mark.badge.clone();
     number.position.y = 2.0;
     group.add(number);
     group.userData.badge = number;
@@ -429,7 +462,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     ground.rotation.x = -Math.PI / 2;
     ground.scale.setScalar(0.32);
     scene.add(group, ground);
-    const made = { group, shadow: ground, label, team, taped };
+    const made = { group, shadow: ground, label, team, taped, look: worn };
     bodies.set(key, made);
     return made;
   };
@@ -531,7 +564,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       landingMaterial.color.set(colors.primary);
       const seen = new Set<number>();
       for (const p of state.players) {
-        const body = player(p.key, p.team, p.label, !!p.taped, colors);
+        const body = player(p.key, p.team, p.label, !!p.taped, p.look, colors);
         body.group.position.copy(at(p.x, p.y, p.jump));
         if (p.pose) {
           posed(body.group, p.pose);

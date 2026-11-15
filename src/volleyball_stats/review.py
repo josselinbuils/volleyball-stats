@@ -38,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
@@ -1640,6 +1640,22 @@ def set_photo(match: Path, table: list, team: int, number: int, frame: int, box:
     files.write_text(path, json.dumps(taken, indent=1, ensure_ascii=False) + "\n")
 
 
+def set_look(match: Path, table: list, team: int, number: int, field: str, value: str | int) -> None:
+    """likeness.CHOICES with the 3D figure's `field` (hair, style or skin) of identity `number` of `team`
+    set to `value`, by the player's name (other matches take it too), else by their card; the review's
+    page showing it at once. ValueError for anything else."""
+    who = (identity.named(table, identity.read_names(match)).get((team, number)) or {}).get("name")
+    likeness.choose(match, who or f"{team}:{number}", field, value)
+    site = match / "review"
+    people = (page_data(site) or {}).get("people")
+    if people is None:
+        return
+    for person in people.values():
+        if (person["team"], person["number"]) == (team, number) or (who and person.get("name") == who):
+            person["look"] = {**(person.get("look") or {}), field: value}
+    web.patch_people(site, people)
+
+
 def set_team(match: Path, team: int, name: str | None, colour: str | None) -> None:
     """teams.json with team `team` (1 or 2) named `name` (None: its default name) and shown in
     `colour` (#rrggbb or a colour's name; None: its jersey's). ValueError for anything else."""
@@ -2871,6 +2887,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if self.path == "/photo":
                     set_photo(match, questions.table, int(body["team"]), int(body["identity"]), int(body["frame"]), body["box"])
                     run_steps(pages())
+                    return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
+                if self.path == "/look":
+                    set_look(match, questions.table, int(body["team"]), int(body["identity"]), str(body["field"]), body["value"])
+                    page_seen[0] = page_mark()
+                    hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/end":
                     set_end(match, body.get("time"))
