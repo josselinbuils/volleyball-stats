@@ -41,7 +41,8 @@ export function ExportSite() {
     const r = await call<ExportState>('export');
     if (r.ok) {
       setState(r);
-      setChosen((c) => c ?? new Set(r.file?.matches ?? r.matches.map((m) => m.path)));
+      // None picked at first, whatever the last export held.
+      setChosen((c) => c ?? new Set());
     }
     return r;
   }, []);
@@ -79,7 +80,7 @@ export function ExportSite() {
   }
   const picked = state.matches.filter((m) => chosen.has(m.path)).map((m) => m.path);
   // The last zip, offered while it holds the matches picked.
-  const held = state.file && (!state.file.matches || (state.file.matches.length === picked.length && picked.every((p) => state.file?.matches?.includes(p))));
+  const held = state.file && picked.length > 0 && (!state.file.matches || (state.file.matches.length === picked.length && picked.every((p) => state.file?.matches?.includes(p))));
   const start = () =>
     run('export', async () => {
       const r = await call<ExportState>('export', { matches: picked, folder: t('export.folder') });

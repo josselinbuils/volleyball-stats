@@ -27,7 +27,7 @@ export function StickyBar() {
 function SectionLinks() {
   const { t } = useTranslation();
   const strip = useRef<HTMLElement>(null);
-  // The sections on the page in its order: some can be missing, "Mon match" comes first on a phone.
+  // The sections on the page in its order: some can be missing.
   const [ids, setIds] = useState<string[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
   // The strip's sides with links out of sight, faded.

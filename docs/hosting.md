@@ -22,7 +22,7 @@ public pages of the matches picked, with their list (`matches.export`, `outputs/
 the page's language: `matchs.zip` with a `matchs/` folder, `matches` in English): as an upload builds them, without what needs the server (no video behind a password,
 no "Signaler", no link previews) nor the gzip copies. Any static host serves it (shared hosting by FTP, GitHub Pages,
 Netlify...), and its `index.html` opens from disk. Each export rebuilds the matches: 16 s for two, more the first time a
-match's commentary voice is made. The download is offered while the matches ticked are those of the last zip.
+match's commentary voice is made. None is ticked at first (the owner's rule, 15 Nov); the download is offered while the matches ticked are those of the last zip.
 
 ## Your own server
 

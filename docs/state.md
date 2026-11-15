@@ -85,7 +85,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 18. Phones (13 Nov; done on 14 Nov): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
     horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). Done, in the order advised:
     1-3. Done (14 Nov): on a phone, something played while the replay is out of sight opens it in a sheet from the bottom
-       ("Fermer" stops it, the page where it was); "Mon match" right after the header; the sticky bar links to the
+       ("Fermer" stops it, the page where it was); "Mon match" right after the header (taken back 15 Nov: the same order as on a computer); the sticky bar links to the
        sections, the one on screen marked, the links scrolling sideways (on wide screens too).
     4-6. Done (14 Nov): one group of the stats table at a time on a phone; "Appuyez" on touch screens and a tap naming a
        player on the court replay; the score curve a row per set (its marks clear of each other everywhere), "Par zone" first.

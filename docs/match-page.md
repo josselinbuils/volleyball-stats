@@ -205,7 +205,7 @@ Without player tracks, everything counts each side of the net instead of each te
   section follows it, and the video's timeline then covers that set only.
 - **The bar at the top:** it stays on screen while the page scrolls, with the set filter and a link to each section, the
   one on screen marked (`Header/StickyBar.tsx`); on a phone the links take a row of their own, scrolling sideways.
-- **Phones** (under 640 px): "Mon match" comes right after the header. Something played while the replay is out of sight
+- **Phones** (under 640 px): the sections in the same order as on a computer (the owner's, 15 Nov). Something played while the replay is out of sight
   opens the video and court in a sheet from the bottom (`Watch/PlayerSheet.tsx`); "Fermer" stops it, the page where it was.
   The statistics show one group of columns at a time, picked above the table ("Temps" with "Touches"); the score curve
   has a row per set, on one scale; "Sur le terrain" opens on "Par zone". The score bar above the replay puts the set and "Score estimé" on
