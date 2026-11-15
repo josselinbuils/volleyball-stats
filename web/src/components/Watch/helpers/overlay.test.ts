@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '@/lib/match';
-import { onScreen, placeAt, serveSpeeds, speedAt, stamps, touchTags, trailAt } from '@/components/Watch/helpers/overlay';
+import { CARD_S, ease, onScreen, outBack, placeAt, shownAt, stamps, statCards, trailAt } from '@/components/Watch/helpers/overlay';
 
 // The ball seen every 0.1 s from 1 s to 1.5 s moving right, then again at 2 s.
 const ball = { samples: [1, 0.1, 0.5, 1.1, 0.2, 0.5, 1.2, 0.3, 0.5, 1.3, 0.4, 0.5, 1.4, 0.5, 0.5, 1.5, 0.6, 0.5, 2, 0.9, 0.5] };
@@ -85,49 +85,30 @@ describe('onScreen', () => {
   });
 });
 
-describe('serveSpeeds', () => {
-  const touch = (t: number, type: Contact['type'], rally: number, speed?: number) => ({ t, type, rally, speed }) as Contact;
+describe('statCards', () => {
+  const touch = (t: number, more: Partial<Contact> = {}) => ({ t, type: 'pass', ...more }) as Contact;
 
-  it('shows a measured serve from just after its hit to the next touch', () => {
-    const shown = serveSpeeds([touch(10, 'serve', 0, 62), touch(11.2, 'pass', 0), touch(20, 'serve', 1), touch(30, 'serve', 2, 70), touch(40, 'serve', 3, 55)]);
-    expect(shown).toEqual([
-      { from: 10.15, until: 11.2, speed: 62 },
-      { from: 30.15, until: 32, speed: 70 },
-      { from: 40.15, until: 42, speed: 55 },
+  it("shows a serve's speed after its hit and an attack's numbers at its hit, until the next card", () => {
+    const contacts = [touch(10, { type: 'serve', speed: 40 }), touch(11), touch(12, { type: 'attack', reach: 3.1 }), touch(20, { type: 'attack' }), touch(30, { type: 'attack', jump: 0.4 })];
+    expect(statCards(contacts).map((c) => [c.contact, c.from, c.until])).toEqual([
+      [0, 10.15, 12],
+      [2, 12, 12 + CARD_S],
+      [4, 30, 30 + CARD_S],
     ]);
-    expect(speedAt(shown, 10.5)?.speed).toBe(62);
-    expect(speedAt(shown, 11.3)).toBeNull();
-    expect(speedAt(shown, 10)).toBeNull();
+    expect(shownAt(statCards(contacts), 11)?.contact).toBe(0);
+    expect(shownAt(statCards(contacts), 25)).toBeNull();
+  });
+
+  it('has none for a serve whose speed is unmeasured, nor one the next card follows at once', () => {
+    expect(statCards([touch(10, { type: 'serve' })])).toEqual([]);
+    expect(statCards([touch(10, { type: 'serve', speed: 40 }), touch(10.1, { type: 'attack', jump: 0.3 })]).map((c) => c.contact)).toEqual([1]);
   });
 });
 
-describe('touchTags', () => {
-  const touch = (t: number, rally: number, more: Partial<Contact> = {}) => ({ t, rally, type: 'pass', ...more }) as Contact;
-
-  it('shows each touch from just before it to the next one, an attack from its takeoff', () => {
-    const contacts = [touch(10, 0), touch(11, 0, { type: 'set' }), touch(12, 0, { type: 'attack', air: [-0.3, 0.3] }), touch(20, 1)];
-    const feet = [0, 0.1, 0.8, 1, 0.2, 0.8, 2, 0.3, 0.8, 3, 0.4, 0.8];
-    const tags = touchTags(contacts, feet);
-    expect(tags.map((g) => [g.contact, g.from, g.until])).toEqual([
-      [0, 9.8, 10.8],
-      [1, 10.8, 11.7],
-      [2, 11.7, 13.2],
-      [3, 19.8, 21.2],
-    ]);
-    expect(tags[1].at).toEqual({ x: 0.2, y: 0.8 });
-    expect(speedAt(tags, 11.1)?.contact).toBe(1);
-    expect(speedAt(tags, 14)).toBeNull();
-  });
-
-  it('shows a tag a while before the next one, the next waiting', () => {
-    const tags = touchTags([touch(10, 0, { type: 'attack' }), touch(10.2, 0, { type: 'block' })], [0, 0.1, 0.8, 1, 0.2, 0.8]);
-    expect(tags.map((g) => [g.contact, g.from, g.until])).toEqual([
-      [0, 9.8, expect.closeTo(10.5)],
-      [1, expect.closeTo(10.5), expect.closeTo(11.4)],
-    ]);
-  });
-
-  it('is not held back by an untagged touch', () => {
-    expect(touchTags([touch(10, 0), touch(10.3, 0, { type: 'floor' })], [0, 0.1, 0.8]).map((g) => g.until)).toEqual([11.2]);
+describe('outBack and ease', () => {
+  it('goes past its end then back, and eases from 0 to 1', () => {
+    expect([outBack(0), outBack(1)]).toEqual([0, 1]);
+    expect(outBack(0.7)).toBeGreaterThan(1);
+    expect([ease(0, 1, -1), ease(0, 1, 0.5), ease(0, 1, 2)]).toEqual([0, 0.5, 1]);
   });
 });

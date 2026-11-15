@@ -1056,9 +1056,16 @@
     "unreached": "The site does not answer: try again."
   },
   "autoZoom": "Auto zoom",
+  "overlay": {
+    "speed": "Speed",
+    "kmh": "km/h",
+    "reach": "Hitting height",
+    "m": "m",
+    "jump": "Vertical leap",
+    "cm": "cm",
+    "jumpOf": "Vertical leap {{cm}} cm"
+  },
   "videoOverlay": "Augmented video",
-  "kmh": "{{speed}} km/h",
-  "cm": "{{cm}} cm",
   "story": {
     "film": "Highlights",
     "title": "The story of the match",

@@ -5,18 +5,6 @@ import type { Contact } from '@/lib/match';
 export const TRAIL_S = 0.5;
 /** Two samples further apart than this are not joined: the ball was out of sight between them. */
 export const GAP_S = 0.25;
-/** A serve's speed shows from this long after its hit, the ball clear of the server, */
-const SPEED_FROM_S = 0.15;
-/** until the next touch, or this long after the hit. */
-const SPEED_FOR_S = 2;
-
-/** A touch's tag shows from this long before it (a jump's takeoff from earlier), */
-const TAG_BEFORE_S = 0.2;
-/** until the next touch's shows, or this long after it. */
-const TAG_FOR_S = 1.2;
-/** And this long at least. */
-const TAG_MIN_S = 0.7;
-
 /** A place in the picture (fractions of it), or on the screen (px). */
 export type Point = { x: number; y: number };
 /** A point of the trail, `age` the seconds since the ball was there. */
@@ -117,51 +105,45 @@ export function onScreen(width: number, height: number, videoWidth: number, vide
   return { at: (p) => ({ x: view.x + view.scale * (left + p.x * w), y: view.y + view.scale * (top + p.y * h) }), unit: w * view.scale };
 }
 
-/** A serve's speed (km/h) and the seconds it shows between. */
-export type Shown = { from: number; until: number; speed: number };
+/** A measured number's card, `contact` its touch's index, and the seconds it shows between. */
+export type Card = { from: number; until: number; contact: number };
 
-/** When each measured serve's speed shows: from just after its hit to the rally's next touch, SPEED_FOR_S at most. */
-export function serveSpeeds(contacts: Contact[]): Shown[] {
-  return contacts.flatMap((c, k) => {
-    if (c.type !== 'serve' || c.speed === undefined) {
-      return [];
+/** The seconds a card shows at most, and how long after a serve's hit it comes: the ball clear of the server. */
+export const CARD_S = 2.4;
+const SERVE_AFTER_S = 0.15;
+
+/** When each measured number shows on the video, as the films show them: a serve's speed just after its hit, an attack's
+ * height or jump at its hit; each until the next card comes, CARD_S at most. */
+export function statCards(contacts: Contact[]): Card[] {
+  const cards: Card[] = [];
+  contacts.forEach((c, contact) => {
+    const from = c.type === 'serve' && c.speed !== undefined ? c.t + SERVE_AFTER_S : c.type === 'attack' && (c.reach || c.jump) ? c.t : null;
+    if (from === null) {
+      return;
     }
-    const next = contacts[k + 1];
-    const until = Math.min(c.t + SPEED_FOR_S, next && next.rally === c.rally ? next.t : Infinity);
-    return until > c.t + SPEED_FROM_S ? [{ from: c.t + SPEED_FROM_S, until, speed: c.speed }] : [];
+    const last = cards[cards.length - 1];
+    if (last) {
+      last.until = Math.min(last.until, from);
+    }
+    cards.push({ from, until: from + CARD_S, contact });
   });
+  return cards.filter((card) => card.until > card.from);
 }
 
-/** The speed or tag showing at `time`, `shown` by time. */
-export function speedAt<T extends { from: number; until: number }>(shown: T[], time: number): T | null {
+/** The card showing at `time`, `shown` by time. */
+export function shownAt<T extends { from: number; until: number }>(shown: T[], time: number): T | null {
   const last = shown.findLast((s) => s.from <= time);
   return last && time < last.until ? last : null;
 }
 
-/** A touch's tag under its player's feet `at` (fractions of the picture), `contact` its index, and the seconds it shows
- * between. */
-export type Tag = { from: number; until: number; contact: number; at: Point };
+/** Past its end, then back: what slams in (the films' `out_back`). */
+export function outBack(u: number): number {
+  const x = Math.min(1, Math.max(0, u)) - 1;
+  return 1 + 2.4 * x ** 3 + 1.4 * x ** 2;
+}
 
-/** When and where each touch's tag shows: `feet` (ball.js's, flat [contact's index, x, y, ...]) for the touches whose
- * player is known; from just before it, an attack's takeoff when earlier, to the next tag, TAG_FOR_S at most. Each one
- * shows TAG_MIN_S at least, to be read (an attack's jump before the block), the next one waiting. */
-export function touchTags(contacts: Contact[], feet: number[]): Tag[] {
-  const tags: Tag[] = [];
-  for (let k = 0; k < feet.length / 3; k += 1) {
-    const contact = feet[3 * k];
-    const c = contacts[contact];
-    if (!c) {
-      continue;
-    }
-    let from = c.t - Math.max(TAG_BEFORE_S, -(c.air?.[0] ?? 0));
-    const last = tags[tags.length - 1];
-    if (last && contacts[last.contact].rally === c.rally) {
-      from = Math.max(from, last.from + TAG_MIN_S);
-      last.until = Math.min(last.until, from);
-    }
-    if (c.t + TAG_FOR_S > from) {
-      tags.push({ from, until: c.t + TAG_FOR_S, contact, at: { x: feet[3 * k + 1], y: feet[3 * k + 2] } });
-    }
-  }
-  return tags;
+/** From 0 to 1 between `a` and `b`, smoothly (the films' `ease`). */
+export function ease(a: number, b: number, x: number): number {
+  const u = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return u * u * (3 - 2 * u);
 }

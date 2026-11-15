@@ -912,16 +912,6 @@ def ball_track(match: Path, size: tuple[int, int], fps: float, times: np.ndarray
     return {"samples": samples}
 
 
-def feet_on_picture(contacts: list[dict], calibration: Calibration, size: tuple[int, int]) -> list[float]:
-    """Where each touch's player stands in the picture, for the tag the video shows under them: flat [the contact's
-    index, x, y, ...], x and y fractions of the picture, the court place of their feet at the touch through the camera."""
-    kept = [(k, c["x"], c["y"]) for k, c in enumerate(contacts) if c["person"] is not None and c["x"] is not None and c["type"] not in NO_PLAYER]
-    if not kept:
-        return []
-    image = calibration.to_image(np.array([[x, y] for _, x, y in kept], float))
-    return [v for (k, _, _), (px, py) in zip(kept, image.tolist()) for v in (k, round(px / size[0], 3), round(py / size[1], 3))]
-
-
 def natural_motion(samples: list[list[float]], seconds: float, teams: dict[int, int]) -> list[list[float]]:
     """The samples the page moves players with, `seconds` apart, each person's places as `player_samples` gives them without
     the tracker's noise: far off those around them (a box cut short, the feet of a jump), then filled across a short
@@ -1719,7 +1709,6 @@ def build(
         from volleyball_stats import film
 
         ball = ball_track(match, decode.size(video), data["fps"], film.frame_times(match, video))
-        ball["feet"] = feet_on_picture(data["contacts"], calibration, decode.size(video))
     part("ball")(1.0)
     if blurred is not None and (match / "players.csv").exists():
         samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3)

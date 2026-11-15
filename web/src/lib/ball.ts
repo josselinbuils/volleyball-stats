@@ -5,8 +5,6 @@ import { match, versioned } from '@/lib/match';
  * fractions of the picture, by time. */
 export interface Ball {
   samples: number[];
-  /** Where each touch's player stands in the picture: flat [the contact's index, x, y, ...] (`web.feet_on_picture`). */
-  feet?: number[];
 }
 
 declare global {

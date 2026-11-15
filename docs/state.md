@@ -95,5 +95,5 @@ The pipeline's weak spots and what is left to do, most useful first.
     folder, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu`), driven by `playwright` installed in a scratch folder (not in `web/`)
     with `devices['iPhone 13']`; Windows' Edge headless cannot go under about 500 px wide.
 19. "Vidéo augmentée" (14-15 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail, each measured serve's speed,
-    and who touched under their feet with an attack's jump, drawn on the video. Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
+    and attack's height and jump on film-like cards, drawn on the video. Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
     dark mode, an iPhone, the review's own clips (no overlay there).
