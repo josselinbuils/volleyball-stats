@@ -6,20 +6,41 @@ const LINE_PX = 4;
  * bar's width less half of it, where the line's places must be. */
 const THUMB_PX = 14;
 
+/** Height (px) of the rallies' strip, and its gap under the line: apart from the loaded parts' shades on the line. */
+const BAND_PX = 3;
+const BAND_GAP_PX = 2;
+
 /** The seek bar's line over `start`..`end`: played up to `time` in `played`, the stretches of `held` (the video's loaded
- * parts) in `heldColor`, the rest in `rest`. */
-export function seekLine(time: number, start: number, end: number, held: [number, number][], colors: { played: string; heldColor: string; rest: string }): CSSProperties {
+ * parts) in `heldColor`, the rest in `rest`; with `bands` (the rallies), a strip of them under the line in `bandColor`. */
+export function seekLine(
+  time: number,
+  start: number,
+  end: number,
+  held: [number, number][],
+  colors: { played: string; heldColor: string; rest: string; bandColor?: string },
+  bands: [number, number][] = [],
+): CSSProperties {
   const share = (at: number) => {
     const s = (Math.min(end, Math.max(start, at)) - start) / Math.max(1e-9, end - start);
     return `calc(${THUMB_PX / 2}px + ${100 * s}% - ${THUMB_PX * s}px)`;
   };
   const solid = (color: string) => `linear-gradient(${color}, ${color})`;
-  const parts = held.filter(([a, b]) => b > start && a < end).map(([a, b]) => `transparent ${share(a)}, ${colors.heldColor} ${share(a)} ${share(b)}, transparent ${share(b)}`);
+  const stretches = (ranges: [number, number][], color: string) =>
+    ranges.filter(([a, b]) => b > start && a < end).map(([a, b]) => `transparent ${share(a)}, ${color} ${share(a)} ${share(b)}, transparent ${share(b)}`);
+  const parts = stretches(held, colors.heldColor);
   const layers = [solid(colors.played), ...(parts.length ? [`linear-gradient(to right, ${parts.join(', ')})`] : []), solid(colors.rest)];
+  const sizes = layers.map((_, k) => `${k ? '100%' : share(time)} ${LINE_PX}px`);
+  const places = layers.map(() => 'left center');
+  const strip = colors.bandColor ? stretches(bands, colors.bandColor) : [];
+  if (strip.length) {
+    layers.push(`linear-gradient(to right, ${strip.join(', ')})`);
+    sizes.push(`100% ${BAND_PX}px`);
+    places.push(`left calc(50% + ${LINE_PX / 2 + BAND_GAP_PX + BAND_PX / 2}px)`);
+  }
   return {
     backgroundImage: layers.join(', '),
-    backgroundSize: layers.map((_, k) => `${k ? '100%' : share(time)} ${LINE_PX}px`).join(', '),
-    backgroundPosition: 'left center',
+    backgroundSize: sizes.join(', '),
+    backgroundPosition: places.join(', '),
     backgroundRepeat: 'no-repeat',
   };
 }

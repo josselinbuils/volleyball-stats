@@ -205,11 +205,21 @@ export function VideoControls({
       video.removeEventListener('seeked', read);
     };
   }, [video]);
-  const line = seekLine(time, span.start, span.end, held, {
-    played: 'var(--primary)',
-    heldColor: light ? 'color-mix(in oklab, var(--foreground) 35%, transparent)' : 'rgb(255 255 255 / 0.5)',
-    rest: light ? 'color-mix(in oklab, var(--foreground) 15%, transparent)' : 'rgb(255 255 255 / 0.2)',
-  });
+  // The rallies under the line, as in the review's video.
+  const bands = useMemo(() => rallies.map((r): [number, number] => [r.start, r.end]), [rallies]);
+  const line = seekLine(
+    time,
+    span.start,
+    span.end,
+    held,
+    {
+      played: 'var(--primary)',
+      heldColor: light ? 'color-mix(in oklab, var(--foreground) 35%, transparent)' : 'rgb(255 255 255 / 0.5)',
+      rest: light ? 'color-mix(in oklab, var(--foreground) 15%, transparent)' : 'rgb(255 255 255 / 0.2)',
+      bandColor: light ? 'var(--rally)' : '#ffd400',
+    },
+    bands,
+  );
 
   // iPhones put only a video full screen, not the court's replay.
   const box = boxOf(video);

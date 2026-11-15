@@ -26,7 +26,7 @@ moments.
   around each jump. A wait for data 2.5 s without more loaded reloads the copy where it stood, its play and speed kept,
   each try twice as long after the last up to 20 s (`useUnstuck`; a request held by the server, 15 Nov: back in 3 s; asking
   again for the same moment waited on the stuck request). One hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
-  shows in a lighter line what the browser loads from where the video stands, and in a playlist only what it holds of
+  shows in a lighter line what the browser loads from where the video stands (the rallies on a yellow strip under it, as in the review's video), and in a playlist only what it holds of
   the clips to play: on a fast network it loads up to 70 s past each one, which the player jumps over (what it loaded
   once elsewhere may be gone). Read every 0.5 s and at each jump (`video.buffered`). Chromium reports
   each loaded byte at its share of the file, off by up to 65 s on the copies, read back through each file's own index

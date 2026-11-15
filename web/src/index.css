@@ -68,6 +68,8 @@
   --accent-foreground: #141413;
   --destructive: #c53434;
   --warning: #e07a10;
+  /* The rallies on the video's seek bar: the review's yellow, darker on a light background. */
+  --rally: #d9a300;
   --border: #e3e2db;
   --input: #cfcec6;
   --ring: #2a78d6;
@@ -111,6 +113,7 @@
   --accent-foreground: #f0efec;
   --destructive: #e66060;
   --warning: #f0952e;
+  --rally: #ffd400;
   --border: #2f2f2c;
   --input: #45453f;
   --ring: #5b9ae8;

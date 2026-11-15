@@ -112,8 +112,8 @@ def widths(video: Path, typed: list[tuple], ball_path: Path, fps: float, cache: 
 
         needed = {h for p in plans.values() for t in p for h in t}
         seen = jobs.every(len(needed), share)
-        for done, (index, image) in enumerate(decode.frames_at(video, needed)):
-            seen(done)
+        for k, (index, image) in enumerate(decode.frames_at(video, needed)):
+            seen(k)
             images[index] = image
             while last and last[0][0] <= index:
                 finish(last.pop(0)[1])
