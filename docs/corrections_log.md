@@ -407,8 +407,8 @@ two. The play weights are trained on the three matches since the owner's "Appren
 The fine-tuned ball model's contacts ("Tried and dropped", `extra-filt-places`), today's code, each match tracked by a model trained
 on another (third: model B, 2 h on the 5080 beside other runs, `ball_B_M3_t05.csv`), the play model held out, runs
 `extra-places-15nov` (third: `extra-B-places`) against `add-15nov`: 273 -> 276, 332 -> 320, **470 -> 444** (to add 117 -> 69,
-remove 67 -> 76, types 132 -> 139, players 136 -> 143). 1,075 -> 1,040 on the three. Not wired in: the owner's call, for its cost
-(a second ball pass a match, the ball model fine-tuned in "Apprendre": 19 GB of frames a match and about 45 min). Model A+B (both
+remove 67 -> 76, types 132 -> 139, players 136 -> 143). 1,075 -> 1,040 on the three. Dropped (the owner, 15 Nov): too dear for 3% fewer corrections, one match worse
+(a second ball pass, about 55 min a match on the 5080; "Apprendre" 1 h 10 longer, 19 GB of frames a match kept). Model A+B (both
 matches) not trained: the frames were deleted on 13 Nov. The change on today's code:
 `outputs/benchmarks/ball_finetune/scripts/extra_contacts_15nov.patch` (`VB_EXTRA_FILL=1.0`, `bench.py run --extra`).
 
@@ -510,8 +510,8 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
      the final play weights trained on the three.
 2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
    81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"). Its contacts added to today's where
-   today's loses the ball (12 Nov, evening): 281 -> 280 and 351 -> 335, not wired in; to decide on the third match ("The
-   fine-tuned ball model's contacts added to today's"). What would make it pay: the new touches' types and players (half a
+   today's loses the ball (12 Nov, evening): 281 -> 280 and 351 -> 335, not wired in; on the third match 1,075 -> 1,040 on
+   the three, dropped by the owner for its cost (15 Nov, "The third match"). What would make it worth it: the new touches' types and players (half a
    correction each), the ball's flight from the fine-tuned track for the typing too without its jitter elsewhere.
 3. Done (12 Nov, evening): the block right after an attack. The blocks away from the net dropped (279 / 345, "Kept"); the
    merged attack and block and the rest out of a rule's reach ("Tried and dropped", "The block right after an attack").
