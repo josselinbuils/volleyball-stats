@@ -72,6 +72,28 @@ class TestMoved:
         assert playing.moved(windows, FPS, TIMES, play((5, 30)), ("keep", "alive")) == windows
 
 
+class TestAdded:
+    def test_a_rally_between_two_windows_is_added(self):
+        windows = [(250, 500), (1750, 2000)]
+
+        added = seconds(playing.added(windows, FPS, TIMES, play((20, 26))))
+
+        assert len(added) == 3 and abs(added[1][0] - (20.0 + playing.actions.LEAD_S)) <= 1 / FPS and added[1][1] == 26.0
+
+    def test_short_play_or_play_inside_a_window_adds_nothing(self):
+        windows = [(250, 500), (1750, 2000)]
+
+        assert playing.added(windows, FPS, TIMES, play((20, 22), (5, 10.5))) == windows
+
+    def test_play_far_from_the_windows_adds_nothing(self):
+        windows = [(250, 500), (2750, 2900)]
+
+        assert playing.added(windows, FPS, TIMES, play((48, 54))) == windows
+
+    def test_play_after_the_last_window_adds_nothing(self):
+        assert playing.added([(250, 500)], FPS, TIMES, play((15, 25))) == [(250, 500)]
+
+
 class TestConfirmed:
     def test_keeps_the_windows_with_play_all_along(self):
         windows = [(500, 1000), (1500, 2000)]

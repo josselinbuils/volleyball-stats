@@ -502,6 +502,8 @@ def main() -> None:
     play = playing.load(out / playing.FILE) if (out / playing.FILE).exists() else None
     if play:
         windows = playing.moved(windows, fps, *play[:2], play[2])
+        if "add" in play[2]:
+            windows = playing.added(windows, fps, *play[:2])
     if starts:
         # The rallies before set 1 are the warm-up's.
         windows = [w for w in windows if w[0] >= starts[0] * fps]

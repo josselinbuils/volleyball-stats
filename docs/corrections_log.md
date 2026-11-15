@@ -87,6 +87,7 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | A play / no-play clip model, where its weights are: ends carried on, starts pulled back, the windows with play all along kept, a rally going on after a bounce played on (`playing.py`; runs `play-eskb`, the model held out) | 283 -> 281 (to add 65 -> 62, types 85 -> 82, players 79 -> 81) | 389 -> 351 (to add 97 -> 62, types 119 -> 105, players 93 -> 103) |
 | A touch typed block over 1.6 m from the net is none, dropped once the touches are typed (`actions.off_net_blocks`; run `block-net` against `ctl`, 12 Nov) | 281 -> 279 (to add 62 -> 63, remove 47 -> 46, types 82 -> 81, players 81 -> 80) | 351 -> 345 (to add 62 -> 65, remove 74 -> 68, types 105 -> 103, players 103 -> 102) |
 | The ball's width in the picture, a depth cue in the learned order of who touched (`ballsize.py`, 13 Nov; runs `hw-width` against `hw-none`, both with weights fit on the other match and the school clips) | 283 -> 274 (players 84 -> 75) | 345 -> 340 (players 102 -> 97) |
+| A rally the play model sees and no window holds added: play 3 s or more apart from every window, one ending and one starting within 30 s of it (`playing.added`, 15 Nov; runs `add-15nov` against `ctl-15nov`, the play model held out; set on the third match, 479 -> 470 there: to add 129 -> 117, winners 22 -> 18) | 274 -> 273 | 332 -> 332 |
 
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
@@ -387,6 +388,21 @@ better ball track.
   instead of 282 and 350 against the answers with the rule applied (on `play-main`'s output: of its 34 such sets on the
   checked rallies, 14 relances, 19 sets whose 3rd touch it missed, 1 attack). The review reports them on checked rallies
   (`setOver`), doubts of them before.
+
+## The third match (15 Nov): the first numbers on a match nothing was tuned on
+
+`2026-11-12-aspom-1-vs-le-haillan-1`, 165 rallies all checked, 1,416 touches (`bench.py freeze`). Today's code, the play model and the
+learned order both held out (the order trained on the two other matches and the clips, swapped in for the run; run `m3-heldout`):
+**482 corrections, 2.92 a rally** (271 and 339 on the first two, 2.1 and 2.3): to add 129, remove 65, types 129, players 137,
+winners 22. The order trained on this match too (`m3-main`): 479, players 134: it gains 3, so it holds on a new match (held out
+set by set, 991 of 1,114 against the rule's 933). The untouched automatic copy (13 Nov, before the teams fix) has no names to
+score and 78 winners wrong (the teams on the wrong sides).
+
+What differs (`breakdown-m3-heldout.md`): touches to add 129 against 62 / 62, mostly the ball seen in under half of ±0.4 s (74
+against 30 / 39) and 8 checked rallies with no window at all (31 touches): 6 the play model sees all along (P about 0.85), which only
+moved windows: now added (`playing.added`, "Kept"); the 2 others a lone serve. `SET_OVER_S` holds: the owner typed no set over the
+net on this match; the pipeline's sets crossing in 1.3-1.8 s are 7 relances or attacks and 4 sets here, the other way on the first
+two. The play weights are trained on the three matches since the owner's "Apprendre" of 15 Nov, 11:13 (nothing left to test them on).
 
 ## State (13 Nov): hand-over
 

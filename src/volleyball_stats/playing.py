@@ -1,7 +1,8 @@
 """Where play goes on: a clip model's P(play) every 0.25 s (`play.npz` of the match folder) and what the rally windows take from it.
 
 Each use is separate (`USES`): the ends carried on through play the ball track lost, the starts pulled back to where play began,
-the windows with play all along kept (`actions.no_play`), and play going on after a floor contact or a dead-ball run (`goes_on`).
+the rallies the ball track missed between two windows added (`added`), the windows with play all along kept (`actions.no_play`),
+and play going on after a floor contact or a dead-ball run (`goes_on`).
 Without the weights the stage does not run and the pipeline is as before. The weights sit beside the matches
 (`outputs/learned/play/`, shared between the machines by the backup) and are trained on the reviewed matches (`play_training`).
 """
@@ -22,7 +23,7 @@ WEIGHTS = Path("learned") / "play"
 MODEL = "model.safetensors"
 # A clip: T frames at FPS, the whole width and the top 224 of 252 rows, a P(play) every STRIDE frames.
 FPS, T, WIDTH, HEIGHT, FULL_HEIGHT, STRIDE = 8, 16, 448, 224, 252, 2
-USES = ("ends", "starts", "keep", "alive")
+USES = ("ends", "starts", "add", "keep", "alive")
 # Play goes on after a contact when it is live all through this span of seconds after it (`goes_on`).
 ALIVE_S = (1.0, 3.0)
 # A window a model sees play in for KEEP_FRAC of its length or more is no dead ball (`actions.no_play`).
@@ -33,6 +34,9 @@ GAP_S = 1.0
 MARGIN_S, AHEAD_S = 1.5, 15.0
 # A start is pulled back when play began 2 s or more before it, up to 30 s and never into the previous window.
 START_MARGIN_S, BACK_S = 2.0, 30.0
+# A rally no window holds: play ADD_MIN_S or more apart from every window, one ending and one starting within ADD_NEAR_S of it
+# (set breaks and warm-ups, with no window near, keep out). Set on the third match (6 of its 8 checked rallies with no window).
+ADD_MIN_S, ADD_NEAR_S, ADD_APART_S = 3.0, 30.0, 1.0
 
 
 def load(path: Path) -> tuple[np.ndarray, np.ndarray, tuple[str, ...]]:
@@ -80,6 +84,23 @@ def moved(windows: list[rallies.Rally], fps: float, times: np.ndarray, p: np.nda
                 if s - (times[i] + lead) >= START_MARGIN_S:
                     out[k] = (float(times[i]) + lead, e)
     return [(round(s * fps), round(e * fps)) for s, e in out]
+
+
+def added(windows: list[rallies.Rally], fps: float, times: np.ndarray, p: np.ndarray) -> list[rallies.Rally]:
+    """The windows (in order) with the rallies play shows between two of them and no window holds (`ADD_MIN_S`)."""
+    if len(times) < 2 or len(windows) < 2:
+        return windows
+    lead, out = actions.LEAD_S, list(windows)
+    seconds = [(s / fps, e / fps) for s, e in windows]
+    for a, b in rallies.runs(live(p, float(times[1] - times[0])), 0, 1):
+        s, e = float(times[a]), float(times[b])
+        if e - s < ADD_MIN_S or any(ws < e + ADD_APART_S and we > s - ADD_APART_S for ws, we in seconds):
+            continue
+        before = [we for _, we in seconds if we <= s]
+        after = [ws for ws, _ in seconds if ws >= e]
+        if before and after and s - max(before) <= ADD_NEAR_S and min(after) - e <= ADD_NEAR_S:
+            out.append((round((s + lead) * fps), round(e * fps)))
+    return sorted(out)
 
 
 def confirmed(windows: list[rallies.Rally], fps: float, times: np.ndarray, p: np.ndarray) -> set[int]:
