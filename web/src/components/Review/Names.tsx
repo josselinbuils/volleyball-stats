@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Clapperboard } from 'lucide-react';
+import { Check, Clapperboard, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
 import { ErrorNote } from '@/components/ErrorNote';
 import { usePhotos } from '@/hooks/usePhotos';
+import { useRunning } from '@/hooks/useRunning';
 import { explain } from '@/lib/errors';
 import { NameField } from '@/components/Review/NameField';
 import { offeredNames, unnamedFirst } from '@/components/Review/helpers/players';
@@ -41,7 +42,7 @@ function focusCard(from: Element | null, step: number) {
 }
 
 /** The players of both teams to name, those without a name when the page loaded first, then longest
- * on court first; each name is saved as it is typed,
+ * on court first, each unnamed one showing the name proposed, a team's all saved by one button; each name is saved as it is typed,
  * `onNamed` given the names and numbers saved by `team:identity`, `onSaved` what the server tells
  * after each name or picture saved. A player whose film is out of date (`staleFilms`, by name) can
  * have it made alone (`onFilm`). */
@@ -66,8 +67,17 @@ export function Names({
 }) {
   const { t } = useTranslation();
   const [saved, setSaved] = useState<Map<string, Given>>(() => new Map(players.map((p) => [keyOf(p), { name: p.name ?? '', jersey: p.jersey === null ? '' : String(p.jersey) }])));
-  // The number read fills an empty field, saved with the player's name.
-  const [given, setGiven] = useState(() => new Map(players.map((p) => [keyOf(p), { name: p.name ?? '', jersey: String(p.jersey ?? p.read ?? '') }])));
+  // An unnamed player's field shows the name proposed; the number read fills an empty one, saved with the player's name.
+  const [given, setGiven] = useState(
+    () =>
+      new Map(
+        players.map((p) => [
+          keyOf(p),
+          p.name || !p.proposed ? { name: p.name ?? '', jersey: String(p.jersey ?? p.read ?? '') } : { name: p.proposed.name, jersey: String(p.proposed.jersey ?? p.read ?? '') },
+        ]),
+      ),
+  );
+  const [running, run] = useRunning();
   // The keyboard: arrows (or J/K) between cards and pictures, Space marks a picture, N names.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -120,6 +130,25 @@ export function Names({
     }
   };
   const edit = (p: Named, value: Given) => setGiven((g) => new Map(g).set(keyOf(p), value));
+  // The names shown and not saved yet: those proposed, or typed and not left.
+  const pending = (p: Named) => {
+    const value = given.get(keyOf(p))!;
+    const before = saved.get(keyOf(p))!;
+    return value.name.trim() !== '' && (before.name.trim() !== value.name.trim() || before.jersey !== value.jersey);
+  };
+  const saveAll = (team: Named[]) =>
+    run('all', async () => {
+      try {
+        const result = await post('name', { names: team.map((p) => ({ team: p.team, identity: p.identity, name: given.get(keyOf(p))!.name.trim(), jersey: given.get(keyOf(p))!.jersey || null })) });
+        const next = new Map(saved);
+        team.forEach((p) => next.set(keyOf(p), given.get(keyOf(p))!));
+        setSaved(next);
+        onNamed(next);
+        onSaved(result);
+      } catch {
+        onError();
+      }
+    });
   const photos = usePhotos();
 
   return (
@@ -131,6 +160,13 @@ export function Names({
           return null;
         }
         const count = mine.filter((p) => saved.get(keyOf(p))?.name.trim()).length;
+        const waiting = mine.filter(pending);
+        const accept = waiting.length > 0 && (
+          <Button size="sm" className="ml-auto" busy={running === 'all'} disabled={running !== null} onClick={() => void saveAll(waiting)}>
+            <Check aria-hidden />
+            {t('review.acceptProposed', { count: waiting.length })}
+          </Button>
+        );
         return (
           <section key={g} className="grid gap-3">
             {hasTeams ? (
@@ -138,13 +174,17 @@ export function Names({
                 <h2 className="sr-only">{groupName(t, g)}</h2>
                 <TeamEditor g={g} onError={onError} />
                 <span className="text-sm text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
+                {accept}
               </div>
             ) : (
-              <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-lg font-semibold">
-                <Swatch color={teamColor(g)} ring={teamRing(g)} />
-                {groupName(t, g)}
-                <span className="text-sm font-normal text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
-              </h2>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
+                <h2 className="flex items-center gap-x-2 text-lg font-semibold">
+                  <Swatch color={teamColor(g)} ring={teamRing(g)} />
+                  {groupName(t, g)}
+                </h2>
+                <span className="text-sm text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
+                {accept}
+              </div>
             )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {mine.map((p) => (
@@ -216,7 +256,9 @@ function NameCard({
   const { t } = useTranslation();
   const taken = new Set(others.map((o) => o.name).filter(Boolean));
   const twins = others.filter((o) => o.name && o.name === fold(value.name));
-  const suggestions = value.name.trim() ? [] : p.suggestions.filter((s) => !taken.has(fold(s.name)));
+  // The name proposed, shown and not saved: the others suggested stay offered.
+  const proposal = !saved.name.trim() && p.proposed !== null && value.name === p.proposed.name;
+  const suggestions = value.name.trim() && !proposal ? [] : p.suggestions.filter((s) => !taken.has(fold(s.name)) && fold(s.name) !== fold(value.name));
   const isSaved = (value.name.trim() || value.jersey) && saved.name.trim() === value.name.trim() && saved.jersey === value.jersey;
   // A suggestion brings its jersey number when none is typed.
   const pick = (s: Suggestion) => {
@@ -255,6 +297,12 @@ function NameCard({
           <span className="ml-auto inline-flex items-center gap-1">
             <Check aria-hidden className="size-3.5" />
             {t('review.saved')}
+          </span>
+        )}
+        {proposal && (
+          <span className="ml-auto inline-flex items-center gap-1">
+            <Sparkles aria-hidden className="size-3.5" />
+            {t('review.proposed')}
           </span>
         )}
       </p>

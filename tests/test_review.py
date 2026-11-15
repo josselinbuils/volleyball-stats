@@ -661,6 +661,20 @@ class TestRoster:
         assert [s["name"] for s in suggest(self.a, roster, "ASPOM")][0] == "Julie"
         assert [s["name"] for s in suggest(self.a, roster, "ASPOM", number=25)][0] == "Léa"
 
+    def test_proposes_each_roster_player_on_one_card_the_number_read_first(self):
+        julie, lea = {"name": "Julie", "team": "ASPOM", "jersey": 7, "vectors": {"m1": [1.0, 0.0]}}, {"name": "Léa", "team": "ASPOM", "jersey": None, "vectors": {"m1": [0.0, 1.0]}}
+        near = np.array([0.8, 0.6])
+        # Both cards look most like Julie: the one wearing her number takes her, the other Léa.
+        got = review_module.propose({(1, 1): near, (1, 2): self.a}, {(1, 2): 7}, [julie, lea], ["ASPOM", None])
+        assert got == {(1, 2): {"name": "Julie", "jersey": 7}, (1, 1): {"name": "Léa", "jersey": None}}
+
+    def test_a_card_reading_another_number_than_a_player_wore_is_not_them_and_a_number_alone_names_it(self):
+        julie = {"name": "Julie", "team": "ASPOM", "jersey": 7, "vectors": {"m1": [1.0, 0.0]}}
+        assert review_module.propose({(1, 1): self.a}, {(1, 1): 16}, [julie], ["ASPOM", None]) == {(1, 1): {"name": "Joueur 16", "jersey": 16}}
+        assert review_module.propose({(1, 1): self.a}, {}, [julie], ["ASPOM", None], taken={(1, "julie")}) == {}
+        assert review_module.propose({(1, 1): self.a}, {}, [julie], ["ASPOM", None], unless={(1, 1): {"Julie"}}) == {}
+        assert review_module.propose({(2, 1): self.a}, {}, [julie], ["ASPOM", "Other"]) == {}
+
     def test_a_number_read_goes_to_the_player_with_most_of_its_readings(self):
         table = [(1, 0, 100, 1, 4), (2, 0, 100, 2, 6), (3, 0, 100, 1, 9), (4, 0, 100, 2, 0)]
         read = {(f, 1): 8 for f in range(25)} | {(f, 2): 8 for f in range(40)} | {(f, 3): 3 for f in range(10)} | {(f, 4): 5 for f in range(30)}

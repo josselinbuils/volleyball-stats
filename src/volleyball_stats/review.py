@@ -13,7 +13,7 @@ player tracks, so they hold until the players are tracked again.
 
 The roster (--roster, outputs/roster.json by default, kept out of the repository: it names people)
 remembers the named players across matches with their re-identification embedding of their last
-ROSTER_MATCHES matches, and suggests the names of those who look most like each new identity.
+ROSTER_MATCHES matches, suggests the names of those who look most like each new identity and proposes one per card.
 """
 
 import argparse
@@ -509,13 +509,16 @@ class Questions:
 
     def players(self, roster: list[dict], teams: list[str | None]) -> list[dict]:
         """Every identity but the `leftovers`, longest on court first, with pictures, seconds of play,
-        touches, the name and jersey number given and the roster's players of its team (`teams`'
-        names) who look most like it."""
+        touches, the name and jersey number given, the roster's players of its team (`teams`'
+        names) who look most like it and, unnamed, the name proposed (`propose`)."""
         names = identity.named(self.table, identity.read_names(self.match))
         with open(self.match / "actions.csv") as f:
             touches = Counter((int(r["team"]), int(r["identity"])) for r in csv.DictReader(f) if r.get("identity"))
         seconds = identity.on_court(self.table, self.fps)
         out, left = [], identity.leftovers(seconds, names)
+        unnamed = [k for k in seconds if k not in left and not names.get(k, {}).get("name")]
+        taken = {(t, given["name"].casefold()) for (t, _), given in names.items() if given.get("name")}
+        proposed = propose({k: self.vectors.get(k) for k in unnamed}, self.read, roster, teams, taken, {k: self.together(*k, names) for k in unnamed})
         for (team, number), played in sorted(seconds.items(), key=lambda kv: -kv[1]):
             if (team, number) in left:
                 continue
@@ -525,6 +528,7 @@ class Questions:
                 **self.faces(team, number), "name": given.get("name"), "jersey": given.get("jersey"),
                 "read": self.read.get((team, number)),
                 "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1], self.together(team, number, names), self.read.get((team, number))),
+                "proposed": proposed.get((team, number)),
             })
         return out
 
@@ -1505,6 +1509,44 @@ def suggest(vector: np.ndarray | None, roster: list[dict], team: str | None, unl
         mean = np.mean(list(player["vectors"].values()), axis=0)
         scored.append((float(mean @ vector) / max(float(np.linalg.norm(mean)), 1e-9), player))
     return [{"name": p["name"], "jersey": p.get("jersey")} for _, p in sorted(scored, key=lambda sp: (number is None or sp[1].get("jersey") != number, -sp[0]))[:SUGGESTIONS]]
+
+
+def propose(cards: dict[tuple[int, int], np.ndarray | None], read: dict[tuple[int, int], int], roster: list[dict], teams: list[str | None], taken: set[tuple[int, str]] = frozenset(), unless: dict[tuple[int, int], set[str]] | None = None) -> dict[tuple[int, int], dict]:
+    """A name and jersey number for each card of `cards` (team, identity: its vector), each roster player on one card at
+    most: the one of its team wearing the number `read` on it first, then the most alike pairs left, but a player who
+    last wore another number than the one read; a card left with a number read is "Joueur N". Not the names `taken` in
+    its team, nor those in its `unless`. No floor on the likeness: the wrong ones (0.81-0.89) sit among the right ones
+    (0.74-0.997, benchmarks/identity/names.py)."""
+    unless = unless or {}
+    mean = [np.mean(list(p["vectors"].values()), axis=0) if p["vectors"] else None for p in roster]
+    mean = [m / max(float(np.linalg.norm(m)), 1e-9) if m is not None else None for m in mean]
+    pairs = []
+    for card, vector in cards.items():
+        team = teams[card[0] - 1]
+        for k, player in enumerate(roster):
+            if vector is None or mean[k] is None or team and player.get("team") and player["team"] != team:
+                continue
+            if (card[0], player["name"].casefold()) in taken or player["name"] in unless.get(card, ()):
+                continue
+            like = float(mean[k] @ vector)
+            worn = card in read and player.get("jersey") == read[card]
+            # Another number read than the one last worn: often a jersey changed hands (no team jerseys).
+            other = card in read and player.get("jersey") is not None and not worn
+            if not other:
+                pairs.append((not worn, -like, card, k))
+    out: dict[tuple[int, int], dict] = {}
+    used: set[int] = set()
+    for _, _, card, k in sorted(pairs):
+        if card not in out and k not in used:
+            out[card] = {"name": roster[k]["name"], "jersey": read.get(card, roster[k].get("jersey"))}
+            used.add(k)
+    given = set(taken) | {(card[0], p["name"].casefold()) for card, p in out.items()}
+    for card in cards:
+        name = f"Joueur {read[card]}" if card in read else None
+        if card not in out and name and (card[0], name.casefold()) not in given:
+            out[card] = {"name": name, "jersey": read[card]}
+            given.add((card[0], name.casefold()))
+    return out
 
 
 def remember(path: Path, match: str, names: dict[tuple[int, int], dict], vectors: dict[tuple[int, int], np.ndarray], teams: list[str | None]) -> None:
@@ -2834,8 +2876,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     later.set()
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/name":
-                    jersey = body.get("jersey")
-                    set_name(match, questions, int(body["team"]), int(body["identity"]), body.get("name"), None if jersey in (None, "") else int(jersey))
+                    # One name, or a team's proposed ones at once (`names`).
+                    for given in body.get("names") or [body]:
+                        jersey = given.get("jersey")
+                        set_name(match, questions, int(given["team"]), int(given["identity"]), given.get("name"), None if jersey in (None, "") else int(jersey))
                     # Undo leaves the names as typed since.
                     for change in history:
                         change["names"] = None

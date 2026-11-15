@@ -156,6 +156,11 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   numbers: a step of `match`, about an hour on 4K, writes `jerseys.csv`, kept for the next runs and
   read by every apply. "Noms" fills the number read and suggests first the roster's player wearing
   it; a card without one takes what its pictures read (`jersey_pictures.json`).
+- **Names proposed**: each unnamed card shows one ("Proposé", `review.propose`), each roster player on one card: the
+  one wearing the number read, then the most alike left (not one who last wore another number than the one read, often
+  a jersey changed hands), else "Joueur N" from the number read. "Valider les N noms proposés" saves a team's at once;
+  fix the wrong ones first. Each match left out of the roster (`benchmarks/identity/names.py`): 40 of 53 cards right
+  (15/18, 11/16, 14/19), 5 wrong, 3 "Joueur N" to rename, 5 none, against 23 with the first suggestion right before.
   Each team's numbers are its own. RapidOCR reads the torsos; a piece keeps a number read
   twice and never contradicted, and a number seen on two pieces at once (two people wear it) joins
   nobody.

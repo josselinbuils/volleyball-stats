@@ -19,6 +19,7 @@ describe('players', () => {
     jersey: null,
     read: null,
     suggestions: [],
+    proposed: null,
   });
   const players = [player(3, 30), player(12, 120), player(5, 50)];
   const names: Record<number, string> = { 3: 'Paul', 12: ' paul ', 5: 'Léa' };

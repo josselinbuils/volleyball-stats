@@ -94,6 +94,8 @@ export interface Named {
   /** The jersey number read on the footage. */
   read: number | null;
   suggestions: Suggestion[];
+  /** Unnamed, the name proposed: the roster's player wearing the number read, else the most alike left, else "Joueur N". */
+  proposed: Suggestion | null;
 }
 
 /** A player of the roster: the players named in earlier matches. */
