@@ -33,7 +33,8 @@ import { ClubDialog } from '@/components/ClubDialog';
 import { ExportDialog } from '@/components/ExportSite';
 import { HostChoice } from '@/components/Review/HostChoice';
 import { LateCauses } from '@/components/LateCauses';
-import { Tip } from '@/components/Tip';
+import { Hint, Tip } from '@/components/Tip';
+import { explain } from '@/lib/errors';
 import type { Due } from '@/components/Update';
 import { BackLink } from '@/components/BackLink';
 
@@ -211,57 +212,51 @@ export function ReviewHeader({
   const f = useFormat();
   const [choosing, setChoosing] = useState(false);
   const toApply = pending.changed || pending.names;
-  // Where things stand, each item only while it has something to say.
+  // Where things stand, each item only while it has something to say; what failed under it.
   const status: ReactNode[] = [];
-  if (backup && (backingUp || backup.at)) {
-    status.push(
-      <Tip label={backup.error ?? undefined}>
-        <span className={cn('inline-flex items-center gap-1.5', backup.error && !backingUp && 'text-destructive')}>
-          {backingUp ? t('review.backingUp') : backup.error ? t(backup.auto ? 'review.backupFailed' : 'review.backupFailedOnce', { at: backup.at }) : t('review.savedAt', { at: backup.at })}
-          {backup.error && onBackup && (
-            <Button variant="outline" size="sm" className="ml-1.5 bg-card" busy={backingUp} onClick={onBackup}>
+  const failed: ReactNode[] = [];
+  if (backup?.error) {
+    failed.push(
+      <ErrorNote
+        key="backup"
+        {...explain(t, backup.error, backup.auto ? 'review.backupFailed' : 'review.backupFailedOnce', { at: backup.at })}
+        action={
+          onBackup && (
+            <Button variant="outline" size="sm" className="bg-card" busy={backingUp} onClick={onBackup}>
               <RefreshCw aria-hidden />
               {t('review.backupRetry')}
             </Button>
-          )}
-        </span>
-      </Tip>,
+          )
+        }
+      />,
     );
+  } else if (backup && (backingUp || backup.at)) {
+    status.push(<span>{backingUp ? t('review.backingUp') : t('review.savedAt', { at: backup.at })}</span>);
   }
-  if (fetched) {
-    status.push(
-      <Tip label={fetched.error ?? undefined}>
-        <span className={cn(fetched.error && 'text-destructive')}>{fetched.error ? t('review.fetchFailed', { at: fetched.at }) : t('review.fetched', { count: fetched.count, at: fetched.at })}</span>
-      </Tip>,
-    );
+  if (fetched?.error) {
+    failed.push(<ErrorNote key="fetched" {...explain(t, fetched.error, 'review.fetchFailed', { at: fetched.at })} />);
+  } else if (fetched) {
+    status.push(<span>{t('review.fetched', { count: fetched.count, at: fetched.at })}</span>);
   }
   if (filmsError) {
-    status.push(
-      <Tip label={filmsError}>
-        <span className="text-destructive">{t('review.filmsFailed')}</span>
-      </Tip>,
-    );
+    failed.push(<ErrorNote key="films" {...explain(t, filmsError, 'review.filmsFailed')} />);
   }
-  if (hosted) {
+  const host = (className?: string) => (
+    <Button variant="outline" size="sm" className={cn('bg-card', className)} busy={busy === 'host'} disabled={busy !== null} onClick={() => (hosted?.chosen ? run('host') : setChoosing(true))}>
+      <CloudUpload aria-hidden />
+      {busy === 'host' ? t('review.hosting') : t('review.host')}
+    </Button>
+  );
+  if (hosted?.error) {
+    failed.push(<ErrorNote key="hosted" {...explain(t, hosted.error, 'review.hostedFailed', { at: hosted.at })} action={host()} />);
+  } else if (hosted) {
     status.push(
-      <Tip label={hosted.error ?? (hosted.behind && hosted.changes?.length ? <LateCauses changes={hosted.changes} /> : undefined)}>
-        <span className={cn('inline-flex items-center gap-1.5', hosted.error && 'text-destructive')}>
-          {hosted.behind && !hosted.error && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
-          {hosted.error
-            ? t('review.hostedFailed', { at: hosted.at })
-            : hosted.behind
-              ? t('review.hostedLate')
-              : hosted.day
-                ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at })
-                : t('review.hosted', { at: hosted.at })}
-          {(hosted.behind || hosted.error) && (
-            <Button variant="outline" size="sm" className="ml-1.5 bg-card" busy={busy === 'host'} disabled={busy !== null} onClick={() => (hosted.chosen ? run('host') : setChoosing(true))}>
-              <CloudUpload aria-hidden />
-              {busy === 'host' ? t('review.hosting') : t('review.host')}
-            </Button>
-          )}
-        </span>
-      </Tip>,
+      <span className="inline-flex items-center gap-1.5">
+        {hosted.behind && <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />}
+        {hosted.behind ? t('review.hostedLate') : hosted.day ? t('review.hostedDay', { day: f.date(hosted.day), at: hosted.at }) : t('review.hosted', { at: hosted.at })}
+        {hosted.behind && hosted.changes?.length ? <Hint label={<LateCauses changes={hosted.changes} />} /> : null}
+        {hosted.behind && host('ml-1.5')}
+      </span>,
     );
   }
   if (due) {
@@ -407,6 +402,7 @@ export function ReviewHeader({
           ))}
         </div>
       )}
+      {failed.length > 0 && <div className="grid gap-1.5 text-sm">{failed}</div>}
       {choosing && (
         <HostChoice
           onChoose={(body) => {
