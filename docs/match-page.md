@@ -23,7 +23,8 @@ moments.
 - The video's bar: the timeline on its own row, as wide as the video; under it play, the time, 10 s back and forward, then
   the commentary, the sound, the options (⚙: "Vidéo augmentée", "Zoom auto", "Ralentir à chaque touche", "Rejouer
   l'échange en boucle", each named and ticked) and full screen. "Ralentir à chaque touche" (kept in the browser) slows it to 0.5× around each touch only (`helpers/slow.ts` `PAGE_SLOW_RATE`; the review's clips 0.25×, to answer). Its "Zoom auto", on from the start where the match has views, frames the players as the review's
-  (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; a jump
+  (`framing.py`'s views), moving only to keep the ball in, the view easing there by a spring; between rallies the whole
+  picture, the server's view 3 s before the serve (`SERVE_LEAD_S`, 15 Nov); a jump
   in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump. A wait for data 2.5 s without more loaded reloads the copy where it stood, its play and speed kept,
   each try twice as long after the last up to 20 s (`useUnstuck`; a request held by the server, 15 Nov: back in 3 s; asking

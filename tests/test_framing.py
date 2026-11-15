@@ -57,8 +57,9 @@ def test_the_serves_view_shows_a_server_only_the_ball_gives_away():
 
     found = views(rows, [rally(), rally(17, 19)], touches, ball)
 
-    assert [v[0] for v in found] == [0, 16, 20]
-    assert found[1][1] + found[1][3] == pytest.approx(0.9 + SERVER_MARGIN)
+    # The whole picture before the first serve, the server 3 s before it; a 2 s break goes straight to the next server.
+    assert [v[0] for v in found] == [0, 2, 16, 20]
+    assert found[2][1] + found[2][3] == pytest.approx(0.9 + SERVER_MARGIN)
 
 
 def test_a_ball_far_from_the_serve_says_nothing_of_the_server():
@@ -70,7 +71,16 @@ def test_a_view_that_fits_is_kept():
 
     found = views(rows, [rally(), rally(17, 19)], [{"t": 5, "type": "serve", "rally": 0}, {"t": 6, "type": "pass", "rally": 0}, {"t": 17, "type": "serve", "rally": 1}, {"t": 18, "type": "pass", "rally": 1}])
 
-    assert [v[0] for v in found] == [0, 20]
+    assert [v[0] for v in found] == [0, 2, 20]
+
+
+def test_a_long_break_shows_the_whole_picture_until_the_next_serve_comes():
+    rows = boxes((1, 0.2, 0.7))
+    touches = [{"t": 1, "type": "serve", "rally": 0}, {"t": 2, "type": "pass", "rally": 0}, {"t": 17, "type": "serve", "rally": 1}, {"t": 18, "type": "pass", "rally": 1}]
+
+    found = views(rows, [rally(1, 5), rally(17, 19)], touches)
+
+    assert [(v[0], v[3] == 1) for v in found] == [(0, False), (6, True), (14, False), (20, True)]
 
 
 def test_a_short_exchange_keeps_the_serves_view():

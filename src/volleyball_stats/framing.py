@@ -12,8 +12,9 @@ import numpy as np
 SERVE_S = (2.0, 0.2)
 # The exchange's view comes this long after the serve, the server having hit the ball.
 AFTER_SERVE_S = 0.3
-# The view stays this long after a rally's end.
-HOLD_S = 1.0
+# The view stays this long after a rally's end, then the whole picture shows until SERVE_LEAD_S before the next serve
+# (the owner's call, 15 Nov: between rallies the video stays centred), when the server's view comes.
+HOLD_S, SERVE_LEAD_S = 1.0, 3.0
 # A shorter exchange keeps the serve's view.
 MIN_EXCHANGE_S = 1.0
 # The ball this close to the serve is at the server, who often waits too far back to be tracked.
@@ -74,9 +75,9 @@ def with_server(box: tuple[float, float, float, float] | None, ball: np.ndarray,
 
 def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict], ball: np.ndarray = np.empty((0, 3))) -> list[list[float]]:
     """The views as [from this time, x, y, width], in fractions of the picture, from the rallies and their `touches`
-    (data.js's, without the ball's floor and net contacts): each serve's from the rally before's end, showing the
-    server by `ball` (rows [time, x, y] by time), the exchange's once the serve is hit, the whole picture after the
-    last rally."""
+    (data.js's, without the ball's floor and net contacts): the whole picture between rallies, each serve's SERVE_LEAD_S
+    before it (from the rally before's end on a shorter break), showing the server by `ball` (rows [time, x, y] by
+    time), the exchange's once the serve is hit, the whole picture after the last rally."""
     shown: list[list[float]] = []
 
     def show(at: float, box: tuple[float, float, float, float] | None) -> None:
@@ -93,7 +94,11 @@ def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict], ball: np.
     for k, rally in enumerate(rallies):
         own = [t for t in touches if t["rally"] == k]
         served = next((t["t"] for t in own if t["type"] == "serve"), rally["start"])
-        show(min(end + HOLD_S, served) if k else 0, with_server(players_box(boxes, served - SERVE_S[0], served + SERVE_S[1]), ball, served))
+        free = end + HOLD_S if k else 0.0
+        server = with_server(players_box(boxes, served - SERVE_S[0], served + SERVE_S[1]), ball, served)
+        if server is not None and served - SERVE_LEAD_S > free:
+            shown.append([round(float(free), 2), 0, 0, 1])
+        show(max(free, served - SERVE_LEAD_S) if served - SERVE_LEAD_S > free else min(free, served), server)
         answered = next((t["t"] for t in own if t["t"] > served and t["type"] != "serve"), None)
         if answered is not None and rally["end"] - answered >= MIN_EXCHANGE_S:
             show(min(served + AFTER_SERVE_S, answered), players_box(boxes, answered, rally["end"]))
