@@ -46,8 +46,9 @@ export const TOWER = 'top-[2.5cqw] left-[2.5cqw] h-[max(1.5rem,3.6cqw)]';
 export const BELOW_TOWER = 'top-[var(--below-tower,3rem)] left-[var(--tower-left,0.5rem)]';
 /** The box the tower and the cards are sized in (`cqw`): the picture (black bars left out), its left part 80rem wide at
  * most, so a video in full screen on a large screen does not show them as large as the screen (the owner, 15 Nov: the
- * whole width too big on a 1920 px screen, 56rem too small). */
-const SIZED = '@container absolute max-w-[80rem]';
+ * whole width too big on a 1920 px screen, 56rem too small). The whole video's box until the picture is placed: before it
+ * loads (`preload="none"`) its poster fills that box. */
+const SIZED = '@container absolute inset-0 max-w-[80rem]';
 
 /** Draws the overlay for a view of the picture; the video's zoom calls it each frame, with the view it just set. */
 export type Paint = (view: View) => void;
