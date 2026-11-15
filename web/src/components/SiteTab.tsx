@@ -252,223 +252,228 @@ export function SiteTab() {
   }
 
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      <Card className="gap-3 px-4 py-3.5 lg:row-span-2">
-        <h2 className="text-lg font-semibold">{t('server.connection')}</h2>
-        <p className="text-muted-foreground">
-          {t('server.need')}{' '}
-          <a href={GUIDE} target="_blank" rel="noreferrer" className="font-medium text-foreground underline-offset-4 hover:underline">
-            {t('server.guide')}
-            <ExternalLink aria-hidden className="ml-1 inline size-3.5 align-[-2px] text-muted-foreground" />
-          </a>
-        </p>
-        <form onSubmit={save} className="grid gap-3">
-          {FIELDS.map(({ key, placeholder }) => (
-            <label key={key} className="grid gap-1 font-medium">
-              {t(`server.${key}`)}
-              <input required={key !== 'url'} value={form[key]} placeholder={placeholder} onChange={(e) => setForm((s) => ({ ...s, [key]: e.target.value }))} className={INPUT} />
-            </label>
-          ))}
+    <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+      {/* Two columns of their own, each card its own height; on a phone one list, the backups last. */}
+      <div className="contents lg:grid lg:gap-3">
+        <Card className="gap-3 px-4 py-3.5">
+          <h2 className="text-lg font-semibold">{t('server.connection')}</h2>
+          <p className="text-muted-foreground">
+            {t('server.need')}{' '}
+            <a href={GUIDE} target="_blank" rel="noreferrer" className="font-medium text-foreground underline-offset-4 hover:underline">
+              {t('server.guide')}
+              <ExternalLink aria-hidden className="ml-1 inline size-3.5 align-[-2px] text-muted-foreground" />
+            </a>
+          </p>
+          <form onSubmit={save} className="grid gap-3">
+            {FIELDS.map(({ key, placeholder }) => (
+              <label key={key} className="grid gap-1 font-medium">
+                {t(`server.${key}`)}
+                <input required={key !== 'url'} value={form[key]} placeholder={placeholder} onChange={(e) => setForm((s) => ({ ...s, [key]: e.target.value }))} className={INPUT} />
+              </label>
+            ))}
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" busy={doing === 'save'} disabled={!changed || doing === 'test'}>
+                {t('server.save')}
+              </Button>
+              <Button type="button" variant="outline" className="bg-card" busy={doing === 'test'} disabled={!saved || changed || doing === 'save'} onClick={() => void test()}>
+                <PlugZap aria-hidden />
+                {t('server.test')}
+              </Button>
+            </div>
+            {note?.ok && (
+              <p role="status" className="text-muted-foreground">
+                {note.text}
+              </p>
+            )}
+            {note && !note.ok && <ErrorNote {...note.error} />}
+          </form>
+        </Card>
+        <Card className="gap-3 px-4 py-3.5 max-lg:order-last">
+          <h2 className="text-lg font-semibold">{t('server.backups')}</h2>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={!!state.auto} disabled={!saved || doing === 'auto'} onChange={(e) => void setAuto(e.target.checked)} />
+            {t('server.auto')}
+          </label>
+          <div className="grid gap-1">
+            {state.last.error ? (
+              <Status ok={false}>
+                <p>{t('server.lastFailed')}</p>
+                <p className="text-xs text-muted-foreground">{state.last.error}</p>
+              </Status>
+            ) : (
+              <Status ok={!!state.last.at}>{state.last.at ? t('server.lastAt', { at: f.when(state.last.at) }) : t('server.never')}</Status>
+            )}
+            {!state.verify?.running && state.last.verified && (
+              <Status ok={!state.last.problems.length}>
+                <p>{state.last.problems.length ? t('server.differ', { at: f.when(state.last.verified) }) : t('server.same', { at: f.when(state.last.verified) })}</p>
+                {state.last.problems.length > 0 && (
+                  <ul className="list-disc pl-5 text-sm">
+                    {state.last.problems.map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                  </ul>
+                )}
+              </Status>
+            )}
+            {restored !== null && <Status ok={restored}>{t(restored ? 'server.restored' : 'error.failed')}</Status>}
+          </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" busy={doing === 'save'} disabled={!changed || doing === 'test'}>
-              {t('server.save')}
+            <Button variant="outline" className="bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
+              <DatabaseBackup aria-hidden />
+              {t('server.backUp')}
             </Button>
-            <Button type="button" variant="outline" className="bg-card" busy={doing === 'test'} disabled={!saved || changed || doing === 'save'} onClick={() => void test()}>
-              <PlugZap aria-hidden />
-              {t('server.test')}
+            <Button variant="outline" className="bg-card" busy={doing === 'verify' || !!state.verify?.running} disabled={!saved} onClick={() => void start('verify')}>
+              <ShieldCheck aria-hidden />
+              {t('server.verify')}
             </Button>
           </div>
-          {note?.ok && (
-            <p role="status" className="text-muted-foreground">
-              {note.text}
-            </p>
+          {backupError && <ErrorNote {...backupError} />}
+          <JobLine job={state.backup} running={t('server.backingUp')} quiet />
+          {state.verify?.running && <JobLine job={state.verify} running={t('server.verifying')} />}
+          {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
+          {copies === 'failed' && !listing && (
+            <ErrorNote
+              text={t('server.copiesFailed')}
+              log
+              action={
+                <Button size="sm" variant="outline" className="bg-card" onClick={() => void listCopies()}>
+                  {t('error.retry')}
+                </Button>
+              }
+            />
           )}
-          {note && !note.ok && <ErrorNote {...note.error} />}
-        </form>
-      </Card>
-      <Card className="gap-3 px-4 py-3.5">
-        <h2 className="text-lg font-semibold">{t('server.online')}</h2>
-        {state.online.length ? (
-          <ul className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm">
-            {state.online.map((m) => {
-              const name = m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
-              return (
-                <li key={m.name} className="flex min-w-0 items-center gap-3 px-3 py-2">
-                  {/* The date goes under the match when the row is narrow. */}
-                  <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
-                    {m.url ? (
-                      <a href={m.url} target="_blank" rel="noreferrer" className="min-w-0 font-medium [overflow-wrap:anywhere] hover:underline">
-                        {name}
-                        <ExternalLink aria-hidden className="ml-1.5 inline size-3.5 align-[-2px] text-muted-foreground" />
-                      </a>
-                    ) : (
-                      <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{name}</span>
-                    )}
-                    {m.date && <span className="whitespace-nowrap text-muted-foreground">{f.date(m.date)}</span>}
-                  </span>
-                  <Tip
-                    label={
-                      m.at || m.changes?.length ? (
-                        <div className="grid gap-1">
-                          {m.at && <p className="m-0">{m.day ? t('review.hostedDay', { day: f.date(m.day), at: m.at }) : t('review.hosted', { at: m.at })}</p>}
-                          {m.behind && <LateCauses changes={m.changes} />}
-                        </div>
-                      ) : undefined
-                    }
-                  >
-                    <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap ${m.behind ? '' : 'text-muted-foreground'}`}>
-                      {m.behind ? <span aria-hidden className="size-2 rounded-full bg-primary" /> : <CircleCheck aria-hidden className="size-4" />}
-                      {t(m.behind ? 'server.late' : 'server.upToDate')}
+          {copiesError && <ErrorNote />}
+          {copies && copies !== 'failed' && (
+            <div className="grid gap-2">
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                {t('server.room', { used: f.size(copies.used), free: f.size(copies.free * 1024 ** 3) })}
+                {listing && <LoaderCircle aria-label={t('server.listing')} className="size-3.5 animate-spin" />}
+              </p>
+              <ol className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm tabular-nums">
+                {copies.days.map(({ day, matches, size, newest }) => (
+                  <li key={day} className="flex items-center gap-3 py-1 pr-1 pl-3">
+                    {/* The count goes under the day when the row is narrow. */}
+                    <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
+                      <span className="whitespace-nowrap">{copyName(day)}</span>
+                      <span className="whitespace-nowrap text-muted-foreground">{t('server.matchesN', { count: matches.length })}</span>
                     </span>
-                  </Tip>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground">{t('server.noneOnline')}</p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Button busy={doing === 'host' || !!state.hosting?.running} disabled={!saved || !state.online.length} onClick={() => void start('host')}>
-            <CloudUpload aria-hidden />
-            {t('server.hostAll')}
-          </Button>
-          {saved?.url && (
-            <Button variant="outline" className="bg-card" asChild>
-              <a href={saved.url} target="_blank" rel="noreferrer">
-                <ExternalLink aria-hidden />
-                {t('server.openOnline')}
-              </a>
-            </Button>
-          )}
-        </div>
-        {hostError && <ErrorNote {...hostError} />}
-        <JobLine job={state.hosting} running={t('server.hosting')} />
-      </Card>
-      <Card className="gap-3 px-4 py-3.5">
-        <h2 className="text-lg font-semibold">{t('export.title')}</h2>
-        <ExportSite />
-      </Card>
-      <Card className="gap-3 px-4 py-3.5">
-        <h2 className="text-lg font-semibold">{t('server.backups')}</h2>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={!!state.auto} disabled={!saved || doing === 'auto'} onChange={(e) => void setAuto(e.target.checked)} />
-          {t('server.auto')}
-        </label>
-        <div className="grid gap-1">
-          {state.last.error ? (
-            <Status ok={false}>
-              <p>{t('server.lastFailed')}</p>
-              <p className="text-xs text-muted-foreground">{state.last.error}</p>
-            </Status>
-          ) : (
-            <Status ok={!!state.last.at}>{state.last.at ? t('server.lastAt', { at: f.when(state.last.at) }) : t('server.never')}</Status>
-          )}
-          {!state.verify?.running && state.last.verified && (
-            <Status ok={!state.last.problems.length}>
-              <p>{state.last.problems.length ? t('server.differ', { at: f.when(state.last.verified) }) : t('server.same', { at: f.when(state.last.verified) })}</p>
-              {state.last.problems.length > 0 && (
-                <ul className="list-disc pl-5 text-sm">
-                  {state.last.problems.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ul>
-              )}
-            </Status>
-          )}
-          {restored !== null && <Status ok={restored}>{t(restored ? 'server.restored' : 'error.failed')}</Status>}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
-            <DatabaseBackup aria-hidden />
-            {t('server.backUp')}
-          </Button>
-          <Button variant="outline" className="bg-card" busy={doing === 'verify' || !!state.verify?.running} disabled={!saved} onClick={() => void start('verify')}>
-            <ShieldCheck aria-hidden />
-            {t('server.verify')}
-          </Button>
-        </div>
-        {backupError && <ErrorNote {...backupError} />}
-        <JobLine job={state.backup} running={t('server.backingUp')} quiet />
-        {state.verify?.running && <JobLine job={state.verify} running={t('server.verifying')} />}
-        {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
-        {copies === 'failed' && !listing && (
-          <ErrorNote
-            text={t('server.copiesFailed')}
-            log
-            action={
-              <Button size="sm" variant="outline" className="bg-card" onClick={() => void listCopies()}>
-                {t('error.retry')}
-              </Button>
-            }
-          />
-        )}
-        {copiesError && <ErrorNote />}
-        {copies && copies !== 'failed' && (
-          <div className="grid gap-2">
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              {t('server.room', { used: f.size(copies.used), free: f.size(copies.free * 1024 ** 3) })}
-              {listing && <LoaderCircle aria-label={t('server.listing')} className="size-3.5 animate-spin" />}
-            </p>
-            <ol className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm tabular-nums">
-              {copies.days.map(({ day, matches, size, newest }) => (
-                <li key={day} className="flex items-center gap-3 py-1 pr-1 pl-3">
-                  {/* The count goes under the day when the row is narrow. */}
-                  <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
-                    <span className="whitespace-nowrap">{copyName(day)}</span>
-                    <span className="whitespace-nowrap text-muted-foreground">{t('server.matchesN', { count: matches.length })}</span>
-                  </span>
-                  <Tip label={t('server.sizeTip')}>
-                    <span className="w-16 text-right">{f.size(size)}</span>
-                  </Tip>
-                  <div className="flex">
-                    <Tip label={t('server.restore')}>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={t('server.restore')}
-                        busy={doing === `restore:${day}`}
-                        disabled={!!doing}
-                        onClick={() => setRestoring({ day, matches, what: matches[0] ?? SHARED })}
-                      >
-                        <RotateCcw aria-hidden />
-                      </Button>
+                    <Tip label={t('server.sizeTip')}>
+                      <span className="w-16 text-right">{f.size(size)}</span>
                     </Tip>
-                    <Tip label={newest.length ? t('server.newest') : t('server.delete')}>
-                      {/* A disabled button gets no pointer events: the tip sits on its wrapper. */}
-                      <span>
+                    <div className="flex">
+                      <Tip label={t('server.restore')}>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          aria-label={t('server.delete')}
-                          busy={doing === `delete:${day}`}
-                          disabled={newest.length > 0 || removing}
-                          onClick={() => setConfirm({ day })}
+                          aria-label={t('server.restore')}
+                          busy={doing === `restore:${day}`}
+                          disabled={!!doing}
+                          onClick={() => setRestoring({ day, matches, what: matches[0] ?? SHARED })}
                         >
-                          <Trash2 aria-hidden />
+                          <RotateCcw aria-hidden />
                         </Button>
+                      </Tip>
+                      <Tip label={newest.length ? t('server.newest') : t('server.delete')}>
+                        {/* A disabled button gets no pointer events: the tip sits on its wrapper. */}
+                        <span>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={t('server.delete')}
+                            busy={doing === `delete:${day}`}
+                            disabled={newest.length > 0 || removing}
+                            onClick={() => setConfirm({ day })}
+                          >
+                            <Trash2 aria-hidden />
+                          </Button>
+                        </span>
+                      </Tip>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <form
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void applyKeep();
+                }}
+              >
+                <label htmlFor="server-keep">{t('server.keep')}</label>
+                <input id="server-keep" type="number" min={1} max={365} required value={keep} onChange={(e) => setKeep(e.target.value)} className={`${INPUT} w-20 tabular-nums`} />
+                <Button type="submit" size="sm" variant="outline" className="bg-card" busy={doing === 'keep'} disabled={Number(keep) === copies.keep || removing}>
+                  {t('server.apply')}
+                </Button>
+              </form>
+            </div>
+          )}
+        </Card>
+      </div>
+      <div className="contents lg:grid lg:gap-3">
+        <Card className="gap-3 px-4 py-3.5">
+          <h2 className="text-lg font-semibold">{t('server.online')}</h2>
+          {state.online.length ? (
+            <ul className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm">
+              {state.online.map((m) => {
+                const name = m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
+                return (
+                  <li key={m.name} className="flex min-w-0 items-center gap-3 px-3 py-2">
+                    {/* The date goes under the match when the row is narrow. */}
+                    <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
+                      {m.url ? (
+                        <a href={m.url} target="_blank" rel="noreferrer" className="min-w-0 font-medium [overflow-wrap:anywhere] hover:underline">
+                          {name}
+                          <ExternalLink aria-hidden className="ml-1.5 inline size-3.5 align-[-2px] text-muted-foreground" />
+                        </a>
+                      ) : (
+                        <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{name}</span>
+                      )}
+                      {m.date && <span className="whitespace-nowrap text-muted-foreground">{f.date(m.date)}</span>}
+                    </span>
+                    <Tip
+                      label={
+                        m.at || m.changes?.length ? (
+                          <div className="grid gap-1">
+                            {m.at && <p className="m-0">{m.day ? t('review.hostedDay', { day: f.date(m.day), at: m.at }) : t('review.hosted', { at: m.at })}</p>}
+                            {m.behind && <LateCauses changes={m.changes} />}
+                          </div>
+                        ) : undefined
+                      }
+                    >
+                      <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap ${m.behind ? '' : 'text-muted-foreground'}`}>
+                        {m.behind ? <span aria-hidden className="size-2 rounded-full bg-primary" /> : <CircleCheck aria-hidden className="size-4" />}
+                        {t(m.behind ? 'server.late' : 'server.upToDate')}
                       </span>
                     </Tip>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <form
-              className="flex flex-wrap items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void applyKeep();
-              }}
-            >
-              <label htmlFor="server-keep">{t('server.keep')}</label>
-              <input id="server-keep" type="number" min={1} max={365} required value={keep} onChange={(e) => setKeep(e.target.value)} className={`${INPUT} w-20 tabular-nums`} />
-              <Button type="submit" size="sm" variant="outline" className="bg-card" busy={doing === 'keep'} disabled={Number(keep) === copies.keep || removing}>
-                {t('server.apply')}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">{t('server.noneOnline')}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button busy={doing === 'host' || !!state.hosting?.running} disabled={!saved || !state.online.length} onClick={() => void start('host')}>
+              <CloudUpload aria-hidden />
+              {t('server.hostAll')}
+            </Button>
+            {saved?.url && (
+              <Button variant="outline" className="bg-card" asChild>
+                <a href={saved.url} target="_blank" rel="noreferrer">
+                  <ExternalLink aria-hidden />
+                  {t('server.openOnline')}
+                </a>
               </Button>
-            </form>
+            )}
           </div>
-        )}
-      </Card>
+          {hostError && <ErrorNote {...hostError} />}
+          <JobLine job={state.hosting} running={t('server.hosting')} />
+        </Card>
+        <Card className="gap-3 px-4 py-3.5">
+          <h2 className="text-lg font-semibold">{t('export.title')}</h2>
+          <ExportSite />
+        </Card>
+      </div>
       {restoring && (
         <Dialog open onOpenChange={(open) => !open && setRestoring(null)}>
           <DialogContent>
