@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Captions, ListVideo, Maximize, MicOff, MicVocal, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Captions, ListVideo, Maximize, MicOff, MicVocal, Minimize, Pause, Settings, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { VideoButton } from '@/components/VideoButton';
@@ -17,6 +17,7 @@ import { speaks } from '@/components/Watch/Commentary';
 import { setCommentary, useCommentary } from '@/lib/voice';
 import { WatchPanel } from '@/components/Watch/WatchPanel';
 import { LayoutMenu, type Layout } from '@/components/Watch/LayoutMenu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /** Seconds the skip buttons move the video by. */
 const SKIP = 10;
@@ -252,31 +253,15 @@ export function VideoControls({
   const stepped = state.full && entries.length > 0;
   const second = stepped && 'max-sm:order-2';
   const skipButton = (by: number) => (
-    <VideoButton light={light} className={cn('relative', by < 0 && 'max-sm:ml-auto', second)} label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
+    <VideoButton light={light} className={cn('relative', second)} label={t(by < 0 ? 'backVideo' : 'forwardVideo', { s: SKIP })} onClick={() => skip(by)}>
       <SkipIcon seconds={by} />
     </VideoButton>
   );
 
   return (
-    // On a phone the timeline takes its own row above the buttons. Over the video zoomed, which runs past its box.
-    <div className={cn('relative flex flex-wrap items-center gap-x-1 px-2 py-1', light ? 'text-foreground' : 'z-10 bg-black text-white')}>
+    // The timeline on its own row above the buttons, as wide as the video. Over the video zoomed, which runs past its box.
+    <div className={cn('relative flex flex-wrap items-center gap-x-1 px-2 pb-1', light ? 'text-foreground' : 'z-10 bg-black text-white')}>
       {stepped && listed && <WatchPanel light={light} onClose={() => setListed(false)} />}
-      {stepped && (
-        <VideoButton light={light} label={t(playing ? 'prev' : 'prevRally')} disabled={at <= 0} onClick={() => step(-1)}>
-          <SkipBack aria-hidden className="fill-current" />
-        </VideoButton>
-      )}
-      <VideoButton light={light} label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
-        {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
-      </VideoButton>
-      {stepped && (
-        <VideoButton light={light} label={t(playing ? 'next' : 'nextRally')} disabled={at < 0 || at >= entries.length - 1} onClick={() => step(1)}>
-          <SkipForward aria-hidden className="fill-current" />
-        </VideoButton>
-      )}
-      <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>
-        {clock(time)}
-      </span>
       <input
         type="range"
         min={span.start}
@@ -292,35 +277,34 @@ export function VideoControls({
         aria-valuetext={clock(time)}
         style={line}
         className={cn(
-          'h-9 min-w-0 flex-1 cursor-pointer appearance-none rounded-md bg-transparent outline-none focus-visible:ring-3 max-sm:order-first max-sm:h-7 max-sm:basis-full',
+          'mx-2 h-7 min-w-0 basis-[calc(100%-1rem)] cursor-pointer appearance-none rounded-md bg-transparent outline-none focus-visible:ring-3',
           // The thumb's size is seekBar's THUMB_PX.
           '[&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-(--primary)',
           '[&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-(--primary) [&::-moz-range-track]:bg-transparent',
           light ? 'focus-visible:ring-ring/50' : 'focus-visible:ring-white/70',
         )}
       />
-      {/* A phone's row has no room for it: the timeline shows where the video is. */}
-      <span className={cn('shrink-0 px-1 text-sm tabular-nums max-sm:hidden', light ? 'text-muted-foreground' : 'text-white/75')} aria-hidden>
-        {clock(span.end)}
+      {stepped && (
+        <VideoButton light={light} label={t(playing ? 'prev' : 'prevRally')} disabled={at <= 0} onClick={() => step(-1)}>
+          <SkipBack aria-hidden className="fill-current" />
+        </VideoButton>
+      )}
+      <VideoButton light={light} label={t(state.paused ? 'playVideo' : 'pauseVideo')} onClick={() => togglePlay(video)}>
+        {state.paused ? <Play aria-hidden className="fill-current" /> : <Pause aria-hidden className="fill-current" />}
+      </VideoButton>
+      {stepped && (
+        <VideoButton light={light} label={t(playing ? 'next' : 'nextRally')} disabled={at < 0 || at >= entries.length - 1} onClick={() => step(1)}>
+          <SkipForward aria-hidden className="fill-current" />
+        </VideoButton>
+      )}
+      <span className="shrink-0 px-1 text-sm tabular-nums" aria-hidden>
+        {clock(time)}
+        {/* A phone's row has no room for it: the timeline shows where the video is. */}
+        <span className={cn('max-sm:hidden', light ? 'text-muted-foreground' : 'text-white/75')}> / {clock(span.end)}</span>
       </span>
       {skipButton(-SKIP)}
       {skipButton(SKIP)}
-      <VideoButton light={light} className={cn(second)} label={t('slowTouches')} pressed={slow} onClick={toggleSlow}>
-        <Snail aria-hidden />
-      </VideoButton>
-      <VideoButton light={light} className={cn(second)} label={t('loopVideo')} pressed={loop} onClick={() => setLoop(!loop)}>
-        <Repeat1 aria-hidden />
-      </VideoButton>
-      {onFollow && (
-        <VideoButton light={light} className={cn(second)} label={t('autoZoom')} pressed={follow} onClick={onFollow}>
-          <ScanSearch aria-hidden />
-        </VideoButton>
-      )}
-      {onDrawn && (
-        <VideoButton light={light} className={cn(second)} label={t('videoOverlay')} pressed={drawn} onClick={onDrawn}>
-          <Captions aria-hidden />
-        </VideoButton>
-      )}
+      <span aria-hidden className="flex-1" />
       {canSpeak && (
         <VideoButton light={light} className={cn(second)} label={t('commentary')} pressed={commentary} onClick={() => setCommentary(!commentary)}>
           {commentary ? <MicVocal aria-hidden /> : <MicOff aria-hidden />}
@@ -332,10 +316,28 @@ export function VideoControls({
           {state.muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
         </VideoButton>
       )}
+      <ViewMenu light={light} className={cn(second)}>
+        {onDrawn && (
+          <ViewItem checked={!!drawn} onChange={onDrawn} icon={Captions}>
+            {t('videoOverlay')}
+          </ViewItem>
+        )}
+        {onFollow && (
+          <ViewItem checked={!!follow} onChange={onFollow} icon={ScanSearch}>
+            {t('autoZoom')}
+          </ViewItem>
+        )}
+        <ViewItem checked={slow} onChange={toggleSlow} icon={Snail}>
+          {t('slowTouches')}
+        </ViewItem>
+        <ViewItem checked={loop} onChange={() => setLoop(!loop)} icon={Repeat1}>
+          {t('loopVideo')}
+        </ViewItem>
+      </ViewMenu>
       {state.full && layout && onLayout && <LayoutMenu layout={layout} onLayout={onLayout} className={cn(second)} />}
       {stepped && <span aria-hidden className="hidden max-sm:order-1 max-sm:block max-sm:basis-full" />}
       {stepped && (
-        <VideoButton light={light} className="max-sm:ml-auto" label={t('watchList')} pressed={listed} onClick={() => setListed(!listed)}>
+        <VideoButton light={light} label={t('watchList')} pressed={listed} onClick={() => setListed(!listed)}>
           <ListVideo aria-hidden />
         </VideoButton>
       )}
@@ -345,5 +347,33 @@ export function VideoControls({
         </VideoButton>
       )}
     </div>
+  );
+}
+
+/** The video's options, each named and ticked when on: what is drawn on it, the zoom, slowing down, the loop. */
+function ViewMenu({ light, className, children }: { light: boolean; className?: string; children: ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <VideoButton light={light} label={t('videoOptions')} className={className}>
+          <Settings aria-hidden />
+        </VideoButton>
+      </DropdownMenuTrigger>
+      {/* Inside the full-screen element: the page around it is hidden. */}
+      <DropdownMenuContent side="top" align="end" container={document.fullscreenElement}>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** An option of `ViewMenu`: the menu stays open, to change another. */
+function ViewItem({ checked, onChange, icon: Icon, children }: { checked: boolean; onChange: () => void; icon: LucideIcon; children: ReactNode }) {
+  return (
+    <DropdownMenuCheckboxItem checked={checked} onCheckedChange={onChange} onSelect={(e) => e.preventDefault()}>
+      <Icon aria-hidden />
+      {children}
+    </DropdownMenuCheckboxItem>
   );
 }
