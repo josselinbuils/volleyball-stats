@@ -412,6 +412,21 @@ remove 67 -> 76, types 132 -> 139, players 136 -> 143). 1,075 -> 1,040 on the th
 matches) not trained: the frames were deleted on 13 Nov. The change on today's code:
 `outputs/benchmarks/ball_finetune/scripts/extra_contacts_15nov.patch` (`VB_EXTRA_FILL=1.0`, `bench.py run --extra`).
 
+The pretrained ball model on zoomed crops (15 Nov, dropped): why the unseen touches stay unseen (168 to add on the three):
+`contacts.hidden_contacts` gives up on gaps over 1.5 s (60), its flights miss (31), too few points (21)... and the far court's
+ball is about 3 px in the 512x288 picture `ball.py` feeds WASB from the 4K. The same weights on a 1280x720 crop of the 4K (3
+times the detail), centred on the ball's last moving sighting, only where today's track sees the ball under half of ±0.4 s inside
+the rally windows (18-21% of each video, 35-37 fps on the 5080 with the 4K decode: 18-26 min a match, no training): around the
+third match's 85 unseen touches to add, the ball seen over half of ±0.4 s for 91% of them (0% before). Its false hits: a still
+round mark on the far wall, dropped (a point with 8 others within 6 px in ±25 frames). Today's gaps filled from it
+(`--extra`, `VB_EXTRA_FILL=1.0`, runs `zoom-15nov` against `add-15nov`): 273 -> 297, 332 -> 354, 470 -> 506 (1,075 -> 1,157; to
+add 245 -> 170, remove 181 -> 267, types 316 -> 361, players 300 -> 330). Its new touches are real for 82 of 157 (52%; serves
+0 of 7, attacks 43 of 72), and 14 real ones lost. On the third match only the peaks over 0.5 (`zoom5-15nov`) 490, its contacts added
+with today's track kept (`zoomadd-15nov`) 501. Scripts in `outputs/benchmarks/ball_zoom/` (`zoomfull.py` the pass, `tocsv.py` the
+filled track, `newtouch.py` the new touches against the truth). What it would take: a new touch right three times in four, its
+type and player too; the box-based jumps (the best jumper near the net in a gap: the right player 43-58%, timing within 0.2 s
+37-54%) do not give it either.
+
 ## State (13 Nov): hand-over
 
 Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov); 279
@@ -511,7 +526,8 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
 2. The ball unseen around a touch (69 touches to add): the fine-tuned ball model finds it (99% of the labelled balls against
    81%) but the steps after it rest on today's tracker's habits ("Tried and dropped"). Its contacts added to today's where
    today's loses the ball (12 Nov, evening): 281 -> 280 and 351 -> 335, not wired in; on the third match 1,075 -> 1,040 on
-   the three, dropped by the owner for its cost (15 Nov, "The third match"). What would make it worth it: the new touches' types and players (half a
+   the three, dropped by the owner for its cost (15 Nov, "The third match"); the pretrained model on zoomed crops in the gaps
+   1,075 -> 1,157, dropped (15 Nov, same place). What would make it worth it: the new touches' types and players (half a
    correction each), the ball's flight from the fine-tuned track for the typing too without its jitter elsewhere.
 3. Done (12 Nov, evening): the block right after an attack. The blocks away from the net dropped (279 / 345, "Kept"); the
    merged attack and block and the rest out of a rule's reach ("Tried and dropped", "The block right after an attack").
