@@ -43,8 +43,8 @@ moments.
   speed (with a gauge) and attack's speed (with a gauge, its height and "Détente" below when measured), else its
   height ("Détente" below when measured), from the serve's hit plus 0.15 s or the attack's hit, until the next card,
   2.4 s at most (`statCards`). The films' card (`film.telemetry`): slanted dark panel, red edge, the number slamming in
-  (`outBack`) and counting up to gold over 0.55 s, sized by the picture's width (`cqw`) up to 56rem: in full screen on a
-  large screen as in the page's player (the owner found them too big there, 15 Nov), placed on the picture, not its black
+  (`outBack`) and counting up to gold over 0.55 s, sized by the picture's width (`cqw`) up to 80rem: in full screen on a
+  1920 px screen two thirds of the whole width's size (the owner, 15 Nov: that too big, 56rem too small), placed on the picture, not its black
   bars. All on the video's clock: paused,
   it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A canvas in the video's box, drawn by the zoom's loop for the frame
   on screen (`requestVideoFrameCallback`), so it moves with the zoom. `ball.js` holds the ball's place by each frame's
@@ -88,8 +88,8 @@ replaying the 6 points after it. Both follow the set filter.
 
 Awards for what players did well, never for faults, from a minimum so that none goes to next to nothing;
 a tie shares one. Each replays its moments. Most touches, winning attacks, winning blocks, aces, digs, sets
-and perfect receptions, the longest run on serve, the fastest serve, the fastest attack ("Le Canon", from 5 measured), the highest median jump ("Le Ressort", from 5
-measured jumps), the setter and attacker with the most winning attacks, and the longest rally.
+and perfect receptions, the longest run on serve, the fastest serve, the fastest attack ("Le Canon", from 5 measured), the highest jump ("Le Ressort", from 5
+measured jumps; each speed and jump trophy a record, the best single value: the owner, 15 Nov), the setter and attacker with the most winning attacks, and the longest rally.
 
 ## Mode TV
 

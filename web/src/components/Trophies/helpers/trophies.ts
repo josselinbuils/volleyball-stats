@@ -1,6 +1,5 @@
 import type { Contact, Person, Rally } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
-import { median } from '@/helpers/median';
 import { playerKey } from '@/helpers/players';
 import { longestRally, serveRun, setAttacks } from '@/helpers/plays';
 import type { Line, Stat } from '@/components/Stats/helpers/stats';
@@ -20,7 +19,7 @@ const DUO_FROM = 3;
 // A fastest serve or attack means little among fewer measured.
 const FAST_SERVE_FROM = 5;
 const FAST_ATTACK_FROM = 5;
-// A player's jump, their median, from this many measured jumps.
+// A highest jump means little among fewer measured.
 const JUMP_FROM = 5;
 
 /** A trophy: `people` its winners (a tie shares it), `contacts` or `rallies` the moments it replays. */
@@ -56,15 +55,12 @@ export function trophies(found: Line[], contacts: Contact[], rallies: Rally[], p
     const won = hit.filter((x) => x.attack.attackSpeed === n);
     out.push({ kind: 'fastAttack', people: [...new Set(won.map((x) => x.person))], n, contacts: won.map((x) => x.attack) });
   }
-  // The highest jumper: each player's median jump in centimetres over their measured attacks.
-  const jumpers = players.flatMap((l) => {
-    const jumped = l.stats.attacks.filter((c) => c.jump !== undefined);
-    return jumped.length >= JUMP_FROM ? [{ person: l.id, cm: Math.round(median(jumped.map((c) => c.jump as number)) * 100), jumped }] : [];
-  });
-  if (jumpers.length) {
-    const n = Math.max(...jumpers.map((j) => j.cm));
-    const won = jumpers.filter((j) => j.cm === n);
-    out.push({ kind: 'jump', people: won.map((j) => j.person), n, contacts: won.flatMap((j) => j.jumped).sort((a, b) => a.t - b.t) });
+  // The highest jump, in centimetres, as the fastest serve: a trophy is a record (the owner, 15 Nov).
+  const jumps = players.flatMap((l) => l.stats.attacks.filter((c) => c.jump !== undefined).map((attack) => ({ person: l.id, attack, cm: Math.round((attack.jump as number) * 100) })));
+  if (jumps.length >= JUMP_FROM) {
+    const n = Math.max(...jumps.map((j) => j.cm));
+    const won = jumps.filter((j) => j.cm === n);
+    out.push({ kind: 'jump', people: [...new Set(won.map((j) => j.person))], n, contacts: won.map((j) => j.attack) });
   }
   const runs = players.flatMap((l) => {
     const key = playerKey(l.id, people);

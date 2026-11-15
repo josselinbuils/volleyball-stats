@@ -76,11 +76,12 @@ describe('trophies', () => {
     expect(played(enough).find((x) => x.kind === 'fastAttack')).toMatchObject({ people: [1], n: 70, contacts: [enough[0]] });
   });
 
-  it('gives the highest jump, each player by their median over 5 measured jumps', () => {
+  it('gives the highest jump, once 5 are measured', () => {
     const jumped = (rally: number, person: number, jump?: number) => ({ ...touch(rally, 'attack', person), jump });
-    const sam = times(5, (k) => jumped(k, 2, 0.4));
-    const alex = [...times(4, (k) => jumped(10 + k, 1, 0.35)), jumped(14, 1, 0.9)];
-    expect(played([...sam, ...alex]).find((x) => x.kind === 'jump')).toMatchObject({ people: [2], n: 40, contacts: sam });
+    const sam = times(4, (k) => jumped(k, 2, 0.4));
+    const alex = [jumped(10, 1, 0.35), jumped(14, 1, 0.6)];
+    expect(played(sam).find((x) => x.kind === 'jump')).toBeUndefined();
+    expect(played([...sam, ...alex]).find((x) => x.kind === 'jump')).toMatchObject({ people: [1], n: 60, contacts: [alex[1]] });
     expect(played(sam.slice(0, 4)).find((x) => x.kind === 'jump')).toBeUndefined();
   });
 });
