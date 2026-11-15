@@ -11,7 +11,7 @@ import { liveReports, openingTime, pageSpans, REPORT_LEAD_S, type Span } from '@
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
-import { ReportEditor, type Caption } from '@/components/Review/ReportEditor';
+import { RESULTS, ReportEditor, SELECT, TYPES, type Caption } from '@/components/Review/ReportEditor';
 import { Shortcuts } from '@/components/Review/Shortcuts';
 import { slowStarts } from '@/components/Review/helpers/scrub';
 import type { HeightDoubt } from '@/components/Review/helpers/checks';
@@ -146,17 +146,36 @@ export function MatchTab({
               captionEdit={
                 caption?.setPlayer &&
                 ((close) => (
-                  <PlayerSelect
-                    players={players}
-                    nameOf={nameOf}
-                    value={caption.player}
-                    likely={caption.likely}
-                    empty={t('review.pickPlayer')}
-                    label={t('review.reportPlayer')}
-                    autoFocus
-                    onDone={close}
-                    onChange={(who) => who && caption.setPlayer?.(who)}
-                  />
+                  // The touch's action and result, as in its card, above its player.
+                  <div className="grid gap-1.5 p-1.5">
+                    <div className="flex gap-1.5">
+                      <select className={SELECT} aria-label={t('review.reportType')} value={caption.type} onChange={(e) => caption.setType?.(e.target.value)}>
+                        {TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {t(`types.${type}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <select className={SELECT} aria-label={t('review.reportResult')} value={caption.result} disabled={caption.type === 'fault'} onChange={(e) => caption.setResult?.(e.target.value)}>
+                        {RESULTS.map((result) => (
+                          <option key={result} value={result}>
+                            {t(`results.${result}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <PlayerSelect
+                      players={players}
+                      nameOf={nameOf}
+                      value={caption.player}
+                      likely={caption.likely}
+                      empty={t('review.pickPlayer')}
+                      label={t('review.reportPlayer')}
+                      autoFocus
+                      onDone={close}
+                      onChange={(who) => who && caption.setPlayer?.(who)}
+                    />
+                  </div>
                 ))
               }
               spans={spans}

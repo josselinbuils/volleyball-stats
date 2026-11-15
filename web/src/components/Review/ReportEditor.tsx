@@ -49,12 +49,16 @@ export const TYPE_KEYS: Record<string, (typeof TYPES)[number]> = { s: 'serve', r
 /** Outside the fields, this key validates the rally on the video, this one adds a touch at its moment. */
 export const VALIDATE_KEY = 'v';
 export const ADD_KEY = 'n';
-const RESULTS = ['play', 'point', 'error'] as const;
-const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
+export const RESULTS = ['play', 'point', 'error'] as const;
+export const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
 /** After the user scrolls the list, it stops following the video this long. */
 const HOLD_MS = 3000;
 /** A touch's row lights up, and the video's caption names it, as the video slows down at it. */
 const TOUCH_LEAD_S = SLOW_BEFORE_S;
+// The automatic reports about one touch, by their kind's start: shown under it. A viewer's report is about the touch it
+// replayed, the one this close to its moment, in seconds.
+const TOUCH_REPORTS = ['auto.record.', 'auto.notOver', 'auto.highRelance'];
+const REPORTED_S = 0.6;
 // A doubt's touch is the one this close to its time, in seconds.
 const DOUBT_NEAR_S = 0.1;
 /** A fault may be put on this many of the team's touches just before it. */
@@ -70,7 +74,19 @@ const REPLAY_BACK_S = 0.5;
 const STOP_AFTER_S = 1.5;
 
 /** The touch named over the video: `setPlayer` changes its player, `likely` the players its list offers first. */
-export type Caption = { team: Group; text: string; key: string; player: string; likely: string[]; setPlayer?: (player: string) => void };
+/** The touch named over the video, which its editor (a click on it) changes: its action and result, its player. */
+export type Caption = {
+  team: Group;
+  text: string;
+  key: string;
+  type: string;
+  result: string;
+  player: string;
+  likely: string[];
+  setType?: (type: string) => void;
+  setResult?: (result: string) => void;
+  setPlayer?: (player: string) => void;
+};
 
 /** `cause`: the frame of the teammate's touch a fault is put on, 0 for nobody else. */
 type Fix = { player?: string; type?: string; result?: string; cause?: number };
@@ -350,7 +366,7 @@ export function ReportEditor({
   const started = rows.filter((row) => !row.removed && row.time - TOUCH_LEAD_S <= now).at(-1);
   const playing = started && now - started.time < 3 ? started.frame : undefined;
   // The touches a viewer reported from (the moment replayed then).
-  const reported = new Set(rows.filter((row) => reports.some((r) => Math.abs(r.time - row.time) <= 0.6)).map((row) => row.frame));
+  const reported = new Set(rows.filter((row) => reports.some((r) => Math.abs(r.time - row.time) <= REPORTED_S)).map((row) => row.frame));
   const canAdd = rallies.length > 0;
   const add = () => {
     const frame = freeFrame([...contacts.map((c) => c.f ?? frameOf(c.t)), ...added.map((a) => a.frame)], frameOf(timeOf()));
@@ -436,13 +452,17 @@ export function ReportEditor({
             team: named.team,
             text: caption,
             key: `t${named.frame}`,
+            type: named.type,
+            result: named.result,
             player: named.player,
             likely: likelyFor(named),
+            setType: named.removed ? undefined : (type) => setType(named, type),
+            setResult: named.removed ? undefined : (result) => changeRow(named, { result }),
             setPlayer: named.removed ? undefined : (who) => setPlayer(named, who),
           }
         : null,
     );
-  }, [caption, named?.team, named?.frame, named?.player, named && likelyFor(named).join()]);
+  }, [caption, named?.team, named?.frame, named?.type, named?.result, named?.player, named && likelyFor(named).join()]);
   useEffect(() => () => onCaption?.(null), []);
   const isCurrent = (o: Timeout) => o.start / match.fps <= now && now < o.end / match.fps;
   const inTimeout = timeouts.find(isCurrent);
@@ -616,6 +636,13 @@ export function ReportEditor({
     const f = found.get(k);
     return f ? [...f.rally, ...[...f.touch.values()].flat()] : [];
   };
+  // The same said: each touch's warnings with its moment, to find it in the list.
+  const rallyNote = (k: number) => {
+    const f = found.get(k);
+    const mine = mineOf(k);
+    const touches = [...(f?.touch ?? [])].sort(([a], [b]) => a - b).map(([n, list]) => `${describe(list)} (${clock(mine[n]?.time ?? 0)})`);
+    return [...(f?.rally.length ? [describe([...new Set(f.rally)])] : []), ...touches].join(' · ');
+  };
   // The score after each rally as it stands with the corrections, the rallies out of view with
   // their winner set or the page's; a set ending off the final score given is flagged.
   const scores = hasTeams ? runningScores(shown.map((r, k) => ({ set: r.set, winner: winnerOf(k), skip: fixOf(k)?.play === false || joins(k - 1) }))) : [];
@@ -717,6 +744,17 @@ export function ReportEditor({
   const reportRows = (list: Question[]) =>
     list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} onWrong={() => onHandled(q, changes, true)} />);
   const rallyOfReport = (q: Question) => shown.findIndex((r) => r.key === q.rally);
+  // A report about one touch (a record, a point without crossing the net, a relance played high, a viewer's) sits under that
+  // touch, not the rally's header: its touch, the nearest within REPORTED_S of its moment.
+  const anchorOf = (q: Question): number | undefined => {
+    const k = rallyOfReport(q);
+    if (k < 0 || !q.reports?.length || !q.reports.every((r) => !r.kind?.startsWith('auto.') || TOUCH_REPORTS.some((kind) => r.kind!.startsWith(kind)))) {
+      return undefined;
+    }
+    const at = q.reports[0].at?.[0] ?? q.reports[0].time;
+    const near = rows.filter((row) => row.rally === k && !row.removed && Math.abs(row.time - at) <= REPORTED_S).sort((a, b) => Math.abs(a.time - at) - Math.abs(b.time - at))[0];
+    return near?.frame;
+  };
   // What is wrong with a rally as a whole: no touch above its touches, no winner below them.
   const rallyWarning = (k: number, place: 'start' | 'end') => {
     // Rallies joined end with the last of them.
@@ -730,7 +768,8 @@ export function ReportEditor({
         ]
       : [];
   };
-  const reportsIn = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && !aboutEnd(q)));
+  const reportsIn = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && !aboutEnd(q) && anchorOf(q) === undefined));
+  const reportsOn = (row: Row) => reportRows(openQuestions.filter((q) => anchorOf(q) === row.frame));
   const reportsAtEnd = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && aboutEnd(q)));
   const reportsAfter = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) < 0 && shown.findLastIndex((r) => r.start <= (q.reports?.[0]?.time ?? q.clip.start)) === k));
   const timeoutRows = (k: number) =>
@@ -813,8 +852,8 @@ export function ReportEditor({
                             <span className="truncate">{rallyLabel(k)}</span>
                             {green.has(keyOf(k)) && <CircleCheck aria-label={t('review.rallyChecked')} className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />}
                             {rallyProblems(k).length > 0 && (
-                              <Tip label={describe([...new Set(rallyProblems(k))])}>
-                                <span role="img" aria-label={describe([...new Set(rallyProblems(k))])} className="shrink-0">
+                              <Tip label={rallyNote(k)}>
+                                <span role="img" aria-label={rallyNote(k)} className="shrink-0">
                                   <TriangleAlert aria-hidden className="size-3.5 text-amber-600 dark:text-amber-400" />
                                 </span>
                               </Tip>
@@ -921,7 +960,7 @@ export function ReportEditor({
                     ...reportsIn(k),
                     ...rows
                       .filter((row) => row.rally === k)
-                      .map((row) => {
+                      .flatMap((row) => {
                         const remove = () => (row.added ? setAdded((all) => all.filter((a) => a.frame !== row.frame)) : edit(row, { player: 'none' }));
                         const change = (said: Fix) => changeRow(row, said);
                         // A fault may be put on one of the team's two touches just before it (and on one picked before, kept
@@ -932,13 +971,18 @@ export function ReportEditor({
                             : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault')
                         ).sort((a, b) => a.time - b.time);
                         const causes = earlier.filter((r, n) => n >= earlier.length - CAUSE_TOUCHES || r.frame === row.cause);
-                        return (
+                        const about = reportsOn(row);
+                        const mentioned = about.length > 0;
+                        const warned = problemsOf(row).length > 0;
+                        return [
                           <li
                             key={`t${row.frame}`}
                             data-key={`t${row.frame}`}
                             data-at={row.time - TOUCH_LEAD_S}
                             className={cn(
                               'grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border bg-card p-1.5 transition-colors',
+                              // Its reports' edge, else its warnings', marks the touch they are about.
+                              mentioned ? 'border-l-4 border-l-primary' : warned && 'border-l-4 border-l-amber-500',
                               row.frame === playing && 'border-primary bg-primary/10',
                               row.removed && 'bg-muted/50',
                             )}
@@ -1056,8 +1100,9 @@ export function ReportEditor({
                                 ))}
                               </select>
                             )}
-                          </li>
-                        );
+                          </li>,
+                          ...about,
+                        ];
                       }),
                     // A touch lands at the video's moment: only the rally on the video takes it.
                     <li key={`a${k}`}>

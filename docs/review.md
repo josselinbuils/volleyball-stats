@@ -129,8 +129,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   to 0.15 s after it, the touches as corrected (`helpers/slow.ts`, the match page's snail too); the caption over the video and the list's lit row
   change to that touch as it slows down (0.3 s before it, slowed or not), a space apart from the zoom's buttons; the sound's
   button at the right end, beside full screen.
-- A click on the caption opens a player field under it (the video paused): the touch named takes the player picked; a
-  drag moves the caption.
+- A click on the caption opens under it (the video paused) the touch's action and result, as in its card, and a player
+  field: the touch named takes what is picked; a drag moves the caption.
 - Keys, outside the fields (their tips say them): Space plays or pauses; the touch named over the video takes its action by
   its French name's letter (S service, R réception, P passe, A attaque, L relance, C contre, D défense, F faute de jeu); V
   validates the rally on the video, N adds a touch at its moment. A player picked in a touch's field leaves it, for the
@@ -146,6 +146,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ### Correcting
 
+- A report about one touch (a record, a point without crossing the net, a relance played high, a viewer's on the touch
+  replayed) sits under that touch, its card edged in red; a touch with a warning has an orange edge; the rally's warning
+  sign says each warning's touch by its moment (the owner, 15 Nov: what a warning was about was hard to find).
 - Beside the video, the touches around it: correct, add (a serve before a rally starts it, and the touches added after it
   are that rally's), remove, end a rally (`end` answers; its touches after that start a new rally at the first of them,
   `helpers/report.ts` `splitAfter`), join two rallies (`join` answers), start a rally at a moment
