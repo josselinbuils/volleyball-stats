@@ -48,7 +48,9 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 # A player is alone in a frame where no other box covers ALONE of theirs.
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
-READERS = 4
+# 4K readers at once in the server, its pictures and its new cards' together: about 1 GB each; 7 at once beside another job
+# froze the PC (15 Nov).
+READERS = 2
 KINDS = ("same", "different", "not_player", "cut", "team", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee", "wrong")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
@@ -2378,14 +2380,14 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # Why the last new pictures failed, until the next build.
     photos_error: list[str | None] = [None]
     # Pictures are cut from the video by READERS at once, then kept on disk: a 4K seek costs 0.4 s.
-    readers = threading.Semaphore(READERS)
+    decode.limit_readers(READERS)
     kept = match / "crops"
 
     def picture(frame: int, box: tuple[int, int, int, int]) -> bytes:
         path = kept / f"{CROP_PX}_{frame}_{'_'.join(map(str, box))}.jpg"
         if path.exists():
             return path.read_bytes()
-        with readers:
+        with decode.reader():
             image = decode.frame_at(video, frame)
         if image is None:
             return b""

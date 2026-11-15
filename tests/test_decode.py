@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -146,3 +147,29 @@ class TestApart:
 
         assert sorted(found) == [0, 3, 17, 18, 39]
         assert all(np.array_equal(found[f], expected[f]) for f in found)
+
+
+def test_frames_apart_keeps_within_limit_readers(monkeypatch):
+    """However many readers are asked, no more than `limit_readers` decode at once; every frame still comes."""
+    import threading
+    import time
+
+    running, most, lock = [0], [0], threading.Lock()
+
+    def fake(video, wanted):
+        with lock:
+            running[0] += 1
+            most[0] = max(most[0], running[0])
+        try:
+            for frame in wanted:
+                time.sleep(0.01)
+                yield frame, frame
+        finally:
+            with lock:
+                running[0] -= 1
+
+    monkeypatch.setattr(decode, "frames_at", fake)
+    monkeypatch.setattr(decode, "READERS", list(decode.READERS))
+    decode.limit_readers(2)
+    assert sorted(f for f, _ in decode.frames_apart(Path("x.mp4"), range(40), workers=8)) == list(range(40))
+    assert most[0] == 2

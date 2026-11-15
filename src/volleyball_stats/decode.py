@@ -35,6 +35,19 @@ SELECTED = 64
 # Readers at once for scattered frames (`frames_apart`): each ffmpeg start reads the video's index and sets up its decoder,
 # most of a lone frame's 0.6 s on a 2-hour 4K match; 8 at once read 40 such frames 4.8 times faster (23.1 -> 4.8 s, 13 Nov, PC).
 APART = max(1, min(8, (os.cpu_count() or 2) // 2))
+# Each 4K reader holds about 1 GB (15 Nov, PC): `limit_readers` caps them over this process's `frames_apart` and `reader`.
+READERS = [APART, threading.BoundedSemaphore(APART)]
+
+
+def limit_readers(count: int) -> None:
+    """At most `count` readers of scattered frames at once in this process from now on (the review's server: it runs beside
+    the rest of the machine)."""
+    READERS[:] = [count, threading.BoundedSemaphore(count)]
+
+
+def reader() -> threading.BoundedSemaphore:
+    """Held while reading frames outside `frames_apart` (`with decode.reader(): ...`), within `limit_readers`."""
+    return READERS[1]
 
 
 def size(video: Path) -> tuple[int, int]:
@@ -204,9 +217,12 @@ def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndar
             return
 
 
-def frames_apart(video: Path, wanted: Iterable[int], workers: int = APART) -> Iterator[tuple[int, np.ndarray]]:
-    """`frames_at` with `workers` readers at once, each on a stretch of the `wanted` frames; in no set order."""
+def frames_apart(video: Path, wanted: Iterable[int], workers: int | None = None) -> Iterator[tuple[int, np.ndarray]]:
+    """`frames_at` with `workers` readers at once (APART), each on a stretch of the `wanted` frames, within `limit_readers`;
+    in no set order."""
     found = sorted(set(wanted))
+    workers = min(workers or APART, READERS[0])
+    gate = READERS[1]
     parts = [part for k in range(workers) if (part := found[k * len(found) // workers : (k + 1) * len(found) // workers])]
     if len(parts) <= 1:
         yield from frames_at(video, found)
@@ -224,16 +240,17 @@ def frames_apart(video: Path, wanted: Iterable[int], workers: int = APART) -> It
         return False
 
     def read(part: list[int]) -> None:
-        frames = frames_at(video, part)
-        try:
-            for item in frames:
-                if not put(item):
-                    return
-        except Exception as error:  # noqa: BLE001
-            put(error)
-            return
-        finally:
-            frames.close()
+        with gate:
+            frames = frames_at(video, part)
+            try:
+                for item in frames:
+                    if not put(item):
+                        return
+            except Exception as error:  # noqa: BLE001
+                put(error)
+                return
+            finally:
+                frames.close()
         put(None)
 
     threads = [threading.Thread(target=read, args=(part,), daemon=True) for part in parts]
