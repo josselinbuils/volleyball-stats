@@ -918,7 +918,7 @@ def unusual(page: dict, places: list | None = None, done: set[int] = frozenset()
             why.append("serverOrder")
         why += list(heights.get(k, {}))
         for reason in why:
-            said = f"auto:{reason}:{r['start']}" + (f":{score}" if reason == "scoreOff" else "")
+            said = f"auto:{reason}:{r.get('window', r['start'])}" + (f":{score}" if reason == "scoreOff" else "")
             about = {"shown": name(serves[0])} if reason == "serverOrder" and name(serves[0]) else {}
             if reason in heights.get(k, {}):
                 # The touches it is about, which the Match tab flags.
@@ -997,7 +997,7 @@ def board_still(page: dict, texts: dict[int, list[str]], done: set[int] = frozen
     for (j, (left, a, b, right)), (k, after) in zip(readings, readings[1:]):
         r = rallies[k]
         if k == j + 1 and after == (left, a, b, right) and a + b == r["set"] - 1 and not r.get("redo") and r.get("key") not in done:
-            said = f"auto:boardStill:{r['set']}:{left}-{right}:{r['start']}"
+            said = f"auto:boardStill:{r['set']}:{left}-{right}:{r.get('window', r['start'])}"
             out.append({"id": said, "key": hashlib.sha256(said.encode()).hexdigest()[:12], "time": r["end"], "kind": "auto.boardStill", "comment": None, "shown": f"{left}-{right}"})
     return out
 
@@ -1975,12 +1975,19 @@ def page_changes(sent: dict, now: dict) -> list[dict]:
             changed = sorted((k for k in set(a) | set(b) if a.get(k) != b.get(k)), key=lambda k: (len(k), k))
             count = len(changed)
             if part == "people":
-                keys = [str((b.get(k) or a.get(k) or {}).get("name") or k) for k in changed]
+                # The tracks without a name only colour the court's dots by team, renumbered by each run: positions.
+                keys = [name for k in changed if (name := (b.get(k) or {}).get("name") or (a.get(k) or {}).get("name"))]
+                if not keys:
+                    out.append({"part": "positions", "count": None})
+                    continue
+                count = len(keys)
             elif part in NAMED_KEYS:
                 keys = changed
         else:
             count = None
         out.append({"part": part, "count": count, **({"keys": keys} if keys else {})})
+    # Once each: the positions may come with the players' and on their own.
+    out = list({c["part"]: c for c in out}.values())
     if isinstance(sent["code"], str):
         if sent["code"] != now["code"]:
             out.append({"part": "code", "count": None})

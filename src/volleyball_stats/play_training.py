@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import actions, files, playing, review
+from volleyball_stats import files, playing, review
 
 # Its weights are CC BY-NC 4.0.
 BASE = "MCG-NJU/videomae-base-finetuned-kinetics"
@@ -40,7 +40,7 @@ Span = tuple[float, float, float]
 
 
 def spans(match: Path) -> list[Span] | None:
-    """Each rally's serve (LEAD_S before its window), last player touch and window's end in seconds, from the review's
+    """Each rally's serve (its start, `web.started`), last player touch and window's end in seconds, from the review's
     page; None unless every rally is checked: an unchecked one would teach play as no play."""
     page, log = review.page_data(match / "review"), review.load_log(match / "identity_answers.json") if (match / "identity_answers.json").exists() else []
     if not review.reviewed(page, log):
@@ -49,7 +49,7 @@ def spans(match: Path) -> list[Span] | None:
     for c in page["contacts"]:
         if c["type"] not in ("floor", "net", "fault"):
             last[c["rally"]] = max(last.get(c["rally"], 0.0), c["t"])
-    return sorted((r["start"] - actions.LEAD_S, last.get(k, r["start"]), r["end"]) for k, r in enumerate(page["rallies"]))
+    return sorted((r["start"], last.get(k, r["start"]), r["end"]) for k, r in enumerate(page["rallies"]))
 
 
 def labels(found: list[Span], count: int) -> tuple[np.ndarray, np.ndarray]:

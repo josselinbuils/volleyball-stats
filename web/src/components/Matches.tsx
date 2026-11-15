@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
-import { Tip } from '@/components/Tip';
 import type { Due } from '@/components/Update';
 import { Behind } from '@/components/Behind';
 import { ClubBar } from '@/components/ClubBar';
@@ -217,12 +216,10 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
                           .join(' · ')}
                       </span>
                       {review && m.due && !m.remote && (
-                        <Tip label={t(`update.why.${m.due}`)}>
-                          <span className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground">
-                            <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-                            {t('update.badge')}
-                          </span>
-                        </Tip>
+                        <span className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground">
+                          <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
+                          {t(`update.short.${m.due}`)}
+                        </span>
                       )}
                     </Card>
                   </a>

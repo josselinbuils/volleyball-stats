@@ -620,24 +620,27 @@
     "verdictSoon": "La comparaison viendra avec la prochaine mise à jour."
   },
   "update": {
-    "due_one": "{{count}} match à mettre à jour",
-    "due_other": "{{count}} matchs à mettre à jour",
-    "start": "Mettre à jour",
-    "running": "Mise à jour",
-    "confirmTitle_one": "Mettre à jour {{count}} match ?",
-    "confirmTitle_other": "Mettre à jour {{count}} matchs ?",
+    "due_one": "{{count}} match à réanalyser",
+    "due_other": "{{count}} matchs à réanalyser",
+    "start": "Réanalyser",
+    "running": "Réanalyse",
+    "confirmTitle_one": "Réanalyser {{count}} match ?",
+    "confirmTitle_other": "Réanalyser {{count}} matchs ?",
     "confirm": "De quelques minutes à 40 minutes par match. La vérification attend la fin ; vos réponses sont gardées.",
-    "confirmHereTitle": "Mettre à jour ce match ?",
+    "confirmHereTitle": "Réanalyser ce match ?",
     "confirmHere": "De quelques minutes à 40 minutes. La vérification attend la fin ; vos réponses sont gardées.",
     "stage": {
       "training": "Apprentissage de vos réponses",
       "match": "Match {{n}} sur {{of}}",
       "play": "Apprentissage des phases de jeu"
     },
-    "badge": "À mettre à jour",
     "why": {
-      "answers": "Nouvelles réponses",
-      "rules": "Nouvelles règles"
+      "answers": "Réponses à apprendre",
+      "rules": "Nouvelle version de l'analyse"
+    },
+    "short": {
+      "answers": "Réponses à apprendre",
+      "rules": "Nouvelle version"
     }
   },
   "playVideo": "Lecture",

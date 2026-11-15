@@ -544,6 +544,18 @@ def answers(match: Path, kind: str) -> list[dict]:
 NEXT_SERVE_S = 40.0
 
 
+def started(rallies: list[dict], found: list[dict]) -> None:
+    """Each rally starting at its first touch in `found` (its serve, as the review left them: one removed moves it), never
+    before the one before ends; one without a touch keeps its window's start."""
+    first: dict[int, float] = {}
+    for c in found:
+        if c["type"] not in NO_PLAYER:
+            first[c["rally"]] = min(first.get(c["rally"], c["t"]), c["t"])
+    for k, rally in enumerate(rallies):
+        if k in first:
+            rally["start"] = round(max(first[k], rallies[k - 1]["end"] if k else 0.0), 2)
+
+
 def served_next(rallies: list[dict], found: list[dict], within: float = NEXT_SERVE_S) -> None:
     """Each rally won by the team serving the next one of its set (the sideout rule), when that
     serve (the page's `found` contacts, the review's added serves among them) comes under `within`
@@ -815,6 +827,8 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
             # What the review's answers name it by: its start in rallies.csv, which an added serve moves.
             "key": int(row["start_frame"]),
             "start": round(start / fps, 2),
+            # Where its window starts, which names its automatic reports: `started` moves its start.
+            "window": round(start / fps, 2),
             "end": round(end / fps, 2),
             "set": int(row.get("set") or 1),
             "left": int(row["left"]) if row.get("left") else None,
@@ -823,6 +837,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
+    started(rallies, found)
     if teams:
         served_next(rallies, found)
     # A rally checked in the review keeps the winner it showed then; one the review gives wins.

@@ -620,24 +620,27 @@
     "verdictSoon": "The comparison comes with the next update."
   },
   "update": {
-    "due_one": "{{count}} match to update",
-    "due_other": "{{count}} matches to update",
-    "start": "Update",
-    "running": "Updating",
-    "confirmTitle_one": "Update {{count}} match?",
-    "confirmTitle_other": "Update {{count}} matches?",
+    "due_one": "{{count}} match to reanalyse",
+    "due_other": "{{count}} matches to reanalyse",
+    "start": "Reanalyse",
+    "running": "Reanalysing",
+    "confirmTitle_one": "Reanalyse {{count}} match?",
+    "confirmTitle_other": "Reanalyse {{count}} matches?",
     "confirm": "A few minutes to 40 minutes per match. The review waits until it ends; your answers are kept.",
-    "confirmHereTitle": "Update this match?",
+    "confirmHereTitle": "Reanalyse this match?",
     "confirmHere": "A few minutes to 40 minutes. The review waits until it ends; your answers are kept.",
     "stage": {
       "training": "Learning from your answers",
       "match": "Match {{n}} of {{of}}",
       "play": "Learning the play"
     },
-    "badge": "To update",
     "why": {
-      "answers": "New answers",
-      "rules": "New rules"
+      "answers": "Answers to learn",
+      "rules": "New version of the analysis"
+    },
+    "short": {
+      "answers": "Answers to learn",
+      "rules": "New version"
     }
   },
   "playVideo": "Play",

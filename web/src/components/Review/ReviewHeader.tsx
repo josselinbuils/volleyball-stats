@@ -266,16 +266,14 @@ export function ReviewHeader({
   }
   if (due) {
     status.push(
-      <Tip label={t(`update.why.${due}`)}>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-          {t('update.badge')}
-          <Button variant="outline" size="sm" className="ml-1.5 bg-card" busy={busy === 'update'} disabled={busy !== null} onClick={onUpdate}>
-            <RefreshCw aria-hidden />
-            {t('update.start')}
-          </Button>
-        </span>
-      </Tip>,
+      <span className="inline-flex items-center gap-1.5">
+        <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
+        {t(`update.why.${due}`)}
+        <Button variant="outline" size="sm" className="ml-1.5 bg-card" busy={busy === 'update'} disabled={busy !== null} onClick={onUpdate}>
+          <RefreshCw aria-hidden />
+          {t('update.start')}
+        </Button>
+      </span>,
     );
   }
   // The menu's groups: the match's end on the Match tab, the uploads, export and films, the copies.

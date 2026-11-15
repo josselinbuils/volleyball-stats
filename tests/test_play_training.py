@@ -3,7 +3,6 @@ import json
 import numpy as np
 
 from volleyball_stats import play_training, playing
-from volleyball_stats.actions import LEAD_S
 
 RALLIES = [{"key": 100, "start": 10.0, "end": 20.0}, {"key": 200, "start": 40.0, "end": 50.0}]
 CONTACTS = [{"rally": 0, "type": "serve", "t": 10.0}, {"rally": 0, "type": "attack", "t": 16.0}, {"rally": 0, "type": "floor", "t": 17.0}, {"rally": 1, "type": "serve", "t": 40.0}]
@@ -33,7 +32,7 @@ class TestSpans:
     def test_each_rally_s_serve_last_player_touch_and_end(self, tmp_path):
         match = make(tmp_path, "a", [100, 200])
 
-        assert play_training.spans(match) == [(10.0 - LEAD_S, 16.0, 20.0), (40.0 - LEAD_S, 40.0, 50.0)]
+        assert play_training.spans(match) == [(10.0, 16.0, 20.0), (40.0, 40.0, 50.0)]
 
     def test_none_while_a_rally_is_unchecked_or_the_page_is_missing(self, tmp_path):
         assert play_training.spans(make(tmp_path, "a", [100])) is None

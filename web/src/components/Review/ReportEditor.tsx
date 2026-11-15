@@ -319,6 +319,9 @@ export function ReportEditor({
     [...(inSet.get(shown[row.rally]?.set ?? -1) ?? new Map<string, number>())]
       .sort(([a, x], [b, y]) => Number(teamOf(b) === row.team) - Number(teamOf(a) === row.team) || y - x)
       .map(([player]) => player);
+  /** Where a rally starts: at its first touch kept (its serve), never before the one before ends, as the apply puts it
+   * (`web.started`): removing its first touches moves it. */
+  const startOf = (k: number) => Math.max(kept.get(k)?.[0]?.time ?? shown[k].start, shown[k - 1]?.end ?? 0);
   /** A rally's touches kept, those of the rallies joined after it too. */
   const mineOf = (k: number): Row[] => [...(kept.get(k) ?? []), ...(joins(k) ? mineOf(k + 1) : [])];
 
@@ -355,6 +358,10 @@ export function ReportEditor({
     const before = rows.filter((row) => !row.removed && row.time <= time).at(-1);
     const follows = before && before.rally === rallyAt(shown, time) && time - before.time < NEXT_TOUCH_S;
     const guess = nextTouch(follows ? before : undefined, (before && winnerOf(before.rally)) ?? before?.team ?? GROUPS[0], before ? time - before.time : Infinity);
+    // The ball played on after a point or a fault: that touch was in play (a playing fault stays one).
+    if (follows && before.result !== 'play' && before.type !== 'fault') {
+      changeRow(before, { result: 'play' });
+    }
     setAdded((all) => [...all, { frame, time, ...guess, result: 'play' }]);
     setFresh({ key: `t${frame}` });
     onPause(time);
@@ -492,8 +499,8 @@ export function ReportEditor({
   const endOf = (k: number) => clock(fixOf(k)?.end ?? shown[k].end);
   const rallyLabel = (k: number) =>
     (joins(k)
-      ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(shown[k].start), to: endOf(joinEnd(k, joins)) })
-      : t(joins(k - 1) ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(shown[k].start), to: endOf(k) })) +
+      ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(startOf(k)), to: endOf(joinEnd(k, joins)) })
+      : t(joins(k - 1) ? 'review.reportRallyJoinedTo' : 'review.reportRally', { n: k + 1, m: k, from: clock(startOf(k)), to: endOf(k) })) +
     (splits.includes(shown[k].key) ? ` · ${t('review.reportRallyNew')}` : '') +
     (toReplay(k) ? ` · ${t('review.reportRedo')}` : '') +
     (calledWrong(k) ? ` · ${t('review.reportWrongCall')}` : '');
@@ -618,7 +625,7 @@ export function ReportEditor({
   );
   // A warning outweighs the check: the rally needs another look.
   const warnedAt = (k: number) => rallyProblems(k).length > 0 || off.has(k);
-  const warningsAt = shown.map((r, k) => warningTimes(found.get(k), mineOf(k), r.start, shown[joinEnd(k, joins)].end, off.has(k)));
+  const warningsAt = shown.map((_, k) => warningTimes(found.get(k), mineOf(k), startOf(k), shown[joinEnd(k, joins)].end, off.has(k)));
   const joinedKeys = shown.flatMap((r, k) => (joins(k) || joins(k - 1) ? [r.key] : []));
   const warningsJson = JSON.stringify({
     times: warningsAt.flat(),
@@ -677,7 +684,7 @@ export function ReportEditor({
   const spans: Span[] = shown.flatMap((r, k) =>
     joins(k - 1) || fixOf(k)?.play === false
       ? []
-      : [{ key: r.key, n: k + 1, start: r.start, end: endOfRally(joinEnd(k, joins)), set: r.set, winner: winnerOf(k), redo: toReplay(k), wrongCall: calledWrong(k) }],
+      : [{ key: r.key, n: k + 1, start: startOf(k), end: endOfRally(joinEnd(k, joins)), set: r.set, winner: winnerOf(k), redo: toReplay(k), wrongCall: calledWrong(k) }],
   );
   const spansJson = JSON.stringify(spans);
   useEffect(() => {
@@ -686,7 +693,7 @@ export function ReportEditor({
   // Played past the end of a rally not checked, the video stops just after it: time to check it. Once, until moved back.
   const lastNow = useRef(now);
   const stoppedAt = useRef<number | null>(null);
-  const stopOf = (k: number) => Math.max(endOfRally(k), Math.min(endOfRally(k) + STOP_AFTER_S, shown[k + 1]?.start ?? Infinity));
+  const stopOf = (k: number) => Math.max(endOfRally(k), Math.min(endOfRally(k) + STOP_AFTER_S, shown[k + 1] ? startOf(k + 1) : Infinity));
   useEffect(() => {
     const from = lastNow.current;
     lastNow.current = now;
@@ -778,7 +785,7 @@ export function ReportEditor({
                     <li
                       key={`r${k}`}
                       data-key={`r${k}`}
-                      data-at={Math.max(shown[k].start - LEAD_S, shown[k - 1]?.end ?? 0)}
+                      data-at={Math.max(startOf(k) - LEAD_S, shown[k - 1]?.end ?? 0)}
                       className={cn('sticky top-0 z-10 rounded-md bg-card', k === here && 'text-primary')}
                     >
                       <div
@@ -793,7 +800,7 @@ export function ReportEditor({
                         <Tip label={t('review.reportRallyPlay')}>
                           <button
                             type="button"
-                            onClick={() => onPlay(shown[k].start)}
+                            onClick={() => onPlay(startOf(k))}
                             className={cn(
                               'flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
                               warnedAt(k) && 'hover:bg-amber-200 dark:hover:bg-amber-900',

@@ -66,7 +66,8 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   `matches.ensure_publish`); "Tester" checks it answers and holds the folder;
 - lists the matches online, each "À jour" or "En retard" with its link (`server.online`). "En retard" once the page's data
   or the code of the match's page, the list or the 3D view changed since its upload (`review.read_hosted`; the review's
-  tip lists each cause on its line);
+  tip lists each cause on its line: "Joueurs" names only the named players whose card changed; the tracks without a name,
+  kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs");
 - runs, as jobs that outlive the server, "Tout mettre à jour" (`matches --all`, recording each upload as the review does),
   "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them) and "Vérifier"
   (`sync verify`). Each has a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last

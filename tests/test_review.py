@@ -1332,11 +1332,19 @@ class TestPageChanges:
             {"part": "ball3d", "count": None},
             {"part": "club", "count": 1, "keys": ["favicon"]},
             {"part": "contacts", "count": 2},
-            {"part": "people", "count": 2, "keys": ["Bobby", "3"]},
+            {"part": "people", "count": 1, "keys": ["Bobby"]},
             {"part": "positions", "count": 1},
             {"part": "code", "count": None, "keys": ["page"]},
         ]
         assert page_changes(sent, sent) == []
+
+    def test_the_tracks_without_a_name_renumbered_are_the_positions(self):
+        from volleyball_stats.review import page_changes
+
+        sent = {"data": {"people": {"1": {"name": "Ana"}, "2": {"team": 1}, "3": {"team": 2}}}, "code": "a"}
+        now = {"data": {"people": {"1": {"name": "Ana"}, "2": {"team": 2}, "3": {"team": 1}}}, "code": "a"}
+
+        assert page_changes(sent, now) == [{"part": "positions", "count": None}]
 
     def test_an_upload_older_than_the_stamps_by_page_says_only_the_code_changed(self):
         from volleyball_stats.review import page_changes

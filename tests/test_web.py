@@ -1121,3 +1121,20 @@ class TestKeptPhotos:
         web.kept_photos(built, tmp_path, tmp_path)
 
         assert built == {5: {"team": 1, "number": 6, "name": "Ana", "photo": "players/0.webp?v=a"}, 6: {"team": 2, "number": 4}}
+
+
+class TestStarted:
+    def test_a_rally_starts_at_its_first_touch_never_before_the_one_before_ends(self):
+        rallies = [{"start": 10.0, "end": 20.0}, {"start": 30.0, "end": 40.0}, {"start": 50.0, "end": 60.0}, {"start": 60.5, "end": 70.0}]
+        found = [
+            {"rally": 0, "type": "floor", "t": 9.5},
+            {"rally": 0, "type": "serve", "t": 9.7},
+            {"rally": 0, "type": "pass", "t": 11.0},
+            {"rally": 1, "type": "pass", "t": 34.5},
+            {"rally": 3, "type": "serve", "t": 59.9},
+        ]
+
+        web.started(rallies, found)
+
+        # The serve 0.3 s before the window, the first touch left after the serve was removed, none, never before 60.
+        assert [r["start"] for r in rallies] == [9.7, 34.5, 50.0, 60.0]

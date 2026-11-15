@@ -34,12 +34,13 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   without it (`outputs/matches/MATCH/publish.json`). "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds
   every match online and uploads them at once. "Exporter le site" (the same menu, a server set or not) zips the pages for
   any host ([hosting.md](hosting.md#without-a-server-the-export)).
-- "Mettre à jour" (the list of the matches, above its tabs) brings every match waiting up to date in one job of the
-  app (`learn.update`, `app.LEARN`, it outlives the review switching matches). In a review, beside "À mettre à jour",
-  it asks "Mettre à jour ce match ?" and updates that match only (`/app/learn` with `here`: `learn --update MATCHES
-  --only NAME`); the others keep their badge. A match waits (`review.due`, a dot and "À mettre à jour" on its card,
-  the reason on hover) for its answers given since its last learning (`review.learned`, `learn.json`'s `answers`:
-  "Nouvelles réponses") or for other code or models than those its analysis was made with ("Nouvelles règles":
+- "Réanalyser" (the list of the matches, above its tabs) brings every match waiting up to date in one job of the
+  app (`learn.update`, `app.LEARN`, it outlives the review switching matches). In a review, beside the reason it waits,
+  it asks "Réanalyser ce match ?" and updates that match only (`/app/learn` with `here`: `learn --update MATCHES
+  --only NAME`); the others keep their badge. A match waits (`review.due`, a dot and the reason on its card: the owner's
+  naming, 15 Nov) for its answers given since its last learning (`review.learned`, `learn.json`'s `answers`:
+  "Réponses à apprendre", no count: the learning keeps only their hash) or for other code or models than those its
+  analysis was made with ("Nouvelle version de l'analyse", "Nouvelle version" on the card:
   `analysis.py`'s fingerprint of the pipeline's modules, comments and docstrings left out, of the learned order of who
   touched and of the play model, kept in the match's `analysis.json` by each run; web.py is not part of it, an apply
   rebuilds the pages). The job trains the learned attribution once on every match's answers (each match's held-out
@@ -152,7 +153,11 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   there yet) by the rally before's winner, its player field ready.
 - A touch added guesses its action from the one before (`nextTouch`): after an attack, a block under 0.4 s later (on the
   three matches blocks came 0.02-0.54 s after it, median 0.2 s; digs 0.1-1.7 s, median 0.8 s), else a dig.
-- Rallies are named by their `rallies.csv` start (`key` on the page), which an added serve moves. A line between rallies
+- Rallies are named by their `rallies.csv` start (`key` on the page). A rally starts at its first touch kept, its serve
+  (`web.started`, never before the one before ends; the editor's `startOf` as the touches are removed or added): on the
+  three matches, 55 of 444 started 0.5-11 s before their serve (touches removed in the review), most others 0.33 s after
+  it. Its automatic reports keep the id of its window's start (`window` on the page), so none handled comes back.
+- A touch added after a point or a fault in its rally puts that touch back in play (a playing fault stays one). A line between rallies
   shows the score after each one; a rally's whole surface turns orange with a warning, else light green once checked.
 - A rally's winner follows its last touch (`web.followed`).
 - "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in the review: always a
