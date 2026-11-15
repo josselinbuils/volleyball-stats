@@ -46,7 +46,14 @@ moments.
   (`outBack`) and counting up to gold over 0.55 s, sized by the picture's width (`cqw`) up to 80rem: in full screen on a
   1920 px screen two thirds of the whole width's size (the owner, 15 Nov: that too big, 56rem too small), placed on the picture, not its black
   bars. All on the video's clock: paused,
-  it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A canvas in the video's box, drawn by the zoom's loop for the frame
+  it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A close call (`helpers/lineCall.ts`, 15 Nov):
+  a rally ending on the ball landing within 0.4 m of a line on the other side from its last touch, or any such landing the
+  review marks as a wrong call, zooms 2.5 times on the bounce (from 0.6 s before it to 2.2 s after, where `ball.js` sees the
+  ball then) and shows "Dedans" or "Dehors" at the bottom's middle (its right corner on a narrow video) for 2.4 s, the
+  measured mark against its line drawn from above, and "Erreur d'arbitrage" on a wrong call. In or out is told by who won
+  the point (the other team on a wrong call), not by the measure: the mark is drawn only where it says the same, and a close
+  landing where it does not is left out (13 of the 17 landings within 0.5 m on the three matches agreed). 4, 0 and 5 calls
+  on the three matches, the Le Haillan wrong call (an attack called in, 0.92 m out) among them. The films show it too. A canvas in the video's box, drawn by the zoom's loop for the frame
   on screen (`requestVideoFrameCallback`), so it moves with the zoom. `ball.js` holds the ball's place by each frame's
   real seconds (`web.ball_track`, `film.frame_times`): the camera drops 5 to 10 frames a match, a frame's number then
   runs up to 45 ms off the video, one to two balls for a fast one, and the hosted copies play 25 frames a second on the
@@ -78,7 +85,7 @@ moments.
 
 "Mon match": a viewer picks their name (remembered on that device) and sees what they did, their touches
 to replay, their best points, their run on serve, who sets whom and their card to save. Their measures: the fastest
-serve and the usual speed (from 3), the fastest attack and its usual speed (from 5: spikes and tips mix), the hitting height and the "Détente" (their median jump, from 5 measured jumps). "L'histoire du
+serve and the median speed (from 3), the fastest attack and its median speed (from 5: spikes and tips mix), the median hitting height and the median "Détente" (from 5 measured jumps), each median named so on the page (the owner, 15 Nov: a plain number reads as a best). "L'histoire du
 match": the score gap rally by rally, a few plain sentences per set and the key moments (runs of 5 points,
 deficits of 4 caught up, set points saved, the longest rally, a timeout after 3 points in a row against its team that
 wins it 4 of the next 6), each replaying; the timeouts (`timeouts.py`, the review's) as dashed lines on the curve, each
@@ -97,7 +104,9 @@ a reading far from its player's others or from everyone's is left out of the who
 The view's "TV" switch films the match like a broadcast, in a 3D model of the first match's gym, with no footage, so the
 whole match can be public without anyone's consent. "Regarder le match" plays every rally of the set shown, one after another.
 
-- **Ball:** each flight is an arc under gravity between two touches, each touch placed in 3D where the path best matches
+- **Ball:** after a rally's last touch in the air (half the rallies: no floor contact seen), it falls to the floor: a point
+  into the other court (an attack 5 m past the net in 0.5 s, a block 1.5 m, a serve 6 m), an attack or serve fault past
+  the end line, a ball in the net straight down, else on 1.5 m the way it came (`flight.fallAfter`). Each flight is an arc under gravity between two touches, each touch placed in 3D where the path best matches
   the ball in the video (`ball3d.py`, `ball3d.js` on the page, loaded with the 3D view). It needs the camera's lens: without
   it, typical heights per action stay. `benchmarks/ball3d/bench.py` scores it.
 - **Director** (`Watch/helpers/director.ts`, a function of the time alone, so pausing and jumping just work): behind the

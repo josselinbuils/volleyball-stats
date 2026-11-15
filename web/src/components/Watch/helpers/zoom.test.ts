@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AHEAD_S, ballAt, frameAt, smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
+import { AHEAD_S, ballAt, frameAt, sampleNear, smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
 describe('ballAt', () => {
   // 10 fps: a sample every frame from 1 s to 2 s, the ball moving right.
@@ -94,5 +94,14 @@ describe('smoothFrameAt', () => {
     const xs = Array.from({ length: 41 }, (_, k) => smoothFrameAt(views, 8 + k * 0.1, null).x);
     expect(Math.min(...xs)).toBeGreaterThan(0.5 - 0.2 / 4 - 1e-6);
     expect(xs[40]).toBeCloseTo(0.7, 6);
+  });
+});
+
+describe('sampleNear', () => {
+  const ball = { samples: [1, 0.1, 0.5, 1.08, 0.2, 0.5, 1.5, 0.3, 0.4] };
+
+  it('takes the nearest sample within its seconds', () => {
+    expect(sampleNear(ball, 1.05, 0.1)).toEqual({ x: 0.2, y: 0.5 });
+    expect(sampleNear(ball, 1.3, 0.1)).toBeNull();
   });
 });

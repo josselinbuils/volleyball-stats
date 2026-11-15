@@ -1077,7 +1077,10 @@
     "jump": "Détente",
     "cm": "cm",
     "jumpOf": "Détente {{cm}} cm",
-    "reachOf": "Frappe à {{m}} m"
+    "reachOf": "Frappe à {{m}} m",
+    "in": "Dedans",
+    "out": "Dehors",
+    "wrongCall": "Erreur d'arbitrage"
   },
   "videoOverlay": "Vidéo augmentée",
   "story": {
@@ -1145,12 +1148,12 @@
     "serveRunTitle": "Série au service, {{name}}",
     "measures": "Mes mesures",
     "fastestServe": "Service le plus rapide : {{speed}} km/h",
-    "usualSpeed_other": "En général {{speed}} km/h sur {{count}} services mesurés",
+    "usualSpeed_other": "Médiane : {{speed}} km/h sur {{count}} services mesurés",
     "fastestAttack": "Attaque la plus rapide : {{speed}} km/h",
-    "usualAttackSpeed_other": "En général {{speed}} km/h sur {{count}} attaques mesurées",
-    "reach": "Hauteur de frappe : {{height}} m",
+    "usualAttackSpeed_other": "Médiane : {{speed}} km/h sur {{count}} attaques mesurées",
+    "reach": "Hauteur de frappe médiane : {{height}} m",
     "reachOf_other": "Sur {{count}} attaques mesurées",
-    "jump": "Détente : {{cm}} cm",
+    "jump": "Détente médiane : {{cm}} cm",
     "jumpOf_other": "Sur {{count}} sauts mesurés",
     "measuresNote": "Estimations à partir d'une seule caméra. La vitesse est prise en plein vol.",
     "duos": "Les duos",

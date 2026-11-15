@@ -1077,7 +1077,10 @@
     "jump": "Vertical leap",
     "cm": "cm",
     "jumpOf": "Vertical leap {{cm}} cm",
-    "reachOf": "Hit at {{m}} m"
+    "reachOf": "Hit at {{m}} m",
+    "in": "In",
+    "out": "Out",
+    "wrongCall": "Wrong call"
   },
   "videoOverlay": "Augmented video",
   "story": {
@@ -1145,12 +1148,12 @@
     "serveRunTitle": "Run on serve, {{name}}",
     "measures": "My measures",
     "fastestServe": "Fastest serve: {{speed}} km/h",
-    "usualSpeed_other": "Usually {{speed}} km/h over {{count}} measured serves",
+    "usualSpeed_other": "Median: {{speed}} km/h over {{count}} measured serves",
     "fastestAttack": "Fastest attack: {{speed}} km/h",
-    "usualAttackSpeed_other": "Usually {{speed}} km/h over {{count}} measured attacks",
-    "reach": "Hitting height: {{height}} m",
+    "usualAttackSpeed_other": "Median: {{speed}} km/h over {{count}} measured attacks",
+    "reach": "Median hitting height: {{height}} m",
     "reachOf_other": "From {{count}} measured attacks",
-    "jump": "Vertical leap: {{cm}} cm",
+    "jump": "Median vertical leap: {{cm}} cm",
     "jumpOf_other": "From {{count}} measured jumps",
     "measuresNote": "Estimates from a single camera. The speed is taken in mid-flight.",
     "duos": "Duos",

@@ -150,6 +150,38 @@ class TestPlan:
         assert film.status(tmp_path) == {"players": {"total": 1, "stale": ["Élodie"]}, "highlights": none}
 
 
+class TestLineCall:
+    @staticmethod
+    def attack(x, winner, **more):
+        """Team 1 attacks from the left; the ball lands at (x, 1) on the right."""
+        r = rally(0, [contact(0, 10.0, "attack", 1, x=-2.0, y=0.0), contact(1, 10.5, "floor", None, g=2, x=x, y=1.0)], [1, 0], winner)
+        return {**r, **more}
+
+    def test_calls_a_close_landing_as_the_point_went(self):
+        assert film.line_call(self.attack(8.8, 1)) == {"t": 10.5, "x": 8.8, "y": 1.0, "in": True, "wrongCall": False, "line": "end"}
+        assert film.line_call(self.attack(9.3, 2))["in"] is False
+        # Touching the line is in.
+        assert film.line_call(self.attack(9.08, 1))["in"] is True
+
+    def test_leaves_out_far_landings_and_a_measure_saying_otherwise(self):
+        assert film.line_call(self.attack(5.0, 1)) is None
+        assert film.line_call(self.attack(9.3, 1)) is None
+
+    def test_a_wrong_call_shows_as_the_point_really_went(self):
+        call = film.line_call(self.attack(9.92, 1, wrongCall=True))
+        assert (call["in"], call["wrongCall"], call["line"]) == (False, True, "end")
+        assert film.line_call(self.attack(7.0, 1, wrongCall=True))["line"] is None
+
+    def test_follows_its_clip_slowed_when_the_bounce_is_in_it(self, tmp_path):
+        page = TestPlan.page()
+        page["contacts"][1].update(x=-2.0, y=0.0)
+        page["contacts"][2].update(x=8.8, y=1.0, g=2)
+        shots = film.plan(page, tmp_path)["Élodie"]["shots"]
+        kinds = [s["kind"] for s in shots]
+        call = shots[kinds.index("call")]
+        assert kinds[kinds.index("call") - 1] == "live" and call["from"] == 21.0 - film.CALL_BEFORE_S and call["speed"] == film.CALL_SPEED
+
+
 class TestHighlights:
     @staticmethod
     def page():

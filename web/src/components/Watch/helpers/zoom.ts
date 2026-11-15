@@ -45,6 +45,22 @@ export function ballAt(ball: Ball, time: number): { x: number; y: number } | nul
   return n ? { x: x / n, y: y / n } : null;
 }
 
+/** The ball's sample nearest `time` (fractions of the picture), within `within` seconds; null without one. */
+export function sampleNear(ball: Ball, time: number, within: number): { x: number; y: number } | null {
+  const { samples } = ball;
+  let best: { x: number; y: number } | null = null;
+  let gap = within;
+  for (let k = 0; k < samples.length; k += 3) {
+    const d = Math.abs(samples[k] - time);
+    if (d <= gap) {
+      [best, gap] = [{ x: samples[k + 1], y: samples[k + 2] }, d];
+    } else if (samples[k] > time + within) {
+      break;
+    }
+  }
+  return best;
+}
+
 /** The automatic zoom at `time`: the review's view of the players then (`views`, framing.py's), moved
  * only as much as keeps `ball` EDGE inside it. */
 export function frameAt(views: MatchView[], time: number, ball: { x: number; y: number } | null): Camera {

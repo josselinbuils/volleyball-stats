@@ -95,6 +95,11 @@ TAIL_CROPS = ((1536, 864), (2560, 1440))
 WINDOW_PAD_S = 0.4
 TAIL_FRAMES = 90
 BATCH = 16
+# A ball landing this near a line at a point's end, or any landing the review says the referee called wrongly, is shown again
+# slowly on its bounce, in or out as the point went (the page's `lineCall.ts`): court half sizes and the ball's radius in metres.
+CALL_NEAR_M, BALL_R, HALF_X, HALF_Y, LINE_M = 0.4, 0.105, 9.0, 4.5, 0.05
+CALL_BEFORE_S, CALL_AFTER_S, CALL_SPEED = 0.5, 0.5, 0.3
+IN_GREEN, COURT_FLOOR, AROUND_FLOOR = (74, 163, 22), (60, 116, 200), (143, 111, 47)
 # A server stands behind the end line, 9 m from the net: a track this close to it at the serve follows someone else.
 SERVER_FROM_NET_M = 8.0
 
@@ -167,6 +172,44 @@ def scoring_touch(rally: dict) -> dict | None:
     if len(touches) >= 2 and touches[-1].get("result") == "error" and touches[-2].get("result") == "point" and touches[-2]["g"] != touches[-1]["g"]:
         return touches[-2]
     return None
+
+
+def outside(x: float, y: float) -> tuple[float, str]:
+    """How far a ball centred on (x, y) lands outside the court (negative inside), and the line it is told against."""
+    dx, dy = abs(x) - HALF_X, abs(y) - HALF_Y
+    if dx > 0 or dy > 0:
+        return float(np.hypot(max(0.0, dx), max(0.0, dy))), "end" if dx >= dy else "side"
+    return (dx, "end") if dx >= dy else (dy, "side")
+
+
+def line_call(rally: dict) -> dict | None:
+    """A rally ending on a ball landing near a line on the other side from its last touch (with a wrong call, any such landing):
+    its bounce `t`, in or out from who won the point (the other team on a wrong call), the measured `mark` where it says the same."""
+    if not rally.get("winner") or rally.get("redo"):
+        return None
+    played = [c for c in rally["contacts"] if c["type"] != "fault"]
+    hits = [c for c in played if is_touch(c)]
+    if not played or not hits or played[-1]["type"] != "floor":
+        return None
+    land, hit = played[-1], hits[-1]
+    if land.get("x") is None or land.get("y") is None or hit.get("x") is None or np.sign(land["x"]) == np.sign(hit["x"]):
+        return None
+    wrong = bool(rally.get("wrongCall"))
+    won = 3 - rally["winner"] if wrong else rally["winner"]
+    is_in = won == hit["g"]
+    by, line = outside(land["x"], land["y"])
+    agrees = (by <= BALL_R) == is_in
+    if not wrong and not (agrees and abs(by) <= CALL_NEAR_M):
+        return None
+    return {"t": land["t"], "x": land["x"], "y": land["y"], "in": is_in, "wrongCall": wrong, "line": line if agrees else None}
+
+
+def call_shot(rally: dict, start: float, end: float) -> tuple[float, float, dict] | None:
+    """The slowed shot of a clip's line call: its length, where it starts in the match, and the call; None without one in the clip."""
+    call = line_call(rally)
+    if not call or not start <= call["t"] <= end:
+        return None
+    return (CALL_BEFORE_S + CALL_AFTER_S) / CALL_SPEED, call["t"] - CALL_BEFORE_S, call
 
 
 def clip_start(rally: dict, t: float) -> float:
@@ -291,6 +334,10 @@ def shots_of(moments: list[dict], rallies: list[dict]) -> tuple[list[dict], floa
         start = clip_start(rally, c["t"])
         end = following["t"] + AFTER_FLIGHT_S if c["type"] == "serve" and following else c["t"] + (AFTER_POINT_S if c.get("result") == "point" else AFTER_S)
         add("live", end - start, start, 1, c)
+        called = call_shot(rally, start, end)
+        if called:
+            add("call", called[0], called[1], CALL_SPEED, c)
+            shots[-1]["call"] = called[2]
         # Replayed only where it adds something: the first when its speed was measured, and the last, the best.
         if c is moments[-1] or (c is moments[0] and c.get("speed") is not None):
             add("replay", (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED, c["t"] - REPLAY_BEFORE_S, REPLAY_SPEED, c)
@@ -452,6 +499,10 @@ def highlight_film(page: dict, site: Path, stamp: str) -> dict | None:
     add("intro", INTRO_S, moments[0][0]["t"] - LEAD_S, 1, moments[0][0])
     for c, span in moments:
         add("live", span["end"] - span["start"], span["start"], 1, c)
+        called = call_shot(rallies[c["rally"]], span["start"], span["end"])
+        if called:
+            add("call", called[0], called[1], CALL_SPEED, c)
+            shots[-1]["call"] = called[2]
         if span["replayed"]:
             add("replay", (REPLAY_BEFORE_S + REPLAY_AFTER_S) / REPLAY_SPEED, c["t"] - REPLAY_BEFORE_S, REPLAY_SPEED, c)
     add("outro", OUTRO_S, moments[-1][0]["t"], 1, moments[-1][0])
@@ -1380,6 +1431,8 @@ class Maker:
     def camera(self, shot: dict, ms: np.ndarray) -> tuple[np.ndarray, ...]:
         """Where an operator would frame each frame: holding, then panning, with room towards the net, pushing in on the touch."""
         n, tau, t, kind = len(ms), np.arange(len(ms)) / FPS, self.contact(shot)["t"], shot["kind"]
+        if kind == "call":
+            return self.call_camera(shot, n)
         located = [self.hero_px(m) for m in ms]
         feet = np.array([p for p, _ in located])
         ppm = float(np.median([q for _, q in located]))
@@ -1463,6 +1516,67 @@ class Maker:
         fit = np.minimum(1, np.minimum(SOURCE_W / 2 / half_w, SOURCE_H / 2 / half_h))
         return np.clip(cx, half_w * fit, SOURCE_W - half_w * fit), np.clip(cy, half_h * fit, SOURCE_H - half_h * fit), tall * fit, roll
 
+    def call_camera(self, shot: dict, n: int) -> tuple[np.ndarray, ...]:
+        """Still, pushing in on the bounce: where the ball is seen then, else where it was measured on the floor."""
+        call = shot["call"]
+        seen = self.ball.get(int(round(call["t"] * FPS)))
+        at = np.array(seen, float) if seen else self.cal.to_image(np.array([[call["x"], call["y"]]]))[0]
+        a, b = self.cal.to_image(np.array([[call["x"] - 0.5, call["y"]], [call["x"] + 0.5, call["y"]]]))
+        ppm = float(np.hypot(*(b - a)))
+        tau = np.arange(n) / FPS
+        tall = np.clip(7.0 * ppm - 3.8 * ppm * ease(0, 0.45 * n / FPS, tau), 600, SOURCE_H)
+        # The bounce above the card.
+        cx, cy = np.full(n, at[0]), at[1] + 0.12 * tall
+        half_w, half_h = tall * ASPECT / 2, tall / 2
+        fit = np.minimum(1, np.minimum(SOURCE_W / 2 / half_w, SOURCE_H / 2 / half_h))
+        return np.clip(cx, half_w * fit, SOURCE_W - half_w * fit), np.clip(cy, half_h * fit, SOURCE_H - half_h * fit), tall * fit, np.zeros(n)
+
+    def call_card(self, g: np.ndarray, shot: dict, tau: float) -> None:
+        """In or out, the measured mark against its line, and the referee's mistake, slamming in from below after the bounce."""
+        call, begin = shot["call"], CALL_BEFORE_S / CALL_SPEED + 0.2
+        if tau < begin:
+            return
+        w = 380
+        mark_h = int((w - 24) * 5 / 9) if call["line"] else 0
+        h = 12 + 70 + (12 + mark_h if mark_h else 0) + (12 + 44 if call["wrongCall"] else 0) + 12
+        x = WIDTH // 2 - w // 2
+        y = HEIGHT - 60 - h + int((1 - out_back((tau - begin) / 0.3)) * (h + 80))
+        slant(g, x, y, w, h, INK, 0.9, lean=0)
+        words = self.words["overlay"]
+        cv2.rectangle(g, (x + 12, y + 12), (x + w - 12, y + 82), IN_GREEN if call["in"] else RED, -1)
+        write(g, words["in" if call["in"] else "out"].upper(), x + w // 2, y + 67, 56, self.italic, center=True)
+        top = y + 94
+        if mark_h:
+            self.mark(g, call, x + 12, top, w - 24, mark_h)
+            top += mark_h + 12
+        if call["wrongCall"]:
+            cv2.rectangle(g, (x + 12, top), (x + w - 12, top + 44), GOLD, -1)
+            write(g, words["wrongCall"].upper(), x + w // 2, top + 33, 28, self.cond, INK, widest=w - 40, center=True)
+
+    @staticmethod
+    def mark(g: np.ndarray, call: dict, x: int, y: int, w: int, h: int) -> None:
+        """The landing seen from above and from outside its line, as the page draws it, in a `w` × `h` box at (x, y)."""
+        x0, y0, x1, y1 = max(0, x), max(0, y), min(WIDTH, x + w), min(HEIGHT, y + h)
+        if x1 <= x0 or y1 <= y0:
+            return
+        if call["line"] == "end":
+            u, v, corner = call["y"] * np.sign(call["x"]), abs(call["x"]) - HALF_X, HALF_Y
+        else:
+            u, v, corner = -call["x"] * np.sign(call["y"]), abs(call["y"]) - HALF_Y, HALF_X
+        half = max(0.4, abs(v) / 2 + 0.35)
+        scale = h / (2 * half)
+        px = lambda a, b: (int(round(x + w / 2 + (a - u) * scale)), int(round(y + h / 2 + (b - v / 2) * scale)))  # noqa: E731
+        box = np.full((h, w, 3), AROUND_FLOOR, np.uint8)
+        shift = lambda p: (p[0] - x, p[1] - y)  # noqa: E731
+        cv2.rectangle(box, shift(px(-corner, -50)), shift(px(corner, 0)), COURT_FLOOR, -1)
+        cv2.rectangle(box, shift(px(-corner, -LINE_M)), shift(px(corner, 0)), WHITE, -1)
+        for a in (-corner, corner - LINE_M):
+            cv2.rectangle(box, shift(px(a, -50)), shift(px(a + LINE_M, 0)), WHITE, -1)
+        centre, r = shift(px(u, v)), max(3, int(round(BALL_R * scale)))
+        cv2.circle(box, centre, r, GOLD, -1, cv2.LINE_AA)
+        cv2.circle(box, centre, r, INK, 2, cv2.LINE_AA)
+        g[y0:y1, x0:x1] = box[y0 - y : y1 - y, x0 - x : x1 - x]
+
     def shoot(self, shot: dict, encoder: subprocess.Popen) -> None:
         self.follow_body(shot)
         ms = self.moments(shot)
@@ -1508,6 +1622,9 @@ class Maker:
                     self.banner(g, shot, moment)
                 if shot["kind"] == "replay":
                     self.telemetry(g, shot, tau)
+            elif shot["kind"] == "call":
+                self.tower(g, shot, 1.0, moment)
+                self.call_card(g, shot, tau)
             elif shot["kind"] == "intro":
                 self.title_card(g, tau)
             else:
@@ -1704,7 +1821,7 @@ class Maker:
         rally = self.film["rallies"][str(shot["rally"])]
         before, after = rally["before"], rally["score"] or rally["before"]
         at = self.point_at(shot)
-        landed = shot["kind"] == "live" and at is not None and moment - at > 0.35
+        landed = shot["kind"] == "call" or (shot["kind"] == "live" and at is not None and moment - at > 0.35)
         shown = after if landed else before
         off = int((1 - out_back(tau / 0.3)) * -520)
         teams = self.film["teams"] or ["", ""]
@@ -1811,7 +1928,7 @@ class Maker:
         write(g, self.below, WIDTH // 2, HEIGHT - 120, 28, self.cond, (210, 210, 210), widest=620, center=True)
 
     def sound(self) -> np.ndarray:
-        """The hall on the live shots, the commentary over it, a whoosh on each cut and a hit on each freeze."""
+        """The hall on the live shots, the commentary over it, a whoosh on each cut and a hit on each freeze and line call."""
         rate, film = 48000, self.film
         total = int(film["length"] * rate) + rate
         hall, voice, marks_fx = (np.zeros((total, 2), np.float32) for _ in range(3))
@@ -1837,6 +1954,8 @@ class Maker:
                 put(hall, shot["start"], clip)
             elif shot["kind"] == "replay":
                 put(marks_fx, shot["start"] + REPLAY_PRE, np.c_[hit, hit])
+            elif shot["kind"] == "call":
+                put(marks_fx, shot["start"] + CALL_BEFORE_S / CALL_SPEED + 0.2, np.c_[hit, hit])
         for at in self.impacts:
             put(marks_fx, at, np.c_[hit, hit])
         for line in film["lines"]:

@@ -191,6 +191,8 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   les highlights" each make those of their kind whose `plan` changed, never an apply; a player's card in "Noms" makes
   their film alone when it is out of date (a rename, `/film`).
   `uv run python -m volleyball_stats.film outputs/matches/MATCH --video VIDEO --court COURT [--names A,B]` does the same.
+  A clip whose point ends on a close call (`film.line_call`, the page's rule) is followed by its bounce again at 0.3 times
+  the speed (3.3 s), still and pushing in on it, with the page's "Dedans" / "Dehors" card (`Maker.call_card`).
 - Only behind the page's password (the owner's rule): `web.copy_films` puts them only beside a page with the video, and
   `matches.host` refuses to upload a video outside a `video/` folder or a film that opens without the password.
 - Files in `outputs/matches/MATCH/films/`, in the backup (a pull brings them); a film of a name no longer on the page (a

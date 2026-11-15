@@ -7,6 +7,7 @@ import { Swatch } from '@/components/Swatch';
 import { useVideoTime } from '@/lib/player';
 import { TRAIL_S, ease, onScreen, outBack, shownAt, stamps, statCards, trailAt, type Card, type View } from '@/components/Watch/helpers/overlay';
 import { justScored, scoreAt } from '@/components/Watch/helpers/score';
+import { BALL_R, callAt, lineCalls, local, type LineCall } from '@/components/Watch/helpers/lineCall';
 
 /** The trail's half width at the ball, as a share of the picture's width on the screen (the ball is about 0.008 wide), and in px at least. */
 const WIDTH = 0.003;
@@ -38,6 +39,17 @@ const GAUGE_KMH = 110;
 const CARDS = statCards(contacts);
 /** A point's number stays gold this long after it lands. */
 const LANDED_S = 1.5;
+/** The rallies ending on a ball near a line (`lineCalls`), and their card's time: from this long after the bounce, this long. */
+export const LINE_CALLS = lineCalls(rallies);
+const CALL_AFTER_S = 0.2;
+const CALL_HOLD_S = 2.4;
+/** The call's colours: in, out. */
+const IN_RGB = 'rgb(22 163 74)';
+/** The floor in the call's drawing: the court, around it. */
+const COURT_RGB = 'rgb(200 116 60)';
+const AROUND_RGB = 'rgb(47 111 143)';
+/** A court line's width, in metres. */
+const LINE_M = 0.05;
 /** The match has a score to show: the score's tower then holds the top left corner. */
 export const SCORED = rallies.some((r) => r.score !== null);
 /** The tower's place and height in the picture's width (`cqw`, `SIZED`); what shows in that corner too (Watch's title of
@@ -218,6 +230,7 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
       <canvas ref={canvas} className="absolute inset-0 size-full" />
       <div ref={sized} className={SIZED}>
         {SCORED && <Tower />}
+        {LINE_CALLS.length > 0 && <Call />}
         <div
           ref={card}
           className="invisible absolute bottom-[3cqw] left-[2.5cqw] grid py-[0.8cqw] pr-[2cqw] pl-[1.8cqw] leading-none whitespace-nowrap text-white tabular-nums uppercase"
@@ -279,5 +292,55 @@ function Tower() {
         {t('set', { n: f.num(set) })}
       </span>
     </div>
+  );
+}
+
+/** The close call on screen: in or out, the measured mark against its line when it agrees, and the referee's mistake
+ * when the review says so; at the bottom's middle, clear of the corners' cards (on a narrow video in its right corner). */
+function Call() {
+  const { t } = useTranslation();
+  const shown = useVideoTime((time) => callAt(LINE_CALLS, rallies, time, CALL_AFTER_S, CALL_HOLD_S));
+  if (!shown) {
+    return null;
+  }
+  return (
+    <div className="absolute inset-x-0 bottom-[3cqw] flex justify-center @max-md:justify-end @max-md:pr-[2.5cqw]">
+      <div
+        key={shown.rally}
+        className="grid w-[max(7rem,19cqw)] animate-in gap-[0.5cqw] p-[0.7cqw] leading-none text-white uppercase duration-300 fade-in slide-in-from-bottom-4"
+        style={{ background: INK }}
+      >
+        <span className="py-[0.5cqw] text-center text-[max(0.9rem,2.6cqw)] font-black tracking-tight italic" style={{ background: shown.in ? IN_RGB : RED }}>
+          {t(shown.in ? 'overlay.in' : 'overlay.out')}
+        </span>
+        {shown.mark && <Mark mark={shown.mark} />}
+        {shown.wrongCall && (
+          <span className="py-[0.4cqw] text-center text-[max(0.55rem,1.15cqw)] font-bold tracking-wide" style={{ background: GOLD, color: INK }}>
+            {t('overlay.wrongCall')}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The landing seen from above, from outside its line: the court, its lines and the ball's mark, in metres. */
+function Mark({ mark }: { mark: NonNullable<LineCall['mark']> }) {
+  const { u, v, corner } = local(mark);
+  // Wide enough for the line and the mark, 9 by 5.
+  const half = Math.max(0.4, Math.abs(v) / 2 + 0.35);
+  const [cu, cv] = [u, v / 2];
+  const [w, h] = [(half * 9) / 5, half];
+  const far = 50;
+  return (
+    <svg viewBox={`${cu - w} ${cv - h} ${2 * w} ${2 * h}`} className="aspect-[9/5] w-full" aria-hidden>
+      <rect x={cu - w} y={cv - h} width={2 * w} height={2 * h} fill={AROUND_RGB} />
+      <rect x={-corner} y={-far} width={2 * corner} height={far} fill={COURT_RGB} />
+      <rect x={-corner} y={-LINE_M} width={2 * corner} height={LINE_M} fill="white" />
+      {[-corner, corner - LINE_M].map((x) => (
+        <rect key={x} x={x} y={-far} width={LINE_M} height={far} fill="white" />
+      ))}
+      <circle cx={u} cy={v} r={BALL_R} fill={GOLD} stroke={INK} strokeWidth={0.015} />
+    </svg>
   );
 }

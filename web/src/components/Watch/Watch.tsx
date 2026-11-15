@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { LoaderCircle, Lock } from 'lucide-react';
@@ -9,7 +9,7 @@ import { SetBadge } from '@/components/SetBadge';
 import { loadBall, useBall } from '@/lib/ball';
 import { useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { match, timeoutAt, timeoutLabel } from '@/lib/match';
+import { match, rallies, timeoutAt, timeoutLabel } from '@/lib/match';
 import { Clock } from '@/lib/clock';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import type { Clip } from '@/lib/playlist';
@@ -21,14 +21,18 @@ import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 import { useLayout } from '@/components/Watch/LayoutMenu';
-import { BELOW_TOWER, Overlay, SCORED, type Paint } from '@/components/Watch/Overlay';
+import { BELOW_TOWER, LINE_CALLS, Overlay, SCORED, type Paint } from '@/components/Watch/Overlay';
 import { askVideo } from '@/components/VideoChoice';
-import { smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
+import { sampleNear, smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
 
 // A jump in the video this long cuts to its view: no pan across the court.
 const CUT_S = 0.5;
 const WHOLE = { x: 0.5, y: 0.5, zoom: 1 };
 const UNZOOMED = { scale: 1, x: 0, y: 0 };
+// The augmented video zooms this much on a close call's bounce, from this long before it to this long after.
+const CALL_ZOOM = 2.5;
+const CALL_BEFORE_S = 0.6;
+const CALL_AFTER_S = 2.2;
 // Whether the video shows the ball's trail, the score and the measured numbers, kept in this browser: shown unless turned off.
 const DRAWN_KEY = 'videoOverlay';
 
@@ -79,6 +83,8 @@ export function Watch() {
     }
   };
   const paint = useRef<Paint>(null);
+  // Each close call's bounce in the picture, where the ball is seen then.
+  const bounces = useMemo(() => (typeof ball === 'object' ? LINE_CALLS.map((c) => ({ ...c, at: sampleNear(ball, c.t, 0.12) })) : []), [ball]);
   useEffect(() => {
     if (follow || drawn) {
       loadBall();
@@ -96,7 +102,8 @@ export function Watch() {
       const dt = Math.min(0.05, Math.max(0, stamp - last) / 1000);
       last = stamp;
       const time = video.currentTime;
-      const target = follow ? smoothFrameAt(match.views, time, typeof ball === 'object' ? ball : null) : WHOLE;
+      const call = drawn ? bounces.find((c) => c.at && time >= c.t - CALL_BEFORE_S && time <= c.t + CALL_AFTER_S && (rallies[c.rally + 1]?.start ?? Infinity) > time) : undefined;
+      const target = call?.at ? { ...call.at, zoom: CALL_ZOOM } : follow ? smoothFrameAt(match.views, time, typeof ball === 'object' ? ball : null) : WHOLE;
       if (Math.abs(time - shown) > CUT_S) {
         Object.assign(now, target);
         Object.assign(speed, { x: 0, y: 0, zoom: 0 });
@@ -123,7 +130,7 @@ export function Watch() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [video, follow, ball, drawn]);
+  }, [video, follow, ball, drawn, bounces]);
   // A playlist's next clips load once the video has reached its first one: both at once would
   // slow its start.
   const [reached, setReached] = useState<Clip[] | null>(null);
