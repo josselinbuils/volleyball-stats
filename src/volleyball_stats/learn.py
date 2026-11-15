@@ -187,9 +187,10 @@ def from_training(match: Path) -> dict[str, Score]:
     return {"attribution: held out, learned": (found["learned"], found["touches"]), "attribution: held out, rule": (found["rule"], found["touches"])}
 
 
-def scores(match: Path, video: Path, court: Path, name: str | None = None) -> dict[str, Score]:
+def scores(match: Path, video: Path, court: Path, name: str | None = None, share: jobs.Share = jobs.quiet) -> dict[str, Score]:
+    """The match's scores, the share of players.csv read told as it goes."""
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-    page, _ = web.match_data(match, video, Calibration.load(court))
+    page, _ = web.match_data(match, video, Calibration.load(court), share)
     return {**from_answers(match, fps), **from_training(match), **from_labels(match, fps, name or match.name), **from_checked(match, page, fps)}
 
 
@@ -212,14 +213,12 @@ def answered(outputs: Path) -> list[str]:
     return found
 
 
-def train(outputs: Path) -> None:
+def train(outputs: Path, share: jobs.Share = jobs.quiet) -> None:
     """The learned order of who touched the ball (ranker.py) trained again on the answers of every
     reviewed match of `outputs` and the school clips' labels, kept only if it gains on the rule on the matches'
-    touches held out set by set; each match's held-out scores in its ranker.json for `scores`."""
-    subprocess.run(
-        [sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), *answered(outputs), "--write", "--if-better", "--summaries"],
-        cwd=ROOT, stdin=subprocess.DEVNULL, check=True,
-    )
+    touches held out set by set; each match's held-out scores in its ranker.json for `scores`. Its share is what the
+    script tells (`jobs.follow`), nothing yet: ponytail: it should tell the sets held out of all as it goes."""
+    jobs.follow([sys.executable, str(ROOT / "benchmarks/attribution/ranker.py"), *answered(outputs), "--write", "--if-better", "--summaries"], share, cwd=ROOT, stdin=subprocess.DEVNULL)
 
 
 def play_due(match: Path) -> bool:
@@ -229,15 +228,18 @@ def play_due(match: Path) -> bool:
     return bool(play_training.due(match))
 
 
-def train_play(match: Path) -> None:
+def train_play(match: Path, share: jobs.Share = jobs.quiet) -> None:
     """The play model trained again on every match fully checked (`play_training`), in its own process: the review's
-    server keeps no model in memory."""
-    subprocess.run([sys.executable, "-m", "volleyball_stats.play_training", str(match)], cwd=ROOT, stdin=subprocess.DEVNULL, check=True)
+    server keeps no model in memory. Its share is what it tells (`jobs.follow`), nothing yet: ponytail: it should tell
+    its steps done as it goes."""
+    jobs.follow([sys.executable, "-m", "volleyball_stats.play_training", str(match)], share, cwd=ROOT, stdin=subprocess.DEVNULL)
 
 
-def measured(match: Path, video: Path, court: Path, update: str | None = None) -> dict[str, Score]:
-    """The match left as it is, measured in learn.json like a rerun: a fully checked one after a training."""
-    return record(match, video, court, {k: v for k, v in scores(match, video, court).items() if k not in from_training(match)}, update)
+def measured(match: Path, video: Path, court: Path, update: str | None = None, share: jobs.Share = jobs.quiet) -> dict[str, Score]:
+    """The match left as it is, measured in learn.json like a rerun: a fully checked one after a training. Its share is
+    players.csv read for the two measures, told as it goes."""
+    part = jobs.parts(share, {"before": 1.0, "now": 1.0})
+    return record(match, video, court, {k: v for k, v in scores(match, video, court, share=part("before")).items() if k not in from_training(match)}, update, part("now"))
 
 
 def rerun(
@@ -293,12 +295,12 @@ def rerun(
     return record(match, video, court, replaced, update)
 
 
-def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | None = None, update: str | None = None) -> dict[str, Score]:
+def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | None = None, update: str | None = None, share: jobs.Share = jobs.quiet) -> dict[str, Score]:
     """`scores`, added to learn.json with those of the results they `replaced` and the app's `update` they are part
     of; printed against the last ones."""
     path = match / HISTORY
     history = json.loads(path.read_text()) if path.exists() else []
-    now = scores(match, video, court)
+    now = scores(match, video, court, share=share)
     print(report(now, history[-1]["scores"] if history else None))
     # The answers it saw: the review asks for another run once they change.
     stamp = review.answers_stamp(review.load_log(match / "identity_answers.json"))
@@ -331,7 +333,7 @@ def update(outputs: Path, only: str | None = None) -> None:
     told = jobs.Stages(files.root(found[0][0]) / TIMINGS, ["training", *(f"match:{m.name}" for m, *_ in found)], TOOK)
     started = time.strftime("%Y-%m-%d %H:%M:%S")
     told.start("training")
-    train(outputs)
+    train(outputs, told.share_of_stage)
     # A new learned order makes every match's analysis older: each one not fully checked waits too.
     found = pick()
     told.plan = ["training", *(f"match:{m.name}" for m, *_ in found)]
@@ -340,7 +342,7 @@ def update(outputs: Path, only: str | None = None) -> None:
         told.start(f"match:{match.name}")
         print(f"{match.name}:", flush=True)
         if review.reviewed(review.page_data(match / "review"), review.load_log(match / "identity_answers.json")):
-            measured(match, video, court, started)
+            measured(match, video, court, started, told.share_of_stage)
             taught = taught or (match if play_due(match) else None)
         else:
             rerun(match, video, court, on_share=told.share_of_stage, update=started)
@@ -348,7 +350,7 @@ def update(outputs: Path, only: str | None = None) -> None:
     if taught:
         told.plan.append("play")
         told.start("play")
-        train_play(taught)
+        train_play(taught, told.share_of_stage)
     told.start(None)
 
 

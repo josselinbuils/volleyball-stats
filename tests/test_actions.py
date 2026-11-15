@@ -383,3 +383,14 @@ class TestRelancesByTouch:
 
     def test_after_a_serve_stays(self):
         assert self.kinds([(0, 0, 0, "serve", "left"), (50, 0, 0, "relance", "right")])[-1] == "relance"
+
+
+def test_relances_tell_their_share_done_at_once_without_attacks():
+    from pathlib import Path
+
+    from volleyball_stats.actions import mark_relances
+
+    told = []
+
+    assert mark_relances(Path("none.mp4"), [(10, 1, 1, "serve", "left")], 30.0, share=told.append) == [(10, 1, 1, "serve", "left")]
+    assert told == [1.0]

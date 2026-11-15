@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import decode, files
+from volleyball_stats import decode, files, jobs
 from volleyball_stats.court import Calibration
 
 # Relances (free balls): a third touch played without attacking, ball not above the player's head
@@ -348,14 +348,16 @@ def overlap(box: np.ndarray, boxes: np.ndarray) -> np.ndarray:
     return inter / ((box[2] - box[0]) * (box[3] - box[1]) + (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1]) - inter)
 
 
-def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | None = None) -> list[Typed]:
+def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | None = None, share: jobs.Share = jobs.quiet) -> list[Typed]:
     """`typed` with the attacks played as relances retyped "relance"; the pose boxes of each frame
-    looked at kept in `cache` (JSON, by frame) for the next runs.
+    looked at kept in `cache` (JSON, by frame) for the next runs. The share of the attacks looked at is told to `share`
+    as it goes.
 
     ponytail: runs after the rules, so a touch right after a relance stays typed as its block.
     """
     attacks = [t for t in typed if t[3] == "attack"]
     if not attacks:
+        share(1.0)
         return typed
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     model, fresh = None, False
@@ -377,7 +379,10 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
 
     relances = set()
     step = max(1, round(0.1 * fps))
-    for frame, x, y, _, _ in attacks:
+    every = max(1, len(attacks) // 100)
+    for k, (frame, x, y, _, _) in enumerate(attacks):
+        if k % every == 0:
+            share(k / len(attacks))
         images.clear()
         images.update(decode.frames_at(video, [f for f in range(frame, frame - round(LIFT_S * fps) - 1, -step) if f >= 0 and str(f) not in kept]))
         boxes = boxes_at(frame)
@@ -395,6 +400,7 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
         above, lift = relance_cues((x, y), box, feet)
         if above <= ABOVE and lift < LIFT:
             relances.add(frame)
+    share(1.0)
     if cache and fresh:
         files.write_text(cache, json.dumps(kept, separators=(",", ":")))
     return [(f, x, y, "relance" if f in relances else kind, side) for f, x, y, kind, side in typed]

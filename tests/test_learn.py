@@ -8,7 +8,7 @@ from volleyball_stats.learn import from_answers, near, record, report
 
 class TestRecord:
     def test_the_replaced_scores_are_kept_with_the_run(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(learn, "scores", lambda *_: {"who": (3, 4)})
+        monkeypatch.setattr(learn, "scores", lambda *_, **__: {"who": (3, 4)})
         record(tmp_path, tmp_path, tmp_path)
         record(tmp_path, tmp_path, tmp_path, {"who": (2, 4)})
         first, second = json.loads((tmp_path / "learn.json").read_text())
@@ -74,9 +74,9 @@ class TestUpdate:
         # The training makes `b` wait too; `c` is fully checked: only measured.
         found = iter([[(a, a, a), (c, c, c)], [(a, a, a), (b, b, b), (c, c, c)]])
         monkeypatch.setattr(learn, "waiting", lambda outputs: next(found))
-        monkeypatch.setattr(learn, "train", lambda outputs: done.append("training"))
+        monkeypatch.setattr(learn, "train", lambda outputs, share=None: done.append("training"))
         monkeypatch.setattr(learn, "rerun", lambda m, v, court, on_share, update: done.append(f"rerun {m.name}"))
-        monkeypatch.setattr(learn, "measured", lambda m, v, court, update: done.append(f"measured {m.name}"))
+        monkeypatch.setattr(learn, "measured", lambda m, v, court, update, share=None: done.append(f"measured {m.name}"))
         monkeypatch.setattr(learn, "play_due", lambda m: False)
         monkeypatch.setattr(learn.review, "rebuilt", lambda m, v, court: done.append(f"pages {m.name}"))
         monkeypatch.setattr(learn.review, "page_data", lambda site: site.parent.name)
@@ -90,7 +90,7 @@ class TestUpdate:
         a, b = (tmp_path / "matches" / n for n in "ab")
         done = []
         monkeypatch.setattr(learn, "waiting", lambda outputs: [(a, a, a), (b, b, b)])
-        monkeypatch.setattr(learn, "train", lambda outputs: done.append("training"))
+        monkeypatch.setattr(learn, "train", lambda outputs, share=None: done.append("training"))
         monkeypatch.setattr(learn, "rerun", lambda m, v, court, on_share, update: done.append(f"rerun {m.name}"))
         monkeypatch.setattr(learn, "play_due", lambda m: False)
         monkeypatch.setattr(learn.review, "rebuilt", lambda m, v, court: done.append(f"pages {m.name}"))
@@ -106,12 +106,12 @@ class TestUpdate:
     def test_nothing_when_the_match_named_is_up_to_date(self, tmp_path, monkeypatch):
         a = tmp_path / "a"
         monkeypatch.setattr(learn, "waiting", lambda outputs: [(a, a, a)])
-        monkeypatch.setattr(learn, "train", lambda outputs: pytest.fail("trained"))
+        monkeypatch.setattr(learn, "train", lambda outputs, share=None: pytest.fail("trained"))
 
         learn.update(tmp_path, "b")
 
     def test_nothing_when_every_match_is_up_to_date(self, tmp_path, monkeypatch):
         monkeypatch.setattr(learn, "waiting", lambda outputs: [])
-        monkeypatch.setattr(learn, "train", lambda outputs: pytest.fail("trained"))
+        monkeypatch.setattr(learn, "train", lambda outputs, share=None: pytest.fail("trained"))
 
         learn.update(tmp_path)

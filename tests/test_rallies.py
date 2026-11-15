@@ -179,3 +179,13 @@ class TestCarriedOn:
     def test_the_next_window_stops_it(self):
         windows = [(0, 250), (480, 900)]
         assert carried_on(windows, [200, 300, 400, 450, 500, 600], [], self.fps, lead=20) == [(0, 450), (480, 900)]
+
+
+class TestWhistlesShare:
+    def test_tells_a_rising_share_ending_at_one(self, monkeypatch):
+        monkeypatch.setattr("volleyball_stats.rallies.BLOCK", 70)
+        told = []
+
+        whistles(0.02 * np.random.default_rng(1).standard_normal(3 * SAMPLE_RATE), told.append)
+
+        assert len(told) > 2 and told == sorted(told) and told[0] == 0.0 and told[-1] == 1.0

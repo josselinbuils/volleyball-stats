@@ -150,10 +150,10 @@ def tell(share: float) -> None:
     print(f"{PROGRESS}{share:.4f}", flush=True)
 
 
-def follow(command: list[str], share: Share) -> None:
-    """Runs `command`, its shares told (`tell`) passed to `share`, its other lines through; CalledProcessError when it
-    fails, as `subprocess.run(check=True)`."""
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True, bufsize=1)
+def follow(command: list[str], share: Share, **options) -> None:
+    """Runs `command` (`options` as Popen's), its shares told (`tell`) passed to `share`, its other lines through;
+    CalledProcessError when it fails, as `subprocess.run(check=True)`."""
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True, bufsize=1, **options)
     assert process.stdout is not None
     for line in process.stdout:
         if line.startswith(PROGRESS):

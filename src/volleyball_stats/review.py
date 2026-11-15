@@ -2400,9 +2400,18 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             newer = sync.behind(done)
             done = [m for m in done if m.name not in newer]
             # In its own process, with the code as it now is, whenever this server started.
-            run = subprocess.run([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", theme], capture_output=True, text=True)
-            if run.returncode:
-                raise RuntimeError((run.stderr.strip().splitlines() or [f"exit {run.returncode}"])[-1])
+            # Its own stages' share told (`jobs.PROGRESS` lines) goes to `shared`; its errors kept for the message.
+            child = subprocess.Popen([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", theme], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            errors: list[str] = []
+            reader = threading.Thread(target=lambda: errors.extend(child.stderr), daemon=True)
+            reader.start()
+            for line in child.stdout:
+                if line.startswith(jobs.PROGRESS):
+                    shared(float(line.removeprefix(jobs.PROGRESS).split()[0]))
+            code = child.wait()
+            reader.join()
+            if code:
+                raise RuntimeError(("".join(errors).strip().splitlines() or [f"exit {code}"])[-1])
             for m in done:
                 if (m / "review" / "data.js").exists():
                     record_hosted(m)

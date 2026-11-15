@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import decode, files
+from volleyball_stats import decode, files, jobs
 from volleyball_stats.ball import default_device
 from volleyball_stats.ball3d import G, project, projection
 from volleyball_stats.court import Calibration, undistort
@@ -104,14 +104,15 @@ def iou(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return inter / ((a[2] - a[0]) * (a[3] - a[1]) + (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1]) - inter)
 
 
-def pose_all(video: Path, attacks: list[tuple[int, int]], rows: dict[tuple[int, int], Rows], fps: float, cache: Path | None = None) -> dict[str, list]:
+def pose_all(video: Path, attacks: list[tuple[int, int]], rows: dict[tuple[int, int], Rows], fps: float, cache: Path | None = None, share: jobs.Share = jobs.quiet) -> dict[str, list]:
     """Each attack's (frame, track) keypoints over its `window`: per frame the 17 (x, y, confidence) in the video's pixels
     of the pose matching the track's box (`rows`, by attack), None when none does; kept in `cache` (JSON, by
-    "frame:track")."""
+    "frame:track"). The share of the frames posed is told to `share` as it goes."""
     # ponytail: the cache is keyed by attack alone; delete jumps.json after changing BEFORE_S, AFTER_S or CROP.
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     todo = [(f, t) for f, t in attacks if f"{f}:{t}" not in kept]
     if not todo:
+        share(1.0)
         return kept
     from ultralytics import YOLO
 
@@ -125,7 +126,9 @@ def pose_all(video: Path, attacks: list[tuple[int, int]], rows: dict[tuple[int, 
             if not np.isnan(b[k, 0]):
                 wanted.setdefault(frame, []).append((f, t, k))
     out = {f"{f}:{t}": [None] * len(window(f, fps)) for f, t in todo}
-    for frame, image in decode.frames_at(video, wanted):
+    seen = jobs.every(len(wanted), share)
+    for done, (frame, image) in enumerate(decode.frames_at(video, wanted)):
+        seen(done)
         height, width = image.shape[:2]
         crops, origins, whose = [], [], []
         for f, t, k in wanted[frame]:
@@ -144,6 +147,7 @@ def pose_all(video: Path, attacks: list[tuple[int, int]], rows: dict[tuple[int, 
             if overlap.max() >= MATCH_IOU:
                 points = result.keypoints.data.cpu().numpy()[int(overlap.argmax())] + np.array([x0, y0, 0])
                 out[f"{f}:{t}"][k] = np.round(points, 1).tolist()
+    share(1.0)
     kept.update(out)
     if cache:
         files.write_text(cache, json.dumps(kept, separators=(",", ":")))

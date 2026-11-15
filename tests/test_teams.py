@@ -158,7 +158,7 @@ class TestAssign:
     def test_numbers_team_1_on_the_left_at_the_first_rally_and_fills_rallies_without_players(self, monkeypatch):
         rows = [row(f, 1, 3.0) for f in range(10)] + [row(f, 2, -3.0) for f in range(10)]
         looks = {1: np.concatenate([lab((240, 240, 240)), lab((0, 0, 0))]), 2: np.concatenate([lab((70, 35, 25)), lab((0, 0, 0))])}
-        monkeypatch.setattr(teams, "sample", lambda video, rows: (looks, {}))
+        monkeypatch.setattr(teams, "sample", lambda video, rows, share=None: (looks, {}))
 
         found = teams.assign(None, rows, [(500, 600), (0, 20)], 30.0)
 
@@ -350,11 +350,11 @@ class TestSettle:
 class TestSampled:
     def test_the_cache_gives_back_the_looks_and_crops(self, tmp_path, monkeypatch):
         crop = np.full((20, 10, 3), 128, dtype=np.uint8)
-        monkeypatch.setattr(teams, "sample", lambda video, rows: ({4: np.arange(6.0)}, {4: crop}))
+        monkeypatch.setattr(teams, "sample", lambda video, rows, share=None: ({4: np.arange(6.0)}, {4: crop}))
         cache = tmp_path / "looks.npz"
 
         teams.sampled(tmp_path / "none.mp4", [], cache)
-        monkeypatch.setattr(teams, "sample", lambda video, rows: pytest.fail("sampled again"))
+        monkeypatch.setattr(teams, "sample", lambda video, rows, share=None: pytest.fail("sampled again"))
         looks, crops = teams.sampled(tmp_path / "none.mp4", [], cache)
 
         assert list(looks) == [4] and looks[4].tolist() == list(range(6))

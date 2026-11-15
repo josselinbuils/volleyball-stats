@@ -25,6 +25,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import threading
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -455,12 +456,47 @@ def host(match: Path, video: Path, court: Path, theme: str, config: dict) -> Non
     host_all([(match, video, court, config)], theme)
 
 
-def mirror(config: dict) -> None:
+# A line of rsync's --itemize-changes for a file sent or received.
+SENT = re.compile(r"^[<>]f")
+
+
+def files_to_send(itemized: str) -> int:
+    """How many files a dry run of rsync (--itemize-changes) says it moves."""
+    return sum(1 for line in itemized.splitlines() if SENT.match(line))
+
+
+def counted(command: list[str], total: int | None, share: jobs.Share = jobs.quiet) -> None:
+    """Runs an rsync `command`, its share told as it goes: the files it moved of `total` (the dry run's count; None: asks
+    a dry run of the same command first). CalledProcessError, its stderr kept, when it fails."""
+    # The options before the paths, as the Mac's openrsync wants them.
+    if total is None:
+        dry = subprocess.run([command[0], "--dry-run", "--itemize-changes", *command[1:]], check=True, capture_output=True, text=True)
+        total = files_to_send(dry.stdout)
+    process = subprocess.Popen([command[0], "--itemize-changes", *command[1:]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    errors: list[str] = []
+    # Read apart, else a full pipe of errors would stop rsync.
+    reader = threading.Thread(target=lambda: errors.extend(process.stderr), daemon=True)
+    reader.start()
+    assert process.stdout is not None
+    done = 0
+    for line in process.stdout:
+        if SENT.match(line):
+            done += 1
+            share(min(1.0, done / total) if total else 1.0)
+    process.wait()
+    reader.join()
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, command, stderr="".join(errors))
+    share(1.0)
+
+
+def mirror(config: dict, share: jobs.Share = jobs.quiet) -> None:
     """The site folder made what the server holds, the video copies aside (the films come, a few MB each): the pages and
-    films another machine put online come here, so that the upload (`host_all`) leaves them as they are."""
+    films another machine put online come here, so that the upload (`host_all`) leaves them as they are. The files
+    received counted, the share told as it goes."""
     site = Path(config["site"]).expanduser()
     site.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["rsync", "-rt", "--delete", "--include=*/video/films/*.mp4", "--exclude=*.mp4", "-e", f"ssh -i {Path(config['key']).expanduser()}", config["upload"], f"{site}/"], check=True, capture_output=True)
+    counted(["rsync", "-rt", "--delete", "--include=*/video/films/*.mp4", "--exclude=*.mp4", "-e", f"ssh -i {Path(config['key']).expanduser()}", config["upload"], f"{site}/"], None, share)
 
 
 def upload_command(config: dict, site: Path, rebuilt: list[str], dry: bool = False) -> list[str]:
@@ -557,21 +593,23 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
             raise RuntimeError(f"{named(match)}video not found: {video}")
     if not mirrored:
         told.start("mirror")
-        mirror(config)
+        mirror(config, told.share_of_stage)
     # ponytail: one match at a time, ~13 s each (2 matches: 26 s); rebuild them in parallel if a season makes it long.
     for match, video, court, c in hosted:
         told.start(f"match:{match.name}")
         folder = hosted_folder(match, site) or site / match.name
+        # The two builds count their own share; ponytail: weights not measured, the page with the video's copy taken as the longer.
+        part = jobs.parts(told.share_of_stage, {"video": 2.0 if c["video"] else 0.0, "page": 1.0})
         ensure_review_page(match, video, court, theme)
         make_voice(match)
         if c["video"]:
             adopt_films(match, folder / "video")
             path = lambda key: str(Path(c[key]).expanduser())  # noqa: E731
-            web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": feedback}, folder / "video")
+            web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": feedback}, folder / "video", part("video"))
         else:
             shutil.rmtree(folder / "video", ignore_errors=True)
         public = {"footage": "none", "club": c.get("club", 1), "pictures": False, "feedback": feedback, **({"link": "video/"} if c["video"] else {})}
-        web.publish(match, video, court, theme, public, folder)
+        web.publish(match, video, court, theme, public, folder, part("page"))
     told.start("upload")
     paths = {m["name"]: m["path"] for m in build(site, theme, config["url"])}
     guarded = []
@@ -601,7 +639,12 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
     lost = removed_films(dry.stdout, unmade)
     if lost:
         raise RuntimeError(f"films online but not here: {', '.join(lost)}: not uploaded")
-    subprocess.run(upload_command(config, site, rebuilt), check=True, capture_output=True)
+    # Room left on the server after it (it also runs the owner's websites): the video copies take gigabytes.
+    from volleyball_stats import backup
+
+    host, ssh = backup.connection(config)
+    backup.room(backup.free_gb(host, ssh, config["upload"].split(":", 1)[1]), backup.sent_bytes(dry.stdout, lambda name: site / name))
+    counted(upload_command(config, site, rebuilt), files_to_send(dry.stdout), told.share_of_stage)
     for page, key in guarded:
         if not opens(page, key):
             raise RuntimeError(f"{page} does not open with its password")
@@ -625,15 +668,18 @@ def export(chosen: list[tuple[Path, Path, Path]], theme: str, out: Path, told: j
                 ensure_review_page(match, video, court, theme)
                 make_voice(match)
                 given = json.loads((match / PUBLISH).read_text()) if (match / PUBLISH).exists() else {}
-                web.publish(match, video, court, theme, {"footage": "none", "club": given.get("club") or club_team(match, theme), "pictures": False}, site / match.name)
+                web.publish(match, video, court, theme, {"footage": "none", "club": given.get("club") or club_team(match, theme), "pictures": False}, site / match.name, told.share_of_stage)
             told.start("zip")
             build(site, theme)
             # The gzip copies are for a server sending them as they are (nginx gzip_static): any host compresses by itself.
             made = Path(tmp) / out.name
+            paths = [p for p in sorted(site.rglob("*")) if p.is_file() and p.suffix != ".gz"]
+            total, done = sum(p.stat().st_size for p in paths) or 1, 0
             with zipfile.ZipFile(made, "w", zipfile.ZIP_DEFLATED) as z:
-                for path in sorted(site.rglob("*")):
-                    if path.is_file() and path.suffix != ".gz":
-                        z.write(path, path.relative_to(site.parent).as_posix())
+                for path in paths:
+                    z.write(path, path.relative_to(site.parent).as_posix())
+                    done += path.stat().st_size
+                    told.share_of_stage(done / total)
             made.replace(out)
     finally:
         told.stopped.set()
@@ -686,7 +732,7 @@ def main() -> None:
             told.stopped.set()
             return None
         if config:
-            mirror(config)
+            mirror(config, told.share_of_stage)
         host_all(found, args.theme, mirrored=config is not None, told=told)
         from volleyball_stats import review
 

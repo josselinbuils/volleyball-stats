@@ -260,6 +260,11 @@ def plan(names: list[str], outputs: Path | None, duration: float) -> None:
     stages = jobs.Stages(outputs / TIMINGS if outputs else None, names, took, scale=duration)
 
 
+def told() -> jobs.Share:
+    """Where the stage running tells its share done (`Stages.share_of_stage`), nowhere without `plan`."""
+    return stages.share_of_stage if stages else jobs.quiet
+
+
 def stage(name: str) -> None:
     if stages:
         stages.start(name)
@@ -367,20 +372,21 @@ def busiest(count: int = 5) -> list[str]:
     return [f"{cpu}% {Path(name).name}" for cpu, name in sorted(rows, key=lambda r: -float(r[0].replace(",", ".")))[:count]]
 
 
-def review_page(out: Path, video: Path, court: Path) -> None:
+def review_page(out: Path, video: Path, court: Path, share: jobs.Share = jobs.quiet) -> None:
     """The review's page and its pictures made ahead, for its first open to be quick; the run stands without them."""
     from volleyball_stats import web
 
     try:
-        web.review_page(out, video, court)
+        web.review_page(out, video, court, share=share)
     except Exception as error:  # noqa: BLE001
         print(f"The review will make its page when opened: {error}", file=sys.stderr)
 
 
-def read_jerseys(out: Path, video: Path) -> None:
-    """jerseys.csv of the match on footage sharp enough for them, kept for the next runs."""
+def read_jerseys(out: Path, video: Path, share: jobs.Share = jobs.quiet) -> None:
+    """jerseys.csv of the match on footage sharp enough for them, kept for the next runs; the share of the frames read
+    is told to `share` as it goes."""
     if not (out / jerseys.FILE).exists() and decode.size(video)[1] >= jerseys.MIN_HEIGHT:
-        jerseys.write(out / jerseys.FILE, jerseys.read(out, video))
+        jerseys.write(out / jerseys.FILE, jerseys.read(out, video, share))
 
 
 def settled_teams(assign: Callable[[list[float] | None], teams.Teams], settle: Callable[[teams.Teams], dict], starts: list[float] | None) -> tuple[teams.Teams, dict]:
@@ -484,11 +490,13 @@ def main() -> None:
     if playing.wanted(args.video, out):
         stage("play")
         start = time.perf_counter()
-        playing.predict(args.video, out / playing.FILE, playing.weights(out))
+        playing.predict(args.video, out / playing.FILE, playing.weights(out), seconds=frame_count / fps, share=told())
         timings["play"] = time.perf_counter() - start
     stage("rallies")
     start = time.perf_counter()
-    whistle_times = rallies.whistles(rallies.read_audio(args.video))
+    # The parts' weights are a guess (no timing taken): the audio is read through the whole file, the windows are quick.
+    part = jobs.parts(told(), {"audio": 3, "whistles": 1, "windows": 1})
+    whistle_times = rallies.whistles(rallies.read_audio(args.video, frame_count / fps, part("audio")), part("whistles"))
     positions = None if rows is None else [(r.frame, *r.court) for r in rows]
     windows, found, crossings = rally_windows(rallies.load_track(track_path), whistle_times, fps, net_x, calibration, positions)
     play = playing.load(out / playing.FILE) if (out / playing.FILE).exists() else None
@@ -500,15 +508,20 @@ def main() -> None:
     end = teams.match_end(out)
     if end is not None:
         windows = [w for w in windows if w[0] < end * fps]
+    part("windows")(1.0)
     timings["rallies and contacts"] = time.perf_counter() - start
 
     stage("actions")
     start = time.perf_counter()
     alive = playing.goes_on(*play[:2], fps) if play and "alive" in play[2] else None
+    # The parts' weights are a guess (no timing taken): the relances look at the video, the others are numbers.
+    part = jobs.parts(told(), {"typed": 1, "relances": 4, "flight": 1})
     windows, typed = typed_windows(windows, found, crossings, fps, net_x, calibration, rows, rallies.load_track(track_path), whistle_times, alive)
-    typed = actions.mark_relances(args.video, typed, fps, out / "relances.json")
+    part("typed")(1.0)
+    typed = actions.mark_relances(args.video, typed, fps, out / "relances.json", part("relances"))
     if calibration is not None and calibration.lens:
-        typed = actions.by_flight(typed, ball3d.flight_places(typed, windows, round(actions.LEAD_S * fps), track_path, calibration, fps), fps)
+        typed = actions.by_flight(typed, ball3d.flight_places(typed, windows, round(actions.LEAD_S * fps), track_path, calibration, fps, part("flight")), fps)
+    part("flight")(1.0)
     typed = actions.relances_by_touch(typed)
     timings["actions"] = time.perf_counter() - start
 
@@ -523,11 +536,16 @@ def main() -> None:
         start = time.perf_counter()
         # The learned order on the camera footage it was trained on, the wrists' rule elsewhere.
         learned = ranker.load() if decode.size(args.video)[1] >= ranker.MIN_HEIGHT else None
-        places = ball3d.flight_places(typed, windows, lead, track_path, calibration, fps) if learned else None
+        # The parts' weights are a guess (no timing taken): the poses decode and read the most frames.
+        part = jobs.parts(told(), {"places": 1, "widths": 2, "poses": 4})
+        places = ball3d.flight_places(typed, windows, lead, track_path, calibration, fps, part("places")) if learned else None
+        part("places")(1.0)
         # The ball's width tells players in line with the camera apart, for weights fit with it and a camera with its lens.
         sized = learned and ranker.reads_width(learned) and calibration.lens
-        widths = ballsize.widths(args.video, [t for t, c in zip(typed, candidates) if len(c) >= 2], track_path, fps, out / ballsize.FILE) if sized else None
-        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json", learned, places, widths, calibration)
+        widths = ballsize.widths(args.video, [t for t, c in zip(typed, candidates) if len(c) >= 2], track_path, fps, out / ballsize.FILE, part("widths")) if sized else None
+        part("widths")(1.0)
+        candidates = attribution.by_wrists(args.video, typed, candidates, rows, fps, out / "wrists.json", learned, places, widths, calibration, part("poses"))
+        part("poses")(1.0)
         timings["wrists"] = time.perf_counter() - start
         touchers = [None if a[3] != b[3] or not c else c[0][2] for a, b, c in zip(typed, dead, candidates)]
         typed = dead
@@ -544,7 +562,7 @@ def main() -> None:
         start = time.perf_counter()
         try:
             found_teams, settled = settled_teams(
-                lambda known: teams.assign(args.video, rows, windows, fps, known, out / "looks.npz"),
+                lambda known: teams.assign(args.video, rows, windows, fps, known, out / "looks.npz", told()),
                 lambda found: teams.settle(
                     out / "teams.json", found, windows, fps, args.teams, sys.stdin.isatty(), teams.recording_date(args.video), day, args.title,
                     sets, args.scores and args.scores.split(","),
@@ -570,23 +588,23 @@ def main() -> None:
         contact_teams = teams.contact_teams(typed, windows, found_teams.left, round(actions.LEAD_S * fps))
         stage("jerseys")
         start = time.perf_counter()
-        read_jerseys(out, args.video)
+        read_jerseys(out, args.video, told())
         timings["jerseys"] = time.perf_counter() - start
         stage("scoreboard")
         start = time.perf_counter()
-        scoreboard.run(out, args.video)
+        scoreboard.run(out, args.video, told())
         timings["scoreboard"] = time.perf_counter() - start
         stage("identity")
         start = time.perf_counter()
         attributed = [(t[0], k) for t, k in zip(typed, touchers) if k is not None]
-        known = identity.run(out, args.video, rows, windows, found_teams.left, fps, args.squad, attributed)
+        known = identity.run(out, args.video, rows, windows, found_teams.left, fps, args.squad, attributed, told())
         timings["identity"] = time.perf_counter() - start
         stage("jumps")
         start = time.perf_counter()
         # The attackers' poses for the page's jumps (`web.jumped`): its build then only poses the touches the review moves.
         attacks = [(t[0], k) for t, k in zip(typed, touchers) if t[3] == "attack" and k is not None]
         if attacks:
-            jumps.pose_all(args.video, attacks, jumps.attack_rows(players_path, attacks, fps, out / "jumps_rows.npz"), fps, out / "jumps.json")
+            jumps.pose_all(args.video, attacks, jumps.attack_rows(players_path, attacks, fps, out / "jumps_rows.npz"), fps, out / "jumps.json", told())
         timings["jumps"] = time.perf_counter() - start
         who = [identity.touch_identity(known, k, t[0], fps) if k is not None else None for t, k in zip(typed, touchers)]
         # A track swapping players across the net can hold an identity of the other team.
@@ -611,7 +629,7 @@ def main() -> None:
     print(out / "report.md")
     if with_page:
         stage("page")
-        review_page(out, args.video, args.court)
+        review_page(out, args.video, args.court, told())
     if stages:
         stages.start(None)
 

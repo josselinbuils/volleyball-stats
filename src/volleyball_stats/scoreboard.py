@@ -15,7 +15,7 @@ from pathlib import Path
 
 import cv2
 
-from volleyball_stats import decode, files, web
+from volleyball_stats import decode, files, jobs, web
 
 FILE = "scoreboard.csv"
 # The board stands on the floor near the camera: the frame's rows below this share of its height.
@@ -100,8 +100,9 @@ def load(match: Path) -> dict[int, list[str]]:
     return found
 
 
-def run(match: Path, video: Path) -> None:
-    """Reads the board before each serve of the match's rallies (rallies.csv), the frames not read yet."""
+def run(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> None:
+    """Reads the board before each serve of the match's rallies (rallies.csv), the frames not read yet; the share of them
+    read is told to `share` as it goes."""
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     rows = web.read_csv(match / "rallies.csv")
     rallies = [(int(r["start_frame"]) / fps, int(r["end_frame"]) / fps, int(r.get("set") or 1)) for r in rows]
@@ -112,9 +113,12 @@ def run(match: Path, video: Path) -> None:
     from volleyball_stats.jerseys import reader as ocr
 
     reader = ocr()
-    for frame, image in decode.frames_at(video, wanted):
+    seen = jobs.every(len(wanted), share)
+    for done, (frame, image) in enumerate(decode.frames_at(video, wanted)):
         found = reader(image[int(image.shape[0] * LOW) :])[0] or []
         texts[frame] = [t.replace(" ", "") for _, t, confidence in found if confidence >= CONFIDENCE and t.replace(" ", "").isdigit()]
+        seen(done)
+    share(1.0)
     with files.replacing(match / FILE, newline="") as f:
         csv.writer(f).writerows([["frame", "text"], *[(frame, t) for frame, found in sorted(texts.items()) for t in found or [""]]])
 

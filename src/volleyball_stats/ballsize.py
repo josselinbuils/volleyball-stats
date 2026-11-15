@@ -14,7 +14,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import ball3d, decode, files
+from volleyball_stats import ball3d, decode, files, jobs
 from volleyball_stats.court import Calibration, undistort
 
 FILE = "ball_widths.json"
@@ -77,9 +77,10 @@ def plan(frame: int, ball: dict[int, tuple[int, int]], fps: float, scale: float)
     return out
 
 
-def widths(video: Path, typed: list[tuple], ball_path: Path, fps: float, cache: Path | None = None) -> dict[int, float]:
+def widths(video: Path, typed: list[tuple], ball_path: Path, fps: float, cache: Path | None = None, share: jobs.Share = jobs.quiet) -> dict[int, float]:
     """The ball's width in pixels around each touch of `typed` it could be measured at, by frame; kept
-    in `cache` (JSON, by frame and ball place) for the next runs. The video decoded in one pass."""
+    in `cache` (JSON, by frame and ball place) for the next runs. The video decoded in one pass, the share of the frames
+    needed read told to `share` as it goes."""
     kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
     keys = {t[0]: f"{t[0]}:{t[1]}:{t[2]}" for t in typed if t[3] not in ("floor", "net")}
     missing = sorted(f for f, key in keys.items() if key not in kept)
@@ -109,7 +110,10 @@ def widths(video: Path, typed: list[tuple], ball_path: Path, fps: float, cache: 
             kept[keys[f]] = round(float(np.median(found)), 1) if len(found) >= LEAST else None
             done.add(f)
 
-        for index, image in decode.frames_at(video, {h for p in plans.values() for t in p for h in t}):
+        needed = {h for p in plans.values() for t in p for h in t}
+        seen = jobs.every(len(needed), share)
+        for done, (index, image) in enumerate(decode.frames_at(video, needed)):
+            seen(done)
             images[index] = image
             while last and last[0][0] <= index:
                 finish(last.pop(0)[1])
@@ -122,6 +126,7 @@ def widths(video: Path, typed: list[tuple], ball_path: Path, fps: float, cache: 
             finish(f)
         if cache:
             files.write_text(cache, json.dumps(kept, separators=(",", ":")))
+    share(1.0)
     return {f: kept[key] for f, key in keys.items() if kept.get(key) is not None}
 
 

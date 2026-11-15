@@ -110,12 +110,13 @@ def checks(data: Path = Path("data")) -> list[dict]:
 
 
 def fetch_models() -> None:
-    """Each model missing, downloaded where the pipeline looks for it."""
-    from volleyball_stats import ball, identity, web
+    """Each model missing, downloaded where the pipeline looks for it. The share told as it goes is the models done of those
+    missing (the libraries downloading them show no bytes)."""
+    from volleyball_stats import ball, identity, jobs, web
 
-    for path in model_files():
-        if path.exists():
-            continue
+    missing = [p for p in model_files() if not p.exists()]
+    for done, path in enumerate(missing):
+        jobs.tell(done / len(missing))
         print(f"Downloading {path.name}", flush=True)
         if path == ball.WEIGHTS_PATH:
             ball.load_model("cpu")
@@ -131,6 +132,7 @@ def fetch_models() -> None:
             attempt_download_asset(path)
         if not path.exists():
             raise SystemExit(f"Could not download {path.name}")
+    jobs.tell(1.0)
 
 
 def main() -> None:

@@ -31,7 +31,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, files
+from volleyball_stats import decode, files, jobs
 from volleyball_stats.players import Row
 
 SAMPLES = 8
@@ -95,9 +95,10 @@ def by_track(rows: list[Row]) -> dict[int, list[Row]]:
     return out
 
 
-def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
+def sample(video: Path, rows: list[Row], samples: int = SAMPLES, share: jobs.Share = jobs.quiet) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
     """Look of each track: its median torso then shorts colour (OpenCV 8-bit Lab, 6 values) over
-    `samples` of its boxes spread over the track; and the BGR crop of its tallest sampled box."""
+    `samples` of its boxes spread over the track; and the BGR crop of its tallest sampled box. The share of the
+    sampled frames read is told to `share` as it goes."""
     wanted: dict[int, list[Row]] = {}
     for track_rows in by_track(rows).values():
         for i in np.linspace(0, len(track_rows) - 1, min(samples, len(track_rows))).astype(int):
@@ -105,7 +106,8 @@ def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[i
     looks: dict[int, list[np.ndarray]] = {}
     crops: dict[int, np.ndarray] = {}
     tallest: dict[int, int] = {}
-    for frame, image in decode.frames_at(video, wanted):
+    seen = jobs.every(len(wanted), share)
+    for done, (frame, image) in enumerate(decode.frames_at(video, wanted)):
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         for r in wanted[frame]:
             top, bottom = part(lab, r.box), part(lab, r.box, SHORTS)
@@ -117,6 +119,8 @@ def sample(video: Path, rows: list[Row], samples: int = SAMPLES) -> tuple[dict[i
                     tallest[r.track] = y2 - y1
                     cut = image[max(0, y1) : y2, max(0, x1) : x2]
                     crops[r.track] = cv2.resize(cut, (max(1, round(cut.shape[1] * CROP_PX / cut.shape[0])), CROP_PX), interpolation=cv2.INTER_AREA) if cut.size else cut
+        seen(done)
+    share(1.0)
     return {track: np.median(c, axis=0) for track, c in looks.items()}, crops
 
 
@@ -259,15 +263,16 @@ def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int 
     return out
 
 
-def sampled(video: Path, rows: list[Row], cache: Path | None = None) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
+def sampled(video: Path, rows: list[Row], cache: Path | None = None, share: jobs.Share = jobs.quiet) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
     """`sample`'s looks and crops, kept in `cache` (npz, crops as JPEG) for the next runs on the
-    same tracks."""
+    same tracks; the share of the frames sampled is told to `share` (done at once from the cache)."""
     if cache and cache.exists():
         data = np.load(cache)
         looks = dict(zip(data["tracks"].tolist(), data["looks"]))
         crops = {int(k[5:]): cv2.imdecode(data[k], cv2.IMREAD_COLOR) for k in data.files if k.startswith("crop_")}
+        share(1.0)
         return looks, crops
-    looks, crops = sample(video, rows)
+    looks, crops = sample(video, rows, share=share)
     if cache:
         tracks = sorted(looks)
         encoded = {f"crop_{t}": cv2.imencode(".jpg", c)[1] for t, c in crops.items() if c.size}
@@ -276,10 +281,11 @@ def sampled(video: Path, rows: list[Row], cache: Path | None = None) -> tuple[di
     return looks, crops
 
 
-def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]], fps: float, starts: list[float] | None = None, cache: Path | None = None) -> Teams:
+def assign(video: Path, rows: list[Row], windows: list[tuple[int, int]], fps: float, starts: list[float] | None = None, cache: Path | None = None, share: jobs.Share = jobs.quiet) -> Teams:
     """Teams of a match's player tracks, numbered so that team 1 is on the left at the first rally
-    with players; `starts` are the set starts (seconds) when known; the tracks' looks kept in `cache`."""
-    looks, crops = sampled(video, rows, cache)
+    with players; `starts` are the set starts (seconds) when known; the tracks' looks kept in `cache`. The share of the
+    frames sampled for the looks is told to `share` as it goes."""
+    looks, crops = sampled(video, rows, cache, share)
     lengths = {track: len(r) for track, r in by_track(rows).items()}
     left = lefts(rows, windows, looks, fps, starts)
     tracks = track_teams(rows, windows, left)

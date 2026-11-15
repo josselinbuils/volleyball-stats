@@ -25,7 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import decode, files
+from volleyball_stats import decode, files, jobs
 from volleyball_stats.actions import LATE_FLIGHT_S, POSE_MODEL, Typed
 from volleyball_stats.court import Calibration
 from volleyball_stats.players import Row
@@ -226,12 +226,13 @@ def by_wrists(
     places: dict[int, np.ndarray] | None = None,
     widths: dict[int, float] | None = None,
     calibration: Calibration | None = None,
+    share: jobs.Share = jobs.quiet,
 ) -> list[list[Candidate]]:
     """`candidates` reordered by the wrists for touches below the head (see WRIST_VETO), or, with a
     `learned` ranker (ranker.py), every touch's by its scores, the ball's 3D `places` by frame and
     its `widths` in the picture (ballsize.py, with the `calibration`) among them; YOLO pose on a crop
     around the ball, kept in `cache` (JSON, by frame and ball place) for the next runs. First ASPOM
-    match: 97 -> 104 of the 135 touches answered."""
+    match: 97 -> 104 of the 135 touches answered. The share of the frames the poses need read is told to `share` as it goes."""
     from volleyball_stats import ballsize, ranker
 
     by_track, gap = tracks(rows), round(GAP_S * fps)
@@ -243,9 +244,11 @@ def by_wrists(
     if wanted:
         from ultralytics import YOLO
 
-        kept.update(poses_of(YOLO(str(POSE_MODEL)), video, wanted))
+        kept.update(poses_of(YOLO(str(POSE_MODEL)), video, wanted, share))
         if cache:
             files.write_text(cache, json.dumps(kept, separators=(",", ":")))
+    else:
+        share(1.0)
     out = []
     for (frame, x, y, kind, side), found in zip(typed, candidates):
         if not posed(kind, found):
@@ -269,9 +272,9 @@ def by_wrists(
     return out
 
 
-def poses_of(model, video: Path, wanted: list[tuple[int, int, int]]) -> dict[str, list]:
+def poses_of(model, video: Path, wanted: list[tuple[int, int, int]], share: jobs.Share = jobs.quiet) -> dict[str, list]:
     """`poses_at` of each (frame, ball x, y) in `wanted`, by "frame:x:y", the video decoded in one
-    pass: one ffmpeg a touch cost 0.7 s each in 4K."""
+    pass: one ffmpeg a touch cost 0.7 s each in 4K; the share of its frames read told to `share`."""
     pending, images, out = sorted(set(wanted)), {}, {}
 
     def ready(last: float) -> None:
@@ -281,11 +284,15 @@ def poses_of(model, video: Path, wanted: list[tuple[int, int, int]]) -> dict[str
             for f in [f for f in images if not pending or f < pending[0][0] - 1]:
                 del images[f]
 
-    for index, image in decode.frames_at(video, {f for frame, _, _ in pending for f in range(max(0, frame - 1), frame + 2)}):
+    needed = {f for frame, _, _ in pending for f in range(max(0, frame - 1), frame + 2)}
+    seen = jobs.every(len(needed), share)
+    for done, (index, image) in enumerate(decode.frames_at(video, needed)):
         images[index] = image
         ready(index)
+        seen(done)
     # Past the video's end: what it has.
     ready(float("inf"))
+    share(1.0)
     return out
 
 

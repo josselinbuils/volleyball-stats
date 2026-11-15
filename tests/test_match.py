@@ -102,7 +102,7 @@ class TestReadJerseys:
     def run(self, out, monkeypatch, height):
         reads = []
         monkeypatch.setattr(decode, "size", lambda video: (height * 16 // 9, height))
-        monkeypatch.setattr(jerseys, "read", lambda match, video: reads.append(match) or [(5, 1, 25)])
+        monkeypatch.setattr(jerseys, "read", lambda match, video, share=None: reads.append(match) or [(5, 1, 25)])
         read_jerseys(out, out / "video.mp4")
         return reads
 
@@ -146,14 +146,14 @@ class TestSettledTeams:
 class TestReviewPage:
     def test_makes_the_page_of_the_match(self, tmp_path, monkeypatch):
         made = []
-        monkeypatch.setattr(web, "review_page", lambda *args: made.append(args))
+        monkeypatch.setattr(web, "review_page", lambda *args, **kw: made.append(args))
 
         review_page(tmp_path, tmp_path / "video.mp4", tmp_path / "court.json")
 
         assert made == [(tmp_path, tmp_path / "video.mp4", tmp_path / "court.json")]
 
     def test_a_failure_only_warns_the_run_is_kept(self, tmp_path, monkeypatch, capsys):
-        def fail(*args):
+        def fail(*args, **kw):
             raise ValueError("no pictures")
 
         monkeypatch.setattr(web, "review_page", fail)

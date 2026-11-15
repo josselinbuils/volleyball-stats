@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import actions, decode, files, rallies, ranker
+from volleyball_stats import actions, decode, files, jobs, rallies, ranker
 
 FILE = "play.npz"
 # VideoMAE-base fine-tuned on the reviewed matches (`play_training`; its base weights are CC BY-NC 4.0), in the outputs
@@ -152,9 +152,10 @@ def frames(video: Path) -> Iterator[np.ndarray]:
             yield np.frombuffer(buf, np.uint8).reshape(FULL_HEIGHT, WIDTH, 3)[:HEIGHT]
 
 
-def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | None = None) -> None:
+def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | None = None, seconds: float = 0.0, share: jobs.Share = jobs.quiet) -> None:
     """P(play) of the clips of `video` by the weights of `folder`, streamed (16 frames in memory), written to `out` as
-    `load` reads it; `on` names the device (the best one here by default)."""
+    `load` reads it; `on` names the device (the best one here by default). The share of the video's `seconds` read is
+    told to `share` as it goes (none without `seconds`)."""
     import torch
     from transformers import VideoMAEForVideoClassification
 
@@ -172,6 +173,8 @@ def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | Non
         probabilities.extend(logits.float().softmax(-1)[:, 1].cpu().tolist())
         clips.clear()
 
+    total = round(seconds * FPS)
+    seen = jobs.every(total, share) if total else None
     for n, frame in enumerate(frames(video), 1):
         window.append(frame.copy())
         if n >= T and (n - T) % STRIDE == 0:
@@ -179,7 +182,10 @@ def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | Non
             starts.append(n - T)
             if len(clips) == batch:
                 flush()
+        if seen and n <= total:
+            seen(n - 1)
     if clips:
         flush()
+    share(1.0)
     with files.replacing(out, "wb") as f:
         np.savez(f, starts=np.array(starts), p=np.array(probabilities), fps=FPS, T=T, weights=stamp(folder) or 0)

@@ -18,7 +18,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, files, identity
+from volleyball_stats import decode, files, identity, jobs
 from volleyball_stats.attribution import read_players
 
 FILE = "jerseys.csv"
@@ -72,8 +72,9 @@ def agreed(readings: list[int]) -> int | None:
     return readings[0] if len(readings) >= READINGS_AGREE and len(set(readings)) == 1 else None
 
 
-def read(match: Path, video: Path) -> list[tuple[int, int, int]]:
-    """(frame, track, number) of the boxes read on pieces whose number is agreed."""
+def read(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> list[tuple[int, int, int]]:
+    """(frame, track, number) of the boxes read on pieces whose number is agreed; the share of the frames read is told to
+    `share` as it goes."""
     ocr = reader()
     rows = read_players(match / "players.csv")
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
@@ -86,11 +87,14 @@ def read(match: Path, video: Path) -> list[tuple[int, int, int]]:
             for i in np.linspace(0, len(frames) - 1, min(READS, len(frames))).astype(int):
                 wanted.setdefault(frames[i], []).append((k, s.track))
     readings: dict[int, list[tuple[int, int, int]]] = {}
-    for frame, image in decode.frames_at(video, wanted):
+    seen = jobs.every(len(wanted), share)
+    for done, (frame, image) in enumerate(decode.frames_at(video, wanted)):
         for k, track in wanted[frame]:
             n = number(ocr(torso(image, boxes[frame, track]))[0])
             if n is not None:
                 readings.setdefault(k, []).append((frame, track, n))
+        seen(done)
+    share(1.0)
     return [r for found in readings.values() if agreed([n for _, _, n in found]) is not None for r in found]
 
 

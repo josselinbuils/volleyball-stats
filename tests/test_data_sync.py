@@ -72,3 +72,12 @@ class TestInside:
 
     def test_a_file_in_it(self, tmp_path):
         assert data_sync.inside(tmp_path, "matches/m/video.mp4") == tmp_path / "matches" / "m" / "video.mp4"
+
+
+def test_total_tells_the_bytes_of_all_the_files_and_ends_at_one(capsys):
+    total = data_sync.Total(300, told=True)
+    total.at(50)
+    total.finished += 100
+    total.at(200)
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("::progress ")]
+    assert lines and float(lines[-1].split()[1]) == 1.0

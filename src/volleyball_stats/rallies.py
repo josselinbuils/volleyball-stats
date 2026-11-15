@@ -9,11 +9,13 @@ benchmarks/rallies/README.md for the numbers behind the constants.
 import argparse
 import csv
 import subprocess
+import tempfile
 from pathlib import Path
 
 import cv2
 import numpy as np
 
+from volleyball_stats import jobs
 from volleyball_stats.court import Calibration
 
 SAMPLE_RATE = 16000
@@ -135,16 +137,28 @@ def ball_runs(track: np.ndarray, fps: float, scale: float = 1.0) -> list[Rally]:
     return out
 
 
-def read_audio(video: Path) -> np.ndarray:
-    """Mono float PCM at SAMPLE_RATE, through ffmpeg."""
+def read_audio(video: Path, seconds: float = 0.0, share: jobs.Share = jobs.quiet) -> np.ndarray:
+    """Mono float PCM at SAMPLE_RATE, through ffmpeg; with the video's `seconds`, the share of the samples read is told
+    to `share` as it goes."""
     cmd = ["ffmpeg", "-v", "error", "-i", str(video), "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-"]
-    pcm = subprocess.run(cmd, check=True, capture_output=True).stdout
+    chunks, size, total = [], 0, seconds * SAMPLE_RATE * 2
+    with tempfile.TemporaryFile() as errors, subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=errors) as process:
+        while chunk := process.stdout.read(1 << 20):
+            chunks.append(chunk)
+            size += len(chunk)
+            if total:
+                share(size / total)
+        if process.wait():
+            errors.seek(0)
+            raise subprocess.CalledProcessError(process.returncode, cmd, stderr=errors.read())
+    share(1.0)
+    pcm = b"".join(chunks)
     return np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768
 
 
-def whistles(audio: np.ndarray) -> list[tuple[float, float]]:
+def whistles(audio: np.ndarray, share: jobs.Share = jobs.quiet) -> list[tuple[float, float]]:
     """(onset, end) in seconds of every sustained narrow-band peak in the whistle band at the
-    referee's pitch."""
+    referee's pitch; the share of the audio's blocks read is told to `share` as it goes."""
     if len(audio) < FFT_SIZE:
         return []
     frames = np.lib.stride_tricks.sliding_window_view(audio, FFT_SIZE)[::HOP]
@@ -154,11 +168,13 @@ def whistles(audio: np.ndarray) -> list[tuple[float, float]]:
     window = np.hanning(FFT_SIZE)
     tonal, pitch = np.zeros(len(frames), bool), np.zeros(len(frames))
     for start in range(0, len(frames), BLOCK):
+        share(start / len(frames))
         spectrum = np.abs(np.fft.rfft(frames[start : start + BLOCK] * window, axis=1))
         noise, band = spectrum[:, in_noise], spectrum[:, in_band]
         peak = band.max(axis=1)
         tonal[start : start + BLOCK] = (peak >= MIN_PEAK) & (peak >= TONALITY * np.median(noise, axis=1)) & (peak >= noise.max(axis=1))
         pitch[start : start + BLOCK] = freqs[in_band][band.argmax(axis=1)]
+    share(1.0)
     step = HOP / SAMPLE_RATE
     found = runs(tonal, round(WHISTLE_GAP_S / step), round(MIN_WHISTLE_S / step))
     if not found:

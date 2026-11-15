@@ -3,12 +3,13 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import cv2
 import pytest
 
-from volleyball_stats import matches
+from volleyball_stats import backup, matches
 from volleyball_stats.matches import build
 
 
@@ -210,6 +211,8 @@ class TestHost:
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
+        monkeypatch.setattr(backup, "free_gb", lambda host, ssh, folder: 100.0)
+        monkeypatch.setattr(matches, "counted", lambda command, total, share=None: ran.append(command))
         monkeypatch.setattr(matches, "opens", lambda url, key: True)
         site = tmp_path / "site"
         site.mkdir()
@@ -309,6 +312,8 @@ class TestHostAll:
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[0].name, args[4]["footage"], args[5])) or ({}, {}))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "first/"}, {"name": "second", "path": "second/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
+        monkeypatch.setattr(backup, "free_gb", lambda host, ssh, folder: 100.0)
+        monkeypatch.setattr(matches, "counted", lambda command, total, share=None: ran.append(command))
         monkeypatch.setattr(matches, "protected", lambda url: True)
         monkeypatch.setattr(matches, "opens", lambda url, key: True)
         return hosted, built, ran, site
@@ -606,7 +611,7 @@ class TestExport:
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append("voice"))
 
-        def publish(match, video, court, theme, given, site):
+        def publish(match, video, court, theme, given, site, share=None):
             built.append(given)
             site.mkdir(parents=True)
             (site / "data.js").write_text(f"window.MATCH = {json.dumps({'name': 'first', 'date': '2026-10-29', 'teams': None, 'rallies': []})};\n")
@@ -635,3 +640,24 @@ class TestExport:
             matches.export([(match, tmp_path / "gone.mp4", Path("court.json"))], "none", out)
 
         assert out.read_bytes() == b"before" and [p.name for p in out.parent.iterdir()] == ["site.zip"]
+
+
+class TestCounted:
+    def test_counts_the_files_a_dry_run_says_it_moves(self):
+        assert matches.files_to_send("<f+++++++++ a.js\n.d..t...... ./\n*deleting   old\n>f.st...... b.js\n") == 2
+
+    def test_tells_the_files_moved_of_those_to_move_and_ends_at_one(self, monkeypatch, tmp_path):
+        script = tmp_path / "fake"
+        script.write_text("#!/bin/sh\nprintf '<f+++ a\\n.d.. ./\\n<f+++ b\\n<f+++ c\\n'\n")
+        script.chmod(0o755)
+        told = []
+        matches.counted([str(script)], 3, told.append)
+        assert told[:3] == pytest.approx([1 / 3, 2 / 3, 1.0]) and told[-1] == 1.0
+
+    def test_keeps_the_errors_when_it_fails(self, tmp_path):
+        script = tmp_path / "fake"
+        script.write_text("#!/bin/sh\necho 'no route' >&2\nexit 12\n")
+        script.chmod(0o755)
+        with pytest.raises(subprocess.CalledProcessError) as error:
+            matches.counted([str(script)], 1)
+        assert error.value.returncode == 12 and "no route" in error.value.stderr

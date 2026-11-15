@@ -17,12 +17,15 @@ import json
 import os
 import secrets
 import socket
+import sys
 import threading
 import time
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
+
+from volleyball_stats import jobs
 
 PORT = 8766
 # Letters and digits that cannot be misread for each other.
@@ -240,11 +243,33 @@ class Peer:
         return json.loads(body) if body else None
 
 
-def progress(name: str, size: int) -> Callable[[int], None]:
-    """A line saying how far a file's copy is, every 2 s and at its end."""
+class Total:
+    """The bytes of every file to copy, counted as they go: the share done told on its own line (`jobs.PROGRESS`, for the
+    app's job; a terminal has the file lines) every second and at the end."""
+
+    def __init__(self, total: int, told: bool | None = None):
+        self.total, self.finished, self.last, self.ended = total, 0, 0.0, False
+        self.stages = jobs.Stages(None, ["copy"], {"copy": 1.0}, told=False)
+        self.stages.start("copy")
+        self.told = (not sys.stdout.isatty()) if told is None else told
+
+    def at(self, done: int) -> None:
+        """The file running holds `done` of its bytes."""
+        self.stages.share_of_stage((self.finished + done) / self.total if self.total else 1.0)
+        now = time.monotonic()
+        whole = self.stages.part() >= 1.0 and not self.ended
+        if self.told and (now - self.last >= 1 or whole):
+            self.last, self.ended = now, self.ended or whole
+            print(f"\n{self.stages.line()}", flush=True)
+
+
+def progress(name: str, size: int, total: Total | None = None) -> Callable[[int], None]:
+    """A line saying how far a file's copy is, every 2 s and at its end; `total` told the bytes as they go."""
     started, last = time.monotonic(), [0.0]
 
     def show(done: int) -> None:
+        if total:
+            total.at(done)
         now = time.monotonic()
         if now - last[0] >= 2 or done >= size:
             last[0] = now
@@ -254,13 +279,13 @@ def progress(name: str, size: int) -> Callable[[int], None]:
     return show
 
 
-def fetch(peer: Peer, root: Path, rel: str, meta: dict) -> None:
+def fetch(peer: Peer, root: Path, rel: str, meta: dict, total: Total | None = None) -> None:
     """The peer's file `rel` copied here, from where an earlier copy stopped."""
     path = inside(root, rel)
     part = part_of(path)
     part.parent.mkdir(parents=True, exist_ok=True)
     have = part.stat().st_size if part.exists() else 0
-    show = progress(f"<- {rel}", meta["size"])
+    show = progress(f"<- {rel}", meta["size"], total)
     if have < meta["size"]:
         response = peer.request("GET", "/file", rel, headers={"Range": f"bytes={have}-"})
         if response.status not in (200, 206):
@@ -278,13 +303,15 @@ def fetch(peer: Peer, root: Path, rel: str, meta: dict) -> None:
     os.replace(part, path)
     os.utime(path, (meta["mtime"], meta["mtime"]))
     show(meta["size"])
+    if total:
+        total.finished += meta["size"]
 
 
-def send(peer: Peer, root: Path, rel: str, have: int) -> None:
+def send(peer: Peer, root: Path, rel: str, have: int, total: Total | None = None) -> None:
     """This machine's file `rel` copied to the peer, from the `have` bytes it already holds."""
     path = inside(root, rel)
     size = path.stat().st_size
-    show = progress(f"-> {rel}", size)
+    show = progress(f"-> {rel}", size, total)
     if have > size:
         raise RuntimeError(f"{rel}: the other machine holds more of it than there is")
     if have < size:
@@ -303,6 +330,8 @@ def send(peer: Peer, root: Path, rel: str, have: int) -> None:
                 raise RuntimeError(f"{rel}: {response.status} {body.decode(errors='replace')}")
     peer.json("POST", "/done", rel, hash=digest(path), mtime=path.stat().st_mtime)
     show(size)
+    if total:
+        total.finished += size
 
 
 def exchange(peer: Peer, root: Path) -> list[str]:
@@ -312,10 +341,12 @@ def exchange(peer: Peer, root: Path) -> list[str]:
     for rel in sorted(set(theirs["files"]) & set(mine["files"])):
         if theirs["files"][rel]["size"] != mine["files"][rel]["size"] or peer.json("GET", "/sample", rel) != sample(inside(root, rel)):
             differ.append(rel)
-    for rel in sorted(set(theirs["files"]) - set(mine["files"])):
-        fetch(peer, root, rel, theirs["files"][rel])
-    for rel in sorted(set(mine["files"]) - set(theirs["files"])):
-        send(peer, root, rel, theirs["parts"].get(rel, 0))
+    coming, going = sorted(set(theirs["files"]) - set(mine["files"])), sorted(set(mine["files"]) - set(theirs["files"]))
+    total = Total(sum(theirs["files"][r]["size"] for r in coming) + sum(mine["files"][r]["size"] for r in going))
+    for rel in coming:
+        fetch(peer, root, rel, theirs["files"][rel], total)
+    for rel in going:
+        send(peer, root, rel, theirs["parts"].get(rel, 0), total)
     return differ
 
 
