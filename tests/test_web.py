@@ -163,10 +163,9 @@ class TestContacts:
         assert [(r["winner"], r["score"]) for r in rallies] == [(2, [0, 1]), (1, [1, 1]), (2, [0, 1])]
 
     def test_a_record_said_wrong_leaves_its_touch(self):
-        log = [{"id": "report:ab", "choice": "wrong", "wrong": {"key": "jump", "frame": 200}}, {"id": "report:cd", "choice": "report"}]
         found = [{"t": 4, "f": 200, "jump": 0.7, "reach": 3.0}, {"t": 5, "f": 250, "jump": 0.4}]
 
-        unmeasured(found, wrong_measures(log), 50)
+        unmeasured(found, wrong_measures([{"key": "jump", "frame": 200}]), 50)
 
         assert found == [{"t": 4, "f": 200, "reach": 3.0}, {"t": 5, "f": 250, "jump": 0.4}]
 

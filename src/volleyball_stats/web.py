@@ -619,10 +619,10 @@ def counted(rallies: list[dict]) -> None:
         rally["score"] = list(running)
 
 
-def wrong_measures(log: list[dict]) -> set[tuple[str, int]]:
-    """The readings the review said wrong (a record's report answered "Fausse", `review.records`), as (the contact's key,
-    its frame)."""
-    return {(e["wrong"]["key"], int(e["wrong"]["frame"])) for e in log if isinstance(e.get("wrong"), dict)}
+def wrong_measures(said: list[dict]) -> set[tuple[str, int]]:
+    """The readings the review said wrong (`wrong` answers: a record's report answered "Fausse", `review.records`), as
+    (the contact's key, its frame)."""
+    return {(w["key"], int(w["frame"])) for w in said}
 
 
 def unmeasured(found: list[dict], wrong: set[tuple[str, int]], fps: float) -> None:
@@ -916,7 +916,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     fitted = fit_touches(found, match / "ball.csv", calibration, fps)
     data["ball3d"] = touch_places(fitted)
     measure(fitted, fps)
-    unmeasured(found, wrong_measures(answers(match, "log")), fps)
+    unmeasured(found, wrong_measures(answers(match, "wrong")), fps)
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 

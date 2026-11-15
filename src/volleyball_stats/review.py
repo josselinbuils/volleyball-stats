@@ -49,7 +49,7 @@ BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 ALONE = 0.05
 CROP_PX, CROP_MARGIN = 448, 0.15
 READERS = 4
-KINDS = ("same", "different", "not_player", "cut", "team", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee")
+KINDS = ("same", "different", "not_player", "cut", "team", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee", "wrong")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -2887,7 +2887,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         # Before the answer: an undo after a restart takes that one away.
                         log += pinned(questions.page, ok) + locked(questions.page, ok, given) + unlocked(off)
                         wrong = choice == "wrong" and not edit and refs[body["id"]]["report"].get("record")
-                        log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), **({"wrong": wrong} if wrong else {}), "applied": False})
+                        log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), **({"wrong": [wrong]} if wrong else {}), "applied": False})
                         # The reports on a rally checked are handled with it.
                         log += [{"id": qid, "choice": "checked", "applied": False} for qid, ref in refs.items() if "report" in ref and ref["report"]["start"] in ok and qid not in asked]
                     elif "rally" in refs[body["id"]]:
