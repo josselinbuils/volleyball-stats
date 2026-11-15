@@ -404,6 +404,14 @@ moved windows: now added (`playing.added`, "Kept"); the 2 others a lone serve. `
 net on this match; the pipeline's sets crossing in 1.3-1.8 s are 7 relances or attacks and 4 sets here, the other way on the first
 two. The play weights are trained on the three matches since the owner's "Apprendre" of 15 Nov, 11:13 (nothing left to test them on).
 
+The fine-tuned ball model's contacts ("Tried and dropped", `extra-filt-places`), today's code, each match tracked by a model trained
+on another (third: model B, 2 h on the 5080 beside other runs, `ball_B_M3_t05.csv`), the play model held out, runs
+`extra-places-15nov` (third: `extra-B-places`) against `add-15nov`: 273 -> 276, 332 -> 320, **470 -> 444** (to add 117 -> 69,
+remove 67 -> 76, types 132 -> 139, players 136 -> 143). 1,075 -> 1,040 on the three. Not wired in: the owner's call, for its cost
+(a second ball pass a match, the ball model fine-tuned in "Apprendre": 19 GB of frames a match and about 45 min). Model A+B (both
+matches) not trained: the frames were deleted on 13 Nov. The change on today's code:
+`outputs/benchmarks/ball_finetune/scripts/extra_contacts_15nov.patch` (`VB_EXTRA_FILL=1.0`, `bench.py run --extra`).
+
 ## State (13 Nov): hand-over
 
 Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov); 279
