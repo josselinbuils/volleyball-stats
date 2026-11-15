@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Captions, ListVideo, Maximize, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX } from 'lucide-react';
+import { Captions, ListVideo, Maximize, MicOff, MicVocal, Minimize, Pause, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { VideoButton } from '@/components/VideoButton';
@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { around, isDownload, merged, placer, seekLine, unshifted, within } from '@/components/Watch/helpers/seekBar';
 import { span as allowed } from '@/components/Watch/helpers/span';
 import { useWatchList } from '@/components/Watch/useWatchList';
+import { speaks } from '@/components/Watch/Commentary';
+import { setCommentary, useCommentary } from '@/lib/voice';
 import { WatchPanel } from '@/components/Watch/WatchPanel';
 import { LayoutMenu, type Layout } from '@/components/Watch/LayoutMenu';
 
@@ -81,6 +83,8 @@ export function VideoControls({
     full: false,
   });
   const [slow, setSlow] = useState(savedSlow);
+  const commentary = useCommentary();
+  const [canSpeak] = useState(() => match.voice || speaks());
   const toggleSlow = () => {
     setSlow(!slow);
     try {
@@ -315,6 +319,11 @@ export function VideoControls({
       {onDrawn && (
         <VideoButton light={light} className={cn(second)} label={t('videoOverlay')} pressed={drawn} onClick={onDrawn}>
           <Captions aria-hidden />
+        </VideoButton>
+      )}
+      {canSpeak && (
+        <VideoButton light={light} className={cn(second)} label={t('commentary')} pressed={commentary} onClick={() => setCommentary(!commentary)}>
+          {commentary ? <MicVocal aria-hidden /> : <MicOff aria-hidden />}
         </VideoButton>
       )}
       {/* The court's replay has no sound. */}

@@ -84,6 +84,12 @@ export function usePlayer(): Player {
   return player;
 }
 
+// The share of its volume the video plays at under the commentary's voice (`Commentary`).
+let under = 1;
+export function setUnder(share: number) {
+  under = share;
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [video, setVideo] = useState<Media | null>(null);
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
@@ -205,8 +211,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const fadeIn = time >= landed.current ? (time - landed.current) / FADE_S : 1;
         const shown = seeking.current ? 0 : Math.min(1, fadeOut, fadeIn);
         video.style.opacity = shown < 1 ? String(shown) : '';
-        if (video.volume !== shown) {
-          video.volume = shown;
+        const volume = shown * under;
+        if (video.volume !== volume) {
+          video.volume = volume;
         }
       }
       if (time !== now) {

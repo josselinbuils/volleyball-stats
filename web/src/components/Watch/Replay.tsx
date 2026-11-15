@@ -17,6 +17,7 @@ import { sceneAt } from '@/components/Watch/helpers/sceneAt';
 import { bodyOf, posesAt, SPEED_S } from '@/components/Watch/helpers/pose';
 import { canDraw3d, Scene3D } from '@/components/Watch/Scene3D';
 import { BroadcastControls, BroadcastOverlay } from '@/components/Watch/Broadcast';
+import { Commentary } from '@/components/Watch/Commentary';
 import { Feedback } from '@/components/Watch/Feedback';
 import { idleCamera, rallyCamera, replayAt, replayCamera, replays } from '@/components/Watch/helpers/director';
 import { scoreAt } from '@/components/Watch/helpers/score';
@@ -65,7 +66,6 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
       // Private browsing: the choice lasts for the page only.
     }
   };
-  const [voice, setVoice] = useState(false);
   const chosen = useMemo(() => replays(rallies), []);
   const tv = view === 'tv';
   // A replay shows an earlier moment of its rally in the dead time after it.
@@ -153,7 +153,7 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
         {view !== '2d' && (
           <Scene3D
             badge={!tv}
-            overlay={tv ? <BroadcastOverlay time={time} rally={playing?.i ?? null} replay={replay} score={score} voice={voice} /> : null}
+            overlay={tv ? <BroadcastOverlay time={time} rally={playing?.i ?? null} replay={replay} score={score} /> : null}
             state={sceneAt({
               dots,
               poses,
@@ -233,7 +233,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
         </div>
       </div>
       {captioned && <ReplayCaption />}
-      {tv && <BroadcastControls voice={voice} onVoice={setVoice} />}
+      {tv && <BroadcastControls />}
+      <Commentary time={time} rally={playing?.i ?? null} replay={replay} />
     </figure>
   );
 }

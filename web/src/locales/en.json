@@ -659,6 +659,7 @@
   "seekVideo": "Position in the video",
   "slowTouches": "Slow down at each touch",
   "loopVideo": "Loop (replays the rally or moment playing)",
+  "commentary": "Commentary",
   "muteVideo": "Mute",
   "unmuteVideo": "Unmute",
   "fullscreen": "Full screen",
@@ -1330,8 +1331,6 @@
     "replayOf": "Let's see that again in slow motion, through {{name}}'s eyes.",
     "watch": "Watch the match",
     "watching": "The match in TV mode",
-    "voiceOn": "Voice on",
-    "voiceOff": "Turn the voice on",
     "caption": "3D reconstruction from the video, commentary generated automatically.",
     "lines": {
       "serve_0": "{{name}} to serve.",

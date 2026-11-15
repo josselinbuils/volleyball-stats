@@ -120,8 +120,12 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 - **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions, naming who
   did something, who scored and who gave a point away.
 - **Voice:** a script for speech (`speech.py`), in French, calling every named touch, in full when there is room before the next and
-  else by the player's name, spoken on request by a voice generated on this machine: Kokoro,
-  the SIWIS voice at 1.2 times its speed. `uv run --group voice python -m volleyball_stats.voice outputs/matches/MATCH` makes the audio missing
+  else by the player's name, spoken by a voice generated on this machine: Kokoro,
+  the SIWIS voice at 1.2 times its speed. Heard with the video and the court's replay in any view, by the microphone of the
+  video's bar (`Commentary.tsx`): on at first where the match's recorded voice speaks the page's language, the choice kept in
+  the browser; the match's sound drops to 30% under each line, back after 0.8 s of silence (the player's loop sets the volume,
+  `setUnder`). Muting the video mutes it. `ponytail:` iPhones ignore a video's volume: no ducking there (Web Audio on the
+  video would need it served with CORS). `uv run --group voice python -m volleyball_stats.voice outputs/matches/MATCH` makes the audio missing
   in `outputs/matches/MATCH/voice/` (`spoken.json` there spells names for it, never committed), from the review's page, else the built one;
   each upload runs it first. A build keeps the lines still true of the match. Without audio, or in English, the browser's voice.
 

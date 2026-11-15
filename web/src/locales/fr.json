@@ -659,6 +659,7 @@
   "seekVideo": "Position dans la vidéo",
   "slowTouches": "Ralentir à chaque touche",
   "loopVideo": "En boucle (rejoue l'échange ou le moment en cours)",
+  "commentary": "Commentaire",
   "muteVideo": "Couper le son",
   "unmuteVideo": "Remettre le son",
   "fullscreen": "Plein écran",
@@ -1330,8 +1331,6 @@
     "replayOf": "Revoyons ce point au ralenti, à la place {{ofName}}.",
     "watch": "Regarder le match",
     "watching": "Le match en mode TV",
-    "voiceOn": "Voix activée",
-    "voiceOff": "Activer la voix",
     "caption": "Reconstitution en 3D d'après la vidéo, commentaire généré automatiquement.",
     "lines": {
       "serve_0": "{{name}} au service.",
