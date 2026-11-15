@@ -5,6 +5,9 @@ import { rallies, type Rally } from '@/lib/match';
 import { isPhone } from '@/lib/phone';
 import { PAD, rallyAt, type Clip } from '@/lib/playlist';
 
+/** The share of its sound a video keeps besides the fades between clips: the slow-down at touches hushes it. */
+export const hushed = new WeakMap<HTMLMediaElement, number>();
+
 /** What plays the moments: the video, or the clock replaying the court when the page has none. */
 export type Media = HTMLVideoElement | Clock;
 
@@ -205,8 +208,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const fadeIn = time >= landed.current ? (time - landed.current) / FADE_S : 1;
         const shown = seeking.current ? 0 : Math.min(1, fadeOut, fadeIn);
         video.style.opacity = shown < 1 ? String(shown) : '';
-        if (video.volume !== shown) {
-          video.volume = shown;
+        const volume = shown * (hushed.get(video) ?? 1);
+        if (video.volume !== volume) {
+          video.volume = volume;
         }
       }
       if (time !== now) {

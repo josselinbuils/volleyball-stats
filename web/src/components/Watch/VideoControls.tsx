@@ -6,8 +6,8 @@ import { VideoButton } from '@/components/VideoButton';
 import { clock } from '@/lib/format';
 import { contacts, match } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
-import { nearTouch, SLOW_RATE } from '@/helpers/slow';
-import { boxOf, seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
+import { fadedVolume, nearTouch, PAGE_SLOW_RATE } from '@/helpers/slow';
+import { boxOf, hushed, seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
 import { around, isDownload, merged, placer, seekLine, unshifted, within } from '@/components/Watch/helpers/seekBar';
@@ -89,23 +89,36 @@ export function VideoControls({
       // Kept for this page only.
     }
   };
-  // Slowed down only around each touch, as in the review.
+  // Slowed down only around each touch, the sound faded out meanwhile: stretched, it only warbles. (An iPhone sets no
+  // volume from a page: there it plays on, slowed.)
   useEffect(() => {
     if (!video || !slow) {
       return;
     }
+    // The court's replay has a clock, no sound.
+    const sound = video instanceof HTMLMediaElement ? video : null;
     let frame = 0;
-    const tick = () => {
-      const rate = nearTouch(TOUCH_TIMES, video.currentTime) ? SLOW_RATE : 1;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const slowed = nearTouch(TOUCH_TIMES, video.currentTime);
+      const rate = slowed ? PAGE_SLOW_RATE : 1;
       if (video.playbackRate !== rate) {
         video.playbackRate = rate;
       }
+      // The player sets the volume, its fades between clips times this.
+      if (sound) {
+        hushed.set(sound, fadedVolume(hushed.get(sound) ?? 1, slowed && !sound.paused, (now - last) / 1000));
+      }
+      last = now;
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(frame);
       video.playbackRate = 1;
+      if (sound) {
+        hushed.delete(sound);
+      }
     };
   }, [video, slow]);
 
