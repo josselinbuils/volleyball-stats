@@ -1781,7 +1781,8 @@ def build(
             person.pop("look", None)
         kept_photos(data["people"], match / "review", match, ("look",))
     elif not pictures:
-        kept_photos(data["people"], site, match, ("look",))
+        # The looks from the card pictures kept: no new picture needed (a few seconds, each parsed once).
+        likeness.dress(match, data["people"], {key: site / p["photo"].split("?")[0] for key, p in data["people"].items() if p.get("photo") and (site / p["photo"].split("?")[0]).exists()})
     hide_looks(data["people"], blurred)
     part("photos")(1.0)
     # The logo's folder, and the one older builds named brand/.
