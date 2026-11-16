@@ -3,7 +3,7 @@
 `likeness.py` gives the 3D figures each player's hair (colour, style) and skin, guessed from their card's picture: a
 human-parsing model (`mattmdjaga/segformer_b2_clothes`, SegFormer trained on ATR, MIT licence) splits it into hair, face,
 arms and legs, and fixed thresholds read their colours and the hair's shape. A head going bald keeps short hair of its
-colour; only one without hair is bald (the owner's rule, 16 Nov). The Names tab sets the figure, a man's or a woman's.
+colour; only one without hair is bald, a bare head without a band of hair round the back (the owner's rule, 16 Nov). The Names tab sets the figure, a man's or a woman's.
 
 ```bash
 uv run python benchmarks/likeness/bench.py [--show]
