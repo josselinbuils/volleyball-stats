@@ -1,5 +1,6 @@
 {
   "backToReview": "Review",
+  "allMatches": "All matches",
   "report": "Match report",
   "language": "Language",
   "intro": "Statistics computed automatically from one camera on the sideline.",
@@ -398,7 +399,6 @@
       }
     },
     "changedWhich": "{{part}}: {{keys}}",
-    "allMatches": "All matches",
     "tabMatch": "Match",
     "namesIntro": "Name each player: the same name makes two numbers one.",
     "name": "Name",

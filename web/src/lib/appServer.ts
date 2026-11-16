@@ -11,6 +11,11 @@ export function reviewPreview(path = location.pathname): boolean {
   return path === '/page';
 }
 
+/** A hosted match page's list of matches, where its build put one (`matches.link_list`); from disk, its index.html. */
+export function listAddress(up: string | null | undefined = document.querySelector<HTMLMetaElement>('meta[name="list"]')?.content, protocol = location.protocol): string | null {
+  return up ? (protocol === 'file:' ? `${up}index.html` : up) : null;
+}
+
 /** A page's title, the app's name after it in the app's own window. */
 export function windowTitle(title: string, host = location.hostname): string {
   return onAppServer(host) ? `${title} – ${APP_NAME}` : title;

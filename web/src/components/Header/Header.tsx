@@ -14,7 +14,7 @@ import { StickyBar } from '@/components/Header/StickyBar';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
 import { Hint } from '@/components/Tip';
-import { reviewPreview, windowTitle } from '@/lib/appServer';
+import { listAddress, reviewPreview, windowTitle } from '@/lib/appServer';
 import { BackLink } from '@/components/BackLink';
 import { lasted } from '@/helpers/lasted';
 
@@ -24,6 +24,7 @@ export function Header() {
   const { set, rallies, contacts } = useSet();
 
   const tab = tabTitle(t, f);
+  const list = listAddress();
   useEffect(() => {
     document.title = windowTitle(tab);
   }, [tab]);
@@ -61,8 +62,8 @@ export function Header() {
       <header className="grid gap-6 px-1">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            {/* In the app, the page is the review's preview. */}
-            {reviewPreview() && <BackLink href="/review" label={t('backToReview')} className="mb-3 flex w-fit" />}
+            {/* In the app, the page is the review's preview; hosted, one of the list's. */}
+            {reviewPreview() ? <BackLink href="/review" label={t('backToReview')} className="mb-3 flex w-fit" /> : list && <BackLink href={list} label={t('allMatches')} className="mb-3 flex w-fit" />}
             <p className="text-sm font-medium text-muted-foreground">
               {t('report')}
               {match.date && (

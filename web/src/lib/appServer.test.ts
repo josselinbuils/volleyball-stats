@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { onAppServer, reviewPreview, windowTitle } from '@/lib/appServer';
+import { listAddress, onAppServer, reviewPreview, windowTitle } from '@/lib/appServer';
 
 describe('appServer', () => {
   it('names the app in its own window only', () => {
@@ -15,5 +15,11 @@ describe('appServer', () => {
   it('knows the review’s page by its path, whatever the address', () => {
     expect(reviewPreview('/page')).toBe(true);
     expect(reviewPreview('/2026-11-12-aspom-1-vs-le-haillan-1/')).toBe(false);
+  });
+
+  it('finds a hosted page’s list where its build put it, its index.html from disk', () => {
+    expect(listAddress('../', 'https:')).toBe('../');
+    expect(listAddress('../../', 'file:')).toBe('../../index.html');
+    expect(listAddress(null, 'https:')).toBeNull();
   });
 });

@@ -63,6 +63,19 @@ class TestBuild:
         assert 'url=../../2026-11-02-a-vs-c/video/"' in (tmp_path / "2026-11-02-a-vs-b" / "video" / "index.html").read_text()
         assert json.loads((tmp_path / "redirects.json").read_text()) == {"2026-11-02-a-vs-b": "2026-11-02-a-vs-c"}
 
+    def test_each_match_page_and_its_video_one_link_back_to_the_list_once(self, tmp_path):
+        self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "B"])
+        (tmp_path / "2026-11-02-a-vs-b" / "video").mkdir()
+        for index in (tmp_path / "2026-11-02-a-vs-b" / "index.html", tmp_path / "2026-11-02-a-vs-b" / "video" / "index.html"):
+            index.write_text("<html><head>\n  </head><body></body></html>")
+
+        build(tmp_path, "none")
+        build(tmp_path, "none")
+
+        page, video = ((tmp_path / "2026-11-02-a-vs-b" / f).read_text() for f in ("index.html", "video/index.html"))
+        assert page.count('<meta name="list" content="../" />') == 1 and 'name="list"' not in page.replace('<meta name="list" content="../" />', "")
+        assert video.count('<meta name="list" content="../../" />') == 1
+
     def test_a_page_built_for_the_first_time_leaves_no_redirect(self, tmp_path):
         self.page(tmp_path, "m", "m", ["A", "B"])
 

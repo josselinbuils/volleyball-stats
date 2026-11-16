@@ -62,6 +62,8 @@ MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "ao�
 # The clubs' Arial where the system has it: OpenCV's own font slashes its zeros, a score's "0" then reads "Ø".
 CARD_FONT = Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf")
 SHARED_TAGS = re.compile(r"[ \t]*<meta (?:property=\"og:|name=\"twitter:)[^>]*>\n?")
+# Where a match page's list is, for its link back to it.
+LIST_TAG = re.compile(r'[ \t]*<meta name="list"[^>]*>\n?')
 # An update's stages (jobs.Stages) and their seconds before one is measured on this machine, kept in outputs/TIMINGS:
 # the site read from the server, each match rebuilt ("match:NAME"), the site uploaded and checked.
 TOOK = {"mirror": 10.0, "match": 15.0, "upload": 30.0}
@@ -185,6 +187,15 @@ def _save_if_changed(path: Path, content: bytes) -> None:
         path.write_bytes(content)
 
 
+def link_list(folder: Path) -> None:
+    """The match page in `folder`, and its video/ one, told where the list is: it links back to it."""
+    for index, up in ((folder / "index.html", "../"), (folder / "video" / "index.html", "../../")):
+        if index.exists():
+            page = LIST_TAG.sub("", index.read_text())
+            tag = f'    <meta name="list" content="{up}" />\n'
+            _save_if_changed(index, re.sub(r"[ \t]*</head>", lambda _: tag + "  </head>", page, count=1).encode())
+
+
 def share(folder: Path, url: str, title: str, description: str, card: np.ndarray, site_name: str | None) -> None:
     """`folder`'s page tagged for link previews at its `url`, with `card` as PREVIEW: messaging apps read these without running the page."""
     png = cv2.imencode(".png", card, [cv2.IMWRITE_PNG_COMPRESSION, 9])[1].tobytes()
@@ -249,6 +260,8 @@ def build(site: Path, theme: str = CLUB, url: str | None = None) -> list[dict]:
     (site / "matches.js").write_text(f"window.MATCHES = {text};\n")
     index = site / "index.html"
     index.write_text(index.read_text().replace('src="matches.js"', f'src="matches.js?v={v}"'))
+    for match in matches:
+        link_list(site / match["path"])
     if url:
         root = f"{url.rstrip('/')}/"
         for match in matches:

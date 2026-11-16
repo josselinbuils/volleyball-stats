@@ -93,6 +93,8 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
 - The docker repo takes commits on master directly, the owner's choice: GitHub reports the push as bypassing its PR rule.
   A change of a mounted config from `git pull` needs `docker compose up -d --force-recreate --no-deps volleyballstats`:
   the running container keeps the old file.
+- `matches.build` tells each match page, and its `video/` one, where the list is (`<meta name="list">`, `link_list`):
+  "Tous les matchs" at its top goes back to it, in an export too.
 - Caching: `matches.build` writes `.gz` copies nginx sends as they are (`gzip_static`). Cloudflare and browsers keep the
   hashed and `?v=` files for good (the unhashed ones load with the build's hash, card pictures with their own), images a
   day; pages are checked each time; the video copy's files only in the viewer's browser (`private`).

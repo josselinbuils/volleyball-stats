@@ -1,5 +1,6 @@
 {
   "backToReview": "Vérification",
+  "allMatches": "Tous les matchs",
   "report": "Bilan du match",
   "language": "Langue",
   "intro": "Statistiques calculées automatiquement à partir d'une caméra placée sur le bord du terrain.",
@@ -398,7 +399,6 @@
       }
     },
     "changedWhich": "{{part}} : {{keys}}",
-    "allMatches": "Tous les matchs",
     "tabMatch": "Match",
     "namesIntro": "Nommez chaque joueur : le même nom réunit deux numéros.",
     "name": "Nom",
