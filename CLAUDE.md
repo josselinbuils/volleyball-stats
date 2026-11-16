@@ -8,11 +8,6 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 ## Rules
 
 - At a session's start, `git fetch`, then warn the owner if the branch is behind its remote.
-- Moving the OVH server (16 Nov): the new VPS (`root@51.77.202.11`, Ubuntu 26.04) runs everything the old one
-  (`51.38.234.56`) did, checked. Once the owner has pointed Cloudflare's A records and each machine's Site tab to it:
-  catch up from the old (`/root/backups` with `rsync -aH --update`, `volleyball-stats/feedback/feedback.log` appended),
-  point the blog and portfolio GitHub webhooks to `http://51.77.202.11:8090/webhook`, remove the `migrate_tmp` key
-  (old `/root/.ssh/`, new `authorized_keys`), then drop this rule.
 - Speak English with the owner; the page and the review page open in French (fr first, then en, in
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
 - Interface text stays light (the owner's rule): the fewest words a viewer needs, judged on all they see together, without
