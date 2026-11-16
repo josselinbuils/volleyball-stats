@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Download, FolderInput, Shield, Stethoscope, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, Download, FolderInput, Shield, Stethoscope, TriangleAlert, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorNote } from '@/components/ErrorNote';
@@ -8,6 +8,7 @@ import { useRunning } from '@/hooks/useRunning';
 import { ClubDialog } from '@/components/ClubDialog';
 import { Doctor, checkText } from './Doctor';
 import { ImportDialog } from './ImportDialog';
+import { NetworkDialog } from './NetworkDialog';
 import { PreparingCard } from './PreparingCard';
 import { VideosDialog } from './VideosDialog';
 import { UpdateLine } from '@/components/Update';
@@ -29,7 +30,7 @@ export function Setup() {
   // The machine's checks: null while they run the first time, 'failed' when the server did not answer.
   const [checks, setChecks] = useState<Check[] | 'failed' | null>(null);
   const [modelsError, setModelsError] = useState<Explained | null>(null);
-  const [dialog, setDialog] = useState<'import' | 'doctor' | 'videos' | 'club' | null>(null);
+  const [dialog, setDialog] = useState<'import' | 'doctor' | 'videos' | 'club' | 'network' | null>(null);
   const refresh = useCallback(async () => {
     // Unanswered (the server restarts): the next poll reads it.
     const found = await call<AppState>('state');
@@ -148,6 +149,10 @@ export function Setup() {
           <Stethoscope aria-hidden />
           {t('app.doctor.open')}
         </Button>
+        <Button variant="outline" className="bg-card" onClick={() => setDialog('network')}>
+          <Wifi aria-hidden />
+          {t('app.network.open')}
+        </Button>
       </div>
       {state && <UpdateLine learn={state.learn} onChange={refresh} />}
       {state && state.preparing.length > 0 && (
@@ -173,6 +178,7 @@ export function Setup() {
         />
       )}
       {dialog === 'club' && <ClubDialog onClose={() => setDialog(null)} />}
+      {dialog === 'network' && <NetworkDialog onClose={() => setDialog(null)} />}
       {dialog === 'doctor' && <Doctor checks={checks} onRecheck={recheck} onClose={() => setDialog(null)} />}
       {dialog === 'videos' && state && <VideosDialog job={state.videos} system={state.system} onChange={refresh} onClose={() => setDialog(null)} />}
     </section>

@@ -38,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, presence, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, network, presence, rallies, rename, scoreboard, sync, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
@@ -2266,18 +2266,44 @@ def redirect(handler: BaseHTTPRequestHandler, url) -> bool:
     return True
 
 
-def same_site(headers, port: int) -> bool:
-    """Whether a request comes from this server's own pages."""
+def same_site(headers, port: int, lan: bool = False) -> bool:
+    """Whether a request comes from this server's own pages: named by 127.0.0.1 or localhost, else with `lan` by this
+    machine's address on the local network (`network.named_here`), and from no other site."""
     host = headers.get("Host", "")
     return (
-        host in (f"127.0.0.1:{port}", f"localhost:{port}")
+        network.named_here(host, port, lan)
         and headers.get("Origin") in (None, f"http://{host}")
         and headers.get("Sec-Fetch-Site") in (None, "same-origin", "none")
     )
 
 
+def network_route(method: str, path: str, body: dict, port: int) -> tuple[bytes, str, int] | None:
+    """The app's "Réseau local": GET /app/network its state (`network.state`); POST it switched (`on`: the server
+    starts again to listen so, `network_restart`) or Windows set up for it (`action` "windows"). None for another path."""
+    if path != "/app/network":
+        return None
+    reply = lambda data, status=200: (json.dumps(data).encode(), "application/json", status)  # noqa: E731
+    if method == "POST":
+        try:
+            if body.get("action") == "windows":
+                network.configure_windows(port)
+            else:
+                network.share(app.OUTPUTS, bool(body.get("on")))
+        except (OSError, subprocess.SubprocessError) as error:
+            return reply({"error": str(error) or type(error).__name__}, 500)
+    return reply(network.state(app.OUTPUTS, port))
+
+
+def network_restart(path: str, body: dict, answer: tuple, lock=None) -> None:
+    """The server started again once the switch's answer has left: it listens on the network, or no longer."""
+    if path == "/app/network" and answer[2] == 200 and body.get("action") != "windows":
+        app.restart_after(lock)
+
+
 def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) -> None:
     """Only the list of the matches, until one is opened."""
+    # On the local network too when the app says so (`network`): the process starts again to change it.
+    lan = network.shared(app.OUTPUTS)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_) -> None:
@@ -2296,7 +2322,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
 
         def do_GET(self) -> None:
             url = urlparse(self.path)
-            if not same_site(self.headers, port):
+            if not same_site(self.headers, port, lan):
                 return self.send(b"", "text/plain", 403)
             if redirect(self, url):
                 return None
@@ -2309,12 +2335,12 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
                 self.send_header("Location", "/matches/")
                 self.end_headers()
                 return
-            page = list_page(url.path, out, theme) if url.path.startswith("/matches/") else app.handle("GET", url.path, url.query, {}, lambda: match_list(out))
+            page = list_page(url.path, out, theme) if url.path.startswith("/matches/") else network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(out))
             self.send(*(page or (b"Not found", "text/plain", 404)))
 
         def do_POST(self) -> None:
             known = self.path in ("/open", "/pull") or self.path.startswith("/app/")
-            if not same_site(self.headers, port) or not known or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+            if not same_site(self.headers, port, lan) or not known or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 return self.send(b"", "text/plain", 403)
             size = int(self.headers.get("Content-Length", 0))
             if not 0 <= size <= (CLUB_BODY if self.path == "/app/club" else MAX_BODY):
@@ -2324,8 +2350,9 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             except ValueError:
                 return self.send(b'{"error":"not json"}', "application/json", 400)
             if self.path.startswith("/app/"):
-                answer = app.handle("POST", self.path, "", body, lambda: match_list(out)) or (b"Not found", "text/plain", 404)
+                answer = network_route("POST", self.path, body, port) or app.handle("POST", self.path, "", body, lambda: match_list(out)) or (b"Not found", "text/plain", 404)
                 self.send(*answer)
+                network_restart(self.path, body, answer)
                 if self.path == "/app/update" and answer[2] == 200:
                     app.restart_after()
                 if self.path == "/app/quit" and answer[2] == 200:
@@ -2357,7 +2384,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
 
     threading.Thread(target=backing, daemon=True).start()
     presence.watch(lambda: not any(j["running"] for j in jobs.state(app.OUTPUTS)))
-    server = Server(("127.0.0.1", port), Handler)
+    server = Server((network.bind(app.OUTPUTS), port), Handler)
     url = f"http://127.0.0.1:{port}/matches/"
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
@@ -2369,6 +2396,8 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
 
 
 def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, browser: bool = True, roster: Path = ROSTER) -> None:
+    # On the local network too when the app says so (`network`): the process starts again to change it.
+    lan = network.shared(app.OUTPUTS)
     # First the server's newer copy, if nothing changed here (`sync.check`); changed on both sides, the page asks which to keep.
     conflict = sync.check(match) if sync.active(files.root(match)) else None
     matches.ensure_publish(match, video, theme)
@@ -2719,9 +2748,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
 
         def ours(self) -> bool:
             """Whether a request comes from the review itself: binding 127.0.0.1 keeps other machines
-            out, not another site open in the same browser (its requests name another Origin or a
-            cross-site Sec-Fetch-Site) nor one rebinding its domain to 127.0.0.1 (another Host)."""
-            return same_site(self.headers, port)
+            out unless the app opens it to the local network (`network`), not another site open in the same
+            browser (its requests name another Origin or a cross-site Sec-Fetch-Site) nor one rebinding its
+            domain to this machine (another Host)."""
+            return same_site(self.headers, port, lan)
 
         def do_GET(self) -> None:
             self.answer(self.get)
@@ -2745,7 +2775,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return None
             if url.path == "/current":
                 return self.send(json.dumps({"name": match.name}).encode(), "application/json")
-            found = app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent))
+            found = network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent))
             if found:
                 return self.send(*found)
             if url.path == "/matches.json":
@@ -2820,8 +2850,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
             if self.path.startswith("/app/"):
-                answer = app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), club_changed, match.name) or (b"Not found", "text/plain", 404)
+                answer = network_route("POST", self.path, body, port) or app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), club_changed, match.name) or (b"Not found", "text/plain", 404)
                 self.send(*answer)
+                network_restart(self.path, body, answer, lock)
                 if self.path == "/app/update" and answer[2] == 200:
                     app.restart_after(lock)
                 if self.path == "/app/quit" and answer[2] == 200:
@@ -3136,7 +3167,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             pass
 
     # The footage shows real people: this machine only.
-    server = Server(("127.0.0.1", port), Handler)
+    server = Server((network.bind(app.OUTPUTS), port), Handler)
     url = f"http://127.0.0.1:{port}/review"
     threading.Thread(target=warm, daemon=True).start()
     threading.Thread(target=afterwards, daemon=True).start()

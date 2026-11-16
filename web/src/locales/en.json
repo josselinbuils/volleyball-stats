@@ -1601,6 +1601,18 @@
         "busy": "Busy (load {{load}} on {{cores}} cores): an analysis would be slower."
       }
     },
+    "network": {
+      "open": "Local network",
+      "title": "Local network",
+      "intro": "Open the app from another device on the same network (computer, tablet, phone). Any device on the network can open it.",
+      "reading": "Reading…",
+      "on": "Turn on",
+      "off": "Turn off",
+      "openOn": "On the other device, open:",
+      "windows": "Windows must first let the network reach the app (once, with an administrator's approval).",
+      "setUp": "Set up Windows",
+      "restart": "Done: restart the computer to finish."
+    },
     "backup": {
       "off": "Automatic backup off: nothing is copied to the server.",
       "failed": "Last backup failed.",

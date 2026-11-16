@@ -1601,6 +1601,18 @@
         "busy": "Occupé (charge {{load}} sur {{cores}} cœurs) : une analyse serait plus lente."
       }
     },
+    "network": {
+      "open": "Réseau local",
+      "title": "Réseau local",
+      "intro": "Ouvrir l'app depuis un autre appareil du même réseau (ordinateur, tablette, téléphone). Tout appareil du réseau pourra l'ouvrir.",
+      "reading": "Lecture…",
+      "on": "Activer",
+      "off": "Désactiver",
+      "openOn": "Sur l'autre appareil, ouvrez :",
+      "windows": "Windows doit d'abord laisser l'app joignable depuis le réseau (une fois, avec l'accord d'un administrateur).",
+      "setUp": "Configurer Windows",
+      "restart": "C'est fait : redémarrez l'ordinateur pour terminer."
+    },
     "backup": {
       "off": "Sauvegarde automatique désactivée : rien n'est copié sur le serveur.",
       "failed": "Dernière sauvegarde échouée.",
