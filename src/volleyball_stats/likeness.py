@@ -2,7 +2,8 @@
 (SegFormer trained on ATR, MIT licence) splits it into hair, face, arms and legs; their colours and the hair's shape
 pick a hair colour, a hairstyle and a skin tone among the few the page draws. It tells the looks that stand out (a
 bald or grey head, blond hair, a very dark skin, long loose hair), not a ponytail seen from the front nor the middle
-skin tones (the owner's call, 15 Nov: not a big deal): the review corrects them in a tap (likeness_choices.json)."""
+skin tones (the owner's call, 15 Nov: not a big deal). The Names tab sets the figure, a man's or a woman's
+(likeness_choices.json, by name): the rest is the guess's alone (the owner's call, 16 Nov)."""
 
 from __future__ import annotations
 
@@ -19,10 +20,11 @@ MODEL = "mattmdjaga/segformer_b2_clothes"
 # The model's classes used: hair, face, then the legs and arms.
 HAIR, FACE, LIMBS = 2, 11, (12, 13, 14, 15)
 
-# What the page draws, its order the review's (web/src/scene3d/looks.ts holds their colours).
+# What the page draws (web/src/lib/looks.ts holds their colours and the figures).
 HAIRS = ("black", "dark", "brown", "blond", "red", "grey")
 STYLES = ("bald", "short", "mid", "ponytail", "long")
 SKINS = 5
+FIGURES = ("man", "woman")
 
 # Room around the box above and on the sides: a raised hand or loose hair leaves it.
 ABOVE, SIDES = 0.06, 0.1
@@ -37,10 +39,11 @@ BATCH = 2
 # `guess`'s thresholds on the card's picture, OpenCV's 8-bit Lab (L 0-255), set on 53 labelled players of the three
 # first matches (benchmarks/likeness): the skin's L under DARK_SKIN is the darkest tone (the card's picture is touched
 # up, its contrast evened: the middle tones mix); the hair's L under which it is black, dark, brown, from which it is
-# blond; between, grey. A head under BALD_SHARE of hair, that hair as light as a scalp (BALD_L), is bald. Hair over
-# LONG_SHARE of the head, as wide as LONG_LOW head widths low down, falls loose.
+# blond; between, grey. A head without hair (under MIN_PIXELS of it, under BALD_SHARE of the head) is bald; one going
+# bald keeps short hair of its colour (the owner's call, 16 Nov). Hair over LONG_SHARE of the head, as wide as
+# LONG_LOW head widths low down, falls loose.
 DARK_SKIN, HAIR_L, BLOND_L = 90.0, (28.0, 50.0, 66.0), 100.0
-BALD_SHARE, BALD_L, LONG_SHARE, LONG_LOW = 0.13, 60.0, 0.8, 0.9
+BALD_SHARE, LONG_SHARE, LONG_LOW = 0.13, 0.8, 0.9
 # Parsings kept by card picture (its content's hash): an apply makes the same pictures again.
 SEEN = "likeness_seen.json"
 
@@ -138,21 +141,16 @@ def guess(found: list[float] | None) -> dict | None:
     out: dict = {}
     if skin_n >= MIN_PIXELS:
         out["skin"] = SKINS if skin_l < DARK_SKIN else 2
-    if hair_n < MIN_PIXELS and share < BALD_SHARE:
-        return {**out, "hair": "grey", "style": "bald"}
-    bald = share < BALD_SHARE and hair_l >= BALD_L
-    if bald:
-        # The scalp's colour is not the hair's: a fringe, when any, is mostly grey.
-        out["hair"] = "grey"
-    elif hair_n >= MIN_PIXELS:
-        out["hair"] = "black" if hair_l < HAIR_L[0] else "dark" if hair_l < HAIR_L[1] else "brown" if hair_l < HAIR_L[2] else "blond" if hair_l >= BLOND_L else "grey"
-    out["style"] = "bald" if bald else "long" if low >= LONG_LOW and share >= LONG_SHARE else "short"
+    if hair_n < MIN_PIXELS:
+        return {**out, "style": "bald"} if share < BALD_SHARE else out
+    out["hair"] = "black" if hair_l < HAIR_L[0] else "dark" if hair_l < HAIR_L[1] else "brown" if hair_l < HAIR_L[2] else "blond" if hair_l >= BLOND_L else "grey"
+    out["style"] = "long" if low >= LONG_LOW and share >= LONG_SHARE else "short"
     return out
 
 
 def dress(match: Path, people: dict[int, dict], cards: dict[int, Path]) -> None:
-    """`people` with their `look`: guessed from their card's picture (`cards`, by key), the review's corrections over it
-    (`chosen`, by name else by card); none for a player with neither."""
+    """`people` with their `look`: guessed from their card's picture (`cards`, by key), with the figure the Names tab
+    set (`chosen`, by name else by card); none for a player with neither."""
     path = match / SEEN
     seen = json.loads(path.read_text()) if path.exists() else {}
     hashes = {key: hashlib.sha256(card.read_bytes()).hexdigest()[:16] for key, card in cards.items()}
@@ -176,14 +174,14 @@ def dress(match: Path, people: dict[int, dict], cards: dict[int, Path]) -> None:
 
 
 def corrected(guessed: dict | None, given: dict | None) -> dict | None:
-    """`guessed` with the review's corrections `given` over it; None with neither."""
+    """`guessed` with the Names tab's choices `given` over it; None with neither."""
     out = {**(guessed or {}), **(given or {})}
     return out or None
 
 
 def chosen(match: Path) -> dict[str, dict]:
-    """The review's corrections (CHOICES), by name or card; a name corrected in another match too (the
-    latest's), a player looking the same from one match to the next."""
+    """The Names tab's choices (CHOICES), by name or card, FIGURES only; a name's in another match too (the latest's), a
+    player looking the same from one match to the next."""
     out: dict[str, dict] = {}
     others = sorted((p for p in match.parent.glob(f"*/{CHOICES}") if p.parent != match), key=lambda p: p.stat().st_mtime)
     for path in others:
@@ -191,13 +189,13 @@ def chosen(match: Path) -> dict[str, dict]:
     path = match / CHOICES
     for who, look in (json.loads(path.read_text()) if path.exists() else {}).items():
         out[who] = {**out.get(who, {}), **look}
-    return out
+    return {who: kept for who, look in out.items() if (kept := {k: v for k, v in look.items() if k == "figure" and v in FIGURES})}
 
 
-def choose(match: Path, who: str, field: str, value: str | int | None) -> None:
-    """CHOICES with `who`'s `field` (hair, style or skin) set to `value`, None giving it back to the guess.
+def choose(match: Path, who: str, field: str, value: str | None) -> None:
+    """CHOICES with `who`'s `field` (their `figure`, a man's or a woman's) set to `value`, None taking it off.
     ValueError for anything else."""
-    allowed = {"hair": HAIRS, "style": STYLES, "skin": range(1, SKINS + 1)}
+    allowed = {"figure": FIGURES}
     if field not in allowed or (value is not None and value not in allowed[field]):
         raise ValueError(f"{field} {value!r}")
     path = match / CHOICES

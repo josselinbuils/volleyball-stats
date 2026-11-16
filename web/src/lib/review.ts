@@ -340,7 +340,7 @@ export async function post(
     | 'repin'
     | 'team'
     | 'photo'
-    | 'look'
+    | 'figure'
     | 'failure'
     | 'sync/take'
     | 'sync/keep',

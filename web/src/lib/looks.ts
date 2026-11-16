@@ -1,16 +1,18 @@
-/** A player's hair and skin for the 3D figures, guessed from the video (`likeness.py`) and corrected in the
- * review; each field absent leaves the figure's made-up one. */
+/** A player's hair and skin for the 3D figures, guessed from their card's picture (`likeness.py`), and their figure, a
+ * man's or a woman's, set in the review's Names tab; each field absent leaves the figure's made-up one. */
 export interface Look {
   hair?: HairColour;
   style?: HairStyle;
   /** 1 (lightest) to SKINS.length. */
   skin?: number;
+  figure?: Figure;
 }
 
 export type HairColour = 'black' | 'dark' | 'brown' | 'blond' | 'red' | 'grey';
 export type HairStyle = 'bald' | 'short' | 'mid' | 'ponytail' | 'long';
+export type Figure = 'man' | 'woman';
 
-/** The hair colours the figures wear, in the review's order (likeness.HAIRS). */
+/** The hair colours the figures wear (likeness.HAIRS). */
 export const HAIRS: Record<HairColour, string> = {
   black: '#16110e',
   dark: '#3b2618',
@@ -20,11 +22,11 @@ export const HAIRS: Record<HairColour, string> = {
   grey: '#b9b5ae',
 };
 
-/** The hair styles, in the review's order (likeness.STYLES). */
-export const STYLES: HairStyle[] = ['bald', 'short', 'mid', 'ponytail', 'long'];
-
 /** The skin tones, lightest first (likeness.SKINS). */
 export const SKINS = ['#f2d3bb', '#e2b48e', '#c48e63', '#94603c', '#5b3925'];
 
+/** The figures, in the Names tab's order (likeness.FIGURES). */
+export const FIGURES: Figure[] = ['man', 'woman'];
+
 /** A look's own key, to tell when a figure must be made again. */
-export const lookKey = (look: Look | undefined) => (look ? `${look.hair ?? ''}:${look.style ?? ''}:${look.skin ?? ''}` : '');
+export const lookKey = (look: Look | undefined) => (look ? `${look.hair ?? ''}:${look.style ?? ''}:${look.skin ?? ''}:${look.figure ?? ''}` : '');

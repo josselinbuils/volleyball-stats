@@ -235,25 +235,10 @@
     "photoUpdating": "Photo en cours de mise à jour",
     "photosFailed": "Les photos n'ont pas pu être mises à jour.",
     "photoN": "Photo {{n}}",
-    "look": "Apparence 3D",
-    "lookSkin": "Peau",
-    "lookHair": "Cheveux",
-    "lookStyle": "Coiffure",
-    "skinN": "Teint {{n}}",
-    "hair": {
-      "black": "Noirs",
-      "dark": "Bruns",
-      "brown": "Châtains",
-      "blond": "Blonds",
-      "red": "Roux",
-      "grey": "Gris"
-    },
-    "style": {
-      "bald": "Chauve",
-      "short": "Courts",
-      "mid": "Mi-longs",
-      "ponytail": "Queue de cheval",
-      "long": "Longs"
+    "figure": "Silhouette 3D",
+    "figures": {
+      "man": "Homme",
+      "woman": "Femme"
     },
     "setStartAt": "Nouveau set à {{time}}",
     "setStartAsk": "Un set commence à {{time}} ? L'analyse sera relancée.",

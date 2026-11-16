@@ -19,30 +19,31 @@ def test_the_looks_that_stand_out_are_told():
     assert guess(numbers(hair_l=120))["hair"] == "blond"
     assert guess(numbers(hair_l=80))["hair"] == "grey"
     assert guess(numbers(skin_l=70))["skin"] == likeness.SKINS
-    # A head of scalp, its little hair light: bald with a grey fringe; none at all too.
-    assert guess(numbers(share=0.05, hair_l=75)) == {"skin": 2, "hair": "grey", "style": "bald"}
-    assert guess(numbers(share=0.01, hair_n=3)) == {"skin": 2, "hair": "grey", "style": "bald"}
+    # Going bald, a fringe left: short hair of its colour; no hair at all: bald.
+    assert guess(numbers(share=0.05, hair_l=75)) == {"skin": 2, "hair": "grey", "style": "short"}
+    assert guess(numbers(share=0.01, hair_n=3)) == {"skin": 2, "style": "bald"}
     assert guess(numbers(share=0.9, low=1.0))["style"] == "long"
     assert guess(None) is None
 
 
-def test_the_reviews_corrections_win_by_name_across_matches(tmp_path):
+def test_the_figure_set_by_name_holds_across_matches(tmp_path):
     a, b = tmp_path / "a", tmp_path / "b"
     a.mkdir()
     b.mkdir()
-    choose(a, "Landy", "style", "ponytail")
-    choose(a, "1:3", "skin", 4)
-    choose(b, "Landy", "hair", "black")
+    choose(a, "Landy", "figure", "woman")
+    choose(a, "1:3", "figure", "woman")
+    (b / likeness.CHOICES).write_text(json.dumps({"Landy": {"hair": "black"}}))
 
-    assert chosen(b) == {"Landy": {"style": "ponytail", "hair": "black"}}
-    assert chosen(a)["1:3"] == {"skin": 4}
-    assert corrected({"hair": "dark", "style": "short", "skin": 2}, chosen(b)["Landy"]) == {"hair": "black", "style": "ponytail", "skin": 2}
-    choose(a, "1:3", "skin", None)
+    # Another match's by name, not by card; nothing but the figure.
+    assert chosen(b) == {"Landy": {"figure": "woman"}}
+    assert chosen(a)["1:3"] == {"figure": "woman"}
+    assert corrected({"hair": "dark", "style": "short", "skin": 2}, chosen(b)["Landy"]) == {"hair": "dark", "style": "short", "skin": 2, "figure": "woman"}
+    choose(a, "1:3", "figure", None)
     assert "1:3" not in json.loads((a / likeness.CHOICES).read_text())
     with pytest.raises(ValueError):
-        choose(a, "Landy", "skin", 9)
+        choose(a, "Landy", "figure", "child")
     with pytest.raises(ValueError):
-        choose(a, "Landy", "eyes", "blue")
+        choose(a, "Landy", "skin", 4)
 
 
 def test_dress_parses_each_card_once(tmp_path, monkeypatch):
@@ -56,14 +57,14 @@ def test_dress_parses_each_card_once(tmp_path, monkeypatch):
     monkeypatch.setattr(likeness, "LOADED", [object()])
     card = tmp_path / "0.webp"
     cv2.imwrite(str(card), np.zeros((40, 30, 3), np.uint8))
-    choose(tmp_path, "Laure", "style", "ponytail")
+    choose(tmp_path, "Laure", "figure", "woman")
     people = {0: {"team": 2, "number": 4, "name": "Laure"}, 1: {"team": 1, "number": 2, "name": None}, 2: {"team": 1, "number": None}}
 
     dress(tmp_path, people, {0: card})
     dress(tmp_path, people, {0: card})
 
     assert calls == [1]
-    assert people[0]["look"] == {"skin": 2, "hair": "blond", "style": "ponytail"}
+    assert people[0]["look"] == {"skin": 2, "hair": "blond", "style": "short", "figure": "woman"}
     assert "look" not in people[1] and "look" not in people[2]
 
 

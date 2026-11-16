@@ -340,6 +340,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
    * hips and shoulders (`userData.limbs`, its right side first). */
   const figure = (key: number, shirt: THREE.Material, shorts: THREE.Material, taped = false, look?: Look) => {
     const skin = coloured(look?.skin ? SKINS[look.skin - 1] : SKIN);
+    // A woman's: narrower shoulders and waist, wider hips, a little smaller.
+    const woman = look?.figure === 'woman';
+    const [shoulders, waist, hips] = woman ? [0.86, 0.9, 1.06] : [1, 1, 1];
     const hair = coloured(look?.hair ? HAIR_COLOURS[look.hair] : HAIRS[Math.abs(key) % HAIRS.length]);
     const group = new THREE.Group();
     const part = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
@@ -370,16 +373,16 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       part(leg, shapes.thigh, skin, 0, 0.39 - HIP);
       part(leg, shapes.kneePad, pads, 0, 0.4 - HIP);
       const arm = new THREE.Group();
-      arm.position.set(side * 0.25, SHOULDER - HIP, 0);
+      arm.position.set(side * 0.25 * shoulders, SHOULDER - HIP, 0);
       torso.add(arm);
       arms.push(arm);
       part(arm, shapes.sleeve, shirt, side * 0.01, 1.0 - SHOULDER).rotation.z = side * 0.3;
       part(arm, shapes.arm, skin, side * 0.05, 0.78 - SHOULDER).rotation.z = side * 0.12;
       part(torso, shapes.eye, eye, side * 0.085, 1.39 - HIP, 0.235);
     }
-    part(torso, shapes.shorts, shorts, 0, 0.58 - HIP).scale.z = 0.75;
-    part(torso, shapes.chest, shirt, 0, 0.88 - HIP).scale.z = 0.7;
-    part(torso, shapes.shoulders, shirt, 0, SHOULDER - HIP).scale.set(1, 0.42, 0.7);
+    part(torso, shapes.shorts, shorts, 0, 0.58 - HIP).scale.set(hips, 1, 0.75);
+    part(torso, shapes.chest, shirt, 0, 0.88 - HIP).scale.set(waist, 1, 0.7);
+    part(torso, shapes.shoulders, shirt, 0, SHOULDER - HIP).scale.set(shoulders, 0.42, 0.7);
     part(torso, shapes.neck, skin, 0, 1.15 - HIP);
     part(torso, shapes.head, skin, 0, 1.38 - HIP);
     // A cap of hair over the top, tilted back to leave the forehead bare.
@@ -400,6 +403,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       }
     }
     group.userData.limbs = { torso, legs, arms };
+    group.scale.setScalar(woman ? 0.96 : 1);
     return group;
   };
   /** Stands a figure in `pose`: the pelvis down and the legs squashed by the crouch, the feet staying on the floor. */
