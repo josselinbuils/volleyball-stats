@@ -46,7 +46,7 @@ def main() -> None:
                 if "--show" in sys.argv and look is not MADE_UP and name == "card picture":
                     print(f"{match[5:10]} {card:5} {'/'.join(label['style']):14} {'/'.join(label['hair']):15} {label['skin']}  ->  {g.get('style')!s:6} {g.get('hair')!s:6} {g.get('skin')}")
         print(f"{name:24} {total} players  " + "  ".join(f"{k} {v / total:.0%}" for k, v in hits.items()))
-    # The looks that stand out, which the guess is for: bald, grey or blond hair, the darkest skin, long loose hair.
+    # The looks that stand out, which the guess is for: bald (never guessed now), grey or blond hair, the darkest skin, long loose hair.
     standing = [(m, k, l) for m, labels in truth.items() for k, l in labels.items() if k in found[m] and (set(l["style"]) <= {"bald", "long"} or set(l["hair"]) <= {"grey", "blond"} or l["skin"] == likeness.SKINS)]
     told = sum((set(l["style"]) <= {"bald", "long"} and found[m][k].get("style") in l["style"]) or (set(l["hair"]) <= {"grey", "blond"} and found[m][k].get("hair") in l["hair"]) or (l["skin"] == likeness.SKINS and found[m][k].get("skin") == likeness.SKINS) for m, k, l in standing)
     print(f"looks that stand out: {told}/{len(standing)} told")

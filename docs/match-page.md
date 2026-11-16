@@ -87,8 +87,8 @@ moments.
   their initials (two letters when two teammates without a jersey share one).
 - **3D view:** a switch turns the court into a 3D scene to turn around with the pointer (three.js, in
   its own `scene3d.js` loaded only then):
-  - the players as figures jumping to attack and block, each with their hair (colour, and short, mid-length, a ponytail,
-    long or bald) and skin guessed from their card's picture (`likeness.py`: a human-parsing model, SegFormer trained on
+  - the players as figures jumping to attack and block, each with their hair (colour, and short, mid-length, a ponytail
+    or long; never bald: hair the picture does not show is short and black) and skin guessed from their card's picture (`likeness.py`: a human-parsing model, SegFormer trained on
     ATR, MIT licence, downloaded on first use; [benchmark](../benchmarks/likeness/README.md)), a man's or a woman's figure
     as set in the review's Names tab (a woman's short hair drawn as a long bob, to mid-neck); only on a page with the video (the review, a local one, the hosted one behind its password), never for a blurred team:
     elsewhere made-up looks;

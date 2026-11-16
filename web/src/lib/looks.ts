@@ -9,7 +9,7 @@ export interface Look {
 }
 
 export type HairColour = 'black' | 'dark' | 'brown' | 'blond' | 'red' | 'grey';
-export type HairStyle = 'bald' | 'short' | 'mid' | 'ponytail' | 'long';
+export type HairStyle = 'short' | 'mid' | 'ponytail' | 'long';
 export type Figure = 'man' | 'woman';
 
 /** The hair colours the figures wear (likeness.HAIRS). */

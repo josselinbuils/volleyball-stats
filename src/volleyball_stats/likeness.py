@@ -1,7 +1,7 @@
 """Each player's hair and skin for the 3D figures, guessed from their card's picture: a human-parsing model
 (SegFormer trained on ATR, MIT licence) splits it into hair, face, arms and legs; their colours and the hair's shape
-pick a hair colour, a hairstyle and a skin tone among the few the page draws. It tells the looks that stand out (a
-bald or grey head, blond hair, a very dark skin, long loose hair), not a ponytail seen from the front nor the middle
+pick a hair colour, a hairstyle and a skin tone among the few the page draws. It tells the looks that stand out (grey or
+blond hair, a very dark skin, long loose hair), not a ponytail seen from the front nor the middle
 skin tones (the owner's call, 15 Nov: not a big deal). The Names tab sets the figure, a man's or a woman's
 (likeness_choices.json, by name): the rest is the guess's alone (the owner's call, 16 Nov)."""
 
@@ -22,7 +22,7 @@ HAIR, FACE, LIMBS = 2, 11, (12, 13, 14, 15)
 
 # What the page draws (web/src/lib/looks.ts holds their colours and the figures).
 HAIRS = ("black", "dark", "brown", "blond", "red", "grey")
-STYLES = ("bald", "short", "mid", "ponytail", "long")
+STYLES = ("short", "mid", "ponytail", "long")
 SKINS = 5
 FIGURES = ("man", "woman")
 
@@ -39,11 +39,11 @@ BATCH = 2
 # `guess`'s thresholds on the card's picture, OpenCV's 8-bit Lab (L 0-255), set on 53 labelled players of the three
 # first matches (benchmarks/likeness): the skin's L under DARK_SKIN is the darkest tone (the card's picture is touched
 # up, its contrast evened: the middle tones mix); the hair's L under which it is black, dark, brown, from which it is
-# blond; between, grey. A head without hair (under MIN_PIXELS of it, under BALD_SHARE of the head) is bald; one going
-# bald keeps short hair of its colour (the owner's call, 16 Nov). Hair over LONG_SHARE of the head, as wide as
-# LONG_LOW head widths low down, falls loose.
+# blond; between, grey. Never bald: hair the picture does not show (under MIN_PIXELS of it: a shaved head, hair cut
+# short, the light) is short and black (the owner's call, 16 Nov: a player wrongly made bald). Hair over LONG_SHARE of
+# the head, as wide as LONG_LOW head widths low down, falls loose.
 DARK_SKIN, HAIR_L, BLOND_L = 90.0, (28.0, 50.0, 66.0), 100.0
-BALD_SHARE, LONG_SHARE, LONG_LOW = 0.13, 0.8, 0.9
+LONG_SHARE, LONG_LOW = 0.8, 0.9
 # Parsings kept by card picture (its content's hash): an apply makes the same pictures again.
 SEEN = "likeness_seen.json"
 
@@ -142,7 +142,7 @@ def guess(found: list[float] | None) -> dict | None:
     if skin_n >= MIN_PIXELS:
         out["skin"] = SKINS if skin_l < DARK_SKIN else 2
     if hair_n < MIN_PIXELS:
-        return {**out, "style": "bald"} if share < BALD_SHARE else out
+        return {**out, "hair": "black", "style": "short"}
     out["hair"] = "black" if hair_l < HAIR_L[0] else "dark" if hair_l < HAIR_L[1] else "brown" if hair_l < HAIR_L[2] else "blond" if hair_l >= BLOND_L else "grey"
     out["style"] = "long" if low >= LONG_LOW and share >= LONG_SHARE else "short"
     return out

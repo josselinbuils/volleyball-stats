@@ -97,9 +97,8 @@ function badge(text: string, background: string, color: string): THREE.Sprite {
 // The hovered player's name: its height on screen in pixels.
 const TIP_PX = 26;
 
-// Without a look, the figures' skin, and hair colours given out by player key: made up.
+// Without a look, the figures' skin: made up; their hair black, as when the picture does not show it (likeness.guess).
 const SKIN = SKINS[1];
-const HAIRS = [0x2b1d14, 0x4a2f1d, 0x6e4a2a, 0x161210, 0xa7834f];
 
 /** Paints the hall's scoreboard on `canvas`: each team's name over its points, the set between them;
  * dashes without a score. */
@@ -335,14 +334,14 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   };
   // The shirt numbers and badges, one per team and label, shared by the figures showing them.
   const marks = new Map<string, { numbers: THREE.MeshBasicMaterial; badge: THREE.Sprite }>();
-  /** A figure in `shirt` and `shorts` with `look`'s hair and skin, else made-up ones (the hair's colour by `key`), jointed at the
+  /** A figure in `shirt` and `shorts` with `look`'s hair and skin, else short black hair and a made-up skin, jointed at the
    * hips and shoulders (`userData.limbs`, its right side first). */
-  const figure = (key: number, shirt: THREE.Material, shorts: THREE.Material, taped = false, look?: Look) => {
+  const figure = (shirt: THREE.Material, shorts: THREE.Material, taped = false, look?: Look) => {
     const skin = coloured(look?.skin ? SKINS[look.skin - 1] : SKIN);
     // A woman's: narrower shoulders and waist, wider hips, a little smaller.
     const woman = look?.figure === 'woman';
     const [shoulders, waist, hips] = woman ? [0.8, 0.85, 1.08] : [1, 1, 1];
-    const hair = coloured(look?.hair ? HAIR_COLOURS[look.hair] : HAIRS[Math.abs(key) % HAIRS.length]);
+    const hair = coloured(HAIR_COLOURS[look?.hair ?? 'black']);
     const group = new THREE.Group();
     const part = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
       const mesh = new THREE.Mesh(geometry, material);
@@ -384,13 +383,12 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     part(torso, shapes.shoulders, shirt, 0, SHOULDER - HIP).scale.set(shoulders, 0.42, 0.7);
     part(torso, shapes.neck, skin, 0, 1.15 - HIP);
     part(torso, shapes.head, skin, 0, 1.38 - HIP);
-    // A cap of hair over the top, tilted back to leave the forehead bare. Never half bald (the owner's rule, 16 Nov): a bald
-    // head is bare.
+    // A cap of hair over the top, tilted back to leave the forehead bare. Never bald (the owner's rule, 16 Nov).
     // A woman's short hair in a long bob: the card's picture, from the front, does not show hair tied behind.
     const style = woman && (look?.style ?? 'short') === 'short' ? 'long' : (look?.style ?? 'short');
     if (style === 'short') {
       part(torso, shapes.hair, hair, 0, 1.4 - HIP).rotation.x = -0.35;
-    } else if (style !== 'bald') {
+    } else {
       part(torso, shapes.hairMid, hair, 0, 1.4 - HIP).rotation.x = style === 'ponytail' ? -0.42 : -0.58;
       if (style === 'long') {
         // Down to the middle of the neck (the owner's pick among five, 16 Nov: a long bob).
@@ -427,7 +425,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   const black = solid(0x202020);
   const stand = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.6), solid(0xa7afb8));
   stand.position.copy(at(0, -5.8, 0.5));
-  const referee = figure(3, black, black);
+  const referee = figure(black, black);
   referee.position.copy(at(0, -5.8, 1.0));
   castShadows(stand);
   castShadows(referee);
@@ -441,7 +439,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     if (known) {
       scene.remove(known.group, known.shadow);
     }
-    const group = figure(key, teamMaterials[team - 1], shortsMaterials[team - 1], taped, look);
+    const group = figure(teamMaterials[team - 1], shortsMaterials[team - 1], taped, look);
     const id = `${team}:${label}`;
     let mark = marks.get(id);
     if (!mark) {

@@ -19,9 +19,9 @@ def test_the_looks_that_stand_out_are_told():
     assert guess(numbers(hair_l=120))["hair"] == "blond"
     assert guess(numbers(hair_l=80))["hair"] == "grey"
     assert guess(numbers(skin_l=70))["skin"] == likeness.SKINS
-    # Going bald, a fringe left: short hair of its colour; no hair at all: bald.
+    # Going bald, a fringe left: short hair of its colour; no hair seen: short and black, never bald.
     assert guess(numbers(share=0.05, hair_l=75)) == {"skin": 2, "hair": "grey", "style": "short"}
-    assert guess(numbers(share=0.01, hair_n=3)) == {"skin": 2, "style": "bald"}
+    assert guess(numbers(share=0.01, hair_n=3)) == {"skin": 2, "hair": "black", "style": "short"}
     assert guess(numbers(share=0.9, low=1.0))["style"] == "long"
     assert guess(None) is None
 

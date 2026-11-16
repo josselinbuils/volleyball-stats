@@ -68,7 +68,7 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   or the code of the match's page, the list or the 3D view changed since its upload (`review.read_hosted`; the review's
   tip lists each cause on its line: "Joueurs" names only the named players whose card changed; the tracks without a name,
   kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs");
-- runs, as jobs that outlive the server, "Mettre à jour" the matches ticked in the list, at first the late ones, else all
+- runs, as jobs that outlive the server, "Mettre à jour" the matches ticked in the list, at first the newest only
   ("Tout mettre à jour" when all are: `matches --all [--only MATCH ...]`, recording each upload as the review does),
   "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them) and "Vérifier"
   (`sync verify`). Each has a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last

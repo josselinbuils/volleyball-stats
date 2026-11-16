@@ -112,7 +112,7 @@ export function SiteTab() {
   // A copy to restore from, and what of it.
   const [restoring, setRestoring] = useState<{ day: string; matches: string[]; what: string } | null>(null);
   const [restored, setRestored] = useState<boolean | null>(null);
-  // The matches online to update: at first the late ones, else all.
+  // The matches online to update: at first the newest only.
   const [picked, setPicked] = useState<Set<string> | null>(null);
   // The action running: saving, testing, starting a job, switching the automatic copies, a count or a copy removed.
   const [doing, run] = useRunning();
@@ -121,7 +121,7 @@ export function SiteTab() {
     const r = await call<ServerState>('server');
     if (r.ok) {
       setState(r);
-      setPicked((p) => p ?? new Set((r.online.some((m) => m.behind) ? r.online.filter((m) => m.behind) : r.online).map((m) => m.name)));
+      setPicked((p) => p ?? new Set(r.online.slice(0, 1).map((m) => m.name)));
     }
     return r;
   }, []);
