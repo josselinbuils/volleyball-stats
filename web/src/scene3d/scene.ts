@@ -329,7 +329,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     // Over the ears to the nape; a band round the back of a bald head; falling on the shoulders; a ponytail.
     hairMid: new THREE.SphereGeometry(0.272, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.64),
     fringe: new THREE.TorusGeometry(0.245, 0.04, 6, 18, Math.PI * 1.1),
-    hairBack: new THREE.CylinderGeometry(0.255, 0.21, 0.42, 18, 1, true, Math.PI / 2, Math.PI),
+    hairBack: new THREE.CylinderGeometry(0.262, 0.24, 0.32, 18, 1, true, Math.PI / 2, Math.PI),
     bun: new THREE.SphereGeometry(0.095, 12, 10),
     tail: new THREE.CapsuleGeometry(0.075, 0.3, 4, 10),
     number: new THREE.PlaneGeometry(0.22, 0.22),
@@ -386,8 +386,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     part(torso, shapes.neck, skin, 0, 1.15 - HIP);
     part(torso, shapes.head, skin, 0, 1.38 - HIP);
     // A cap of hair over the top, tilted back to leave the forehead bare.
-    // A woman's short hair tied in a ponytail: most tie theirs, which the card's picture, from the front, does not show.
-    const style = woman && (look?.style ?? 'short') === 'short' ? 'ponytail' : (look?.style ?? 'short');
+    // A woman's short hair down to her shoulders: the card's picture, from the front, does not show hair tied behind.
+    const style = woman && (look?.style ?? 'short') === 'short' ? 'long' : (look?.style ?? 'short');
     if (style === 'short') {
       part(torso, shapes.hair, hair, 0, 1.4 - HIP).rotation.x = -0.35;
     } else if (style === 'bald') {
@@ -397,7 +397,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     } else {
       part(torso, shapes.hairMid, hair, 0, 1.4 - HIP).rotation.x = style === 'ponytail' ? -0.42 : -0.58;
       if (style === 'long') {
-        part(torso, shapes.hairBack, hair, 0, 1.2 - HIP, -0.02);
+        // Down to the shoulders.
+        part(torso, shapes.hairBack, hair, 0, 1.24 - HIP, -0.02);
       } else if (style === 'ponytail') {
         // Tied high at the back, the tail hanging clear of the head: seen from the side and over the shoulders.
         part(torso, shapes.bun, hair, 0, 1.54 - HIP, -0.22);
