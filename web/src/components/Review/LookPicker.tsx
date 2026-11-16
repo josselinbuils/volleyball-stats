@@ -45,8 +45,11 @@ export function LookPicker({ player, stale, onError }: { player: Named; stale: b
           aria-label={label}
           aria-pressed={chosen}
           disabled={!!saving || stale}
-          className={cn('grid size-7 place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50', chosen && 'ring-2 ring-primary ring-offset-2 ring-offset-card')}
-          style={{ background: color, boxShadow: 'inset 0 0 0 1px rgb(0 0 0 / 0.15)' }}
+          className={cn(
+            'grid size-7 place-items-center rounded-full border border-black/15 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+            chosen && 'ring-2 ring-primary ring-offset-2 ring-offset-card',
+          )}
+          style={{ background: color }}
           onClick={() => void pick(field, value)}
         >
           {saving === `${field}:${value}` && <LoaderCircle aria-hidden className="size-3.5 animate-spin text-white mix-blend-difference" />}
