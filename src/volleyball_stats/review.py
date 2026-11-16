@@ -2677,6 +2677,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         finally:
             progress.clear()
 
+    def review_task() -> dict | None:
+        """The review's run for the app's tasks: where it stands, else how the last one failed."""
+        state = dict(progress)
+        if state:
+            return {"running": True, **eta(state, took, time.time())}
+        return {"running": False, "failed": failure["step"], "error": failure["error"]} if failure else None
+
     def staged(name: str | None) -> None:
         """The running step's stage `name` starts (None: the step ends): the last one's time is kept, its weight counted
         as done."""
@@ -2781,7 +2788,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return None
             if url.path == "/current":
                 return self.send(json.dumps({"name": match.name}).encode(), "application/json")
-            found = network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent))
+            found = network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent), open_match=match.name, review=review_task)
             if found:
                 return self.send(*found)
             if url.path == "/matches.json":
@@ -2906,7 +2913,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 backed.update(at=time.strftime("%H:%M"), error=None)
                 return self.send(b"{}", "application/json")
             if self.path == "/open":
-                if progress:
+                # The match open already opens while it runs: only another waits.
+                if progress and body["name"] != match.name:
                     return self.send(b'{"error":"busy"}', "application/json", 409)
                 command = reopening(body["name"], match.parent, theme, port, roster)
                 self.send(b"{}", "application/json")

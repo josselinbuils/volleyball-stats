@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
+import { JobProgress } from '@/components/JobProgress';
+import { Tasks, taskLabel } from '@/components/Tasks';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
 import type { Due } from '@/components/Update';
@@ -14,6 +16,7 @@ import { Settings } from '@/components/Settings';
 import { useFormat } from '@/lib/format';
 import { openMatch, pullMatch } from '@/lib/openMatch';
 import { withRemote } from '@/lib/remoteMatches';
+import { useTasks } from '@/lib/tasks';
 import { cn } from '@/lib/utils';
 import type { Club, Team } from '@/lib/match';
 import { windowTitle } from '@/lib/appServer';
@@ -96,8 +99,10 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
     };
     document.head.append(script);
   }, [review]);
+  // The app's tasks: a match's own shows on its card.
+  const tasks = useTasks(review);
   const [opening, setOpening] = useState<string | null>(null);
-  const [failed, setFailed] = useState<'open' | 'pull' | null>(null);
+  const [failed, setFailed] = useState<'open' | 'pull' | 'busy' | null>(null);
   const hasSeason = seasonTeams(matches, club?.teams).length > 0;
   const views: View[] = ['matches', ...(hasSeason ? (['season'] as const) : []), ...(review ? (['progress', 'site'] as const) : [])];
   const [view, setView] = useState<View>(() => views.find((v) => v !== 'matches' && location.hash === HASHES[v]) ?? 'matches');
@@ -111,9 +116,9 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
   const open = (name: string, remote = false) => {
     setOpening(name);
     setFailed(null);
-    (remote ? pullMatch(name) : openMatch(name)).catch(() => {
+    (remote ? pullMatch(name) : openMatch(name)).catch((error: Error) => {
       setOpening(null);
-      setFailed(remote ? 'pull' : 'open');
+      setFailed(remote ? 'pull' : error.message === 'busy' ? 'busy' : 'open');
     });
   };
   const heading = t('matches.heading');
@@ -128,7 +133,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
-            {failed && <ErrorNote text={t(failed === 'pull' ? 'matches.pullFailed' : 'matches.openFailed')} log className="mt-1 text-sm" />}
+            {failed && <ErrorNote text={t({ pull: 'matches.pullFailed', busy: 'error.busy', open: 'matches.openFailed' }[failed])} log={failed !== 'busy'} className="mt-1 text-sm" />}
           </div>
           {!club && <Settings />}
         </header>
@@ -159,6 +164,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
               const scores = (m.scores ?? []).filter(Boolean);
               // In the review, a card waits for its pipeline, and all wait while one opens.
               const busy = opening === m.path;
+              const task = tasks.find((x) => x.running && x.match === m.path);
               const clickable = !review || ((m.ready || m.remote) && opening === null);
               // From the disk, a folder opens as a file listing: its page is named.
               return (
@@ -215,6 +221,11 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
+                      {task && (
+                        <JobProgress label={taskLabel(t, task)} fraction={task.fraction ?? null} left={task.left} task={task.id} className="mt-1">
+                          {taskLabel(t, task)}
+                        </JobProgress>
+                      )}
                       {review && m.due && !m.remote && (
                         <span className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground">
                           <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
@@ -231,6 +242,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
           <p className="px-1 text-muted-foreground">{t('matches.none')}</p>
         )}
       </main>
+      {review && <Tasks />}
     </>
   );
 }

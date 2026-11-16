@@ -706,14 +706,46 @@ def learning() -> dict:
     return {"runs": review.pooled_runs(MATCHES), "comparison": review.last_comparison(MATCHES)}
 
 
+# A job ended this long ago still shows, for the pill on every page to tell how it ended.
+RECENT_S = 120
+MATCH_JOBS = ("import", "court", "pipeline")
+
+
+def teams_of(name: str | None) -> list[str] | None:
+    """The match's two teams' names, for a task's title."""
+    try:
+        return [team.get("name") for team in json.loads((MATCHES / str(name) / "teams.json").read_text())["teams"]]
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def tasks(review: dict | None = None, match: str | None = None) -> list[dict]:
+    """The app's background work, for the pill on every page: the review's run on `match` (`review`: `eta`'s with
+    `running`, else how it failed) and the jobs, running or ended in the last RECENT_S."""
+    now, found = time.time(), []
+    if review:
+        step = review["steps"][review["done"]] if review["running"] else review.get("failed")
+        found.append({"id": "review", "kind": "review", "match": match, "teams": teams_of(match), "step": step, "failed": bool(review.get("failed")), **{k: review.get(k) for k in ("running", "stage", "fraction", "part", "left", "elapsed", "late", "error")}})
+    for job in jobs.state(OUTPUTS):
+        if not job["running"] and now - (job.get("ended") or 0) > RECENT_S:
+            continue
+        item = {"id": job["id"], "kind": job["kind"], "running": job["running"], "step": job.get("step"), "fraction": job.get("progress"), "part": job.get("part"), "error": job.get("error"), "failed": bool(job.get("failed"))}
+        if job["kind"] in MATCH_JOBS:
+            item.update(match=job["id"], teams=teams_of(job["id"]) or [t.get("name") for t in job.get("teams") or []] or None)
+        found.append({**item, **told(job, now)} if job["running"] else item)
+    return found
+
+
 def state(listed: list[dict]) -> dict:
     return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system(), "backup": server.warning(OUTPUTS), "learn": learn_state(listed)}
 
 
-def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: False, club_changed=lambda: None, open_match: str | None = None) -> tuple[bytes, str, int] | None:
+def handle(
+    method: str, path: str, query: str, body: dict, listed, busy=lambda: False, club_changed=lambda: None, open_match: str | None = None, review=lambda: None
+) -> tuple[bytes, str, int] | None:
     """The response to an /app/ request; None when `path` is not one. `listed` gives the review's list of the matches,
     `busy` whether the server is applying answers (no update then), `club_changed` is told the club changed, `open_match`
-    the match whose review is open (it cannot be restored under it)."""
+    the match whose review is open (it cannot be restored under it), `review` its run for the tasks (`tasks`)."""
     if not path.startswith("/app/"):
         return None
     reply = lambda data, status=200: (json.dumps(data, ensure_ascii=False).encode(), "application/json", status)  # noqa: E731
@@ -722,6 +754,8 @@ def handle(method: str, path: str, query: str, body: dict, listed, busy=lambda: 
         if method == "GET":
             if route == "state":
                 return reply(state(listed()))
+            if route == "tasks":
+                return reply(tasks(review(), open_match))
             if route == "doctor":
                 return reply(doctor.checks(DATA.parent))
             if route == "log":

@@ -44,6 +44,7 @@ import { sameName } from '@/components/Review/helpers/players';
 import { Names } from '@/components/Review/Names';
 import { MatchTab } from '@/components/Review/MatchTab';
 import { JobProgress } from '@/components/JobProgress';
+import { Tasks } from '@/components/Tasks';
 import type { Told } from '@/components/JobLine';
 import type { AppState } from '@/components/Setup/helpers/setup';
 import { startUpdate, UpdateProgress, type Due } from '@/components/Update';
@@ -553,6 +554,7 @@ export function Review({
     <>
       <ClubBar club={match.club} />
       <Status notice={notice} />
+      <Tasks />
       <main className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] gap-4 px-4 pt-6 pb-16 max-sm:pt-5">
         <ReviewHeader
           title={title}
@@ -606,6 +608,7 @@ export function Review({
             left={progress.left}
             elapsed={progress.elapsed}
             late={progress.late}
+            task="review"
             className="px-1"
           >
             {t(`review.step.${progress.step}`)}

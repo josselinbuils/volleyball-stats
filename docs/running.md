@@ -12,7 +12,10 @@
   Only counted work moves a bar (the owner's rule, 15 Nov): a stage tells its share (`share_of_stage`, `counter`;
   `jobs.parts`, `every`, `follow` for a child's `::progress` lines, `ffmpeg` for its time), else it holds; the stages weigh
   their last duration by second of video (`outputs/pipeline_timings.json`, `import_timings.json`), kept as the run started.
-  The bars show both shares, and slide when a job tells none. A job is known by its process's boot and start ticks (`jobs.process_key`), else by `ps`'s start
+  The bars show both shares, and slide when a job tells none. Every page of the app (the list, the review, the page at
+  `/page`) shows the tasks running elsewhere in a pill in its corner (`Tasks.tsx`, `/app/tasks`: the review's apply and
+  the jobs running or ended within 2 min), its panel each one's bar and a link to its screen, the share leading the
+  window's title; a match's card in the list carries its own bar, and a task whose bar the page shows leaves the pill. A job is known by its process's boot and start ticks (`jobs.process_key`), else by `ps`'s start
   time (`ps lstart`, macOS) within 5 min: WSL2 resetting its clock once made a running analysis show as failed (13 Nov);
   after a restart, a reused process number is no job.
   A match being prepared shows above the list until its `report.md` exists; one whose pipeline a command ran and no

@@ -18,7 +18,7 @@ export function JobLine({ job, running, quiet }: { job: Told | null; running: st
   }
   if (job.running) {
     return (
-      <JobProgress label={running} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed}>
+      <JobProgress label={running} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed} task={job.id}>
         {job.stage ? t(`server.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: running }) : running}
       </JobProgress>
     );

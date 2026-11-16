@@ -8,7 +8,9 @@ import { PlayersTable } from '@/components/Stats/PlayersTable';
 import { RallyCharts } from '@/components/RallyCharts/RallyCharts';
 import { Story } from '@/components/Story/Story';
 import { Trophies } from '@/components/Trophies/Trophies';
+import { Tasks } from '@/components/Tasks';
 import { Watch } from '@/components/Watch/Watch';
+import { reviewPreview } from '@/lib/appServer';
 import { PlayerProvider } from '@/lib/player';
 import { match } from '@/lib/match';
 import { SetProvider } from '@/lib/sets';
@@ -30,6 +32,8 @@ export function App() {
           <Coach />
           <RallyCharts />
         </main>
+        {/* In the app, the app's tasks show on its preview of the page too. */}
+        {reviewPreview() && <Tasks />}
       </SetProvider>
     </PlayerProvider>
   );

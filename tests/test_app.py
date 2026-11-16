@@ -46,6 +46,20 @@ class TestApp:
         assert {k: m["state"] for k, m in found.items()} == {"a": "court", "b": "check", "c": "stalled", "e": "court", "f": "failed", "g": "court"}
         assert found["g"]["fitFailed"] and not found["e"]["fitFailed"]
 
+    def test_lists_the_tasks_running_or_just_ended(self, place):
+        import time
+
+        self.match(place, "m")
+        self.job(place, "old", kind="hosting")
+        self.job(place, "m", kind="pipeline", ended=time.time(), failed="pipeline", error="boom")
+        review = {"running": True, "steps": ["page", "copies"], "done": 1, "stage": None, "fraction": 0.6, "part": 0.2, "left": 30.0, "elapsed": 9.0, "late": False}
+        found = {t["id"]: t for t in app.tasks(review, "m")}
+        assert set(found) == {"review", "m"}
+        assert found["review"]["step"] == "copies" and found["review"]["teams"] == ["A", "B"] and found["review"]["running"]
+        assert found["m"]["failed"] and found["m"]["match"] == "m" and not found["m"]["running"]
+        failed = app.tasks({"running": False, "failed": "copies", "error": "boom"}, "m")[0]
+        assert failed["step"] == "copies" and failed["failed"] and app.tasks(None) == [found["m"]]
+
     def test_swaps_the_sides(self, place):
         folder = self.match(place, "a")
         app.swap("a")

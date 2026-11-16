@@ -2,7 +2,9 @@
 export async function openMatch(name: string): Promise<void> {
   const response = await fetch('/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
   if (!response.ok) {
-    throw new Error(`open: ${response.status}`);
+    // The server's refusal code ("busy": a run goes on another match) when it names one.
+    const said = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(said?.error ?? `open: ${response.status}`);
   }
   await reachedMatch(name);
 }

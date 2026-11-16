@@ -1667,5 +1667,26 @@
     "logEmpty": "Rien d'écrit pour l'instant.",
     "video": "La vidéo n'a pas pu se charger.",
     "updating": "La mise à jour des matchs est en cours : réessayez à sa fin."
+  },
+  "tasks": {
+    "title": "Tâches en cours",
+    "kind": {
+      "import": "Import",
+      "court": "Recherche du terrain",
+      "pipeline": "Analyse",
+      "hosting": "Mise en ligne",
+      "backup": "Sauvegarde",
+      "verify": "Vérification des sauvegardes",
+      "export": "Export",
+      "models": "Téléchargement des modèles",
+      "videos": "Échange des vidéos",
+      "learn": "Réanalyse"
+    },
+    "count_one": "{{count}} tâche",
+    "count_other": "{{count}} tâches",
+    "done": "Terminé : {{task}}",
+    "failed": "Échec : {{task}}",
+    "ended": "Terminé",
+    "see": "Voir"
   }
 }

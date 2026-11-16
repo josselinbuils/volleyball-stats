@@ -1667,5 +1667,26 @@
     "logEmpty": "Nothing written yet.",
     "video": "The video could not load.",
     "updating": "The matches are being updated: try again once it ends."
+  },
+  "tasks": {
+    "title": "Running tasks",
+    "kind": {
+      "import": "Import",
+      "court": "Finding the court",
+      "pipeline": "Analysis",
+      "hosting": "Upload",
+      "backup": "Backup",
+      "verify": "Checking the backups",
+      "export": "Export",
+      "models": "Downloading the models",
+      "videos": "Exchanging the videos",
+      "learn": "Reanalysis"
+    },
+    "count_one": "{{count}} task",
+    "count_other": "{{count}} tasks",
+    "done": "Done: {{task}}",
+    "failed": "Failed: {{task}}",
+    "ended": "Done",
+    "see": "Open"
   }
 }

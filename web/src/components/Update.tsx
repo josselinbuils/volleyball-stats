@@ -32,7 +32,7 @@ export async function startUpdate(t: TFunction, count: number, here = false): Pr
 export function UpdateProgress({ job, className }: { job: Told; className?: string }) {
   const { t } = useTranslation();
   return (
-    <JobProgress label={t('update.running')} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed} className={className}>
+    <JobProgress label={t('update.running')} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed} task={job.id} className={className}>
       {job.stage ? t(`update.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: t('update.running') }) : t('update.running')}
     </JobProgress>
   );
