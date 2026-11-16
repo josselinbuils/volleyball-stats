@@ -5,6 +5,12 @@ export function onAppServer(host = location.hostname): boolean {
   return host === '127.0.0.1' || host === 'localhost';
 }
 
+/** Whether this is the match page the review server shows at `/page` (by any address, "Réseau local" included):
+ * a hosted page is never there. */
+export function reviewPreview(path = location.pathname): boolean {
+  return path === '/page';
+}
+
 /** A page's title, the app's name after it in the app's own window. */
 export function windowTitle(title: string, host = location.hostname): string {
   return onAppServer(host) ? `${title} – ${APP_NAME}` : title;

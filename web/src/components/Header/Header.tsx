@@ -14,7 +14,7 @@ import { StickyBar } from '@/components/Header/StickyBar';
 import { Swatch } from '@/components/Swatch';
 import { TeamLegend } from '@/components/Header/TeamLegend';
 import { Hint } from '@/components/Tip';
-import { onAppServer, windowTitle } from '@/lib/appServer';
+import { reviewPreview, windowTitle } from '@/lib/appServer';
 import { BackLink } from '@/components/BackLink';
 import { lasted } from '@/helpers/lasted';
 
@@ -62,7 +62,7 @@ export function Header() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             {/* In the app, the page is the review's preview. */}
-            {onAppServer() && <BackLink href="/review" label={t('backToReview')} className="mb-3 flex w-fit" />}
+            {reviewPreview() && <BackLink href="/review" label={t('backToReview')} className="mb-3 flex w-fit" />}
             <p className="text-sm font-medium text-muted-foreground">
               {t('report')}
               {match.date && (

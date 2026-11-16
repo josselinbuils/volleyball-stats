@@ -13,7 +13,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 - A match's review: `uv run stats server MATCH` ([running.md](running.md)): http://127.0.0.1:8765/review, `#questions`,
   `#match`; its page without the review at http://127.0.0.1:8765/page; http://127.0.0.1:8765 is always the list. Each
-  page links back at its top (the app's window has no back button): the page to the review, the review to the list.
+  page links back at its top (the app's window has no back button): the page to the review (at `/page`, whatever the
+  address: "Réseau local" too), the review to the list.
 - "Réseau local" (the list's app panel, `network.py`, off by default) opens the review to the other devices of the local
   network until it closes (the server's own restarts keep it, `network.SESSION`), at every start only when "À chaque
   démarrage" is ticked (`outputs/network.json`), no code (the owner's calls, 16 Nov): the server starts again listening on
