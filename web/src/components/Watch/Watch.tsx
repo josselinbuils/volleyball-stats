@@ -25,6 +25,7 @@ import { BELOW_TOWER, Overlay, SCORED, type Paint } from '@/components/Watch/Ove
 import { askVideo } from '@/components/VideoChoice';
 import { cameraAt, throughCut, zoomOn } from '@/components/Watch/helpers/zoom';
 import { useHandZoom } from '@/components/Watch/useHandZoom';
+import { useAutoHide } from '@/components/Watch/useAutoHide';
 
 const UNZOOMED = { scale: 1, x: 0, y: 0 };
 // Whether the video shows the ball's trail, the score and the measured numbers, kept in this browser: shown unless turned off.
@@ -145,6 +146,25 @@ export function Watch() {
     return () => observer.disconnect();
   }, [video]);
   const src = match.small && match.zoomed && !full && !wide ? match.small : BIG;
+  // Full screen: the video fills the screen, its controls over it hiding when still, as what else sits on it.
+  const player = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const controls = useAutoHide(full, player, bar, video instanceof HTMLVideoElement ? video : null);
+  const hidden = !controls.shown;
+  const fade = cn('transition-opacity duration-300', hidden && 'pointer-events-none opacity-0');
+  // Whether the video was touched rather than clicked: a tap shows or hides full screen's controls.
+  const touch = useRef(false);
+  // The bar's height, which the replay in the corner rises over while it shows.
+  const [barHeight, setBarHeight] = useState(0);
+  useEffect(() => {
+    const element = bar.current;
+    if (!full || !element) {
+      return;
+    }
+    const observer = new ResizeObserver(() => setBarHeight(element.offsetHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [full]);
   // Full screen shows the court's replay beside the video or in its corner, as chosen. The same replay moves there from
   // the page (its 3D view kept, not drawn again), its place in the page keeping its height meanwhile.
   const [layout, setLayout] = useLayout();
@@ -257,7 +277,11 @@ export function Watch() {
             <div className="relative">
               {!full && <Feedback />}
               {/* Full screen takes the video with its controls, and the court's replay as chosen. */}
-              <div data-player className="relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none">
+              <div
+                ref={player}
+                data-player
+                className={cn('relative overflow-hidden rounded-lg bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none', hidden && 'cursor-none [&_*]:cursor-none')}
+              >
                 {/* Beside the video, under it on a screen held upright (both centred); else in its bottom right corner. */}
                 <div className={cn('relative [:fullscreen>&]:flex [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1', courtFull && layout === 'side' && 'portrait:flex-col portrait:justify-center')}>
                   {/* The video's own box: the zoom stays inside it. */}
@@ -267,13 +291,14 @@ export function Watch() {
                       courtFull && layout === 'side' && '[:fullscreen_&]:portrait:flex-none',
                     )}
                   >
-                    {full && <Feedback />}
+                    {full && <Feedback className={fade} />}
                     {/* Zoomed by hand: back to the whole picture, under Signaler. */}
                     {zoomed && (
                       <button
                         type="button"
                         onClick={hand.reset}
                         className={cn(
+                          fade,
                           'absolute right-2 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm outline-none hover:bg-black/75 focus-visible:ring-3 focus-visible:ring-white/60',
                           match.feedback ? 'top-11.5' : 'top-2',
                         )}
@@ -288,6 +313,7 @@ export function Watch() {
                       <span
                         aria-hidden
                         className={cn(
+                          fade,
                           'pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-8.5rem)] truncate rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm',
                           drawn && SCORED && typeof ball === 'object' && BELOW_TOWER,
                         )}
@@ -302,7 +328,8 @@ export function Watch() {
                       playsInline
                       preload="none"
                       aria-label={t('video')}
-                      onClick={() => togglePlay(video)}
+                      onPointerDown={(e) => (touch.current = e.pointerType !== 'mouse')}
+                      onClick={() => (full && touch.current ? controls.tapped() : togglePlay(video))}
                       className={cn(
                         'block aspect-video w-full [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full',
                         zoomed ? 'cursor-grab touch-none active:cursor-grabbing' : 'cursor-pointer touch-pan-x touch-pan-y',
@@ -318,14 +345,19 @@ export function Watch() {
                     <div
                       className={cn(
                         'dark text-foreground',
-                        layout === 'side' ? 'flex min-h-0 min-w-0 flex-[2] flex-col justify-center portrait:flex-none' : 'absolute right-3 bottom-3 z-[5] w-[30%] min-w-60',
+                        layout === 'side' ? 'flex min-h-0 min-w-0 flex-[2] flex-col justify-center portrait:flex-none' : 'absolute right-3 z-[5] w-[30%] min-w-60 transition-[bottom] duration-300',
                       )}
+                      style={layout === 'side' ? undefined : { bottom: `calc(${hidden ? 0 : barHeight}px + 0.75rem)` }}
                     >
                       <div ref={panel} className={cn('relative aspect-[16/10] w-full overflow-hidden bg-background', layout === 'inset' && 'rounded-lg shadow-lg ring-1 ring-white/20')} />
                     </div>
                   )}
                 </div>
-                <VideoControls drawn={drawn} onDrawn={ball === 'none' ? undefined : toggleDrawn} layout={layout} onLayout={setLayout} />
+                {/* Full screen: over the picture's bottom, on a shade for the white to read. */}
+                <div ref={bar} className={cn(full && 'absolute inset-x-0 bottom-0 z-10', full && fade)}>
+                  {full && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[calc(100%+3rem)] bg-linear-to-t from-black/75 to-transparent" />}
+                  <VideoControls over={full} drawn={drawn} onDrawn={ball === 'none' ? undefined : toggleDrawn} layout={layout} onLayout={setLayout} />
+                </div>
               </div>
             </div>
             <PlaylistBar />

@@ -36,7 +36,7 @@ const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(
  * video, else (`inline`) in the court replay's title bar: one tap sends the moment (the clip playing,
  * else the rally it is about, `rallyReported`, and the time), then "Préciser" opens a dialog to say what is wrong and comment,
  * sent as the same report to `match.feedback`, to correct the analysis later. */
-export function Feedback({ inline = false }: { inline?: boolean }) {
+export function Feedback({ inline = false, className }: { inline?: boolean; className?: string }) {
   const { t } = useTranslation();
   const f = useFormat();
   const { playlist, video } = usePlayer();
@@ -103,7 +103,7 @@ export function Feedback({ inline = false }: { inline?: boolean }) {
     ? 'inline-flex h-8 items-center gap-1.5 rounded-md border bg-card px-2.5 text-xs font-medium shadow-xs outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
     : 'inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm outline-none hover:bg-black/75 focus-visible:ring-3 focus-visible:ring-white/60';
   return (
-    <div className={cn('flex items-center gap-1.5', inline ? 'relative shrink-0' : 'absolute top-2 right-2 z-10')}>
+    <div className={cn('flex items-center gap-1.5', inline ? 'relative shrink-0' : 'absolute top-2 right-2 z-10', className)}>
       <Tip label={t('feedback.open')}>
         <button type="button" disabled={state === 'sending'} onClick={flag} className={look}>
           {state === 'sent' ? <Check aria-hidden className={inline ? 'size-3.5' : 'size-4'} /> : <Flag aria-hidden className={inline ? 'size-3.5' : 'size-4'} />}

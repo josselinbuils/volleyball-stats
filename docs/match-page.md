@@ -80,6 +80,11 @@ moments.
   under the player's controls, in the sheet too. In full screen, where the bar under the player is out of sight, the
   control bar adds previous and next, and "Liste" opens the same list over the picture (`Watch/WatchPanel.tsx`); on a
   phone held upright the bar's buttons take two rows, previous, play, next, the list and full screen on the first.
+- In full screen the video takes the whole screen's height, its control bar over the picture's bottom on a shade, as
+  YouTube's (`Watch/useAutoHide.ts`): still for 3 s while it plays, the bar, the title over the video, Signaler,
+  Dézoomer and the mouse's cursor fade; a move or a key brings them back, a menu, a dialog, the list or the mouse on the
+  bar keeps them. A touch on the video shows them, or hides them when shown (play from the bar); a click still plays or
+  pauses. The replay in the corner rises over the bar while it shows.
 - Full screen's "Disposition" (`Watch/LayoutMenu.tsx`, kept in the browser) shows the video alone, the court's replay
   beside it (under it on a screen held upright) or in its bottom right corner. The page's own replay moves there, its
   2D/3D/TV choice and 3D view kept, dark as the video around it; only full screen has a layout (the `multi-view-layout`

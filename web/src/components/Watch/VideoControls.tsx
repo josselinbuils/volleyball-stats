@@ -41,9 +41,24 @@ const HELD_MS = 500;
 // Chromium (Chrome, Edge, Android) reports a video's loaded parts at their bytes' share of the file (`placer`).
 const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.some((b) => b.brand === 'Chromium') ?? false;
 
-/** The video's controls, its timeline limited to the set the page shows; `light` on a light background. With `onDrawn`,
- * the switch of what is drawn on the video; with `onLayout`, full screen offers its layouts. */
-export function VideoControls({ light = false, drawn, onDrawn, layout, onLayout }: { light?: boolean; drawn?: boolean; onDrawn?: () => void; layout?: Layout; onLayout?: (next: Layout) => void }) {
+/** The video's controls, its timeline limited to the set the page shows; `light` on a light background, `over` over the
+ * picture (full screen). With `onDrawn`, the switch of what is drawn on the video; with `onLayout`, full screen offers its
+ * layouts. */
+export function VideoControls({
+  light = false,
+  over = false,
+  drawn,
+  onDrawn,
+  layout,
+  onLayout,
+}: {
+  light?: boolean;
+  over?: boolean;
+  drawn?: boolean;
+  onDrawn?: () => void;
+  layout?: Layout;
+  onLayout?: (next: Layout) => void;
+}) {
   const { t } = useTranslation();
   const { video, loop, setLoop, playlist } = usePlayer();
   // In a playlist, the clip playing and those after it.
@@ -244,7 +259,7 @@ export function VideoControls({ light = false, drawn, onDrawn, layout, onLayout 
 
   return (
     // The timeline on its own row above the buttons, as wide as the video. Over the video zoomed, which runs past its box.
-    <div className={cn('relative flex flex-wrap items-center gap-x-1 px-2 pb-1', light ? 'text-foreground' : 'z-10 bg-black text-white')}>
+    <div className={cn('relative flex flex-wrap items-center gap-x-1 px-2 pb-1', light ? 'text-foreground' : cn('z-10 text-white', !over && 'bg-black'))}>
       {stepped && listed && <WatchPanel light={light} onClose={() => setListed(false)} />}
       <input
         type="range"
