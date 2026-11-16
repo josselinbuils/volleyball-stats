@@ -92,6 +92,7 @@ export function NetworkDialog({ onClose }: { onClose: () => void }) {
                 {network.lan ? <WifiOff aria-hidden /> : <Wifi aria-hidden />}
                 {network.lan ? t('app.network.off') : t('app.network.on')}
               </Button>
+              {network.lan && <p className="m-0 text-muted-foreground">{t('app.network.kept')}</p>}
               {network.lan && network.url && (
                 <p className="m-0 grid gap-1">
                   {t('app.network.openOn')}

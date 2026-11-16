@@ -1608,6 +1608,7 @@
       "reading": "Lecture…",
       "on": "Activer",
       "off": "Désactiver",
+      "kept": "Reste activé aux prochains démarrages.",
       "openOn": "Sur l'autre appareil, ouvrez :",
       "windows": "Windows doit d'abord laisser l'app joignable depuis le réseau (une fois, avec l'accord d'un administrateur).",
       "setUp": "Configurer Windows",
