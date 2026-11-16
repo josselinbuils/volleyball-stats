@@ -386,7 +386,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     part(torso, shapes.neck, skin, 0, 1.15 - HIP);
     part(torso, shapes.head, skin, 0, 1.38 - HIP);
     // A cap of hair over the top, tilted back to leave the forehead bare.
-    const style = look?.style ?? 'short';
+    // A woman's short hair a little longer: most tie theirs, which the card's picture, from the front, does not show.
+    const style = woman && (look?.style ?? 'short') === 'short' ? 'mid' : (look?.style ?? 'short');
     if (style === 'short') {
       part(torso, shapes.hair, hair, 0, 1.4 - HIP).rotation.x = -0.35;
     } else if (style === 'bald') {
