@@ -1,86 +1,69 @@
 import subprocess
-from pathlib import Path
 
+import numpy as np
 import pytest
 
-from volleyball_stats import video_copies
+from volleyball_stats import framing, video_copies
 
 
-class TestVideoCopies:
-    @staticmethod
-    def clip(path, seconds=2):
-        command = ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=s=640x360:r=50:d={seconds}", "-f", "lavfi", "-i", f"sine=d={seconds}", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(path)]
-        subprocess.run(command, check=True)
+def clip(path, seconds=2, size="640x360"):
+    command = ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=s={size}:r=50:d={seconds}", "-f", "lavfi", "-i", f"sine=d={seconds}", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(path)]
+    subprocess.run(command, check=True)
 
-    @staticmethod
-    def stream(path):
-        run = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,height,r_frame_rate", "-of", "csv=p=0", str(path)]
-        return subprocess.run(run, capture_output=True, text=True, check=True).stdout.strip()
 
-    def test_makes_the_three_copies_on_the_sources_timeline(self, tmp_path):
-        video = tmp_path / "m.mp4"
-        self.clip(video)
+def stream(path):
+    run = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,height,r_frame_rate", "-of", "csv=p=0", str(path)]
+    return subprocess.run(run, capture_output=True, text=True, check=True).stdout.strip()
 
-        made = video_copies.make(video)
 
-        assert self.stream(made["light"]) == "h264,1440,25/1"
-        assert self.stream(made["av1"]) == "av1,1440,25/1"
-        assert self.stream(made["small"]) == "h264,720,25/1"
-        assert all(video_copies.duration(path) == pytest.approx(2.0, abs=0.1) for path in made.values())
-        assert sorted(p.name for p in (tmp_path / "reencoded").iterdir()) == ["m_1440p.mp4", "m_720p.mp4", "m_av1.mp4"]
+def test_makes_the_three_copies_on_the_sources_timeline_with_its_sound(tmp_path):
+    video = tmp_path / "m.mp4"
+    clip(video)
 
-    def test_frames_stay_on_the_gpu_only_when_it_decodes_resizes_and_encodes_them(self, monkeypatch):
-        video = Path("m.mp4")
-        monkeypatch.setattr(video_copies.decode, "scale_cuda", lambda: True)
-        monkeypatch.setattr(video_copies.decode, "nvenc", lambda codec: True)
-        on = " ".join(video_copies.command(video, ["light", "av1"], ("-hwaccel", "cuda")))
-        assert "-hwaccel_output_format cuda" in on and "scale_cuda=-2:1440" in on and "format=yuv420p,split" not in on
-        monkeypatch.setattr(video_copies.decode, "nvenc", lambda codec: codec == "h264")
-        off = " ".join(video_copies.command(video, ["light", "av1"], ("-hwaccel", "cuda")))
-        assert "scale_cuda" not in off and "scale=-2:1440:flags=lanczos" in off and "h264_nvenc" in off and "libsvtav1" in off
-        assert "scale_cuda" not in " ".join(video_copies.command(video, ["light"], ()))
+    made = video_copies.make(video, [])
 
-    def test_only_those_missing(self, tmp_path, monkeypatch):
-        video = tmp_path / "m.mp4"
-        video_copies.paths(video)["light"].parent.mkdir()
-        video_copies.paths(video)["light"].write_bytes(b"")
-        monkeypatch.setattr(video_copies, "height", lambda path: 1440 if path.exists() else None)
-        ran = []
-        monkeypatch.setattr(video_copies.jobs, "ffmpeg", lambda command, seconds, share: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
-        monkeypatch.setattr(video_copies, "duration", lambda path: 60.0)
-        monkeypatch.setattr(video_copies.decode, "hardware", lambda path: ())
-        monkeypatch.setattr(video_copies.decode, "nvenc", lambda codec: False)
+    assert stream(made["light"]) == "h264,1440,25/1"
+    assert stream(made["av1"]) == "av1,1440,25/1"
+    assert stream(made["small"]) == "h264,720,25/1"
+    assert all(video_copies.duration(path) == pytest.approx(2.0, abs=0.1) for path in made.values())
+    assert sorted(p.name for p in (tmp_path / "reencoded").iterdir()) == ["m_1440p.mp4", "m_720p.mp4", "m_av1.mp4"]
+    sound = ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_name", "-of", "csv=p=0", str(made["light"])]
+    assert subprocess.run(sound, capture_output=True, text=True).stdout.strip() == "aac"
 
-        with pytest.raises(RuntimeError, match="no encoder"):
-            video_copies.make(video)
 
-        written = [arg for arg in ran[0] if arg.endswith(".part.mp4")]
-        assert [p.rsplit("/", 1)[1] for p in written] == ["m_av1.part.mp4", "m_720p.part.mp4"]
+def test_a_copy_cut_short_does_not_appear(tmp_path, monkeypatch):
+    video = tmp_path / "m.mp4"
+    clip(video)
+    monkeypatch.setattr(video_copies, "TOLERANCE_S", -1.0)
 
-    def test_a_copy_cut_short_does_not_appear(self, tmp_path, monkeypatch):
-        video = tmp_path / "m.mp4"
-        self.clip(video)
-        monkeypatch.setattr(video_copies, "TOLERANCE_S", -1.0)
+    with pytest.raises(RuntimeError, match="lasts"):
+        video_copies.make(video, [])
 
-        with pytest.raises(RuntimeError, match="lasts"):
-            video_copies.make(video)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["m.mp4", "reencoded"] and not any((tmp_path / "reencoded").iterdir())
 
-        assert sorted(p.name for p in tmp_path.iterdir()) == ["m.mp4", "reencoded"] and not any((tmp_path / "reencoded").iterdir())
 
-    def test_makes_again_a_copy_at_a_former_height_and_keeps_those_listed_elsewhere(self, tmp_path, monkeypatch):
-        video = tmp_path / "m.mp4"
-        paths = video_copies.paths(video)
-        paths["av1"].parent.mkdir()
-        old_small = tmp_path / "reencoded" / "old_720p.mp4"
-        for path, h in ((paths["av1"], 1080), (paths["light"], 1440), (old_small, 720)):
-            path.write_text(str(h))
-        monkeypatch.setattr(video_copies, "height", lambda path: int(path.read_text()) if path.exists() else None)
-        ran = []
-        monkeypatch.setattr(video_copies.jobs, "ffmpeg", lambda command, seconds, share: ran.append(command) or subprocess.CompletedProcess(command, 1, "", "no encoder"))
-        monkeypatch.setattr(video_copies, "duration", lambda path: 60.0)
-        monkeypatch.setattr(video_copies.decode, "hardware", lambda path: ())
+def test_a_frame_is_cut_where_the_camera_looks():
+    # A 16x8 picture, its luma the column's number: zoomed 2x on its right half's middle.
+    w, h = 16, 8
+    luma = np.tile(np.arange(w, dtype=np.uint8) * 10, (h, 1))
+    frame = np.concatenate([luma.ravel(), np.full(w * h // 2, 128, np.uint8)])
 
-        with pytest.raises(RuntimeError, match="no encoder"):
-            video_copies.make(video, {"small": old_small})
+    out = np.frombuffer(video_copies.cut(frame, (w, h), (w, h), np.array([0.75, 0.5, 2.0])), np.uint8)
 
-        assert [p.rsplit("/", 1)[1] for p in ran[0] if p.endswith(".part.mp4")] == ["m_av1.part.mp4"]
+    columns = out[: w * h].reshape(h, w)[h // 2]
+    # The right half's 8 columns, each shown twice, at sub-pixel precision.
+    assert columns[0] == pytest.approx(80 - 2.5, abs=2) and columns[-1] == pytest.approx(150 + 2.5, abs=3)
+    assert np.all(np.diff(columns.astype(int)) >= 0)
+
+
+def test_the_camera_recorded_goes_with_its_copy_only(tmp_path):
+    light = tmp_path / "m_1440p.mp4"
+    light.write_bytes(b"made")
+    camera = framing.camera_spans(np.array([[0.5, 0.5, 1.0], [0.4, 0.5, 1.5], [0.5, 0.5, 1.0]]))
+
+    video_copies.record(tmp_path, light, camera)
+
+    assert video_copies.recorded(tmp_path, light) == camera
+    light.write_bytes(b"made again")
+    assert video_copies.recorded(tmp_path, light) is None
+    assert video_copies.recorded(tmp_path, tmp_path / "other.mp4") is None

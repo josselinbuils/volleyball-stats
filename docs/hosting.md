@@ -108,7 +108,7 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   match's, its club team from the club's teams, else the theme's name).
 - The first "Mettre en ligne" asks: with the video and a password, or without it (`matches.choose`; to choose again, remove
   `video` from `publish.json`). Only the password's fingerprint is kept. Nothing is encoded before that choice: with the
-  video, its copies are made then (`video_copies.py`).
+  video, its copies are made then (`video_copies.py`), cut by the automatic zoom (below).
 - Each match page carries the code it was built with, so a change of the page or of the data it is built from reaches the
   matches online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`)
   rebuilds every match online and uploads them at once (`rsync --delay-updates`: the new files replace the old together),
@@ -130,7 +130,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   -c:v libx264 -preset slow -crf 28 -maxrate 8M -bufsize 16M -g 50 -c:a aac -b:a 96k -movflags +faststart`).
 - `--av1-video`: an AV1 one the browsers that can play first (same with `-c:v libsvtav1 -preset 6 -crf 40 -g 50`; VMAF
   90.7 at 541 kb/s against the H.264 copy's 89.0 at 1254 kb/s with `-g 250`, at 1080p).
-- Both at 1440p (14 Nov), for the automatic zoom, which enlarges the picture 1.4x (median, up to 1.9x on the two
+- Both at 1440p (14 Nov), for the automatic zoom, which then enlarged the picture 1.4x (median, up to 1.9x on the two
   matches). VMAF on 18 s of a rally of the Avia match against the 4K source, shown at 1920x1080, the copy enlarged to 4K
   then cropped as the browser does:
 
@@ -152,8 +152,31 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   copy. A copy made at another height is made again on the match's next upload with its video (`video_copies.current`),
   the former one removed from `reencoded/`; updating every match makes them first, as each match's upload does.
 - `--small-video`: a 720p H.264 one (same with `scale=1280:720`, -56% against 1080p, -78% against 1440p) the page plays while its player is
-  small; the 1440p copy in full screen, zoomed or over 1600 screen pixels wide, the video carrying on where it stood.
-- On an NVIDIA GPU the frames stay there (`video_copies.on_gpu`, `decode.scale_cuda`, `decode.nvenc`; 14 Nov): decoded,
+  small; the 1440p copy in full screen or over 1600 screen pixels wide (always for copies the page zooms, made before 16
+  Nov), the video carrying on where it stood.
+- Cut by the automatic zoom (16 Nov, the owner's call; `video_copies.make`): each frame of the copies is cut from the 4K
+  source where the zoom looks then (`framing.camera`, every 0.1 s, the same in ball.js for the page to draw by), so a zoomed
+  moment keeps the source's pixels instead of the page enlarging a 1440p copy. ffmpeg decodes the source (on the GPU when it
+  can) into raw frames, OpenCV cuts each one at sub-pixel precision (`warpAffine`, bicubic), ffmpeg encodes the three copies
+  from them with the source's sound. The camera they were cut by is kept in `outputs/matches/MATCH/copies_camera.json`
+  (with the 1440p copy's name and size): the hosted page draws by it (`match.zoomed`), even once the review's zoom has
+  changed, until the owner makes them again (review.md). VMAF of the 1440p H.264 copy (NVENC CQ 33) on 20 s of the Avia
+  match, against the 4K source cut the same way (lanczos), each shown as the browser does (bilinear):
+
+  | 20 s of the Avia match | Screen | Before: 1440p zoomed by the page | Cut from the 4K | Cut, CQ 35 (same size as before) |
+  |---|---|---|---|---|
+  | 412-432 s, zoom 1.9x on average | 1920x1080 | 76.9 (7.9 MB) | 88.7 (10.4 MB) | 86.3 (8.0 MB) |
+  | 412-432 s | 2560x1440 | 69.8 | 88.8 | |
+  | 90-110 s, half of it the whole picture | 1920x1080 | 86.0 (7.0 MB) | 87.8 (8.4 MB) | |
+  | 2417-2437 s, the whole picture | 1920x1080 | 86.2 (8.0 MB) | 86.8 (7.8 MB) | |
+
+  Bicubic kept: bilinear 2.6 points lower (90-110 s), the pixel area's average 2.4 lower on the whole picture, Lanczos as
+  good and twice slower. A zoomed moment costs more bits (+32% at the same CQ, the picture more detailed): the CQ kept, the
+  quality taken. The three copies from 20 s of 4K on the RTX 5080: 12.4 s, against 5.0 for the former ones all on the GPU
+  (about 37 minutes a match of an hour): the 4K frames go through the CPU. Rejected: ffmpeg's `crop` changed every frame
+  (`sendcmd`): stuck on the size change, and whole pixels only. ponytail: a thread reading the next frame while one is cut
+  and encoded.
+- Before 16 Nov, on an NVIDIA GPU the frames stayed there (`video_copies.on_gpu`, `decode.scale_cuda`, `decode.nvenc`; 14 Nov): decoded,
   resized by `scale_cuda` (lanczos) and encoded by NVENC (`-preset p4 -tune hq -rc vbr -b:v 0`, H.264 at `-cq 33` for 1440p
   and `-cq 34` for 720p, AV1 at `-cq 40`), else as above, each copy on NVENC when it can there. Same harness:
 

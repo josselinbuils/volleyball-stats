@@ -8,6 +8,7 @@ import {
   Clapperboard,
   CloudDownload,
   CloudUpload,
+  Crop,
   DatabaseBackup,
   Ellipsis,
   FolderDown,
@@ -20,7 +21,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ask } from '@/components/ask';
+import { ask, choose } from '@/components/ask';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -241,8 +242,19 @@ export function ReviewHeader({
   if (filmsError) {
     failed.push(<ErrorNote key="films" {...explain(t, filmsError, 'review.filmsFailed')} />);
   }
+  // Copies cut by a former zoom are made again only when the owner says so; else later, from the menu.
+  const upload = async () => {
+    if (!hosted?.chosen) {
+      setChoosing(true);
+      return;
+    }
+    const remake = hosted.zoomStale ? await choose({ title: t('review.zoomStale'), text: t('review.zoomStaleText'), confirm: t('review.remake'), other: t('review.later') }) : false;
+    if (remake !== null) {
+      run('host', { remake });
+    }
+  };
   const host = (className?: string) => (
-    <Button variant="outline" size="sm" className={cn('bg-card', className)} busy={busy === 'host'} disabled={busy !== null} onClick={() => (hosted?.chosen ? run('host') : setChoosing(true))}>
+    <Button variant="outline" size="sm" className={cn('bg-card', className)} busy={busy === 'host'} disabled={busy !== null} onClick={upload}>
       <CloudUpload aria-hidden />
       {busy === 'host' ? t('review.hosting') : t('review.host')}
     </Button>
@@ -330,6 +342,12 @@ export function ReviewHeader({
                     {t('review.fetch')}
                   </DropdownMenuItem>
                 </Tip>
+              )}
+              {hosted?.zoomStale && (
+                <DropdownMenuItem onSelect={() => run('host', { remake: true })}>
+                  <Crop aria-hidden />
+                  {t('review.remakeVideos')}
+                </DropdownMenuItem>
               )}
               {hosted?.chosen && (
                 <DropdownMenuItem onSelect={() => run('hostAll')}>

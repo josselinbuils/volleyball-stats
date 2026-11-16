@@ -2,9 +2,10 @@ import { useSyncExternalStore } from 'react';
 import { match, versioned } from '@/lib/match';
 
 /** The ball's place where it is seen in the rallies: flat [seconds, x, y, ...] samples, x and y
- * fractions of the picture, by time. */
+ * fractions of the picture, by time; and the automatic zoom's camera (framing.camera_spans, `cameraAt`). */
 export interface Ball {
   samples: number[];
+  camera?: number[][];
 }
 
 declare global {
@@ -24,7 +25,7 @@ function settle(next: State) {
   listeners.forEach((listener) => listener());
 }
 
-/** Loads ball.js once, when the video first zooms on the ball or draws its trail. */
+/** Loads ball.js once, when the video first zooms (the source) or draws on itself. */
 export function loadBall() {
   if (state !== 'idle') {
     return;

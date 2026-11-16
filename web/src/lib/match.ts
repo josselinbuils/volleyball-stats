@@ -174,8 +174,10 @@ export interface Data {
   contacts: Omit<Contact, 'i' | 'g' | 'player' | 'name'>[];
   zones: ZoneCell[];
   people: Record<string, Person>;
-  /** The automatic zoom's views, on a page with the video. */
+  /** The automatic zoom's views, on a page with the video: the review zooms its clips by them. */
   views?: MatchView[];
+  /** Whether the video's copies come cut by the automatic zoom (ball.js's camera); else the page zooms the video by it. */
+  zoomed?: boolean;
   /** Whether ball3d.js holds the touches' 3D places. */
   ball3d?: boolean;
   /** Whether voice/index.js holds the commentary's audio. */
@@ -228,6 +230,7 @@ export const match = {
   aliases: data.aliases,
   positions: data.positions ?? null,
   views: data.views ?? [],
+  zoomed: data.zoomed ?? false,
   index: data.index ?? {},
   scores: data.scores ?? [],
   club: data.club ?? null,

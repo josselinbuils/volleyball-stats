@@ -36,7 +36,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, files, jobs, points, video_copies, web
+from volleyball_stats import club_settings, files, framing, jobs, points, video_copies, web
 from volleyball_stats.web import CLUB, club_page
 
 TEMPLATE = Path(__file__).with_name("matches_site")
@@ -391,14 +391,43 @@ def copies_missing(config: dict) -> bool:
     return bool(copies_gone(config)) or not all(video_copies.current(key, Path(config[key]).expanduser()) for key in video_copies.COPIES)
 
 
-def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> dict:
-    """The video's copies made if missing or former, then listed (rename refuses a listed copy that is gone); a former
-    one in the copies' folder removed. The share encoded told as it goes."""
-    listed = {key: Path(path).expanduser() for key in video_copies.COPIES if (path := json.loads((match / PUBLISH).read_text()).get(key))}
-    made = video_copies.make(video, listed, share)
+def review_camera(match: Path) -> list[list[float]]:
+    """The automatic zoom's camera as the review now has it: its page's (ball.js), made from its views where an older
+    build left it out; the whole picture without them."""
+    path, data = match / "review" / "ball.js", match / "review" / "data.js"
+    if not path.exists():
+        return []
+    text = path.read_text()
+    ball = json.loads(text[text.index("{") : text.rindex("}") + 1])
+    if "camera" in ball or not data.exists():
+        return ball.get("camera", [])
+    text = data.read_text()
+    page = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
+    return framing.camera_spans(framing.camera(page.get("views", []), np.array(ball.get("samples", []), dtype=float).reshape(-1, 3), page["duration"]))
+
+
+def copies_stale(match: Path, config: dict) -> bool:
+    """Whether the copies of the video, all there, were cut by another zoom than the review's now: a correction moved a
+    rally or a touch since, or they were made before 16 Nov. They are made again only when the owner says so."""
+    if not config.get("video") or copies_missing(config):
+        return False
+    return video_copies.recorded(match, Path(config["light"]).expanduser()) != review_camera(match)
+
+
+def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet, remake: bool = False) -> dict:
+    """The video's copies made, cut by the review's zoom, if one is missing or former, or with `remake` cut by another
+    zoom, then listed (rename refuses a listed copy that is gone); a former one in the copies' folder removed. The
+    share made told as it goes."""
+    config = json.loads((match / PUBLISH).read_text())
+    if not copies_missing(config) and not (remake and copies_stale(match, config)):
+        return config
+    listed = {key: Path(path).expanduser() for key in video_copies.COPIES if (path := config.get(key))}
+    camera = review_camera(match)
+    made = video_copies.make(video, camera, share)
     for key, path in listed.items():
         if path.resolve() != made[key].resolve() and path.parent.name == video_copies.FOLDER:
             path.unlink(missing_ok=True)
+    video_copies.record(match, made["light"], camera)
     return update_publish(match, **{key: str(path.resolve()) for key, path in made.items()})
 
 

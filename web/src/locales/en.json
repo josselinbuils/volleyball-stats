@@ -549,6 +549,11 @@
     "host": "Put online",
     "hostAll": "Update every match online",
     "hosting": "Putting online…",
+    "zoomStale": "Make the videos again?",
+    "zoomStaleText": "The zoom changed since they were made.",
+    "remake": "Make again",
+    "later": "Later",
+    "remakeVideos": "Make the videos again at the new zoom",
     "hostPassword": "Video password",
     "hostWithVideo": "With the video",
     "hostWithoutVideo": "Without the video",
@@ -1079,7 +1084,6 @@
     "changed": "The password changed: enter the new one.",
     "unreached": "The site does not answer: try again."
   },
-  "autoZoom": "Auto zoom",
   "overlay": {
     "speed": "Speed",
     "kmh": "km/h",

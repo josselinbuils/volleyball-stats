@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, timeouts
+from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, timeouts, video_copies
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -1283,7 +1283,8 @@ def frames_index(path: Path) -> list[list[float]] | None:
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None, films: Path | None = None) -> None:
     """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, the commentary's `voice` (`speech.voice_index`) and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
-    the `ball`'s places in ball.js, which the page loads to zoom on it and draw its trail."""
+    the `ball`'s places and the automatic zoom's camera in ball.js, which the page loads to draw on the video and zoom
+    it (the source; the copies come cut by it)."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
@@ -1800,6 +1801,13 @@ def build(
     if blurred is not None and (match / "players.csv").exists():
         samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3)
         data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER], samples)
+    if blurred is not None:
+        # The automatic zoom: the copies are cut by the camera recorded with them (`zoomed`), which the page draws on
+        # them with; on the source (the review's page) the page zooms by the camera of the views now.
+        cut = video_copies.recorded(match, light) if light else None
+        camera = cut if cut is not None else framing.camera_spans(framing.camera(data.get("views", []), np.array((ball or {}).get("samples", []), dtype=float).reshape(-1, 3), data["duration"]))
+        ball = {**(ball or {"samples": []}), "camera": camera}
+        data["zoomed"] = cut is not None
     part("views")(1.0)
     write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data), match / "films")
     part("write")(1.0)

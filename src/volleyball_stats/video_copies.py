@@ -1,35 +1,37 @@
-"""The lighter copies of a match's video its hosted page plays, on the source's timeline.
+"""The lighter copies of a match's video its hosted page plays, on the source's timeline, cut by the automatic zoom.
 
-    uv run python -m volleyball_stats.video_copies VIDEO
+    uv run python -m volleyball_stats.video_copies VIDEO CAMERA_JSON
 
-`light`, 1440p H.264, plays in browsers without AV1; `av1`, 1440p, plays in the others, smaller at the
-same quality; `small`, 720p H.264, plays while the player is small. 1440p for the automatic zoom, which enlarges the
-picture 1.4x: VMAF zoomed 89.6 against 85.8 at 1080p for AV1, 86.8 against 82.1 for H.264 (docs/hosting.md). Makes
-those missing or at another height, in `reencoded/` beside the source, from one reading of it: decoding 4K costs more
-than the encoders' share. A copy only appears once whole.
-
-On an NVIDIA GPU the frames stay there, decoded, resized (scale_cuda) and encoded (NVENC) without coming back to the
-CPU; else decoded on the GPU when it can, resized on the CPU and each copy encoded on the GPU when it can there, else by
-x264 and SVT-AV1. On 18 s of the Avia match, VMAF whole / zoomed 1.37x / 1.8x (docs/hosting.md), all on the GPU: H.264
-1440p 90.3 / 86.2 / 82.8 at 3.0 Mb/s against x264's 90.3 / 86.8 / 80.9 at 3.3; 720p 79.2 / 70.0 / 58.3 at 0.73 against
-79.7 / 71.0 / 57.4 at 0.74; AV1 91.6 / 87.8 / 84.9 at 2.8 against SVT-AV1's 92.0 / 89.6 / 84.9 at 1.55. The three from
-20 s of 4K on the RTX 5080: 5.0 s against 11-12 resized on the CPU (the main thread's limit, ffmpeg 6.1 or 8.1 alike),
-about 40 on the CPU alone. NVENC's presets p4 to p7 gave the same scores, p4 the fastest.
-ponytail: scale_cuda's lanczos is a little softer than swscale's on the way down (AV1 zoomed 1.37x: 87.8 against 89.6);
-scale_npp's supersampling would match, outside the redistributable builds. VideoToolbox not tried.
+`light`, 1440p H.264, plays in browsers without AV1; `av1`, 1440p, plays in the others, smaller at the same quality;
+`small`, 720p H.264, plays while the player is small. Each frame is cut from the source where the automatic zoom looks
+then (`framing.camera`, given as `framing.camera_spans`), so a zoomed moment keeps the source's pixels: the page zoomed a
+1440p copy until 16 Nov. VMAF on 20 s of the Avia match zoomed 1.9x on average, against the 4K source cut the same way,
+on a 1920x1080 screen (docs/hosting.md): 88.7 against 76.9 for the 1440p copy zoomed in the browser, 88.8 against 69.8 on
+a 2560x1440 one; on 20 s of the whole picture 86.8 against 86.2. The copies come from one reading of the source: ffmpeg
+decodes it (on the GPU when it can), OpenCV cuts each frame at sub-pixel precision (bicubic: 2.6 points over bilinear,
+the area's 2.4 under on the whole picture), ffmpeg encodes the three (NVENC when it can, else x264 and SVT-AV1). On the
+RTX 5080, the three from 20 s of 4K in 12.4 s, against 5.0 for the former ones resized on the GPU. A copy only appears
+once whole.
+ponytail: a frame read while the last one is encoded (a thread) would save the pipe's share of the time.
 """
 
 import argparse
+import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
-from volleyball_stats import decode, jobs
+import cv2
+import numpy as np
+
+from volleyball_stats import decode, files, framing, jobs
 
 H264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "28", "-maxrate", "8M", "-bufsize", "16M"]
 NVENC = ["-preset", "p4", "-tune", "hq", "-rc", "vbr", "-b:v", "0"]
 # Every 2 s: the jumps between clips do not freeze.
 KEYFRAMES = ["-g", "50"]
+FPS = 25
 COPIES = {
     "light": ("_1440p", 1440, H264),
     "av1": ("_av1", 1440, ["-c:v", "libsvtav1", "-preset", "6", "-crf", "40"]),
@@ -43,6 +45,10 @@ ON_GPU = {
 }
 TOLERANCE_S = 1.0
 FOLDER = "reencoded"
+# The copies' height, which the frames are cut at, the small one resized from them.
+HEIGHT = 1440
+# Beside a match's outputs: the camera its listed copies were cut by, which its hosted page draws on them with.
+CAMERA = "copies_camera.json"
 
 
 def paths(video: Path) -> dict[str, Path]:
@@ -60,23 +66,37 @@ def encoding(key: str) -> list[str]:
     return flags if decode.nvenc(codec) else COPIES[key][2]
 
 
-def on_gpu(keys: list[str], flags: tuple[str, ...]) -> bool:
-    """Whether the `keys` copies are made without the frames leaving the GPU: decoded there (`flags`), resized and encoded too."""
-    return flags == ("-hwaccel", "cuda") and decode.scale_cuda() and all(decode.nvenc(ON_GPU[key][0]) for key in keys)
+def reading(video: Path, flags: tuple[str, ...]) -> list[str]:
+    """ffmpeg's command sending `video`'s frames, FPS a second, as raw YUV 4:2:0, decoded with `flags`."""
+    return ["ffmpeg", "-nostdin", "-v", "error", *flags, "-i", str(video), "-an", "-sn", "-dn", "-vf", f"fps={FPS}", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-"]
 
 
-def command(video: Path, keys: list[str], flags: tuple[str, ...] = ()) -> list[str]:
-    """ffmpeg's command writing the `keys` copies of `video` from one decoding, `flags` decoding it."""
-    labels = [f"[c{k}]" for k in range(len(keys))]
-    gpu = on_gpu(keys, flags)
-    resize = "scale_cuda=-2:{}:interp_algo=lanczos:format=yuv420p" if gpu else "scale=-2:{}:flags=lanczos"
-    scaled = ";".join(f"{label}{resize.format(COPIES[key][1])}[v{k}]" for k, (key, label) in enumerate(zip(keys, labels)))
+def writing(video: Path, size: tuple[int, int], made: dict[str, Path]) -> list[str]:
+    """ffmpeg's command encoding the cut frames (raw YUV 4:2:0 of `size`, on its input) into the copies `made`, the
+    sound taken from `video`."""
+    small = COPIES["small"][1]
+    graph = f"[0:v]split=3[light][av1][big];[big]scale=-2:{small}:flags=lanczos[small]"
     outputs = []
-    for k, key in enumerate(keys):
-        outputs += ["-map", f"[v{k}]", "-map", "0:a:0?", *encoding(key), *KEYFRAMES, "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(part(paths(video)[key]))]
-    frames = ["-hwaccel_output_format", "cuda"] if gpu else []
-    picture = "" if gpu else "format=yuv420p,"
-    return ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-y", *flags, *frames, "-i", str(video), "-filter_complex", f"[0:v]fps=25,{picture}split={len(keys)}{''.join(labels)};{scaled}", *outputs]
+    for key in COPIES:
+        outputs += ["-map", f"[{key}]", "-map", "1:a:0?", *encoding(key), *KEYFRAMES, "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(part(made[key]))]
+    return ["ffmpeg", "-nostdin", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-s", f"{size[0]}x{size[1]}", "-r", str(FPS), "-i", "-", "-i", str(video), "-filter_complex", graph, *outputs]
+
+
+def cut(frame: np.ndarray, size: tuple[int, int], out: tuple[int, int], view: np.ndarray) -> bytes:
+    """A raw YUV 4:2:0 `frame` of `size` cut where `view` ([centre x, centre y, zoom], fractions of the picture) looks,
+    at `out`, bicubic at sub-pixel precision."""
+    (w, h), (ow, oh) = size, out
+    x, y, zoom = view
+    planes = [(frame[: w * h].reshape(h, w), 1), (frame[w * h : w * h * 5 // 4].reshape(h // 2, w // 2), 2), (frame[w * h * 5 // 4 :].reshape(h // 2, w // 2), 2)]
+    done = []
+    for plane, down in planes:
+        pw, ph = w / down, h / down
+        scale = ow / down / (pw / zoom)
+        left, top = x * pw - pw / zoom / 2, y * ph - ph / zoom / 2
+        # Pixel centres matched: a pixel's centre at k + 0.5 on both sides.
+        move = np.float32([[scale, 0, (0.5 - left) * scale - 0.5], [0, scale, (0.5 - top) * scale - 0.5]])
+        done.append(cv2.warpAffine(plane, move, (ow // down, oh // down), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE))
+    return b"".join(p.tobytes() for p in done)
 
 
 def duration(path: Path) -> float:
@@ -98,37 +118,88 @@ def current(key: str, path: Path) -> bool:
     return path.exists() and height(path) == COPIES[key][1]
 
 
-def make(video: Path, kept: dict[str, Path] | None = None, share: jobs.Share = jobs.quiet) -> dict[str, Path]:
-    """The copies of `video`, the `kept` ones still current taken as they are, the others made, the share of the video
-    encoded told as it goes; RuntimeError if ffmpeg fails or one comes out cut short."""
-    made = paths(video) | {key: path for key, path in (kept or {}).items() if current(key, path)}
-    missing = [key for key, path in made.items() if not current(key, path)]
-    if not missing:
-        return made
-    parts = [part(made[key]) for key in missing]
+def encode(video: Path, camera: list[list[float]], made: dict[str, Path], share: jobs.Share, flags: tuple[str, ...]) -> int:
+    """The copies `made` (their parts) of `video` cut by `camera`, decoded with `flags`; the frames sent. RuntimeError
+    when ffmpeg fails."""
+    width, high = decode.size(video)
+    size = (2 * round(HEIGHT * width / high / 2), HEIGHT)
+    expected = max(1, round(duration(video) * FPS))
+    told = jobs.every(expected, share)
+    # Every frame's view at once; a frame past the duration probed takes the last.
+    views = framing.camera_at(camera, np.arange(expected + FPS) / FPS)
+    with tempfile.TemporaryFile() as read_errors, tempfile.TemporaryFile() as write_errors:
+        reader = subprocess.Popen(reading(video, flags), stdout=subprocess.PIPE, stderr=read_errors)
+        writer = subprocess.Popen(writing(video, size, made), stdin=subprocess.PIPE, stderr=write_errors)
+        frame = np.empty(width * high * 3 // 2, np.uint8)
+        sent = 0
+        try:
+            while reader.stdout.readinto(frame) == frame.nbytes:
+                writer.stdin.write(cut(frame, (width, high), size, views[min(sent, len(views) - 1)]))
+                told(min(sent, expected - 1))
+                sent += 1
+            writer.stdin.close()
+        except BrokenPipeError:
+            pass
+        finally:
+            reader.kill()
+            reader.wait()
+            writer.wait()
+        for process, errors in ((reader, read_errors), (writer, write_errors)):
+            if process.returncode and (process is writer or not sent):
+                errors.seek(0)
+                said = errors.read().decode(errors="replace").strip().splitlines()
+                raise RuntimeError(said[-1] if said else f"ffmpeg: exit {process.returncode}")
+    return sent
+
+
+def make(video: Path, camera: list[list[float]], share: jobs.Share = jobs.quiet) -> dict[str, Path]:
+    """The three copies of `video` cut by `camera` (`framing.camera_spans`), the share of its frames done told as it
+    goes; RuntimeError if ffmpeg fails or one comes out cut short."""
+    made = paths(video)
     (video.parent / FOLDER).mkdir(exist_ok=True)
     try:
+        flags = decode.hardware(video)
+        try:
+            encode(video, camera, made, share, flags)
+        except RuntimeError:
+            # The GPU busy with other work may refuse another decoder.
+            if not flags:
+                raise
+            encode(video, camera, made, share, ())
         expected = duration(video)
-        run = jobs.ffmpeg(command(video, missing, decode.hardware(video)), expected, share)
-        if run.returncode:
-            raise RuntimeError((run.stderr.strip().splitlines() or [f"ffmpeg: exit {run.returncode}"])[-1])
-        for path in parts:
-            if abs(duration(path) - expected) > TOLERANCE_S:
-                raise RuntimeError(f"{path.name} lasts {duration(path):.1f} s instead of {expected:.1f} s")
-        for key in missing:
-            part(made[key]).replace(made[key])
+        for key, path in made.items():
+            if abs(duration(part(path)) - expected) > TOLERANCE_S:
+                raise RuntimeError(f"{part(path).name} lasts {duration(part(path)):.1f} s instead of {expected:.1f} s")
+        for path in made.values():
+            part(path).replace(path)
     finally:
-        for path in parts:
-            path.unlink(missing_ok=True)
+        for path in made.values():
+            part(path).unlink(missing_ok=True)
     return made
 
 
+def record(match: Path, light: Path, camera: list[list[float]]) -> None:
+    """The copies of `match` whose `light` one was just made cut by `camera` (CAMERA)."""
+    files.write_text(match / CAMERA, json.dumps({"light": light.name, "size": light.stat().st_size, "camera": camera}, separators=(",", ":")) + "\n")
+
+
+def recorded(match: Path, light: Path) -> list[list[float]] | None:
+    """The camera the copies of `match` were cut by, if `light` is the copy made with them; None for copies made before
+    16 Nov (the whole picture, which the page zoomed) or another one."""
+    path = match / CAMERA
+    if not path.exists() or not light.exists():
+        return None
+    saved = json.loads(path.read_text())
+    return saved["camera"] if saved.get("light") == light.name and saved.get("size") == light.stat().st_size else None
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Make the lighter copies of a match's video for its hosted page.")
+    parser = argparse.ArgumentParser(description="Make the lighter copies of a match's video for its hosted page, cut by the automatic zoom.")
     parser.add_argument("video", type=Path)
+    parser.add_argument("camera", type=Path, help="The camera as framing.camera_spans writes it (JSON)")
     args = parser.parse_args()
     try:
-        print("\n".join(map(str, make(args.video).values())))
+        print("\n".join(map(str, make(args.video, json.loads(args.camera.read_text())).values())))
     except (RuntimeError, subprocess.SubprocessError) as error:
         sys.exit(str(error))
 

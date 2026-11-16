@@ -1,48 +1,61 @@
 import type { Ball } from '@/lib/ball';
-import type { MatchView } from '@/lib/match';
-
-/** Seconds of the ball's path averaged into its place, against its jumps. */
-export const SMOOTH_S = 0.5;
-/** Share of the view, on each side, the ball is kept out of. */
-const EDGE = 0.15;
-/** The view without the review's: half the picture, in its middle. */
-const NO_VIEW: MatchView = [0, 0.25, 0.25, 0.5];
-/** Seconds before and after the moment whose views are averaged into the one followed: the video being recorded, the
- * view sets off ahead of a change, and two changes close together (the rally's end, then the next serve's view) make one move. */
-export const AHEAD_S = 1;
-/** Moments averaged over those seconds. */
-const AHEAD_STEPS = 20;
-/** The view's spring, in radians a second: it settles within about 5 / FOLLOW seconds. */
-const FOLLOW = 5;
+import type { View } from '@/components/Watch/helpers/overlay';
 
 /** A view: its center (fractions of the picture) and how much it enlarges the picture. */
 export type Camera = { x: number; y: number; zoom: number };
 
-/** The ball's place at `time` (fractions of the picture), its samples within SMOOTH_S averaged;
- * null without any: between rallies, or the ball out of sight. */
-export function ballAt(ball: Ball, time: number): { x: number; y: number } | null {
-  const { samples } = ball;
-  // The first sample at or after the window's start, by bisection over the seconds.
-  let lo = 0;
-  let hi = samples.length / 3;
-  const from = time - SMOOTH_S;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (samples[3 * mid] < from) {
-      lo = mid + 1;
-    } else {
-      hi = mid;
+export const WHOLE: Camera = { x: 0.5, y: 0.5, zoom: 1 };
+
+/** framing.py's CAMERA_STEP_S and CAMERA_UNIT: the camera's samples, every that many seconds, in that unit. */
+const STEP_S = 0.1;
+const UNIT = 1e-4;
+
+/** ball.js's runs read once: each one's start and its samples [x, y, zoom, ...] added up. */
+const read = new WeakMap<number[][], { start: number; samples: Float64Array }[]>();
+
+/** The automatic zoom's camera at `time`, from ball.js's runs (framing.camera_spans: [from this time, x, y, zoom, then
+ * each sample's change from the one before...]), linear between its samples as the video's copies are cut by it; the
+ * whole picture outside them. */
+export function cameraAt(spans: number[][], time: number): Camera {
+  let runs = read.get(spans);
+  if (!runs) {
+    runs = spans.map((span) => {
+      const samples = new Float64Array(span.length - 1);
+      for (let k = 0; k < samples.length; k += 1) {
+        samples[k] = (k >= 3 ? samples[k - 3] : 0) + span[k + 1];
+      }
+      return { start: span[0], samples };
+    });
+    read.set(spans, runs);
+  }
+  for (const { start, samples } of runs) {
+    const at = (time - start) / STEP_S;
+    const last = samples.length / 3 - 1;
+    // A sample's own time lands a hair either side of it.
+    if (at < -1e-6 || at > last + 1e-6) {
+      continue;
     }
+    const k = Math.min(Math.floor(Math.max(0, at)), Math.max(0, last - 1));
+    const share = Math.min(1, Math.max(0, at - k));
+    const value = (i: number) => (samples[3 * k + i] + ((k < last ? samples[3 * k + 3 + i] : samples[3 * k + i]) - samples[3 * k + i]) * share) * UNIT;
+    return { x: value(0), y: value(1), zoom: value(2) };
   }
-  let x = 0;
-  let y = 0;
-  let n = 0;
-  for (let k = lo; k < samples.length / 3 && samples[3 * k] <= time + SMOOTH_S; k += 1) {
-    x += samples[3 * k + 1];
-    y += samples[3 * k + 2];
-    n += 1;
-  }
-  return n ? { x: x / n, y: y / n } : null;
+  return WHOLE;
+}
+
+/** Between `from` (`share` 0) and `to` (1): their centres and widths. */
+export function between(from: Camera, to: Camera, share: number): Camera {
+  const width = 1 / from.zoom + (1 / to.zoom - 1 / from.zoom) * share;
+  return { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share, zoom: 1 / width };
+}
+
+/** `view` (fractions of the picture) seen in a copy cut by `camera`: kept inside the cut, in fractions of the copy. */
+export function within(view: Camera, camera: Camera): Camera {
+  const size = 1 / camera.zoom;
+  const width = Math.min(size, 1 / view.zoom);
+  const [left, top] = [camera.x - size / 2, camera.y - size / 2];
+  const place = (at: number, from: number) => Math.min(from + size - width / 2, Math.max(from + width / 2, at));
+  return { x: (place(view.x, left) - left) / size, y: (place(view.y, top) - top) / size, zoom: size / width };
 }
 
 /** The ball's sample nearest `time` (fractions of the picture), within `within` seconds; null without one. */
@@ -61,43 +74,14 @@ export function sampleNear(ball: Ball, time: number, within: number): { x: numbe
   return best;
 }
 
-/** The automatic zoom at `time`: the review's view of the players then (`views`, framing.py's), widened only as much as
- * keeps `ball` EDGE inside it, the players' view still in it: sliding to the ball left players out (the owner's call,
- * 15 Nov: every player and the ball, parts of the court out; benchmarks/framing). */
-export function frameAt(views: MatchView[], time: number, ball: { x: number; y: number } | null): Camera {
-  const [, x, y, w] = views.findLast((v) => v[0] <= time) ?? views[0] ?? NO_VIEW;
-  const room = EDGE * w;
-  if (!ball || (ball.x >= x + room && ball.x <= x + w - room && ball.y >= y + room && ball.y <= y + w - room)) {
-    return { x: Math.min(1 - w, Math.max(0, x)) + w / 2, y: Math.min(1 - w, Math.max(0, y)) + w / 2, zoom: 1 / w };
-  }
-  const [x1, y1, x2, y2] = [Math.min(x, ball.x - room), Math.min(y, ball.y - room), Math.max(x + w, ball.x + room), Math.max(y + w, ball.y + room)];
-  const size = Math.min(1, Math.max(x2 - x1, y2 - y1));
-  // What it must hold in the middle of the view, the view inside the picture.
-  const place = (from: number, to: number) => Math.min(1 - size, Math.max(0, (from + to - size) / 2)) + size / 2;
-  return { x: place(x1, x2), y: place(y1, y2), zoom: 1 / size };
-}
+/** The spring's speed, in radians a second: it settles within about 5 / FOLLOW seconds. */
+const FOLLOW = 5;
 
-/** The automatic zoom at `time` as followed: `frameAt` averaged within AHEAD_S, `ball` (or none) placed by `ballAt`. */
-export function smoothFrameAt(views: MatchView[], time: number, ball: Ball | null): Camera {
-  const sum = { x: 0, y: 0, zoom: 0 };
-  for (let k = 0; k <= AHEAD_STEPS; k += 1) {
-    const at = time + AHEAD_S * ((2 * k) / AHEAD_STEPS - 1);
-    const f = frameAt(views, at, ball && ballAt(ball, at));
-    sum.x += f.x;
-    sum.y += f.y;
-    sum.zoom += f.zoom;
-  }
-  const n = AHEAD_STEPS + 1;
-  return { x: sum.x / n, y: sum.y / n, zoom: sum.zoom / n };
-}
-
-/** `now` and its `speed` moved `dt` seconds toward `target` by a critically damped spring: the view
- * sets off and stops gently, without bouncing. */
-export function spring(now: Camera, speed: Camera, target: Camera, dt: number): void {
-  for (const k of ['x', 'y', 'zoom'] as const) {
-    speed[k] += (FOLLOW * FOLLOW * (target[k] - now[k]) - 2 * FOLLOW * speed[k]) * dt;
-    now[k] += speed[k] * dt;
-  }
+/** `now` and its `speed` moved `dt` seconds toward `target` by a critically damped spring: it sets off and stops gently,
+ * without bouncing. */
+export function spring(now: { value: number; speed: number }, target: number, dt: number): void {
+  now.speed += (FOLLOW * FOLLOW * (target - now.value) - 2 * FOLLOW * now.speed) * dt;
+  now.value += now.speed * dt;
 }
 
 /** The view zooming `zoom` times on `at` (fractions of the picture) in an element `width` × `height`
@@ -112,5 +96,20 @@ export function zoomOn(at: { x: number; y: number }, width: number, height: numb
     scale: zoom,
     x: clamp(width / 2 - zoom * (left + at.x * w), left + w - zoom * (left + w), left * (1 - zoom)),
     y: clamp(height / 2 - zoom * (top + at.y * h), top + h - zoom * (top + h), top * (1 - zoom)),
+  };
+}
+
+/** `view` (`zoomOn`'s) of a copy cut by `cut` as a view of the whole picture, for what is drawn in its fractions: the
+ * picture's place in the element `width` × `height`, letterboxed as the copy's `videoWidth` × `videoHeight`. */
+export function throughCut(view: View, cut: Camera, width: number, height: number, videoWidth: number, videoHeight: number): View {
+  const s = Math.min(width / videoWidth, height / videoHeight);
+  const [w, h] = [videoWidth * s, videoHeight * s];
+  const [left, top] = [(width - w) / 2, (height - h) / 2];
+  const size = 1 / cut.zoom;
+  const scale = view.scale / size;
+  return {
+    scale,
+    x: view.x + view.scale * (left - ((cut.x - size / 2) / size) * w) - scale * left,
+    y: view.y + view.scale * (top - ((cut.y - size / 2) / size) * h) - scale * top,
   };
 }

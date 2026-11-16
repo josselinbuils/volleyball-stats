@@ -549,6 +549,11 @@
     "host": "Mettre en ligne",
     "hostAll": "Mettre à jour tous les matchs en ligne",
     "hosting": "Mise en ligne…",
+    "zoomStale": "Refaire les vidéos ?",
+    "zoomStaleText": "Le zoom a changé depuis qu'elles ont été faites.",
+    "remake": "Refaire",
+    "later": "Plus tard",
+    "remakeVideos": "Refaire les vidéos au nouveau zoom",
     "hostPassword": "Mot de passe de la vidéo",
     "hostWithVideo": "Avec la vidéo",
     "hostWithoutVideo": "Sans la vidéo",
@@ -1079,7 +1084,6 @@
     "changed": "Le mot de passe a changé : entrez le nouveau.",
     "unreached": "Le site ne répond pas : réessayez."
   },
-  "autoZoom": "Zoom auto",
   "overlay": {
     "speed": "Vitesse",
     "kmh": "km/h",

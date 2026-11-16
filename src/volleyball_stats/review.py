@@ -2117,11 +2117,14 @@ def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
 
 
 def read_hosted(match: Path) -> dict:
-    """`hosted_state`, with what changed since the last upload when the page is late and it kept what it sent (`changes`)."""
+    """`hosted_state`, with what changed since the last upload when the page is late and it kept what it sent (`changes`),
+    and whether the video's copies were cut by another zoom than the review's now (`zoomStale`)."""
     path, sent = match / HOSTED, match / HOSTED_PAGE
     saved = json.loads(path.read_text()) if path.exists() else None
     state = hosted_state(saved, page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)) if saved else STAMPED), date.today())
     state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
+    config = match / matches.PUBLISH
+    state["zoomStale"] = config.exists() and matches.copies_stale(match, json.loads(config.read_text()))
     return state
 
 
@@ -2599,7 +2602,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             history.clear()
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
-            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
+            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
             generation[0] += 1
             page_seen[0] = page_mark()
 
@@ -2617,7 +2620,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 stale_photos.touch()
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
-            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
+            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
 
         steps = [("review", own)]
         if (match / "page.json").exists():
@@ -2649,7 +2652,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                             web.patch_people(match / "review", people)
                             page_seen[0] = page_mark()
                             stale_photos.unlink(missing_ok=True)
-                            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
+                            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
                 questions.read_pictures(picture)
             except Exception:
                 traceback.print_exc()
@@ -2926,7 +2929,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if self.path == "/figure":
                     set_figure(match, questions.table, int(body["team"]), int(body["identity"]), str(body["figure"]))
                     page_seen[0] = page_mark()
-                    hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes")})
+                    hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/end":
                     set_end(match, body.get("time"))
@@ -3101,8 +3104,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     config = json.loads((match / matches.PUBLISH).read_text())
                     if "video" not in config:
                         config = matches.choose(match, bool(body["video"]), body.get("password"))
-                    # Hours of encoding only for a match that goes online with its video.
-                    copies = [("copies", lambda: matches.add_copies(match, video, shared))] if config["video"] and matches.copies_missing(config) else []
+                    # Hours of encoding only for a match that goes online with its video; copies cut by a former zoom
+                    # only when the owner says so (`remake`).
+                    remake = bool(body.get("remake"))
+                    needed = config["video"] and (matches.copies_missing(config) or (remake and matches.copies_stale(match, config)))
+                    copies = [("copies", lambda: matches.add_copies(match, video, shared, remake))] if needed else []
                     run_steps([*copies, ("hosting", hosting)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/hostAll" and (match / matches.PUBLISH).exists():

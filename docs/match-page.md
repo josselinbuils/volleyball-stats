@@ -21,12 +21,14 @@ moments.
   else its counted one once every rally of it is checked in the review (`web.settled_scores`): no "(estimé)" then. During a timeout, "Temps mort" and its team over the video and beside the court; in TV mode its card, the
   rally before it held 3 s for it.
 - The video's bar: the timeline on its own row, as wide as the video; under it play, the time, 10 s back and forward, then
-  the commentary, the sound, the options (⚙: "Vidéo augmentée", "Zoom auto", "Ralentir à chaque touche", "Rejouer
-  l'échange en boucle", each named and ticked) and full screen. "Ralentir à chaque touche" (kept in the browser) slows it to 0.5× around each touch only (`helpers/slow.ts` `PAGE_SLOW_RATE`; the review's clips 0.25×, to answer). Its "Zoom auto", on from the start where the match has views, frames the players as the review's
-  (`framing.py`'s views: during an exchange one a second, of the players around it), widening only to keep the ball in,
-  the view easing there by a spring; between rallies the whole picture, the server's view 3 s before the serve
-  (`SERVE_LEAD_S`, 15 Nov; [benchmark](../benchmarks/framing/README.md)); a jump
-  in the video cuts to its view. Playlists and the loop fade through black (0.3 s, picture and sound)
+  the commentary, the sound, the options (⚙: "Vidéo augmentée", "Ralentir à chaque touche", "Rejouer
+  l'échange en boucle", each named and ticked) and full screen. "Ralentir à chaque touche" (kept in the browser) slows it to 0.5× around each touch only (`helpers/slow.ts` `PAGE_SLOW_RATE`; the review's clips 0.25×, to answer). The video zooms by itself, always (no switch since 16 Nov: the owner's call), framing the
+  players as the review's (`framing.py`'s views: during an exchange one a second, of the players around it), widening only
+  to keep the ball in, the view easing there by a spring (`framing.camera`); between rallies the whole picture, the
+  server's view 3 s before the serve (`SERVE_LEAD_S`, 15 Nov; [benchmark](../benchmarks/framing/README.md)). The hosted
+  copies come cut by that camera from the 4K source (`match.zoomed`, [hosting.md](hosting.md)), the page drawing on them by
+  it (ball.js's `camera`, `helpers/zoom.ts` `cameraAt`, `throughCut`); on this machine (the review) the page zooms the
+  source by the same camera, and so copies made before 16 Nov. A close call's zoom springs over it. Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump. A wait for data 2.5 s without more loaded reloads the copy where it stood, its play and speed kept,
   each try twice as long after the last up to 20 s (`useUnstuck`; a request held by the server, 15 Nov: back in 3 s; asking
   again for the same moment waited on the stuck request). One hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar

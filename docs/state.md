@@ -129,3 +129,10 @@ The pipeline's weak spots and what is left to do, most useful first.
     until it closes, at every start when ticked, no code. On the 5080 PC: `networkingMode=mirrored` written in `.wslconfig`
     and WSL's firewall rule for port 8765 added (16 Nov); left to check once WSL has restarted: the dialog's address opens
     from another machine. The Mac needs nothing but the switch (macOS may ask to allow incoming connections).
+24. Done (16 Nov): the automatic zoom cut into the hosted video's copies from the 4K source (`video_copies.py`,
+    `framing.camera`, [hosting.md](hosting.md)), no "Zoom auto" switch any more (the owner's call): VMAF zoomed 1.9x 88.7
+    against 76.9 on a 1080p screen, 88.8 against 69.8 on a 1440p one. About 28 minutes of encoding an hour of match on the
+    5080 PC (the copies were made in 10 on the GPU alone); the Mac, slower, untimed. Made at "Mettre en ligne"; once a
+    correction has changed the zoom, the upload asks before making them again, else "Refaire les vidéos au nouveau zoom"
+    waits in the menu. Every match online has copies made before: the next upload asks for each. Left: the Mac's time;
+    a reading thread (ponytail in `video_copies.py`).

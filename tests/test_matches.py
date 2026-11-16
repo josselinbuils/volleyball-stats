@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import cv2
+import numpy as np
 import pytest
 
 from volleyball_stats import backup, matches
@@ -457,14 +458,24 @@ class TestChoose:
 
 
 class TestAddCopies:
-    def test_lists_them_once_made(self, tmp_path, monkeypatch):
+    @staticmethod
+    def review_camera(match, camera):
+        (match / "review").mkdir(exist_ok=True)
+        (match / "review" / "ball.js").write_text(f"window.MATCH_BALL = {json.dumps({'samples': [], 'camera': camera})};\n")
+
+    def test_lists_them_once_made_cut_by_the_reviews_zoom(self, tmp_path, monkeypatch):
         (tmp_path / matches.PUBLISH).write_text("{}")
+        self.review_camera(tmp_path, [[1.0, 5000, 5000, 15000]])
         made = {key: tmp_path / f"{key}.mp4" for key in ("light", "av1", "small")}
-        monkeypatch.setattr(matches.video_copies, "make", lambda video, kept, share: made)
+        for path in made.values():
+            path.write_bytes(b"")
+        cut = []
+        monkeypatch.setattr(matches.video_copies, "make", lambda video, camera, share: cut.append(camera) or made)
 
         config = matches.add_copies(tmp_path, Path("m.mp4"))
 
         assert config == {key: str(path.resolve()) for key, path in made.items()}
+        assert cut == [[[1.0, 5000, 5000, 15000]]] and matches.video_copies.recorded(tmp_path, made["light"]) == cut[0]
 
     def test_removes_a_former_copy_of_the_copies_folder_only(self, tmp_path, monkeypatch):
         folder = tmp_path / matches.video_copies.FOLDER
@@ -474,11 +485,50 @@ class TestAddCopies:
             path.write_bytes(b"")
         (tmp_path / matches.PUBLISH).write_text(json.dumps({"light": str(former), "av1": str(elsewhere), "small": str(kept)}))
         made = {"light": folder / "m_1440p.mp4", "av1": folder / "m_av1.mp4", "small": kept}
-        monkeypatch.setattr(matches.video_copies, "make", lambda video, listed, share: made)
+        monkeypatch.setattr(matches.video_copies, "make", lambda video, camera, share: made["light"].write_bytes(b"") or made)
+        former.unlink()
 
         matches.add_copies(tmp_path, Path("m.mp4"))
 
-        assert not former.exists() and elsewhere.exists() and kept.exists()
+        assert elsewhere.exists() and kept.exists()
+
+    def test_copies_cut_by_another_zoom_are_made_again_only_when_asked(self, tmp_path, monkeypatch):
+        copies = {key: tmp_path / f"{key}.mp4" for key in matches.video_copies.COPIES}
+        for path in copies.values():
+            path.write_bytes(b"")
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"video": True, **{key: str(path) for key, path in copies.items()}}))
+        self.review_camera(tmp_path, [[1.0, 5000, 5000, 15000]])
+        matches.video_copies.record(tmp_path, copies["light"], [[1.0, 5000, 5000, 15000]])
+        config = json.loads((tmp_path / matches.PUBLISH).read_text())
+        made = []
+        monkeypatch.setattr(matches.video_copies, "make", lambda video, camera, share: made.append(camera) or copies)
+
+        assert not matches.copies_stale(tmp_path, config)
+        self.review_camera(tmp_path, [[2.0, 5000, 5000, 15000]])
+        assert matches.copies_stale(tmp_path, config)
+        matches.add_copies(tmp_path, Path("m.mp4"))
+        assert made == []
+        matches.add_copies(tmp_path, Path("m.mp4"), remake=True)
+        assert made == [[[2.0, 5000, 5000, 15000]]] and not matches.copies_stale(tmp_path, config)
+
+    def test_a_review_page_built_before_the_camera_gets_it_from_its_views(self, tmp_path):
+        (tmp_path / "review").mkdir()
+        (tmp_path / "review" / "ball.js").write_text('window.MATCH_BALL = {"samples": []};\n')
+        (tmp_path / "review" / "data.js").write_text('window.MATCH = {"views": [[0, 0, 0, 1], [5, 0.2, 0.1, 0.5]], "duration": 20};\n')
+
+        camera = matches.review_camera(tmp_path)
+
+        assert len(camera) == 1 and matches.framing.camera_at(camera, np.array([15.0]))[0].tolist() == pytest.approx([0.45, 0.35, 2.0], abs=0.01)
+
+    def test_copies_made_before_the_zoom_was_cut_in_them_are_stale(self, tmp_path):
+        copies = {key: tmp_path / f"{key}.mp4" for key in matches.video_copies.COPIES}
+        for path in copies.values():
+            path.write_bytes(b"")
+        self.review_camera(tmp_path, [])
+        config = {"video": True, **{key: str(path) for key, path in copies.items()}}
+
+        assert matches.copies_stale(tmp_path, config)
+        assert not matches.copies_stale(tmp_path, {**config, "video": False})
 
     def test_a_copy_at_a_former_height_is_missing(self, tmp_path, monkeypatch):
         copies = {key: tmp_path / f"{key}.mp4" for key in matches.video_copies.COPIES}

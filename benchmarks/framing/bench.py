@@ -1,12 +1,13 @@
-"""Score the automatic zoom (framing.views, played as the page's helpers/zoom.ts does) on analysed matches.
+"""Score the automatic zoom (framing.camera, which the video's copies are cut by) on analysed matches.
 
-    uv run python benchmarks/framing/bench.py [--slide] [MATCH ...]
+    uv run python benchmarks/framing/bench.py [--slide | --no-spring] [MATCH ...]
 
 Each MATCH (outputs/matches/ names; every one with a review page without any) is read from its review page (data.js's
 rallies and touches, ball.js) and players.csv. During the rallies, every 0.2 s: the zoom shown, the share of moments
 showing every player on the court (within 1 m of its lines) whole, and the share showing the ball where it is seen. The
-views are made again by the code as it stands; the page's spring is left out (it only eases between them). --slide
-plays the ball as the page did before 15 Nov: the view slid to keep it in, rather than widened.
+views and the camera are made again by the code as it stands. --no-spring scores the views averaged without the
+spring that follows them, as before 16 Nov; --slide plays the ball as the page did before 15 Nov: the view slid to keep
+it in, rather than widened (without the spring).
 """
 
 import csv
@@ -23,6 +24,7 @@ from volleyball_stats.review import page_data
 SMOOTH_S, EDGE, AHEAD_S, AHEAD_STEPS = 0.5, 0.15, 1.0, 20
 STEP_S, COURT = 0.2, (10.0, 5.5)
 SLIDE = "--slide" in sys.argv
+NO_SPRING = SLIDE or "--no-spring" in sys.argv
 
 
 def ball_near(samples: np.ndarray, t: float) -> tuple[float, float] | None:
@@ -75,10 +77,15 @@ def score(match: Path) -> dict:
             if frame % step or row["court_x"] == "" or abs(float(row["court_x"])) > COURT[0] or abs(float(row["court_y"])) > COURT[1]:
                 continue
             on.setdefault(round(frame / fps, 1), []).append((float(row["x1"]) / width, float(row["y1"]) / height, float(row["x2"]) / width, float(row["y2"]) / height))
+    spans = framing.camera_spans(framing.camera(views.tolist(), samples, data["duration"]))
     zooms, players, balls = [], [], []
     for rally in data["rallies"]:
         for t in np.arange(rally["start"], rally["end"], STEP_S):
-            cx, cy, w = shown_at(views, samples, t)
+            if NO_SPRING:
+                cx, cy, w = shown_at(views, samples, t)
+            else:
+                cx, cy, zoom = framing.camera_at(spans, np.array([t]))[0]
+                w = 1 / zoom
             x1, y1, x2, y2 = cx - w / 2, cy - w / 2, cx + w / 2, cy + w / 2
             zooms.append(1 / w)
             people = on.get(round(round(t / framing.STEP_S) * framing.STEP_S, 1), [])

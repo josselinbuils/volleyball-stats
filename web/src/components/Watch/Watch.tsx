@@ -23,11 +23,10 @@ import { VideoControls } from '@/components/Watch/VideoControls';
 import { useLayout } from '@/components/Watch/LayoutMenu';
 import { BELOW_TOWER, LINE_CALLS, Overlay, SCORED, type Paint } from '@/components/Watch/Overlay';
 import { askVideo } from '@/components/VideoChoice';
-import { sampleNear, smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
+import { WHOLE, between, cameraAt, sampleNear, spring, throughCut, within, zoomOn, type Camera } from '@/components/Watch/helpers/zoom';
 
-// A jump in the video this long cuts to its view: no pan across the court.
+// A jump in the video this long shows a close call's zoom at once: no zoom across the court.
 const CUT_S = 0.5;
-const WHOLE = { x: 0.5, y: 0.5, zoom: 1 };
 const UNZOOMED = { scale: 1, x: 0, y: 0 };
 // The augmented video zooms this much on a close call's bounce, from this long before it to this long after.
 const CALL_ZOOM = 2.5;
@@ -67,11 +66,10 @@ export function Watch() {
   const { video, setVideo, playlist } = usePlayer();
   const pause = useVideoTime(timeoutAt);
   const court = useRef<HTMLDivElement>(null);
-  // The automatic zoom, on from the start where the match has views, frames the players as the review does, moving only
-  // to keep the ball in, looking a second ahead and behind; the view springs to it each frame, back to the whole picture when off.
-  const [follow, setFollow] = useState(match.views.length > 0);
+  // The automatic zoom (framing.camera, in ball.js): the hosted copies come cut by it (`match.zoomed`); the source on this
+  // machine, or copies made before 16 Nov, are zoomed by it here. A close call's zoom springs over it: its share, its view.
   const ball = useBall();
-  const camera = useRef({ now: { ...WHOLE }, speed: { x: 0, y: 0, zoom: 0 } });
+  const call = useRef({ value: 0, speed: 0, at: WHOLE as Camera });
   // What the pipeline knows drawn on the video (`Overlay`), by the zoom's loop: the two move as one.
   const [drawn, setDrawn] = useState(savedDrawn);
   const toggleDrawn = () => {
@@ -86,15 +84,17 @@ export function Watch() {
   // Each close call's bounce in the picture, where the ball is seen then.
   const bounces = useMemo(() => (typeof ball === 'object' ? LINE_CALLS.map((c) => ({ ...c, at: sampleNear(ball, c.t, 0.12) })) : []), [ball]);
   useEffect(() => {
-    if (follow || drawn) {
+    if (drawn || !match.zoomed) {
       loadBall();
     }
-  }, [follow, drawn]);
+  }, [drawn]);
   useEffect(() => {
     if (!(video instanceof HTMLVideoElement)) {
       return;
     }
-    const { now, speed } = camera.current;
+    const camera = typeof ball === 'object' ? (ball.camera ?? []) : [];
+    const zooming = camera.length > 0 && !match.zoomed;
+    const now = call.current;
     let frame = 0;
     let last = performance.now();
     let shown = video.currentTime;
@@ -102,35 +102,42 @@ export function Watch() {
       const dt = Math.min(0.05, Math.max(0, stamp - last) / 1000);
       last = stamp;
       const time = video.currentTime;
-      const call = drawn ? bounces.find((c) => c.at && time >= c.t - CALL_BEFORE_S && time <= c.t + CALL_AFTER_S && (rallies[c.rally + 1]?.start ?? Infinity) > time) : undefined;
-      const target = call?.at ? { ...call.at, zoom: CALL_ZOOM } : follow ? smoothFrameAt(match.views, time, typeof ball === 'object' ? ball : null) : WHOLE;
+      const bounce = drawn ? bounces.find((c) => c.at && time >= c.t - CALL_BEFORE_S && time <= c.t + CALL_AFTER_S && (rallies[c.rally + 1]?.start ?? Infinity) > time) : undefined;
+      if (bounce?.at) {
+        now.at = { ...bounce.at, zoom: CALL_ZOOM };
+      }
+      const goal = bounce?.at ? 1 : 0;
       if (Math.abs(time - shown) > CUT_S) {
-        Object.assign(now, target);
-        Object.assign(speed, { x: 0, y: 0, zoom: 0 });
+        Object.assign(now, { value: goal, speed: 0 });
       }
       shown = time;
-      spring(now, speed, target, dt);
-      const whole = !follow && Math.abs(now.zoom - 1) < 0.002;
-      let view = UNZOOMED;
-      if (whole) {
-        Object.assign(now, WHOLE);
-        Object.assign(speed, { x: 0, y: 0, zoom: 0 });
-        video.style.transform = '';
-      } else if (video.videoWidth) {
-        view = zoomOn(now, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, Math.max(1, now.zoom));
-        video.style.transformOrigin = '0 0';
-        video.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+      spring(now, goal, dt);
+      if (!bounce && now.value < 0.002) {
+        Object.assign(now, { value: 0, speed: 0 });
       }
-      paint.current?.(view);
-      // Unzoomed, only the overlay keeps the loop going.
-      if (whole && !drawn) {
+      const cut = cameraAt(camera, time);
+      const view = between(cut, now.at, now.value);
+      // A copy cut by the camera shows its view: only the call's zoom is left to do here.
+      const seen = match.zoomed ? within(view, cut) : view;
+      let css = UNZOOMED;
+      if (seen.zoom < 1.0005 || !video.videoWidth) {
+        video.style.transform = '';
+      } else {
+        css = zoomOn(seen, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, seen.zoom);
+        video.style.transformOrigin = '0 0';
+        video.style.transform = `translate(${css.x}px, ${css.y}px) scale(${css.scale})`;
+      }
+      // What is drawn follows the picture: on a cut copy, the cut of the frame shown.
+      paint.current?.(match.zoomed ? (at) => throughCut(css, cameraAt(camera, at), video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight) : () => css);
+      // Nothing to zoom nor draw: the loop stops.
+      if (!zooming && !drawn) {
         return;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [video, follow, ball, drawn, bounces]);
+  }, [video, ball, drawn, bounces]);
   // A playlist's next clips load once the video has reached its first one: both at once would
   // slow its start.
   const [reached, setReached] = useState<Clip[] | null>(null);
@@ -150,7 +157,8 @@ export function Watch() {
     document.addEventListener('fullscreenchange', sync);
     return () => document.removeEventListener('fullscreenchange', sync);
   }, []);
-  // The 720p copy while the player is small; the 1440p one in full screen, zoomed or wide.
+  // The 720p copy while the player is small; the 1440p one in full screen or wide, or zoomed here (copies made before the
+  // zoom was cut in them).
   const [wide, setWide] = useState(false);
   useEffect(() => {
     if (!(video instanceof HTMLVideoElement)) {
@@ -160,7 +168,7 @@ export function Watch() {
     observer.observe(video);
     return () => observer.disconnect();
   }, [video]);
-  const src = match.small && !full && !follow && !wide ? match.small : BIG;
+  const src = match.small && match.zoomed && !full && !wide ? match.small : BIG;
   // Full screen shows the court's replay beside the video or in its corner, as chosen. The same replay moves there from
   // the page (its 3D view kept, not drawn again), its place in the page keeping its height meanwhile.
   const [layout, setLayout] = useLayout();
@@ -326,7 +334,7 @@ export function Watch() {
                     </div>
                   )}
                 </div>
-                <VideoControls follow={follow} onFollow={() => setFollow((f) => !f)} drawn={drawn} onDrawn={ball === 'none' ? undefined : toggleDrawn} layout={layout} onLayout={setLayout} />
+                <VideoControls drawn={drawn} onDrawn={ball === 'none' ? undefined : toggleDrawn} layout={layout} onLayout={setLayout} />
               </div>
             </div>
             <PlaylistBar />

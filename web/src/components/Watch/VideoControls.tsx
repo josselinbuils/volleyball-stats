@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Captions, ListVideo, Maximize, MicOff, MicVocal, Minimize, Pause, Settings, Play, Repeat1, ScanSearch, SkipBack, SkipForward, Snail, Volume2, VolumeX, type LucideIcon } from 'lucide-react';
+import { Captions, ListVideo, Maximize, MicOff, MicVocal, Minimize, Pause, Settings, Play, Repeat1, SkipBack, SkipForward, Snail, Volume2, VolumeX, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SkipIcon } from '@/components/SkipIcon';
 import { VideoButton } from '@/components/VideoButton';
@@ -43,23 +43,7 @@ const CHROMIUM = (navigator as Navigator & { userAgentData?: { brands: { brand: 
 
 /** The video's controls, its timeline limited to the set the page shows; `light` on a light background. With `onDrawn`,
  * the switch of what is drawn on the video; with `onLayout`, full screen offers its layouts. */
-export function VideoControls({
-  light = false,
-  follow,
-  onFollow,
-  drawn,
-  onDrawn,
-  layout,
-  onLayout,
-}: {
-  light?: boolean;
-  follow?: boolean;
-  onFollow?: () => void;
-  drawn?: boolean;
-  onDrawn?: () => void;
-  layout?: Layout;
-  onLayout?: (next: Layout) => void;
-}) {
+export function VideoControls({ light = false, drawn, onDrawn, layout, onLayout }: { light?: boolean; drawn?: boolean; onDrawn?: () => void; layout?: Layout; onLayout?: (next: Layout) => void }) {
   const { t } = useTranslation();
   const { video, loop, setLoop, playlist } = usePlayer();
   // In a playlist, the clip playing and those after it.
@@ -322,11 +306,6 @@ export function VideoControls({
             {t('videoOverlay')}
           </ViewItem>
         )}
-        {onFollow && (
-          <ViewItem checked={!!follow} onChange={onFollow} icon={ScanSearch}>
-            {t('autoZoom')}
-          </ViewItem>
-        )}
         <ViewItem checked={slow} onChange={toggleSlow} icon={Snail}>
           {t('slowTouches')}
         </ViewItem>
@@ -350,7 +329,7 @@ export function VideoControls({
   );
 }
 
-/** The video's options, each named and ticked when on: what is drawn on it, the zoom, slowing down, the loop. */
+/** The video's options, each named and ticked when on: what is drawn on it, slowing down, the loop. */
 function ViewMenu({ light, className, children }: { light: boolean; className?: string; children: ReactNode }) {
   const { t } = useTranslation();
   return (

@@ -62,8 +62,9 @@ export const BELOW_TOWER = 'top-[var(--below-tower,3rem)] left-[var(--tower-left
  * loads (`preload="none"`) its poster fills that box. */
 const SIZED = '@container absolute inset-0 max-w-[80rem]';
 
-/** Draws the overlay for a view of the picture; the video's zoom calls it each frame, with the view it just set. */
-export type Paint = (view: View) => void;
+/** Draws the overlay; the video's zoom calls it each frame with where the picture shows the frame of a time: on a copy cut
+ * by the automatic zoom, its frames each cut their way. */
+export type Paint = (view: (time: number) => View) => void;
 
 /** The augmented video: the ball's trail drawn on the picture, the score in its upper left corner, and each measured
  * serve's speed and attack's speed, height and jump on a card in its lower left corner ("Signaler" and the court's inset
@@ -118,13 +119,14 @@ export function Overlay({ video, ball, paint }: { video: HTMLVideoElement; ball:
     }
     let drawn = '';
     let placed = '';
-    paint.current = (view) => {
+    paint.current = (viewAt) => {
       const [wrap, surface, panel] = [box.current, canvas.current, card.current];
       const [width, height] = [video.clientWidth, video.clientHeight];
       if (!wrap || !surface || !panel || !video.videoWidth || !width) {
         return;
       }
       const time = shown ?? video.currentTime;
+      const view = viewAt(time);
       const ratio = window.devicePixelRatio || 1;
       const key = [time, view.scale, view.x, view.y, width, height, ratio, video.style.opacity].join();
       if (key === drawn) {

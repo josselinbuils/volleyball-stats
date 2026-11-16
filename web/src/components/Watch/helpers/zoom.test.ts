@@ -1,61 +1,80 @@
 import { describe, expect, it } from 'vitest';
-import { AHEAD_S, ballAt, frameAt, sampleNear, smoothFrameAt, spring, zoomOn } from '@/components/Watch/helpers/zoom';
+import { onScreen } from '@/components/Watch/helpers/overlay';
+import { WHOLE, between, cameraAt, sampleNear, spring, throughCut, within, zoomOn } from '@/components/Watch/helpers/zoom';
 
-describe('ballAt', () => {
-  // 10 fps: a sample every frame from 1 s to 2 s, the ball moving right.
-  const ball = { samples: Array.from({ length: 11 }, (_, k) => [1 + k / 10, 0.1 + k * 0.01, 0.5]).flat() };
+describe('cameraAt', () => {
+  // From 2 s, every 0.1 s: [0.5, 0.5, 1], then [0.4, 0.5, 1.5], then [0.4, 0.45, 2], written as framing.camera_spans does.
+  const spans = [[2, 5000, 5000, 10000, -1000, 0, 5000, 0, -500, 5000]];
 
-  it('averages the samples within half a second', () => {
-    const at = ballAt(ball, 1.5)!;
-    expect(at.x).toBeCloseTo(0.15, 6);
-    expect(at.y).toBeCloseTo(0.5, 6);
+  it('reads the samples, added up from their changes', () => {
+    const first = cameraAt(spans, 2);
+    expect([first.x, first.y, first.zoom].map((v) => +v.toFixed(6))).toEqual([0.5, 0.5, 1]);
+    const second = cameraAt(spans, 2.1);
+    expect([second.x, second.y, second.zoom].map((v) => +v.toFixed(6))).toEqual([0.4, 0.5, 1.5]);
+    const last = cameraAt(spans, 2.2);
+    expect([last.x, last.y, last.zoom].map((v) => +v.toFixed(6))).toEqual([0.4, 0.45, 2]);
   });
 
-  it('is null with no sample near', () => {
-    expect(ballAt(ball, 3)).toBeNull();
+  it('goes in a line between them, as the copies are cut', () => {
+    const half = cameraAt(spans, 2.15);
+    expect(half.y).toBeCloseTo(0.475, 6);
+    expect(half.zoom).toBeCloseTo(1.75, 6);
+  });
+
+  it('shows the whole picture outside its runs', () => {
+    expect(cameraAt(spans, 1.9)).toEqual(WHOLE);
+    expect(cameraAt(spans, 2.3)).toEqual(WHOLE);
+    expect(cameraAt([], 5)).toEqual(WHOLE);
   });
 });
 
-describe('frameAt', () => {
-  const views: [number, number, number, number][] = [
-    [0, 0.2, 0, 0.6],
-    [10, 0, 0, 1],
-  ];
+describe('between', () => {
+  it('goes from one view to the other by their widths', () => {
+    const half = between({ x: 0.5, y: 0.5, zoom: 1 }, { x: 0.3, y: 0.3, zoom: 4 }, 0.5);
+    expect(half.x).toBeCloseTo(0.4, 6);
+    expect(1 / half.zoom).toBeCloseTo(0.625, 6);
+  });
+});
 
-  it("frames the review's view of the players", () => {
-    expect(frameAt(views, 5, null)).toEqual({ x: 0.5, y: 0.3, zoom: 1 / 0.6 });
-    expect(frameAt(views, 12, null)).toEqual({ x: 0.5, y: 0.5, zoom: 1 });
+describe('within', () => {
+  const cut = { x: 0.6, y: 0.5, zoom: 2 };
+
+  it('is the whole copy for the view it was cut by', () => {
+    const seen = within(cut, cut);
+    expect([seen.x, seen.y, seen.zoom].map((v) => +v.toFixed(6))).toEqual([0.5, 0.5, 1]);
   });
 
-  it('stays still while the ball is well inside', () => {
-    expect(frameAt(views, 5, { x: 0.4, y: 0.3 })).toEqual(frameAt(views, 5, null));
+  it('zooms further on a closer view, kept inside the cut', () => {
+    const seen = within({ x: 0.8, y: 0.5, zoom: 4 }, cut);
+    // Its quarter of the picture on the right half of the cut, 0.35 to 0.85: from 0.6 to 0.85 at most.
+    expect(seen.zoom).toBeCloseTo(2, 6);
+    expect(seen.x).toBeCloseTo((0.725 - 0.35) / 0.5, 6);
   });
+});
 
-  it('widens just enough to keep the ball off its edges, the players still in', () => {
-    // The view spans 0.2 to 0.8: the ball at 0.85 needs its right edge at 0.85 + 0.15 × 0.6, its left one staying at 0.2.
-    const f = frameAt(views, 5, { x: 0.85, y: 0.3 });
-    expect(1 / f.zoom).toBeCloseTo(0.74, 6);
-    expect(f.x - 0.37).toBeCloseTo(0.2, 6);
-    // The players' 0 to 0.6 in height still shown.
-    expect(f.y - 0.37).toBeLessThanOrEqual(0);
-    expect(f.y + 0.37).toBeGreaterThanOrEqual(0.6);
-    // Never past the picture's edge: the ball at its edge still in.
-    const edge = frameAt(views, 5, { x: 1, y: 0.3 });
-    expect(edge.x + 0.5 / edge.zoom).toBeCloseTo(1, 6);
-    expect(edge.x - 0.5 / edge.zoom).toBeLessThanOrEqual(0.2);
+describe('throughCut', () => {
+  it('draws a point of the picture where the cut copy shows it', () => {
+    const cut = { x: 0.6, y: 0.4, zoom: 2 };
+    const css = zoomOn({ x: 0.3, y: 0.6 }, 1600, 900, 2560, 1440, 1.5);
+    const point = { x: 0.55, y: 0.45 };
+    // In the copy: its fraction of the cut, then the page's own zoom.
+    const inCopy = { x: (point.x - 0.35) / 0.5, y: (point.y - 0.15) / 0.5 };
+    const expected = onScreen(1600, 900, 2560, 1440, css).at(inCopy);
+    const drawn = onScreen(1600, 900, 2560, 1440, throughCut(css, cut, 1600, 900, 2560, 1440)).at(point);
+    expect(drawn.x).toBeCloseTo(expected.x, 6);
+    expect(drawn.y).toBeCloseTo(expected.y, 6);
   });
 });
 
 describe('spring', () => {
   it('reaches its target without passing it', () => {
-    const now = { x: 0, y: 0, zoom: 1 };
-    const speed = { x: 0, y: 0, zoom: 0 };
+    const now = { value: 0, speed: 0 };
     let most = 0;
     for (let k = 0; k < 120; k += 1) {
-      spring(now, speed, { x: 1, y: 0, zoom: 1 }, 1 / 60);
-      most = Math.max(most, now.x);
+      spring(now, 1, 1 / 60);
+      most = Math.max(most, now.value);
     }
-    expect(now.x).toBeGreaterThan(0.99);
+    expect(now.value).toBeGreaterThan(0.99);
     expect(most).toBeLessThanOrEqual(1);
   });
 });
@@ -76,30 +95,6 @@ describe('zoomOn', () => {
     const v = zoomOn({ x: 0.5, y: 0.5 }, 1000, 1000, 1920, 1080, 2);
     expect(v.x).toBe(-500);
     expect(v.y).toBe(-500);
-  });
-});
-
-describe('smoothFrameAt', () => {
-  const views: [number, number, number, number][] = [
-    [0, 0.2, 0, 0.6],
-    [10, 0, 0, 0.6],
-    [10.5, 0.4, 0, 0.6],
-  ];
-
-  it('holds a view away from any change', () => {
-    expect(smoothFrameAt(views, 5, null).x).toBeCloseTo(0.5, 6);
-  });
-
-  it('sets off before a change', () => {
-    expect(smoothFrameAt(views, 10 - AHEAD_S / 2, null).x).toBeLessThan(0.5);
-    expect(smoothFrameAt(views, 10 - AHEAD_S - 0.1, null).x).toBeCloseTo(0.5, 6);
-  });
-
-  it('turns a view shown briefly into a small detour', () => {
-    // Half a second at 0.3, between 0.5 and 0.7: the camera goes back left by a quarter of the way at most.
-    const xs = Array.from({ length: 41 }, (_, k) => smoothFrameAt(views, 8 + k * 0.1, null).x);
-    expect(Math.min(...xs)).toBeGreaterThan(0.5 - 0.2 / 4 - 1e-6);
-    expect(xs[40]).toBeCloseTo(0.7, 6);
   });
 });
 

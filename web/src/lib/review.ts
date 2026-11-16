@@ -200,7 +200,8 @@ export type Comparison = { before: Scores; after: Scores };
 /** By kind, how many films the match should have and the names of those missing or out of date. */
 export type FilmCounts = Record<'players' | 'highlights', { total: number; stale: string[] }>;
 
-export type Hosted = { chosen?: boolean; at: string | null; day?: string | null; error: string | null; behind: boolean; changes?: PageChange[] | null };
+/** Where the hosted page stands; `zoomStale` when the video's copies were cut by another zoom than the review's now. */
+export type Hosted = { chosen?: boolean; at: string | null; day?: string | null; error: string | null; behind: boolean; changes?: PageChange[] | null; zoomStale?: boolean };
 
 declare global {
   interface Window {

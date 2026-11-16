@@ -1,4 +1,4 @@
-"""The views the review's automatic zoom follows: all the players at the serve, then for the exchange.
+"""The views the automatic zoom follows, all the players at the serve, then for the exchange, and its camera.
 
 The camera is fixed and the court fills most of its picture, so a view gains little over the next:
 it is kept while it still fits, to change as rarely as possible.
@@ -17,8 +17,8 @@ AFTER_SERVE_S = 0.3
 HOLD_S, SERVE_LEAD_S = 1.0, 3.0
 # A shorter exchange keeps the serve's view.
 MIN_EXCHANGE_S = 1.0
-# During the exchange a view every FOLLOW_S, of the players seen from BEHIND_S before it to AHEAD_S after: the page
-# averages the views a second either side and eases between them (the owner's call, 15 Nov: closer, every player and
+# During the exchange a view every FOLLOW_S, of the players seen from BEHIND_S before it to AHEAD_S after: the camera
+# averages the views a second either side and eases between them (`camera`) (the owner's call, 15 Nov: closer, every player and
 # the ball kept in, parts of the court out).
 FOLLOW_S, BEHIND_S, AHEAD_S = 1.0, 1.0, 1.5
 # The ball this close to the serve is at the server, who often waits too far back to be tracked.
@@ -112,3 +112,104 @@ def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict], ball: np.
     if shown:
         shown.append([round(end + HOLD_S, 2), 0, 0, 1])
     return shown
+
+
+# The camera following those views, which the video's copies are cut by (`video_copies`) and the page reads to draw on
+# them (ball.js): the views widened to keep the ball EDGE inside them, its place averaged over BALL_SMOOTH_S; averaged
+# over CAMERA_AHEAD_S either side, then followed by a critically damped spring of SPRING radians a second (it settles
+# within about 5 / SPRING seconds). The page did the same on the whole picture until 16 Nov (helpers/zoom.ts).
+BALL_SMOOTH_S = 0.5
+EDGE = 0.15
+CAMERA_AHEAD_S = 1.0
+SPRING = 5.0
+# The camera's place every CAMERA_STEP_S (the page and the copies take it in between linearly), the spring stepped every SPRING_STEP_S.
+CAMERA_STEP_S = 0.1
+SPRING_STEP_S = 0.02
+# Under this zoom the camera shows the whole picture: no sample kept there. Its samples kept in whole numbers of CAMERA_UNIT.
+WHOLE_ZOOM = 1.0005
+CAMERA_UNIT = 1e-4
+
+
+def ball_at(ball: np.ndarray, times: np.ndarray) -> np.ndarray:
+    """The ball of `ball` (rows [time, x, y] by time) at each of `times`, its samples within BALL_SMOOTH_S averaged: rows
+    [x, y], NaN where none."""
+    lo = np.searchsorted(ball[:, 0], times - BALL_SMOOTH_S)
+    hi = np.searchsorted(ball[:, 0], times + BALL_SMOOTH_S, side="right")
+    sums = np.vstack([np.zeros((1, 2)), np.cumsum(ball[:, 1:3], axis=0)])
+    n = (hi - lo)[:, None]
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(n > 0, (sums[hi] - sums[lo]) / np.maximum(n, 1), np.nan)
+
+
+def frames_at(shown: list[list[float]], times: np.ndarray, ball: np.ndarray) -> np.ndarray:
+    """The view of `shown` (`views`) at each of `times`, widened only as much as keeps the ball (`ball_at`'s rows) EDGE
+    inside it, the players' view still in it (the owner's call, 15 Nov: every player and the ball, parts of the court
+    out): rows [centre x, centre y, zoom]."""
+    table = np.array(shown, dtype=float).reshape(-1, 4) if shown else np.array([[0.0, 0.0, 0.0, 1.0]])
+    x, y, w = table[np.maximum(np.searchsorted(table[:, 0], times, side="right") - 1, 0), 1:].T
+    room = EDGE * w
+    bx, by = ball.T
+    with np.errstate(invalid="ignore"):
+        inside = np.isnan(bx) | ((bx >= x + room) & (bx <= x + w - room) & (by >= y + room) & (by <= y + w - room))
+    bx, by = np.where(inside, x + w / 2, bx), np.where(inside, y + w / 2, by)
+    x1, y1 = np.minimum(x, bx - room), np.minimum(y, by - room)
+    x2, y2 = np.maximum(x + w, bx + room), np.maximum(y + w, by + room)
+    size = np.where(inside, w, np.minimum(1, np.maximum(x2 - x1, y2 - y1)))
+    x1, x2 = np.where(inside, x, x1), np.where(inside, x + w, x2)
+    y1, y2 = np.where(inside, y, y1), np.where(inside, y + w, y2)
+
+    def place(start: np.ndarray, end: np.ndarray) -> np.ndarray:
+        return np.minimum(1 - size, np.maximum(0, (start + end - size) / 2)) + size / 2
+
+    return np.column_stack([np.where(inside, np.minimum(1 - w, np.maximum(0, x)) + w / 2, place(x1, x2)), np.where(inside, np.minimum(1 - w, np.maximum(0, y)) + w / 2, place(y1, y2)), 1 / size])
+
+
+def camera(shown: list[list[float]], ball: np.ndarray, duration: float) -> np.ndarray:
+    """The camera over the video's `duration` (seconds), every CAMERA_STEP_S from 0: rows [centre x, centre y, zoom], in
+    fractions of the picture, from the views (`views`) and the ball (rows [time, x, y] by time)."""
+    if not shown:
+        return np.tile([0.5, 0.5, 1.0], (int(duration / CAMERA_STEP_S) + 1, 1))
+    reach = round(CAMERA_AHEAD_S / CAMERA_STEP_S)
+    grid = np.arange(-reach, int(duration / CAMERA_STEP_S) + reach + 2) * CAMERA_STEP_S
+    found = frames_at(shown, grid, ball_at(ball.reshape(-1, 3), grid))
+    sums = np.vstack([np.zeros((1, 3)), np.cumsum(found, axis=0)])
+    target = (sums[2 * reach + 1 :] - sums[: -2 * reach - 1]) / (2 * reach + 1)
+    steps = round(CAMERA_STEP_S / SPRING_STEP_S)
+    out = np.empty((len(target) - 1, 3))
+    now, speed = [0.5, 0.5, 1.0], [0.0, 0.0, 0.0]
+    for k in range(len(out)):
+        out[k] = now
+        a, b = target[k], target[k + 1]
+        for s in range(steps):
+            share = (s + 1) / steps
+            for i in range(3):
+                goal = a[i] + (b[i] - a[i]) * share
+                speed[i] += (SPRING * SPRING * (goal - now[i]) - 2 * SPRING * speed[i]) * SPRING_STEP_S
+                now[i] += speed[i] * SPRING_STEP_S
+    zoom = np.maximum(1, out[:, 2])
+    half = 0.5 / zoom
+    return np.column_stack([np.clip(out[:, 0], half, 1 - half), np.clip(out[:, 1], half, 1 - half), zoom])
+
+
+def camera_spans(track: np.ndarray) -> list[list[float]]:
+    """`camera`'s track without its whole-picture moments, as runs [from this time, x, y, zoom, then each sample's change
+    from the one before...] every CAMERA_STEP_S, in CAMERA_UNIT whole numbers, a sample either side: the whole picture
+    outside them. About a third of the size of the samples written out."""
+    zoomed = track[:, 2] >= WHOLE_ZOOM
+    zoomed = zoomed | np.r_[zoomed[1:], False] | np.r_[False, zoomed[:-1]]
+    edges = np.flatnonzero(np.diff(np.r_[0, zoomed.astype(int), 0]))
+    units = np.rint(track / CAMERA_UNIT).astype(int)
+    return [[round(start * CAMERA_STEP_S, 2), *units[start].tolist(), *np.diff(units[start:end], axis=0).ravel().tolist()] for start, end in zip(edges[::2], edges[1::2])]
+
+
+def camera_at(spans: list[list[float]], times: np.ndarray) -> np.ndarray:
+    """The camera of `camera_spans` at each of `times`, linear between its samples: rows [centre x, centre y, zoom]."""
+    out = np.tile([0.5, 0.5, 1.0], (len(times), 1))
+    for span in spans:
+        run = np.cumsum(np.array(span[1:], dtype=float).reshape(-1, 3), axis=0) * CAMERA_UNIT
+        at = (times - span[0]) / CAMERA_STEP_S
+        # A sample's own time lands a hair either side of it.
+        on = (at >= -1e-6) & (at <= len(run) - 1 + 1e-6)
+        k = np.clip(at[on], 0, None).astype(int).clip(max=max(0, len(run) - 2))
+        out[on] = run[k] + (run[np.minimum(k + 1, len(run) - 1)] - run[k]) * np.clip(at[on] - k, 0, 1)[:, None]
+    return out

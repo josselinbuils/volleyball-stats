@@ -108,3 +108,46 @@ def test_the_exchange_is_followed_second_by_second_closer_than_its_whole():
     assert len(during) > 3
     assert all(v[3] == pytest.approx(MIN_VIEW) for v in during)
     assert during[-1][1] > during[0][1]
+
+
+class TestCamera:
+    def test_follows_the_view_with_a_spring_and_comes_back_to_the_whole_picture(self):
+        from volleyball_stats.framing import camera
+
+        track = camera([[0, 0, 0, 1], [5, 0.2, 0.1, 0.5], [10, 0, 0, 1]], np.empty((0, 3)), 20)
+
+        assert track.shape == (201, 3) and track[0].tolist() == [0.5, 0.5, 1.0]
+        # Under way a second before the view (averaged), there a second after, the whole picture again at the end.
+        assert 1 < track[45, 2] < 2 and track[70].tolist() == pytest.approx([0.45, 0.35, 2.0], abs=0.01)
+        assert track[-1].tolist() == pytest.approx([0.5, 0.5, 1.0], abs=0.001)
+        assert np.all(np.diff(track[40:70, 2]) >= 0)
+
+    def test_widens_to_keep_the_ball_in(self):
+        from volleyball_stats.framing import EDGE, camera
+
+        ball = np.array([[t / 10, 0.9, 0.3] for t in range(0, 201)])
+        track = camera([[0, 0.2, 0.1, 0.5]], ball, 20)
+
+        x, _, zoom = track[100]
+        # EDGE of the players' view (0.5 wide) kept beside the ball.
+        assert x + 0.5 / zoom == pytest.approx(0.9 + EDGE * 0.5, abs=1e-3) and zoom < 2
+
+    def test_spans_keep_the_zoomed_moments_only_and_read_back_between_samples(self):
+        from volleyball_stats.framing import CAMERA_STEP_S, camera, camera_at, camera_spans
+
+        track = camera([[0, 0, 0, 1], [5, 0.2, 0.1, 0.5], [10, 0, 0, 1]], np.empty((0, 3)), 20)
+        spans = camera_spans(track)
+
+        assert len(spans) == 1 and 2 < spans[0][0] < 4
+        times = np.arange(len(track)) * CAMERA_STEP_S
+        assert np.abs(camera_at(spans, times) - track).max() < 1e-3
+        between = camera_at(spans, np.array([7.05]))[0]
+        assert between == pytest.approx((track[70] + track[71]) / 2, abs=1e-4)
+        assert camera_at([], np.array([3.0])).tolist() == [[0.5, 0.5, 1.0]]
+
+    def test_reads_back_as_the_page_does(self):
+        from volleyball_stats.framing import camera_at
+
+        # The same runs as web's zoom.test.ts: both cut and draw by the same camera.
+        spans = [[2, 5000, 5000, 10000, -1000, 0, 5000, 0, -500, 5000]]
+        assert camera_at(spans, np.array([2.1, 2.15, 2.3])).ravel().tolist() == pytest.approx([0.4, 0.5, 1.5, 0.4, 0.475, 1.75, 0.5, 0.5, 1.0])
