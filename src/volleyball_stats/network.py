@@ -1,5 +1,6 @@
-"""The review on the local network: off by default, the app's "Réseau local" switches it (outputs/network.json, this
-machine's own). On, the server listens on every address and takes requests named by an IP address, a `.local` name or
+"""The review on the local network: off by default, the app's "Réseau local" switches it for as long as the review runs
+(SESSION, which the server's restarts inherit), at every start only when asked (`always`, outputs/network.json, this
+machine's own: the owner's call, 16 Nov). On, the server listens on every address and takes requests named by an IP address, a `.local` name or
 this machine's name, besides 127.0.0.1 and localhost; no code (the owner's call, 16 Nov: a home network). Under WSL the
 network reaches it only once WSL shares the computer's address (`networkingMode=mirrored`) and WSL's firewall lets the
 port in: `configure_windows` sets both, an administrator's approval asked once.
@@ -17,23 +18,40 @@ from pathlib import Path
 from volleyball_stats import files
 
 FILE = "network.json"
+# Set by the switch in the server's environment: its own restarts (another match opened, the app updated) keep it, a new
+# start of the app does not.
+SESSION = "VOLLEYBALL_STATS_LAN"
 # WSL's own firewall (Hyper-V's) knows its virtual machine by this id.
 WSL_VM = "{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}"
 RULE = "volleyball-stats-review"
 
 
-def shared(outputs: Path) -> bool:
-    """Whether the review listens on the local network."""
+def always(outputs: Path) -> bool:
+    """Whether the review listens on the local network from every start."""
     path = outputs / FILE
     try:
-        return bool(json.loads(path.read_text()).get("lan")) if path.exists() else False
+        return bool(json.loads(path.read_text()).get("always")) if path.exists() else False
     except (OSError, ValueError):
         return False
 
 
+def shared(outputs: Path) -> bool:
+    """Whether the review listens on the local network: switched so while it runs, else from every start."""
+    said = os.environ.get(SESSION)
+    return said == "1" if said in ("0", "1") else always(outputs)
+
+
 def share(outputs: Path, on: bool) -> None:
-    """The review on the local network from its next start, or not."""
-    files.write_text(outputs / FILE, json.dumps({"lan": bool(on)}) + "\n")
+    """The review on the local network until it closes (the server, starting again, takes it), or no longer; off, not at
+    the next starts either."""
+    os.environ[SESSION] = "1" if on else "0"
+    if not on:
+        keep(outputs, False)
+
+
+def keep(outputs: Path, on: bool) -> None:
+    """The review on the local network from every start, or only when switched."""
+    files.write_text(outputs / FILE, json.dumps({"always": bool(on)}) + "\n")
 
 
 def bind(outputs: Path) -> str:
@@ -151,6 +169,7 @@ def state(outputs: Path, port: int) -> dict:
     mode = wsl_mode()
     return {
         "lan": shared(outputs),
+        "always": always(outputs),
         "url": f"http://{found}:{port}/" if found and (mode in (None, "mirrored")) else None,
         "wsl": mode,
     }

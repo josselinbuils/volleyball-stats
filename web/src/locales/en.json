@@ -1608,7 +1608,7 @@
       "reading": "Reading…",
       "on": "Turn on",
       "off": "Turn off",
-      "kept": "Stays on at the next starts.",
+      "always": "At every start",
       "openOn": "On the other device, open:",
       "windows": "Windows must first let the network reach the app (once, with an administrator's approval).",
       "setUp": "Set up Windows",

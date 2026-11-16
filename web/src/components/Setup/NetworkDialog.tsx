@@ -9,6 +9,8 @@ import { explain, type Explained } from '@/lib/errors';
 
 interface Network {
   lan: boolean;
+  /** On from every start, not only until the review closes. */
+  always: boolean;
   /** The address to open on another device; null where the network does not reach it yet. */
   url: string | null;
   /** WSL's networking mode under Windows ("mirrored" once set up), null elsewhere. */
@@ -25,7 +27,7 @@ export function NetworkDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const [network, setNetwork] = useState<Network | null>(null);
   const [error, setError] = useState<Explained | null>(null);
-  const [running, setRunning] = useState<'switch' | 'windows' | null>(null);
+  const [running, setRunning] = useState<'switch' | 'windows' | 'always' | null>(null);
   const [windowsDone, setWindowsDone] = useState(false);
 
   const read = useCallback(async () => {
@@ -57,6 +59,18 @@ export function NetworkDialog({ onClose }: { onClose: () => void }) {
       }
     }
     setError(explain(t, 'network'));
+    setRunning(null);
+  };
+
+  const keep = async (on: boolean) => {
+    setRunning('always');
+    setError(null);
+    const answer = await call<Network>('network', { action: 'always', on });
+    if (answer.ok) {
+      setNetwork(answer);
+    } else {
+      setError(explain(t, answer.error));
+    }
     setRunning(null);
   };
 
@@ -92,7 +106,12 @@ export function NetworkDialog({ onClose }: { onClose: () => void }) {
                 {network.lan ? <WifiOff aria-hidden /> : <Wifi aria-hidden />}
                 {network.lan ? t('app.network.off') : t('app.network.on')}
               </Button>
-              {network.lan && <p className="m-0 text-muted-foreground">{t('app.network.kept')}</p>}
+              {network.lan && (
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={network.always} disabled={!!running} onChange={(e) => void keep(e.target.checked)} />
+                  {t('app.network.always')}
+                </label>
+              )}
               {network.lan && network.url && (
                 <p className="m-0 grid gap-1">
                   {t('app.network.openOn')}

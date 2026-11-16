@@ -2279,7 +2279,8 @@ def same_site(headers, port: int, lan: bool = False) -> bool:
 
 def network_route(method: str, path: str, body: dict, port: int) -> tuple[bytes, str, int] | None:
     """The app's "Réseau local": GET /app/network its state (`network.state`); POST it switched (`on`: the server
-    starts again to listen so, `network_restart`) or Windows set up for it (`action` "windows"). None for another path."""
+    starts again to listen so, `network_restart`), kept from every start (`action` "always", `on`) or Windows set up for
+    it (`action` "windows"). None for another path."""
     if path != "/app/network":
         return None
     reply = lambda data, status=200: (json.dumps(data).encode(), "application/json", status)  # noqa: E731
@@ -2287,6 +2288,8 @@ def network_route(method: str, path: str, body: dict, port: int) -> tuple[bytes,
         try:
             if body.get("action") == "windows":
                 network.configure_windows(port)
+            elif body.get("action") == "always":
+                network.keep(app.OUTPUTS, bool(body.get("on")))
             else:
                 network.share(app.OUTPUTS, bool(body.get("on")))
         except (OSError, subprocess.SubprocessError) as error:
@@ -2296,7 +2299,7 @@ def network_route(method: str, path: str, body: dict, port: int) -> tuple[bytes,
 
 def network_restart(path: str, body: dict, answer: tuple, lock=None) -> None:
     """The server started again once the switch's answer has left: it listens on the network, or no longer."""
-    if path == "/app/network" and answer[2] == 200 and body.get("action") != "windows":
+    if path == "/app/network" and answer[2] == 200 and body.get("action") is None:
         app.restart_after(lock)
 
 

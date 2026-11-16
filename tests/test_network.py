@@ -5,10 +5,20 @@ from volleyball_stats.network import mirrored_config, named_here
 from volleyball_stats.review import same_site
 
 
-def test_off_by_default_and_switched(tmp_path):
+def test_on_until_the_review_closes_unless_asked_for_every_start(tmp_path, monkeypatch):
+    monkeypatch.delenv(network.SESSION, raising=False)
     assert not network.shared(tmp_path) and network.bind(tmp_path) == "127.0.0.1"
     network.share(tmp_path, True)
     assert network.shared(tmp_path) and network.bind(tmp_path) == "0.0.0.0"
+    # A new start of the app: the switch is not in its environment.
+    monkeypatch.delenv(network.SESSION)
+    assert not network.shared(tmp_path)
+    network.keep(tmp_path, True)
+    assert network.shared(tmp_path) and network.always(tmp_path)
+    # Off: not at the next starts either.
+    network.share(tmp_path, False)
+    assert not network.shared(tmp_path) and not network.always(tmp_path)
+    monkeypatch.delenv(network.SESSION)
     (tmp_path / network.FILE).write_text("not json")
     assert not network.shared(tmp_path)
 
@@ -42,9 +52,10 @@ def test_wslconfig_set_to_mirrored_keeping_the_rest():
 
 
 def test_state_names_the_address_only_where_it_is_reachable(tmp_path, monkeypatch):
+    monkeypatch.delenv(network.SESSION, raising=False)
     monkeypatch.setattr(network, "address", lambda: "192.168.1.20")
     monkeypatch.setattr(network, "wsl_mode", lambda: "nat")
-    assert network.state(tmp_path, 8765) == {"lan": False, "url": None, "wsl": "nat"}
+    assert network.state(tmp_path, 8765) == {"lan": False, "always": False, "url": None, "wsl": "nat"}
     monkeypatch.setattr(network, "wsl_mode", lambda: "mirrored")
     assert network.state(tmp_path, 8765)["url"] == "http://192.168.1.20:8765/"
     monkeypatch.setattr(network, "wsl_mode", lambda: None)
