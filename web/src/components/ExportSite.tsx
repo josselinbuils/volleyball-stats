@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Download, FolderDown, LoaderCircle } from 'lucide-react';
+import { Download, FolderDown, LoaderCircle, Square, SquareCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { JobLine, type Told } from '@/components/JobLine';
@@ -28,7 +28,7 @@ interface ExportState {
 
 const POLL_MS = 1500;
 
-/** The site zipped to put on a host of one's own: the matches to take, the export's bar, then the file to download. */
+/** The site zipped to put on a host of one's own: the matches to take (all at once too), the export's bar, then the file to download. */
 export function ExportSite() {
   const { t } = useTranslation();
   const f = useFormat();
@@ -79,6 +79,7 @@ export function ExportSite() {
     );
   }
   const picked = state.matches.filter((m) => chosen.has(m.path)).map((m) => m.path);
+  const all = picked.length === state.matches.length;
   // The last zip, offered while it holds the matches picked.
   const held = state.file && picked.length > 0 && (!state.file.matches || (state.file.matches.length === picked.length && picked.every((p) => state.file?.matches?.includes(p))));
   const start = () =>
@@ -141,6 +142,12 @@ export function ExportSite() {
           <Button busy={doing === 'export' || running} disabled={!picked.length} onClick={() => void start()}>
             <FolderDown aria-hidden />
             {running ? t('export.running') : t('export.start')}
+          </Button>
+        )}
+        {state.matches.length > 1 && (
+          <Button variant="outline" className="bg-card" disabled={running || doing === 'export'} onClick={() => setChosen(new Set(all ? [] : state.matches.map((m) => m.path)))}>
+            {all ? <Square aria-hidden /> : <SquareCheck aria-hidden />}
+            {t(all ? 'server.pickNone' : 'server.pickAll')}
           </Button>
         )}
       </div>
