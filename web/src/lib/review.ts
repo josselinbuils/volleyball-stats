@@ -341,7 +341,7 @@ export async function post(
     | 'repin'
     | 'team'
     | 'photo'
-    | 'figure'
+    | 'look'
     | 'failure'
     | 'sync/take'
     | 'sync/keep',

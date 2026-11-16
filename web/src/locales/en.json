@@ -240,6 +240,16 @@
       "man": "Man",
       "woman": "Woman"
     },
+    "hair": "Hair",
+    "hairs": {
+      "black": "Black",
+      "dark": "Dark brown",
+      "brown": "Brown",
+      "blond": "Blond",
+      "red": "Red",
+      "grey": "Grey",
+      "bald": "Bald"
+    },
     "setStartAt": "New set at {{time}}",
     "setStartAsk": "A set starts at {{time}}? The analysis will run again.",
     "setRemove": "Remove set {{n}}'s start",

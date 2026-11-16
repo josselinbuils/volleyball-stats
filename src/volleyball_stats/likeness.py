@@ -2,8 +2,8 @@
 (SegFormer trained on ATR, MIT licence) splits it into hair, face, arms and legs; their colours and the hair's shape
 pick a hair colour, a hairstyle and a skin tone among the few the page draws. It tells the looks that stand out (grey or
 blond hair, a very dark skin, long loose hair), not a ponytail seen from the front nor the middle
-skin tones (the owner's call, 15 Nov: not a big deal). The Names tab sets the figure, a man's or a woman's
-(likeness_choices.json, by name): the rest is the guess's alone (the owner's call, 16 Nov)."""
+skin tones (the owner's call, 15 Nov: not a big deal). The Names tab sets the figure, a man's or a woman's, and corrects
+the hair colour (likeness_choices.json, by name): the rest is the guess's alone (the owner's call, 16 Nov)."""
 
 from __future__ import annotations
 
@@ -25,6 +25,8 @@ HAIRS = ("black", "dark", "brown", "blond", "red", "grey")
 STYLES = ("short", "mid", "ponytail", "long")
 SKINS = 5
 FIGURES = ("man", "woman")
+# What the Names tab sets: the figure, and the hair colour over the guess's, or bald (never guessed: see `guess`).
+ALLOWED = {"figure": FIGURES, "hair": (*HAIRS, "bald")}
 
 # Room around the box above and on the sides: a raised hand or loose hair leaves it.
 ABOVE, SIDES = 0.06, 0.1
@@ -149,8 +151,8 @@ def guess(found: list[float] | None) -> dict | None:
 
 
 def dress(match: Path, people: dict[int, dict], cards: dict[int, Path]) -> None:
-    """`people` with their `look`: guessed from their card's picture (`cards`, by key), with the figure the Names tab
-    set (`chosen`, by name else by card); none for a player with neither."""
+    """`people` with their `look`: guessed from their card's picture (`cards`, by key), with the figure and hair colour
+    the Names tab set (`chosen`, by name else by card); none for a player with neither."""
     path = match / SEEN
     seen = json.loads(path.read_text()) if path.exists() else {}
     hashes = {key: hashlib.sha256(card.read_bytes()).hexdigest()[:16] for key, card in cards.items()}
@@ -180,7 +182,7 @@ def corrected(guessed: dict | None, given: dict | None) -> dict | None:
 
 
 def chosen(match: Path) -> dict[str, dict]:
-    """The Names tab's choices (CHOICES), by name or card, FIGURES only; a name's in another match too (the latest's), a
+    """The Names tab's choices (CHOICES), by name or card, the ALLOWED ones only; a name's in another match too (the latest's), a
     player looking the same from one match to the next."""
     out: dict[str, dict] = {}
     others = sorted((p for p in match.parent.glob(f"*/{CHOICES}") if p.parent != match), key=lambda p: p.stat().st_mtime)
@@ -189,14 +191,12 @@ def chosen(match: Path) -> dict[str, dict]:
     path = match / CHOICES
     for who, look in (json.loads(path.read_text()) if path.exists() else {}).items():
         out[who] = {**out.get(who, {}), **look}
-    return {who: kept for who, look in out.items() if (kept := {k: v for k, v in look.items() if k == "figure" and v in FIGURES})}
+    return {who: kept for who, look in out.items() if (kept := {k: v for k, v in look.items() if v in ALLOWED.get(k, ())})}
 
 
 def choose(match: Path, who: str, field: str, value: str | None) -> None:
-    """CHOICES with `who`'s `field` (their `figure`, a man's or a woman's) set to `value`, None taking it off.
-    ValueError for anything else."""
-    allowed = {"figure": FIGURES}
-    if field not in allowed or (value is not None and value not in allowed[field]):
+    """CHOICES with `who`'s `field` (an ALLOWED one) set to `value`, None taking it off. ValueError for anything else."""
+    if field not in ALLOWED or (value is not None and value not in ALLOWED[field]):
         raise ValueError(f"{field} {value!r}")
     path = match / CHOICES
     taken = json.loads(path.read_text()) if path.exists() else {}

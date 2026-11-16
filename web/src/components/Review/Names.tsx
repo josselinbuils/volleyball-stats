@@ -10,7 +10,7 @@ import { post, type Named, type Saved, type Suggestion } from '@/lib/review';
 import { Pictures } from '@/components/Review/Pictures';
 import { More } from '@/components/Review/More';
 import { PhotoPicker } from '@/components/Review/PhotoPicker';
-import { FigureChoice } from '@/components/Review/FigureChoice';
+import { LookChoice } from '@/components/Review/LookChoice';
 import { ErrorNote } from '@/components/ErrorNote';
 import { usePhotos } from '@/hooks/usePhotos';
 import { useRunning } from '@/hooks/useRunning';
@@ -350,7 +350,7 @@ function NameCard({
           />
         </label>
       </form>
-      <FigureChoice player={p} onError={onError} />
+      <LookChoice player={p} onError={onError} />
       {suggestions.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 text-sm">
           <span className="text-muted-foreground">{t('review.suggestions')}</span>

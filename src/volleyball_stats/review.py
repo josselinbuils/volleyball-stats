@@ -1640,12 +1640,11 @@ def set_photo(match: Path, table: list, team: int, number: int, frame: int, box:
     files.write_text(path, json.dumps(taken, indent=1, ensure_ascii=False) + "\n")
 
 
-def set_figure(match: Path, table: list, team: int, number: int, figure: str) -> None:
-    """likeness.CHOICES with the 3D figure of identity `number` of `team` a man's or a woman's (`figure`), by the
-    player's name (other matches take it too), else by their card; the review's page showing it at once. ValueError for
-    anything else."""
+def set_look(match: Path, table: list, team: int, number: int, field: str, value: str) -> None:
+    """likeness.CHOICES with the 3D figure's `field` (`figure`, a man's or a woman's, or `hair`, its colour) of identity
+    `number` of `team` set to `value`, by the player's name (other matches take it too), else by their card; the review's
+    page showing it at once. ValueError for anything else."""
     who = (identity.named(table, identity.read_names(match)).get((team, number)) or {}).get("name")
-    field, value = "figure", figure
     likeness.choose(match, who or f"{team}:{number}", field, value)
     site = match / "review"
     people = (page_data(site) or {}).get("people")
@@ -2934,8 +2933,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     set_photo(match, questions.table, int(body["team"]), int(body["identity"]), int(body["frame"]), body["box"])
                     run_steps(pages())
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
-                if self.path == "/figure":
-                    set_figure(match, questions.table, int(body["team"]), int(body["identity"]), str(body["figure"]))
+                if self.path == "/look":
+                    set_look(match, questions.table, int(body["team"]), int(body["identity"]), str(body["field"]), str(body["value"]))
                     page_seen[0] = page_mark()
                     hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")

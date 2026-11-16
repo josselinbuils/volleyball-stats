@@ -1,7 +1,7 @@
-/** A player's hair and skin for the 3D figures, guessed from their card's picture (`likeness.py`), and their figure, a
- * man's or a woman's, set in the review's Names tab; each field absent leaves the figure's made-up one. */
+/** A player's hair and skin for the 3D figures, guessed from their card's picture (`likeness.py`), the hair colour
+ * correctable and the figure, a man's or a woman's, set in the review's Names tab; each field absent leaves the figure's made-up one. */
 export interface Look {
-  hair?: HairColour;
+  hair?: Hair;
   style?: HairStyle;
   /** 1 (lightest) to SKINS.length. */
   skin?: number;
@@ -9,6 +9,8 @@ export interface Look {
 }
 
 export type HairColour = 'black' | 'dark' | 'brown' | 'blond' | 'red' | 'grey';
+/** A colour, or bald: set in the Names tab only, never guessed. */
+export type Hair = HairColour | 'bald';
 export type HairStyle = 'short' | 'mid' | 'ponytail' | 'long';
 export type Figure = 'man' | 'woman';
 

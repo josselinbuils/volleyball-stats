@@ -240,6 +240,16 @@
       "man": "Homme",
       "woman": "Femme"
     },
+    "hair": "Cheveux",
+    "hairs": {
+      "black": "Noirs",
+      "dark": "Bruns",
+      "brown": "Châtains",
+      "blond": "Blonds",
+      "red": "Roux",
+      "grey": "Gris",
+      "bald": "Chauve"
+    },
     "setStartAt": "Nouveau set à {{time}}",
     "setStartAsk": "Un set commence à {{time}} ? L'analyse sera relancée.",
     "setRemove": "Retirer le début du set {{n}}",

@@ -341,7 +341,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     // A woman's: narrower shoulders and waist, wider hips, a little smaller.
     const woman = look?.figure === 'woman';
     const [shoulders, waist, hips] = woman ? [0.8, 0.85, 1.08] : [1, 1, 1];
-    const hair = coloured(HAIR_COLOURS[look?.hair ?? 'black']);
+    const bald = look?.hair === 'bald';
+    const hair = coloured(HAIR_COLOURS[look?.hair && look.hair !== 'bald' ? look.hair : 'black']);
     const group = new THREE.Group();
     const part = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
       const mesh = new THREE.Mesh(geometry, material);
@@ -383,10 +384,13 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     part(torso, shapes.shoulders, shirt, 0, SHOULDER - HIP).scale.set(shoulders, 0.42, 0.7);
     part(torso, shapes.neck, skin, 0, 1.15 - HIP);
     part(torso, shapes.head, skin, 0, 1.38 - HIP);
-    // A cap of hair over the top, tilted back to leave the forehead bare. Never bald (the owner's rule, 16 Nov).
+    // A cap of hair over the top, tilted back to leave the forehead bare. Never guessed bald (the owner's rule, 16 Nov): only
+    // when the Names tab says so.
     // A woman's short hair in a long bob: the card's picture, from the front, does not show hair tied behind.
     const style = woman && (look?.style ?? 'short') === 'short' ? 'long' : (look?.style ?? 'short');
-    if (style === 'short') {
+    if (bald) {
+      // Nothing over the head.
+    } else if (style === 'short') {
       part(torso, shapes.hair, hair, 0, 1.4 - HIP).rotation.x = -0.35;
     } else {
       part(torso, shapes.hairMid, hair, 0, 1.4 - HIP).rotation.x = style === 'ponytail' ? -0.42 : -0.58;

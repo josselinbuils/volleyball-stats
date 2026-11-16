@@ -106,9 +106,10 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   number on the page, `web.unjoined`: one rule for both, so no touch names a player the review cannot offer), and
   who missed every ace its page counts as a missed reception (`review.aces`, read from the page): the page should show no
   unidentified player.
-- A player's card has "Silhouette 3D": a man's or a woman's figure (`/figure`, saved at once in `likeness_choices.json`
-  by name, else by card: the player's next matches take it too; the page's data patched, no rebuild). Their hair and
-  skin are guessed from the card's picture (`likeness.py`), not set by hand (the owner's call, 16 Nov).
+- A player's card has "Silhouette 3D", a man's or a woman's figure, and "Cheveux", the hair colour guessed from the
+  card's picture (`likeness.py`) to correct, or bald (never guessed) (`/look`, saved at once in `likeness_choices.json`
+  by name, else by card: the player's next matches take it too; the page's data patched, no rebuild). The hairstyle and
+  skin stay the guess's alone (the owner's call, 16 Nov).
 
 ## The match list, renames, timeouts
 

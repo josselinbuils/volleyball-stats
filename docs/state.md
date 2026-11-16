@@ -114,9 +114,11 @@ The pipeline's weak spots and what is left to do, most useful first.
 21. Done (15-16 Nov): the 3D players' looks (`likeness.py`, [match-page.md](match-page.md) "3D view",
     [benchmark](../benchmarks/likeness/README.md)). Hair colour, hairstyle and skin guessed from each player's card picture
     (SegFormer human parsing, MIT; seconds a match, cached in each match's `likeness_seen.json`); the review's Names tab sets the
-    figure, a man's or a woman's ("Silhouette 3D", `likeness_choices.json` by name, other matches take it). A woman's figure:
+    figure, a man's or a woman's ("Silhouette 3D"), and corrects the hair colour or makes a player bald ("Cheveux", the
+    owner's call, 16 Nov) (`likeness_choices.json` by name, other matches take it). The guess takes ~7 s a match on
+    the RTX 5080 the first time (5 s loading the model, 0.1 s a card). A woman's figure:
     slimmer, her short hair drawn as a long bob to mid-neck (the owner's pick among five, 16 Nov). Only beside the video,
-    never for a blurred team (`web.hide_looks`). Dropped: hand-set skin, hair and hairstyle (the owner's call), a beard and
+    never for a blurred team (`web.hide_looks`). Dropped: hand-set skin and hairstyle (the owner's call), a beard and
     guessing the figure (neither the parsing model nor SigLIP told them on the card pictures), a ponytail (not liked), a first
     version parsing every moment of every player (filled the GPU and froze the PC). The labels (55 players, beard and figure
     too) are in `outputs/benchmarks/likeness/truth.json` (real people: never committed). Ideas left, from the parsing

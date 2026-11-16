@@ -4,7 +4,7 @@
 human-parsing model (`mattmdjaga/segformer_b2_clothes`, SegFormer trained on ATR, MIT licence) splits it into hair, face,
 arms and legs, and fixed thresholds read their colours and the hair's shape. A head going bald keeps short hair of its
 colour; none is bald: hair the picture does not show is short and black (the owner's rule, 16 Nov, after a player with
-hair at the back was made bald). The benchmark's numbers did not move: none of its 53 players was guessed bald. The Names tab sets the figure, a man's or a woman's.
+hair at the back was made bald). The benchmark's numbers did not move: none of its 53 players was guessed bald. The Names tab sets the figure, a man's or a woman's, and corrects the hair colour or makes a player bald.
 
 ```bash
 uv run python benchmarks/likeness/bench.py [--show]
