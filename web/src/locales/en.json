@@ -215,7 +215,8 @@
   "themes": {
     "light": "Light",
     "dark": "Dark",
-    "auto": "Automatic (follows the device)"
+    "auto": "Automatic (follows the device)",
+    "haikyu": "Haikyu!!"
   },
   "matchTitle": "Match {{one}} vs {{two}}",
   "scoreLabel": "Set {{set}}, score: {{a}} {{s1}}, {{b}} {{s2}}",

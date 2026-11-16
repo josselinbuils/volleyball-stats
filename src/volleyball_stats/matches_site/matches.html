@@ -12,8 +12,9 @@
         try {
           theme = localStorage.getItem('volleyball-stats-theme');
         } catch (e) {}
-        var dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        var dark = theme === 'dark' || theme === 'haikyu' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.classList.toggle('haikyu', theme === 'haikyu');
         document.querySelector('meta[name="color-scheme"]').content = dark ? 'dark' : 'light';
       })();
     </script>
@@ -24,8 +25,8 @@
     />
     <title>Statistiques</title>
     <script defer src="matches.js"></script>
-    <script defer src="./assets/matches-pIA29FYa.js"></script>
-    <link rel="stylesheet" href="./assets/style-D1pbRW-T.css">
+    <script defer src="./assets/matches-CBkUc6kr.js"></script>
+    <link rel="stylesheet" href="./assets/style-BUERZef_.css">
   </head>
   <body>
     <div id="root"></div>

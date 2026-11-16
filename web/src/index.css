@@ -136,6 +136,33 @@
   --net: #c3c2b7;
 }
 
+/* Haikyu!!: the dark theme in Karasuno's black and orange; also on the full screen's dark panel. */
+:root.haikyu,
+.haikyu .dark {
+  --background: #0a0a0a;
+  --foreground: #f6f1ea;
+  --card: #171513;
+  --card-foreground: #f6f1ea;
+  --popover: #201d1a;
+  --popover-foreground: #f6f1ea;
+  --primary: #f26b1d;
+  --primary-foreground: #0a0a0a;
+  --secondary: #2a2420;
+  --secondary-foreground: #f6f1ea;
+  --muted: #211d1a;
+  --muted-foreground: #b5aa9f;
+  --accent: #2a2420;
+  --accent-foreground: #f6f1ea;
+  --border: #352c25;
+  --input: #4d4037;
+  --ring: #ff8a3d;
+  --link: #ff9d5c;
+  --chart: #f26b1d;
+  --court: #1f1a16;
+  --court-line: #6e5a4a;
+  --brand-header: #000000;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

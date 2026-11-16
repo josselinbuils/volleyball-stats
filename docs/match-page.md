@@ -247,8 +247,8 @@ Without player tracks, everything counts each side of the net instead of each te
   `locales/`); a tap on a player of the court replay shows their name, the next tap elsewhere hides it. Small controls get a
   tap area of at least 44 px, unseen (the `tap` utility in `index.css`); the curve's rallies and timeouts stay narrow,
   a rally every few pixels.
-- **Theme and language:** two menus on the club's band (beside the title without one, `Settings.tsx`): the light, dark or
-  automatic theme (the system's, by default) and French or English, remembered by the browser.
+- **Theme and language:** two menus on the club's band (beside the title without one, `Settings.tsx`): the light, dark,
+  automatic (the system's, by default) or Haikyu!! theme (dark in Karasuno's black and orange, `.haikyu` in `index.css`) and French or English, remembered by the browser.
 - **Loading:** the players' positions come in one file per 5 minutes (`positions/N.js`), loaded as the replay reaches them, the next one a little ahead; the balls dropped between two players read theirs from `data.js`.
 
 ## Change the page

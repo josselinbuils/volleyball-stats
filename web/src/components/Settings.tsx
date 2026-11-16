@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, Moon, Sun, SunMoon } from 'lucide-react';
+import { ChevronDown, Moon, Sun, SunMoon, Volleyball } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tip } from '@/components/Tip';
 import { LANGUAGES, setLanguage, type Language } from '@/i18n';
 import { cn } from '@/lib/utils';
 
-const MODES = { light: Sun, dark: Moon, auto: SunMoon } as const;
+const MODES = { light: Sun, dark: Moon, auto: SunMoon, haikyu: Volleyball } as const;
 type Mode = keyof typeof MODES;
 
 // index.html reads it too, to set the theme before the first paint.
@@ -40,14 +40,17 @@ export function Settings({ onBar = false }: { onBar?: boolean }) {
   );
 }
 
-/** Light, dark or automatic theme, the last following the system's. */
+/** Light, dark, automatic (the system's) or Haikyu!! (dark, black and orange) theme. */
 function ThemeMenu({ onBar }: { onBar: boolean }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState(saved);
 
   useEffect(() => {
     const system = matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'auto' && system.matches));
+    const apply = () => {
+      document.documentElement.classList.toggle('dark', mode === 'dark' || mode === 'haikyu' || (mode === 'auto' && system.matches));
+      document.documentElement.classList.toggle('haikyu', mode === 'haikyu');
+    };
     apply();
     if (mode !== 'auto') {
       return;
