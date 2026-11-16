@@ -342,7 +342,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     const skin = coloured(look?.skin ? SKINS[look.skin - 1] : SKIN);
     // A woman's: narrower shoulders and waist, wider hips, a little smaller.
     const woman = look?.figure === 'woman';
-    const [shoulders, waist, hips] = woman ? [0.86, 0.9, 1.06] : [1, 1, 1];
+    const [shoulders, waist, hips] = woman ? [0.8, 0.85, 1.08] : [1, 1, 1];
     const hair = coloured(look?.hair ? HAIR_COLOURS[look.hair] : HAIRS[Math.abs(key) % HAIRS.length]);
     const group = new THREE.Group();
     const part = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z = 0) => {
@@ -403,7 +403,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       }
     }
     group.userData.limbs = { torso, legs, arms };
-    group.scale.setScalar(woman ? 0.96 : 1);
+    group.scale.setScalar(woman ? 0.95 : 1);
     return group;
   };
   /** Stands a figure in `pose`: the pelvis down and the legs squashed by the crouch, the feet staying on the floor. */
