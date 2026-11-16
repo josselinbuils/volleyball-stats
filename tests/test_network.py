@@ -38,6 +38,7 @@ def test_wslconfig_set_to_mirrored_keeping_the_rest():
     assert mirrored_config("") == "[wsl2]\nnetworkingMode=mirrored\n"
     assert mirrored_config("[experimental]\nx=1\n").endswith("[wsl2]\nnetworkingMode=mirrored\n")
     assert mirrored_config(out) == out
+    assert mirrored_config("[wsl2]\nmemory=16GB\n\n[experimental]\nx=1\n") == "[wsl2]\nmemory=16GB\nnetworkingMode=mirrored\n\n[experimental]\nx=1\n"
 
 
 def test_state_names_the_address_only_where_it_is_reachable(tmp_path, monkeypatch):

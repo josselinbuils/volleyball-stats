@@ -103,7 +103,8 @@ def mirrored_config(text: str) -> str:
         stripped = line.strip()
         if stripped.startswith("[") and stripped.endswith("]"):
             if section == "wsl2" and not done:
-                out.append("networkingMode=mirrored")
+                # At the section's end, before the blank lines parting it from the next.
+                out.insert(len(out) - next((k for k, kept in enumerate(reversed(out)) if kept.strip()), 0), "networkingMode=mirrored")
                 done = True
             section = stripped[1:-1].strip().lower()
         elif section == "wsl2" and stripped.split("=")[0].strip().lower() == "networkingmode":
