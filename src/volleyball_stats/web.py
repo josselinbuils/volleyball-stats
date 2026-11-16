@@ -34,7 +34,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, timeouts, video_copies
+from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, timeline, timeouts, video_copies
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -1325,11 +1325,12 @@ def frames_index(path: Path) -> list[list[float]] | None:
     return None
 
 
-def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None, films: Path | None = None) -> None:
+def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None, films: Path | None = None, pieces: list[list[float]] | None = None) -> None:
     """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, the commentary's `voice` (`speech.voice_index`) and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
     `ball`: the ball's places and the automatic zoom's camera in video.js, which the page loads to draw on the video and
-    zoom it (the source; the copies come cut by it)."""
+    zoom it (the source; the copies come cut by it). With `pieces` (`timeline.py`) the video plays the match shorter: the
+    data, the ball and the positions on its time, `voice` already so."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
@@ -1346,12 +1347,16 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     index = {p.name: points for p in filter(None, (video, video and av1, video and small)) if (points := frames_index(p))}
     if index:
         data["index"] = index
-    if video and poster(video, round((first["start"] + first["end"]) / 2 * data["fps"]), site / "poster.webp"):
+    middle = (first["start"] + first["end"]) / 2
+    if pieces:
+        middle = float(timeline.to_copy(pieces, np.array([middle]))[0])
+    if video and poster(video, int(np.searchsorted(decode.timestamps(video), middle)), site / "poster.webp"):
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
     shutil.rmtree(site / "positions", ignore_errors=True)
     moving = players and {**players, "samples": natural_motion(players["samples"], players["step"] / data["fps"], {int(person): q["team"] for person, q in (data.get("people") or {}).items()})}
-    positions = position_files(moving, data["fps"]) if moving else []
+    # On the shorter video's time, a sample of the match for each of its own.
+    positions = position_files(timeline.retimed_positions(moving, data["fps"], pieces) if pieces else moving, data["fps"]) if moving else []
     if positions:
         (site / "positions").mkdir()
         for n, content in enumerate(positions):
@@ -1362,6 +1367,11 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
             data["contacts"] = defended(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
             data["contacts"] = received(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
             data["defense"] = {"modes": list(defense.MODES), **defense.table()}
+    if pieces:
+        data = timeline.retimed(data, pieces)
+        if ball:
+            seen = timeline.retimed_ball(np.array(ball["samples"], dtype=float).reshape(-1, 3), pieces)
+            ball = {**ball, "samples": [round(float(v), 3) for v in seen.ravel()]}
     # ball.js: its name until 16 Nov.
     for old in ("ball.js", VIDEO_JS):
         (site / old).unlink(missing_ok=True)
@@ -1848,17 +1858,24 @@ def build(
     if blurred is not None and (match / "players.csv").exists():
         samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3)
         data["views"] = framing.views(framing.read_boxes(match / "players.csv", decode.size(video), data["fps"]), data["rallies"], [c for c in data["contacts"] if c["type"] not in NO_PLAYER], samples)
+    pieces = None
     if blurred is not None:
-        # The automatic zoom: the copies are cut by the camera recorded with them (`zoomed`), which the page draws on
-        # them with; on the source (the review's page) the page zooms by the camera of the views now.
-        cut = video_copies.recorded(match, light) if light else None
+        # The automatic zoom: the copies are cut by the camera recorded with them (`zoomed`), on their own shorter time
+        # (`timeline.py`), which the page draws on them with; on the source (the review's page) the page zooms by the
+        # camera of the views now.
+        made = video_copies.recorded(match, light) if light else None
         data["lineCalls"] = line_calls(data)
         seen = np.array((ball or {}).get("samples", []), dtype=float).reshape(-1, 3)
-        camera = cut if cut is not None else framing.camera_spans(framing.camera(data.get("views", []), seen, data["duration"], framing.bounces(data["lineCalls"], seen, data["rallies"])))
+        if made:
+            camera, pieces = made["camera"], made["map"]
+        else:
+            camera = framing.camera_spans(framing.camera(data.get("views", []), seen, data["duration"], framing.bounces(data["lineCalls"], seen, data["rallies"])))
         ball = {**(ball or {"samples": []}), "camera": camera}
-        data["zoomed"] = cut is not None
+        data["zoomed"] = made is not None
     part("views")(1.0)
-    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice_index(match, data), match / "films")
+    # The commentary placed on the time the video plays, none of it over a cut, which fades the sound out.
+    voice = voice_index(match, timeline.retimed(data, pieces), tuple(at + side * timeline.CUT_FADE_S for at in timeline.cuts(pieces) for side in (-1, 1))) if pieces else voice_index(match, data)
+    write_site(data, players, None if blurred is None else light or footage_video(match, video, blurred), site, copy, av1, ball, small, voice, match / "films", pieces)
     part("write")(1.0)
     if not review:
         (site / "review-app.js").unlink(missing_ok=True)

@@ -5,6 +5,7 @@ import { seek, usePlayer, useVideoTime } from '@/lib/player';
 import { PAD, rallyClips, rallyNear, type Clip } from '@/lib/playlist';
 import { isTouch } from '@/helpers/contacts';
 import { useSet } from '@/lib/sets';
+import { lasted } from '@/helpers/lasted';
 
 /** One line of the list: a rally, or a playlist's clip with its rally and, for a touch's clip, its touch. */
 export interface Entry {
@@ -63,5 +64,5 @@ export function entryDetail(e: Entry, t: TFunction, f: Format): string {
       .filter(Boolean)
       .join(' · ');
   }
-  return `${f.secs(e.rally.end - e.rally.start)} · ${t('touchesN', { count: e.rally.contacts.filter(isTouch).length })}`;
+  return `${f.secs(lasted(e.rally))} · ${t('touchesN', { count: e.rally.contacts.filter(isTouch).length })}`;
 }

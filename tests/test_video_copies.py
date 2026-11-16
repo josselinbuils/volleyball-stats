@@ -3,7 +3,7 @@ import subprocess
 import numpy as np
 import pytest
 
-from volleyball_stats import framing, video_copies
+from volleyball_stats import framing, timeline, video_copies
 
 
 def clip(path, seconds=2, size="640x360"):
@@ -20,7 +20,7 @@ def test_makes_the_three_copies_on_the_sources_timeline_with_its_sound(tmp_path)
     video = tmp_path / "m.mp4"
     clip(video)
 
-    made = video_copies.make(video, [])
+    made = video_copies.make(video, {"map": [], "camera": []})
 
     assert stream(made["light"]) == "h264,1440,25/1"
     assert stream(made["av1"]) == "av1,1440,25/1"
@@ -37,7 +37,7 @@ def test_a_copy_cut_short_does_not_appear(tmp_path, monkeypatch):
     monkeypatch.setattr(video_copies, "TOLERANCE_S", -1.0)
 
     with pytest.raises(RuntimeError, match="lasts"):
-        video_copies.make(video, [])
+        video_copies.make(video, {"map": [], "camera": []})
 
     assert sorted(p.name for p in tmp_path.iterdir()) == ["m.mp4", "reencoded"] and not any((tmp_path / "reencoded").iterdir())
 
@@ -56,14 +56,31 @@ def test_a_frame_is_cut_where_the_camera_looks():
     assert np.all(np.diff(columns.astype(int)) >= 0)
 
 
-def test_the_camera_recorded_goes_with_its_copy_only(tmp_path):
+def test_the_copies_play_along_their_map(tmp_path):
+    video = tmp_path / "m.mp4"
+    clip(video, seconds=4)
+    # The first second, the next at x2, half a second at half speed, a held frame, a cut to the last second.
+    pieces = [[0, 1, 0, 1], [1, 2, 1, 1.5], [2, 2.5, 1.5, 2.5], [2.5, 2.5, 2.5, 3.5], [3.5, 4, 3.5, 4]]
+
+    made = video_copies.make(video, {"map": pieces, "camera": []})
+
+    assert video_copies.duration(made["light"]) == pytest.approx(4, abs=0.1)
+    # The cut's fade: black at the cut.
+    frame = subprocess.run(["ffmpeg", "-v", "error", "-ss", "3.5", "-i", str(made["light"]), "-frames:v", "1", "-vf", "scale=64:36", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True, check=True).stdout
+    assert np.frombuffer(frame, np.uint8).mean() < 30
+    sound = ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=duration", "-of", "csv=p=0", str(made["light"])]
+    assert float(subprocess.run(sound, capture_output=True, text=True).stdout) == pytest.approx(4, abs=0.1)
+
+
+def test_how_they_were_made_goes_with_its_copy_only(tmp_path):
     light = tmp_path / "m_1440p.mp4"
     light.write_bytes(b"made")
     camera = framing.camera_spans(np.array([[0.5, 0.5, 1.0], [0.4, 0.5, 1.5], [0.5, 0.5, 1.0]]))
+    made = {"map": [[0, 10, 0, 10]], "camera": camera}
 
-    video_copies.record(tmp_path, light, camera)
+    video_copies.record(tmp_path, light, made)
 
-    assert video_copies.recorded(tmp_path, light) == camera
+    assert video_copies.recorded(tmp_path, light) == made
     light.write_bytes(b"made again")
     assert video_copies.recorded(tmp_path, light) is None
     assert video_copies.recorded(tmp_path, tmp_path / "other.mp4") is None

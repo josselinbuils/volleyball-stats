@@ -9,6 +9,7 @@ import { usePlayer, useVideoTime } from '@/lib/player';
 import { rallyAt, rallyClips } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { setBreaks, span, ticks } from '@/components/RallyCharts/helpers/timeline';
+import { lasted } from '@/helpers/lasted';
 
 /** The rallies along the video, or along the picked set, as tall as they are long, with the playhead
  * and the set breaks. */
@@ -22,7 +23,7 @@ export function Timeline() {
   // ponytail: the playhead moves in quarter seconds, enough at this scale and 4 renders a second.
   const head = useVideoTime((time) => Math.round(time * 4) / 4);
   const [from, to] = set === null ? [0, match.duration] : span(rallies, match.duration);
-  const top = Math.ceil(Math.max(1, ...rallies.map((r) => r.end - r.start)));
+  const top = Math.ceil(Math.max(1, ...rallies.map((r) => lasted(r))));
   const pct = (time: number) => `${(100 * (time - from)) / (to - from)}%`;
   const width = (seconds: number) => `${(100 * seconds) / (to - from)}%`;
   const breaks = set === null && sets.length > 1 ? setBreaks(rallies) : [];
@@ -47,13 +48,13 @@ export function Timeline() {
           </div>
         ))}
         {rallies.map((r, k) => {
-          const label = `${t('rally', { n: r.i + 1 })} · ${clock(r.start)} · ${f.secs(r.end - r.start)} · ${t('touchesN', { count: r.contacts.filter(isTouch).length })}`;
+          const label = `${t('rally', { n: r.i + 1 })} · ${clock(r.start)} · ${f.secs(lasted(r))} · ${t('touchesN', { count: r.contacts.filter(isTouch).length })}`;
           return (
             <Fragment key={r.i}>
               <div
                 aria-hidden
                 className={cn('pointer-events-none absolute bottom-0 min-w-1 rounded-t-[3px] bg-chart/75 transition-colors', r.i === hover || r.i === current ? 'bg-chart' : '')}
-                style={{ left: pct(r.start), width: width(r.end - r.start), height: `${Math.max(4, (100 * (r.end - r.start)) / top)}%` }}
+                style={{ left: pct(r.start), width: width(r.end - r.start), height: `${Math.max(4, (100 * lasted(r)) / top)}%` }}
               />
               {/* A full-height hit area at least 12 px wide, a button for the keyboard too. */}
               <Tooltip>

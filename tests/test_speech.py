@@ -135,6 +135,11 @@ class TestFitted:
         durations = {clip_name(x): 2.0 for x in "abc"}
         assert [row[1] for row in fitted(lines, durations, {})] == [clip_name("a"), clip_name("c")]
 
+    def test_no_line_runs_over_a_cut_of_the_hosted_video_its_short_one_if_it_fits(self):
+        lines = [{**self.line(1, "long", True), "short": "s"}, self.line(5, "b", True)]
+        durations = {clip_name("long"): 3.0, clip_name("s"): 0.5, clip_name("b"): 2.0}
+        assert [row[1] for row in fitted(lines, durations, {}, (2.0, 6.0))] == [clip_name("s")]
+
     def test_keeps_a_strong_line_whatever_comes_before(self):
         lines = [self.line(1, "a", True), self.line(1.2, "b", True)]
         durations = {clip_name(x): 3.0 for x in "ab"}

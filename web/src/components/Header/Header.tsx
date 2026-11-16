@@ -16,6 +16,7 @@ import { TeamLegend } from '@/components/Header/TeamLegend';
 import { Hint } from '@/components/Tip';
 import { onAppServer, windowTitle } from '@/lib/appServer';
 import { BackLink } from '@/components/BackLink';
+import { lasted } from '@/helpers/lasted';
 
 export function Header() {
   const { t } = useTranslation();
@@ -28,8 +29,8 @@ export function Header() {
   }, [tab]);
 
   // A set lasts from its first serve to its last ball.
-  const span = set === null ? match.duration : rallies.length ? rallies[rallies.length - 1].end - rallies[0].start : 0;
-  const inPlay = rallies.reduce((sum, r) => sum + r.end - r.start, 0);
+  const span = set === null ? match.length : rallies.length ? (rallies[rallies.length - 1].real?.[1] ?? rallies[rallies.length - 1].end) - (rallies[0].real?.[0] ?? rallies[0].start) : 0;
+  const inPlay = rallies.reduce((sum, r) => sum + lasted(r), 0);
   const touches = contacts.filter(isTouch).length;
   const scores = setScores(allRallies, match.scores);
   const shown = set === null ? scores : scores.filter((s) => s.set === set);

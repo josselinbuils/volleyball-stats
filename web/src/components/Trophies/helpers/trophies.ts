@@ -3,6 +3,7 @@ import { isTouch } from '@/helpers/contacts';
 import { playerKey } from '@/helpers/players';
 import { longestRally, serveRun, setAttacks } from '@/helpers/plays';
 import type { Line, Stat } from '@/components/Stats/helpers/stats';
+import { lasted } from '@/helpers/lasted';
 
 /** The counts that win a trophy, each from a minimum so that none goes to next to nothing. */
 const COUNTED: { stat: Stat; least: number }[] = [
@@ -88,7 +89,7 @@ export function trophies(found: Line[], contacts: Contact[], rallies: Rally[], p
   }
   const rally = longestRally(rallies);
   if (rally) {
-    out.push({ kind: 'longest', rally, n: rally.contacts.filter(isTouch).length, seconds: rally.end - rally.start });
+    out.push({ kind: 'longest', rally, n: rally.contacts.filter(isTouch).length, seconds: lasted(rally) });
   }
   return out;
 }

@@ -1095,7 +1095,9 @@
     "reachOf": "Frappe à {{m}} m",
     "in": "Dedans",
     "out": "Dehors",
-    "wrongCall": "Erreur d'arbitrage"
+    "wrongCall": "Erreur d'arbitrage",
+    "endLine": "Ligne de fond",
+    "sideLine": "Ligne de côté"
   },
   "videoOverlay": "Vidéo augmentée",
   "story": {

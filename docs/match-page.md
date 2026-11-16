@@ -52,13 +52,16 @@ moments.
   (`outBack`) and counting up to gold over 0.55 s, sized by the picture's width (`cqw`) up to 80rem: in full screen on a
   1920 px screen two thirds of the whole width's size (the owner, 15 Nov: that too big, 56rem too small), placed on the picture, not its black
   bars. All on the video's clock: paused,
-  it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A close call (`web.line_calls`, in data.js; `helpers/lineCall.ts`, 15 Nov):
+  it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A close call (`web.line_calls`, in data.js; `helpers/lineCall.ts`, 15 Nov; on the hosted video, 16 Nov: slowed down
+  to its bounce, held 2 s while the camera closes in 5x on the ball: [hosting.md](hosting.md)):
   a rally ending on the ball landing within 0.4 m of a line on the other side from its last touch, or any such landing the
   review marks as a wrong call, zooms 2.5 times on the bounce (from 0.6 s before it to 2.2 s after, where the ball is seen
   then: `framing.bounces`, in the camera, so cut into the copies since 16 Nov and shown with "Vidéo augmentée" off too) and,
-  with it on, shows "Dedans" or "Dehors" at the bottom's middle (its right corner on a narrow video) for 2.4 s, the
-  measured mark against its line drawn from above, and "Erreur d'arbitrage" on a wrong call. In or out is told by who won
-  the point (the other team on a wrong call), not by the measure: the mark is drawn only where it says the same, and a close
+  with it on, shows "Dedans" or "Dehors" at the bottom's middle (its right corner on a narrow video) for 2.4 s, on the
+  measured numbers' card (its slanted panel, a green or red stripe, the line told against above the word where the
+  measure agrees; the drawing of the mark seen from above dropped, 16 Nov: the video itself shows the ball), and "Erreur
+  d'arbitrage" in gold on a wrong call. In or out is told by who won
+  the point (the other team on a wrong call), not by the measure: the line is named only where it says the same, and a close
   landing where it does not is left out (13 of the 17 landings within 0.5 m on the three matches agreed). 4, 0 and 5 calls
   on the three matches, the Le Haillan wrong call (an attack called in, 0.92 m out) among them. The films show it too. A canvas in the video's box, drawn by the zoom's loop for the frame
   on screen (`requestVideoFrameCallback`), so it moves with the zoom. `video.js` (`ball.js` until 16 Nov) holds the ball's place by each frame's

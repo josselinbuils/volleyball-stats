@@ -83,8 +83,11 @@ export interface Rally {
   i: number;
   /** What the review's answers name it by: its start frame in rallies.csv. */
   key?: number;
+  /** Where it plays in the video: on the hosted shorter video (`timeline.py`), its own times. */
   start: number;
   end: number;
+  /** Its times in the match, where the video plays it shorter (`timeline.py`): its slow-downs left out of the stats. */
+  real?: [number, number];
   set: number;
   left: Group;
   flipped: boolean;
@@ -171,7 +174,9 @@ export interface Data {
   fps: number;
   duration: number;
   teams: [Team, Team] | null;
-  rallies: { start: number; end: number; set: number; left: Group | null; winner?: Group | null; score?: [number, number] | null }[];
+  rallies: { start: number; end: number; real?: [number, number]; set: number; left: Group | null; winner?: Group | null; score?: [number, number] | null }[];
+  /** The match's length, where the video plays it shorter (`duration` its own). */
+  length?: number;
   contacts: Omit<Contact, 'i' | 'g' | 'player' | 'name'>[];
   zones: ZoneCell[];
   people: Record<string, Person>;
@@ -225,6 +230,7 @@ export const match = {
   poster: data.poster,
   fps: data.fps,
   duration: data.duration,
+  length: data.length ?? data.duration,
   zones: data.zones,
   people: data.people,
   ball3d: data.ball3d ?? false,

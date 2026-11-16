@@ -1,6 +1,7 @@
 import type { Contact, Group, Person, Rally } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
 import { playerKey } from '@/helpers/players';
+import { lasted } from '@/helpers/lasted';
 
 /** Each attack right after a set of its team in the rally, with that set. */
 export function setAttacks(contacts: Contact[]): { set: Contact; attack: Contact }[] {
@@ -91,7 +92,7 @@ export function serveRun(rallies: Rally[], key: string, people: Record<string, P
 /** The longest of `rallies` in touches, then seconds, with a score; undefined without one. */
 export function longestRally(rallies: Rally[]): Rally | undefined {
   const touches = (r: Rally) => r.contacts.filter(isTouch).length;
-  return rallies.filter((r) => r.score && touches(r) > 0).sort((a, b) => touches(b) - touches(a) || b.end - b.start - (a.end - a.start))[0];
+  return rallies.filter((r) => r.score && touches(r) > 0).sort((a, b) => touches(b) - touches(a) || lasted(b) - lasted(a))[0];
 }
 
 /** The touch that scored a rally: its last, or the serve, attack or block before a last touch the other team lost. */

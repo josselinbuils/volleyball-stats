@@ -1095,7 +1095,9 @@
     "reachOf": "Hit at {{m}} m",
     "in": "In",
     "out": "Out",
-    "wrongCall": "Wrong call"
+    "wrongCall": "Wrong call",
+    "endLine": "End line",
+    "sideLine": "Sideline"
   },
   "videoOverlay": "Augmented video",
   "story": {

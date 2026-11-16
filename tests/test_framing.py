@@ -187,7 +187,7 @@ class TestCloseCalls:
         data = self.match(8.8, 1)
         ball = np.array([[10.5, 0.8, 0.6]])
         calls = bounces(line_calls(data), ball, data["rallies"])
-        assert calls == [(pytest.approx(9.9), 12, 0.8, 0.6)]
+        assert calls == [(pytest.approx(9.9), 12, 0.8, 0.6, CALL_ZOOM)]
 
         track = camera([], ball, 20, calls)
 

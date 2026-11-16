@@ -461,10 +461,11 @@ def clip_name(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16] + ".mp3"
 
 
-def placed(lines: list[dict], durations: dict[str, float], spoken: dict[str, str]) -> list[tuple[dict, str, str, float]]:
+def placed(lines: list[dict], durations: dict[str, float], spoken: dict[str, str], walls: tuple[float, ...] = ()) -> list[tuple[dict, str, str, float]]:
     """The lines to say, by time, each with its text, file and seconds, the most telling first in the running (`RANKS`): each
     in full where it fits between those already there, else in `short`, else not at all. A strong line is always said; a `late`
-    one, a rally's end, waits for what is being said."""
+    one, a rally's end, waits for what is being said. None runs over one of the `walls` (the hosted video's cuts: `timeline`),
+    strong or not."""
     out: list[tuple[dict, str, str, float]] = []
     taken: list[tuple[float, float]] = []
 
@@ -482,7 +483,7 @@ def placed(lines: list[dict], durations: dict[str, float], spoken: dict[str, str
                 for begin, stop in sorted(taken):
                     if start < stop and start + seconds > begin:
                         start = stop
-            if start + seconds > line.get("until", float("inf")):
+            if start + seconds > line.get("until", float("inf")) or any(start < wall < start + seconds for wall in walls):
                 continue
             if line["strong"] or all(start + seconds <= begin or start >= stop for begin, stop in taken):
                 out.append(({**line, "t": start}, text, clip, durations[clip]))
@@ -491,19 +492,20 @@ def placed(lines: list[dict], durations: dict[str, float], spoken: dict[str, str
     return sorted(out, key=lambda item: item[0]["t"])
 
 
-def fitted(lines: list[dict], durations: dict[str, float], spoken: dict[str, str]) -> list[list]:
+def fitted(lines: list[dict], durations: dict[str, float], spoken: dict[str, str], walls: tuple[float, ...] = ()) -> list[list]:
     """The lines to say as flat [t, file, seconds, text as the page shows it]."""
-    return [[round(line["t"], 2), clip, round(seconds, 2), text] for line, text, clip, seconds in placed(lines, durations, spoken)]
+    return [[round(line["t"], 2), clip, round(seconds, 2), text] for line, text, clip, seconds in placed(lines, durations, spoken, walls)]
 
 
-def voice_index(match: Path, data: dict) -> dict | None:
-    """What the page plays, from the audio in `match`/voice: `lines` and `replay`, a file by name; None without any."""
+def voice_index(match: Path, data: dict, walls: tuple[float, ...] = ()) -> dict | None:
+    """What the page plays, from the audio in `match`/voice: `lines` and `replay`, a file by name; None without any. No
+    line runs over one of the `walls` (`placed`)."""
     folder = match / "voice"
     if not (folder / "durations.json").exists():
         return None
     durations = json.loads((folder / "durations.json").read_text())
     spoken = read_spoken(match)
-    lines = fitted(script(data), durations, spoken)
+    lines = fitted(script(data), durations, spoken, walls)
     if not lines:
         return None
     replay = {n: clip_name(spelled(text, spoken)) for n, text in replay_lines(data).items()}

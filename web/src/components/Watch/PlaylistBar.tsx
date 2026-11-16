@@ -10,6 +10,7 @@ import { clipLabel, PAD, rallyAt, rallyClips, rallyNear } from '@/lib/playlist';
 import { useSet } from '@/lib/sets';
 import { lastTouch } from '@/components/Watch/helpers/replay';
 import { Tip } from '@/components/Tip';
+import { lasted } from '@/helpers/lasted';
 
 /** What is playing, with the playlist's controls; else the rally the video is on, the one
  * highlighted below, with controls to move to another one and play from it. Under it the action on
@@ -62,7 +63,7 @@ export function PlaylistBar() {
                 </span>
                 <span className="line-clamp-2">
                   <b className="font-semibold text-foreground">{t('rally', { n: rally.i + 1 })}</b>
-                  {` · ${clock(rally.start)} · ${f.secs(rally.end - rally.start)} · ${t('touchesN', { count: rally.contacts.filter(isTouch).length })}`}
+                  {` · ${clock(rally.start)} · ${f.secs(lasted(rally))} · ${t('touchesN', { count: rally.contacts.filter(isTouch).length })}`}
                 </span>
               </>
             ) : (

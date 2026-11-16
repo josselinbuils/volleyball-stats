@@ -135,6 +135,8 @@ The pipeline's weak spots and what is left to do, most useful first.
     5080 PC (the copies were made in 10 on the GPU alone); the Mac, slower, untimed. Made at "Mettre en ligne"; once a
     correction has changed the zoom, the upload asks before making them again, else "Refaire les vidéos au nouveau zoom"
     waits in the menu. The close calls' zoom on the bounce is cut in too (`framing.bounces`), shown with "Vidéo augmentée"
-    off as well; ball.js is now video.js (the ball and the camera). Every match online has copies made before: the next
-    upload asks for each. Left: the Mac's time;
+    off as well; ball.js is now video.js (the ball and the camera). The hosted video is shorter than the match (`timeline.py`):
+    breaks within a set x2, long pauses cut with a fade, each close call slowed to its bounce and held while the camera
+    closes in, the page's data and commentary retimed by it, the review on the match's time (67, 85, 91 min play in 40, 47,
+    52). Every match online has copies made before: the next upload asks for each. Left: the Mac's time;
     a reading thread (ponytail in `video_copies.py`).

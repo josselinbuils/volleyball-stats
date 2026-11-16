@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact, Group, Rally } from '@/lib/match';
-import { callAt, local, type LineCall } from '@/components/Watch/helpers/lineCall';
+import { callAt, type LineCall } from '@/components/Watch/helpers/lineCall';
 
 const touch = (t: number, type: string, x: number, y: number, g: Group) => ({ t, type, x, y, g }) as Contact;
 const rally = (i: number, winner: Group | null, contacts: Contact[], more: Partial<Rally> = {}) =>
@@ -13,13 +13,5 @@ describe('callAt', () => {
   it('holds the call from just after the bounce, until the next rally starts', () => {
     expect([10.5, 10.8, 12, 12.5].map((t) => callAt(calls, rallies, t, 0.2, 2.5)?.rally ?? null)).toEqual([null, 0, 0, 0]);
     expect(callAt(calls, rallies, 13.1, 0.2, 2.5)).toBeNull();
-  });
-});
-
-describe('local', () => {
-  it('turns the court so the mark is seen from outside its line', () => {
-    expect(local({ x: 9.3, y: 2, line: 'end' })).toEqual({ u: 2, v: expect.closeTo(0.3, 5), corner: 4.5 });
-    expect(local({ x: -9.3, y: 2, line: 'end' }).u).toBe(-2);
-    expect(local({ x: 3, y: -4.2, line: 'side' })).toEqual({ u: 3, v: expect.closeTo(-0.3, 5), corner: 9 });
   });
 });

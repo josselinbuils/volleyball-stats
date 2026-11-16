@@ -128,6 +128,8 @@ SPRING_STEP_S = 0.02
 # A close call's bounce (`bounces`): zoomed this much, from this long before it to this long after, where the ball is seen
 # this near it (the page's until 16 Nov).
 CALL_ZOOM, CALL_BEFORE_S, CALL_AFTER_S, CALL_SEEN_S = 2.5, 0.6, 2.2, 0.12
+# The hosted video's held bounce (`timeline`): zoomed this much on the ball, back out this long before it plays on.
+HELD_ZOOM, HELD_BACK_S = 5.0, 0.6
 # Under this zoom the camera shows the whole picture: no sample kept there. Its samples kept in whole numbers of CAMERA_UNIT.
 WHOLE_ZOOM = 1.0005
 CAMERA_UNIT = 1e-4
@@ -167,24 +169,31 @@ def frames_at(shown: list[list[float]], times: np.ndarray, ball: np.ndarray) -> 
     return np.column_stack([np.where(inside, np.minimum(1 - w, np.maximum(0, x)) + w / 2, place(x1, x2)), np.where(inside, np.minimum(1 - w, np.maximum(0, y)) + w / 2, place(y1, y2)), 1 / size])
 
 
-def bounces(calls: list[dict], ball: np.ndarray, rallies: list[dict]) -> list[tuple[float, float, float, float]]:
+def bounces(calls: list[dict], ball: np.ndarray, rallies: list[dict], held: list[tuple[float, float]] = ()) -> list[tuple[float, ...]]:
     """The close calls' zooms (`web.line_calls`) where the ball (rows [time, x, y] by time) is seen within CALL_SEEN_S of
-    the bounce: (from, until, x, y), CALL_BEFORE_S before it to CALL_AFTER_S after, until the next rally starts."""
+    the bounce: (from, until, x, y, zoom), CALL_ZOOM from CALL_BEFORE_S before it to CALL_AFTER_S after, until the next
+    rally starts; on the hosted video, HELD_ZOOM on the ball while its bounce is `held` (`timeline.held`), back out
+    HELD_BACK_S before it plays on."""
     out = []
+    for start, end in held:
+        near = np.abs(ball[:, 0] - start) if len(ball) else np.empty(0)
+        if len(near) and near.min() <= CALL_SEEN_S:
+            _, x, y = ball[near.argmin()]
+            out.append((start, end - HELD_BACK_S, float(x), float(y), HELD_ZOOM))
     for call in calls:
         near = np.abs(ball[:, 0] - call["t"]) if len(ball) else np.empty(0)
         if not len(near) or near.min() > CALL_SEEN_S:
             continue
         _, x, y = ball[near.argmin()]
         following = rallies[call["rally"] + 1]["start"] if call["rally"] + 1 < len(rallies) else np.inf
-        out.append((call["t"] - CALL_BEFORE_S, min(call["t"] + CALL_AFTER_S, following), float(x), float(y)))
-    return out
+        out.append((call["t"] - CALL_BEFORE_S, min(call["t"] + CALL_AFTER_S, following), float(x), float(y), CALL_ZOOM))
+    return sorted(out)
 
 
-def camera(shown: list[list[float]], ball: np.ndarray, duration: float, calls: list[tuple[float, float, float, float]] = ()) -> np.ndarray:
+def camera(shown: list[list[float]], ball: np.ndarray, duration: float, calls: list[tuple[float, ...]] = ()) -> np.ndarray:
     """The camera over the video's `duration` (seconds), every CAMERA_STEP_S from 0: rows [centre x, centre y, zoom], in
-    fractions of the picture, from the views (`views`) and the ball (rows [time, x, y] by time); CALL_ZOOM on each close
-    call's bounce (`bounces`) while it lasts, by a spring of its own."""
+    fractions of the picture, from the views (`views`) and the ball (rows [time, x, y] by time); on each close call's
+    bounce (`bounces`, its zoom) while it lasts, by springs of its own: its share of the view, and its zoom."""
     if not shown and not calls:
         return np.tile([0.5, 0.5, 1.0], (int(duration / CAMERA_STEP_S) + 1, 1))
     reach = round(CAMERA_AHEAD_S / CAMERA_STEP_S)
@@ -195,11 +204,12 @@ def camera(shown: list[list[float]], ball: np.ndarray, duration: float, calls: l
     steps = round(CAMERA_STEP_S / SPRING_STEP_S)
     out = np.empty((len(target) - 1, 3))
     now, speed = [0.5, 0.5, 1.0], [0.0, 0.0, 0.0]
-    # The close call's share of the view, its speed, and its bounce: the last one begun.
+    # The close call's share of the view and its zoom, their speeds, and its bounce: the last one begun.
     calls = sorted(calls)
     share_now, share_speed, at, next_call = 0.0, 0.0, (0.5, 0.5), 0
+    zoom_now, zoom_speed, zoom_goal = CALL_ZOOM, 0.0, CALL_ZOOM
     for k in range(len(out)):
-        width = 1 / now[2] + (1 / CALL_ZOOM - 1 / now[2]) * share_now
+        width = 1 / now[2] + (1 / zoom_now - 1 / now[2]) * share_now
         out[k] = [now[0] + (at[0] - now[0]) * share_now, now[1] + (at[1] - now[1]) * share_now, 1 / width]
         a, b = target[k], target[k + 1]
         for s in range(steps):
@@ -210,8 +220,12 @@ def camera(shown: list[list[float]], ball: np.ndarray, duration: float, calls: l
                 now[i] += speed[i] * SPRING_STEP_S
             time = (k + share) * CAMERA_STEP_S
             while next_call < len(calls) and calls[next_call][0] <= time:
-                at = calls[next_call][2:]
+                at, zoom_goal = calls[next_call][2:4], calls[next_call][4]
+                if share_now < 0.01:
+                    zoom_now, zoom_speed = zoom_goal, 0.0
                 next_call += 1
+            zoom_speed += (SPRING * SPRING * (zoom_goal - zoom_now) - 2 * SPRING * zoom_speed) * SPRING_STEP_S
+            zoom_now += zoom_speed * SPRING_STEP_S
             on = next_call and calls[next_call - 1][0] <= time <= calls[next_call - 1][1]
             share_speed += (SPRING * SPRING * ((1.0 if on else 0.0) - share_now) - 2 * SPRING * share_speed) * SPRING_STEP_S
             share_now += share_speed * SPRING_STEP_S

@@ -8,6 +8,7 @@ import { color, groupName, sets, TYPES } from '@/lib/match';
 import { useSet } from '@/lib/sets';
 import { Tip } from '@/components/Tip';
 import { entryDetail, entryTime, useWatchList } from '@/components/Watch/useWatchList';
+import { lasted } from '@/helpers/lasted';
 
 // A card shows this many letters at most, the rest counted: one long rally would make every card in the row as tall.
 const LETTERS = 10;
@@ -69,7 +70,7 @@ export function RallyCards() {
                     <span className="flex flex-wrap gap-x-2.5 text-[13px] text-muted-foreground tabular-nums">
                       <b className="font-semibold text-foreground">{t('rally', { n: r.i + 1 })}</b>
                       <span>{e.contact ? entryTime(e) : clock(r.start)}</span>
-                      {!e.contact && <span>{f.secs(r.end - r.start)}</span>}
+                      {!e.contact && <span>{f.secs(lasted(r))}</span>}
                       {set === null && sets.length > 1 && <span>{t('set', { n: r.set })}</span>}
                     </span>
                     {e.contact

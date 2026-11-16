@@ -154,12 +154,23 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 - `--small-video`: a 720p H.264 one (same with `scale=1280:720`, -56% against 1080p, -78% against 1440p) the page plays while its player is
   small; the 1440p copy in full screen or over 1600 screen pixels wide (always for copies the page zooms, made before 16
   Nov), the video carrying on where it stood.
+- Shorter than the match (16 Nov, the owner's calls; `timeline.py`): the rallies at their speed, the breaks within a set
+  twice as fast (but 1 s after the rally and before the next serve, the sound sped up by ffmpeg's `atempo`, its pitch
+  kept), the long pauses cut with a 0.3 s fade through black, picture and sound (timeouts, between sets, any break over
+  45 s, before the first rally and after the last; 2 s kept either side), and each close call slowed down to half speed
+  over its last 0.6 s (the source's own 50 frames a second) then its bounce held 2 s while the camera closes in 5x on the
+  ball, silent. The bounce: the ball's lowest place in the picture within 0.3 s of the landing touch. On the three
+  matches 67, 85 and 91 minutes play in 40, 47 and 52 (29 Oct made so on the PC: 39 min, 2.4 GB for the three copies). The
+  close call's card lands as the bounce is held. The copies are made along that map
+  (`copies_made.json` keeps it with the camera); the hosted page's data is retimed by it (`timeline.retimed`: rallies,
+  touches, timeouts, calls, ball, positions; each rally keeps its own times in `real` and the match its `length` for the
+  stats), and the commentary is placed on that time, no line over a cut. The review keeps the source's time.
 - Cut by the automatic zoom (16 Nov, the owner's call; `video_copies.make`): each frame of the copies is cut from the 4K
   source where the zoom looks then (`framing.camera`, every 0.1 s, close calls' bounces included, the same in video.js for the page to draw by), so a zoomed
   moment keeps the source's pixels instead of the page enlarging a 1440p copy. ffmpeg decodes the source (on the GPU when it
   can) into raw frames, OpenCV cuts each one at sub-pixel precision (`warpAffine`, bicubic), ffmpeg encodes the three copies
   from them with the source's sound. The camera they were cut by is kept in `outputs/matches/MATCH/copies_camera.json`
-  (with the 1440p copy's name and size): the hosted page draws by it (`match.zoomed`), even once the review's zoom has
+  (now `copies_made.json`, with the time map, the 1440p copy's name and size): the hosted page draws by it (`match.zoomed`), even once the review's zoom has
   changed, until the owner makes them again (review.md). VMAF of the 1440p H.264 copy (NVENC CQ 33) on 20 s of the Avia
   match, against the 4K source cut the same way (lanczos), each shown as the browser does (bilinear):
 
