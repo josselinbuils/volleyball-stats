@@ -49,6 +49,9 @@ def test_the_figure_and_hair_set_by_name_hold_across_matches(tmp_path):
         choose(a, "Landy", "hair", "green")
     choose(a, "1:3", "hair", "bald")
     assert chosen(a)["1:3"] == {"hair": "bald"}
+    # A name from the jersey number alone is another player in each match.
+    choose(a, "Joueur 9", "hair", "bald")
+    assert chosen(a)["Joueur 9"] == {"hair": "bald"} and "Joueur 9" not in chosen(b)
 
 
 def test_dress_parses_each_card_once(tmp_path, monkeypatch):

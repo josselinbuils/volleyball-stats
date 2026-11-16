@@ -29,6 +29,7 @@ import threading
 import time
 import traceback
 from collections import Counter, defaultdict, deque
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1547,6 +1548,7 @@ def propose(cards: dict[tuple[int, int], np.ndarray | None], read: dict[tuple[in
             used.add(k)
     given = set(taken) | {(card[0], p["name"].casefold()) for card, p in out.items()}
     for card in cards:
+        # likeness.NUMBERED
         name = f"Joueur {read[card]}" if card in read else None
         if card not in out and name and (card[0], name.casefold()) not in given:
             out[card] = {"name": name, "jersey": read[card]}
@@ -1642,18 +1644,29 @@ def set_photo(match: Path, table: list, team: int, number: int, frame: int, box:
 
 def set_look(match: Path, table: list, team: int, number: int, field: str, value: str) -> None:
     """likeness.CHOICES with the 3D figure's `field` (`figure`, a man's or a woman's, or `hair`, its colour) of identity
-    `number` of `team` set to `value`, by the player's name (other matches take it too), else by their card; the review's
-    page showing it at once. ValueError for anything else."""
+    `number` of `team` set to `value`, by the player's name, else by their card; the review's page showing it at once, and
+    by name (not a likeness.NUMBERED one) the pages of the player's other matches too, their own choice following (their
+    hosted copies then late)."""
     who = (identity.named(table, identity.read_names(match)).get((team, number)) or {}).get("name")
     likeness.choose(match, who or f"{team}:{number}", field, value)
-    site = match / "review"
-    people = (page_data(site) or {}).get("people")
-    if people is None:
+    show_look(match / "review", lambda p: (p["team"], p["number"]) == (team, number) or bool(who and p.get("name") == who), field, value)
+    if not who or likeness.NUMBERED.fullmatch(who):
         return
-    for person in people.values():
-        if (person["team"], person["number"]) == (team, number) or (who and person.get("name") == who):
-            person["look"] = {**(person.get("look") or {}), field: value}
+    for other in sorted(p for p in match.parent.iterdir() if p != match and (p / "review" / "data.js").exists()):
+        if show_look(other / "review", lambda p: p.get("name") == who, field, value):
+            likeness.choose(other, who, field, value)
+
+
+def show_look(site: Path, whose: Callable[[dict], bool], field: str, value: str) -> bool:
+    """The page at `site` with the 3D figure's `field` of each person `whose` set to `value`; whether one was."""
+    people = (page_data(site) or {}).get("people")
+    found = [p for p in (people or {}).values() if whose(p)]
+    if not found:
+        return False
+    for person in found:
+        person["look"] = {**(person.get("look") or {}), field: value}
     web.patch_people(site, people)
+    return True
 
 
 def set_team(match: Path, team: int, name: str | None, colour: str | None) -> None:
@@ -2139,11 +2152,18 @@ def code_version() -> str:
 CODE = code_version()
 
 
-def record_hosted(match: Path) -> None:
+def page_taken(match: Path) -> tuple[dict, str]:
+    """The review's page of `match` as an upload starting now takes it: its content and stamp, for `record_hosted`."""
+    return page_content(match), page_stamp(match)
+
+
+def record_hosted(match: Path, taken: tuple[dict, str] | None = None) -> None:
     """The upload of `match`'s page just made: its time, stamp and the code that built it, on disk now (HOSTED), and what it
-    sent (HOSTED_PAGE). The stamp is the review's page as last built, by older code maybe: `restamp` then takes the next build."""
-    files.write_text(match / HOSTED_PAGE, json.dumps(page_content(match), ensure_ascii=False) + "\n")
-    files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": page_stamp(match), "pages": list(STAMPED), "code": code_version()}) + "\n")
+    sent (HOSTED_PAGE): the page as the upload began (`taken`, `page_taken`), a change made while it ran left late. The stamp
+    is the review's page as last built, by older code maybe: `restamp` then takes the next build."""
+    content, stamp = taken or page_taken(match)
+    files.write_text(match / HOSTED_PAGE, json.dumps(content, ensure_ascii=False) + "\n")
+    files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": stamp, "pages": list(STAMPED), "code": code_version()}) + "\n")
 
 
 def restamp(match: Path, before: str | None) -> None:
@@ -2550,6 +2570,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             # Those newer on the server are left as they are online (`matches.main`).
             newer = sync.behind(done)
             done = [m for m in done if m.name not in newer]
+            # Each page as the upload begins: a change made while it runs stays late.
+            taken = {m: page_taken(m) for m in done if (m / "review" / "data.js").exists()}
             # In its own process, with the code as it now is, whenever this server started.
             # Its own stages' share told (`jobs.PROGRESS` lines) goes to `shared`; its errors kept for the message.
             child = subprocess.Popen([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", theme], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -2563,9 +2585,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             reader.join()
             if code:
                 raise RuntimeError(("".join(errors).strip().splitlines() or [f"exit {code}"])[-1])
-            for m in done:
-                if (m / "review" / "data.js").exists():
-                    record_hosted(m)
+            for m, page in taken.items():
+                record_hosted(m, page)
             hosted.update(read_hosted(match))
         except Exception as error:  # noqa: BLE001
             # The answers stay applied: only the hosted page is behind.

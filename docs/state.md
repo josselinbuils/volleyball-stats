@@ -115,7 +115,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     [benchmark](../benchmarks/likeness/README.md)). Hair colour, hairstyle and skin guessed from each player's card picture
     (SegFormer human parsing, MIT; seconds a match, cached in each match's `likeness_seen.json`); the review's Names tab sets the
     figure, a man's or a woman's ("Silhouette 3D"), and corrects the hair colour or makes a player bald ("Cheveux", the
-    owner's call, 16 Nov) (`likeness_choices.json` by name, other matches take it). The guess takes ~7 s a match on
+    owner's call, 16 Nov) (`likeness_choices.json` by name, other matches take it, not a "Joueur N"). The guess takes ~7 s a match on
     the RTX 5080 the first time (5 s loading the model, 0.1 s a card). A woman's figure:
     slimmer, her short hair drawn as a long bob to mid-neck (the owner's pick among five, 16 Nov). Only beside the video,
     never for a blurred team (`web.hide_looks`). Dropped: hand-set skin and hairstyle (the owner's call), a beard and

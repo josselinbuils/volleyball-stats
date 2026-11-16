@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import cv2
@@ -51,6 +52,8 @@ SEEN = "likeness_seen.json"
 
 # The review's corrections, by the player's name else by their card ("team:number").
 CHOICES = "likeness_choices.json"
+# The name a card gets from its jersey number alone (`review.propose`): another player in each match, whose choices stay in it.
+NUMBERED = re.compile(r"Joueur \d+")
 
 LOADED: list = []
 
@@ -183,11 +186,11 @@ def corrected(guessed: dict | None, given: dict | None) -> dict | None:
 
 def chosen(match: Path) -> dict[str, dict]:
     """The Names tab's choices (CHOICES), by name or card, the ALLOWED ones only; a name's in another match too (the latest's), a
-    player looking the same from one match to the next."""
+    player looking the same from one match to the next, but a NUMBERED one's."""
     out: dict[str, dict] = {}
     others = sorted((p for p in match.parent.glob(f"*/{CHOICES}") if p.parent != match), key=lambda p: p.stat().st_mtime)
     for path in others:
-        out.update({who: look for who, look in json.loads(path.read_text()).items() if ":" not in who})
+        out.update({who: look for who, look in json.loads(path.read_text()).items() if ":" not in who and not NUMBERED.fullmatch(who)})
     path = match / CHOICES
     for who, look in (json.loads(path.read_text()) if path.exists() else {}).items():
         out[who] = {**out.get(who, {}), **look}

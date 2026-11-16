@@ -789,14 +789,15 @@ def main() -> None:
         if not found:
             told.stopped.set()
             return None
+        from volleyball_stats import review
+
+        # Each page as the upload begins: a change made while it runs stays late.
+        taken = {m: review.page_taken(m) for m, *_ in found if (m / "review" / "data.js").exists()}
         if config:
             mirror(config, told.share_of_stage)
         host_all(found, args.theme, mirrored=config is not None, told=told)
-        from volleyball_stats import review
-
-        for match, *_ in found:
-            if (match / "review" / "data.js").exists():
-                review.record_hosted(match)
+        for match, page in taken.items():
+            review.record_hosted(match, page)
         return None
     if not args.site:
         parser.error("site or --host")

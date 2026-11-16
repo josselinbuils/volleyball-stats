@@ -108,7 +108,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   unidentified player.
 - A player's card has "Silhouette 3D", a man's or a woman's figure, and "Cheveux", the hair colour guessed from the
   card's picture (`likeness.py`) to correct, or bald (never guessed) (`/look`, saved at once in `likeness_choices.json`
-  by name, else by card: the player's next matches take it too; the page's data patched, no rebuild). The hairstyle and
+  by name, else by card: the player's other matches take it too, their pages patched at once, their hosted copies then
+  late; not a "Joueur N" name, another player in each match; no rebuild). The hairstyle and
   skin stay the guess's alone (the owner's call, 16 Nov).
 
 ## The match list, renames, timeouts

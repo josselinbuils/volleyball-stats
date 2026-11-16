@@ -69,7 +69,7 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   tip lists each cause on its line: "Joueurs" names only the named players whose card changed; the tracks without a name,
   kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs");
 - runs, as jobs that outlive the server, "Mettre à jour" the matches ticked in the list, late ones only (an up-to-date
-  one's box is off), at first the newest, "Tout sélectionner" ticking every late one ("Tout mettre à jour" when all are: `matches --all [--only MATCH ...]`, recording each upload as the review does),
+  one's box is off), at first the newest, "Tout sélectionner" ticking every late one ("Tout mettre à jour" when all are: `matches --all [--only MATCH ...]`, recording each upload as the review does: each page as the upload began, a change made while it runs left late),
   "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them) and "Vérifier"
   (`sync verify`). Each has a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
   duration on this machine, `outputs/hosting_timings.json`, `outputs/backup_timings.json`);

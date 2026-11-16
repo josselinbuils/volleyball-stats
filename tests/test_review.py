@@ -1347,6 +1347,58 @@ class TestPageStamp:
         assert review.page_stamp(tmp_path) != first
 
 
+def test_a_look_set_by_name_shows_on_the_players_other_matches_whose_hosted_copy_goes_late(tmp_path, monkeypatch):
+    from volleyball_stats import identity, likeness, review
+
+    def page(match, people):
+        site = match / "review"
+        site.mkdir(parents=True)
+        (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people, 'v': 'a'})};\n")
+        (site / "index.html").write_text('<script src="data.js?v=a"></script>')
+
+    a, b, c = (tmp_path / n for n in "abc")
+    page(a, {"1": {"team": 1, "number": 3, "name": "Landy", "look": {"hair": "dark"}}})
+    page(b, {"4": {"team": 2, "number": 7, "name": "Landy", "look": {"hair": "dark", "skin": 2}}, "5": {"team": 2, "number": 8, "name": "Zoé"}})
+    page(c, {"1": {"team": 1, "number": 3, "name": "Zoé"}})
+    (b / likeness.CHOICES).write_text(json.dumps({"Landy": {"hair": "dark"}}))
+    review.record_hosted(b)
+    review.record_hosted(c)
+    monkeypatch.setattr(identity, "read_names", lambda match: {})
+    monkeypatch.setattr(identity, "named", lambda table, names: {(1, 3): {"name": "Landy"}})
+
+    review.set_look(a, [], 1, 3, "hair", "red")
+
+    assert review.page_data(b / "review")["people"]["4"]["look"] == {"hair": "red", "skin": 2}
+    assert "look" not in review.page_data(b / "review")["people"]["5"]
+    # Its own choice follows, a rebuild keeping it; the match without the player is untouched.
+    assert likeness.chosen(b)["Landy"]["hair"] == "red"
+    assert review.read_hosted(b)["behind"] and not review.read_hosted(c)["behind"]
+
+    # A name from the jersey number alone is another player in each match.
+    page(tmp_path / "d", {"1": {"team": 1, "number": 4, "name": "Joueur 9"}})
+    page(tmp_path / "e", {"1": {"team": 2, "number": 2, "name": "Joueur 9"}})
+    monkeypatch.setattr(identity, "named", lambda table, names: {(1, 4): {"name": "Joueur 9"}})
+    review.set_look(tmp_path / "d", [], 1, 4, "hair", "bald")
+    assert review.page_data(tmp_path / "d" / "review")["people"]["1"]["look"] == {"hair": "bald"}
+    assert "look" not in review.page_data(tmp_path / "e" / "review")["people"]["1"]
+
+
+def test_a_change_made_while_an_upload_runs_leaves_its_page_late(tmp_path):
+    from volleyball_stats import review, web
+
+    site = tmp_path / "review"
+    site.mkdir()
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n")
+    (site / "index.html").write_text('<script src="data.js?v=a"></script>')
+    taken = review.page_taken(tmp_path)
+    web.patch_people(site, {"1": {"team": 1, "number": 3, "look": {"hair": "red"}}})
+
+    review.record_hosted(tmp_path, taken)
+
+    hosted = review.read_hosted(tmp_path)
+    assert hosted["behind"] and hosted["changes"]
+
+
 class TestPageChanges:
     def test_each_changed_part_with_how_many_of_its_items_then_the_code(self):
         from volleyball_stats.review import page_changes
