@@ -42,9 +42,9 @@ The pipeline's weak spots and what is left to do, most useful first.
    the same number), scoreboard 6.6 -> 3.1 min (same scores).
 8. `data/benchmarks/` holds the benchmark clips, `outputs/benchmarks/` their outputs.
 9. The owner's plan, nothing started, on hold (13 Nov: the owner thinks the queue over first; open: how a 42 GB video
-   reaches the machine taking a job, the server having 18 GB free): a helper they trust,
+   reaches the machine taking a job; the server, moved 16 Nov, has 70 GB free): a helper they trust,
    then maybe other people's matches. First a job queue the Mac and the 5080 pull from (they only reach out; a busy one takes no job),
-   useful alone; then the VPS's system upgraded (2 vCPU, 3.7 GB, 18 GB free, Ubuntu 20.04), a login per person and the review on it, with
+   useful alone; then (the new VPS since 16 Nov: 6 vCPU, 11 GB, Ubuntu 26.04) a login per person and the review on it, with
    the slow steps on the workers, a process per open match (`review.switch` restarts the only server) and crops prepared from the 4K.
    About 1-2 weeks, about EUR 0-1 a month. Other people adding matches is decided later: uploads, court setup in the browser, clubs kept
    apart, workers sandboxed, consent and GDPR (advice first; the hosting rules in `CLAUDE.md` would change on purpose). In between, a club sends a video
