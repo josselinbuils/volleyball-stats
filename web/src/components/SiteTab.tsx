@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { CircleCheck, CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
+import { CircleCheck, CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Square, SquareCheck, Trash2, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
@@ -112,7 +112,7 @@ export function SiteTab() {
   // A copy to restore from, and what of it.
   const [restoring, setRestoring] = useState<{ day: string; matches: string[]; what: string } | null>(null);
   const [restored, setRestored] = useState<boolean | null>(null);
-  // The matches online to update: at first the newest only.
+  // The matches online to update, late ones only: at first the newest.
   const [picked, setPicked] = useState<Set<string> | null>(null);
   // The action running: saving, testing, starting a job, switching the automatic copies, a count or a copy removed.
   const [doing, run] = useRunning();
@@ -121,7 +121,8 @@ export function SiteTab() {
     const r = await call<ServerState>('server');
     if (r.ok) {
       setState(r);
-      setPicked((p) => p ?? new Set(r.online.slice(0, 1).map((m) => m.name)));
+      const newest = r.online.find((m) => m.behind);
+      setPicked((p) => p ?? new Set(newest ? [newest.name] : []));
     }
     return r;
   }, []);
@@ -236,7 +237,8 @@ export function SiteTab() {
     return saved ? f.when(saved) : day.includes('T') ? f.when(`${day}:00`) : f.date(day);
   };
   const saved = state?.server;
-  const chosen = state?.online.filter((m) => picked?.has(m.name)).map((m) => m.name) ?? [];
+  const late = state?.online.filter((m) => m.behind).map((m) => m.name) ?? [];
+  const chosen = late.filter((name) => picked?.has(name));
   const hosting = doing === 'host' || !!state?.hosting?.running;
   const pick = (name: string, on: boolean) =>
     setPicked((p) => {
@@ -433,7 +435,7 @@ export function SiteTab() {
                 const name = m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
                 return (
                   <li key={m.name} className="flex min-w-0 items-center gap-3 px-3 py-2">
-                    <input type="checkbox" aria-label={name} checked={!!picked?.has(m.name)} disabled={hosting} onChange={(e) => pick(m.name, e.target.checked)} />
+                    <input type="checkbox" aria-label={name} checked={m.behind && !!picked?.has(m.name)} disabled={hosting || !m.behind} onChange={(e) => pick(m.name, e.target.checked)} />
                     {/* The date goes under the match when the row is narrow. */}
                     <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
                       {m.url ? (
@@ -471,8 +473,14 @@ export function SiteTab() {
           <div className="flex flex-wrap gap-2">
             <Button busy={hosting} disabled={!saved || !chosen.length} onClick={() => void start('host')}>
               <CloudUpload aria-hidden />
-              {chosen.length === state.online.length ? t('server.hostAll') : t('server.host', { count: chosen.length })}
+              {chosen.length && chosen.length === late.length ? t('server.hostAll') : t('server.host', { count: chosen.length })}
             </Button>
+            {late.length > 1 && (
+              <Button variant="outline" className="bg-card" disabled={hosting} onClick={() => setPicked(new Set(chosen.length === late.length ? [] : late))}>
+                {chosen.length === late.length ? <Square aria-hidden /> : <SquareCheck aria-hidden />}
+                {t(chosen.length === late.length ? 'server.pickNone' : 'server.pickAll')}
+              </Button>
+            )}
             {saved?.url && (
               <Button variant="outline" className="bg-card" asChild>
                 <a href={saved.url} target="_blank" rel="noreferrer">

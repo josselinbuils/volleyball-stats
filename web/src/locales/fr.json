@@ -981,6 +981,8 @@
     "host_other": "Mettre à jour {{count}} matchs",
     "upToDate": "À jour",
     "late": "En retard",
+    "pickAll": "Tout sélectionner",
+    "pickNone": "Tout désélectionner",
     "noneOnline": "Aucun match en ligne.",
     "openOnline": "Voir en ligne",
     "hosting": "Mise en ligne…",

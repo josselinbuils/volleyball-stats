@@ -981,6 +981,8 @@
     "host_other": "Update {{count}} matches",
     "upToDate": "Up to date",
     "late": "Late",
+    "pickAll": "Select all",
+    "pickNone": "Deselect all",
     "noneOnline": "No match online.",
     "openOnline": "See online",
     "hosting": "Uploading…",
