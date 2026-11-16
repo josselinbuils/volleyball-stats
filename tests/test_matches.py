@@ -711,3 +711,14 @@ class TestCounted:
         with pytest.raises(subprocess.CalledProcessError) as error:
             matches.counted([str(script)], 1)
         assert error.value.returncode == 12 and "no route" in error.value.stderr
+
+
+class TestSsh:
+    def test_a_new_server_is_reached_without_a_question(self):
+        """After a move, the first upload takes the new server's host key instead of failing (BatchMode never asks)."""
+        options = matches.ssh_options("~/key")
+        assert "StrictHostKeyChecking=accept-new" in options and "BatchMode=yes" in options and "~" not in options[1]
+
+    def test_rsync_keeps_a_key_path_with_spaces_whole(self, tmp_path):
+        command = matches.upload_command({"key": "/Users/A B/key", "upload": "root@h:/site/"}, tmp_path, [])
+        assert "'/Users/A B/key'" in command[command.index("-e") + 1]

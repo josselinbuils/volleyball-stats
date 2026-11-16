@@ -452,9 +452,20 @@ def feedback_address(url: str | None) -> str | None:
     return f"{urllib.parse.urlparse(url).path.rstrip('/')}/feedback" if url else None
 
 
+def ssh_options(key: str) -> list[str]:
+    """ssh's options for the server: its key, never a question (a server's host key is taken the first time, as after a
+    move to a new server, and refused if it changes later)."""
+    return ["-i", str(Path(key).expanduser()), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10"]
+
+
+def ssh_shell(key: str) -> str:
+    """The ssh command for rsync's -e."""
+    return shlex.join(["ssh", *ssh_options(key)])
+
+
 def install_key(config: dict, folder: str) -> None:
     host_name, path = config["upload"].split(":", 1)
-    ssh = ["ssh", "-i", str(Path(config["key"]).expanduser()), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host_name]
+    ssh = ["ssh", *ssh_options(config["key"]), host_name]
     subprocess.run([*ssh, key_command(Path(path).parent, folder, config["videoKey"])], check=True, capture_output=True, timeout=60)
 
 
@@ -528,7 +539,7 @@ def mirror(config: dict, share: jobs.Share = jobs.quiet) -> None:
     received counted, the share told as it goes."""
     site = Path(config["site"]).expanduser()
     site.mkdir(parents=True, exist_ok=True)
-    counted(["rsync", "-rt", "--delete", "--include=*/video/films/*.mp4", "--exclude=*.mp4", "-e", f"ssh -i {Path(config['key']).expanduser()}", config["upload"], f"{site}/"], None, share)
+    counted(["rsync", "-rt", "--delete", "--include=*/video/films/*.mp4", "--exclude=*.mp4", "-e", ssh_shell(config["key"]), config["upload"], f"{site}/"], None, share)
 
 
 def upload_command(config: dict, site: Path, rebuilt: list[str], dry: bool = False) -> list[str]:
@@ -536,7 +547,7 @@ def upload_command(config: dict, site: Path, rebuilt: list[str], dry: bool = Fal
     return [
         "rsync", "-rt", "--delete", "--delay-updates", *(["--dry-run", "--itemize-changes"] if dry else []),
         *[f"--include=/{name}/**.mp4" for name in rebuilt], "--exclude=*.mp4",
-        "-e", f"ssh -i {Path(config['key']).expanduser()}", f"{site}/", config["upload"],
+        "-e", ssh_shell(config["key"]), f"{site}/", config["upload"],
     ]  # fmt: skip
 
 

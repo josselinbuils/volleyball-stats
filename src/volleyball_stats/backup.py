@@ -148,7 +148,7 @@ def rsync_command(paths: list[Path], host: str, ssh: list[str], root: str, day: 
     with `merge` (what sits beside the matches, shared by the machines) each file goes up only if newer, none removed."""
     return [
         "rsync", "-rt", "--delay-updates", *(["--update"] if merge else ["--delete"]), *[f"--exclude={p}" for p in SKIP],
-        "-e", " ".join(ssh), *map(str, paths), f"{host}:{root}/{day}/",
+        "-e", shlex.join(ssh), *map(str, paths), f"{host}:{root}/{day}/",
     ]  # fmt: skip
 
 
@@ -269,7 +269,7 @@ def upload(own: list[Path], beside: list[Path], config: dict, name: str | None, 
 
 def connection(config: dict) -> tuple[str, list[str]]:
     """The server's host and the ssh command reaching it, from a publish.json's `upload` and `key`."""
-    return config["upload"].split(":")[0], ["ssh", "-i", str(Path(config["key"]).expanduser()), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10"]
+    return config["upload"].split(":")[0], ["ssh", *matches.ssh_options(config["key"])]
 
 
 def rename_copies(match: Path, old: str, root: str | None = None) -> None:

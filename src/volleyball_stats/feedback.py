@@ -11,6 +11,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from volleyball_stats.matches import ssh_options
+
 
 def merge(report: dict, later: dict) -> dict:
     """`report` completed by `later`, the same report (`id`) sent again with details: what it says
@@ -47,7 +49,7 @@ def fetch(folder: Path, upload: str, key: str) -> Path | None:
     holds nothing. The copy is kept before the log is emptied."""
     host, site = upload.split(":", 1)
     online = str(Path(site.rstrip("/")).parent / "feedback" / "feedback.log")
-    ssh = ["-i", str(Path(key).expanduser()), "-o", "BatchMode=yes"]
+    ssh = ssh_options(key)
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"feedback-{time.strftime('%Y%m%d-%H%M%S')}.log"
     subprocess.run(["scp", *ssh, f"{host}:{online}", str(target)], check=True, capture_output=True)
