@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { LoaderCircle, Lock } from 'lucide-react';
@@ -6,10 +6,10 @@ import { VideoError } from '@/components/VideoError';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetBadge } from '@/components/SetBadge';
-import { loadBall, useBall } from '@/lib/ball';
+import { loadVideoData, useVideoData } from '@/lib/video';
 import { useFormat } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { match, rallies, timeoutAt, timeoutLabel } from '@/lib/match';
+import { match, timeoutAt, timeoutLabel } from '@/lib/match';
 import { Clock } from '@/lib/clock';
 import { togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import type { Clip } from '@/lib/playlist';
@@ -21,17 +21,11 @@ import { Replay, ReplayCaption } from '@/components/Watch/Replay';
 import { Scoreboard } from '@/components/Watch/Scoreboard';
 import { VideoControls } from '@/components/Watch/VideoControls';
 import { useLayout } from '@/components/Watch/LayoutMenu';
-import { BELOW_TOWER, LINE_CALLS, Overlay, SCORED, type Paint } from '@/components/Watch/Overlay';
+import { BELOW_TOWER, Overlay, SCORED, type Paint } from '@/components/Watch/Overlay';
 import { askVideo } from '@/components/VideoChoice';
-import { WHOLE, between, cameraAt, sampleNear, spring, throughCut, within, zoomOn, type Camera } from '@/components/Watch/helpers/zoom';
+import { cameraAt, throughCut, zoomOn } from '@/components/Watch/helpers/zoom';
 
-// A jump in the video this long shows a close call's zoom at once: no zoom across the court.
-const CUT_S = 0.5;
 const UNZOOMED = { scale: 1, x: 0, y: 0 };
-// The augmented video zooms this much on a close call's bounce, from this long before it to this long after.
-const CALL_ZOOM = 2.5;
-const CALL_BEFORE_S = 0.6;
-const CALL_AFTER_S = 2.2;
 // Whether the video shows the ball's trail, the score and the measured numbers, kept in this browser: shown unless turned off.
 const DRAWN_KEY = 'videoOverlay';
 
@@ -66,10 +60,9 @@ export function Watch() {
   const { video, setVideo, playlist } = usePlayer();
   const pause = useVideoTime(timeoutAt);
   const court = useRef<HTMLDivElement>(null);
-  // The automatic zoom (framing.camera, in ball.js): the hosted copies come cut by it (`match.zoomed`); the source on this
-  // machine, or copies made before 16 Nov, are zoomed by it here. A close call's zoom springs over it: its share, its view.
-  const ball = useBall();
-  const call = useRef({ value: 0, speed: 0, at: WHOLE as Camera });
+  // The automatic zoom (framing.camera, in video.js), close calls' bounces included: the hosted copies come cut by it
+  // (`match.zoomed`); the source on this machine, or copies made before 16 Nov, are zoomed by it here.
+  const ball = useVideoData();
   // What the pipeline knows drawn on the video (`Overlay`), by the zoom's loop: the two move as one.
   const [drawn, setDrawn] = useState(savedDrawn);
   const toggleDrawn = () => {
@@ -81,11 +74,9 @@ export function Watch() {
     }
   };
   const paint = useRef<Paint>(null);
-  // Each close call's bounce in the picture, where the ball is seen then.
-  const bounces = useMemo(() => (typeof ball === 'object' ? LINE_CALLS.map((c) => ({ ...c, at: sampleNear(ball, c.t, 0.12) })) : []), [ball]);
   useEffect(() => {
     if (drawn || !match.zoomed) {
-      loadBall();
+      loadVideoData();
     }
   }, [drawn]);
   useEffect(() => {
@@ -94,41 +85,19 @@ export function Watch() {
     }
     const camera = typeof ball === 'object' ? (ball.camera ?? []) : [];
     const zooming = camera.length > 0 && !match.zoomed;
-    const now = call.current;
     let frame = 0;
-    let last = performance.now();
-    let shown = video.currentTime;
-    const tick = (stamp: number) => {
-      const dt = Math.min(0.05, Math.max(0, stamp - last) / 1000);
-      last = stamp;
-      const time = video.currentTime;
-      const bounce = drawn ? bounces.find((c) => c.at && time >= c.t - CALL_BEFORE_S && time <= c.t + CALL_AFTER_S && (rallies[c.rally + 1]?.start ?? Infinity) > time) : undefined;
-      if (bounce?.at) {
-        now.at = { ...bounce.at, zoom: CALL_ZOOM };
-      }
-      const goal = bounce?.at ? 1 : 0;
-      if (Math.abs(time - shown) > CUT_S) {
-        Object.assign(now, { value: goal, speed: 0 });
-      }
-      shown = time;
-      spring(now, goal, dt);
-      if (!bounce && now.value < 0.002) {
-        Object.assign(now, { value: 0, speed: 0 });
-      }
-      const cut = cameraAt(camera, time);
-      const view = between(cut, now.at, now.value);
-      // A copy cut by the camera shows its view: only the call's zoom is left to do here.
-      const seen = match.zoomed ? within(view, cut) : view;
+    const tick = () => {
+      const view = cameraAt(zooming ? camera : [], video.currentTime);
       let css = UNZOOMED;
-      if (seen.zoom < 1.0005 || !video.videoWidth) {
+      if (view.zoom < 1.0005 || !video.videoWidth) {
         video.style.transform = '';
       } else {
-        css = zoomOn(seen, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, seen.zoom);
+        css = zoomOn(view, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, view.zoom);
         video.style.transformOrigin = '0 0';
         video.style.transform = `translate(${css.x}px, ${css.y}px) scale(${css.scale})`;
       }
       // What is drawn follows the picture: on a cut copy, the cut of the frame shown.
-      paint.current?.(match.zoomed ? (at) => throughCut(css, cameraAt(camera, at), video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight) : () => css);
+      paint.current?.(match.zoomed ? (at) => throughCut(UNZOOMED, cameraAt(camera, at), video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight) : () => css);
       // Nothing to zoom nor draw: the loop stops.
       if (!zooming && !drawn) {
         return;
@@ -137,7 +106,7 @@ export function Watch() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [video, ball, drawn, bounces]);
+  }, [video, ball, drawn]);
   // A playlist's next clips load once the video has reached its first one: both at once would
   // slow its start.
   const [reached, setReached] = useState<Clip[] | null>(null);

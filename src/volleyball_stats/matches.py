@@ -392,10 +392,12 @@ def copies_missing(config: dict) -> bool:
 
 
 def review_camera(match: Path) -> list[list[float]]:
-    """The automatic zoom's camera as the review now has it: its page's (ball.js), made from its views where an older
+    """The automatic zoom's camera as the review now has it: its page's (video.js), made from its views where an older
     build left it out; the whole picture without them."""
-    path, data = match / "review" / "ball.js", match / "review" / "data.js"
-    if not path.exists():
+    # ball.js: its name until 16 Nov, on a page not rebuilt since.
+    path = next((p for p in (match / "review" / web.VIDEO_JS, match / "review" / "ball.js") if p.exists()), None)
+    data = match / "review" / "data.js"
+    if path is None:
         return []
     text = path.read_text()
     ball = json.loads(text[text.index("{") : text.rindex("}") + 1])
@@ -403,7 +405,8 @@ def review_camera(match: Path) -> list[list[float]]:
         return ball.get("camera", [])
     text = data.read_text()
     page = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
-    return framing.camera_spans(framing.camera(page.get("views", []), np.array(ball.get("samples", []), dtype=float).reshape(-1, 3), page["duration"]))
+    seen = np.array(ball.get("samples", []), dtype=float).reshape(-1, 3)
+    return framing.camera_spans(framing.camera(page.get("views", []), seen, page["duration"], framing.bounces(web.line_calls(page), seen, page["rallies"])))
 
 
 def copies_stale(match: Path, config: dict) -> bool:

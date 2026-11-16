@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { Look } from '@/lib/looks';
+import type { LineCall } from '@/components/Watch/helpers/lineCall';
 import { playerMarks } from '@/helpers/players';
 import { ofName } from '@/lib/format';
 
@@ -176,8 +177,10 @@ export interface Data {
   people: Record<string, Person>;
   /** The automatic zoom's views, on a page with the video: the review zooms its clips by them. */
   views?: MatchView[];
-  /** Whether the video's copies come cut by the automatic zoom (ball.js's camera); else the page zooms the video by it. */
+  /** Whether the video's copies come cut by the automatic zoom (video.js's camera); else the page zooms the video by it. */
   zoomed?: boolean;
+  /** The close calls on a page with the video (`web.line_calls`). */
+  lineCalls?: LineCall[];
   /** Whether ball3d.js holds the touches' 3D places. */
   ball3d?: boolean;
   /** Whether voice/index.js holds the commentary's audio. */
@@ -231,6 +234,7 @@ export const match = {
   positions: data.positions ?? null,
   views: data.views ?? [],
   zoomed: data.zoomed ?? false,
+  lineCalls: data.lineCalls ?? [],
   index: data.index ?? {},
   scores: data.scores ?? [],
   club: data.club ?? null,

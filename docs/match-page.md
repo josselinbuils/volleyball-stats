@@ -27,8 +27,8 @@ moments.
   to keep the ball in, the view easing there by a spring (`framing.camera`); between rallies the whole picture, the
   server's view 3 s before the serve (`SERVE_LEAD_S`, 15 Nov; [benchmark](../benchmarks/framing/README.md)). The hosted
   copies come cut by that camera from the 4K source (`match.zoomed`, [hosting.md](hosting.md)), the page drawing on them by
-  it (ball.js's `camera`, `helpers/zoom.ts` `cameraAt`, `throughCut`); on this machine (the review) the page zooms the
-  source by the same camera, and so copies made before 16 Nov. A close call's zoom springs over it. Playlists and the loop fade through black (0.3 s, picture and sound)
+  it (video.js's `camera`, `helpers/zoom.ts` `cameraAt`, `throughCut`); on this machine (the review) the page zooms the
+  source by the same camera, and so copies made before 16 Nov. A close call's zoom is in it (below). Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump. A wait for data 2.5 s without more loaded reloads the copy where it stood, its play and speed kept,
   each try twice as long after the last up to 20 s (`useUnstuck`; a request held by the server, 15 Nov: back in 3 s; asking
   again for the same moment waited on the stuck request). One hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar
@@ -52,21 +52,22 @@ moments.
   (`outBack`) and counting up to gold over 0.55 s, sized by the picture's width (`cqw`) up to 80rem: in full screen on a
   1920 px screen two thirds of the whole width's size (the owner, 15 Nov: that too big, 56rem too small), placed on the picture, not its black
   bars. All on the video's clock: paused,
-  it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A close call (`helpers/lineCall.ts`, 15 Nov):
+  it shows that moment. Names at each touch were tried and dropped (the owner, 15 Nov). A close call (`web.line_calls`, in data.js; `helpers/lineCall.ts`, 15 Nov):
   a rally ending on the ball landing within 0.4 m of a line on the other side from its last touch, or any such landing the
-  review marks as a wrong call, zooms 2.5 times on the bounce (from 0.6 s before it to 2.2 s after, where `ball.js` sees the
-  ball then) and shows "Dedans" or "Dehors" at the bottom's middle (its right corner on a narrow video) for 2.4 s, the
+  review marks as a wrong call, zooms 2.5 times on the bounce (from 0.6 s before it to 2.2 s after, where the ball is seen
+  then: `framing.bounces`, in the camera, so cut into the copies since 16 Nov and shown with "Vidéo augmentée" off too) and,
+  with it on, shows "Dedans" or "Dehors" at the bottom's middle (its right corner on a narrow video) for 2.4 s, the
   measured mark against its line drawn from above, and "Erreur d'arbitrage" on a wrong call. In or out is told by who won
   the point (the other team on a wrong call), not by the measure: the mark is drawn only where it says the same, and a close
   landing where it does not is left out (13 of the 17 landings within 0.5 m on the three matches agreed). 4, 0 and 5 calls
   on the three matches, the Le Haillan wrong call (an attack called in, 0.92 m out) among them. The films show it too. A canvas in the video's box, drawn by the zoom's loop for the frame
-  on screen (`requestVideoFrameCallback`), so it moves with the zoom. `ball.js` holds the ball's place by each frame's
+  on screen (`requestVideoFrameCallback`), so it moves with the zoom. `video.js` (`ball.js` until 16 Nov) holds the ball's place by each frame's
   real seconds (`web.ball_track`, `film.frame_times`): the camera drops 5 to 10 frames a match, a frame's number then
   runs up to 45 ms off the video, one to two balls for a fast one, and the hosted copies play 25 frames a second on the
   source's timeline. A place every 0.08 s, and the frames between where a straight line would miss the ball by 0.004 of
   the picture's width, the corners at touches: on the Avia match a line between the 0.08 s places alone misses it by
   2.6 px in 4K at the median but 60 at the 99th percentile; the corners add 11% of places (`ball.js` 246 to 305 KB, 80
-  to 93 compressed). Seen on paused frames of its 720p copy at 114 s, 2658 s and 4434 s: the trail ends behind the ball.
+  to 93 compressed; with the camera, 543 KB, 165 compressed). Seen on paused frames of its 720p copy at 114 s, 2658 s and 4434 s: the trail ends behind the ball.
 - What plays is listed under the player (`Watch/RallyCards.tsx`, `useWatchList.ts`): the set's rallies, or while other
   moments play (a number, a chart, a trophy...) one card per moment, its touch lit among its rally's letters, under the
   playlist's title and "3 sur 10". The one playing stands out, kept in view; a card plays from it. On a phone it stands

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { onScreen } from '@/components/Watch/helpers/overlay';
-import { WHOLE, between, cameraAt, sampleNear, spring, throughCut, within, zoomOn } from '@/components/Watch/helpers/zoom';
+import { WHOLE, cameraAt, throughCut, zoomOn } from '@/components/Watch/helpers/zoom';
 
 describe('cameraAt', () => {
   // From 2 s, every 0.1 s: [0.5, 0.5, 1], then [0.4, 0.5, 1.5], then [0.4, 0.45, 2], written as framing.camera_spans does.
@@ -28,30 +28,6 @@ describe('cameraAt', () => {
   });
 });
 
-describe('between', () => {
-  it('goes from one view to the other by their widths', () => {
-    const half = between({ x: 0.5, y: 0.5, zoom: 1 }, { x: 0.3, y: 0.3, zoom: 4 }, 0.5);
-    expect(half.x).toBeCloseTo(0.4, 6);
-    expect(1 / half.zoom).toBeCloseTo(0.625, 6);
-  });
-});
-
-describe('within', () => {
-  const cut = { x: 0.6, y: 0.5, zoom: 2 };
-
-  it('is the whole copy for the view it was cut by', () => {
-    const seen = within(cut, cut);
-    expect([seen.x, seen.y, seen.zoom].map((v) => +v.toFixed(6))).toEqual([0.5, 0.5, 1]);
-  });
-
-  it('zooms further on a closer view, kept inside the cut', () => {
-    const seen = within({ x: 0.8, y: 0.5, zoom: 4 }, cut);
-    // Its quarter of the picture on the right half of the cut, 0.35 to 0.85: from 0.6 to 0.85 at most.
-    expect(seen.zoom).toBeCloseTo(2, 6);
-    expect(seen.x).toBeCloseTo((0.725 - 0.35) / 0.5, 6);
-  });
-});
-
 describe('throughCut', () => {
   it('draws a point of the picture where the cut copy shows it', () => {
     const cut = { x: 0.6, y: 0.4, zoom: 2 };
@@ -63,19 +39,6 @@ describe('throughCut', () => {
     const drawn = onScreen(1600, 900, 2560, 1440, throughCut(css, cut, 1600, 900, 2560, 1440)).at(point);
     expect(drawn.x).toBeCloseTo(expected.x, 6);
     expect(drawn.y).toBeCloseTo(expected.y, 6);
-  });
-});
-
-describe('spring', () => {
-  it('reaches its target without passing it', () => {
-    const now = { value: 0, speed: 0 };
-    let most = 0;
-    for (let k = 0; k < 120; k += 1) {
-      spring(now, 1, 1 / 60);
-      most = Math.max(most, now.value);
-    }
-    expect(now.value).toBeGreaterThan(0.99);
-    expect(most).toBeLessThanOrEqual(1);
   });
 });
 
@@ -95,14 +58,5 @@ describe('zoomOn', () => {
     const v = zoomOn({ x: 0.5, y: 0.5 }, 1000, 1000, 1920, 1080, 2);
     expect(v.x).toBe(-500);
     expect(v.y).toBe(-500);
-  });
-});
-
-describe('sampleNear', () => {
-  const ball = { samples: [1, 0.1, 0.5, 1.08, 0.2, 0.5, 1.5, 0.3, 0.4] };
-
-  it('takes the nearest sample within its seconds', () => {
-    expect(sampleNear(ball, 1.05, 0.1)).toEqual({ x: 0.2, y: 0.5 });
-    expect(sampleNear(ball, 1.3, 0.1)).toBeNull();
   });
 });

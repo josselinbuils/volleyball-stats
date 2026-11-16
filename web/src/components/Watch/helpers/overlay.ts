@@ -1,4 +1,4 @@
-import type { Ball } from '@/lib/ball';
+import type { Ball } from '@/lib/video';
 import type { Contact } from '@/lib/match';
 
 /** Seconds of the ball's path its trail shows: as long as the ball is fast. */

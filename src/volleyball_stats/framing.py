@@ -115,7 +115,7 @@ def views(boxes: np.ndarray, rallies: list[dict], touches: list[dict], ball: np.
 
 
 # The camera following those views, which the video's copies are cut by (`video_copies`) and the page reads to draw on
-# them (ball.js): the views widened to keep the ball EDGE inside them, its place averaged over BALL_SMOOTH_S; averaged
+# them (video.js): the views widened to keep the ball EDGE inside them, its place averaged over BALL_SMOOTH_S; averaged
 # over CAMERA_AHEAD_S either side, then followed by a critically damped spring of SPRING radians a second (it settles
 # within about 5 / SPRING seconds). The page did the same on the whole picture until 16 Nov (helpers/zoom.ts).
 BALL_SMOOTH_S = 0.5
@@ -125,6 +125,9 @@ SPRING = 5.0
 # The camera's place every CAMERA_STEP_S (the page and the copies take it in between linearly), the spring stepped every SPRING_STEP_S.
 CAMERA_STEP_S = 0.1
 SPRING_STEP_S = 0.02
+# A close call's bounce (`bounces`): zoomed this much, from this long before it to this long after, where the ball is seen
+# this near it (the page's until 16 Nov).
+CALL_ZOOM, CALL_BEFORE_S, CALL_AFTER_S, CALL_SEEN_S = 2.5, 0.6, 2.2, 0.12
 # Under this zoom the camera shows the whole picture: no sample kept there. Its samples kept in whole numbers of CAMERA_UNIT.
 WHOLE_ZOOM = 1.0005
 CAMERA_UNIT = 1e-4
@@ -164,10 +167,25 @@ def frames_at(shown: list[list[float]], times: np.ndarray, ball: np.ndarray) -> 
     return np.column_stack([np.where(inside, np.minimum(1 - w, np.maximum(0, x)) + w / 2, place(x1, x2)), np.where(inside, np.minimum(1 - w, np.maximum(0, y)) + w / 2, place(y1, y2)), 1 / size])
 
 
-def camera(shown: list[list[float]], ball: np.ndarray, duration: float) -> np.ndarray:
+def bounces(calls: list[dict], ball: np.ndarray, rallies: list[dict]) -> list[tuple[float, float, float, float]]:
+    """The close calls' zooms (`web.line_calls`) where the ball (rows [time, x, y] by time) is seen within CALL_SEEN_S of
+    the bounce: (from, until, x, y), CALL_BEFORE_S before it to CALL_AFTER_S after, until the next rally starts."""
+    out = []
+    for call in calls:
+        near = np.abs(ball[:, 0] - call["t"]) if len(ball) else np.empty(0)
+        if not len(near) or near.min() > CALL_SEEN_S:
+            continue
+        _, x, y = ball[near.argmin()]
+        following = rallies[call["rally"] + 1]["start"] if call["rally"] + 1 < len(rallies) else np.inf
+        out.append((call["t"] - CALL_BEFORE_S, min(call["t"] + CALL_AFTER_S, following), float(x), float(y)))
+    return out
+
+
+def camera(shown: list[list[float]], ball: np.ndarray, duration: float, calls: list[tuple[float, float, float, float]] = ()) -> np.ndarray:
     """The camera over the video's `duration` (seconds), every CAMERA_STEP_S from 0: rows [centre x, centre y, zoom], in
-    fractions of the picture, from the views (`views`) and the ball (rows [time, x, y] by time)."""
-    if not shown:
+    fractions of the picture, from the views (`views`) and the ball (rows [time, x, y] by time); CALL_ZOOM on each close
+    call's bounce (`bounces`) while it lasts, by a spring of its own."""
+    if not shown and not calls:
         return np.tile([0.5, 0.5, 1.0], (int(duration / CAMERA_STEP_S) + 1, 1))
     reach = round(CAMERA_AHEAD_S / CAMERA_STEP_S)
     grid = np.arange(-reach, int(duration / CAMERA_STEP_S) + reach + 2) * CAMERA_STEP_S
@@ -177,8 +195,12 @@ def camera(shown: list[list[float]], ball: np.ndarray, duration: float) -> np.nd
     steps = round(CAMERA_STEP_S / SPRING_STEP_S)
     out = np.empty((len(target) - 1, 3))
     now, speed = [0.5, 0.5, 1.0], [0.0, 0.0, 0.0]
+    # The close call's share of the view, its speed, and its bounce: the last one begun.
+    calls = sorted(calls)
+    share_now, share_speed, at, next_call = 0.0, 0.0, (0.5, 0.5), 0
     for k in range(len(out)):
-        out[k] = now
+        width = 1 / now[2] + (1 / CALL_ZOOM - 1 / now[2]) * share_now
+        out[k] = [now[0] + (at[0] - now[0]) * share_now, now[1] + (at[1] - now[1]) * share_now, 1 / width]
         a, b = target[k], target[k + 1]
         for s in range(steps):
             share = (s + 1) / steps
@@ -186,6 +208,13 @@ def camera(shown: list[list[float]], ball: np.ndarray, duration: float) -> np.nd
                 goal = a[i] + (b[i] - a[i]) * share
                 speed[i] += (SPRING * SPRING * (goal - now[i]) - 2 * SPRING * speed[i]) * SPRING_STEP_S
                 now[i] += speed[i] * SPRING_STEP_S
+            time = (k + share) * CAMERA_STEP_S
+            while next_call < len(calls) and calls[next_call][0] <= time:
+                at = calls[next_call][2:]
+                next_call += 1
+            on = next_call and calls[next_call - 1][0] <= time <= calls[next_call - 1][1]
+            share_speed += (SPRING * SPRING * ((1.0 if on else 0.0) - share_now) - 2 * SPRING * share_speed) * SPRING_STEP_S
+            share_now += share_speed * SPRING_STEP_S
     zoom = np.maximum(1, out[:, 2])
     half = 0.5 / zoom
     return np.column_stack([np.clip(out[:, 0], half, 1 - half), np.clip(out[:, 1], half, 1 - half), zoom])

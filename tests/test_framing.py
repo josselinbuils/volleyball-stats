@@ -151,3 +151,48 @@ class TestCamera:
         # The same runs as web's zoom.test.ts: both cut and draw by the same camera.
         spans = [[2, 5000, 5000, 10000, -1000, 0, 5000, 0, -500, 5000]]
         assert camera_at(spans, np.array([2.1, 2.15, 2.3])).ravel().tolist() == pytest.approx([0.4, 0.5, 1.5, 0.4, 0.475, 1.75, 0.5, 0.5, 1.0])
+
+
+class TestCloseCalls:
+    @staticmethod
+    def match(x, winner, wrong=False):
+        """Team 1 attacks from the left (x < 0); the ball lands on the right, near its end line."""
+        contacts = [{"t": 10, "type": "attack", "x": -2, "y": 0, "team": 1, "side": "left", "rally": 0}, {"t": 10.5, "type": "floor", "x": x, "y": 1, "team": None, "side": "right", "rally": 0}]
+        return {"teams": [{}, {}], "contacts": contacts, "rallies": [{"start": 9, "end": 11, "winner": winner, **({"wrongCall": True} if wrong else {})}, {"start": 12, "end": 15, "winner": 1}]}
+
+    def test_a_close_landing_is_called_as_the_point_went_with_its_mark_where_the_measure_agrees(self):
+        from volleyball_stats.web import line_calls
+
+        assert line_calls(self.match(8.8, 1)) == [{"rally": 0, "t": 10.5, "in": True, "wrongCall": False, "mark": {"x": 8.8, "y": 1, "line": "end"}}]
+        assert not line_calls(self.match(9.3, 2))[0]["in"]
+        # A ball touching the line is in.
+        assert line_calls(self.match(9.08, 1))[0]["in"]
+
+    def test_far_landings_and_a_measure_saying_otherwise_are_left_out(self):
+        from volleyball_stats.web import line_calls
+
+        assert line_calls(self.match(5, 1)) == [] and line_calls(self.match(9.3, 1)) == []
+
+    def test_a_wrong_call_whatever_the_distance_as_the_point_really_went(self):
+        from volleyball_stats.web import line_calls
+
+        call = line_calls(self.match(9.92, 1, wrong=True))[0]
+        assert (call["in"], call["wrongCall"], call["mark"]["line"]) == (False, True, "end")
+        assert line_calls(self.match(7, 1, wrong=True))[0]["mark"] is None
+
+    def test_the_camera_zooms_on_the_bounce_then_comes_back(self):
+        from volleyball_stats.framing import CALL_ZOOM, bounces, camera
+        from volleyball_stats.web import line_calls
+
+        data = self.match(8.8, 1)
+        ball = np.array([[10.5, 0.8, 0.6]])
+        calls = bounces(line_calls(data), ball, data["rallies"])
+        assert calls == [(pytest.approx(9.9), 12, 0.8, 0.6)]
+
+        track = camera([], ball, 20, calls)
+
+        assert track[95].tolist() == [0.5, 0.5, 1.0]
+        assert track[115].tolist() == pytest.approx([0.8, 0.6, CALL_ZOOM], abs=0.02)
+        assert track[160].tolist() == pytest.approx([0.5, 0.5, 1.0], abs=0.01)
+        # Unseen near its bounce: no zoom.
+        assert bounces(line_calls(data), np.array([[11, 0.8, 0.6]]), data["rallies"]) == []

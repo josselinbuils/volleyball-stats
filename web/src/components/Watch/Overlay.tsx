@@ -1,13 +1,13 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Ball } from '@/lib/ball';
+import type { Ball } from '@/lib/video';
 import { useFormat } from '@/lib/format';
 import { contacts, groupName, match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import { Swatch } from '@/components/Swatch';
 import { useVideoTime } from '@/lib/player';
 import { TRAIL_S, ease, onScreen, outBack, shownAt, stamps, statCards, trailAt, type Card, type View } from '@/components/Watch/helpers/overlay';
 import { justScored, scoreAt } from '@/components/Watch/helpers/score';
-import { BALL_R, callAt, lineCalls, local, type LineCall } from '@/components/Watch/helpers/lineCall';
+import { BALL_R, callAt, local, type LineCall } from '@/components/Watch/helpers/lineCall';
 
 /** The trail's half width at the ball, as a share of the picture's width on the screen (the ball is about 0.008 wide), and in px at least. */
 const WIDTH = 0.003;
@@ -39,8 +39,8 @@ const GAUGE_KMH = 110;
 const CARDS = statCards(contacts);
 /** A point's number stays gold this long after it lands. */
 const LANDED_S = 1.5;
-/** The rallies ending on a ball near a line (`lineCalls`), and their card's time: from this long after the bounce, this long. */
-export const LINE_CALLS = lineCalls(rallies);
+/** The rallies ending on a ball near a line (`web.line_calls`), and their card's time: from this long after the bounce, this long. */
+const LINE_CALLS = match.lineCalls;
 const CALL_AFTER_S = 0.2;
 const CALL_HOLD_S = 2.4;
 /** The call's colours: in, out. */

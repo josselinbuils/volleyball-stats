@@ -45,6 +45,8 @@ from volleyball_stats.points import landing
 from volleyball_stats.teams import match_end, parse_colour, parse_date, recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
+# What is drawn on the video, beside the page: the ball's places and the automatic zoom's camera.
+VIDEO_JS = "video.js"
 # The club, edited in the app (club_settings.py): the default theme.
 CLUB = "club"
 # Player positions are kept every STEP_S seconds over the whole video, to the centimetre.
@@ -952,8 +954,51 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     return data, {"step": step, "samples": samples} if any(samples) else None
 
 
+# A close call: half the court's length and width to the lines' outer edges (the lines are in), the ball's radius (a ball
+# touching the line is in), how near a line a landing is close.
+HALF_X, HALF_Y, BALL_R, NEAR_M = 9.0, 4.5, 0.105, 0.4
+TOUCHES = {"serve", "pass", "set", "attack", "relance", "block", "dig"}
+
+
+def outside(x: float, y: float) -> tuple[float, str]:
+    """How far a ball centred on (x, y) lands outside the court (negative inside), and the line it is told against
+    ("end" or "side"): the one it is past, else the nearest."""
+    dx, dy = abs(x) - HALF_X, abs(y) - HALF_Y
+    if dx > 0 or dy > 0:
+        return float(np.hypot(max(0.0, dx), max(0.0, dy))), "end" if dx >= dy else "side"
+    return (dx, "end") if dx >= dy else (dy, "side")
+
+
+def line_calls(data: dict) -> list[dict]:
+    """The rallies of `data` ending on a ball landing near a line on the other side from its last touch, by time; with a
+    wrong call, any such landing. In or out from who won the point (the other team on a wrong call), the measured mark
+    kept where it says the same; a close landing where it does not is left out. The page shows them on the video, whose
+    camera zooms on their bounce (`framing.camera`)."""
+    by_rally: dict[int, list[dict]] = {}
+    for c in data["contacts"]:
+        if c["type"] != "fault":
+            by_rally.setdefault(c["rally"], []).append(c)
+    out = []
+    for k, rally in enumerate(data["rallies"]):
+        played = by_rally.get(k, [])
+        hits = [c for c in played if c["type"] in TOUCHES]
+        if not rally.get("winner") or rally.get("redo") or not played or not hits:
+            continue
+        land, hit = played[-1], hits[-1]
+        if land["type"] != "floor" or None in (land["x"], land["y"], hit["x"]) or np.sign(land["x"]) == np.sign(hit["x"]):
+            continue
+        group = (data.get("teams") and hit.get("team")) or (1 if hit["side"] == "left" else 2)
+        won = 3 - rally["winner"] if rally.get("wrongCall") else rally["winner"]
+        is_in = won == group
+        by, line = outside(land["x"], land["y"])
+        agrees = (by <= BALL_R) == is_in
+        if rally.get("wrongCall") or (agrees and abs(by) <= NEAR_M):
+            out.append({"rally": k, "t": land["t"], "in": is_in, "wrongCall": bool(rally.get("wrongCall")), "mark": {"x": land["x"], "y": land["y"], "line": line} if agrees else None})
+    return sorted(out, key=lambda c: c["t"])
+
+
 def ball_track(match: Path, size: tuple[int, int], fps: float, times: np.ndarray | None = None) -> dict:
-    """ball.js's content: the ball's place where it is seen in the rallies (their lead included), every BALL_STEP_S and
+    """video.js's ball: the ball's place where it is seen in the rallies (their lead included), every BALL_STEP_S and
     at the corners between (BALL_CORNER), as flat [seconds, x, y, ...] samples, x and y fractions of the picture. The
     seconds are each frame's real ones (`times`, film.frame_times), which the video plays it at: a frame's number drifts
     from them by a few frames over a match, and the trail drawn on the video would leave the ball; without them, the
@@ -1283,8 +1328,8 @@ def frames_index(path: Path) -> list[list[float]] | None:
 def write_site(data: dict, players: dict | None, video: Path | None, site: Path, copy: bool, av1: Path | None = None, ball: dict | None = None, small: Path | None = None, voice: dict | None = None, films: Path | None = None) -> None:
     """The page, data.js, the positions' files, the touches' 3D places in ball3d.js, which the 3D view loads, the commentary's `voice` (`speech.voice_index`) and, unless `video` is None, the video, its `av1` copy the page
     plays first where the browser can, its `small` copy it plays in a small player, its poster, a frame from the middle of the first rally, and
-    the `ball`'s places and the automatic zoom's camera in ball.js, which the page loads to draw on the video and zoom
-    it (the source; the copies come cut by it)."""
+    `ball`: the ball's places and the automatic zoom's camera in video.js, which the page loads to draw on the video and
+    zoom it (the source; the copies come cut by it)."""
     site.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(site / "assets", ignore_errors=True)
     shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
@@ -1317,10 +1362,12 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
             data["contacts"] = defended(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
             data["contacts"] = received(data["contacts"], data["rallies"], moving, data["fps"], data.get("people") or {})
             data["defense"] = {"modes": list(defense.MODES), **defense.table()}
-    (site / "ball.js").unlink(missing_ok=True)
-    ball_js = video and ball and f"window.MATCH_BALL = {json.dumps(ball, separators=(',', ':'))};\n"
-    if ball_js:
-        (site / "ball.js").write_text(ball_js)
+    # ball.js: its name until 16 Nov.
+    for old in ("ball.js", VIDEO_JS):
+        (site / old).unlink(missing_ok=True)
+    video_js = video and ball and f"window.MATCH_VIDEO = {json.dumps(ball, separators=(',', ':'))};\n"
+    if video_js:
+        (site / VIDEO_JS).write_text(video_js)
     (site / "ball3d.js").unlink(missing_ok=True)
     places = data.pop("ball3d", None)
     places_js = f"window.MATCH_BALL3D = {json.dumps(places, separators=(',', ':'))};\n" if places else ""
@@ -1343,7 +1390,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["films"] = shown_films
     # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
     # serves each build its own.
-    built = json.dumps(data, sort_keys=True) + "".join(positions) + (ball_js or "") + places_js + voice_js + (site / "scene3d.js").read_text() + (site / "review-app.js").read_text()
+    built = json.dumps(data, sort_keys=True) + "".join(positions) + (video_js or "") + places_js + voice_js + (site / "scene3d.js").read_text() + (site / "review-app.js").read_text()
     data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
     (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
     index = site / "index.html"
@@ -1805,7 +1852,9 @@ def build(
         # The automatic zoom: the copies are cut by the camera recorded with them (`zoomed`), which the page draws on
         # them with; on the source (the review's page) the page zooms by the camera of the views now.
         cut = video_copies.recorded(match, light) if light else None
-        camera = cut if cut is not None else framing.camera_spans(framing.camera(data.get("views", []), np.array((ball or {}).get("samples", []), dtype=float).reshape(-1, 3), data["duration"]))
+        data["lineCalls"] = line_calls(data)
+        seen = np.array((ball or {}).get("samples", []), dtype=float).reshape(-1, 3)
+        camera = cut if cut is not None else framing.camera_spans(framing.camera(data.get("views", []), seen, data["duration"], framing.bounces(data["lineCalls"], seen, data["rallies"])))
         ball = {**(ball or {"samples": []}), "camera": camera}
         data["zoomed"] = cut is not None
     part("views")(1.0)

@@ -155,7 +155,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   small; the 1440p copy in full screen or over 1600 screen pixels wide (always for copies the page zooms, made before 16
   Nov), the video carrying on where it stood.
 - Cut by the automatic zoom (16 Nov, the owner's call; `video_copies.make`): each frame of the copies is cut from the 4K
-  source where the zoom looks then (`framing.camera`, every 0.1 s, the same in ball.js for the page to draw by), so a zoomed
+  source where the zoom looks then (`framing.camera`, every 0.1 s, close calls' bounces included, the same in video.js for the page to draw by), so a zoomed
   moment keeps the source's pixels instead of the page enlarging a 1440p copy. ffmpeg decodes the source (on the GPU when it
   can) into raw frames, OpenCV cuts each one at sub-pixel precision (`warpAffine`, bicubic), ffmpeg encodes the three copies
   from them with the source's sound. The camera they were cut by is kept in `outputs/matches/MATCH/copies_camera.json`

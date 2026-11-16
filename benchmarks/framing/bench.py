@@ -3,7 +3,7 @@
     uv run python benchmarks/framing/bench.py [--slide | --no-spring] [MATCH ...]
 
 Each MATCH (outputs/matches/ names; every one with a review page without any) is read from its review page (data.js's
-rallies and touches, ball.js) and players.csv. During the rallies, every 0.2 s: the zoom shown, the share of moments
+rallies and touches, video.js) and players.csv. During the rallies, every 0.2 s: the zoom shown, the share of moments
 showing every player on the court (within 1 m of its lines) whole, and the share showing the ball where it is seen. The
 views and the camera are made again by the code as it stands. --no-spring scores the views averaged without the
 spring that follows them, as before 16 Nov; --slide plays the ball as the page did before 15 Nov: the view slid to keep
@@ -60,9 +60,15 @@ def shown_at(views: np.ndarray, samples: np.ndarray, t: float) -> tuple[float, f
     return cx, cy, 1 / zoom
 
 
+def drawn(match: Path) -> Path:
+    """The review page's video.js, ball.js on a page built before 16 Nov."""
+    new = match / "review" / web.VIDEO_JS
+    return new if new.exists() else match / "review" / "ball.js"
+
+
 def score(match: Path) -> dict:
     data = page_data(match / "review")
-    text = (match / "review" / "ball.js").read_text()
+    text = drawn(match).read_text()
     samples = np.array(json.loads(text[text.index("{") : text.rindex("}") + 1])["samples"], dtype=float).reshape(-1, 3)
     fps = data["fps"]
     width, height = web.decode.size(Path(json.loads((match / "source.json").read_text())["video"]))
@@ -77,7 +83,7 @@ def score(match: Path) -> dict:
             if frame % step or row["court_x"] == "" or abs(float(row["court_x"])) > COURT[0] or abs(float(row["court_y"])) > COURT[1]:
                 continue
             on.setdefault(round(frame / fps, 1), []).append((float(row["x1"]) / width, float(row["y1"]) / height, float(row["x2"]) / width, float(row["y2"]) / height))
-    spans = framing.camera_spans(framing.camera(views.tolist(), samples, data["duration"]))
+    spans = framing.camera_spans(framing.camera(views.tolist(), samples, data["duration"], framing.bounces(web.line_calls(data), samples, data["rallies"])))
     zooms, players, balls = [], [], []
     for rally in data["rallies"]:
         for t in np.arange(rally["start"], rally["end"], STEP_S):
@@ -99,7 +105,7 @@ def score(match: Path) -> dict:
 
 
 def main() -> None:
-    names = [a for a in sys.argv[1:] if not a.startswith("--")] or sorted(p.name for p in Path("outputs/matches").iterdir() if (p / "review" / "ball.js").exists() and (p / "players.csv").exists())
+    names = [a for a in sys.argv[1:] if not a.startswith("--")] or sorted(p.name for p in Path("outputs/matches").iterdir() if drawn(p).exists() and (p / "players.csv").exists())
     found = {name: score(Path("outputs/matches") / name) for name in names}
     for name, s in found.items():
         print(f"{name}: zoom ×{s['zoom']:.2f}  all players whole {s['players']:.1%}  ball {s['ball']:.1%}  ({s['views']} views)")

@@ -461,7 +461,7 @@ class TestAddCopies:
     @staticmethod
     def review_camera(match, camera):
         (match / "review").mkdir(exist_ok=True)
-        (match / "review" / "ball.js").write_text(f"window.MATCH_BALL = {json.dumps({'samples': [], 'camera': camera})};\n")
+        (match / "review" / "video.js").write_text(f"window.MATCH_VIDEO = {json.dumps({'samples': [], 'camera': camera})};\n")
 
     def test_lists_them_once_made_cut_by_the_reviews_zoom(self, tmp_path, monkeypatch):
         (tmp_path / matches.PUBLISH).write_text("{}")
@@ -514,7 +514,7 @@ class TestAddCopies:
     def test_a_review_page_built_before_the_camera_gets_it_from_its_views(self, tmp_path):
         (tmp_path / "review").mkdir()
         (tmp_path / "review" / "ball.js").write_text('window.MATCH_BALL = {"samples": []};\n')
-        (tmp_path / "review" / "data.js").write_text('window.MATCH = {"views": [[0, 0, 0, 1], [5, 0.2, 0.1, 0.5]], "duration": 20};\n')
+        (tmp_path / "review" / "data.js").write_text('window.MATCH = {"views": [[0, 0, 0, 1], [5, 0.2, 0.1, 0.5]], "duration": 20, "rallies": [], "contacts": []};\n')
 
         camera = matches.review_camera(tmp_path)
 
