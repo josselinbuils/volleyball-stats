@@ -8,6 +8,12 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 ## Rules
 
 - At a session's start, `git fetch`, then warn the owner if the branch is behind its remote.
+- Moving the OVH server (from 16 Nov, until the owner has the new one): at a session's start, then every hour while it
+  runs, check whether a Linux VPS-2 or VPS-3 (`vps-2027-model2`, `model3`) is in stock in Europe
+  (`curl -s "https://eu.api.ovh.com/1.0/vps/order/rule/datacenter?ovhSubsidiary=FR&planCode=vps-2027-model3"`: a
+  datacenter whose code starts `eu-` with `"linuxStatus":"available"`) and notify the owner when one is. Then, given its
+  IP, move everything from the old server (Ubuntu 26.04; local copy of 16 Nov in `~/backups/ovh-vps-2026-11-16/`, owners
+  in its `meta/owners.txt`); the owner points Cloudflare and each machine's Site tab to it.
 - Speak English with the owner; the page and the review page open in French (fr first, then en, in
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
 - Interface text stays light (the owner's rule): the fewest words a viewer needs, judged on all they see together, without
