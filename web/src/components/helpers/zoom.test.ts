@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampView, MAX_SCALE, zoomAt } from './zoom';
+import { clampView, MAX_SCALE, wheelZoom, zoomAt } from './zoom';
 
 describe('zoomAt', () => {
   it('keeps the point zoomed on in place', () => {
@@ -14,5 +14,17 @@ describe('zoomAt', () => {
     expect(zoomAt({ scale: 2, x: -50, y: -50 }, 0.4, { x: 10, y: 10 }, 100, 100)).toEqual({ scale: 1, x: 0, y: 0 });
     expect(zoomAt({ scale: 6, x: 0, y: 0 }, 4, { x: 0, y: 0 }, 100, 100).scale).toBe(MAX_SCALE);
     expect(clampView({ scale: 2, x: 20, y: -500 }, 100, 100)).toEqual({ scale: 2, x: 0, y: -100 });
+  });
+});
+
+describe('wheelZoom', () => {
+  it('follows a pinch and holds a mouse notch to a small step', () => {
+    expect(wheelZoom(-10, 0)).toBeCloseTo(Math.exp(0.1));
+    expect(wheelZoom(-120, 0)).toBeCloseTo(Math.exp(0.3));
+    expect(wheelZoom(120, 0)).toBeCloseTo(Math.exp(-0.3));
+  });
+
+  it('counts lines as pixels', () => {
+    expect(wheelZoom(-3, 1)).toBeCloseTo(Math.exp(0.3));
   });
 });

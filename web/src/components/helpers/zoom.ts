@@ -22,3 +22,13 @@ export function zoomAt(zoom: Zoom, factor: number, point: { x: number; y: number
   const k = scale / zoom.scale;
   return clampView({ scale, x: point.x - (point.x - zoom.x) * k, y: point.y - (point.y - zoom.y) * k }, w, h);
 }
+
+const WHEEL_SPEED = 0.01;
+const WHEEL_MAX_DELTA = 30;
+const WHEEL_LINE_PX = 33;
+
+/** The zoom of one wheel event: a pinch's small deltas as they are, a mouse notch (100 or more, or lines) held to WHEEL_MAX_DELTA. */
+export function wheelZoom(deltaY: number, deltaMode: number): number {
+  const pixels = deltaMode === 1 ? deltaY * WHEEL_LINE_PX : deltaY;
+  return Math.exp(-Math.max(-WHEEL_MAX_DELTA, Math.min(WHEEL_MAX_DELTA, pixels)) * WHEEL_SPEED);
+}

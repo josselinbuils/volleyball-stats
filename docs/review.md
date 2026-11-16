@@ -139,7 +139,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   video), the bar stretched around the press meanwhile so the thumb stays under the pointer; past that it moves at the
   bar's scale from there, skipping no frames, until released. A press on the thumb grabs it where it stands
   (`helpers/scrub.ts` `stretchedTime`).
-- Zoom: buttons, ⌘ or Ctrl + wheel or a pinch, a drag moves the view. "Zoom auto" frames all the players: a view for the
+- Zoom: buttons, ⌘ or Ctrl + wheel or a pinch, a drag moves the view; the wheel alone scrolls the page, zoomed or not. "Zoom auto" frames all the players: a view for the
   serve, from the rally before's end and showing the server by the ball (often too far back to be tracked), and one for
   the exchange, each kept while it fits (`framing.py`; on the two matches 1.1 changes a rally at 1.4× median). Zooming by
   hand overrides it until the next rally, its button resuming it sooner.

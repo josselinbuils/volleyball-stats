@@ -8,7 +8,8 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
-import { autoView, boxAt, exchangeAt, panView, viewAt, wheelZoom, zoomView, type View } from '@/components/Review/helpers/box';
+import { autoView, boxAt, exchangeAt, panView, viewAt, zoomView, type View } from '@/components/Review/helpers/box';
+import { wheelZoom } from '@/components/helpers/zoom';
 import { coarse, frameTime, stretchedTime, stretchedX } from '@/components/Review/helpers/scrub';
 import { nearTouch, SLOW_RATE } from '@/helpers/slow';
 import { Tip } from '@/components/Tip';
@@ -143,8 +144,6 @@ export function ClipVideo({
   // Read by the playing loop.
   const slowAt = useRef<number[] | null>(null);
   slowAt.current = slow && touches ? touches : null;
-  const zoomedByHand = useRef(false);
-  zoomedByHand.current = pinched !== null && pinched.w < width;
   const following = useRef(false);
   following.current = views !== null && auto;
   const zoomedIn = useRef(-1);
@@ -341,8 +340,8 @@ export function ClipVideo({
   const view = pinched ?? (views && auto ? autoView(views, time, width, height) : zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height });
   const shown = useRef(view);
   shown.current = view;
-  // A trackpad pinch (sent as Ctrl + wheel; Safari's gesture events), or ⌘ or Ctrl + the wheel, zooms where the pointer is, two
-  // fingers then move the zoomed view; the page neither zooms nor scrolls meanwhile.
+  // A trackpad pinch (sent as Ctrl + wheel; Safari's gesture events), or ⌘ or Ctrl + the wheel, zooms where the pointer is, the
+  // page not zooming; the wheel alone scrolls the page, zoomed or not.
   useEffect(() => {
     const el = frame.current;
     if (!el) {
@@ -350,17 +349,13 @@ export function ClipVideo({
     }
     const at = (x: number, y: number) => {
       const r = el.getBoundingClientRect();
-      return [(x - r.left) / r.width, (y - r.top) / r.height, r] as const;
+      return [(x - r.left) / r.width, (y - r.top) / r.height] as const;
     };
     const wheel = (event: WheelEvent) => {
-      const [fx, fy, r] = at(event.clientX, event.clientY);
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
+        const [fx, fy] = at(event.clientX, event.clientY);
         zoomByHand(zoomView(shown.current, fx, fy, wheelZoom(event.deltaY, event.deltaMode), width, height));
-      } else if (zoomedByHand.current) {
-        event.preventDefault();
-        const v = shown.current;
-        zoomByHand(panView(v, (event.deltaX * v.w) / r.width, (event.deltaY * v.h) / r.height, width, height));
       }
     };
     let last = 1;

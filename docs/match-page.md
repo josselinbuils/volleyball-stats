@@ -28,7 +28,10 @@ moments.
   server's view 3 s before the serve (`SERVE_LEAD_S`, 15 Nov; [benchmark](../benchmarks/framing/README.md)). The hosted
   copies come cut by that camera from the 4K source (`match.zoomed`, [hosting.md](hosting.md)), the page drawing on them by
   it (video.js's `camera`, `helpers/zoom.ts` `cameraAt`, `throughCut`); on this machine (the review) the page zooms the
-  source by the same camera, and so copies made before 16 Nov. A close call's zoom is in it (below). Playlists and the loop fade through black (0.3 s, picture and sound)
+  source by the same camera, and so copies made before 16 Nov. A close call's zoom is in it (below). A viewer zooms more by hand, over it, where they point:
+  ⌘ or Ctrl + wheel (a trackpad's pinch) or two fingers, a drag (mouse, one finger) moving the view; the wheel alone
+  scrolls the page, zoomed or not, as in the review and the app's pictures (`useHandZoom`); "Dézoomer" under "Signaler"
+  goes back to the whole picture. Playlists and the loop fade through black (0.3 s, picture and sound)
   around each jump. A wait for data 2.5 s without more loaded reloads the copy where it stood, its play and speed kept,
   each try twice as long after the last up to 20 s (`useUnstuck`; a request held by the server, 15 Nov: back in 3 s; asking
   again for the same moment waited on the stuck request). One hidden copy of the video, kept for the whole playlist, loads the next 3 clips' starts one after another, once its first clip has started, each until the browser can play it; not on a page served from this machine (the review, or opened from the disk). A spinner shows over the picture while the video waits for its data over 0.3 s; the seek bar

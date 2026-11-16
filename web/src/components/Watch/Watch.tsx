@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { LoaderCircle, Lock } from 'lucide-react';
+import { LoaderCircle, Lock, ZoomOut } from 'lucide-react';
 import { VideoError } from '@/components/VideoError';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import { useLayout } from '@/components/Watch/LayoutMenu';
 import { BELOW_TOWER, Overlay, SCORED, type Paint } from '@/components/Watch/Overlay';
 import { askVideo } from '@/components/VideoChoice';
 import { cameraAt, throughCut, zoomOn } from '@/components/Watch/helpers/zoom';
+import { useHandZoom } from '@/components/Watch/useHandZoom';
 
 const UNZOOMED = { scale: 1, x: 0, y: 0 };
 // Whether the video shows the ball's trail, the score and the measured numbers, kept in this browser: shown unless turned off.
@@ -74,6 +75,9 @@ export function Watch() {
     }
   };
   const paint = useRef<Paint>(null);
+  // The zoom by hand, over the automatic one.
+  const hand = useHandZoom(video instanceof HTMLVideoElement ? video : null);
+  const zoomed = hand.zoom.scale > 1;
   useEffect(() => {
     if (drawn || !match.zoomed) {
       loadVideoData();
@@ -88,25 +92,28 @@ export function Watch() {
     let frame = 0;
     const tick = () => {
       const view = cameraAt(zooming ? camera : [], video.currentTime);
-      let css = UNZOOMED;
-      if (view.zoom < 1.0005 || !video.videoWidth) {
+      const [width, height] = [video.clientWidth, video.clientHeight];
+      const auto = view.zoom < 1.0005 || !video.videoWidth ? UNZOOMED : zoomOn(view, width, height, video.videoWidth, video.videoHeight, view.zoom);
+      const z = hand.current.current;
+      const byHand = { scale: z.scale, x: z.x * width, y: z.y * height };
+      const css = { scale: byHand.scale * auto.scale, x: byHand.scale * auto.x + byHand.x, y: byHand.scale * auto.y + byHand.y };
+      if (css.scale === 1) {
         video.style.transform = '';
       } else {
-        css = zoomOn(view, video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight, view.zoom);
         video.style.transformOrigin = '0 0';
         video.style.transform = `translate(${css.x}px, ${css.y}px) scale(${css.scale})`;
       }
       // What is drawn follows the picture: on a cut copy, the cut of the frame shown.
-      paint.current?.(match.zoomed ? (at) => throughCut(UNZOOMED, cameraAt(camera, at), video.clientWidth, video.clientHeight, video.videoWidth, video.videoHeight) : () => css);
+      paint.current?.(match.zoomed ? (at) => throughCut(byHand, cameraAt(camera, at), width, height, video.videoWidth, video.videoHeight) : () => css);
       // Nothing to zoom nor draw: the loop stops.
-      if (!zooming && !drawn) {
+      if (!zooming && !drawn && !zoomed) {
         return;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [video, ball, drawn]);
+  }, [video, ball, drawn, zoomed]);
   // A playlist's next clips load once the video has reached its first one: both at once would
   // slow its start.
   const [reached, setReached] = useState<Clip[] | null>(null);
@@ -261,6 +268,20 @@ export function Watch() {
                     )}
                   >
                     {full && <Feedback />}
+                    {/* Zoomed by hand: back to the whole picture, under Signaler. */}
+                    {zoomed && (
+                      <button
+                        type="button"
+                        onClick={hand.reset}
+                        className={cn(
+                          'absolute right-2 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm outline-none hover:bg-black/75 focus-visible:ring-3 focus-visible:ring-white/60',
+                          match.feedback ? 'top-11.5' : 'top-2',
+                        )}
+                      >
+                        <ZoomOut aria-hidden className="size-4" />
+                        {t('zoomOutView')}
+                      </button>
+                    )}
                     {!LOCAL && playlist && reached === playlist.clips && playlist.at + 1 < playlist.clips.length && <Preload src={src} clips={playlist.clips} at={playlist.at} />}
                     {/* What plays, over the video: the bar below is out of sight from the stats and in full screen; else a timeout. */}
                     {(playlist || pause) && (
@@ -283,7 +304,8 @@ export function Watch() {
                       aria-label={t('video')}
                       onClick={() => togglePlay(video)}
                       className={cn(
-                        'block aspect-video w-full cursor-pointer [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full',
+                        'block aspect-video w-full [:fullscreen_&]:aspect-auto [:fullscreen_&]:h-full',
+                        zoomed ? 'cursor-grab touch-none active:cursor-grabbing' : 'cursor-pointer touch-pan-x touch-pan-y',
                         courtFull && layout === 'side' && '[:fullscreen_&]:portrait:aspect-video [:fullscreen_&]:portrait:h-auto',
                       )}
                     />

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/Tip';
 import { cn } from '@/lib/utils';
-import { clampView, zoomAt, type Zoom } from './helpers/zoom';
+import { clampView, wheelZoom, zoomAt, type Zoom } from './helpers/zoom';
 
 const onFullscreen = (change: () => void) => {
   document.addEventListener('fullscreenchange', change);
@@ -16,16 +16,13 @@ const STEP = 1.6;
 const DOUBLE = 2.5;
 
 /** A picture or a video (`children`, filling the box) to look at closely: zoomed by its buttons, a double click, a pinch
- * or the wheel with Ctrl (the wheel alone once zoomed), moved by dragging, and full screen. `controls` sit beside the
+ * or the wheel with ⌘ or Ctrl (the wheel alone scrolls the page), moved by dragging, and full screen. `controls` sit beside the
  * zoom's buttons (a player's). */
 export function Zoomable({ children, className, controls }: { children: ReactNode; className?: string; controls?: ReactNode }) {
   const { t } = useTranslation();
   const box = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<Zoom>({ scale: 1, x: 0, y: 0 });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  // The zoom as the wheel's listener, added once, reads it.
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
   const full = useSyncExternalStore(
     onFullscreen,
     () => document.fullscreenElement === box.current,
@@ -41,20 +38,20 @@ export function Zoomable({ children, className, controls }: { children: ReactNod
     setZoom((z) => zoomAt(z, factor, point ?? { x: w / 2, y: h / 2 }, w, h));
   };
 
-  // The wheel zooms with Ctrl (a trackpad's pinch), or once zoomed; else the page scrolls.
+  // The wheel zooms with ⌘ or Ctrl (a trackpad's pinch); else the page scrolls, zoomed or not.
   useEffect(() => {
     const el = box.current;
     if (!el) {
       return;
     }
     const wheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && zoomRef.current.scale <= 1) {
+      if (!e.ctrlKey && !e.metaKey) {
         return;
       }
       e.preventDefault();
       const r = el.getBoundingClientRect();
       const { w, h } = { w: el.clientWidth, h: el.clientHeight };
-      setZoom((z) => zoomAt(z, Math.exp(-Math.max(-100, Math.min(100, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY)) * 0.0025), { x: e.clientX - r.left, y: e.clientY - r.top }, w, h));
+      setZoom((z) => zoomAt(z, wheelZoom(e.deltaY, e.deltaMode), { x: e.clientX - r.left, y: e.clientY - r.top }, w, h));
     };
     el.addEventListener('wheel', wheel, { passive: false });
     return () => el.removeEventListener('wheel', wheel);
