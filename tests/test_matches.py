@@ -194,6 +194,27 @@ class TestHost:
         monkeypatch.setattr(matches, "_head", refuse)
         assert matches.protected("https://example.org/volleyball/m/video/") is expected
 
+    def test_head_tries_again_after_a_network_failure_then_says_so(self, monkeypatch):
+        import urllib.error
+
+        calls = []
+
+        class Opener:
+            def open(self, request, timeout):
+                calls.append(request.full_url)
+                if len(calls) < 3:
+                    raise urllib.error.URLError(TimeoutError("_ssl.c:983: The handshake operation timed out"))
+                return "answer"
+
+        monkeypatch.setattr(matches.urllib.request, "build_opener", lambda *handlers: Opener())
+        assert matches._head("https://example.org/v/", wait=0) == "answer"
+        assert len(calls) == 3
+        calls.clear()
+        monkeypatch.setattr(matches, "HEAD_TRIES", 2)
+        with pytest.raises(RuntimeError, match="example.org did not answer .*handshake.*: nothing uploaded"):
+            matches._head("https://example.org/v/", wait=0)
+        assert len(calls) == 2
+
     def test_stops_before_any_build_when_a_video_copy_is_missing(self, tmp_path, monkeypatch):
         built = []
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append(args))

@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -306,10 +307,23 @@ class _Stay(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _head(url: str, headers: dict | None = None):
-    """`url`'s answer to a HEAD, redirects not followed. Named: Cloudflare refuses Python's own user agent."""
+HEAD_TRIES = 3
+
+
+def _head(url: str, headers: dict | None = None, wait: float = 2.0):
+    """`url`'s answer to a HEAD, redirects not followed. Named: Cloudflare refuses Python's own user agent. A network
+    failure (a TLS handshake timing out) is tried again, then a RuntimeError saying so."""
     request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "volleyball-stats", **(headers or {})})
-    return urllib.request.build_opener(_Stay).open(request, timeout=20)
+    for attempt in range(HEAD_TRIES):
+        try:
+            return urllib.request.build_opener(_Stay).open(request, timeout=20)
+        except urllib.error.HTTPError:
+            raise
+        except OSError as error:
+            if attempt == HEAD_TRIES - 1:
+                reason = getattr(error, "reason", error)
+                raise RuntimeError(f"{urllib.parse.urlsplit(url).netloc} did not answer ({reason}): nothing uploaded, try again") from error
+            time.sleep(wait * (attempt + 1))
 
 
 def protected(url: str) -> bool:
@@ -473,7 +487,7 @@ def opens(url: str, key: str) -> bool:
     """Whether `url` opens to the cookie holding `key`."""
     try:
         return _head(url, {"Cookie": f"video_key={key}"}).status == 200
-    except urllib.error.URLError:
+    except urllib.error.HTTPError:
         return False
 
 
