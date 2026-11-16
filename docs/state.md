@@ -111,3 +111,21 @@ The pipeline's weak spots and what is left to do, most useful first.
     `requestAnimationFrame` (the video time in `lib/player.tsx`) still runs in VR, else the scene's loop drives it; the
     frame rate on a standalone headset (the 2048 shadow map); WebXR needs HTTPS or localhost, so a standalone headset only
     on the hosted page. Needs a headset to test.
+21. Done (15-16 Nov): the 3D players' looks (`likeness.py`, [match-page.md](match-page.md) "3D view",
+    [benchmark](../benchmarks/likeness/README.md)). Hair colour, hairstyle and skin guessed from each player's card picture
+    (SegFormer human parsing, MIT; seconds a match, cached in each match's `likeness_seen.json`); the review's Names tab sets the
+    figure, a man's or a woman's ("Silhouette 3D", `likeness_choices.json` by name, other matches take it). A woman's figure:
+    slimmer, her short hair drawn as a long bob to mid-neck (the owner's pick among five, 16 Nov). Only beside the video,
+    never for a blurred team (`web.hide_looks`). Dropped: hand-set skin, hair and hairstyle (the owner's call), a beard and
+    guessing the figure (neither the parsing model nor SigLIP told them on the card pictures), a ponytail (not liked), a first
+    version parsing every moment of every player (filled the GPU and froze the PC). The labels (55 players, beard and figure
+    too) are in `outputs/benchmarks/likeness/truth.json` (real people: never committed). Ideas left, from the parsing
+    model's unused classes: the shoes' colour (white for all today), leggings under the shorts, long sleeves, glasses
+    (its "Sunglasses" class, untested); the shoes are often cut off the card picture.
+22. Done (16 Nov): auto zoom closer (`framing.py`, [benchmark](../benchmarks/framing/README.md)): a view each second of the
+    exchange, widened to the ball rather than slid; the whole picture between rallies, the server's 3 s before the serve.
+    The hosted pages carry it, and the looks behind the password, at their next upload.
+23. Done (16 Nov): "Réseau local" in the app ([review.md](review.md), `network.py`): the review opened to the local network
+    until it closes, at every start when ticked, no code. On the 5080 PC: `networkingMode=mirrored` written in `.wslconfig`
+    and WSL's firewall rule for port 8765 added (16 Nov); left to check once WSL has restarted: the dialog's address opens
+    from another machine. The Mac needs nothing but the switch (macOS may ask to allow incoming connections).
