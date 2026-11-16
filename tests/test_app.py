@@ -122,6 +122,20 @@ class TestApp:
         assert answer["file"]["size"] == 3 and answer["file"]["matches"] == ["one"] and answer["file"]["folder"] == "matches"
         assert app.handle("GET", "/app/export/file", "", {}, listed)[:2] == (place / "outputs" / "export" / "site.zip", "application/zip")
 
+    def test_puts_online_the_matches_picked(self, place, monkeypatch):
+        started = []
+        monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append(steps[0][1]))
+        monkeypatch.setattr(app, "server_state", lambda: {})
+        monkeypatch.setattr(app.server, "online", lambda outputs: [{"name": "one"}, {"name": "two"}])
+        matches = str(place / "outputs" / "matches")
+        assert app.handle("POST", "/app/server/host", "", {}, list)[2] == 200
+        assert started[-1] == ["volleyball_stats.matches", "--all", matches]
+        assert app.handle("POST", "/app/server/host", "", {"matches": ["two"]}, list)[2] == 200
+        assert started[-1] == ["volleyball_stats.matches", "--all", matches, "--only", "two"]
+        for wrong in (["three"], [], "two"):
+            assert app.handle("POST", "/app/server/host", "", {"matches": wrong}, list)[2] == 400
+        assert len(started) == 2
+
     def test_the_update_starts_unless_answers_are_being_applied(self, monkeypatch):
         started = []
         monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append(steps[0][1]))

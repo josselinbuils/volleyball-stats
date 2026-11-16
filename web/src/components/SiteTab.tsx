@@ -112,6 +112,8 @@ export function SiteTab() {
   // A copy to restore from, and what of it.
   const [restoring, setRestoring] = useState<{ day: string; matches: string[]; what: string } | null>(null);
   const [restored, setRestored] = useState<boolean | null>(null);
+  // The matches online to update: at first the late ones, else all.
+  const [picked, setPicked] = useState<Set<string> | null>(null);
   // The action running: saving, testing, starting a job, switching the automatic copies, a count or a copy removed.
   const [doing, run] = useRunning();
   const removing = doing === 'keep' || !!doing?.startsWith('delete:');
@@ -119,6 +121,7 @@ export function SiteTab() {
     const r = await call<ServerState>('server');
     if (r.ok) {
       setState(r);
+      setPicked((p) => p ?? new Set((r.online.some((m) => m.behind) ? r.online.filter((m) => m.behind) : r.online).map((m) => m.name)));
     }
     return r;
   }, []);
@@ -213,7 +216,7 @@ export function SiteTab() {
   };
   const start = (key: 'host' | 'backup' | 'verify') =>
     run(key, async () => {
-      const r = await call<ServerState>(`server/${key}`, {});
+      const r = await call<ServerState>(`server/${key}`, key === 'host' ? { matches: chosen } : {});
       if (r.ok) {
         setState(r);
       }
@@ -233,6 +236,18 @@ export function SiteTab() {
     return saved ? f.when(saved) : day.includes('T') ? f.when(`${day}:00`) : f.date(day);
   };
   const saved = state?.server;
+  const chosen = state?.online.filter((m) => picked?.has(m.name)).map((m) => m.name) ?? [];
+  const hosting = doing === 'host' || !!state?.hosting?.running;
+  const pick = (name: string, on: boolean) =>
+    setPicked((p) => {
+      const next = new Set(p);
+      if (on) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+      return next;
+    });
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
   if (!state) {
     return unread ? (
@@ -418,6 +433,7 @@ export function SiteTab() {
                 const name = m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
                 return (
                   <li key={m.name} className="flex min-w-0 items-center gap-3 px-3 py-2">
+                    <input type="checkbox" aria-label={name} checked={!!picked?.has(m.name)} disabled={hosting} onChange={(e) => pick(m.name, e.target.checked)} />
                     {/* The date goes under the match when the row is narrow. */}
                     <span className="flex min-w-0 flex-1 flex-wrap justify-between gap-x-3">
                       {m.url ? (
@@ -453,9 +469,9 @@ export function SiteTab() {
             <p className="text-muted-foreground">{t('server.noneOnline')}</p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button busy={doing === 'host' || !!state.hosting?.running} disabled={!saved || !state.online.length} onClick={() => void start('host')}>
+            <Button busy={hosting} disabled={!saved || !chosen.length} onClick={() => void start('host')}>
               <CloudUpload aria-hidden />
-              {t('server.hostAll')}
+              {chosen.length === state.online.length ? t('server.hostAll') : t('server.host', { count: chosen.length })}
             </Button>
             {saved?.url && (
               <Button variant="outline" className="bg-card" asChild>

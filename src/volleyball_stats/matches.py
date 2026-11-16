@@ -1,7 +1,7 @@
 """The list of the match pages of a site, for hosting several matches.
 
     uv run python -m volleyball_stats.matches SITE [--theme NAME]
-    uv run python -m volleyball_stats.matches --all outputs/matches [--theme NAME]
+    uv run python -m volleyball_stats.matches --all outputs/matches [--only MATCH ...] [--theme NAME]
     uv run python -m volleyball_stats.matches --export ZIP --match outputs/matches/MATCH [--match ...]
 
 Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the match's date and teams
@@ -9,7 +9,7 @@ Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the m
 first from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
 from web/ with `npm run build`), its matches in matches.js. `host` rebuilds a match's two hosted pages
 and uploads the site, as the review does after each change when the match folder holds publish.json;
-`host_all` (`--all`) rebuilds every match online, each carrying the code as built, and uploads them at once; those with a
+`host_all` (`--all`) rebuilds every match online (those named by `--only` when given), each carrying the code as built, and uploads them at once; those with a
 newer copy on the server (`sync.behind`) stay as they are online. `export` (`--export`) zips the public pages and their
 list instead, for a host of one's own.
 """
@@ -724,6 +724,7 @@ def main() -> None:
     parser.add_argument("site", type=Path, nargs="?", help="Folder holding one match page per subfolder")
     parser.add_argument("--host", type=Path, help="Build this match's hosted pages from its publish.json and upload them")
     parser.add_argument("--all", type=Path, help="Rebuild every match of this folder whose page is online (outputs/matches), then upload them at once")
+    parser.add_argument("--only", action="append", default=[], metavar="MATCH", help="With --all, only this match online (its folder's name), again for each")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--court", type=Path)
     parser.add_argument("--theme", default=CLUB, help=f"Club theme: {CLUB} (the app's), one of branding/NAME/brand.json ({', '.join(themes)}) or none (default: {CLUB})")
@@ -752,7 +753,7 @@ def main() -> None:
     if args.all:
         given = [json.loads(p.read_text()) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
         config = next((c for c in given if c.get("upload") and c.get("site")), None)
-        found = online(args.all)
+        found = [h for h in online(args.all) if not args.only or h[0].name in args.only]
         told = update_stages(args.all.parent, [m.name for m, *_ in found])
         told.start("mirror")
         newer = sync.behind([m for m, *_ in found])

@@ -844,7 +844,13 @@ def handle(
             sync.set_auto(OUTPUTS, body["on"])
             return reply(server_state())
         if route == "server/host":
-            jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES)])])
+            # The matches picked, else every match online.
+            names = {m["name"] for m in server.online(OUTPUTS)}
+            picked = body.get("matches")
+            if picked is not None and (not isinstance(picked, list) or not picked or not set(picked) <= names):
+                raise ValueError("matches")
+            only = [arg for name in picked or [] for arg in ("--only", name)]
+            jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES), *only])])
             return reply(server_state())
         if route == "export":
             export([str(n) for n in body["matches"]], listed(), body.get("folder") and str(body["folder"]))
