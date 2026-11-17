@@ -167,3 +167,10 @@ before the rally hold). The page shows no number on 1.8% of the player dots of `
   match of 43,000 pieces (the player rows of 2 hours at 50 fps, `benchmarks/scale.py`) the step
   takes 48 s and 6.3 GB at its peak, half of it the players' rows; a dense pieces x pieces matrix
   needed over 20 GB.
+
+On 17 Nov, a piece no named player holds given the one named player off court while it is on, inside a rally whose team
+has all six seen or in a break of 30 s or less between two seeing the same six (`fill_in`): held-out answers kept, without
+/ with the jersey numbers, first match 419 -> 423 and 422 -> 425/567, second 223 -> 235 and 224 -> 230/338, third
+467 -> 480 and 488 -> 498/696, fourth 81 -> 82 and 89 -> 90/138. With every answer and the previous run, 3.8 to 7.0 min
+filled per match, 4 to 13 touches moved; the fourth's card made of other players' pieces 5.4 -> 3.6 min. Inside rallies
+only: 4.0 min there, the card 4.7 min (most of it between rallies).

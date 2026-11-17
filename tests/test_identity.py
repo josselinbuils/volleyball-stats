@@ -3,6 +3,7 @@ import numpy as np
 
 from volleyball_stats.identity import (
     kept_cards,
+    BREAK_S,
     CORE_S,
     LONGEST_S,
     Segment,
@@ -14,6 +15,7 @@ from volleyball_stats.identity import (
     hold,
     answered_teams,
     ended_cuts,
+    fill_in,
     finder,
     jersey_links,
     leftovers,
@@ -190,6 +192,54 @@ class TestHold:
         assert [(s.track, s.start, s.end, s.identity) for s in held] == [
             (1, 0, 9, 3), (1, 10, 19, 3), (2, 10, 21, 4), (1, 20, 24, 3), (2, 22, 29, 4), (1, 25, 39, 3), (3, 34, 39, 4), (1, 40, 49, 3),
         ]
+
+
+class TestFillIn:
+    @staticmethod
+    def piece(track: int, start: int, end: int, number_: int, team: int = 1) -> Segment:
+        return Segment(track, list(range(start, end + 1)), [(0.0, 0.0)] * (end - start + 1), team=team, identity=number_)
+
+    def test_a_piece_of_no_named_player_takes_the_one_off_court_then(self):
+        # Six named players in the rally (10-49); 6's track breaks at 30, an unnamed 9 fills the gap.
+        parts = [self.piece(k, 10, 49, k) for k in range(1, 6)] + [self.piece(6, 10, 29, 6), self.piece(7, 31, 49, 9)]
+
+        filled = fill_in(parts, [(10, 49)], {1: {1, 2, 3, 4, 5, 6}})
+
+        assert filled == [parts[-1]]
+        assert parts[-1].identity == 6
+
+    def test_none_when_a_named_player_is_not_seen_in_the_rally_two_are_missing_or_it_is_answered(self):
+        five = [self.piece(k, 10, 49, k) for k in range(1, 6)]
+        # A substitute's rally: 6 is never in it, the unnamed piece may be the one who came in.
+        sub = five + [self.piece(7, 10, 49, 9)]
+        # 5 and 6 both off court while the piece is on: either.
+        two = [self.piece(k, 10, 49, k) for k in range(1, 5)] + [self.piece(5, 10, 20, 5), self.piece(6, 10, 20, 6), self.piece(7, 30, 49, 9)]
+        answered = five + [self.piece(6, 10, 29, 6), self.piece(7, 31, 49, 9)]
+
+        assert fill_in(sub, [(10, 49)], {1: {1, 2, 3, 4, 5, 6}}) == []
+        assert fill_in(two, [(10, 49)], {1: {1, 2, 3, 4, 5, 6}}) == []
+        assert fill_in(answered, [(10, 49)], {1: {1, 2, 3, 4, 5, 6}}, {7: [(31, 49)]}) == []
+        assert sub[-1].identity == two[-1].identity == answered[-1].identity == 9
+
+    def test_between_two_rallies_with_the_same_six_but_a_long_break(self):
+        six = {1: {1, 2, 3, 4, 5, 6}}
+
+        def match(second: int) -> list[Segment]:
+            rallies = [self.piece(k, a, b, k) for k in range(1, 7) for a, b in ((10, 49), (second, second + 39))]
+            return rallies + [self.piece(k, 50, second - 1, k) for k in range(1, 6)] + [self.piece(7, 50, second - 1, 9)]
+
+        short, long_ = match(60), match(int(10 + 49 + BREAK_S * FPS + 2))
+        changed = match(60)
+        changed[1].identity = 8  # 8 plays the second rally for 1: a substitution.
+
+        assert fill_in(short, [(10, 49), (60, 99)], six, fps=FPS) == [short[-1]]
+        assert fill_in(changed, [(10, 49), (60, 99)], {1: six[1] | {8}}, fps=FPS) == []
+        assert fill_in(long_, [(10, 49), (long_[1].start, long_[1].end)], six, fps=FPS) == []
+
+    def test_two_unnamed_pieces_at_once_take_nothing(self):
+        parts = [self.piece(k, 10, 49, k) for k in range(1, 6)] + [self.piece(6, 10, 29, 6), self.piece(7, 31, 49, 9), self.piece(8, 35, 40, 0)]
+
+        assert fill_in(parts, [(10, 49)], {1: {1, 2, 3, 4, 5, 6}}) == []
 
 
 class TestAnswers:

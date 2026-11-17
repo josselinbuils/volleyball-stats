@@ -90,6 +90,9 @@ LINK_GAP_S, RUN_SPEED, RUN_REACH = 3.0, 8.0, 2.0
 GAP_SCALE, CONTACT_S, QUESTIONS = 0.1, 10.0, 50
 # The first serve's positions are read within SERVE_S of the first rally's start.
 SERVE_S = 1.0
+# Players of a team on court in a rally; a break between two rallies longer than BREAK_S is a time-out or the end
+# of a set, players leaving the court (`fill_in`).
+ON_COURT, BREAK_S = 6, 30.0
 NAMES = "player_names.json"
 # A named player keeps the card they were named on and takes the pieces reading their jersey number (`kept_cards`).
 KEEP_CARDS = True
@@ -769,6 +772,54 @@ def hold(segments: list[Segment], windows: list[tuple[int, int]]) -> list[Segmen
     return parts
 
 
+def named_numbers(segments: list[Segment], pins: dict[tuple[int, str], list[int]]) -> dict[int, set[int]]:
+    """Per team, the numbers of its named players: the one most of each name's pins (`name_pins`) hold."""
+    out: dict[int, set[int]] = {}
+    for (team, _), ks in pins.items():
+        held = Counter(segments[k].identity for k in ks if segments[k].team == team and segments[k].identity).most_common(1)
+        if held:
+            out.setdefault(team, set()).add(held[0][0])
+    return out
+
+
+def fill_in(parts: list[Segment], windows: list[tuple[int, int]], named: dict[int, set[int]], answered: dict[int, list[tuple[int, int]]] | None = None, fps: float = 50.0) -> list[Segment]:
+    """The pieces (`hold`'s) holding no named player's number (`named`, by team) given the one named player off court
+    while they are on, inside a rally whose team has all ON_COURT seen, or between two such rallies seeing the same
+    players at most BREAK_S apart: nobody comes in or goes out during a rally, nor between two with the same six. Without
+    it a card made of other players' pieces filled the gaps of their tracks (8 min on the fourth match, most between
+    rallies) and took absent players' names. Not two pieces at once taking the same player, nor one an answer names
+    (`answered`: spans by track). Returns the pieces filled."""
+    starts = [a for a, _ in windows]
+    slots: dict[tuple[int, int, bool], list[Segment]] = {}
+    for p in parts:
+        w = bisect_right(starts, p.start) - 1
+        if p.team not in named or w < 0:
+            continue
+        if p.end <= windows[w][1]:
+            slots.setdefault((w, p.team, True), []).append(p)
+        elif w + 1 < len(windows) and p.end < windows[w + 1][0] and windows[w + 1][0] - windows[w][1] <= BREAK_S * fps:
+            slots.setdefault((w, p.team, False), []).append(p)
+    seen = {(w, team): {p.identity for p in inside if p.identity in named[team]} for (w, team, rally), inside in slots.items() if rally}
+    out = []
+    for (w, team, rally), inside in slots.items():
+        mine = named[team]
+        six = seen.get((w, team), set())
+        if len(six) != ON_COURT or not rally and seen.get((w + 1, team)) != six:
+            continue
+        takes = []
+        for p in inside:
+            if p.identity in mine or any(a <= p.start <= b for a, b in (answered or {}).get(p.track, [])):
+                continue
+            missing = six - {q.identity for q in inside if q.identity in mine and q.start <= p.end and p.start <= q.end}
+            if len(missing) == 1:
+                takes.append((p, missing.pop()))
+        for p, who in takes:
+            if not any(q is not p and other == who and q.start <= p.end and p.start <= q.end for q, other in takes):
+                p.identity = who
+                out.append(p)
+    return out
+
+
 def ended_cuts(rows: list[Row], until: int) -> dict[int, list[int]]:
     """Where the tracks are cut for the end of the match, frame `until`."""
     return {track: [until - 1] for track in {r.track for r in rows if r.frame >= until}}
@@ -882,8 +933,16 @@ def identify(
         if found:
             touches[found[0]] = touches.get(found[0], 0) + 1
     found = doubts(segments, wv, weights, cannot, fps, touches, answered)
+    held = hold(segments, windows)
+    if names:
+        spans: dict[int, list[tuple[int, int]]] = {}
+        for k in answered:
+            spans.setdefault(segments[k].track, []).append((segments[k].start, segments[k].end))
+        filled = fill_in(held, windows, named_numbers(segments, name_pins(segments, names, before)), spans, fps)
+        # A piece filled in is no longer asked.
+        found["segments"] = [q for q in found["segments"] if 2 * sum(len(p.frames) for p in filled if p.track == q["track"] and q["start_frame"] <= p.start <= q["end_frame"]) <= q["end_frame"] - q["start_frame"] + 1]
     part("rest")(1.0)
-    return sorted(hold(segments, windows) + removed, key=lambda s: (s.start, s.track)), found
+    return sorted(held + removed, key=lambda s: (s.start, s.track)), found
 
 
 def write_identities(path: Path, segments: list[Segment]) -> None:
