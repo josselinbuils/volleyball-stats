@@ -802,7 +802,8 @@ export function Review({
                       </div>
                     )}
                   </div>
-                  <div className={cn('grid content-start gap-3', full && 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain')}>
+                  {/* Its scroll would cut the fields' focus ring: room for it, the column where it was. */}
+                  <div className={cn('grid content-start gap-3', full && 'lg:-m-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1')}>
                     {full && header}
                     {full && shows}
                     {full && who}

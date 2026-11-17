@@ -1227,7 +1227,8 @@ export function ReportEditor({
               <input type="checkbox" checked={fix.join === true} disabled={!canJoin} onChange={(e) => editRally(here, { join: e.target.checked ? true : undefined })} />
               {t('review.reportJoin', { n: here + 2 })}
             </label>
-            <span className="flex flex-wrap items-center gap-2">
+            {/* The rally's two buttons together, on their own line. */}
+            <div className="flex w-full flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" className="bg-card" disabled={now <= rally.start} onClick={endHere}>
                 <CircleStop aria-hidden />
                 {t('review.reportEndHere', { time: clock(now) })}
@@ -1239,9 +1240,9 @@ export function ReportEditor({
                 </Button>
               )}
               {end !== undefined && fix.end !== undefined && <span className="text-muted-foreground">{t('review.reportEndMoved', { time: clock(end) })}</span>}
-            </span>
-            {/* Typing stops the video: it would carry on to another rally's note. */}
-            <RallyComment key={rally.key} text={comments[rally.key] ?? ''} onFocus={() => onPause(timeOf())} onSave={(text) => onComment(rally.key, text)} />
+              {/* Typing stops the video: it would carry on to another rally's note. */}
+              <RallyComment key={rally.key} text={comments[rally.key] ?? ''} onFocus={() => onPause(timeOf())} onSave={(text) => onComment(rally.key, text)} />
+            </div>
           </div>
         </div>
       )}
