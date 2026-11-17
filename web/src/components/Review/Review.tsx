@@ -573,9 +573,10 @@ export function Review({
   const note = question && <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>;
   // Beside the video under the answers, or on a narrow screen (out of full screen) under the video, seen before answering.
   const crops = question && question.crops.length > 0 && (
-    <div className="flex flex-wrap gap-2" aria-label={t('review.outlined')}>
+    // In full screen's narrower column, the (at most three) pictures share its width: about as large as out of it.
+    <div className={cn('flex flex-wrap gap-2', full && 'lg:grid lg:grid-cols-3 lg:items-start')} aria-label={t('review.outlined')}>
       {question.crops.map((src) => (
-        <img key={src} src={src} alt="" className={cn('h-56 rounded-md bg-muted ring-2 ring-[#ffd400]', full && 'lg:h-40')} />
+        <img key={src} src={src} alt="" className={cn('h-56 rounded-md bg-muted ring-2 ring-[#ffd400]', full && 'lg:h-auto lg:w-full')} />
       ))}
     </div>
   );
