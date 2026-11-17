@@ -3,9 +3,9 @@ import { Settings } from '@/components/Settings';
 import { Tip } from '@/components/Tip';
 import type { Club } from '@/lib/match';
 
-/** The club's band at the top of the page, linking to its website, and on the right the theme and language when
- * `settings`, and the project's repository. */
-export function ClubBar({ club, settings = false }: { club: Club | null; settings?: boolean }) {
+/** The club's band at the top of every page, linking to its website, and on the right the theme, the language and the
+ * project's repository. */
+export function ClubBar({ club }: { club: Club | null }) {
   const { t } = useTranslation();
   if (!club) {
     return null;
@@ -33,7 +33,7 @@ export function ClubBar({ club, settings = false }: { club: Club | null; setting
           <div className="inline-flex items-center gap-3">{content}</div>
         )}
         <div className="flex shrink-0 items-center gap-1">
-          {settings && <Settings onBar />}
+          <Settings onBar />
           <Tip label={t('sourceCode')}>
             <a
               href="https://github.com/josselinbuils/volleyball-stats"

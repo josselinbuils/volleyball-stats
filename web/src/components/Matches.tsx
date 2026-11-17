@@ -129,7 +129,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
 
   return (
     <>
-      <ClubBar club={club} settings />
+      <ClubBar club={club} />
       <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-8 pb-16 max-sm:gap-4 max-sm:pt-5">
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">

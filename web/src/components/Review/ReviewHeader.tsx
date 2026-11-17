@@ -38,6 +38,7 @@ import { Hint, Tip } from '@/components/Tip';
 import { explain } from '@/lib/errors';
 import type { Due } from '@/components/Update';
 import { BackLink } from '@/components/BackLink';
+import { Settings } from '@/components/Settings';
 
 type Action = 'undo' | 'apply' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
@@ -299,6 +300,8 @@ export function ReviewHeader({
               </a>
             </Tip>
           </Button>
+          {/* On the club's band when there is one. */}
+          {!match.club && <Settings />}
         </div>
         <div className="flex items-center gap-2">
           <Tip label={t('review.undo')}>
