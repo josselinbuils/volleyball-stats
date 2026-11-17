@@ -39,10 +39,11 @@ class Stages:
     whole, of the stage (`part`) and the seconds left (`told`). Only counted work moves the share (the owner's rule): the
     stage running tells its own share (`share_of_stage`, `counter`), else it holds; the stages are weighted by their last
     duration on this machine kept in `path`, else their kind's in `took`, both per unit of `scale` (the video's seconds
-    for the pipeline). `plan` may change as it goes. Not `told`, it only keeps the durations."""
+    for the pipeline). `plan` may change as it goes. Not `told`, it only keeps the durations; not `keep`, it keeps none (a
+    run reusing what an earlier one computed, its quick stages no measure of the next full run's)."""
 
-    def __init__(self, path: Path | None, plan: list[str], took: dict[str, float], told: bool = True, scale: float = 1.0):
-        self.path, self.plan, self.told, self.scale = path, plan, told, max(scale, 1e-9)
+    def __init__(self, path: Path | None, plan: list[str], took: dict[str, float], told: bool = True, scale: float = 1.0, keep: bool = True):
+        self.path, self.plan, self.told, self.scale, self.keep = path, plan, told, max(scale, 1e-9), keep
         try:
             self.took = {**took, **json.loads(path.read_text())} if path else dict(took)
         except (OSError, ValueError):
@@ -101,7 +102,7 @@ class Stages:
             # this one stay as they were, else the share would jump).
             self.done += self.expected(self.key)
             self.kept[self.key] = (now - self.since) / self.scale
-            if self.path:
+            if self.path and self.keep:
                 files.write_text(self.path, json.dumps(self.kept, indent=1) + "\n")
         self.key, self.since, self.own = key, now, None
         if key is None:

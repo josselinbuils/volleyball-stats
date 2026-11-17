@@ -218,11 +218,11 @@ def describe(crops: list[np.ndarray], model, device: str, batch: int = 64) -> np
     return vectors / np.maximum(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-9)
 
 
-def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key, float], cache: Path | None = None) -> tuple[np.ndarray, np.ndarray]:
+def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key, float], cache: Path | None = None, share: jobs.Share = jobs.quiet) -> tuple[np.ndarray, np.ndarray]:
     """Unit embedding of each segment, the mean of its `picks` boxes', and the number of boxes it
     averages; read from `cache` for the segments it holds (same track, frames and first box), else
     computed and the cache rewritten: a decoding pass over the video at full size for the crops, 56%
-    of the frames picked on 4K footage.
+    of the frames picked on 4K footage. The share of the frames read told to `share`.
     """
     # Boxes of the segments' first frames, the cache's keys; those of the picked frames on a miss.
     firsts = {(s.start, s.track) for s in segments}
@@ -253,7 +253,9 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
                 np.add.at(counts, np.array(owners[:n]), 1)
                 del crops[:n], owners[:n]
 
-        for frame, image in decode.frames_at(video, wanted):
+        seen = jobs.every(len(wanted), share)
+        for n, (frame, image) in enumerate(decode.frames_at(video, wanted)):
+            seen(n)
             for k in wanted[frame]:
                 x1, y1, x2, y2 = (round(v) for v in boxes[frame, segments[k].track])
                 crop = image[max(0, y1) : max(y2, y1 + 2), max(0, x1) : max(x2, x1 + 2)]
@@ -270,6 +272,7 @@ def embed(video: Path, rows: list[Row], segments: list[Segment], cover: dict[Key
             with files.replacing(cache, "wb") as f:
                 np.savez_compressed(f, keys=np.array(keys, float), vectors=np.array([stored[k][0] for k in keys], np.float16).reshape(len(keys), DIM),
                                     counts=np.array([stored[k][1] for k in keys]))
+    share(1.0)
     v = np.array([stored[k][0] for k in keys], float).reshape(len(keys), DIM)
     return v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-9), np.array([max(1.0, stored[k][1]) for k in keys])
 
@@ -799,8 +802,9 @@ def identify(
     the segments reading their jersey number (`numbers`, by name casefolded; `kept_cards`). Each "team" answer gives its piece
     that team, whichever side it stands on, and from frame `until` (the end of the match) nothing is
     anyone. The share of its work done told as it goes (`share`)."""
-    # Its parts' shares of the time, measured on the second match (13 Nov): the rest is under a second.
-    part = jobs.parts(share, {"covers": 9.7, "split": 5.0, "rest": 2.4})
+    # Its parts' shares of the time, measured on the second match (13 Nov), the embeddings on the fourth (17 Nov, none
+    # kept yet: 99% of the time; read from their cache they take a second).
+    part = jobs.parts(share, {"covers": 9.7, "split": 5.0, "embed": 1400.0, "rest": 2.4})
     answers = answers or {}
     cover = covers(rows, part("covers"))
     cuts: dict[int, list[int]] = {}
@@ -832,7 +836,7 @@ def identify(
         for k in group_:
             segments[k].team = segments[group_[0]].team
     aim = aims(segments, names or [], before)
-    v, weights = embed(video, rows, segments, cover, cache)
+    v, weights = embed(video, rows, segments, cover, cache, part("embed"))
     cannot = cannot_links(segments, fps)
     for group_ in same:
         for k in group_:
@@ -996,8 +1000,8 @@ def named(table: list[tuple[int, int, int, int, int]], names: list[dict]) -> dic
 def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]], left: list[int | None], fps: float, squad: tuple[int, int] | None = None, contacts: Iterable[Key] = (), share: jobs.Share = jobs.quiet) -> list[tuple[int, int, int, int, int]]:
     """`identify` with the match folder's answers, previous numbers and embedding cache; writes
     identities.csv and identity_candidates.json and returns identities.csv's rows. The share done told as it goes."""
-    # Its parts' shares of the time, measured on the second match (13 Nov).
-    part = jobs.parts(share, {"previous": 4.7, "identify": 17.1})
+    # Its parts' shares of the time, measured on the second match (13 Nov), the embeddings computed (`identify`'s).
+    part = jobs.parts(share, {"previous": 4.7, "identify": 1417.1})
     answers_path, path = match / "identity_answers.json", match / "identities.csv"
     answers = json.loads(answers_path.read_text()) if answers_path.exists() else None
     entries = read_names(match)

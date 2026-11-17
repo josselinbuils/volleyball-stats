@@ -250,14 +250,14 @@ TOOK_VIDEO_S, PAGE_S = 4013.0, 60.0
 stages: jobs.Stages | None = None
 
 
-def plan(names: list[str], outputs: Path | None, duration: float) -> None:
+def plan(names: list[str], outputs: Path | None, duration: float, keep: bool = True) -> None:
     """The stages to run, told as they go (`stage`) with the share done and the time left, by their last duration here
-    (kept in `outputs`, none kept without)."""
+    (kept in `outputs` when `keep`, none kept without)."""
     from volleyball_stats import review
 
     global stages
     took = {name: review.TOOK.get(f"pipeline:{name}", PAGE_S if name == "page" else 0.0) / TOOK_VIDEO_S for name in names}
-    stages = jobs.Stages(outputs / TIMINGS if outputs else None, names, took, scale=duration)
+    stages = jobs.Stages(outputs / TIMINGS if outputs else None, names, took, scale=duration, keep=keep)
 
 
 def told() -> jobs.Share:
@@ -469,8 +469,14 @@ def main() -> None:
     new_players = args.players and (args.force or not players_path.exists())
     with_page = bool(args.players and args.court and not args.no_page)
     later = ["rallies", "actions", *(["wrists", "teams", "jerseys", "scoreboard", "identity", "jumps"] if args.players else []), *(["page"] if with_page else [])]
-    # A copy's run (`--out` elsewhere, the benchmarks') keeps no durations outside its folder.
-    plan([*(["tracking"] if new_ball or new_players else []), *(["play"] if playing.wanted(args.video, out) else []), *later], args.out.parent if args.out.name == "matches" else None, frame_count / fps if fps else 0.0)
+    # A copy's run (`--out` elsewhere, the benchmarks') keeps no durations outside its folder; a run on the same player
+    # tracks none either: its later stages read what the last one computed (wrists, jerseys, embeddings, jumps) in seconds.
+    plan(
+        [*(["tracking"] if new_ball or new_players else []), *(["play"] if playing.wanted(args.video, out) else []), *later],
+        args.out.parent if args.out.name == "matches" else None,
+        frame_count / fps if fps else 0.0,
+        keep=new_players or not args.players,
+    )
     if new_ball or new_players:
         reasons = slow_run_reasons(os.nice(0), os.getloadavg()[0], os.cpu_count() or 1)
         if reasons and not args.anyway:

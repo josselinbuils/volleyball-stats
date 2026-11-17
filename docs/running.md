@@ -11,7 +11,9 @@
   stages, the share done of the whole and of the stage, and the time left (`jobs.Stages`: `::progress SHARE part=P left=S`).
   Only counted work moves a bar (the owner's rule, 15 Nov): a stage tells its share (`share_of_stage`, `counter`;
   `jobs.parts`, `every`, `follow` for a child's `::progress` lines, `ffmpeg` for its time), else it holds; the stages weigh
-  their last duration by second of video (`outputs/pipeline_timings.json`, `import_timings.json`), kept as the run started.
+  their last duration by second of video (`outputs/pipeline_timings.json`, `import_timings.json`), kept as the run started,
+  and only by a run tracking the players anew (a run on the same tracks reads the last one's wrists, jerseys, embeddings
+  in seconds: kept, its durations made the next import's time left hours short, 17 Nov).
   The bars show both shares, and slide when a job tells none. Every page of the app (the list, the review, the page at
   `/page`) shows the tasks running elsewhere in a pill in its corner (`Tasks.tsx`, `/app/tasks`: the review's apply and
   the jobs running or ended within 2 min), its panel each one's bar and a link to its screen, the share leading the

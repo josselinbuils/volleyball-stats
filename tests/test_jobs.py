@@ -119,6 +119,15 @@ class TestStages:
         assert set(json.loads((tmp_path / "took.json").read_text())) == {"match:a", "match:b", "shared"}
 
 
+    def test_a_run_reusing_an_earlier_ones_work_keeps_no_durations(self, tmp_path):
+        (tmp_path / "took.json").write_text(json.dumps({"identity": 0.4}))
+        stages = jobs.Stages(tmp_path / "took.json", ["identity"], {}, told=False, keep=False)
+        for key in ("identity", None):
+            stages.start(key)
+        assert json.loads((tmp_path / "took.json").read_text()) == {"identity": 0.4}
+        assert stages.expected("identity") == 0.4
+
+
 class TestCounting:
     def test_a_step_cut_in_parts_tells_its_share_the_parts_before_done(self):
         told = []
