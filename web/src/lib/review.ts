@@ -3,6 +3,7 @@ import i18n from 'i18next';
 import { ask } from '@/components/ask';
 import type { PageChange } from '@/lib/hostedChanges';
 import type { Group } from '@/lib/match';
+import type { Look } from '@/lib/looks';
 
 /** A piece of video with a player's box ([seconds, x1, y1, x2, y2] in video pixels) over it. */
 export interface Clip {
@@ -241,6 +242,8 @@ export interface Saved {
   timeouts?: Timeout[];
   /** Why the match waits for the app's update, null when up to date. */
   due?: Due | null;
+  /** The player's new card picture and look after a pick, null when the pages were built again. */
+  person?: { photo: string; look?: Look | null } | null;
 }
 
 // The requests to the review server under way, by kind, for the page's indicator.

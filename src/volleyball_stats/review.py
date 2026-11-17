@@ -2952,9 +2952,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 before, renamed, names_before = list(log), None, None
                 questions.avoid = {questions.segment_of(o) for entry in log for o in entry.get("odd", [])}
                 if self.path == "/photo":
-                    set_photo(match, questions.table, int(body["team"]), int(body["identity"]), int(body["frame"]), body["box"])
-                    run_steps(pages())
-                    return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
+                    team, number, frame = int(body["team"]), int(body["identity"]), int(body["frame"])
+                    set_photo(match, questions.table, team, number, frame, body["box"])
+                    # Only that picture cut, the page patched; the pages built again only for a moment never scored.
+                    person = web.swap_photo(match, video, match / "review", team, number, frame, body["box"], questions.track_at)
+                    if person is None:
+                        run_steps(pages())
+                    else:
+                        page_seen[0] = page_mark()
+                        hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
+                    return self.send(json.dumps({**waiting(match, log, shown), "person": person}).encode(), "application/json")
                 if self.path == "/look":
                     set_look(match, questions.table, int(body["team"]), int(body["identity"]), str(body["field"]), str(body["value"]))
                     page_seen[0] = page_mark()

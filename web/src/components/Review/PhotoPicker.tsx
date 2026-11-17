@@ -8,22 +8,37 @@ import { match } from '@/lib/match';
 import { post, review, type Named } from '@/lib/review';
 
 /** The player's card picture as the match page shows it, and the other moments to pick for it; a pick
- * rebuilds the pages, then the review reloads. While `stale` (an apply came since), the picture shows as out of date,
- * or a placeholder for none, and none can be picked. */
-export function PhotoPicker({ player, stale, onError }: { player: Named; stale: boolean; onError: () => void }) {
+ * swaps it in place (`onPicked`), its look following, else rebuilds the pages and the review reloads. While `stale` (an apply came
+ * since), the picture shows as out of date, or a placeholder for none, and none can be picked. */
+export function PhotoPicker({ player, stale, onPicked, onError }: { player: Named; stale: boolean; onPicked: () => void; onError: () => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const found = review?.photos?.[`${player.team}:${player.identity}`] ?? [];
-  const current = Object.values(match.people).find((x) => x.team === player.team && x.number === player.identity)?.photo;
+  const person = Object.values(match.people).find((x) => x.team === player.team && x.number === player.identity);
+  const current = person?.photo;
   if (!found.length && !current && !stale) {
     return null;
   }
   const pick = async (frame: number, box: number[]) => {
     setSaving(true);
     try {
-      await post('photo', { team: player.team, identity: player.identity, frame, box });
-      location.reload();
+      const saved = await post('photo', { team: player.team, identity: player.identity, frame, box });
+      if (!saved.person || !person || !review?.photos) {
+        location.reload();
+        return;
+      }
+      person.photo = saved.person.photo;
+      if (saved.person.look) {
+        person.look = saved.person.look;
+      } else {
+        delete person.look;
+      }
+      const key = `${player.team}:${player.identity}`;
+      review.photos[key] = [found.find((m) => m.frame === frame && m.box.join() === box.join())!, ...found.filter((m) => m.frame !== frame || m.box.join() !== box.join())];
+      setOpen(false);
+      setSaving(false);
+      onPicked();
     } catch {
       setSaving(false);
       onError();

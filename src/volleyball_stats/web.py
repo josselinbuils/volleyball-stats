@@ -1451,10 +1451,17 @@ def framed(image: np.ndarray, box: tuple[int, int, int, int]) -> tuple[np.ndarra
     return cut(image, (x1 + x2) / 2, y1 - my, y2 + my, max(x2 - x1, round((y2 - y1 + 2 * my) * PHOTO_RATIO)))
 
 
+# The upscaler once loaded: a picture picked in the review takes a second, not its load again.
+LOADED_UPSCALER: list = []
+
+
 def upscaler() -> tuple | None:
     """The cards' pictures' upscaler (UPSCALER) and its device, downloaded the first time; None when
     it cannot be had (offline): the pictures stay as cut."""
     import urllib.request
+
+    if LOADED_UPSCALER:
+        return LOADED_UPSCALER[0]
 
     try:
         if not UPSCALER.exists():
@@ -1468,7 +1475,8 @@ def upscaler() -> tuple | None:
     from volleyball_stats.ball import default_device
 
     device = default_device()
-    return ModelLoader().load_from_file(UPSCALER).to(device).eval(), device
+    LOADED_UPSCALER.append((ModelLoader().load_from_file(UPSCALER).to(device).eval(), device))
+    return LOADED_UPSCALER[0]
 
 
 def upscaled(upscaler: tuple, picture: np.ndarray) -> np.ndarray:
@@ -1747,8 +1755,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
     kept.mkdir(parents=True, exist_ok=True)
 
     def kept_at(frame: int, box: tuple) -> Path:
-        head = hashlib.sha256(json.dumps(scores[name(frame, box)][4]).encode()).hexdigest()[:8]
-        return kept / f"{frame}_{'_'.join(str(v) for v in box)}_{head}.webp"
+        return moment_file(kept, frame, box, scores[name(frame, box)][4])
 
     missing = {frame: pairs for frame, pairs in chosen.items() if any(not kept_at(frame, box).exists() for _, box in pairs)}
     up = upscaler() if missing else None
@@ -1768,6 +1775,66 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
         files.write_text(record, json.dumps(taken_at))
     likeness.dress(match, people, {key: folder / f"{key}.webp" for key in picked if (folder / f"{key}.webp").exists()})
     return picked
+
+
+def moment_file(kept: Path, frame: int, box: tuple, head: list | None) -> Path:
+    """Where the picture framed at `frame` in `box` around `head` is kept, in PHOTO_KEPT's folder `kept`."""
+    digest = hashlib.sha256(json.dumps(head).encode()).hexdigest()[:8]
+    return kept / f"{frame}_{'_'.join(str(v) for v in box)}_{digest}.webp"
+
+
+def swap_photo(match: Path, video: Path, site: Path, team: int, number: int, frame: int, box: list[int], track_at: Callable[[int, tuple], int | None]) -> dict | None:
+    """The page at `site` with the card picture of identity `number` of `team` the one taken at `frame` in `box` (PHOTO_PICKED
+    has it), its look from it; PHOTO_SHOWN and PHOTO_CANDIDATES following, and the page MATCH/site too when it shows the
+    player's picture. Only that picture is cut (a second, against a whole page's build). Returns the player's `photo` and
+    `look`; None when the moment was not scored (`photos` scores every one it offers) or the page has no such player: the
+    pages are to be built again."""
+    from volleyball_stats.review import page_data
+
+    people = (page_data(site) or {}).get("people") or {}
+    key = next((k for k, p in people.items() if (p["team"], p["number"]) == (team, number)), None)
+    path = match / PHOTO_SCORES
+    saved = json.loads(path.read_text()) if path.exists() else {}
+    box = tuple(int(v) for v in box)
+    scored = saved.get("scores", {}).get(f"{frame}:{','.join(map(str, box))}") if saved.get("stamp") == scores_stamp(video) else None
+    if key is None or not scored or len(scored) != 6:
+        return None
+    kept = match / PHOTO_KEPT / files.cache_stamp(video, [Path(__file__)])
+    picture = moment_file(kept, frame, box, scored[4])
+    if not picture.exists():
+        image = decode.frame_at(video, frame)
+        part = face(image, box, scored[4]) if image is not None else np.empty(0)
+        if not part.size:
+            return None
+        up = upscaler()
+        kept.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(picture), upscaled(up, part) if up else touched_up(part), [cv2.IMWRITE_WEBP_QUALITY, 80])
+    folder = site / "players"
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(picture, folder / f"{key}.webp")
+    person = people[key]
+    person["photo"] = versioned(folder / f"{key}.webp", folder.name)
+    likeness.dress(match, {key: person}, {key: folder / f"{key}.webp"})
+    patch_people(site, people)
+    shown = match / PHOTO_SHOWN
+    taken = json.loads(shown.read_text()) if shown.exists() else {}
+    taken[f"{folder.name}/{key}.webp"] = {"track": track_at(frame, box), "frame": frame}
+    files.write_text(shown, json.dumps(taken))
+    offered = match / PHOTO_CANDIDATES
+    if offered.exists():
+        found = json.loads(offered.read_text())
+        mine = found.get(f"{team}:{number}", [])
+        found[f"{team}:{number}"] = [{"frame": frame, "box": list(box)}, *(m for m in mine if (m["frame"], tuple(m["box"])) != (frame, box))]
+        files.write_text(offered, json.dumps(found))
+    # The page to publish, with its own pictures when it has them: the same player's swapped too.
+    published = page_data(match / "site") if (match / "page.json").exists() else None
+    other = next((p for p in (published or {}).get("people", {}).values() if (p["team"], p["number"]) == (team, number) and p.get("photo")), None)
+    if other:
+        found_at = match / "site" / other["photo"].split("?")[0]
+        shutil.copyfile(picture, found_at)
+        other["photo"] = versioned(found_at, found_at.parent.name)
+        patch_people(match / "site", published["people"])
+    return {"photo": person["photo"], "look": person.get("look")}
 
 
 def versioned(path: Path, folder: str = "") -> str:

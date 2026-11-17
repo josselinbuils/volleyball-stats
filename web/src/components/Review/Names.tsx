@@ -269,12 +269,14 @@ function NameCard({
   };
   const id = `name-${g}-${p.identity}`;
   const [making, setMaking] = useState(false);
+  // A picture picked: the look guessed from it shown.
+  const [picked, setPicked] = useState(0);
 
   return (
     <div data-card tabIndex={-1} className="grid content-start gap-2.5 rounded-lg border bg-card p-3 outline-none focus-within:ring-2 focus-within:ring-ring/60">
       <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
       <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
-      <PhotoPicker player={p} stale={stalePhoto} onError={onError} />
+      <PhotoPicker player={p} stale={stalePhoto} onPicked={() => setPicked((n) => n + 1)} onError={onError} />
       {film && (
         <Button
           variant="outline"
@@ -350,7 +352,7 @@ function NameCard({
           />
         </label>
       </form>
-      <LookChoice player={p} onError={onError} />
+      <LookChoice key={picked} player={p} onError={onError} />
       {suggestions.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 text-sm">
           <span className="text-muted-foreground">{t('review.suggestions')}</span>

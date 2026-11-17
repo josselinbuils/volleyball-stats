@@ -833,6 +833,38 @@ class TestPhotos:
         assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (17, 13)
         assert "photo" not in people[1]
 
+    def test_a_picked_moment_swaps_only_that_picture_on_the_page(self, tmp_path, monkeypatch):
+        video = tmp_path / "clip.mp4"
+        writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
+        for k in range(20):
+            writer.write(np.full((48, 64, 3), 10 * k, np.uint8))
+        writer.release()
+        rows = [f"{f},1,left,10,10,20,40,0.9,15,40,-3,0" for f in range(20)]
+        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "\n".join(rows) + "\n")
+        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity,runner_up,confidence\n1,0,19,1,3,,1.0\n")
+        (tmp_path / "identity_candidates.json").write_text('{"segments": [], "merges": []}')
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n0,19\n")
+        monkeypatch.setattr(web, "upscaler", lambda: None)
+        site = tmp_path / "review"
+        people = {"0": {"team": 1, "number": 3}}
+        photos(tmp_path, video, people, site / "players", record=tmp_path / web.PHOTO_SHOWN)
+        (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people, 'v': 'a'})};\n")
+        (site / "index.html").write_text('<script src="data.js?v=a"></script>')
+        first, *others = json.loads((tmp_path / web.PHOTO_CANDIDATES).read_text())["1:3"]
+        pick = next(m for m in others if m["frame"] != first["frame"])
+
+        found = web.swap_photo(tmp_path, video, site, 1, 3, pick["frame"], pick["box"], lambda frame, box: 1)
+
+        from volleyball_stats.review import page_data
+
+        assert found["photo"] != people["0"]["photo"]
+        assert page_data(site)["people"]["0"]["photo"] == found["photo"]
+        # Offered first from now on, and recorded where it was taken.
+        assert json.loads((tmp_path / web.PHOTO_CANDIDATES).read_text())["1:3"][0] == pick
+        assert json.loads((tmp_path / web.PHOTO_SHOWN).read_text())["players/0.webp"] == {"track": 1, "frame": pick["frame"]}
+        # A moment never scored: the pages are built again instead.
+        assert web.swap_photo(tmp_path, video, site, 1, 3, 19, [0, 0, 5, 5], lambda frame, box: 1) is None
+
 
 class TestPublish:
     def test_keeps_the_previous_choices_each_given_one_replacing_its_own(self, tmp_path, monkeypatch):
