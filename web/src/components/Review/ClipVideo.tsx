@@ -451,6 +451,24 @@ export function ClipVideo({
     }
   };
   const autoShown = auto && !pinched;
+  // In full screen, the video's width once its height fills its room, on the full-screen block (--video-w): the column
+  // holding it takes that width and what is beside it starts where it ends.
+  const room = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = room.current;
+    if (!box) {
+      return;
+    }
+    const fit = new ResizeObserver(() => {
+      const full = document.fullscreenElement;
+      if (full instanceof HTMLElement && full.contains(box)) {
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        full.style.setProperty('--video-w', `${Math.max(0, ((box.clientHeight - BAR_REM * rem) * 16) / 9)}px`);
+      }
+    });
+    fit.observe(box);
+    return () => fit.disconnect();
+  }, []);
   const toggleMuted = () => {
     setMuted(!muted);
     saveFlag(MUTED_KEY, !muted);
@@ -458,7 +476,7 @@ export function ClipVideo({
   return (
     // In full screen, the room left holds the video whole with its bar (BAR_REM high) under it, no wider: the buttons stay
     // near it.
-    <div className="min-h-0 lg:[:fullscreen_&]:@container-size">
+    <div ref={room} className="min-h-0 lg:[:fullscreen_&]:@container-size">
       {/* One black block, the controls under the picture. */}
       <div
         className="overflow-hidden rounded-lg bg-black text-white lg:[:fullscreen_&]:mx-auto lg:[:fullscreen_&]:w-[min(100cqw,calc((100cqh-var(--bar))*16/9))]"

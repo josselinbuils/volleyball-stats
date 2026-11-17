@@ -547,7 +547,7 @@ export function Review({
   }, [question, answer, busy, conflict, tab]);
 
   const matchDone = matchFinished(keys, checked, reports.length);
-  // The question fills the screen: the video as large as the room left, the answers in a column beside it.
+  // The question fills the screen, no card: the video as high as the screen, the question and its answers right beside it.
   const block = useRef<HTMLDivElement>(null);
   const [full, toggleFull] = useFullscreen(block);
   const failed = error && <ErrorNote className="rounded-lg border border-destructive px-3 py-2 text-sm" />;
@@ -576,6 +576,43 @@ export function Review({
     <div className="flex flex-wrap gap-2" aria-label={t('review.outlined')}>
       {question.crops.map((src) => (
         <img key={src} src={src} alt="" className={cn('h-56 rounded-md bg-muted ring-2 ring-[#ffd400]', full && 'lg:h-40')} />
+      ))}
+    </div>
+  );
+  // Atop the card, or in full screen atop the column beside the video.
+  const header = question && (
+    <CardHeader className={cn(full && 'px-0')}>
+      <CardTitle>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          {question.kind !== 'rally' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
+          {question.kind === 'piece'
+            ? t('review.who')
+            : question.kind === 'touch'
+              ? t(question.reason === 'ace' ? 'review.aceQuestion' : 'review.touchQuestion')
+              : question.kind === 'rally'
+                ? t('review.rallyQuestion')
+                : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
+        </h2>
+      </CardTitle>
+      <CardDescription>
+        {(question.kind === 'touch'
+          ? [question.reason !== 'ace' && groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
+          : question.kind === 'rally'
+            ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
+            : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
+        )
+          .filter(Boolean)
+          .join(' · ')}
+      </CardDescription>
+    </CardHeader>
+  );
+  // The two players' clips of a merge.
+  const shows = question?.kind === 'merge' && (
+    <div className="flex flex-wrap gap-2">
+      {question.choices.map((c, k) => (
+        <Button key={c.identity} variant={showOther === (k === 1) ? 'default' : 'outline'} size="sm" onClick={() => setShowOther(k === 1)}>
+          {nameOf(question.team, c.identity) ? t('review.showNamed', { name: nameOf(question.team, c.identity) }) : t('review.show', { n: c.identity })}
+        </Button>
       ))}
     </div>
   );
@@ -733,45 +770,16 @@ export function Review({
           <div ref={block} className={cn(full && 'flex h-screen flex-col gap-4 overflow-y-auto overscroll-contain bg-background p-4')}>
             {full && failed}
             {question ? (
-              <Card className={cn(full && 'max-lg:shrink-0 lg:min-h-0 lg:flex-1')}>
-                <CardHeader>
-                  <CardTitle>
-                    <h2 className="flex items-center gap-2 text-lg font-semibold">
-                      {question.kind !== 'rally' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
-                      {question.kind === 'piece'
-                        ? t('review.who')
-                        : question.kind === 'touch'
-                          ? t(question.reason === 'ace' ? 'review.aceQuestion' : 'review.touchQuestion')
-                          : question.kind === 'rally'
-                            ? t('review.rallyQuestion')
-                            : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
-                    </h2>
-                  </CardTitle>
-                  <CardDescription>
-                    {(question.kind === 'touch'
-                      ? [question.reason !== 'ace' && groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
-                      : question.kind === 'rally'
-                        ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
-                        : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
-                    )
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </CardDescription>
-                </CardHeader>
+              <Card className={cn(full && 'gap-4 rounded-none! border-b-0! bg-transparent py-0 shadow-none! ring-0 max-lg:shrink-0 lg:min-h-0 lg:flex-1')}>
+                {!full && header}
                 <CardContent
                   className={cn(
                     'grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]',
-                    full && 'lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch',
+                    full && 'px-0 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,var(--video-w,1fr))_minmax(18rem,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch lg:justify-center lg:gap-4',
                   )}
                 >
                   {!full && who}
-                  <div
-                    className={cn(
-                      'grid min-w-0 gap-3',
-                      full && 'max-lg:mx-auto max-lg:w-full max-lg:max-w-[calc((100vh-14rem)*16/9)] lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto]',
-                      full && question.kind !== 'merge' && 'lg:grid-rows-[minmax(0,1fr)]',
-                    )}
-                  >
+                  <div className={cn('grid min-w-0 gap-3', full && 'max-lg:mx-auto max-lg:w-full max-lg:max-w-[calc((100vh-14rem)*16/9)] lg:min-h-0 lg:grid-rows-[minmax(0,1fr)]')}>
                     <ClipVideo
                       key={`${question.id}${showOther}`}
                       clip={showOther && question.other ? question.other : question.clip}
@@ -786,23 +794,17 @@ export function Review({
                         )
                       }
                     />
-                    {(question.kind === 'merge' || !full) && (
+                    {!full && (
                       <div className="grid gap-3">
-                        {question.kind === 'merge' && (
-                          <div className="flex flex-wrap gap-2">
-                            {question.choices.map((c, k) => (
-                              <Button key={c.identity} variant={showOther === (k === 1) ? 'default' : 'outline'} size="sm" onClick={() => setShowOther(k === 1)}>
-                                {nameOf(question.team, c.identity) ? t('review.showNamed', { name: nameOf(question.team, c.identity) }) : t('review.show', { n: c.identity })}
-                              </Button>
-                            ))}
-                          </div>
-                        )}
-                        {!full && crops}
-                        {!full && note}
+                        {shows}
+                        {crops}
+                        {note}
                       </div>
                     )}
                   </div>
                   <div className={cn('grid content-start gap-3', full && 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain')}>
+                    {full && header}
+                    {full && shows}
                     {full && who}
                     {question.kind === 'rally' ? (
                       <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
