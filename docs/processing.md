@@ -158,8 +158,8 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   it; a card without one takes what its pictures read (`jersey_pictures.json`).
 - **Names proposed**: each unnamed card shows one ("Proposé", `review.propose`), each roster player on one card: the
   one wearing the number read, then the most alike left (not one who last wore another number than the one read, often
-  a jersey changed hands), else "Joueur N" from the number read. "Valider les N noms proposés" saves a team's at once;
-  fix the wrong ones first. A name removed from a card (cleared, given or only proposed, or every picture of the card
+  a jersey changed hands), else "Joueur N" from the number read. "Valider" on a card saves its proposal, one card at a time
+  (the owner's call, 17 Nov: no button for a whole team). A name removed from a card (cleared, given or only proposed, or every picture of the card
   marked as someone else) is absent from the match (`absent_names.json`, `review.name_absent`): never proposed nor
   suggested in it again, until typed on a card (a card of others' pieces otherwise took the same absent player again
   and again, 17 Nov). Each match left out of the roster (`benchmarks/identity/names.py`): 40 of 53 cards right

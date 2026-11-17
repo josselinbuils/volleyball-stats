@@ -406,8 +406,6 @@
     "played": "{{time}} of play",
     "saved": "Saved",
     "proposed": "Proposed",
-    "acceptProposed_one": "Accept the proposed name",
-    "acceptProposed_other": "Accept the {{count}} proposed names",
     "suggestions": "Maybe",
     "sameName": "Same name as {{players}}: they will become one player. For two different people, add the initial of the surname.",
     "namedCount_one": "{{count}} of {{total}} named",

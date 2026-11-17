@@ -43,7 +43,7 @@ function focusCard(from: Element | null, step: number) {
 }
 
 /** The players of both teams to name, those without a name when the page loaded first, then longest
- * on court first, each unnamed one showing the name proposed, a team's all saved by one button; each name is saved as it is typed,
+ * on court first, each unnamed one showing the name proposed, saved by its own button; each name is saved as it is typed,
  * `onNamed` given the names and numbers saved by `team:identity`, `onSaved` what the server tells
  * after each name or picture saved. A player whose film is out of date (`staleFilms`, by name) can
  * have it made alone (`onFilm`). */
@@ -80,7 +80,6 @@ export function Names({
   );
   // The names removed in this session, by `team:name`.
   const [absent, setAbsent] = useState<Set<string>>(() => new Set());
-  const [running, run] = useRunning();
   // The keyboard: arrows (or J/K) between cards and pictures, Space marks a picture, N names.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -143,25 +142,6 @@ export function Names({
     }
   };
   const edit = (p: Named, value: Given) => setGiven((g) => new Map(g).set(keyOf(p), value));
-  // The names shown and not saved yet: those proposed, or typed and not left.
-  const pending = (p: Named) => {
-    const value = given.get(keyOf(p))!;
-    const before = saved.get(keyOf(p))!;
-    return value.name.trim() !== '' && (before.name.trim() !== value.name.trim() || before.jersey !== value.jersey);
-  };
-  const saveAll = (team: Named[]) =>
-    run('all', async () => {
-      try {
-        const result = await post('name', { names: team.map((p) => ({ team: p.team, identity: p.identity, name: given.get(keyOf(p))!.name.trim(), jersey: given.get(keyOf(p))!.jersey || null })) });
-        const next = new Map(saved);
-        team.forEach((p) => next.set(keyOf(p), given.get(keyOf(p))!));
-        setSaved(next);
-        onNamed(next);
-        onSaved(result);
-      } catch {
-        onError();
-      }
-    });
   const photos = usePhotos();
 
   return (
@@ -173,13 +153,6 @@ export function Names({
           return null;
         }
         const count = mine.filter((p) => saved.get(keyOf(p))?.name.trim()).length;
-        const waiting = mine.filter(pending);
-        const accept = waiting.length > 0 && (
-          <Button size="sm" className="ml-auto" busy={running === 'all'} disabled={running !== null} onClick={() => void saveAll(waiting)}>
-            <Check aria-hidden />
-            {t('review.acceptProposed', { count: waiting.length })}
-          </Button>
-        );
         return (
           <section key={g} className="grid gap-3">
             {hasTeams ? (
@@ -187,7 +160,6 @@ export function Names({
                 <h2 className="sr-only">{groupName(t, g)}</h2>
                 <TeamEditor g={g} onError={onError} />
                 <span className="text-sm text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
-                {accept}
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
@@ -196,7 +168,6 @@ export function Names({
                   {groupName(t, g)}
                 </h2>
                 <span className="text-sm text-muted-foreground">{t('review.namedCount', { count, total: mine.length })}</span>
-                {accept}
               </div>
             )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -214,7 +185,7 @@ export function Names({
                   others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
                   absent={[...absent].flatMap((a) => (a.startsWith(`${g}:`) ? [a.slice(2)] : []))}
                   onEdit={(value) => edit(p, value)}
-                  onSave={(value) => void save(p, value)}
+                  onSave={(value) => save(p, value)}
                   players={players}
                   nameOf={(team, n) => given.get(`${team}:${n}`)?.name.trim() || null}
                   onSaved={onSaved}
@@ -262,7 +233,7 @@ function NameCard({
   /** The names removed from this team's cards, folded. */
   absent: string[];
   onEdit: (value: Given) => void;
-  onSave: (value: Given) => void;
+  onSave: (value: Given) => Promise<void>;
   players: Named[];
   nameOf: (team: Group, identity: number) => string | null;
   onSaved: (saved: Saved) => void;
@@ -275,13 +246,14 @@ function NameCard({
   const twins = others.filter((o) => o.name && o.name === fold(value.name));
   // The name proposed, shown and not saved: the others suggested stay offered.
   const proposal = !saved.name.trim() && p.proposed !== null && value.name === p.proposed.name;
+  const [running, run] = useRunning();
   const suggestions = value.name.trim() && !proposal ? [] : p.suggestions.filter((s) => !taken.has(fold(s.name)) && fold(s.name) !== fold(value.name));
   const isSaved = (value.name.trim() || value.jersey) && saved.name.trim() === value.name.trim() && saved.jersey === value.jersey;
   // A suggestion brings its jersey number when none is typed.
   const pick = (s: Suggestion) => {
     const next = { name: s.name, jersey: value.jersey || (s.jersey === null ? '' : String(s.jersey)) };
     onEdit(next);
-    onSave(next);
+    void onSave(next);
   };
   const id = `name-${g}-${p.identity}`;
   const [making, setMaking] = useState(false);
@@ -302,7 +274,7 @@ function NameCard({
           if (value.name.trim()) {
             const next = { name: '', jersey: '' };
             onEdit(next);
-            onSave(next);
+            void onSave(next);
           }
         }}
         onError={onError}
@@ -345,7 +317,7 @@ function NameCard({
         className="flex gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          onSave(value);
+          void onSave(value);
           focusCard(event.currentTarget, 1);
         }}
       >
@@ -366,7 +338,7 @@ function NameCard({
               if (next.jersey !== value.jersey) {
                 onEdit(next);
               }
-              onSave(next);
+              void onSave(next);
             }}
           />
         </label>
@@ -380,9 +352,15 @@ function NameCard({
             autoComplete="off"
             value={value.jersey}
             onChange={(event) => onEdit({ ...value, jersey: event.target.value.replace(/\D/g, '') })}
-            onBlur={() => onSave(value)}
+            onBlur={() => void onSave(value)}
           />
         </label>
+        {proposal && (
+          <Button type="button" size="lg" className="self-end" busy={running === 'accept'} disabled={running !== null} onClick={() => void run('accept', () => onSave(value))}>
+            <Check aria-hidden />
+            {t('review.validate')}
+          </Button>
+        )}
       </form>
       <LookChoice key={picked} player={p} onError={onError} />
       {suggestions.length > 0 && (
