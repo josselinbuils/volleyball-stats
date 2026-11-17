@@ -4,6 +4,7 @@ import { Maximize, Minimize } from 'lucide-react';
 import { VideoButton } from '@/components/VideoButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useFullscreen } from '@/hooks/useFullscreen';
 import { match, rallies } from '@/lib/match';
 import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
@@ -115,13 +116,7 @@ export function MatchTab({
   const unwarned = live.filter((q) => q.rally == null || !warned.has(q.rally)).flatMap((q) => (q.reports ?? []).filter((r) => r.kind?.startsWith('auto.')));
   // The video, its bar and the editor fill the screen, the video as large as what is under it leaves room for.
   const block = useRef<HTMLDivElement>(null);
-  const [full, setFull] = useState(false);
-  useEffect(() => {
-    const changed = () => setFull(document.fullscreenElement === block.current);
-    document.addEventListener('fullscreenchange', changed);
-    return () => document.removeEventListener('fullscreenchange', changed);
-  }, []);
-  const toggleFull = () => void (full ? document.exitFullscreen() : block.current?.requestFullscreen());
+  const [full, toggleFull] = useFullscreen(block);
 
   return (
     <Card>

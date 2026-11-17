@@ -97,6 +97,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   every touch on it, and a rally checked in the Match tab answers the rest. Answer them and apply before the Match tab.
   Only pieces worth more than about two touches are asked (`review.MIN_IMPACT`; the rest, a touch each, the Match tab
   answers faster), and the pieces answered leave the list (`identity.doubts`): one round, a few new after an apply.
+- A question's video has full screen at its bar's right end, as the Match tab's: the video as large as the screen allows,
+  the name field, answers and outlined pictures in a column beside it (`hooks/useFullscreen.ts`, shared; the status
+  badge and an error follow it there).
 - Nobody comes in or goes out during a rally, nor in a short break between two with the same six: once all six named
   players of a team are seen in one, a piece no named player holds takes the one off court while it is on
   (`identity.fill_in`, each apply), and is no longer asked. A card made of other players' pieces empties by itself (17 Nov).

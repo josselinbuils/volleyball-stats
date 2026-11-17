@@ -1,17 +1,20 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { LoaderCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { onServerBusy, serverBusy } from '@/lib/review';
+import { useFullscreenElement } from '@/hooks/useFullscreen';
 
 // A request answered faster than this feels instant: no indicator for it.
 const DELAY_MS = 150;
 
 /** A badge at the bottom of the screen while the review server works on what the user did, else the
- * `notice` of what was done. */
+ * `notice` of what was done; inside the full-screen element while there is one. */
 export function Status({ notice }: { notice: string | null }) {
   const { t } = useTranslation();
   const busy = useSyncExternalStore(onServerBusy, serverBusy);
   const [shown, setShown] = useState<typeof busy>(null);
+  const full = useFullscreenElement();
   useEffect(() => {
     if (!busy) {
       setShown(null);
@@ -21,7 +24,7 @@ export function Status({ notice }: { notice: string | null }) {
     return () => window.clearTimeout(timer);
   }, [busy]);
 
-  return (
+  return createPortal(
     <div role="status" className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
       {(shown || notice) && (
         <span className="flex items-center gap-2 rounded-full bg-foreground px-3 py-1.5 text-sm text-background shadow-lg">
@@ -29,6 +32,7 @@ export function Status({ notice }: { notice: string | null }) {
           {shown ? t(shown === 'saving' ? 'review.saving' : 'review.loading') : notice}
         </span>
       )}
-    </div>
+    </div>,
+    full ?? document.body,
   );
 }

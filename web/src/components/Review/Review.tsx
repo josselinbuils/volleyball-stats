@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, LoaderCircle, PenLine, Scissors, UserX, Users } from 'lucide-react';
+import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, LoaderCircle, Maximize, Minimize, PenLine, Scissors, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ask } from '@/components/ask';
 import { ErrorNote } from '@/components/ErrorNote';
@@ -54,6 +54,9 @@ import { matchFinished } from '@/components/Review/helpers/report';
 import { ReviewHeader } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
 import { windowTitle } from '@/lib/appServer';
+import { VideoButton } from '@/components/VideoButton';
+import { useFullscreen } from '@/hooks/useFullscreen';
+import { cn } from '@/lib/utils';
 
 /** One answer per key: X not a player, C cut, S don't know. */
 const KEYS: Record<string, string> = { x: 'not_player', c: 'cut', s: 'skip' };
@@ -544,6 +547,38 @@ export function Review({
   }, [question, answer, busy, conflict, tab]);
 
   const matchDone = matchFinished(keys, checked, reports.length);
+  // The question fills the screen: the video as large as the room left, the answers in a column beside it.
+  const block = useRef<HTMLDivElement>(null);
+  const [full, toggleFull] = useFullscreen(block);
+  const failed = error && <ErrorNote className="rounded-lg border border-destructive px-3 py-2 text-sm" />;
+  // Above the video, or in full screen atop the answers.
+  const who = question && (question.kind === 'piece' || question.kind === 'touch') && (
+    <label className={cn('grid max-w-md gap-1 text-sm font-medium', !full && 'lg:col-span-2')}>
+      {t('review.whoIs')}
+      <PlayerSelect
+        key={question.id}
+        // Both teams: the touch's team, or for an ace the side the ball lands on, is only a guess.
+        players={current}
+        nameOf={nameOf}
+        value=""
+        empty={t('review.pickPlayer')}
+        label={t('review.whoIs')}
+        className="h-9 w-full text-[15px] font-normal"
+        autoFocus
+        openOnFocus={false}
+        onChange={(who) => who && void answer(`player:${who}`)}
+      />
+    </label>
+  );
+  const note = question && <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>;
+  // Under the video, or in full screen under the answers: the video keeps the height.
+  const crops = question && question.crops.length > 0 && (
+    <div className="flex flex-wrap gap-2" aria-label={t('review.outlined')}>
+      {question.crops.map((src) => (
+        <img key={src} src={src} alt="" className={cn('h-56 rounded-md bg-muted ring-2 ring-[#ffd400]', full && 'lg:h-40')} />
+      ))}
+    </div>
+  );
   // Where to go once the questions are done: the next step with something left.
   const next: Tab | null = !matchDone ? 'match' : players.length > 0 && named < players.length ? 'names' : null;
   const title = matchTitle(t) ?? match.name;
@@ -629,7 +664,7 @@ export function Review({
           )}
         </p>
         <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />
-        {error && <ErrorNote className="rounded-lg border border-destructive px-3 py-2 text-sm" />}
+        {!full && failed}
         <Behind />
         {elsewhere && <Elsewhere claim={elsewhere} onKept={() => setElsewhere(null)} />}
         {failure && (
@@ -694,149 +729,162 @@ export function Review({
             timeRef={matchTime}
             onUnsaved={setUnsaved}
           />
-        ) : question ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  {question.kind !== 'rally' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
-                  {question.kind === 'piece'
-                    ? t('review.who')
-                    : question.kind === 'touch'
-                      ? t(question.reason === 'ace' ? 'review.aceQuestion' : 'review.touchQuestion')
-                      : question.kind === 'rally'
-                        ? t('review.rallyQuestion')
-                        : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
-                </h2>
-              </CardTitle>
-              <CardDescription>
-                {(question.kind === 'touch'
-                  ? [question.reason !== 'ace' && groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
-                  : question.kind === 'rally'
-                    ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
-                    : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
-                )
-                  .filter(Boolean)
-                  .join(' · ')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-              {(question.kind === 'piece' || question.kind === 'touch') && (
-                <label className="grid max-w-md gap-1 text-sm font-medium lg:col-span-2">
-                  {t('review.whoIs')}
-                  <PlayerSelect
-                    key={question.id}
-                    // Both teams: the touch's team, or for an ace the side the ball lands on, is only a guess.
-                    players={current}
-                    nameOf={nameOf}
-                    value=""
-                    empty={t('review.pickPlayer')}
-                    label={t('review.whoIs')}
-                    className="h-9 w-full text-[15px] font-normal"
-                    autoFocus
-                    openOnFocus={false}
-                    onChange={(who) => who && void answer(`player:${who}`)}
-                  />
-                </label>
-              )}
-              <div className="grid min-w-0 gap-3">
-                <ClipVideo key={`${question.id}${showOther}`} clip={showOther && question.other ? question.other : question.clip} width={width} height={height} timeRef={clipTime} />
-                {question.kind === 'merge' && (
-                  <div className="flex flex-wrap gap-2">
-                    {question.choices.map((c, k) => (
-                      <Button key={c.identity} variant={showOther === (k === 1) ? 'default' : 'outline'} size="sm" onClick={() => setShowOther(k === 1)}>
-                        {nameOf(question.team, c.identity) ? t('review.showNamed', { name: nameOf(question.team, c.identity) }) : t('review.show', { n: c.identity })}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                {question.crops.length > 0 && (
-                  <div className="flex flex-wrap gap-2" aria-label={t('review.outlined')}>
-                    {question.crops.map((src) => (
-                      <img key={src} src={src} alt="" className="h-56 rounded-md bg-muted ring-2 ring-[#ffd400]" />
-                    ))}
-                  </div>
-                )}
-                <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>
-              </div>
-              <div className="grid gap-3">
-                {question.kind === 'rally' ? (
-                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                    <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" choice={'rally'} answering={answering} onAnswer={(c) => void answer(c)} />
-                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" choice={'not_play'} answering={answering} onAnswer={(c) => void answer(c)} />
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
-                  </div>
-                ) : question.kind === 'touch' ? (
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                    {question.proposed != null && (
-                      <AnswerButton
-                        icon={<Check aria-hidden />}
-                        label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
-                        hint="1"
-                        choice={`player:${question.team}:${question.proposed}`}
-                        answering={answering}
-                        onAnswer={(c) => void answer(c)}
-                      />
-                    )}
-                    <AnswerButton
-                      icon={<CircleOff aria-hidden />}
-                      label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')}
-                      hint="X"
-                      choice={'nobody'}
-                      answering={answering}
-                      onAnswer={(c) => void answer(c)}
-                    />
-                    <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" choice={'not_play'} answering={answering} onAnswer={(c) => void answer(c)} />
-                    <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
-                  </div>
-                ) : question.kind === 'piece' ? (
-                  <div className="grid gap-3">
-                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" choice={'not_player'} answering={answering} onAnswer={(c) => void answer(c)} />
-                      <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" choice={'cut'} answering={answering} onAnswer={(c) => void answer(c)} />
-                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
-                    </div>
-                    <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
-                  </div>
-                ) : (
-                  <>
-                    {question.choices.map((c) => (
-                      <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
-                        <Pictures
-                          crops={c.crops}
-                          pieces={c.pieces}
-                          owner={{ team: question.team, identity: c.identity }}
-                          players={current}
-                          nameOf={nameOf}
-                          onSaved={onSaved}
-                          onError={() => setError(true)}
-                        />
-                        <p className="m-0 text-sm font-medium">{nameOf(question.team, c.identity) ?? t('player', { n: c.identity })}</p>
-                      </div>
-                    ))}
-                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                      <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" choice={'same'} answering={answering} onAnswer={(c) => void answer(c)} />
-                      <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" choice={'different'} answering={answering} onAnswer={(c) => void answer(c)} />
-                      <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         ) : (
-          <Card>
-            <CardContent className="py-10 text-center">
-              <p className="text-lg font-semibold">{t('review.done')}</p>
-              <p className="mt-1 text-muted-foreground">{t(pending.changed || pending.names ? 'review.doneApply' : 'review.doneNothing')}</p>
-              {next && (
-                <Button className="mt-4" onClick={() => void show(next)}>
-                  {next === 'match' ? <ListChecks aria-hidden /> : <PenLine aria-hidden />}
-                  {t(next === 'match' ? 'review.goMatch' : 'review.goNames')}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          <div ref={block} className={cn(full && 'flex h-screen flex-col gap-4 overflow-y-auto overscroll-contain bg-background p-4')}>
+            {full && failed}
+            {question ? (
+              <Card className={cn(full && 'max-lg:shrink-0 lg:min-h-0 lg:flex-1')}>
+                <CardHeader>
+                  <CardTitle>
+                    <h2 className="flex items-center gap-2 text-lg font-semibold">
+                      {question.kind !== 'rally' && question.reason !== 'ace' && <Swatch color={teamColor(question.team)} ring={teamRing(question.team)} />}
+                      {question.kind === 'piece'
+                        ? t('review.who')
+                        : question.kind === 'touch'
+                          ? t(question.reason === 'ace' ? 'review.aceQuestion' : 'review.touchQuestion')
+                          : question.kind === 'rally'
+                            ? t('review.rallyQuestion')
+                            : t('review.mergeQuestion', { a: question.choices[0].identity, b: question.choices[1].identity })}
+                    </h2>
+                  </CardTitle>
+                  <CardDescription>
+                    {(question.kind === 'touch'
+                      ? [question.reason !== 'ace' && groupName(t, question.team), t(`types.${question.action}`), clock(question.time ?? 0), t(`review.touchWhy.${question.reason}`)]
+                      : question.kind === 'rally'
+                        ? [question.set && t('set', { n: question.set }), clock(question.time ?? 0), f.secs(question.seconds), t('review.rallyWhy')]
+                        : [groupName(t, question.team), t('review.atStake', { s: f.secs(question.seconds) }), question.contacts > 0 && t('touchesN', { count: question.contacts })]
+                    )
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent
+                  className={cn(
+                    'grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]',
+                    full && 'lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch',
+                  )}
+                >
+                  {!full && who}
+                  <div
+                    className={cn(
+                      'grid min-w-0 gap-3',
+                      full && 'max-lg:mx-auto max-lg:w-full max-lg:max-w-[calc((100vh-14rem)*16/9)] lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto]',
+                      full && question.kind !== 'merge' && 'lg:grid-rows-[minmax(0,1fr)]',
+                    )}
+                  >
+                    <ClipVideo
+                      key={`${question.id}${showOther}`}
+                      clip={showOther && question.other ? question.other : question.clip}
+                      width={width}
+                      height={height}
+                      timeRef={clipTime}
+                      extra={
+                        document.fullscreenEnabled && (
+                          <VideoButton label={t(full ? 'review.exitFullScreen' : 'review.fullScreen')} onClick={toggleFull}>
+                            {full ? <Minimize aria-hidden /> : <Maximize aria-hidden />}
+                          </VideoButton>
+                        )
+                      }
+                    />
+                    {(question.kind === 'merge' || !full) && (
+                      <div className="grid gap-3">
+                        {question.kind === 'merge' && (
+                          <div className="flex flex-wrap gap-2">
+                            {question.choices.map((c, k) => (
+                              <Button key={c.identity} variant={showOther === (k === 1) ? 'default' : 'outline'} size="sm" onClick={() => setShowOther(k === 1)}>
+                                {nameOf(question.team, c.identity) ? t('review.showNamed', { name: nameOf(question.team, c.identity) }) : t('review.show', { n: c.identity })}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                        {!full && crops}
+                        {!full && note}
+                      </div>
+                    )}
+                  </div>
+                  <div className={cn('grid content-start gap-3', full && 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain')}>
+                    {full && who}
+                    {question.kind === 'rally' ? (
+                      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                        <AnswerButton icon={<Check aria-hidden />} label={t('review.isRally')} hint="1" choice={'rally'} answering={answering} onAnswer={(c) => void answer(c)} />
+                        <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" choice={'not_play'} answering={answering} onAnswer={(c) => void answer(c)} />
+                        <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
+                      </div>
+                    ) : question.kind === 'touch' ? (
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                        {question.proposed != null && (
+                          <AnswerButton
+                            icon={<Check aria-hidden />}
+                            label={t('review.touchProposed', { name: nameOf(question.team, question.proposed) ?? t('player', { n: question.proposed }) })}
+                            hint="1"
+                            choice={`player:${question.team}:${question.proposed}`}
+                            answering={answering}
+                            onAnswer={(c) => void answer(c)}
+                          />
+                        )}
+                        <AnswerButton
+                          icon={<CircleOff aria-hidden />}
+                          label={t(question.reason === 'ace' ? 'review.aceNobody' : 'review.nobody')}
+                          hint="X"
+                          choice={'nobody'}
+                          answering={answering}
+                          onAnswer={(c) => void answer(c)}
+                        />
+                        <AnswerButton icon={<CirclePause aria-hidden />} label={t('review.notPlay')} hint="P" choice={'not_play'} answering={answering} onAnswer={(c) => void answer(c)} />
+                        <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
+                      </div>
+                    ) : question.kind === 'piece' ? (
+                      <div className="grid gap-3">
+                        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                          <AnswerButton icon={<UserX aria-hidden />} label={t('review.notPlayer')} hint="X" choice={'not_player'} answering={answering} onAnswer={(c) => void answer(c)} />
+                          <AnswerButton icon={<Scissors aria-hidden />} label={t('review.cut')} hint="C" choice={'cut'} answering={answering} onAnswer={(c) => void answer(c)} />
+                          <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
+                        </div>
+                        <p className="m-0 text-[13px] text-muted-foreground">{t('review.cutNote')}</p>
+                      </div>
+                    ) : (
+                      <>
+                        {question.choices.map((c) => (
+                          <div key={c.identity} className="grid gap-2 rounded-lg border bg-card p-3">
+                            <Pictures
+                              crops={c.crops}
+                              pieces={c.pieces}
+                              owner={{ team: question.team, identity: c.identity }}
+                              players={current}
+                              nameOf={nameOf}
+                              onSaved={onSaved}
+                              onError={() => setError(true)}
+                            />
+                            <p className="m-0 text-sm font-medium">{nameOf(question.team, c.identity) ?? t('player', { n: c.identity })}</p>
+                          </div>
+                        ))}
+                        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                          <AnswerButton icon={<Check aria-hidden />} label={t('review.same')} hint="1" choice={'same'} answering={answering} onAnswer={(c) => void answer(c)} />
+                          <AnswerButton icon={<Users aria-hidden />} label={t('review.different')} hint="2" choice={'different'} answering={answering} onAnswer={(c) => void answer(c)} />
+                          <AnswerButton icon={<HelpCircle aria-hidden />} label={t('review.skip')} hint="S" choice={'skip'} answering={answering} onAnswer={(c) => void answer(c)} />
+                        </div>
+                      </>
+                    )}
+                    {full && note}
+                    {full && crops}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className={cn(full && 'my-auto')}>
+                <CardContent className="py-10 text-center">
+                  <p className="text-lg font-semibold">{t('review.done')}</p>
+                  <p className="mt-1 text-muted-foreground">{t(pending.changed || pending.names ? 'review.doneApply' : 'review.doneNothing')}</p>
+                  {next && (
+                    <Button className="mt-4" onClick={() => void show(next)}>
+                      {next === 'match' ? <ListChecks aria-hidden /> : <PenLine aria-hidden />}
+                      {t(next === 'match' ? 'review.goMatch' : 'review.goNames')}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </main>
     </>
