@@ -571,7 +571,7 @@ export function Review({
     </label>
   );
   const note = question && <p className="text-[13px] text-muted-foreground">{t(question.reason === 'ace' ? 'review.aceNote' : `review.${question.kind}Note`)}</p>;
-  // Under the video, or in full screen under the answers: the video keeps the height.
+  // Beside the video under the answers, or on a narrow screen (out of full screen) under the video, seen before answering.
   const crops = question && question.crops.length > 0 && (
     <div className="flex flex-wrap gap-2" aria-label={t('review.outlined')}>
       {question.crops.map((src) => (
@@ -797,7 +797,7 @@ export function Review({
                     {!full && (
                       <div className="grid gap-3">
                         {shows}
-                        {crops}
+                        {crops && <div className="lg:hidden">{crops}</div>}
                         {note}
                       </div>
                     )}
@@ -869,7 +869,7 @@ export function Review({
                       </>
                     )}
                     {full && note}
-                    {full && crops}
+                    {full ? crops : crops && <div className="max-lg:hidden">{crops}</div>}
                   </div>
                 </CardContent>
               </Card>

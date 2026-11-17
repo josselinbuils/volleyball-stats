@@ -102,6 +102,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   (`hooks/useFullscreen.ts`, shared; the status badge and an error follow it there). In both tabs the video's column
   takes its width (`--video-w`, set by `ClipVideo` on the full-screen block): the Match tab's timeline and rally bar
   are as wide as the video, the column beside starts where it ends, the whole centred.
+  Out of full screen too, a question's outlined pictures sit beside the video under the answers (under the video on a
+  phone, seen before answering).
 - Nobody comes in or goes out during a rally, nor in a short break between two with the same six: once all six named
   players of a team are seen in one, a piece no named player holds takes the one off court while it is on
   (`identity.fill_in`, each apply), and is no longer asked. A card made of other players' pieces empties by itself (17 Nov).
