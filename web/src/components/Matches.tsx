@@ -15,6 +15,7 @@ import { Swatch } from '@/components/Swatch';
 import { Settings } from '@/components/Settings';
 import { useFormat } from '@/lib/format';
 import { openMatch, pullMatch } from '@/lib/openMatch';
+import { NewReports } from '@/components/NewReports';
 import { withRemote } from '@/lib/remoteMatches';
 import { useTasks } from '@/lib/tasks';
 import { cn } from '@/lib/utils';
@@ -138,6 +139,7 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
           {!club && <Settings />}
         </header>
         {review && <Behind />}
+        {review && <NewReports />}
         {review && <div ref={setup} />}
         {views.length > 1 && (
           <Tabs

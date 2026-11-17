@@ -12,7 +12,7 @@ import { railAt, shiftOf, topOf } from '@/components/Review/helpers/timeline';
 import { type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
-import { ReportRow } from '@/components/Review/ReportRow';
+import { ReportRow, autoReport } from '@/components/Review/ReportRow';
 import { TimeoutRow } from '@/components/Review/TimeoutRow';
 import type { NameOf } from '@/components/Review/helpers/players';
 import {
@@ -789,7 +789,7 @@ export function ReportEditor({
       : [];
   };
   const reportsIn = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && !aboutEnd(q) && anchorOf(q) === undefined));
-  const reportsOn = (row: Row) => reportRows(openQuestions.filter((q) => anchorOf(q) === row.frame));
+  const openOn = (row: Row) => openQuestions.filter((q) => anchorOf(q) === row.frame);
   const reportsAtEnd = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) === k && aboutEnd(q)));
   const reportsAfter = (k: number) => reportRows(openQuestions.filter((q) => rallyOfReport(q) < 0 && shown.findLastIndex((r) => r.start <= (q.reports?.[0]?.time ?? q.clip.start)) === k));
   const timeoutRows = (k: number) =>
@@ -991,7 +991,7 @@ export function ReportEditor({
                             : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault')
                         ).sort((a, b) => a.time - b.time);
                         const causes = earlier.filter((r, n) => n >= earlier.length - CAUSE_TOUCHES || r.frame === row.cause);
-                        const about = reportsOn(row);
+                        const about = openOn(row);
                         const mentioned = about.length > 0;
                         const warned = problemsOf(row).length > 0;
                         return [
@@ -1002,7 +1002,7 @@ export function ReportEditor({
                             className={cn(
                               'grid grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md border bg-card p-1.5 transition-colors',
                               // Its reports' edge, else its warnings', marks the touch they are about.
-                              mentioned ? 'border-l-4 border-l-primary' : warned && 'border-l-4 border-l-amber-500',
+                              mentioned && !about.every(autoReport) ? 'border-l-4 border-l-primary' : (mentioned || warned) && 'border-l-4 border-l-amber-500',
                               row.frame === playing && 'border-primary bg-primary/10',
                               row.removed && 'bg-muted/50',
                             )}
@@ -1093,6 +1093,12 @@ export function ReportEditor({
                                     {t('review.addMissedAttack')}
                                   </Button>
                                 )}
+                                {problemsOf(row).includes('noServe') && (
+                                  <Button variant="outline" size="sm" className="h-7 shrink-0 text-foreground" onClick={() => setType(row, 'serve')}>
+                                    <PenLine aria-hidden />
+                                    {t('review.makeServe')}
+                                  </Button>
+                                )}
                               </p>
                             )}
                             {!row.removed && (
@@ -1127,7 +1133,7 @@ export function ReportEditor({
                               </select>
                             )}
                           </li>,
-                          ...about,
+                          ...reportRows(about),
                         ];
                       }),
                     // A touch lands at the video's moment: only the rally on the video takes it.

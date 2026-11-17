@@ -1,6 +1,7 @@
 import type { Group, Rally } from '@/lib/match';
 import type { ReportChanges } from '@/lib/review';
 import { HOLD_S } from '@/components/Review/helpers/box';
+import { LIVE_PROBLEMS } from '@/components/Review/helpers/checks';
 
 /** Same fields with the same values, whatever their order. */
 const sameFix = (a: object | undefined, b: object | undefined) => {
@@ -83,6 +84,16 @@ export function joinEnd(k: number, joins: (k: number) => boolean): number {
     k++;
   }
   return k;
+}
+
+/** `questions` without the automatic reports the editor's warnings stand for (`LIVE_PROBLEMS`): on their touch, gone once
+ * fixed, and checking the rally handles them; a question left with none goes. */
+export function unwarnedReports<Q extends { reports?: { kind: string | null }[] }>(questions: Q[]): Q[] {
+  const live = new Set(LIVE_PROBLEMS.map((p) => `auto.${p}`));
+  return questions.flatMap((q) => {
+    const reports = q.reports?.filter((r) => !live.has(r.kind ?? ''));
+    return reports?.length === q.reports?.length ? [q] : reports?.length ? [{ ...q, reports }] : [];
+  });
 }
 
 /** The report questions without the automatic reports on the rallies of `joined`, by their key:

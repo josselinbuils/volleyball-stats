@@ -277,7 +277,6 @@ class TestReports:
 
         assert [(r["time"], r["kind"]) for r in found] == [
             (1.0, "auto.noServe"),
-            (1.0, "auto.passWithoutServe"),
             (2.0, "auto.twoServes"),
             (2.0, "auto.serveNotReceived"),
             (2.0, "auto.server"),

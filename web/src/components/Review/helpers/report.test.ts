@@ -7,6 +7,7 @@ import {
   joinEnd,
   joinStart,
   liveReports,
+  unwarnedReports,
   matchFinished,
   missedAttackAt,
   nextTouch,
@@ -282,6 +283,20 @@ describe('joinStart and joinEnd', () => {
   it('leave a rally joined to nothing where it is', () => {
     expect(joinStart(0, joins)).toBe(0);
     expect(joinEnd(4, joins)).toBe(4);
+  });
+});
+
+describe('unwarnedReports', () => {
+  const report = (kind: string | null) => ({ kind });
+
+  it("drops the automatic reports the editor's warnings stand for, with the question left empty", () => {
+    expect(unwarnedReports([{ reports: [report('auto.noServe'), report('auto.passWithoutServe')] }])).toEqual([]);
+  });
+
+  it('keeps those only the server finds and the viewers', () => {
+    const kept = { reports: [report('auto.scoreOff'), report('wrongPlayer')] };
+    expect(unwarnedReports([kept])).toEqual([kept]);
+    expect(unwarnedReports([{ reports: [report('auto.gap'), report('auto.record.serve')] }])).toEqual([{ reports: [report('auto.record.serve')] }]);
   });
 });
 

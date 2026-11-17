@@ -220,6 +220,12 @@
     "haikyu": "Haikyu!!"
   },
   "matchTitle": "Match {{one}} vs {{two}}",
+  "newReports": {
+    "count_one": "{{count}} new report",
+    "count_other": "{{count}} new reports",
+    "show": "Show",
+    "open": "Open"
+  },
   "scoreLabel": "Set {{set}}, score: {{a}} {{s1}}, {{b}} {{s2}}",
   "scoreEstimated": "Estimated score",
   "scoreFinal": "Final score",
@@ -518,6 +524,7 @@
     "timeoutEnd": "End at {{time}}",
     "reportGo": "Watch this moment",
     "addMissedAttack": "Add the attack",
+    "makeServe": "Make it the serve",
     "reportHandled": "Handled",
     "recordRight": "Right",
     "recordRightNote": "Keeps this record.",

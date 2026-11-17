@@ -76,7 +76,7 @@ describe('problems', () => {
     const found = problems([c('pass', 2), c('serve', 1, '', 'error'), c('serve', 1), c('set', 1, '1:4'), c('attack', 1, '1:4')], null, 2, true);
     expect(found.rally).toEqual(['noWinner']);
     expect(marks(found)).toEqual({
-      0: ['noServe', 'passWithoutServe'],
+      0: ['noServe'],
       1: ['serveNotReceived', 'server'],
       2: ['twoServes', 'serveNotReceived', 'afterFault'],
       4: ['samePlayer', 'fourTouches'],

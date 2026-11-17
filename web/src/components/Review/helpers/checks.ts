@@ -17,6 +17,25 @@ export type Problem =
   | 'gap'
   | DoubtfulProblem;
 
+/** What the editor finds as the server's automatic reports do (review.unusual): the editor's warning stands for such a report. */
+export const LIVE_PROBLEMS: Problem[] = [
+  'empty',
+  'noServe',
+  'twoServes',
+  'passWithoutServe',
+  'serveNotReceived',
+  'fourTouches',
+  'samePlayer',
+  'relanceFirst',
+  'relanceSecond',
+  'setOver',
+  'afterFault',
+  'afterPoint',
+  'server',
+  'noWinner',
+  'gap',
+];
+
 /** What may well be right after all, in an amateur match: a rally checked shows none of them. */
 type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch' | HeightDoubt;
 
@@ -68,7 +87,8 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
     const c = touches[k];
     const b = n > 0 ? played[n - 1] : undefined;
     const before = b === undefined ? undefined : touches[b];
-    if (c.type === 'pass' && before?.type !== 'serve') {
+    // A rally's first touch a reception already says 'noServe'.
+    if (c.type === 'pass' && before && before.type !== 'serve') {
       mark(k, 'passWithoutServe');
     }
     if (before?.type === 'serve' && c.type !== 'pass') {

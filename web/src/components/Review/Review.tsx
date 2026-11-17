@@ -6,6 +6,7 @@ import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Behind } from '@/components/Behind';
+import { NewReports } from '@/components/NewReports';
 import { ClubBar } from '@/components/ClubBar';
 import { matchTitle } from '@/components/Header/helpers/title';
 import { Swatch } from '@/components/Swatch';
@@ -50,7 +51,7 @@ import type { AppState } from '@/components/Setup/helpers/setup';
 import { startUpdate, UpdateProgress, type Due } from '@/components/Update';
 import { call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
-import { matchFinished } from '@/components/Review/helpers/report';
+import { matchFinished, unwarnedReports } from '@/components/Review/helpers/report';
 import { ReviewHeader } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
 import { windowTitle } from '@/lib/appServer';
@@ -197,7 +198,7 @@ export function Review({
   // The viewers' reports are handled in the match tab.
   const open = questions.filter((q) => q.kind !== 'report' && !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
   const question = open[0];
-  const reports = questions.filter((q) => q.kind === 'report');
+  const reports = unwarnedReports(questions.filter((q) => q.kind === 'report'));
   // Rallies whose corrections are not saved: a reload or leaving the Match tab loses them.
   const [unsaved, setUnsaved] = useState(0);
   // Losing them was agreed to: the page may go.
@@ -704,6 +705,7 @@ export function Review({
         <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />
         {!full && failed}
         <Behind />
+        <NewReports mayLeave={mayLeave} />
         {elsewhere && <Elsewhere claim={elsewhere} onKept={() => setElsewhere(null)} />}
         {failure && (
           <RunFailure

@@ -54,3 +54,41 @@ class TestFetch:
 
         assert feedback.fetch(tmp_path, "root@host:/srv/vbs/site/", "~/key") is None
         assert len(calls) == 1 and not list(tmp_path.iterdir())
+
+
+class TestFetchAll:
+    def test_counts_each_match_s_new_reports_once_by_its_name_now(self, tmp_path, monkeypatch):
+        from volleyball_stats import feedback
+
+        for name, publish in (("new_name", {"upload": "root@h:/srv/site/", "key": "k"}), ("other", {"upload": "root@h:/srv/site/", "key": "k"}), ("local", None)):
+            (tmp_path / "matches" / name).mkdir(parents=True)
+            if publish:
+                (tmp_path / "matches" / name / "publish.json").write_text(json.dumps(publish))
+        (tmp_path / "matches" / "new_name" / "source.json").write_text(json.dumps({"aliases": ["old_name"]}))
+        fetched = []
+
+        def fetch(folder, upload, key):
+            fetched.append((upload, key))
+            log = folder / f"feedback-{len(fetched)}.log"
+            folder.mkdir(parents=True, exist_ok=True)
+            reports = [{"id": "a", "match": "old_name"}, {"id": "b", "match": "other"}, {"id": "c", "match": "gone"}]
+            log.write_text("".join(json.dumps({"received": "t", "report": json.dumps(r)}) + "\n" for r in reports))
+            return log
+
+        monkeypatch.setattr(feedback, "fetch", fetch)
+
+        assert feedback.fetch_all(tmp_path) == {"new_name": 1, "other": 1}
+        # One hosting, fetched once; the same reports again are not new.
+        assert fetched == [("root@h:/srv/site/", "k")]
+        assert feedback.fetch_all(tmp_path) == {}
+        feedback.seen(tmp_path, "other")
+        assert feedback.news(tmp_path)["matches"] == {"new_name": ["a"]}
+
+    def test_fetches_nothing_without_a_hosting(self, tmp_path, monkeypatch):
+        from volleyball_stats import feedback
+
+        (tmp_path / "matches" / "m").mkdir(parents=True)
+        monkeypatch.setattr(feedback, "fetch", lambda *_: (_ for _ in ()).throw(AssertionError("fetched")))
+
+        assert feedback.fetch_all(tmp_path) == {}
+        assert not (tmp_path / "feedback").exists()

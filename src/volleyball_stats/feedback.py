@@ -8,10 +8,21 @@ log: one JSON object a line, the body the page sent in its "report". Listed by m
 import argparse
 import json
 import subprocess
+import threading
 import time
 from pathlib import Path
 
-from volleyball_stats.matches import ssh_options
+from volleyball_stats import files
+from volleyball_stats.matches import PUBLISH, ssh_options
+
+# The hostings' reports are fetched this often, in seconds, while the app runs.
+EVERY_S = 10 * 60
+# In outputs/feedback: the reports fetched and not yet seen in their match's review, by match ("matches", ids), and the last
+# fetch's time ("at").
+NEW = "new.json"
+# One fetch at a time (the timer's and the user's), and one change of NEW: marking a match seen waits for no fetch.
+fetching = threading.Lock()
+writing = threading.Lock()
 
 
 def merge(report: dict, later: dict) -> dict:
@@ -58,6 +69,77 @@ def fetch(folder: Path, upload: str, key: str) -> Path | None:
         return None
     subprocess.run(["ssh", *ssh, host, f": > {online}"], check=True, capture_output=True)
     return target
+
+
+def news(outputs: Path) -> dict:
+    """NEW's content: {"at": time of the last fetch, "matches": {match: [report ids]}}."""
+    try:
+        found = json.loads((outputs / "feedback" / NEW).read_text())
+        return found if isinstance(found, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def seen(outputs: Path, name: str) -> None:
+    """The new reports of the match `name` seen: its review shows them."""
+    with writing:
+        found = news(outputs)
+        if name in found.get("matches", {}):
+            del found["matches"][name]
+            files.write_text(outputs / "feedback" / NEW, json.dumps(found) + "\n")
+
+
+def fetch_all(outputs: Path) -> dict[str, int]:
+    """Every hosting's reports (the publish.json of the matches in `outputs`) fetched (`fetch`), those of a match there added
+    to its new ones (NEW, by the name it has now: a report may carry a former one); how many each match got. Those fetched
+    before a hosting fails are counted: `fetch` empties the log online."""
+    with fetching:
+        hostings, names = set(), {}
+        for match in sorted((outputs / "matches").glob("*/")):
+            names.update({alias: match.name for alias in files.aliases(match)})
+            names[match.name] = match.name
+            try:
+                config = json.loads((match / PUBLISH).read_text())
+            except (OSError, ValueError):
+                continue
+            if isinstance(config, dict) and config.get("upload") and config.get("key"):
+                hostings.add((config["upload"], config["key"]))
+        if not hostings:
+            return {}
+        logs: list[Path] = []
+        got: dict[str, int] = {}
+        try:
+            for upload, key in sorted(hostings):
+                log = fetch(outputs / "feedback", upload, key)
+                if log:
+                    logs.append(log)
+        finally:
+            with writing:
+                found = news(outputs)
+                known = found.get("matches") if isinstance(found.get("matches"), dict) else {}
+                for report in (r for log in logs for r in read(log)):
+                    name = names.get(str(report.get("match")))
+                    said = str(report.get("id") or f"{report.get('received')}:{report.get('time')}")
+                    if name and said not in known.setdefault(name, []):
+                        known[name].append(said)
+                        got[name] = got.get(name, 0) + 1
+                (outputs / "feedback").mkdir(parents=True, exist_ok=True)
+                files.write_text(outputs / "feedback" / NEW, json.dumps({"at": time.time(), "matches": {k: v for k, v in known.items() if v}}) + "\n")
+        return got
+
+
+def watch(outputs: Path, got=lambda found: None) -> None:
+    """Fetches every EVERY_S (`fetch_all`), the first once EVERY_S passed since the last (a server started again on
+    another match fetches none at once), telling `got` what came; a failure (offline) waits for the next."""
+    time.sleep(max(0.0, (news(outputs).get("at") or 0) + EVERY_S - time.time()))
+    while True:
+        try:
+            found = fetch_all(outputs)
+            if found:
+                got(found)
+        except Exception as error:  # noqa: BLE001
+            print(f"reports fetch failed: {error}", flush=True)
+        time.sleep(EVERY_S)
 
 
 def main() -> None:

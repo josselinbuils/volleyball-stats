@@ -244,8 +244,12 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   adds what is wrong and a comment to the same report (its `id`). Between two rallies it is about the one ending up to 8 s
   before, else the one starting up to 3 s after (`rallyReported`, as the review files it), named with the moment's time.
 - The service's nginx logs each POST (2 KB, 5 a minute per visitor) to `volleyball-stats/feedback/feedback.log`.
-- The review's "Charger les signalements" (`feedback.fetch`) copies it to `outputs/feedback/feedback-DATE.log` (the review
-  reads every `outputs/feedback/*.log`), then empties it online; `uv run python -m volleyball_stats.feedback LOG` lists a
+- The app fetches it every 10 minutes while it runs (`feedback.watch`, in the list's and a match's server: a restart on
+  another match waits out the 10 minutes), the review's "Charger les signalements" at once (`feedback.fetch_all`, every
+  hosting the matches' publish.json name): each copied to `outputs/feedback/feedback-DATE.log` (the review reads every
+  `outputs/feedback/*.log`), then emptied online. The reports new to a match wait in `outputs/feedback/new.json` until its
+  review loads: the page shows a notice with each match's count ("Ouvrir", "Afficher" on the open match, its questions
+  loaded again by the timer) and, once allowed at the first click on it, a system notification when more come; `uv run python -m volleyball_stats.feedback LOG` lists a
   log's reports.
 - Test the report endpoint without writing to that log (it holds viewers' reports): a GET writes an empty line too, which
   `feedback.read` skips.

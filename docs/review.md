@@ -169,14 +169,17 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - Played past the end of a rally not checked, the video stops 1.5 s after it (the ball may still be up at the end found), once until moved back, to check it; "Valider" plays
   on from the next one.
 - Under it, a zoomable bar of every rally, touch, report (red flag) and warning (orange flag: on its touch, else the
-  rally's start; an automatic report only where the editor finds no warning on its rally). It colours each rally (orange
+  rally's start; an automatic report only where the editor finds no warning on its rally, in orange too). It colours each rally (orange
   warning, green checked, grey to check) and its arrows go to the next one to check. Both bars show the rallies as
   corrected (an end moved, a rally started, joined or deleted) before they are saved.
 
 ### Correcting
 
 - A report about one touch (a record, a point without crossing the net, a relance played high, a viewer's on the touch
-  replayed) sits under that touch, its card edged in red; a touch with a warning has an orange edge; the rally's warning
+  replayed) sits under that touch, its card edged in red (an automatic one's in orange, "Vérification automatique" said once
+  in its header); a touch with a warning has an orange edge; an automatic report the editor's warnings find as well
+  (`LIVE_PROBLEMS`, `unwarnedReports`: the rally's structure, serves, gap) shows only as that warning, gone once fixed,
+  checking the rally handles it; "Ne commence pas par un service" offers "En faire le service"; the rally's warning
   sign says each warning's touch by its moment (the owner, 15 Nov: what a warning was about was hard to find).
 - Beside the video, the touches around it: correct, add (a serve before a rally starts it, and the touches added after it
   are that rally's), remove, end a rally (`end` answers; its touches after that start a new rally at the first of them,
@@ -237,7 +240,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 Automatic reports (`review.unusual`) flag:
 
-- no serve first, two serves, a reception not right after a serve, a serve not followed by a reception, four touches in a
+- no serve first, two serves, a reception not right after a serve (not as a rally's first touch: no serve says it), a serve not followed by a reception, four touches in a
   row, the wrong server, no touch, no winner, over 2.5 s between two touches, a server out of rotation order;
 - a relance as a team's first touch (`relanceFirst`, after the other team's touch but a serve, or after a block) or as its
   second its team plays on (`relanceSecond`): a dig or a set by the owner's rule (14 Nov), on checked rallies too; on a checked

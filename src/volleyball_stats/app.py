@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import backup, club_settings, doctor, files, git_check, jobs, presence, server, shortcut, sync
+from volleyball_stats import backup, club_settings, doctor, feedback, files, git_check, jobs, presence, server, shortcut, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -754,6 +754,10 @@ def handle(
         if method == "GET":
             if route == "state":
                 return reply(state(listed()))
+            if route == "reports":
+                # The viewers' reports fetched (`feedback.watch`) and not yet seen in their match's review.
+                found = feedback.news(OUTPUTS).get("matches") or {}
+                return reply([{"name": name, "count": len(ids), "teams": teams_of(name)} for name, ids in sorted(found.items())])
             if route == "tasks":
                 return reply(tasks(review(), open_match))
             if route == "doctor":

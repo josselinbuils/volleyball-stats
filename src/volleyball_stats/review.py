@@ -888,7 +888,8 @@ def unusual(page: dict, places: list | None = None, done: set[int] = frozenset()
         if len(serves) > 1:
             why.append("twoServes")
         pairs = list(zip(played, played[1:]))
-        if any(b["type"] == "pass" and a["type"] != "serve" for a, b in pairs) or (played and played[0]["type"] == "pass"):
+        # A rally's first touch a reception already says "noServe".
+        if any(b["type"] == "pass" and a["type"] != "serve" for a, b in pairs):
             why.append("passWithoutServe")
         if any(a["type"] == "serve" and b["type"] != "pass" for a, b in pairs):
             why.append("serveNotReceived")
@@ -2434,6 +2435,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             time.sleep(BACKUP_EVERY_S)
 
     threading.Thread(target=backing, daemon=True).start()
+    threading.Thread(target=feedback.watch, args=(out.parent,), daemon=True).start()
     presence.watch(lambda: not any(j["running"] for j in jobs.state(app.OUTPUTS)))
     server = Server((network.bind(app.OUTPUTS), port), Handler)
     url = f"http://127.0.0.1:{port}/matches/"
@@ -2768,7 +2770,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         }
         return {"photos": photos, "photosPending": stale_photos.exists() and not photos_error[0], "photosError": photos_error[0]}
 
+    def reports_came(found: dict[str, int]) -> None:
+        """New reports fetched by the timer (`feedback.watch`): this match's in its questions (after an apply running),
+        for the page to show once it reloads."""
+        if match.name in found:
+            with lock:
+                questions.load()
+
     def review_js() -> bytes:
+        # The page shows this match's new reports.
+        feedback.seen(outputs, match.name)
         log = load_log(answers)
         found, _ = questions.build({entry["id"] for entry in log})
         follow_teams(roster, match.parent)
@@ -3153,12 +3164,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     log = [e for e in log if e["id"] != body["id"]]
                     log.append({"id": f"cut:{track}:{cut[0]['frame']}", "choice": "cut", **constraints("cut", {"choices": []}, cut=cut), "applied": False})
                 elif self.path == "/reports" and (match / matches.PUBLISH).exists():
-                    config = json.loads((match / matches.PUBLISH).read_text())
 
                     def fetched() -> None:
                         try:
-                            got = feedback.fetch(files.root(match) / "feedback", config["upload"], config["key"])
-                            fetched_log.update(at=time.strftime("%H:%M"), count=len([r for r in feedback.read(got) if r.get("match") in (match.name, *files.aliases(match))]) if got else 0, error=None)
+                            # Every hosting's: the others' new ones wait for their match.
+                            got = feedback.fetch_all(outputs)
+                            fetched_log.update(at=time.strftime("%H:%M"), count=got.get(match.name, 0), error=None)
                         except Exception as error:  # noqa: BLE001
                             fetched_log.update(at=time.strftime("%H:%M"), count=0, error=str(error) or type(error).__name__)
 
@@ -3246,6 +3257,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     threading.Thread(target=afterwards, daemon=True).start()
     if can_back_up:
         threading.Thread(target=backing, daemon=True).start()
+    threading.Thread(target=feedback.watch, args=(outputs, reports_came), daemon=True).start()
     # Never in an apply nor the work it leaves for later (the pictures).
     presence.watch(lambda: not progress and not later.is_set() and not after_apply.is_set() and not any(j["running"] for j in jobs.state(app.OUTPUTS)), lock)
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
