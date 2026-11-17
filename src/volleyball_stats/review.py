@@ -86,6 +86,8 @@ HOSTED = "hosted.json"
 HOSTED_PAGE = "hosted_page.json"
 # What the identities were last computed from (`state`), to tell what an apply would change.
 APPLIED = "identity_applied.json"
+# The names removed in the review, by team: players absent from the match, never proposed nor suggested again in it.
+ABSENT = "absent_names.json"
 # Undo takes back the UNDOS latest of the CHANGES whole, then drops the last answer. Request bodies
 # are at most MAX_BODY bytes.
 UNDOS, MAX_BODY = 100, 1 << 20
@@ -520,7 +522,8 @@ class Questions:
         seconds = identity.on_court(self.table, self.fps)
         out, left = [], identity.leftovers(seconds, names)
         unnamed = [k for k in seconds if k not in left and not names.get(k, {}).get("name")]
-        taken = {(t, given["name"].casefold()) for (t, _), given in names.items() if given.get("name")}
+        absent = read_absent(self.match)
+        taken = {(t, given["name"].casefold()) for (t, _), given in names.items() if given.get("name")} | {(t, n.casefold()) for t, n in absent}
         proposed = propose({k: self.vectors.get(k) for k in unnamed}, self.read, roster, teams, taken, {k: self.together(*k, names) for k in unnamed})
         for (team, number), played in sorted(seconds.items(), key=lambda kv: -kv[1]):
             if (team, number) in left:
@@ -530,7 +533,7 @@ class Questions:
                 "team": team, "identity": number, "seconds": round(played, 1), "contacts": touches[team, number],
                 **self.faces(team, number), "name": given.get("name"), "jersey": given.get("jersey"),
                 "read": self.read.get((team, number)),
-                "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1], self.together(team, number, names), self.read.get((team, number))),
+                "suggestions": suggest(self.vectors.get((team, number)), roster, teams[team - 1], self.together(team, number, names) | {n for t, n in absent if t == team}, self.read.get((team, number))),
                 "proposed": proposed.get((team, number)),
             })
         return out
@@ -1630,6 +1633,28 @@ def set_name(match: Path, questions: Questions, team: int, number: int, given: s
     else:
         entries.append({"ref": questions.ref(team, number), "name": given, "jersey": jersey})
     write_names(match, entries)
+
+
+def read_absent(match: Path) -> list[tuple[int, str]]:
+    path = match / ABSENT
+    return [(int(t), n) for t, n in json.loads(path.read_text())["absent"]] if path.exists() else []
+
+
+def name_absent(match: Path, table: list, team: int, name: str | None, removed: str | None) -> None:
+    """ABSENT after a card of `team` was named `name`: that name no longer absent; else the name `removed` from it (given
+    or only proposed) absent, unless another card of the team still holds it."""
+    absent = read_absent(match)
+    if name and name.strip():
+        kept = [(t, n) for t, n in absent if (t, n.casefold()) != (team, name.strip().casefold())]
+    elif removed and removed.strip():
+        held = {given["name"].strip().casefold() for (t, _), given in identity.named(table, identity.read_names(match)).items() if t == team and given.get("name")}
+        gone = removed.strip()
+        known = gone.casefold() in held or (team, gone.casefold()) in {(t, n.casefold()) for t, n in absent}
+        kept = absent if known else [*absent, (team, gone)]
+    else:
+        return
+    if kept != absent:
+        files.write_text(match / ABSENT, json.dumps({"absent": [list(a) for a in kept]}, ensure_ascii=False) + "\n")
 
 
 def set_photo(match: Path, table: list, team: int, number: int, frame: int, box: list[int]) -> None:
@@ -2995,8 +3020,11 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 if self.path == "/name":
                     # One name, or a team's proposed ones at once (`names`).
                     for given in body.get("names") or [body]:
-                        jersey = given.get("jersey")
-                        set_name(match, questions, int(given["team"]), int(given["identity"]), given.get("name"), None if jersey in (None, "") else int(jersey))
+                        jersey, team, number = given.get("jersey"), int(given["team"]), int(given["identity"])
+                        # A name removed, or a proposal cleared (`refused`): that player is not in the match.
+                        removed = (identity.named(questions.table, identity.read_names(match)).get((team, number)) or {}).get("name") or given.get("refused")
+                        set_name(match, questions, team, number, given.get("name"), None if jersey in (None, "") else int(jersey))
+                        name_absent(match, questions.table, team, given.get("name"), removed)
                     # Undo leaves the names as typed since.
                     for change in history:
                         change["names"] = None

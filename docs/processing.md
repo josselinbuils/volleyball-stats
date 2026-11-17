@@ -159,7 +159,10 @@ For two numbers never on court together: 1 for the same person, 2 for two people
 - **Names proposed**: each unnamed card shows one ("Proposé", `review.propose`), each roster player on one card: the
   one wearing the number read, then the most alike left (not one who last wore another number than the one read, often
   a jersey changed hands), else "Joueur N" from the number read. "Valider les N noms proposés" saves a team's at once;
-  fix the wrong ones first. Each match left out of the roster (`benchmarks/identity/names.py`): 40 of 53 cards right
+  fix the wrong ones first. A name removed from a card (cleared, given or only proposed, or every picture of the card
+  marked as someone else) is absent from the match (`absent_names.json`, `review.name_absent`): never proposed nor
+  suggested in it again, until typed on a card (a card of others' pieces otherwise took the same absent player again
+  and again, 17 Nov). Each match left out of the roster (`benchmarks/identity/names.py`): 40 of 53 cards right
   (15/18, 11/16, 14/19), 5 wrong, 3 "Joueur N" to rename, 5 none, against 23 with the first suggestion right before.
   Each team's numbers are its own. RapidOCR reads the torsos; a piece keeps a number read
   twice and never contradicted, and a number seen on two pieces at once (two people wear it) joins

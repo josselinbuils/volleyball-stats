@@ -78,6 +78,8 @@ export function Names({
         ]),
       ),
   );
+  // The names removed in this session, by `team:name`.
+  const [absent, setAbsent] = useState<Set<string>>(() => new Set());
   const [running, run] = useRunning();
   // The keyboard: arrows (or J/K) between cards and pictures, Space marks a picture, N names.
   useEffect(() => {
@@ -116,13 +118,23 @@ export function Names({
   const save = async (p: Named, value: Given) => {
     const key = keyOf(p);
     const before = saved.get(key);
-    if (before && before.name.trim() === value.name.trim() && before.jersey === value.jersey) {
+    // A proposal cleared: that player is not in the match, never proposed in it again.
+    const refused = !value.name.trim() && !before?.name.trim() && p.proposed && !absent.has(`${p.team}:${fold(p.proposed.name)}`) ? p.proposed.name : null;
+    if (before && before.name.trim() === value.name.trim() && before.jersey === value.jersey && !refused) {
       return;
     }
     try {
       const moved = offered(p.team).some((o) => o.other && fold(o.name) === fold(value.name));
-      const result = await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null, moved });
+      const result = await post('name', { team: p.team, identity: p.identity, name: value.name.trim() || null, jersey: value.jersey || null, moved, refused });
       const next = new Map(saved).set(key, value);
+      // A name removed (or a proposal cleared) is offered no more on the other cards; one given is again.
+      const gone = refused ?? (value.name.trim() ? null : before?.name.trim());
+      setAbsent((a) => {
+        const out = new Set(a);
+        if (gone) out.add(`${p.team}:${fold(gone)}`);
+        if (value.name.trim()) out.delete(`${p.team}:${fold(value.name)}`);
+        return out;
+      });
       setSaved(next);
       onNamed(next);
       onSaved(result);
@@ -200,6 +212,7 @@ export function Names({
                   film={staleFilms.includes(saved.get(keyOf(p))!.name.trim()) ? () => onFilm(saved.get(keyOf(p))!.name.trim()) : undefined}
                   busy={busy}
                   others={mine.filter((o) => o !== p).map((o) => ({ identity: o.identity, name: fold(given.get(keyOf(o))!.name) }))}
+                  absent={[...absent].flatMap((a) => (a.startsWith(`${g}:`) ? [a.slice(2)] : []))}
                   onEdit={(value) => edit(p, value)}
                   onSave={(value) => void save(p, value)}
                   players={players}
@@ -227,6 +240,7 @@ function NameCard({
   film,
   busy,
   others,
+  absent,
   onEdit,
   onSave,
   players,
@@ -245,6 +259,8 @@ function NameCard({
   film?: () => void;
   busy: boolean;
   others: { identity: number; name: string }[];
+  /** The names removed from this team's cards, folded. */
+  absent: string[];
   onEdit: (value: Given) => void;
   onSave: (value: Given) => void;
   players: Named[];
@@ -255,7 +271,7 @@ function NameCard({
   stalePhoto: boolean;
 }) {
   const { t } = useTranslation();
-  const taken = new Set(others.map((o) => o.name).filter(Boolean));
+  const taken = new Set([...others.map((o) => o.name).filter(Boolean), ...absent]);
   const twins = others.filter((o) => o.name && o.name === fold(value.name));
   // The name proposed, shown and not saved: the others suggested stay offered.
   const proposal = !saved.name.trim() && p.proposed !== null && value.name === p.proposed.name;
@@ -274,7 +290,23 @@ function NameCard({
 
   return (
     <div data-card tabIndex={-1} className="grid content-start gap-2.5 rounded-lg border bg-card p-3 outline-none focus-within:ring-2 focus-within:ring-ring/60">
-      <Pictures crops={p.crops} pieces={p.pieces} owner={p} players={players} nameOf={nameOf} onSaved={onSaved} onError={onError} />
+      <Pictures
+        crops={p.crops}
+        pieces={p.pieces}
+        owner={p}
+        players={players}
+        nameOf={nameOf}
+        onSaved={onSaved}
+        // Every picture someone else's: the name given or proposed is not this player's, nor offered again in the match.
+        onAllMarked={() => {
+          if (value.name.trim()) {
+            const next = { name: '', jersey: '' };
+            onEdit(next);
+            onSave(next);
+          }
+        }}
+        onError={onError}
+      />
       <More player={p} label={nameOf(p.team, p.identity) ?? t('player', { n: p.identity })} onSaved={onSaved} onError={onError} />
       <PhotoPicker player={p} stale={stalePhoto} onPicked={() => setPicked((n) => n + 1)} onError={onError} />
       {film && (

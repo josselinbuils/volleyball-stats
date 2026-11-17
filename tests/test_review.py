@@ -657,6 +657,20 @@ class TestNames:
         assert [(e["name"], e["jersey"]) for e in read_names(tmp_path)] == [("Paul", 7), ("Jean", 9), ("Paul", None)]
 
 
+    def test_a_name_removed_or_proposal_cleared_is_absent_until_given_again(self, tmp_path):
+        table = [(1, 0, 10, 1, 3), (2, 0, 10, 1, 4)]
+        write_names(tmp_path, [{"ref": {"track": 2, "frame": 5}, "name": "Léa", "jersey": None}])
+
+        review_module.name_absent(tmp_path, table, 1, None, "Anthony")
+        review_module.name_absent(tmp_path, table, 1, None, "anthony ")
+        # Léa still named on another card: removing her from one says nothing.
+        review_module.name_absent(tmp_path, table, 1, None, "Léa")
+        assert review_module.read_absent(tmp_path) == [(1, "Anthony")]
+
+        review_module.name_absent(tmp_path, table, 1, "ANTHONY", None)
+        assert review_module.read_absent(tmp_path) == []
+
+
 class TestRoster:
     a, b = np.array([1.0, 0.0]), np.array([0.0, 1.0])
 

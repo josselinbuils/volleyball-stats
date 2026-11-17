@@ -9,7 +9,7 @@ import { Tip } from '@/components/Tip';
 
 /** The pictures of `owner`, an identity; clicking one marks it as someone else than the others, and
  * a list under it says who, among `players` (`nameOf` their names). Saved at once and applied with
- * the answers; `onSaved` gets what the server tells after saving. */
+ * the answers; `onSaved` gets what the server tells after saving, `onAllMarked` once every picture is marked. */
 export function Pictures({
   crops,
   pieces,
@@ -17,6 +17,7 @@ export function Pictures({
   players,
   nameOf,
   onSaved,
+  onAllMarked,
   onError,
 }: {
   crops: string[];
@@ -25,6 +26,7 @@ export function Pictures({
   players: Named[];
   nameOf: (team: Group, identity: number) => string | null;
   onSaved: (saved: Saved) => void;
+  onAllMarked?: () => void;
   onError: () => void;
 }) {
   const { t } = useTranslation();
@@ -57,8 +59,13 @@ export function Pictures({
       }
       pieces.forEach((p) => marked.delete(pieceKey(p)));
       next.forEach((who, k) => marked.set(k, who));
+      const all = (marks: Map<string, unknown>) => pieces.length > 0 && pieces.every((p) => marks.has(pieceKey(p)));
+      const now = all(next) && !all(confirmed.current);
       confirmed.current = next;
       onSaved(saved);
+      if (now) {
+        onAllMarked?.();
+      }
     } catch {
       back();
       onError();
