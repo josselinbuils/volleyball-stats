@@ -238,17 +238,32 @@ def likely_starts(windows: list[tuple[int, int]], fps: float) -> list[float]:
     return [0.0, *(round((windows[k - 1][1] + windows[k][0]) / 2 / fps) for k in cuts)]
 
 
-def side_group(frames: np.ndarray, xs: np.ndarray, known: list[tuple[tuple[int, int], int]]) -> int | None:
+def side_group(frames: np.ndarray, xs: np.ndarray, known: list[tuple[tuple[int, int], int]], bounds: tuple[np.ndarray, np.ndarray] | None = None) -> int | None:
     """Group on the median side of the net of a player's `frames` (court x `xs`) in the rally of
     `known` ((window, group on the left)) it plays most frames of, its frames there only, else in the
-    nearest one, all its frames; None without any."""
+    nearest one, all its frames; None without any. `bounds`: `known`'s starts and ends as arrays (`side_bounds`), when
+    asked for many players."""
     if not known:
         return None
-    inside = [(frames >= s) & (frames <= e) for (s, e), _ in known]
-    middle = float(np.median(frames))
-    k = int(np.argmax([m.sum() for m in inside])) if any(m.any() for m in inside) else int(np.argmin([max(s - middle, middle - e, 0) for (s, e), _ in known]))
-    side = float(np.median(xs[inside[k]] if inside[k].any() else xs))
+    starts, ends = bounds if bounds is not None else side_bounds(known)
+    if len(frames) > 1 and (frames[1:] < frames[:-1]).any():
+        order = np.argsort(frames, kind="stable")
+        frames, xs = frames[order], xs[order]
+    first, last = np.searchsorted(frames, starts, "left"), np.searchsorted(frames, ends, "right")
+    inside = np.maximum(last - first, 0)
+    if inside.any():
+        k = int(np.argmax(inside))
+        side = float(np.median(xs[first[k] : last[k]]))
+    else:
+        middle = float(np.median(frames))
+        k = int(np.argmin(np.maximum(np.maximum(starts - middle, middle - ends), 0)))
+        side = float(np.median(xs))
     return known[k][1] if side < 0 else 1 - known[k][1]
+
+
+def side_bounds(known: list[tuple[tuple[int, int], int]]) -> tuple[np.ndarray, np.ndarray]:
+    """The starts and ends of `known`'s windows (`side_group`)."""
+    return np.array([s for (s, _), _ in known], dtype=np.int64), np.array([e for (_, e), _ in known], dtype=np.int64)
 
 
 def track_teams(rows: list[Row], windows: list[tuple[int, int]], left: list[int | None]) -> dict[int, int]:

@@ -125,7 +125,8 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   change of the Python code still rebuilds all.
 - A match rebuilt computes its data once for both pages (`web.computed`, `build`'s `made`): on the Haillan match 8.7 s
   of 17.8 (warm cache), its photos 5.8 (the review's questions loaded, 5.2); `players.csv` from its cache
-  (`player_table`, [pipeline](pipeline.md)): 22.2 -> 16.6 s for both pages.
+  (`tables`, [pipeline](pipeline.md)): 22.2 -> 16.6 s for both pages; the players' smoothed motion made once for both
+  (`natural_motion`): 15.8 -> 14.1 s on the Haillan match.
 
 By hand:
 

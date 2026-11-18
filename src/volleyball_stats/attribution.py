@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import decode, files, jobs, player_table
+from volleyball_stats import decode, files, jobs, tables
 from volleyball_stats.actions import LATE_FLIGHT_S, POSE_MODEL, Typed
 from volleyball_stats.court import Calibration
 from volleyball_stats.players import Row
@@ -66,13 +66,13 @@ Box = tuple[float, float, float, float]
 Candidate = tuple[float, float, int]
 
 
-PLAYER_COLUMNS = ",".join(player_table.COLUMNS)
+PLAYER_COLUMNS = ",".join(tables.PLAYERS)
 
 
 def read_players(path: Path, share: Callable[[float], None] = lambda _: None) -> list[Row]:
     """Rows of a CSV written by players.write_csv; the share of the file read told as it goes."""
     try:
-        t = player_table.read(path, share)
+        t = tables.players(path, share)
     except ValueError:
         with open(path) as f:
             return [

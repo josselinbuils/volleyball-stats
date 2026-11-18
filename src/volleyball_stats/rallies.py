@@ -15,7 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import jobs
+from volleyball_stats import jobs, tables
 from volleyball_stats.court import Calibration
 
 SAMPLE_RATE = 16000
@@ -81,12 +81,10 @@ Rally = tuple[int, int]
 
 def load_track(path: Path) -> np.ndarray:
     """Ball positions by frame, NaN when not visible."""
-    with open(path) as f:
-        rows = list(csv.DictReader(f))
-    track = np.full((len(rows), 2), np.nan)
-    for row in rows:
-        if row["visible"] == "1":
-            track[int(row["frame"])] = (float(row["x"]), float(row["y"]))
+    t = tables.ball(path)
+    track = np.full((len(t["frame"]), 2), np.nan)
+    seen = t["visible"]
+    track[t["frame"][seen]] = np.column_stack([t["x"][seen], t["y"][seen]])
     return track
 
 

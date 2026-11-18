@@ -19,7 +19,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, player_table
+from volleyball_stats import decode, tables
 
 # GAP_S is players.MAX_GAP_S: the longest gap stitched inside a track.
 GROW, GAP_S, HOLD_S = 0.2, 2.0, 0.5
@@ -81,7 +81,7 @@ def write(match: Path, video: Path, teams: set[int], out: Path) -> None:
     """`video` with the players of `teams` pixelated into `out` (H.264, the original's sound)."""
     with open(match / "tracks.csv") as f:
         blurred = {int(r["track"]) for r in csv.DictReader(f) if int(r["team"]) in teams}
-    t = player_table.read(match / "players.csv")
+    t = tables.players(match / "players.csv")
     table = np.column_stack([t[k] for k in ("frame", "track", "x1", "y1", "x2", "y2")]).astype(float).reshape(-1, 6)
     cap = cv2.VideoCapture(str(video))
     fps, count = cap.get(cv2.CAP_PROP_FPS), cap.get(cv2.CAP_PROP_FRAME_COUNT)

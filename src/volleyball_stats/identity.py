@@ -41,7 +41,7 @@ import numpy as np
 from volleyball_stats import decode, files, jobs
 from volleyball_stats.court import zone
 from volleyball_stats.players import Row
-from volleyball_stats.teams import match_end, side_group
+from volleyball_stats.teams import match_end, side_bounds, side_group
 
 REID = Path("models/osnet_ain_x1_0_msmt17.pth")
 REID_GDRIVE_ID = "1SigwBE6mPdqiJMqhuIY4aqC7--5CsMal"
@@ -122,25 +122,44 @@ class Segment:
         return self.frames[-1]
 
 
+# The boxes `covers` compares at once (frames x boxes x boxes): some 100 MB of numbers.
+CROWD_CELLS = 4_000_000
+
+
 def covers(rows: list[Row], share: jobs.Share = jobs.quiet) -> dict[Key, float]:
     """Share of each (frame, track) box lying under the box of another track of the frame, the most
     covering one; boxes nobody covers are left out (0). The share of frames done told as it goes."""
-    by_frame: dict[int, list[Row]] = {}
-    for r in rows:
-        by_frame.setdefault(r.frame, []).append(r)
-    out: dict[Key, float] = {}
-    seen = jobs.every(len(by_frame), share)
-    for k, (frame, here) in enumerate(by_frame.items()):
-        seen(k)
-        b = np.array([r.box for r in here])
-        area = np.maximum((b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1]), 1e-6)
-        w = np.clip(np.minimum(b[:, None, 2], b[None, :, 2]) - np.maximum(b[:, None, 0], b[None, :, 0]), 0, None)
-        h = np.clip(np.minimum(b[:, None, 3], b[None, :, 3]) - np.maximum(b[:, None, 1], b[None, :, 1]), 0, None)
+    if not rows:
+        return {}
+    frames = np.fromiter((r.frame for r in rows), np.int64, len(rows))
+    # The frames in the order they first come, each one's boxes in theirs: the order of `rows`.
+    _, first, of = np.unique(frames, return_index=True, return_inverse=True)
+    rank = np.empty(len(first), np.int64)
+    rank[np.argsort(first, kind="stable")] = np.arange(len(first))
+    order = np.argsort(rank[of], kind="stable")
+    sizes = np.bincount(rank[of], minlength=len(first))
+    starts = np.concatenate([[0], np.cumsum(sizes)[:-1]])
+    slot = np.arange(len(rows)) - np.repeat(starts, sizes)
+    boxes = np.array([rows[k].box for k in order], dtype=float).reshape(-1, 4)
+    most = np.zeros(len(rows))
+    width, step = int(sizes.max()), max(1, CROWD_CELLS // int(sizes.max()) ** 2)
+    for a in range(0, len(first), step):
+        share(a / len(first))
+        lo, hi = starts[a], starts[min(a + step, len(first)) - 1] + sizes[min(a + step, len(first)) - 1]
+        # Each frame's boxes side by side, the empty places far off the picture: they cover nothing.
+        b = np.full((min(step, len(first) - a), width, 4), -1e18)
+        b[rank[of[order[lo:hi]]] - a, slot[lo:hi]] = boxes[lo:hi]
+        area = np.maximum((b[..., 2] - b[..., 0]) * (b[..., 3] - b[..., 1]), 1e-6)
+        w = np.clip(np.minimum(b[:, :, None, 2], b[:, None, :, 2]) - np.maximum(b[:, :, None, 0], b[:, None, :, 0]), 0, None)
+        h = np.clip(np.minimum(b[:, :, None, 3], b[:, None, :, 3]) - np.maximum(b[:, :, None, 1], b[:, None, :, 1]), 0, None)
         inter = w * h
-        np.fill_diagonal(inter, 0)
-        for r, c in zip(here, (inter / area[:, None]).max(axis=1)):
-            if c > 0:
-                out[r.frame, r.track] = float(c)
+        inter[:, np.arange(width), np.arange(width)] = 0
+        most[lo:hi] = (inter / area[..., None]).max(axis=2)[rank[of[order[lo:hi]]] - a, slot[lo:hi]]
+    share(1.0)
+    out: dict[Key, float] = {}
+    for k, c in zip(order.tolist(), most.tolist()):
+        if c > 0:
+            out[rows[k].frame, rows[k].track] = c
     return out
 
 
@@ -395,9 +414,11 @@ def segment_teams(segments: list[Segment], windows: list[tuple[int, int]], left:
     team 1 on the left without rally sides), so a track swapping players across the net splits
     between the teams."""
     known = [(w, g - 1) for w, g in zip(windows, left) if g is not None]
+    bounds = side_bounds(known)
     for s in segments:
-        found = side_group(np.array(s.frames), np.array([x for x, _ in s.feet]), known)
-        s.team = (int(np.median([x for x, _ in s.feet]) >= 0) if found is None else found) + 1
+        xs = np.array([x for x, _ in s.feet])
+        found = side_group(np.array(s.frames), xs, known, bounds)
+        s.team = (int(np.median(xs) >= 0) if found is None else found) + 1
 
 
 def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarray, cannot: list[set[int]], must: Iterable[tuple[int, int]], before: np.ndarray, fps: float, count: int | None = None, aim: np.ndarray | None = None) -> np.ndarray:
@@ -469,25 +490,70 @@ def group(v: np.ndarray, weights: np.ndarray, mass: np.ndarray, starts: np.ndarr
 def resolve(ref: dict, segments: list[Segment], before: list[tuple[int, int] | None]) -> list[int]:
     """Segments an answer refers to: {"track": T} all of track T's, {"track": T, "frame": F} the one
     of track T holding F (else the nearest), {"team": K, "identity": N} those numbered N in team K
-    by the previous run (`before`: each segment's previous team and number)."""
-    if "identity" in ref:
-        return [k for k, b in enumerate(before) if b == (ref["team"], ref["identity"])]
-    mine = [k for k, s in enumerate(segments) if s.track == ref["track"]]
-    if ref.get("frame") is None or not mine:
-        return mine
-    frame = ref["frame"]
-    return [min(mine, key=lambda k: max(segments[k].start - frame, frame - segments[k].end, 0))]
+    by the previous run (`before`: each segment's previous team and number). `Refs` for many answers."""
+    return Refs(segments, before)(ref)
 
 
-def previous_labels(segments: list[Segment], previous: dict[Key, tuple[int, int]] | None) -> list[tuple[int, int] | None]:
-    """Previous (team, number) held by most of each segment's boxes, None for none."""
-    out = []
+class Refs:
+    """`resolve` for many answers: the segments indexed once by track and by previous number."""
+
+    def __init__(self, segments: list[Segment], before: list[tuple[int, int] | None]):
+        self.segments, self.by_track, self.by_label = segments, {}, {}
+        for k, s in enumerate(segments):
+            self.by_track.setdefault(s.track, []).append(k)
+        for k, b in enumerate(before):
+            if b is not None:
+                self.by_label.setdefault(b, []).append(k)
+
+    def __call__(self, ref: dict) -> list[int]:
+        if "identity" in ref:
+            return list(self.by_label.get((ref["team"], ref["identity"]), []))
+        mine = self.by_track.get(ref["track"], [])
+        if ref.get("frame") is None or not mine:
+            return list(mine)
+        frame, segments = ref["frame"], self.segments
+        return [min(mine, key=lambda k: max(segments[k].start - frame, frame - segments[k].end, 0))]
+
+
+class Previous:
+    """A previous run's (team, number) of each box, by (frame, track): identities.csv's numbered rows (`table`, a later
+    row over an earlier one) over the frames each track has a box in (`frames`, sorted)."""
+
+    def __init__(self, table: list[tuple[int, int, int, int, int]], frames: dict[int, np.ndarray]):
+        self.labels = sorted({(team, number_) for _, _, _, team, number_ in table if number_})
+        code = {label: k for k, label in enumerate(self.labels)}
+        self.teams = np.array([t for t, _ in self.labels], dtype=np.int64)
+        self.numbers = np.array([n for _, n in self.labels], dtype=np.int64)
+        self.tracks: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+        for track, start, end, team, number_ in table:
+            if number_ and track in frames:
+                at, codes = self.tracks.setdefault(track, (frames[track], np.full(len(frames[track]), -1, dtype=np.int64)))
+                codes[np.searchsorted(at, start, "left") : np.searchsorted(at, end, "right")] = code[team, number_]
+
+    def codes(self, track: int, frames: list[int]) -> np.ndarray:
+        """The code (an index in `labels`) of each of `track`'s `frames`, -1 for none."""
+        if track not in self.tracks:
+            return np.full(len(frames), -1, dtype=np.int64)
+        at, codes = self.tracks[track]
+        f = np.asarray(frames, dtype=np.int64)
+        k = np.minimum(np.searchsorted(at, f), len(at) - 1)
+        return np.where(at[k] == f, codes[k], -1)
+
+
+def most_held(codes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The values of `codes` (none negative) in the order they first come, with their counts."""
+    values, first, counts = np.unique(codes, return_index=True, return_counts=True)
+    order = np.argsort(first, kind="stable")
+    return values[order], counts[order]
+
+
+def previous_labels(segments: list[Segment], previous: Previous | None) -> list[tuple[int, int] | None]:
+    """Previous (team, number) held by most of each segment's boxes, None for none (the first held on a tie)."""
+    out: list[tuple[int, int] | None] = []
     for s in segments:
-        votes: dict[tuple[int, int], int] = {}
-        for f in s.frames:
-            if previous and (f, s.track) in previous:
-                votes[previous[f, s.track]] = votes.get(previous[f, s.track], 0) + 1
-        out.append(max(votes, key=votes.get) if votes else None)
+        codes = previous.codes(s.track, s.frames) if previous else np.zeros(0, dtype=np.int64)
+        values, counts = most_held(codes[codes >= 0])
+        out.append(previous.labels[int(values[int(np.argmax(counts))])] if len(values) else None)
     return out
 
 
@@ -544,8 +610,9 @@ def jersey_links(segments: list[Segment], jerseys: dict[Key, int], answered: Ite
 def name_pins(segments: list[Segment], names: list[tuple[dict, str]], before: list[tuple[int, int] | None]) -> dict[tuple[int, str], list[int]]:
     """The segments the names the user gave, (ref, name), are pinned on, by team and name (any case)."""
     read: dict[tuple[int, str], list[int]] = {}
+    refs = Refs(segments, before)
     for ref, name in names:
-        for k in resolve(ref, segments, before):
+        for k in refs(ref):
             read.setdefault((segments[k].team, name.strip().casefold()), []).append(k)
     return read
 
@@ -630,7 +697,7 @@ def links(read: dict[tuple[int, int | str], list[int]]) -> tuple[list[list[int]]
     return same, different
 
 
-def number(segments: list[Segment], serve: int | None, fps: float, previous: dict[Key, tuple[int, int]] | None = None) -> None:
+def number(segments: list[Segment], serve: int | None, fps: float, previous: Previous | None = None) -> None:
     """Numbers each segment's identity (its cluster in `identity` on entry, 0 for none) 1, 2, ...
     per team: the previous number of the identity sharing most boxes with a previous one, then the
     identities on court within SERVE_S of the `serve` frame by zone, then the others by first
@@ -646,11 +713,10 @@ def number(segments: list[Segment], serve: int | None, fps: float, previous: dic
         if previous:
             shared: dict[tuple[int, int], int] = {}
             for c in mine:
-                for s in clusters[c]:
-                    for f in s.frames:
-                        old = previous.get((f, s.track))
-                        if old and old[0] == team:
-                            shared[c, old[1]] = shared.get((c, old[1]), 0) + 1
+                codes = np.concatenate([previous.codes(s.track, s.frames) for s in clusters[c]])
+                codes = codes[codes >= 0]
+                for old, count in zip(*most_held(previous.numbers[codes[previous.teams[codes] == team]])):
+                    shared[c, int(old)] = int(count)
             for (c, old), _ in sorted(shared.items(), key=lambda kv: -kv[1]):
                 if c not in numbers and old not in taken:
                     numbers[c] = old
@@ -833,7 +899,7 @@ def identify(
     fps: float,
     cache: Path | None = None,
     answers: dict | None = None,
-    previous: dict[Key, tuple[int, int]] | None = None,
+    previous: Previous | None = None,
     squad: tuple[int, int] | None = None,
     contacts: Iterable[Key] = (),
     jerseys: dict[Key, int] | None = None,
@@ -853,9 +919,9 @@ def identify(
     the segments reading their jersey number (`numbers`, by name casefolded; `kept_cards`). Each "team" answer gives its piece
     that team, whichever side it stands on, and from frame `until` (the end of the match) nothing is
     anyone. The share of its work done told as it goes (`share`)."""
-    # Its parts' shares of the time, measured on the second match (13 Nov), the embeddings on the fourth (17 Nov, none
-    # kept yet: 99% of the time; read from their cache they take a second).
-    part = jobs.parts(share, {"covers": 9.7, "split": 5.0, "embed": 1400.0, "rest": 2.4})
+    # Its parts' shares of the time, measured on the second match (13 Nov, `covers` 18 Nov), the embeddings on the fourth
+    # (17 Nov, none kept yet: 99% of the time; read from their cache they take a second).
+    part = jobs.parts(share, {"covers": 2.0, "split": 5.0, "embed": 1400.0, "rest": 2.4})
     answers = answers or {}
     cover = covers(rows, part("covers"))
     cuts: dict[int, list[int]] = {}
@@ -865,17 +931,19 @@ def identify(
         cuts.setdefault(track, []).extend(frames)
     segments = split(rows, cover, cuts, part("split"))
     before = previous_labels(segments, previous)
-    dropped = {k for ref in answers.get("not_player", []) for k in resolve(ref, segments, before)}
+    refs = Refs(segments, before)
+    dropped = {k for ref in answers.get("not_player", []) for k in refs(ref)}
     if until is not None:
         dropped |= {k for k, s in enumerate(segments) if s.start >= until}
     removed = [s for k, s in enumerate(segments) if k in dropped]
     segments, before = [s for k, s in enumerate(segments) if k not in dropped], [b for k, b in enumerate(before) if k not in dropped]
     segment_teams(segments, windows, left)
+    refs = Refs(segments, before)
     for moved in answers.get("team", []):
-        for k in resolve(moved, segments, before):
+        for k in refs(moved):
             segments[k].team = moved["team"]
-    same = [[k for ref in group for k in resolve(ref, segments, before)] for group in answers.get("same", [])]
-    different = [[resolve(ref, segments, before) for ref in group] for group in answers.get("different", [])]
+    same = [[k for ref in group for k in refs(ref)] for group in answers.get("same", [])]
+    different = [[refs(ref) for ref in group] for group in answers.get("different", [])]
     # An answer's team first: the numbers read link each piece within the team it gives.
     answered_teams(segments, same)
     if jerseys:
@@ -899,7 +967,7 @@ def identify(
                     for y in group_[b]:
                         cannot[x].add(y)
                         cannot[y].add(x)
-    answered = {k for kind in ("same", "different", "team") for entry in answers.get(kind, []) for ref in (entry if isinstance(entry, list) else [entry]) for k in resolve(ref, segments, before)}
+    answered = {k for kind in ("same", "different", "team") for entry in answers.get(kind, []) for ref in (entry if isinstance(entry, list) else [entry]) for k in refs(ref)}
     if names and KEEP_CARDS:
         same = same + kept_cards(segments, before, names, numbers or {}, read_numbers(segments, jerseys), answered, cannot)
     last: dict[int, int] = {}
@@ -929,7 +997,7 @@ def identify(
     number(segments, windows[0][0] if windows else None, fps, previous)
     touches: dict[int, int] = {}
     for frame, track in contacts:
-        found = resolve({"track": track, "frame": frame}, segments, before)
+        found = refs({"track": track, "frame": frame})
         if found:
             touches[found[0]] = touches.get(found[0], 0) + 1
     found = doubts(segments, wv, weights, cannot, fps, touches, answered)
@@ -1059,8 +1127,9 @@ def named(table: list[tuple[int, int, int, int, int]], names: list[dict]) -> dic
 def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]], left: list[int | None], fps: float, squad: tuple[int, int] | None = None, contacts: Iterable[Key] = (), share: jobs.Share = jobs.quiet) -> list[tuple[int, int, int, int, int]]:
     """`identify` with the match folder's answers, previous numbers and embedding cache; writes
     identities.csv and identity_candidates.json and returns identities.csv's rows. The share done told as it goes."""
-    # Its parts' shares of the time, measured on the second match (13 Nov), the embeddings computed (`identify`'s).
-    part = jobs.parts(share, {"previous": 4.7, "identify": 1417.1})
+    # Its parts' shares of the time, measured on the second match (13 Nov, "previous" 18 Nov), the embeddings computed
+    # (`identify`'s).
+    part = jobs.parts(share, {"previous": 1.7, "identify": 1409.4})
     answers_path, path = match / "identity_answers.json", match / "identities.csv"
     answers = json.loads(answers_path.read_text()) if answers_path.exists() else None
     entries = read_names(match)
@@ -1068,16 +1137,13 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
     numbers = {e["name"].strip().casefold(): e["jersey"] for e in entries if e.get("name") and e.get("jersey") is not None}
     previous = None
     if path.exists():
-        frames: dict[int, list[int]] = {}
-        for r in rows:
-            frames.setdefault(r.track, []).append(r.frame)
-        previous = {}
-        known = read_identities(path)
-        seen = jobs.every(len(known), part("previous"))
-        for k, (track, start, end, team, number_) in enumerate(known):
-            seen(k)
-            if number_:
-                previous.update(((f, track), (team, number_)) for f in frames.get(track, []) if start <= f <= end)
+        track, frame = (np.fromiter((getattr(r, name) for r in rows), np.int64, len(rows)) for name in ("track", "frame"))
+        order = np.lexsort((frame, track))
+        frame = frame[order]
+        tracks, firsts = np.unique(track[order], return_index=True)
+        frames = {int(t): frame[a:b] for t, a, b in zip(tracks, firsts, [*firsts[1:], len(order)])}
+        previous = Previous(read_identities(path), frames)
+        part("previous")(1.0)
     from volleyball_stats import jerseys
 
     end = match_end(match)

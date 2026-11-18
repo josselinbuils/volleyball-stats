@@ -39,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, network, player_table, presence, rallies, rename, scoreboard, sync, timeouts, web
+from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, network, presence, rallies, rename, scoreboard, sync, tables, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
@@ -130,7 +130,7 @@ class Questions:
         self.avoid: set[tuple[int, int, int] | None] = set()
         # frame, track, x1, y1, x2, y2 of every player box, sorted by frame (players.csv's order):
         # compact arrays, a 2-hour match holds millions of boxes.
-        t = player_table.read(match / "players.csv")
+        t = tables.players(match / "players.csv")
         table = np.column_stack([t[k] for k in ("frame", "track", "x1", "y1", "x2", "y2", "court_x", "court_y")]).astype(float).reshape(-1, 8)
         # Where each box's feet stand on the court, in meters.
         self.court_of = table[:, 6:]

@@ -7,14 +7,13 @@ pixels wide: `misfits` tells apart two players in line with the camera, one behi
 (benchmarks/attribution/README.md, "The ball's width").
 """
 
-import csv
 import json
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from volleyball_stats import ball3d, decode, files, jobs
+from volleyball_stats import ball3d, decode, files, jobs, tables
 from volleyball_stats.court import Calibration, undistort
 
 FILE = "ball_widths.json"
@@ -54,8 +53,7 @@ def blob(now: np.ndarray, before: np.ndarray, after: np.ndarray, scale: float = 
 
 def read_ball(path: Path) -> dict[int, tuple[int, int]]:
     """The ball's pixel by frame, where it is seen."""
-    with open(path) as f:
-        return {int(r["frame"]): (round(float(r["x"])), round(float(r["y"]))) for r in csv.DictReader(f) if r["visible"] == "1"}
+    return {frame: (round(x), round(y)) for frame, (x, y) in tables.seen(path).items()}
 
 
 def plan(frame: int, ball: dict[int, tuple[int, int]], fps: float, scale: float) -> list[tuple[int, int, int]]:

@@ -24,7 +24,7 @@ import cv2
 import numpy as np
 
 from volleyball_stats import ball as tracker
-from volleyball_stats import decode, files, jobs
+from volleyball_stats import decode, files, jobs, tables
 from volleyball_stats.court import Calibration, distort, undistort
 from volleyball_stats.points import set_scores
 
@@ -889,14 +889,7 @@ def ball_size(before: np.ndarray, picture: np.ndarray, after: np.ndarray, x: flo
 
 
 def read_ball(path: Path) -> dict[int, tuple[float, float]]:
-    found = {}
-    with open(path) as f:
-        next(f)
-        for line in f:
-            frame, seen, x, y = line.strip().split(",")
-            if seen == "1":
-                found[int(frame)] = (float(x), float(y))
-    return found
+    return tables.seen(path)
 
 
 def frame_times(match: Path, video: Path) -> np.ndarray:

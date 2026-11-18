@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import decode, files, jobs
+from volleyball_stats import decode, files, jobs, tables
 from volleyball_stats.ball import default_device
 from volleyball_stats.ball3d import G, project, projection
 from volleyball_stats.court import Calibration, undistort
@@ -73,14 +73,7 @@ def attack_rows(players: Path, attacks: list[tuple[int, int]], fps: float, cache
 
 def read_ball(path: Path, frames: set[int]) -> dict[int, tuple[float, float]]:
     """ball.csv's sightings at `frames`, in the video's pixels."""
-    out = {}
-    with open(path) as f:
-        next(f)
-        for line in f:
-            frame, visible, x, y = line.rstrip().split(",")
-            if visible == "1" and int(frame) in frames:
-                out[int(frame)] = (float(x), float(y))
-    return out
+    return tables.seen(path, lambda at: np.isin(at, np.fromiter(frames, np.int64, len(frames))))
 
 
 def window(frame: int, fps: float) -> range:

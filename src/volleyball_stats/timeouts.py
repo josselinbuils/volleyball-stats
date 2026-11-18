@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import files, player_table
+from volleyball_stats import files, tables
 
 DETECTED = "timeouts.csv"
 ANSWERS = "timeouts.json"
@@ -38,7 +38,7 @@ ADDED_S = 30.0
 
 def on_court(players: Path, step: int) -> Counter:
     """Players on the court at each `step`-th frame of a `players.csv`."""
-    t = player_table.read(players)
+    t = tables.players(players)
     kept = (t["frame"] % step == 0) & (np.abs(t["court_x"]) <= COURT_X) & (np.abs(t["court_y"]) <= COURT_Y)
     frames, counts = np.unique(t["frame"][kept], return_counts=True)
     return Counter(dict(zip(frames.tolist(), counts.tolist())))

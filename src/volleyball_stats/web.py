@@ -35,7 +35,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, player_table, timeline, timeouts, video_copies
+from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, tables, timeline, timeouts, video_copies
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -339,14 +339,11 @@ def ball_near(path: Path, frames: list[int], near: int) -> dict[int, tuple[str, 
         for d in range(-near, near + 1):
             wanted.setdefault(f + d, []).append(f)
     best: dict[int, tuple[int, str, str]] = {}
-    if path.exists():
-        with open(path) as f:
-            for row in csv.DictReader(f):
-                frame = int(row["frame"])
-                if row["visible"] == "1" and frame in wanted:
-                    for want in wanted[frame]:
-                        if want not in best or abs(frame - want) < best[want][0]:
-                            best[want] = (abs(frame - want), row["x"], row["y"])
+    if path.exists() and wanted:
+        for frame, (x, y) in tables.seen(path, lambda at: np.isin(at, np.fromiter(wanted, np.int64, len(wanted)))).items():
+            for want in wanted[frame]:
+                if want not in best or abs(frame - want) < best[want][0]:
+                    best[want] = (abs(frame - want), tables.text(x), tables.text(y))
     return {f: (x, y) for f, (_, x, y) in best.items()}
 
 
@@ -390,7 +387,7 @@ def receiver(landing: dict, here: list[dict], who: Callable[[int], int | None]) 
 def player_samples(t: dict[str, np.ndarray], step: int, frame_count: int, who: Who = lambda track, _: track) -> list[list[float]]:
     """The players' court feet every `step` frames of the video, from frame 0, each sample a flat
     [player, x, y, ...] list rounded to the centimetre, `who` naming the player of a track at a frame (`t`: players.csv's
-    columns, `player_table`)."""
+    columns, `tables`)."""
     samples: list[list[float]] = [[] for _ in range(-(-frame_count // step))]
     kept = (t["frame"] % step == 0) & (t["frame"] // step < len(samples))
     for frame, track, x, y in zip(*(t[k][kept].tolist() for k in ("frame", "track", "court_x", "court_y"))):
@@ -883,11 +880,11 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
 
     samples = []
     if (match / "players.csv").exists():
-        t = player_table.read(match / "players.csv", share)
+        t = tables.players(match / "players.csv", share)
         at = np.flatnonzero(np.isin(t["frame"], np.fromiter(near, dtype=np.int64, count=len(near))))
         # The rows around the touches place them.
-        for values in zip(*(t[k][at].tolist() for k in player_table.COLUMNS)):
-            by_frame.setdefault(values[0], []).append(dict(zip(player_table.COLUMNS, values)))
+        for values in zip(*(t[k][at].tolist() for k in tables.PLAYERS)):
+            by_frame.setdefault(values[0], []).append(dict(zip(tables.PLAYERS, values)))
         if not with_teams:
             # Without teams, tracks are grouped by their side of the net: 1 left, 2 right.
             tracks, first = np.unique(t["track"], return_index=True)
@@ -1024,12 +1021,13 @@ def ball_track(match: Path, size: tuple[int, int], fps: float, times: np.ndarray
     rows, _ = rally_table(match)
     windows = ended([(int(r["start_frame"]), int(r["end_frame"])) for r in rows], answers(match, "end"))
     windows = [(start - lead, end) for start, end in merge_rallies(windows, rows, [{}] * len(rows), {a["start"] for a in answers(match, "join")})[0]]
-    seen: dict[int, tuple[float, float]] = {}
-    with open(match / "ball.csv") as f:
-        for row in csv.DictReader(f):
-            frame = int(row["frame"])
-            if row["visible"] == "1" and any(a <= frame <= b for a, b in windows):
-                seen[frame] = (float(row["x"]) / size[0], float(row["y"]) / size[1])
+    def inside(at: np.ndarray) -> np.ndarray:
+        found = np.zeros(len(at), dtype=bool)
+        for a, b in windows:
+            found |= (at >= a) & (at <= b)
+        return found
+
+    seen = {frame: (x / size[0], y / size[1]) for frame, (x, y) in tables.seen(match / "ball.csv", inside).items()}
 
     def kept(frame: int) -> bool:
         before = frame - frame % step
@@ -1371,7 +1369,10 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         data["poster"] = versioned(site / "poster.webp")
     (site / "players.js").unlink(missing_ok=True)
     shutil.rmtree(site / "positions", ignore_errors=True)
-    moving = players and {**players, "samples": natural_motion(players["samples"], players["step"] / data["fps"], {int(person): q["team"] for person, q in (data.get("people") or {}).items()})}
+    if players and "natural" not in players:
+        # Kept in `players` for the next page built from them (`build`'s `made`): the same teams, the same motion.
+        players["natural"] = natural_motion(players["samples"], players["step"] / data["fps"], {int(person): q["team"] for person, q in (data.get("people") or {}).items()})
+    moving = players and {**{k: v for k, v in players.items() if k != "natural"}, "samples": players["natural"]}
     # On the shorter video's time, a sample of the match for each of its own.
     positions = position_files(timeline.retimed_positions(moving, data["fps"], pieces) if pieces else moving, data["fps"]) if moving else []
     if positions:

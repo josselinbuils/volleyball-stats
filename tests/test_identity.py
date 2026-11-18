@@ -6,6 +6,7 @@ from volleyball_stats.identity import (
     BREAK_S,
     CORE_S,
     LONGEST_S,
+    Previous,
     Segment,
     aims,
     cannot_links,
@@ -36,6 +37,20 @@ FPS = 10.0
 
 def row(frame: int, track: int, box=(0.0, 0.0, 10.0, 20.0), court=(0.0, 0.0)) -> Row:
     return Row(frame, track, box, 0.9, (0.0, 0.0), court)
+
+
+class TestCovers:
+    def test_gives_each_box_the_share_the_most_covering_other_box_hides(self):
+        # Out of frame order: each frame's boxes compared among themselves, in the order they come.
+        rows = [row(1, 1, (0.0, 0.0, 10.0, 10.0)), row(0, 7, (0.0, 0.0, 10.0, 10.0)), row(1, 2, (5.0, 0.0, 15.0, 10.0)), row(1, 3, (0.0, 0.0, 2.0, 10.0)), row(0, 8, (40.0, 0.0, 50.0, 10.0))]
+
+        found = covers(rows)
+
+        assert found == {(1, 1): 0.5, (1, 2): 0.5, (1, 3): 1.0}
+        assert list(found) == [(1, 1), (1, 2), (1, 3)]
+
+    def test_none_without_boxes(self):
+        assert covers([]) == {}
 
 
 class TestSplit:
@@ -163,7 +178,7 @@ class TestNumber:
 
     def test_a_rerun_keeps_the_previous_numbers(self):
         segments = self.segments()
-        previous = {(0, 1): (1, 5), (1, 1): (1, 5)}
+        previous = Previous([(1, 0, 1, 1, 5)], {1: np.array([0, 1])})
 
         number(segments, 0, FPS, previous)
 
