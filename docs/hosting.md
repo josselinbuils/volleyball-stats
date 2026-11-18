@@ -243,8 +243,9 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 - Only from the app's own computer (`review.from_here`, the loopback): the local network ("Réseau local", no code) never
   reaches these routes, nor a first upload with the video. A match whose password was chosen before 18 Nov shows
   "Inconnu" until it is changed once. "Oublié ?" erases the sealed ones (`matches.forget_passwords`): the videos keep
-  their passwords, new ones then chosen. ponytail: no change of the master password (every one opened and sealed again
-  by the browser, `server/password` taking them all).
+  their passwords, new ones then chosen. "Changer le mot de passe maître" asks the current one again, then the browser
+  opens every password and seals it by the new one (a new salt), and the app replaces them all at once
+  (`matches.reseal`: each written aside, then all put in place; refused unless it holds exactly those kept).
 
 ## Films and voice
 

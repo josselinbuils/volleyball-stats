@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { LoaderCircle, Lock, LockOpen, Pencil } from 'lucide-react';
+import { KeyRound, LoaderCircle, Lock, LockOpen, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ask } from '@/components/ask';
@@ -32,7 +32,9 @@ export function VideoPasswords({ matches, here, busy, onState }: { matches: { na
   const [opened, setOpened] = useState<Record<string, string | null>>({});
   const [asking, setAsking] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [changing, setChanging] = useState(false);
+  // What was last changed, said under the buttons.
+  const [saved, setSaved] = useState<'saved' | 'masterSaved' | null>(null);
   const load = useCallback(async () => {
     const r = await call<{ sealed: Record<string, Sealed | null> }>('server/password/sealed', {});
     setSealed(r.ok ? r.sealed : 'failed');
@@ -47,7 +49,8 @@ export function VideoPasswords({ matches, here, busy, onState }: { matches: { na
     setVault(null);
     setOpened({});
     setEditing(null);
-    setSaved(false);
+    setChanging(false);
+    setSaved(null);
   }, []);
   useEffect(() => {
     if (!vault) {
@@ -119,10 +122,18 @@ export function VideoPasswords({ matches, here, busy, onState }: { matches: { na
       </ul>
       <div className="flex flex-wrap gap-2">
         {vault ? (
-          <Button variant="outline" className="bg-card" onClick={lock}>
-            <Lock aria-hidden />
-            {t('passwords.lock')}
-          </Button>
+          <>
+            <Button variant="outline" className="bg-card" onClick={lock}>
+              <Lock aria-hidden />
+              {t('passwords.lock')}
+            </Button>
+            {kept.length > 0 && (
+              <Button variant="outline" className="bg-card" onClick={() => setChanging(true)}>
+                <KeyRound aria-hidden />
+                {t('passwords.changeMaster')}
+              </Button>
+            )}
+          </>
         ) : (
           <Button variant="outline" className="bg-card" onClick={() => setAsking(true)}>
             <LockOpen aria-hidden />
@@ -132,7 +143,7 @@ export function VideoPasswords({ matches, here, busy, onState }: { matches: { na
       </div>
       {saved && (
         <p role="status" className="text-muted-foreground">
-          {t('passwords.saved')}
+          {t(`passwords.${saved}`)}
         </p>
       )}
       {asking && (
@@ -160,10 +171,23 @@ export function VideoPasswords({ matches, here, busy, onState }: { matches: { na
             onState(state);
             setOpened((o) => ({ ...o, ...Object.fromEntries(names.map((n) => [n, password])) }));
             setEditing(null);
-            setSaved(true);
+            setSaved('saved');
             await load();
           }}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {vault && changing && (
+        <MasterChange
+          sealed={sealed}
+          vault={vault}
+          onChanged={async (next) => {
+            setVault(next);
+            setChanging(false);
+            setSaved('masterSaved');
+            await load();
+          }}
+          onClose={() => setChanging(false)}
         />
       )}
     </>
@@ -308,6 +332,75 @@ function EditDialog({
               {t('app.cancel')}
             </Button>
             <Button type="submit" busy={doing === 'save'} disabled={!ready}>
+              {t('passwords.save')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The master password changed: the current one asked again, every password kept opened and sealed by the new one in this
+ * browser, all replaced at once on the app's server. */
+function MasterChange({ sealed, vault, onChanged, onClose }: { sealed: Record<string, Sealed | null>; vault: Vault; onChanged: (vault: Vault) => Promise<void>; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [current, setCurrent] = useState('');
+  const [master, setMaster] = useState('');
+  const [again, setAgain] = useState('');
+  const [error, setError] = useState<Explained | null>(null);
+  const [doing, run] = useRunning<'change'>();
+  const ready = current !== '' && master.trim().length >= MASTER_MIN && again === master;
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!ready) {
+      return;
+    }
+    void run('change', async () => {
+      const kept = Object.entries(sealed).filter((e): e is [string, Sealed] => !!e[1]);
+      // The current one again: an unlocked screen left alone does not let another change it.
+      if (
+        !(await unlock(
+          current,
+          kept.map(([, s]) => s),
+        ).catch(() => null))
+      ) {
+        setError({ text: t('passwords.wrong'), detail: null, log: false });
+        return;
+      }
+      const next = await unlock(master, []);
+      const opened = await Promise.all(kept.map(async ([name, s]) => [name, await open(vault, s)] as const));
+      if (!next || opened.some(([, password]) => password === null)) {
+        setError(explain(t, null));
+        return;
+      }
+      const resealed = await Promise.all(opened.map(async ([name, password]) => [name, await seal(next, password!)] as const));
+      const r = await call('server/password/master', { sealed: Object.fromEntries(resealed) });
+      if (!r.ok) {
+        setError(refused(t, r.error));
+        return;
+      }
+      await onChanged(next);
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !doing && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('passwords.changeMaster')}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="grid gap-4">
+          <PasswordField label={t('passwords.current')} value={current} onChange={setCurrent} min={0} autoFocus />
+          <PasswordField label={t('passwords.newMaster')} value={master} onChange={setMaster} min={MASTER_MIN} />
+          <PasswordField label={t('passwords.confirm')} value={again} onChange={setAgain} min={0} />
+          {again !== '' && again !== master && <p className="m-0 text-xs text-muted-foreground">{t('passwords.mismatch')}</p>}
+          {error && <ErrorNote {...error} />}
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={!!doing} onClick={onClose}>
+              {t('app.cancel')}
+            </Button>
+            <Button type="submit" busy={doing === 'change'} disabled={!ready}>
               {t('passwords.save')}
             </Button>
           </DialogFooter>

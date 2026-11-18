@@ -869,6 +869,10 @@ def handle(
             if route == "server/password/forget":
                 matches.forget_passwords(MATCHES)
                 return reply({})
+            if route == "server/password/master":
+                # Every one sealed again by the new master password, in the browser.
+                matches.reseal(MATCHES, body.get("sealed"))
+                return reply({})
             if route != "server/password":
                 return None
             # Not while an upload runs: it would put the former password back online.

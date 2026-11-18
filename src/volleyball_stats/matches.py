@@ -415,12 +415,16 @@ def update_publish(match: Path, **changes) -> dict:
     return config
 
 
+def well_sealed(sealed: object) -> bool:
+    """Whether `sealed` is a password sealed as the page seals it (`SEALED`)."""
+    fine = isinstance(sealed, dict) and set(sealed) == set(SEALED)
+    fine = fine and all(type(sealed[k]) is kind for k, kind in SEALED.items()) and sealed["iter"] >= SEALED_ROUNDS
+    return fine and all(len(sealed[k]) <= SEALED_SIZE and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", sealed[k]) for k in ("salt", "iv", "data"))
+
+
 def checked(key: object, sealed: object) -> tuple[str, dict]:
     """A password's fingerprint and its sealed copy as the page sends them; ValueError("password") if not so."""
-    fine = isinstance(key, str) and KEY.fullmatch(key) and isinstance(sealed, dict) and set(sealed) == set(SEALED)
-    fine = fine and all(type(sealed[k]) is kind for k, kind in SEALED.items()) and sealed["iter"] >= SEALED_ROUNDS
-    fine = fine and all(len(sealed[k]) <= SEALED_SIZE and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", sealed[k]) for k in ("salt", "iv", "data"))
-    if not fine:
+    if not (isinstance(key, str) and KEY.fullmatch(key) and well_sealed(sealed)):
         raise ValueError("password")
     return key, sealed
 
@@ -464,6 +468,20 @@ def set_password(match: Path, key: str, sealed: dict) -> None:
     page = f"{config['url'].rstrip('/')}/{folder.name}/video/" if folder is not None and config.get("url") else None
     if page and not opens(page, key):
         raise RuntimeError(f"{page} does not open with its password")
+
+
+def reseal(folder: Path, sealed: object) -> None:
+    """Every sealed password of the matches in `folder` replaced by `sealed` (match -> its password sealed by the new master
+    password, one salt): all together, or ValueError("password") when it does not hold exactly those kept, sealed alike."""
+    kept = {path.parent.name for path in folder.glob(f"*/{PASSWORD}")}
+    fine = isinstance(sealed, dict) and set(sealed) == kept and all(well_sealed(s) for s in sealed.values())
+    if not fine or len({(s["salt"], s["iter"]) for s in sealed.values()}) > 1:
+        raise ValueError("password")
+    # Each written aside first, then all put in place: never half under one master password, half under the other.
+    for name, one in sealed.items():
+        files.write_secret(folder / name / f".{PASSWORD}.tmp", json.dumps(one) + "\n")
+    for name in sealed:
+        os.replace(folder / name / f".{PASSWORD}.tmp", folder / name / PASSWORD)
 
 
 def forget_passwords(folder: Path) -> None:

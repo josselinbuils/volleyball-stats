@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import pytest
 
-from volleyball_stats import backup, matches
+from volleyball_stats import backup, files, matches
 from volleyball_stats.matches import build
 
 
@@ -609,6 +609,47 @@ class TestSetPassword:
         matches.forget_passwords(tmp_path)
 
         assert matches.sealed(match) is None and json.loads((match / matches.PUBLISH).read_text())["videoKey"] == KEY
+
+
+
+class TestReseal:
+    NEW = {**SEALED, "salt": "bmV3", "data": "bmV3IG9uZQ=="}
+
+    @staticmethod
+    def kept(tmp_path, *names):
+        for name in names:
+            (tmp_path / name).mkdir()
+            files.write_secret(tmp_path / name / matches.PASSWORD, json.dumps(SEALED))
+        (tmp_path / "none").mkdir(exist_ok=True)
+
+    def test_replaces_every_one_together_with_their_rights(self, tmp_path):
+        self.kept(tmp_path, "one", "two")
+
+        matches.reseal(tmp_path, {"one": self.NEW, "two": {**self.NEW, "iv": "aXYy"}})
+
+        assert matches.sealed(tmp_path / "one") == self.NEW and matches.sealed(tmp_path / "two")["iv"] == "aXYy"
+        assert not (tmp_path / "none" / matches.PASSWORD).exists() and not list(tmp_path.glob("*/.*.tmp"))
+        if os.name == "posix":
+            assert (tmp_path / "one" / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
+
+    @pytest.mark.parametrize(
+        "sealed",
+        [
+            {"one": NEW},
+            {"one": NEW, "two": NEW, "none": NEW},
+            {"one": NEW, "two": {**NEW, "salt": "b3RoZXI="}},
+            {"one": NEW, "two": {**NEW, "iter": 1000}},
+            {"one": NEW, "two": "clear"},
+            [NEW, NEW],
+        ],
+    )
+    def test_only_all_of_them_sealed_alike(self, tmp_path, sealed):
+        self.kept(tmp_path, "one", "two")
+
+        with pytest.raises(ValueError):
+            matches.reseal(tmp_path, sealed)
+
+        assert matches.sealed(tmp_path / "one") == SEALED == matches.sealed(tmp_path / "two")
 
 
 class TestAddCopies:

@@ -147,7 +147,7 @@ class TestApp:
         (place / "outputs" / "matches" / "one" / "publish.json").write_text('{"video": true}')
         (place / "outputs" / "matches" / "two" / "publish.json").write_text('{"video": false}')
         one = {"name": "one", "key": "k", "sealed": {}}
-        for route in ("server/password/sealed", "server/password", "server/password/forget"):
+        for route in ("server/password/sealed", "server/password", "server/password/forget", "server/password/master"):
             assert app.handle("POST", f"/app/{route}", "", {"matches": [one]}, list)[2] == 403
         assert json.loads(app.handle("GET", "/app/server", "", {}, list)[0])["here"] is False
         assert json.loads(app.handle("GET", "/app/server", "", {}, list, local=True)[0])["here"] is True
@@ -158,6 +158,10 @@ class TestApp:
             assert app.handle("POST", "/app/server/password", "", {"matches": wrong}, list, local=True)[2] == 400
         monkeypatch.setattr(app.jobs, "state", lambda outputs: [{"id": app.HOSTING, "running": True}])
         assert app.handle("POST", "/app/server/password", "", {"matches": [one]}, list, local=True)[2] == 409
+        resealed = []
+        monkeypatch.setattr(matches, "reseal", lambda folder, sealed: resealed.append(sealed))
+        assert app.handle("POST", "/app/server/password/master", "", {"sealed": {"one": {}}}, list, local=True)[2] == 200
+        assert resealed == [{"one": {}}]
 
     def test_the_update_starts_unless_answers_are_being_applied(self, monkeypatch):
         started = []
