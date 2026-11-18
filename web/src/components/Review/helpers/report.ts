@@ -303,3 +303,28 @@ export function matchFinished(keys: number[], checked: number[], reports: number
   const done = new Set(checked);
   return reports === 0 && keys.length > 0 && keys.every((key) => done.has(key));
 }
+
+type Touch = ReportChanges['touches'][number];
+type AddedTouch = NonNullable<ReportChanges['added']>[number];
+
+/** `saved` with the touches it added that the page already holds as its own (a server's start builds the page with every
+ * answer, those not applied too) taken as corrections of those: what they say beyond the page's, unless a correction of
+ * that touch is saved already. Else the editor lists each twice. `page` the page's touches by frame, as the editor reads them. */
+export function settled(saved: Partial<ReportChanges>, page: Map<number, Omit<Touch, 'frame'>>): Partial<ReportChanges> {
+  const kept: AddedTouch[] = [];
+  const touches = [...(saved.touches ?? [])];
+  const fixed = new Set(touches.map((t) => t.frame));
+  for (const a of saved.added ?? []) {
+    const own = page.get(a.frame);
+    if (!own) {
+      kept.push(a);
+      continue;
+    }
+    const { frame, team: _, ...said } = a;
+    const fix = Object.fromEntries(Object.entries(said).filter(([k, v]) => v !== undefined && v !== own[k as keyof typeof own]));
+    if (!fixed.has(frame) && Object.keys(fix).length) {
+      touches.push({ frame, ...fix });
+    }
+  }
+  return { ...saved, touches, ...(saved.added ? { added: kept } : {}) };
+}

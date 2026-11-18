@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Star, Trash2, TriangleAlert, Undo2, UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import {
   rallyAt,
   rallyOf,
   runningScores,
+  settled,
   type Span,
   splitAfter,
   timeoutsAfter,
@@ -135,6 +136,8 @@ const playerOf = (person: number | null | undefined) => {
 const touches = contacts
   .filter((c) => (TYPES as readonly string[]).includes(c.type) && c.team !== null)
   .map((c) => ({ contact: c, frame: c.f ?? frameOf(c.t), player: playerOf(c.person), partner: playerOf(c.partner) }));
+/** The same, by frame, as the corrections say a touch. */
+const pageTouches = new Map(touches.map(({ contact: c, frame, player, partner }) => [frame, { type: c.type, result: labelled(c), player, cause: c.cause ?? 0, partner }]));
 
 // How often the list checks on the rail's end, and how near its edges that end may come, in pixels.
 const RAIL_FOLLOW_PX = 24;
@@ -167,7 +170,7 @@ export function ReportEditor({
   onUnsaved,
   onTouches,
   onRallies,
-  saved,
+  saved: given,
   comments,
   onComment,
   picks,
@@ -229,6 +232,8 @@ export function ReportEditor({
   place: RefObject<{ top: number; scrolled: number }>;
 }) {
   const { t } = useTranslation();
+  // A touch added and saved that the page now holds is listed once.
+  const saved = useMemo(() => settled(given, pageTouches), [given]);
   const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
   const [added, setAdded] = useState<Added[]>(() => (saved.added ?? []).map((a) => ({ ...a, time: a.frame / match.fps })));
   // The rallies started by the review, by their start frame.

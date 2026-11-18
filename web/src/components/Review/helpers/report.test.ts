@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  settled,
   closedEnd,
   aboutEnd,
   changedSince,
@@ -342,5 +343,23 @@ describe('closedEnd', () => {
     expect(closedEnd(11, { time: 10, type: 'attack' }, [])).toBe(11);
     expect(closedEnd(20, { time: 10, type: 'fault' }, [11])).toBe(10);
     expect(closedEnd(20, undefined, [11])).toBe(20);
+  });
+});
+
+describe('settled', () => {
+  const page = new Map([[100, { type: 'missed', result: 'error', player: '1:4', cause: 0, partner: '' }]]);
+
+  it('takes a touch added that the page holds as a correction of it, what it says beyond the page', () => {
+    const added = [
+      { frame: 100, team: 1 as const, type: 'missed', result: 'error', player: '1:5' },
+      { frame: 200, team: 2 as const, type: 'dig', result: 'play' },
+    ];
+    expect(settled({ touches: [], added }, page)).toEqual({ touches: [{ frame: 100, player: '1:5' }], added: [added[1]] });
+    expect(settled({ touches: [], added: [{ ...added[0], player: '1:4' }] }, page)).toEqual({ touches: [], added: [] });
+  });
+
+  it('keeps a correction of that touch saved already', () => {
+    const saved = { touches: [{ frame: 100, player: '1:9' }], added: [{ frame: 100, team: 1 as const, type: 'missed', result: 'error', player: '1:5' }] };
+    expect(settled(saved, page)).toEqual({ touches: [{ frame: 100, player: '1:9' }], added: [] });
   });
 });
