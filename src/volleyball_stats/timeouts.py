@@ -15,7 +15,9 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from volleyball_stats import files
+import numpy as np
+
+from volleyball_stats import files, player_table
 
 DETECTED = "timeouts.csv"
 ANSWERS = "timeouts.json"
@@ -36,16 +38,10 @@ ADDED_S = 30.0
 
 def on_court(players: Path, step: int) -> Counter:
     """Players on the court at each `step`-th frame of a `players.csv`."""
-    counts: Counter = Counter()
-    with players.open() as f:
-        columns = next(f).strip().split(",")
-        frame, x, y = columns.index("frame"), columns.index("court_x"), columns.index("court_y")
-        for line in f:
-            row = line.rstrip("\n").split(",")
-            at = int(row[frame])
-            if at % step == 0 and row[x] and row[y] and abs(float(row[x])) <= COURT_X and abs(float(row[y])) <= COURT_Y:
-                counts[at] += 1
-    return counts
+    t = player_table.read(players)
+    kept = (t["frame"] % step == 0) & (np.abs(t["court_x"]) <= COURT_X) & (np.abs(t["court_y"]) <= COURT_Y)
+    frames, counts = np.unique(t["frame"][kept], return_counts=True)
+    return Counter(dict(zip(frames.tolist(), counts.tolist())))
 
 
 def read_rallies(path: Path) -> list[tuple[int, int, int]]:

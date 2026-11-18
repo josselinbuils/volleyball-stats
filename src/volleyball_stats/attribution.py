@@ -17,15 +17,14 @@ doubt, asked in the review. See benchmarks/attribution/README.md for the numbers
 
 import argparse
 import csv
-import itertools
-import warnings
+import gc
 import json
 from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import decode, files, jobs
+from volleyball_stats import decode, files, jobs, player_table
 from volleyball_stats.actions import LATE_FLIGHT_S, POSE_MODEL, Typed
 from volleyball_stats.court import Calibration
 from volleyball_stats.players import Row
@@ -67,48 +66,29 @@ Box = tuple[float, float, float, float]
 Candidate = tuple[float, float, int]
 
 
-PLAYER_COLUMNS = "frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y"
+PLAYER_COLUMNS = ",".join(player_table.COLUMNS)
 
 
 def read_players(path: Path, share: Callable[[float], None] = lambda _: None) -> list[Row]:
     """Rows of a CSV written by players.write_csv; the share of the file read told as it goes."""
-    with open(path) as f:
-        header = f.readline().strip()
-    if header == PLAYER_COLUMNS:
-        try:
-            return numeric_players(path, share)
-        except ValueError:
-            pass
-    with open(path) as f:
-        return [
-            Row(int(r["frame"]), int(r["track"]), tuple(float(r[k]) for k in ("x1", "y1", "x2", "y2")), float(r["conf"]),
-                (float(r["feet_x"]), float(r["feet_y"])), (float(r["court_x"]), float(r["court_y"])), r["team"])
-            for r in csv.DictReader(f)
-        ]
-
-
-# Lines of players.csv parsed at a time: the share read is told between them.
-CHUNK_LINES = 200_000
-
-
-def numeric_players(path: Path, share: Callable[[float], None] = lambda _: None) -> list[Row]:
-    """`read_players` through numpy, more than ten times faster to parse, CHUNK_LINES at a time. ValueError for a blank
-    number."""
-    size, read, out = max(path.stat().st_size, 1), 0, []
-    with open(path) as f, warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        read += len(f.readline())
-        while lines := list(itertools.islice(f, CHUNK_LINES)):
-            numbers = np.loadtxt(lines, delimiter=",", usecols=(0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11), ndmin=2)
-            teams = np.loadtxt(lines, delimiter=",", usecols=(2,), dtype=str, ndmin=1)
-            out += [
-                Row(frame, track, (r[0], r[1], r[2], r[3]), r[4], (r[5], r[6]), (r[7], r[8]), team)
-                for frame, track, r, team in zip(numbers[:, 0].astype(int).tolist(), numbers[:, 1].astype(int).tolist(), numbers[:, 2:].tolist(), teams.tolist())
+    try:
+        t = player_table.read(path, share)
+    except ValueError:
+        with open(path) as f:
+            return [
+                Row(int(r["frame"]), int(r["track"]), tuple(float(r[k]) for k in ("x1", "y1", "x2", "y2")), float(r["conf"]),
+                    (float(r["feet_x"]), float(r["feet_y"])), (float(r["court_x"]), float(r["court_y"])), r["team"])
+                for r in csv.DictReader(f)
             ]
-            read += sum(map(len, lines))
-            share(min(1.0, read / size))
-    share(1.0)
-    return out
+    column = lambda name: t[name].tolist()  # noqa: E731
+    # Millions of rows, none ever garbage: collecting while they are made took 3.5 s of 5.5 (18 Nov).
+    collecting = gc.isenabled()
+    gc.disable()
+    try:
+        return list(map(Row, column("frame"), column("track"), zip(*map(column, ("x1", "y1", "x2", "y2"))), column("conf"), zip(column("feet_x"), column("feet_y")), zip(column("court_x"), column("court_y")), column("team")))
+    finally:
+        if collecting:
+            gc.enable()
 
 
 def distance(ball: tuple[float, float], box: Box, reach: float = 0.0) -> float:

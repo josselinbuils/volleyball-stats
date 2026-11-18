@@ -8,6 +8,8 @@ from pathlib import Path
 
 import numpy as np
 
+from volleyball_stats import player_table
+
 # The seconds around the serve whose players its view shows.
 SERVE_S = (2.0, 0.2)
 # The exchange's view comes this long after the serve, the server having hit the ball.
@@ -39,15 +41,9 @@ STEP_S = 0.1
 def read_boxes(path: Path, size: tuple[int, int], fps: float) -> np.ndarray:
     """players.csv's [time, track, x1, y1, x2, y2] every STEP_S by time, boxes in fractions of the picture."""
     step = max(1, round(STEP_S * fps))
-    rows = []
-    with open(path) as f:
-        f.readline()
-        for line in f:
-            frame = int(line[: line.index(",")])
-            if frame % step == 0:
-                _, track, _, x1, y1, x2, y2 = line.split(",", 7)[:7]
-                rows.append((frame / fps, int(track), float(x1) / size[0], float(y1) / size[1], float(x2) / size[0], float(y2) / size[1]))
-    boxes = np.array(rows, dtype=float).reshape(-1, 6)
+    t = player_table.read(path)
+    kept = t["frame"] % step == 0
+    boxes = np.column_stack([t["frame"][kept] / fps, t["track"][kept], *(t[k][kept] / size[k[0] == "y"] for k in ("x1", "y1", "x2", "y2"))]).astype(float).reshape(-1, 6)
     return boxes[np.argsort(boxes[:, 0], kind="stable")]
 
 

@@ -297,12 +297,7 @@ class TestContacts:
 
 class TestPlayerSamples:
     def test_keeps_every_steps_frame_of_the_video_as_track_and_feet_rounded_to_the_centimetre(self):
-        rows = [
-            {"frame": "3", "track": "5", "court_x": "3.14159", "court_y": "-1.005"},
-            {"frame": "3", "track": "2", "court_x": "-2.0", "court_y": "1.234"},
-            {"frame": "4", "track": "2", "court_x": "-2.1", "court_y": "1.2"},
-            {"frame": "9", "track": "2", "court_x": "-4.0", "court_y": "0.0"},
-        ]
+        rows = {"frame": np.array([3, 3, 4, 9]), "track": np.array([5, 2, 2, 2]), "court_x": np.array([3.14159, -2.0, -2.1, -4.0]), "court_y": np.array([-1.005, 1.234, 1.2, 0.0])}
 
         assert player_samples(rows, 3, 10) == [[], [5, 3.14, -1.0, 2, -2.0, 1.23], [], [2, -4.0, 0.0]]
 

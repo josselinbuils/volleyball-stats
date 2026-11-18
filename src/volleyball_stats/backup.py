@@ -32,9 +32,10 @@ ROOT = "/root/backups/volleyball-stats"
 # Old copies of the results, the pages built from them (the review's links the video), half-written files, the review's
 # marker of a page waiting for its pictures (review.STALE_PHOTOS), made and removed as it builds. The films go (a few MB each):
 # a machine that pulls the match gets them, and its upload keeps them online.
+# players.csv's cache (`player_table`), made again where read.
 # Per machine (`sync`): the server's version of the match this machine's copy started from.
 STATE = ".sync.json"
-SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE)
+SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE, "players.npz")
 # What sits beside the matches in the outputs folder, copied with each match and on its own (`backup_shared`).
 # "learned": the models trained on the reviewed matches (`playing.WEIGHTS`, 345 MB: a machine with no card gets them made).
 SHARED = ("courts", "court", "roster.json", "lens.json", "club", "feedback", "learned")

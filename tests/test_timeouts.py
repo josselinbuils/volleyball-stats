@@ -26,7 +26,8 @@ class TestFound:
 class TestOnCourt:
     def test_counts_the_feet_on_the_court_at_each_step(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text("frame,track,court_x,court_y\n0,1,1.0,1.0\n0,2,-9.0,4.0\n0,3,12.0,0.0\n0,4,0.0,7.0\n0,5,,\n3,1,0.0,0.0\n5,1,0.0,0.0\n")
+        feet = [(0, 1, 1.0, 1.0), (0, 2, -9.0, 4.0), (0, 3, 12.0, 0.0), (0, 4, 0.0, 7.0), (3, 1, 0.0, 0.0), (5, 1, 0.0, 0.0)]
+        path.write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "".join(f"{f},{t},left,0.0,0.0,1.0,1.0,0.9,0.5,1.0,{x},{y}\n" for f, t, x, y in feet))
         assert timeouts.on_court(path, 5) == {0: 2, 5: 1}
 
 
@@ -80,7 +81,7 @@ class TestAnswer:
 class TestReadDetected:
     def test_detects_when_an_older_run_left_none(self, tmp_path):
         (tmp_path / "rallies.csv").write_text("start_frame,end_frame,left,set\n0,100,1,1\n1000,1100,1,1\n")
-        (tmp_path / "players.csv").write_text("frame,track,court_x,court_y\n")
+        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n")
         assert timeouts.read_detected(tmp_path, 10.0) == [(100, 1000)]
         assert (tmp_path / timeouts.DETECTED).exists()
 

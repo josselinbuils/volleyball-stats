@@ -53,7 +53,7 @@ MADE = "made.json"
 # What `made_from` leaves out of a match folder: what hosting, syncing and opening the review write without a change of the
 # match, and the review page's copy of the page's code (its data counts, without its `v`); files from MADE_BIG bytes count
 # by their size and time, not their content.
-MADE_SKIP = ("hosted.json", "hosted_page.json", ".sync.json", "review_timings.json", "photos_stale", "site", "before-rerun", "backup-*", "*.tmp")
+MADE_SKIP = ("hosted.json", "hosted_page.json", ".sync.json", "review_timings.json", "players.npz", "photos_stale", "site", "before-rerun", "backup-*", "*.tmp")
 MADE_REVIEW = ("assets", "scene3d.js", "review-app.js", "index.html", "data.js")
 MADE_BIG = 8 << 20
 # The owner's server: the docker compose service whose nginx serves the site (docs/hosting.md); any other reloads nginx itself.

@@ -20,6 +20,11 @@ How a video becomes statistics, step by step. Each step is scored against hand l
 | 7. Naming | Name each identity once, names proposed across matches | The review page's "Noms" tab; a roster of re-ID embeddings per named player |
 | 8. Stats | Per-player counts and outcomes, reception ratings, balls dropped between two players, strengths and things to work on | The page's "Statistiques" table: each touch's outcome from the next contact (the ball landing in, out or in the net); an ace counts against the receiver nearest to where it lands; a reception's rating from where the next touch is played; the players' positions where an untouched ball lands; a player's rates compared with the rest of their team's; each attack's jump from the attacker's pose (takeoff, landing, run-up: [benchmark](../benchmarks/jumps/README.md)) |
 
+`players.csv` (the player boxes, 2-3 M rows a match) is read as numpy columns through `player_table`, cached beside it
+in `players.npz` (~110 MB, never backed up nor synced, made again once players.csv changes): identity, the questions,
+the page and the timeouts take it in 0.1-2 s instead of 1-12 s of parsing each (18 Nov, the four matches: an apply 54.9
+-> 44.6 s, the two hosted pages 22.2 -> 16.6 s, the same outputs to the bit).
+
 ## Status
 
 Two real matches filmed in 4K at 50 fps, processed and reviewed (October and November 2026), against

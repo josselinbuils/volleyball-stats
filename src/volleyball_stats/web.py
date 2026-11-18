@@ -35,7 +35,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, timeline, timeouts, video_copies
+from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, player_table, timeline, timeouts, video_copies
 from volleyball_stats.ball3d import fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
@@ -387,14 +387,14 @@ def receiver(landing: dict, here: list[dict], who: Callable[[int], int | None]) 
     return who(int(nearest["track"]))
 
 
-def player_samples(rows: Iterable[dict], step: int, frame_count: int, who: Who = lambda track, _: track) -> list[list[float]]:
+def player_samples(t: dict[str, np.ndarray], step: int, frame_count: int, who: Who = lambda track, _: track) -> list[list[float]]:
     """The players' court feet every `step` frames of the video, from frame 0, each sample a flat
-    [player, x, y, ...] list rounded to the centimetre, `who` naming the player of a row's track."""
+    [player, x, y, ...] list rounded to the centimetre, `who` naming the player of a track at a frame (`t`: players.csv's
+    columns, `player_table`)."""
     samples: list[list[float]] = [[] for _ in range(-(-frame_count // step))]
-    for row in rows:
-        frame = int(row["frame"])
-        if frame % step == 0 and frame // step < len(samples):
-            samples[frame // step] += [who(int(row["track"]), frame), round(float(row["court_x"]), 2), round(float(row["court_y"]), 2)]
+    kept = (t["frame"] % step == 0) & (t["frame"] // step < len(samples))
+    for frame, track, x, y in zip(*(t[k][kept].tolist() for k in ("frame", "track", "court_x", "court_y"))):
+        samples[frame // step] += [who(track, frame), round(x, 2), round(y, 2)]
     return samples
 
 
@@ -872,7 +872,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     actions = [crossed(r, said.get(int(r["frame"]))) for r in actions if said.get(int(r["frame"]), ()) is not None and any(a - lead <= int(r["frame"]) <= b for a, b in windows)]
     # And the windows it says are no rally (warm-up, a ball thrown back).
     windows, rally_rows, scores, actions = drop_rallies(windows, rally_rows, scores, actions, no_rallies(match, fps), round(LEAD_S * fps))
-    # The player rows around the touches place them; all the rows feed the samples, read once.
+    # The player rows around the touches place them.
     near = {f for row in actions for f in range(int(row["frame"]) - gap, int(row["frame"]) + gap + 1)}
     track_team = {int(r["track"]): int(r["team"]) for r in read_csv(match / "tracks.csv")} if with_teams else {}
     teams = teams if with_teams else None
@@ -881,27 +881,19 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
 
     step = max(1, round(STEP_S * fps))
 
-    def rows() -> Iterator[dict]:
-        with open(match / "players.csv") as f:
-            header = f.readline().rstrip().split(",")
-            told = 0
-            for line in f:
-                frame = int(line[: line.index(",")])
-                if frame - told > frame_count / 100:
-                    told = frame
-                    share(frame / max(frame_count, 1))
-                # With teams, only the rows used: most are skipped unparsed.
-                if with_teams and frame % step and frame not in near:
-                    continue
-                row = dict(zip(header, line.rstrip().split(",")))
-                if frame in near:
-                    by_frame.setdefault(frame, []).append(row)
-                if not with_teams:
-                    # Without teams, tracks are grouped by their side of the net: 1 left, 2 right.
-                    track_team.setdefault(int(row["track"]), 1 if row["team"] == "left" else 2)
-                yield row
-
-    samples = player_samples(rows(), step, frame_count, who) if (match / "players.csv").exists() else []
+    samples = []
+    if (match / "players.csv").exists():
+        t = player_table.read(match / "players.csv", share)
+        at = np.flatnonzero(np.isin(t["frame"], np.fromiter(near, dtype=np.int64, count=len(near))))
+        # The rows around the touches place them.
+        for values in zip(*(t[k][at].tolist() for k in player_table.COLUMNS)):
+            by_frame.setdefault(values[0], []).append(dict(zip(player_table.COLUMNS, values)))
+        if not with_teams:
+            # Without teams, tracks are grouped by their side of the net: 1 left, 2 right.
+            tracks, first = np.unique(t["track"], return_index=True)
+            for k in np.argsort(first, kind="stable").tolist():
+                track_team.setdefault(int(tracks[k]), 1 if t["team"][first[k]] == "left" else 2)
+        samples = player_samples(t, step, frame_count, who)
     found = contacts(actions, windows, by_frame, fps, calibration, UNDER_PX * height / 720, who, said)
     rallies = []
     for (start, end), row, point in zip(windows, rally_rows, scores):
