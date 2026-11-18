@@ -550,7 +550,7 @@
     "shortcutsVideo": "Video",
     "shortcutsRally": "Rally",
     "shortcutPlay": "Play or pause",
-    "shortcutStep": "Back or forward {{s}} s",
+    "shortcutStep": "Back or forward one frame",
     "shortcutAdd": "Add a touch here",
     "shortcutValidate": "Validate the rally",
     "shortcutType": "Action of the touch on the video",

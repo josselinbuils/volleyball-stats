@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nudgeOf, slowStarts, stretchedTime, stretchedX } from '@/components/Review/helpers/scrub';
+import { coarse, FINE_PX, FINE_SPAN_PX, frameTime, nudgeOf, stepFrames, slowStarts, stretchedTime, stretchedX } from '@/components/Review/helpers/scrub';
 import { SLOW_BEFORE_S } from '@/helpers/slow';
 
 describe('nudgeOf', () => {
@@ -62,5 +62,14 @@ describe('stretchedX', () => {
       const t0 = frameTime(500, 50);
       expect(stretchedX(stretchedTime(dx, t0, 0.1, 50).time, t0, 0.1, 50)).toBeCloseTo(dx, 0);
     }
+  });
+});
+
+describe('stepFrames', () => {
+  it('moves from the frame shown, landing inside the next or previous one', () => {
+    expect(stepFrames(frameTime(10, 50), 1, 50)).toBe(frameTime(11, 50));
+    expect(stepFrames(frameTime(10, 50), -1, 50)).toBe(frameTime(9, 50));
+    expect(stepFrames(10.999 / 50, 1, 50)).toBe(frameTime(11, 50));
+    expect(stepFrames(0, -1, 50)).toBe(0);
   });
 });

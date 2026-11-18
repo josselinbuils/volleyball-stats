@@ -70,7 +70,7 @@ MIN_IMPACT = 20.0
 # Doubtful touches (`doubtful`) are asked first, each clip TOUCH_AROUND_S on both sides of the touch,
 # zoomed on where it happens, outlined and slowed to TOUCH_SLOW only TOUCH_SHOWN_S on both sides of
 # it (a contact found up to a few frames off): only that moment is asked about.
-TOUCH_AROUND_S, TOUCH_SHOWN_S, TOUCH_SLOW = 1.5, 0.25, 0.25
+TOUCH_AROUND_S, TOUCH_SHOWN_S, TOUCH_SLOW = 1.5, 0.25, 0.5
 UNKNOWN = ("", "0")
 # An ace's receiver is asked on its flight, slowed from the serve to its landing (ACE_FLIGHT_S after
 # the serve when unseen), the whole picture shown: the landing found can be the ball leaving it.

@@ -21,6 +21,11 @@ export function frameTime(frame: number, fps: number): number {
   return Math.max(0, (frame + 0.3) / fps);
 }
 
+/** `n` frames from the one shown at `time` (either way), inside that frame. */
+export function stepFrames(time: number, n: number, fps: number): number {
+  return frameTime(Math.floor(time * fps + 1e-6) + n, fps);
+}
+
 /** Whether the slowed span of one of `touches` (times, sorted) starts between `from` and `to`, either way: the moment
  * the touch shown beside the video changes with the video slowing down. */
 export function slowStarts(touches: readonly number[], from: number, to: number): boolean {

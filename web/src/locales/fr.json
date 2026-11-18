@@ -550,7 +550,7 @@
     "shortcutsVideo": "Vidéo",
     "shortcutsRally": "Échange",
     "shortcutPlay": "Lire ou mettre en pause",
-    "shortcutStep": "Reculer ou avancer de {{s}} s",
+    "shortcutStep": "Reculer ou avancer d'une image",
     "shortcutAdd": "Ajouter une touche ici",
     "shortcutValidate": "Valider l'échange",
     "shortcutType": "Action de la touche sur la vidéo",

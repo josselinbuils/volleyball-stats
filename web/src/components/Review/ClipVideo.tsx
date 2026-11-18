@@ -10,7 +10,7 @@ import { match, rallies, teamColor, teamRing, type Group } from '@/lib/match';
 import type { Clip } from '@/lib/review';
 import { autoView, boxAt, exchangeAt, panView, viewAt, zoomView, type View } from '@/components/Review/helpers/box';
 import { wheelZoom } from '@/components/helpers/zoom';
-import { coarse, frameTime, stretchedTime, stretchedX } from '@/components/Review/helpers/scrub';
+import { coarse, frameTime, stepFrames, stretchedTime, stretchedX } from '@/components/Review/helpers/scrub';
 import { nearTouch, SLOW_RATE } from '@/helpers/slow';
 import { Tip } from '@/components/Tip';
 
@@ -21,8 +21,6 @@ const SPEEDS = [1, 0.5, 0.25];
 let picked = 1;
 /** In free play, the bar spans this long before and after where it was anchored, re-anchored once the video leaves it. */
 const FREE_SPAN = [20, 70];
-/** In free play, the step of the left and right arrow keys. */
-export const ARROW_STEP_S = 1;
 /** A press on the video held this long plays it at HOLD_RATE until released. */
 const HOLD_MS = 250;
 const HOLD_RATE = 0.25;
@@ -323,7 +321,7 @@ export function ClipVideo({
       return;
     }
     const onKey = (event: KeyboardEvent) => {
-      const step = { ArrowLeft: -ARROW_STEP_S, ArrowRight: ARROW_STEP_S }[event.key];
+      const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
       const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
       // Space plays or pauses, wherever the focus is but in a field: a button focused is not pressed again.
       if (event.key === ' ' && video.current && !event.defaultPrevented && !typing && !document.querySelector('[role="dialog"]') && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -333,13 +331,18 @@ export function ClipVideo({
       }
       if (step && video.current && !event.defaultPrevented && !typing && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        moveTo(video.current.currentTime + step);
+        moveTo(stepFrames(video.current.currentTime, step, match.fps));
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [free]);
-  const keys: Record<string, (step: number) => number> = { ArrowLeft: (step) => time - step, ArrowRight: (step) => time + step, Home: () => from, End: () => to };
+  const keys: Record<string, (shift: boolean) => number> = {
+    ArrowLeft: (shift) => (shift ? time - 5 : stepFrames(time, -1, match.fps)),
+    ArrowRight: (shift) => (shift ? time + 5 : stepFrames(time, 1, match.fps)),
+    Home: () => from,
+    End: () => to,
+  };
   const view = pinched ?? (views && auto ? autoView(views, time, width, height) : zoom ? viewAt(clip, time, width, height) : { x: 0, y: 0, w: width, h: height });
   const shown = useRef(view);
   shown.current = view;
@@ -591,7 +594,7 @@ export function ClipVideo({
               const next = keys[event.key];
               if (next) {
                 event.preventDefault();
-                moveTo(next(event.shiftKey ? 5 : 1));
+                moveTo(next(event.shiftKey));
               }
             }}
           >

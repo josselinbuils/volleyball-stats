@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard } from 'lucide-react';
 import { VideoButton } from '@/components/VideoButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ARROW_STEP_S } from '@/components/Review/ClipVideo';
 import { ADD_KEY, TYPE_KEYS, VALIDATE_KEY } from '@/components/Review/ReportEditor';
 
 /** A titled list of keys, its keys in the column the dialog's sections share. */
@@ -52,7 +51,7 @@ export function Shortcuts() {
               title={t('review.shortcutsVideo')}
               rows={[
                 [t('review.spaceKey'), t('review.shortcutPlay')],
-                ['← →', t('review.shortcutStep', { s: ARROW_STEP_S })],
+                ['← →', t('review.shortcutStep')],
               ]}
             />
             <Section
