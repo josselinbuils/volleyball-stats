@@ -6,7 +6,7 @@ import { VideoButton } from '@/components/VideoButton';
 import { clock } from '@/lib/format';
 import { contacts, match } from '@/lib/match';
 import { isTouch } from '@/helpers/contacts';
-import { nearTouch, PAGE_SLOW_RATE } from '@/helpers/slow';
+import { nearTouch, SLOW_RATE } from '@/helpers/slow';
 import { boxOf, seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
 import { useSet } from '@/lib/sets';
 import { cn } from '@/lib/utils';
@@ -100,7 +100,7 @@ export function VideoControls({
     }
     let frame = 0;
     const tick = () => {
-      const rate = nearTouch(TOUCH_TIMES, video.currentTime) ? PAGE_SLOW_RATE : 1;
+      const rate = nearTouch(TOUCH_TIMES, video.currentTime) ? SLOW_RATE : 1;
       if (video.playbackRate !== rate) {
         video.playbackRate = rate;
       }

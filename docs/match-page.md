@@ -22,7 +22,7 @@ moments.
   rally before it held 3 s for it.
 - The video's bar: the timeline on its own row, as wide as the video; under it play, the time, 10 s back and forward, then
   the commentary, the sound, the options (⚙: "Vidéo augmentée", "Ralentir à chaque touche", "Rejouer
-  l'échange en boucle", each named and ticked) and full screen. "Ralentir à chaque touche" (kept in the browser) slows it to 0.5× around each touch only (`helpers/slow.ts` `PAGE_SLOW_RATE`; the review's clips 0.25×, to answer). The video zooms by itself, always (no switch since 16 Nov: the owner's call), framing the
+  l'échange en boucle", each named and ticked) and full screen. "Ralentir à chaque touche" (kept in the browser) slows it to 0.5× around each touch only (`helpers/slow.ts` `SLOW_RATE`, the review's too). The video zooms by itself, always (no switch since 16 Nov: the owner's call), framing the
   players as the review's (`framing.py`'s views: during an exchange one a second, of the players around it), widening only
   to keep the ball in, the view easing there by a spring (`framing.camera`); between rallies the whole picture, the
   server's view 3 s before the serve (`SERVE_LEAD_S`, 15 Nov; [benchmark](../benchmarks/framing/README.md)). The hosted

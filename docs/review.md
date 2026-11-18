@@ -156,7 +156,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   serve, from the rally before's end and showing the server by the ball (often too far back to be tracked), and one for
   the exchange, each kept while it fits (`framing.py`; on the two matches 1.1 changes a rally at 1.4× median). Zooming by
   hand overrides it until the next rally, its button resuming it sooner.
-- The snail beside the speeds ("Ralentir à chaque touche", kept in the browser): the video plays at 0.25× from 0.3 s before each touch
+- The snail beside the speeds ("Ralentir à chaque touche", kept in the browser): the video plays at 0.5× from 0.3 s before each touch
   to 0.15 s after it, the touches as corrected (`helpers/slow.ts`, the match page's snail too); the caption over the video and the list's lit row
   change to that touch as it slows down (0.3 s before it, slowed or not), a space apart from the zoom's buttons; the sound's
   button at the right end, beside full screen.
