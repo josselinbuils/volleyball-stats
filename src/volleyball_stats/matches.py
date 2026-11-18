@@ -47,13 +47,21 @@ RESERVED = ("assets", "club")
 REDIRECTS = "redirects.json"
 # Where a match folder says how to host it.
 PUBLISH = "publish.json"
+# A match's video password sealed by the owner's master password (in the browser: PBKDF2-SHA256 then AES-256-GCM,
+# web/src/lib/vault.ts), beside its publish.json, which keeps its fingerprint (`videoKey`): this code never sees a
+# password. Only this user may read it; it goes to the backups and nowhere else.
+PASSWORD = "video_password.json"
+# What a sealed password holds, each in base64 but `v` and `iter`.
+SEALED = {"v": int, "iter": int, "salt": str, "iv": str, "data": str}
+SEALED_ROUNDS, SEALED_SIZE = 600_000, 1024
+KEY = re.compile(r"[0-9a-f]{64}")
 # In a hosted match's folder, what its pages were built from (`made_from`): unchanged, an update only puts the page's code
 # in (`web.renew_code`). Online with them: the mirror brings it back with the pages another machine built.
 MADE = "made.json"
 # What `made_from` leaves out of a match folder: what hosting, syncing and opening the review write without a change of the
 # match, and the review page's copy of the page's code (its data counts, without its `v`); files from MADE_BIG bytes count
 # by their size and time, not their content.
-MADE_SKIP = ("hosted.json", "hosted_page.json", ".sync.json", "review_timings.json", *tables.CACHES, "photos_stale", "site", "before-rerun", "backup-*", "*.tmp")
+MADE_SKIP = (PASSWORD, "hosted.json", "hosted_page.json", ".sync.json", "review_timings.json", *tables.CACHES, "photos_stale", "site", "before-rerun", "backup-*", "*.tmp")
 MADE_REVIEW = ("assets", "scene3d.js", "review-app.js", "index.html", "data.js")
 MADE_BIG = 8 << 20
 # The owner's server: the docker compose service whose nginx serves the site (docs/hosting.md); any other reloads nginx itself.
@@ -407,14 +415,61 @@ def update_publish(match: Path, **changes) -> dict:
     return config
 
 
-def choose(match: Path, video: bool, password: str | None = None) -> dict:
-    """The first upload's choice: with the video behind `password`, of which only the fingerprint is
-    kept, or without it. ValueError for the video without a password."""
+def checked(key: object, sealed: object) -> tuple[str, dict]:
+    """A password's fingerprint and its sealed copy as the page sends them; ValueError("password") if not so."""
+    fine = isinstance(key, str) and KEY.fullmatch(key) and isinstance(sealed, dict) and set(sealed) == set(SEALED)
+    fine = fine and all(type(sealed[k]) is kind for k, kind in SEALED.items()) and sealed["iter"] >= SEALED_ROUNDS
+    fine = fine and all(len(sealed[k]) <= SEALED_SIZE and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", sealed[k]) for k in ("salt", "iv", "data"))
+    if not fine:
+        raise ValueError("password")
+    return key, sealed
+
+
+def sealed(match: Path) -> dict | None:
+    """The sealed password of `match`'s video, None when only its fingerprint is known (chosen before 18 Nov)."""
+    text = files.read_secret(match / PASSWORD)
+    return json.loads(text) if text else None
+
+
+def choose(match: Path, video: bool, key: str | None = None, sealed: dict | None = None) -> dict:
+    """The first upload's choice: with the video behind the password of fingerprint `key`, sealed beside it (`PASSWORD`),
+    or without it. ValueError("password") for the video without them."""
     if not video:
         return update_publish(match, video=False)
-    if not password or not password.strip():
-        raise ValueError("the video needs a password")
-    return update_publish(match, video=True, videoKey=fingerprint(password))
+    key, sealed = checked(key, sealed)
+    files.write_secret(match / PASSWORD, json.dumps(sealed) + "\n")
+    return update_publish(match, video=True, videoKey=key)
+
+
+def set_password(match: Path, key: str, sealed: dict) -> None:
+    """The password of fingerprint `key` opening the video of `match` from now on: on the server at once when the match is
+    online, then kept here, `sealed`. ValueError for a match without the video; RuntimeError when the server does not
+    take it (nothing changes) or its page does not open with it after."""
+    key, sealed = checked(key, sealed)
+    config = json.loads((match / PUBLISH).read_text())
+    if not config.get("video"):
+        raise ValueError("no video")
+    config = {**config, "videoKey": key}
+    folder = hosted_folder(match, Path(config["site"]).expanduser()) if config.get("site") else None
+    if folder is not None:
+        try:
+            install_key(config, folder.name)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            # Never the command's words: they hold the fingerprint.
+            reason = (getattr(error, "stderr", None) or b"").decode(errors="replace").strip()
+            raise RuntimeError(reason.splitlines()[-1] if reason else "ssh") from None
+    # Kept as the server now has it, then checked.
+    files.write_secret(match / PASSWORD, json.dumps(sealed) + "\n")
+    update_publish(match, videoKey=key)
+    page = f"{config['url'].rstrip('/')}/{folder.name}/video/" if folder is not None and config.get("url") else None
+    if page and not opens(page, key):
+        raise RuntimeError(f"{page} does not open with its password")
+
+
+def forget_passwords(folder: Path) -> None:
+    """Every match's sealed password removed, its master password forgotten; the videos keep theirs."""
+    for path in folder.glob(f"*/{PASSWORD}"):
+        path.unlink()
 
 
 def copies_gone(config: dict) -> list[str]:
@@ -607,7 +662,8 @@ def made_from(match: Path, video: Path, court: Path, theme: str, config: dict) -
         add(path, path.name)
     for path in sorted(match.rglob("*")):
         parts = path.relative_to(match).parts
-        if not path.is_file() or any(Path(part).match(skip) for part in parts for skip in MADE_SKIP) or (parts[0] == "review" and parts[1] in MADE_REVIEW):
+        # publish.json counts as `config`, without its password.
+        if not path.is_file() or parts == (PUBLISH,) or any(Path(part).match(skip) for part in parts for skip in MADE_SKIP) or (parts[0] == "review" and parts[1] in MADE_REVIEW):
             continue
         add(path, "/".join(parts))
     from volleyball_stats.review import page_data
@@ -624,7 +680,9 @@ def made_from(match: Path, video: Path, court: Path, theme: str, config: dict) -
     for path in sorted(own.rglob("*")) if own.is_dir() else []:
         if path.is_file():
             add(path, f"club/{path.relative_to(own).as_posix()}")
-    digest.update(json.dumps({**config, "theme": theme}, sort_keys=True).encode())
+    # The password reaches the server alone (`set_password`), never the pages.
+    kept = {k: v for k, v in config.items() if k != "videoKey"}
+    digest.update(json.dumps({**kept, "theme": theme}, sort_keys=True).encode())
     return digest.hexdigest()[:16]
 
 

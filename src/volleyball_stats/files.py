@@ -44,6 +44,27 @@ def write_text(path: Path, text: str) -> None:
         f.write(text)
 
 
+def write_secret(path: Path, text: str) -> None:
+    """`text` written whole in `path`, which only this user may read (POSIX rights; on Windows, those of the user's folder)."""
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    try:
+        with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def read_secret(path: Path) -> str | None:
+    """What `write_secret` wrote, None without it; its rights narrowed again first if a copy (a pull) widened them."""
+    if not path.exists():
+        return None
+    if os.name == "posix" and path.stat().st_mode & 0o077:
+        path.chmod(0o600)
+    return path.read_text(encoding="utf-8")
+
+
 def write_bytes(path: Path, data: bytes) -> None:
     with replacing(path, "wb") as f:
         f.write(data)

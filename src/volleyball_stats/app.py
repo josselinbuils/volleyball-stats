@@ -730,11 +730,21 @@ def state(listed: list[dict]) -> dict:
 
 
 def handle(
-    method: str, path: str, query: str, body: dict, listed, busy=lambda: False, club_changed=lambda: None, open_match: str | None = None, review=lambda: None
+    method: str,
+    path: str,
+    query: str,
+    body: dict,
+    listed,
+    busy=lambda: False,
+    club_changed=lambda: None,
+    open_match: str | None = None,
+    review=lambda: None,
+    local: bool = False,
 ) -> tuple[bytes, str, int] | None:
     """The response to an /app/ request; None when `path` is not one. `listed` gives the review's list of the matches,
     `busy` whether the server is applying answers (no update then), `club_changed` is told the club changed, `open_match`
-    the match whose review is open (it cannot be restored under it), `review` its run for the tasks (`tasks`)."""
+    the match whose review is open (it cannot be restored under it), `review` its run for the tasks (`tasks`), `local`
+    whether the request came from this machine (the videos' passwords only then)."""
     if not path.startswith("/app/"):
         return None
     reply = lambda data, status=200: (json.dumps(data, ensure_ascii=False).encode(), "application/json", status)  # noqa: E731
@@ -756,7 +766,8 @@ def handle(
             if route == "learning":
                 return reply(learning())
             if route == "server":
-                return reply(server_state())
+                # `here`: from this machine, which alone sees the videos' passwords.
+                return reply({**server_state(), "here": local})
             if route == "server/copies":
                 return reply(server.copies(OUTPUTS))
             if route == "export":
@@ -844,6 +855,31 @@ def handle(
                 raise ValueError("matches")
             only = [arg for name in picked or [] for arg in ("--only", name)]
             jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES), *only])])
+            return reply(server_state())
+        if route.startswith("server/password"):
+            from volleyball_stats import matches
+
+            # The passwords, sealed, only to this machine, never to the local network (`network.py`: no code there).
+            if not local:
+                return reply({"error": "local"}, 403)
+            if route == "server/password/sealed":
+                # Every match's with the video, online or not: any tells the master password's salt.
+                chosen = [p.parent for p in sorted(MATCHES.glob(f"*/{matches.PUBLISH}")) if json.loads(p.read_text()).get("video")]
+                return reply({"sealed": {m.name: matches.sealed(m) for m in chosen}})
+            if route == "server/password/forget":
+                matches.forget_passwords(MATCHES)
+                return reply({})
+            if route != "server/password":
+                return None
+            # Not while an upload runs: it would put the former password back online.
+            if any(j["id"] == HOSTING and j["running"] for j in jobs.state(OUTPUTS)):
+                return reply({"error": "running"}, 409)
+            with_video = {m["name"] for m in server.online(OUTPUTS) if m["video"]}
+            picked = body.get("matches")
+            if not isinstance(picked, list) or not picked or not all(isinstance(m, dict) and m.get("name") in with_video for m in picked):
+                raise ValueError("matches")
+            for m in picked:
+                matches.set_password(MATCHES / m["name"], m.get("key"), m.get("sealed"))
             return reply(server_state())
         if route == "export":
             export([str(n) for n in body["matches"]], listed(), body.get("folder") and str(body["folder"]))

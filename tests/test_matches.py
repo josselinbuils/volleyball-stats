@@ -496,32 +496,119 @@ class TestClubTeam:
         assert matches.club_team(tmp_path, matches.CLUB) == 2
 
 
+SEALED = {"v": 1, "iter": 600_000, "salt": "c2FsdA==", "iv": "aXY=", "data": "c2VhbGVk"}
+KEY = "a" * 64
+
+
 class TestChoose:
     @staticmethod
     def match(tmp_path):
         (tmp_path / matches.PUBLISH).write_text(json.dumps({"url": "https://example.org/"}))
         return tmp_path
 
-    def test_keeps_only_the_passwords_fingerprint_as_the_page_makes_it(self, tmp_path):
+    def test_keeps_the_fingerprint_and_the_sealed_password_only_for_its_user(self, tmp_path):
         match = self.match(tmp_path)
 
-        matches.choose(match, True, "secret")
+        matches.choose(match, True, KEY, SEALED)
 
-        saved = (match / matches.PUBLISH).read_text()
-        assert "secret" not in saved
-        assert json.loads(saved) == {"url": "https://example.org/", "video": True, "videoKey": hashlib.sha256(b"volleyball:secret").hexdigest()}
+        assert json.loads((match / matches.PUBLISH).read_text()) == {"url": "https://example.org/", "video": True, "videoKey": KEY}
+        assert matches.sealed(match) == SEALED
+        if os.name == "posix":
+            assert (match / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
+
+    def test_a_copy_s_wider_rights_are_narrowed_on_reading(self, tmp_path):
+        match = self.match(tmp_path)
+        matches.choose(match, True, KEY, SEALED)
+        (match / matches.PASSWORD).chmod(0o644)
+
+        assert matches.sealed(match) == SEALED
+        if os.name == "posix":
+            assert (match / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
 
     def test_without_the_video_needs_no_password(self, tmp_path):
         assert matches.choose(self.match(tmp_path), False) == {"url": "https://example.org/", "video": False}
 
-    @pytest.mark.parametrize("password", [None, "", "   "])
-    def test_the_video_needs_a_password(self, tmp_path, password):
+    @pytest.mark.parametrize(
+        "key, sealed",
+        [
+            (None, SEALED),
+            ("secret", SEALED),
+            (KEY, None),
+            (KEY, {**SEALED, "iter": 1000}),
+            (KEY, {**SEALED, "data": "not base64!"}),
+            (KEY, {**SEALED, "data": "A" * 2000}),
+            (KEY, {**SEALED, "password": "clear"}),
+        ],
+    )
+    def test_the_video_needs_a_fingerprint_and_a_sealed_password(self, tmp_path, key, sealed):
         match = self.match(tmp_path)
 
         with pytest.raises(ValueError):
-            matches.choose(match, True, password)
+            matches.choose(match, True, key, sealed)
 
         assert "video" not in json.loads((match / matches.PUBLISH).read_text())
+        assert matches.sealed(match) is None
+
+
+class TestSetPassword:
+    @staticmethod
+    def match(tmp_path, monkeypatch, online=True):
+        site, match = tmp_path / "site", tmp_path / "m"
+        (site / "m").mkdir(parents=True)
+        match.mkdir()
+        config = {"site": str(site), "url": "https://example.org/v/", "upload": "host:/srv/site/", "key": "k", "video": True, "videoKey": "b" * 64}
+        (match / matches.PUBLISH).write_text(json.dumps(config))
+        monkeypatch.setattr(matches, "hosted_folder", lambda m, s: site / "m" if online else None)
+        return match
+
+    def test_goes_online_then_is_kept_then_checked(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path, monkeypatch)
+        done = []
+        monkeypatch.setattr(matches, "install_key", lambda config, folder: done.append(("install", folder, config["videoKey"])))
+        monkeypatch.setattr(matches, "opens", lambda url, key: done.append(("opens", url, key)) or True)
+
+        matches.set_password(match, KEY, SEALED)
+
+        assert done == [("install", "m", KEY), ("opens", "https://example.org/v/m/video/", KEY)]
+        assert json.loads((match / matches.PUBLISH).read_text())["videoKey"] == KEY
+        assert matches.sealed(match) == SEALED
+
+    def test_nothing_changes_when_the_server_refuses_it_nor_says_the_fingerprint(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path, monkeypatch)
+
+        def refuse(config, folder):
+            raise subprocess.CalledProcessError(1, ["ssh", config["videoKey"]], stderr=b"Permission denied")
+
+        monkeypatch.setattr(matches, "install_key", refuse)
+
+        with pytest.raises(RuntimeError, match="^Permission denied$"):
+            matches.set_password(match, KEY, SEALED)
+
+        assert json.loads((match / matches.PUBLISH).read_text())["videoKey"] == "b" * 64
+        assert matches.sealed(match) is None
+
+    def test_a_match_not_online_keeps_it_for_its_upload(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path, monkeypatch, online=False)
+        monkeypatch.setattr(matches, "install_key", lambda *a: pytest.fail("not online"))
+
+        matches.set_password(match, KEY, SEALED)
+
+        assert json.loads((match / matches.PUBLISH).read_text())["videoKey"] == KEY
+
+    def test_not_for_a_match_without_the_video(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path, monkeypatch)
+        matches.update_publish(match, video=False)
+
+        with pytest.raises(ValueError):
+            matches.set_password(match, KEY, SEALED)
+
+    def test_forgetting_removes_every_sealed_password_not_the_fingerprints(self, tmp_path, monkeypatch):
+        match = self.match(tmp_path, monkeypatch, online=False)
+        matches.set_password(match, KEY, SEALED)
+
+        matches.forget_passwords(tmp_path)
+
+        assert matches.sealed(match) is None and json.loads((match / matches.PUBLISH).read_text())["videoKey"] == KEY
 
 
 class TestAddCopies:
@@ -806,5 +893,9 @@ class TestMadeFrom:
         (match / "review" / "data.js").write_text('window.MATCH = {"name": "m", "v": "2"};\n')
         assert made() == first
         assert made(club=2) != first
+        # A new password reaches the server alone: the pages stay as built.
+        (match / matches.PUBLISH).write_text('{"videoKey": "b"}')
+        (match / matches.PASSWORD).write_text("{}")
+        assert made(videoKey="b") == first
         (match / "rallies.csv").write_text("start_frame\n2\n")
         assert made() != first

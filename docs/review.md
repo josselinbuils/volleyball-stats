@@ -39,8 +39,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 ## Applying and learning
 
 - Each apply rebuilds the pages.
-- "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password, or
-  without it (`outputs/matches/MATCH/publish.json`). Its video's copies come cut by the automatic zoom
+- "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video and a password (and
+  the master password keeping it, [hosting.md](hosting.md#the-video-and-its-password)), or without it (`outputs/matches/MATCH/publish.json`). Its video's copies come cut by the automatic zoom
   and shorter than the match ([hosting.md](hosting.md)): once their zoom or time map has changed since they were made (a
   correction moved a rally or a touch, or copies made before 16 Nov), it asks "Refaire les vidéos ?" first; "Plus tard" uploads with them as they are, and "Refaire
   les vidéos au nouveau zoom" (the "..." menu, while they wait) makes them again and uploads (the owner's call, 16 Nov:

@@ -4,12 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { match } from '@/lib/match';
+import { fingerprint } from '@/lib/vault';
 
-// The copy with the video opens to the cookie COOKIE holding the SHA-256 of SALT and its password: the
+// The copy with the video opens to the cookie COOKIE holding its password's fingerprint (`fingerprint`): the
 // server keeps the same fingerprint, never the password, and sends the visitor back with ?video=denied
 // without it. Kept for a year, on this match's folder.
 const COOKIE = 'video_key';
-const SALT = 'volleyball:';
 const SKIPPED = 'video-skipped';
 const ASK = 'video-choice';
 
@@ -18,11 +18,6 @@ const hasKey = () => document.cookie.split('; ').some((c) => c.startsWith(`${COO
 const setKey = (key: string | null) => {
   document.cookie = `${COOKIE}=${key ?? ''}; Path=${folder()}; Max-Age=${key ? 31536000 : 0}; Secure; SameSite=Lax`;
 };
-
-async function fingerprint(password: string): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SALT + password));
-  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 /** Opens the choice, from a link to the copy with the video. */
 export function askVideo(): void {

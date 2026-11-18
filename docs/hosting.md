@@ -110,8 +110,9 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
 - The review writes an imported match's `publish.json` on opening (`matches.ensure_publish`: the hosting from another
   match's, its club team from the club's teams, else the theme's name).
 - The first "Mettre en ligne" asks: with the video and a password, or without it (`matches.choose`; to choose again, remove
-  `video` from `publish.json`). Only the password's fingerprint is kept. Nothing is encoded before that choice: with the
-  video, its copies are made then (`video_copies.py`), cut by the automatic zoom (below).
+  `video` from `publish.json`). The password itself never reaches the app's server: the page keeps its fingerprint, and
+  the password sealed by the master password (below). Nothing is encoded before that choice: with the video, its copies
+  are made then (`video_copies.py`), cut by the automatic zoom (below).
 - Each match page carries the code it was built with, so a change of the page or of the data it is built from reaches the
   matches online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`)
   rebuilds every match online and uploads them at once (`rsync --delay-updates`: the new files replace the old together),
@@ -232,6 +233,18 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   in the container: written in place, then `nginx -s reload`, as `matches.host` does). Otherwise it redirects to the page
   with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Control: private, no-store` so Cloudflare keeps nothing.
   Check that a `curl` without it gets 302 before uploading a video.
+- The Site tab's "Mots de passe des vidéos" shows and changes them, once its master password (12 characters at least,
+  chosen at the first one sealed, in the Site tab or the first "Mettre en ligne") unlocks them. The browser seals each
+  password (`web/src/lib/vault.ts`: PBKDF2-SHA256, 600,000 rounds, into an AES-256-GCM key; one salt for all, so one
+  unlock opens them all) and makes its fingerprint; the app keeps only those, in `MATCH/video_password.json` (owner's
+  rights only, `files.write_secret`; backed up with the match, never in a hosted folder nor in `made_from`'s digest).
+  Changed (`matches.set_password`, one match or every one with the video), the server's list takes it at once, then
+  the app checks the new one opens the video; not while an upload runs. Unlocked 5 minutes at most.
+- Only from the app's own computer (`review.from_here`, the loopback): the local network ("Réseau local", no code) never
+  reaches these routes, nor a first upload with the video. A match whose password was chosen before 18 Nov shows
+  "Inconnu" until it is changed once. "Oublié ?" erases the sealed ones (`matches.forget_passwords`): the videos keep
+  their passwords, new ones then chosen. ponytail: no change of the master password (every one opened and sealed again
+  by the browser, `server/password` taking them all).
 
 ## Films and voice
 

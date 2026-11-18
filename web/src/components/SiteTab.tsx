@@ -9,6 +9,7 @@ import { Tip } from '@/components/Tip';
 import { JobLine, type Told } from '@/components/JobLine';
 import { ExportSite } from '@/components/ExportSite';
 import { LateCauses } from '@/components/LateCauses';
+import { VideoPasswords } from '@/components/VideoPasswords';
 import { INPUT, call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
@@ -34,6 +35,7 @@ interface Online {
   day: string | null;
   behind: boolean;
   changes: PageChange[] | null;
+  video: boolean;
 }
 
 interface ServerState {
@@ -91,11 +93,14 @@ function Status({ ok, children }: { ok: boolean; children: ReactNode }) {
   );
 }
 
-/** The "Site" tab of the review's list: the hosting server, the matches online, the export and the backups. */
+/** The "Site" tab of the review's list: the hosting server, the matches online, their videos' passwords, the export and the
+ * backups. */
 export function SiteTab() {
   const { t } = useTranslation();
   const f = useFormat();
   const [state, setState] = useState<ServerState | null>(null);
+  // Whether this page runs on the app's computer, which alone sees the videos' passwords.
+  const [here, setHere] = useState(false);
   const [form, setForm] = useState<Server>(EMPTY);
   const [note, setNote] = useState<{ ok: true; text: string } | { ok: false; error: Explained } | null>(null);
   // The server's state unread: the tab says so, with a retry.
@@ -118,9 +123,10 @@ export function SiteTab() {
   const [doing, run] = useRunning();
   const removing = doing === 'keep' || !!doing?.startsWith('delete:');
   const refresh = useCallback(async () => {
-    const r = await call<ServerState>('server');
+    const r = await call<ServerState & { here?: boolean }>('server');
     if (r.ok) {
       setState(r);
+      setHere(!!r.here);
       const newest = r.online.find((m) => m.behind);
       setPicked((p) => p ?? new Set(newest ? [newest.name] : []));
     }
@@ -251,6 +257,7 @@ export function SiteTab() {
       return next;
     });
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
+  const nameOf = (m: Online) => m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
   if (!state) {
     return unread ? (
       <ErrorNote
@@ -432,7 +439,7 @@ export function SiteTab() {
           {state.online.length ? (
             <ul className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm">
               {state.online.map((m) => {
-                const name = m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
+                const name = nameOf(m);
                 return (
                   <li key={m.name} className="flex min-w-0 items-center gap-3 px-3 py-2">
                     <input type="checkbox" aria-label={name} checked={m.behind && !!picked?.has(m.name)} disabled={hosting || !m.behind} onChange={(e) => pick(m.name, e.target.checked)} />
@@ -492,6 +499,10 @@ export function SiteTab() {
           </div>
           {hostError && <ErrorNote {...hostError} />}
           <JobLine job={state.hosting} running={t('server.hosting')} />
+        </Card>
+        <Card className="gap-3 px-4 py-3.5">
+          <h2 className="text-lg font-semibold">{t('passwords.title')}</h2>
+          <VideoPasswords matches={state.online.filter((m) => m.video).map((m) => ({ name: m.name, label: nameOf(m) }))} here={here} busy={hosting} onState={(next) => setState(next as ServerState)} />
         </Card>
         <Card className="gap-3 px-4 py-3.5">
           <h2 className="text-lg font-semibold">{t('export.title')}</h2>

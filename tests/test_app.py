@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from volleyball_stats import app, files, jobs, presence
+from volleyball_stats import app, files, jobs, matches, presence
 
 
 class TestApp:
@@ -135,6 +135,29 @@ class TestApp:
         for wrong in (["three"], [], "two"):
             assert app.handle("POST", "/app/server/host", "", {"matches": wrong}, list)[2] == 400
         assert len(started) == 2
+
+    def test_the_videos_passwords_only_to_this_machine(self, place, monkeypatch):
+        set_ = []
+        monkeypatch.setattr(app, "server_state", lambda: {})
+        monkeypatch.setattr(app.server, "online", lambda outputs: [{"name": "one", "video": True}, {"name": "two", "video": False}])
+        monkeypatch.setattr(matches, "set_password", lambda match, key, sealed: set_.append((match.name, key, sealed)))
+        monkeypatch.setattr(matches, "sealed", lambda match: {"data": match.name})
+        self.match(place, "one")
+        self.match(place, "two")
+        (place / "outputs" / "matches" / "one" / "publish.json").write_text('{"video": true}')
+        (place / "outputs" / "matches" / "two" / "publish.json").write_text('{"video": false}')
+        one = {"name": "one", "key": "k", "sealed": {}}
+        for route in ("server/password/sealed", "server/password", "server/password/forget"):
+            assert app.handle("POST", f"/app/{route}", "", {"matches": [one]}, list)[2] == 403
+        assert json.loads(app.handle("GET", "/app/server", "", {}, list)[0])["here"] is False
+        assert json.loads(app.handle("GET", "/app/server", "", {}, list, local=True)[0])["here"] is True
+        assert json.loads(app.handle("POST", "/app/server/password/sealed", "", {}, list, local=True)[0]) == {"sealed": {"one": {"data": "one"}}}
+        assert app.handle("POST", "/app/server/password", "", {"matches": [one]}, list, local=True)[2] == 200
+        assert set_ == [("one", "k", {})]
+        for wrong in ([{"name": "two"}], [], ["one"], None):
+            assert app.handle("POST", "/app/server/password", "", {"matches": wrong}, list, local=True)[2] == 400
+        monkeypatch.setattr(app.jobs, "state", lambda outputs: [{"id": app.HOSTING, "running": True}])
+        assert app.handle("POST", "/app/server/password", "", {"matches": [one]}, list, local=True)[2] == 409
 
     def test_the_update_starts_unless_answers_are_being_applied(self, monkeypatch):
         started = []

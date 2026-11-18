@@ -1600,3 +1600,11 @@ class TestRecords:
         found = records(page)
         assert [(r["kind"], r["shown"], r["record"]) for r in found] == [("auto.record.jump", "34 cm", {"key": "jump", "frame": 200})]
         assert found[0]["time"] == 4 and found[0]["id"] == "auto:record:jump:200:34"
+
+
+@pytest.mark.parametrize(
+    "address, here",
+    [("127.0.0.1", True), ("127.0.1.1", True), ("::1", True), ("::ffff:127.0.0.1", True), ("192.168.1.20", False), ("::ffff:192.168.1.20", False), ("fe80::1", False)],
+)
+def test_tells_a_request_from_this_machine_from_the_local_networks(address, here):
+    assert review_module.from_here(SimpleNamespace(client_address=(address, 50000))) is here
