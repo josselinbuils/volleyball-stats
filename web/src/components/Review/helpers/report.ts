@@ -70,6 +70,19 @@ export function aboutEnd(question: { reports?: { kind?: string | null }[] }): bo
   return !!question.reports?.length && question.reports.every((r) => ABOUT_END.includes(r.kind ?? ''));
 }
 
+// A checked rally ends where its last action's ball lands, at most this long after the action (`web.CLOSE_S`).
+export const CLOSE_S = 2.5;
+
+/** A checked rally's end with its `last` action (`web.closed`): where its ball first lands after it (`landings`, times in
+ * order), at most CLOSE_S later, at once after a playing fault; never later than `end`. Without an action, `end`. */
+export function closedEnd(end: number, last: { time: number; type: string } | undefined, landings: number[]): number {
+  if (!last) {
+    return end;
+  }
+  const lands = landings.find((time) => time >= last.time) ?? Infinity;
+  return Math.min(end, last.type === 'fault' ? last.time : Math.min(lands, last.time + CLOSE_S));
+}
+
 /** The first of the rallies joined together that `k` is one of; `joins` says a rally is joined to the next one. */
 export function joinStart(k: number, joins: (k: number) => boolean): number {
   while (joins(k - 1)) {

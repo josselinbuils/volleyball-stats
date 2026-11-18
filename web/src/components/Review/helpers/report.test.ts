@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  closedEnd,
   aboutEnd,
   changedSince,
   comingFirstTouch,
@@ -330,5 +331,16 @@ describe('missedAttackAt', () => {
 
   it('finds no room right before the next touch', () => {
     expect(missedAttackAt(10, 10.8)).toBeNull();
+  });
+});
+
+describe('closedEnd', () => {
+  it('ends a checked rally where its last action lands, at most CLOSE_S after it, never later than it ended', () => {
+    expect(closedEnd(20, { time: 10, type: 'attack' }, [5, 11.2, 13])).toBe(11.2);
+    expect(closedEnd(20, { time: 10, type: 'attack' }, [14])).toBe(12.5);
+    expect(closedEnd(20, { time: 10, type: 'attack' }, [])).toBe(12.5);
+    expect(closedEnd(11, { time: 10, type: 'attack' }, [])).toBe(11);
+    expect(closedEnd(20, { time: 10, type: 'fault' }, [11])).toBe(10);
+    expect(closedEnd(20, undefined, [11])).toBe(20);
   });
 });

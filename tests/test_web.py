@@ -1192,3 +1192,17 @@ class TestStarted:
 
         # The serve 0.3 s before the window, the first touch left after the serve was removed, none, never before 60.
         assert [r["start"] for r in rallies] == [9.7, 34.5, 50.0, 60.0]
+
+
+def test_closed_ends_checked_rallies_with_their_last_action():
+    rallies = [{"key": k, "start": 10.0 * k, "end": 10.0 * k + 9} for k in range(5)]
+    found = [
+        {"rally": 0, "t": 1.0, "type": "serve"}, {"rally": 0, "t": 3.0, "type": "attack"}, {"rally": 0, "t": 4.2, "type": "floor"}, {"rally": 0, "t": 7.0, "type": "floor"},
+        {"rally": 1, "t": 11.0, "type": "serve"}, {"rally": 1, "t": 13.0, "type": "dig"},
+        {"rally": 2, "t": 21.0, "type": "serve"}, {"rally": 2, "t": 23.0, "type": "fault"}, {"rally": 2, "t": 23.5, "type": "floor"},
+        {"rally": 3, "t": 31.0, "type": "serve"}, {"rally": 3, "t": 38.5, "type": "attack"},
+        {"rally": 4, "t": 41.0, "type": "serve"},
+    ]
+    web.closed(rallies, found, {0, 1, 2, 3})
+    # Its landing, at most CLOSE_S after it, at once after a fault, never past its end; one not checked keeps its end.
+    assert [r["end"] for r in rallies] == [4.2, 13.0 + web.CLOSE_S, 23.0, 39.0, 49.0]

@@ -225,6 +225,10 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   checking leaves (not a doubt), it asks first ("Valider quand même"). A press in the list holds it still 3 s, as leaving a
   field does: scrolling to the video's touch moved the button from under the pointer, and the click was lost. The button then
   becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections.
+- A rally checked ends with its last action: where its ball first lands after it (seen), at most 2.5 s after it, at once
+  after a playing fault, never later than the end found (`web.closed`, `closedEnd` in the editor; it starts at its first
+  action already, `web.started`). On the four matches (18 Nov) that landing came 1.1 s after the action at the median, 90%
+  within 2.85 s; the ends found ran up to 17 s past it.
 - A rally checked is locked as it showed: its winner (`pinned`), touches (`locked`: a rerun loses or adds none), their
   players and actions (`touch`, `action`); no question its check answers is asked. Unchecking unlocks it.
 - Joined (`liveReports`), rallies are checked as one, at once: their automatic reports wait for the next apply, a player's

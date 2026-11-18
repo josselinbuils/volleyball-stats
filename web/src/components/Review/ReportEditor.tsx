@@ -21,6 +21,7 @@ import {
   joinStart,
   liveReports,
   changedSince,
+  closedEnd,
   comingFirstTouch,
   freeFrame,
   LEAD_S,
@@ -102,6 +103,12 @@ const frameOf = (time: number) => Math.round(time * match.fps);
 type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string; cause?: number };
 /** A touch as listed: one of the page's, or one added. */
 type Row = { frame: number; time: number; rally: number; team: Group; type: string; result: string; player: string; cause: number; removed: boolean; added: boolean; contact?: Contact };
+
+/** Where the ball lands (`closedEnd`), in order. */
+const landings = contacts
+  .filter((c) => c.type === 'floor' || c.type === 'net')
+  .map((c) => c.t)
+  .sort((a, b) => a - b);
 
 /** The page's touches a player makes, with that player as "TEAM:IDENTITY". */
 const touches = contacts
@@ -342,6 +349,13 @@ export function ReportEditor({
   const startOf = (k: number) => Math.max(kept.get(k)?.[0]?.time ?? shown[k].start, shown[k - 1]?.end ?? 0);
   /** A rally's touches kept, those of the rallies joined after it too. */
   const mineOf = (k: number): Row[] => [...(kept.get(k) ?? []), ...(joins(k) ? mineOf(k + 1) : [])];
+  /** Where a rally ends, as corrected; checked, with its last action (`closedEnd`, as the apply puts it: `web.closed`). */
+  const endOfRally = (k: number) => {
+    const end = fixOf(k)?.end ?? shown[k].end;
+    const w = joinStart(k, joins);
+    const actions = mineOf(w).filter((row) => row.type !== 'floor' && row.type !== 'net');
+    return (checked.has(keyOf(w)) || checked.has(keyOf(k))) && joinEnd(k, joins) === k ? closedEnd(end, actions.at(-1), landings) : end;
+  };
 
   const changes: ReportChanges = {
     touches: Object.entries(fixes).map(([frame, c]) => ({ frame: Number(frame), ...c })),
@@ -537,7 +551,7 @@ export function ReportEditor({
   const rally = shown[here];
   const fix = fixOf(here) ?? {};
   const end = fix.end ?? rally?.end;
-  const endOf = (k: number) => clock(fixOf(k)?.end ?? shown[k].end);
+  const endOf = (k: number) => clock(endOfRally(k));
   const rallyLabel = (k: number) =>
     (joins(k)
       ? t('review.reportRallyJoined', { n: k + 1, m: k + 2, from: clock(startOf(k)), to: endOf(joinEnd(k, joins)) })
@@ -673,7 +687,7 @@ export function ReportEditor({
   );
   // A warning outweighs the check: the rally needs another look.
   const warnedAt = (k: number) => rallyProblems(k).length > 0 || off.has(k);
-  const warningsAt = shown.map((_, k) => warningTimes(found.get(k), mineOf(k), startOf(k), shown[joinEnd(k, joins)].end, off.has(k)));
+  const warningsAt = shown.map((_, k) => warningTimes(found.get(k), mineOf(k), startOf(k), endOfRally(joinEnd(k, joins)), off.has(k)));
   const joinedKeys = shown.flatMap((r, k) => (joins(k) || joins(k - 1) ? [r.key] : []));
   const warningsJson = JSON.stringify({
     times: warningsAt.flat(),
@@ -684,7 +698,6 @@ export function ReportEditor({
     onWarnings?.(JSON.parse(warningsJson));
   }, [warningsJson]);
   // What still warns once a rally is checked (a doubt no longer does): asked about before checking it.
-  const endOfRally = (k: number) => fixOf(k)?.end ?? shown[k].end;
   const validate = async (k: number) => {
     const w = joinStart(k, joins);
     const f = problemsAt(w, true);
@@ -1154,7 +1167,7 @@ export function ReportEditor({
                 ? [
                     <li
                       key={`s${k}`}
-                      data-at={shown[k].end}
+                      data-at={endOfRally(k)}
                       className={cn(
                         'my-1 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 rounded-md border-2 border-foreground/25 bg-secondary px-3 py-1.5 text-sm shadow-sm',
                         off.has(joinStart(k, joins)) && 'border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200',

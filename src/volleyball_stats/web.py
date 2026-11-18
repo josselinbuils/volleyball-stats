@@ -558,6 +558,28 @@ def started(rallies: list[dict], found: list[dict]) -> None:
             rally["start"] = round(max(first[k], rallies[k - 1]["end"] if k else 0.0), 2)
 
 
+# A checked rally ends where its last action's ball lands, at most this long after the action. On the four matches
+# (18 Nov) the first landing after it came 1.1 s after it at the median, 90% within 2.85 s, the later ones mostly
+# bounces; the ends found ran up to 17 s past it. The editor's CLOSE_S.
+CLOSE_S = 2.5
+
+
+def closed(rallies: list[dict], found: list[dict], checked: set[int], within: float = CLOSE_S) -> None:
+    """Each rally of `checked` (keys) ending with its last action: where its ball first lands after it, at most `within`
+    later, at once after a playing fault; never later than it ended. One without an action keeps its end."""
+    by: dict[int, list[dict]] = {}
+    for c in found:
+        by.setdefault(c["rally"], []).append(c)
+    for k, rally in enumerate(rallies):
+        touches = sorted(by.get(k, []), key=lambda c: c["t"])
+        last = next((c for c in reversed(touches) if c["type"] not in NO_PLAYER), None)
+        if rally["key"] not in checked or last is None:
+            continue
+        lands = next((c["t"] for c in touches if c["type"] in NO_PLAYER and c["t"] >= last["t"]), None)
+        end = last["t"] if last["type"] == "fault" else min(lands if lands is not None else last["t"] + within, last["t"] + within)
+        rally["end"] = round(min(rally["end"], max(end, last["t"])), 2)
+
+
 def served_next(rallies: list[dict], found: list[dict], within: float = NEXT_SERVE_S) -> None:
     """Each rally won by the team serving the next one of its set (the sideout rule), when that
     serve (the page's `found` contacts, the review's added serves among them) comes under `within`
@@ -896,9 +918,13 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
+    from volleyball_stats.review import checked
+
     started(rallies, found)
     if teams:
         served_next(rallies, found)
+    # After the sideout rule, which reads the ends found.
+    closed(rallies, found, set(checked(answers(match, "log"))))
     # A rally checked in the review keeps the winner it showed then; one the review gives wins.
     pins = {a["start"]: a["winner"] for a in answers(match, "pinned") if a["start"] not in cut}
     rewon(rallies, {**pins, **{a["start"]: a["winner"] for a in answers(match, "winner")}})
@@ -918,8 +944,6 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     brief(found, actions, table, times, said, missed)
     if with_teams:
         jumped(found, table, finder(identities), by_frame, match, video, calibration, fps)
-    from volleyball_stats.review import checked
-
     stop = match_end(match)
     data = {
         "name": video.stem,
