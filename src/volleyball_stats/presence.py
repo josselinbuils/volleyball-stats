@@ -13,8 +13,10 @@ AFTER_LEAVING_S = 30.0
 # A page heard from no more for so long is gone without saying it (a browser that crashed); a minimized window's
 # timers may slow to once a minute, a sleeping one's longer.
 SILENT_S = 30 * 60.0
-# The time the first page has to show (the window opening, a restart's page coming back).
-START_S = 60.0
+# The time the first page has to show once the server listens (the window opening, a restart's page coming back): from
+# Windows, a page polling a port not listening yet may wait some 20 s per try; 60 s from the process's start were too few
+# for a review taking 20-35 s to load (18 Nov).
+START_S = 120.0
 
 
 class Presence:
@@ -26,6 +28,11 @@ class Presence:
         self.pages: dict[str, float] = {}
         self.left_at: float | None = None
         self.lock = threading.Lock()
+
+    def listening(self) -> None:
+        """The server answers from now: the first page's time counts from here."""
+        with self.lock:
+            self.started = self.now()
 
     def seen(self, page: str) -> None:
         with self.lock:
@@ -54,9 +61,11 @@ PAGES = Presence()
 
 
 def watch(may_stop: Callable[[], bool], lock=None) -> None:
-    """With --with-window: the server stopped once its windows closed and `may_stop` (no job, no apply running)."""
+    """With --with-window: the server stopped once its windows closed and `may_stop` (no job, no apply running). Called
+    as the server starts listening."""
     if not ON:
         return
+    PAGES.listening()
 
     def run() -> None:
         while True:

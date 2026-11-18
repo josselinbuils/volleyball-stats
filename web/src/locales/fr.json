@@ -1548,24 +1548,6 @@
       },
       "noPicture": "Image du terrain illisible : la vidéo est-elle complète ?"
     },
-    "videos": {
-      "open": "Synchroniser les vidéos",
-      "title": "Synchroniser les vidéos",
-      "intro": "Les deux ordinateurs sur le même réseau s'échangent les vidéos que l'autre n'a pas.",
-      "wait": "Attendre l'autre ordinateur",
-      "waiting": "Sur l'autre ordinateur, ouvrez « {{open}} » et entrez :",
-      "address": "Adresse",
-      "code": "Code",
-      "copying": "Synchronisation…",
-      "joinTitle": "L'autre ordinateur attend déjà ?",
-      "thereWait": "Sur l'autre ordinateur, ouvrez « {{open}} » et cliquez sur « {{wait}} ».",
-      "otherSystem": "L'autre ordinateur doit être un Mac ou sous Linux.",
-      "hereJoin": "Entrez ici l'adresse et le code qu'il affiche :",
-      "thereJoin": "Sur l'autre ordinateur, ouvrez « {{open}} » et entrez l'adresse et le code qui s'afficheront ici.",
-      "join": "Rejoindre",
-      "done": "Synchronisation terminée.",
-      "failed": "Échec de la synchronisation."
-    },
     "doctor": {
       "open": "Diagnostic",
       "title": "Diagnostic",
@@ -1700,7 +1682,6 @@
       "verify": "Vérification des sauvegardes",
       "export": "Export",
       "models": "Téléchargement des modèles",
-      "videos": "Échange des vidéos",
       "learn": "Réanalyse"
     },
     "count_one": "{{count}} tâche",

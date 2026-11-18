@@ -315,9 +315,8 @@ match (the owner's rule, 8 Nov: no machine holds one).
   from this machine where its copy is not behind the server's.
 - By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all | push outputs/matches/MATCH`; a machine
   with no match yet first sets the server in the Site tab (the key copied there).
-- The videos go straight between the machines on the same network (`data_sync.py`, a code shown by the one waiting: the
-  Mac, WSL2 being unreachable from outside: two Windows PCs cannot sync, the dialog says so on Windows), never through
-  the server.
+- The videos never go through the server: copied by hand between the machines (the app's exchange, `data_sync.py`, was
+  removed on 18 Nov, the owner's call).
 
 Uploads with two machines: never an older version online.
 

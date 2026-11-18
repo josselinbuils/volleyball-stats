@@ -22,6 +22,15 @@ class TestPresence:
         clock.at = presence.START_S
         assert open_.closed()
 
+    def test_counts_the_first_window_from_listening(self):
+        open_, clock = pages()
+        clock.at = 50
+        open_.listening()
+        clock.at = 50 + presence.START_S - 1
+        assert not open_.closed()
+        clock.at = 50 + presence.START_S
+        assert open_.closed()
+
     def test_closes_soon_after_the_last_window_goes(self):
         open_, clock = pages()
         open_.seen("a")

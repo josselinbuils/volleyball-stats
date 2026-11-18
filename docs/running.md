@@ -4,9 +4,8 @@
 
 - `uv run stats` (`app.py`) is the review server on the list of the matches, its `/app/` routes doing what
   used to need a command: `doctor.py`'s checks, the import, the court (`court auto --background`, else clicks and
-  `court fit --out`), the pipeline (`match --players --anyway`, after the app's own busy check), the videos with the
-  other machine (`data_sync`) and the update (`git pull --ff-only --autostash`, `uv sync --inexact`, a restart; refused
-  while a job or an apply runs). It opens the page in a window of its own, `stats browser` in a browser tab, `stats server` nowhere (a restart); it refuses to start at a lowered priority (`app.lowered`: zsh's `bg_nice` on a background job, which its jobs would inherit and nothing without root undoes); `stats` alone stops once its last window closes (`--with-window`, `presence.py`: each page says it is open every 30 s and that it goes as it unloads; 30 s for a reload or another match's review to come back, an apply's reload coming while the server still works; a page silent for 30 min is gone; never while a job, an apply or the pictures it leaves for later run), the restarts keeping it; else Ctrl+C or `uv run stats stop` stops it (`/app/quit`, refused while an apply runs); jobs go on. The long ones are jobs (`jobs.py`): a process of their own in a new session, their
+  `court fit --out`), the pipeline (`match --players --anyway`, after the app's own busy check) and the update (`git pull --ff-only --autostash`, `uv sync --inexact`, a restart; refused
+  while a job or an apply runs). It opens the page in a window of its own, `stats browser` in a browser tab, `stats server` nowhere (a restart); it refuses to start at a lowered priority (`app.lowered`: zsh's `bg_nice` on a background job, which its jobs would inherit and nothing without root undoes); `stats` alone stops once its last window closes (`--with-window`, `presence.py`: each page says it is open every 30 s and that it goes as it unloads; the first page given 2 min once the server listens (a review loads for 20-35 s, and from Windows a page polling a port not listening yet waits some 20 s per try: 60 s from the start stopped it, 18 Nov); 30 s for a reload or another match's review to come back, an apply's reload coming while the server still works; a page silent for 30 min is gone; never while a job, an apply or the pictures it leaves for later run), the restarts keeping it; else Ctrl+C or `uv run stats stop` stops it (`/app/quit`, refused while an apply runs); jobs go on. The long ones are jobs (`jobs.py`): a process of their own in a new session, their
   record and log in `outputs/jobs/`, so they outlive the server's restarts; `match` and `import_match` tell their
   stages, the share done of the whole and of the stage, and the time left (`jobs.Stages`: `::progress SHARE part=P left=S`).
   Only counted work moves a bar (the owner's rule, 15 Nov): a stage tells its share (`share_of_stage`, `counter`;
@@ -34,9 +33,8 @@
 - Every `python -m volleyball_stats.X` command fetches in the background and warns when the branch is behind its remote
   (`git_check.py`; once per command, not in the ones it starts). The review and its list say it too, with "Mettre à
   jour" (`/app/update`).
-- The videos from the other machine, both on the same network: `uv run python -m volleyball_stats.data_sync` on the Mac (it
-  waits and shows a command with a code), that command on the PC. Each gets what only the other has; a cut copy resumes. The
-  results come through the review's list ("À télécharger") or `sync pull` ([hosting.md](hosting.md)).
+- A match's results come from the other machine through the review's list ("À télécharger") or `sync pull`
+  ([hosting.md](hosting.md)); its video is copied by hand (the app's video exchange was removed, 18 Nov).
 - A new match starts with `import_match` ([processing.md](processing.md)): `data/matches/MATCH/MATCH.mp4` and `outputs/matches/MATCH/`, named like its hosted page, everything of a match in those two folders.
 - `match` refuses to track at a low priority or on a busy machine (`slow_run_reasons`, `--anyway`): tell the owner what it lists, stopping their work
   (Docker, Kili sandboxes) is their call. To correct a running job: `sudo renice 0 -p PID...` in their own terminal (`renice -n 0` changes nothing on

@@ -23,7 +23,7 @@ export interface Check {
 /** A job (jobs.py) as the app shows it. */
 export interface Job {
   id: string;
-  kind: 'import' | 'court' | 'pipeline' | 'models' | 'videos' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn';
+  kind: 'import' | 'court' | 'pipeline' | 'models' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn';
   running: boolean;
   step?: string | null;
   failed?: string;
@@ -53,19 +53,9 @@ export interface Preparing {
   left?: number | null;
 }
 
-export interface VideosJob extends Job {
-  address: string | null;
-  port: number | null;
-  code: string | null;
-  /** The other machine came in: the copy runs. */
-  copying: boolean;
-}
-
 export interface AppState {
   preparing: Preparing[];
-  videos: VideosJob | null;
   models: Job | null;
-  system: 'mac' | 'wsl' | 'linux';
   /** What is wrong with the copies on the server (server.warning), null when they are fine. */
   backup: { kind: 'off' | 'failed' | 'old' | 'differ'; error?: string; at?: string | null; problems?: string[] } | null;
   learn: LearnState;

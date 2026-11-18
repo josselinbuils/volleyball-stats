@@ -7,7 +7,7 @@
 
 Opens the list of the matches (the review server, review.py), or MATCH's review, and serves under /app/ what used to
 need a command: checking the machine (doctor.py), importing a match from the camera's card, mapping the court,
-running the pipeline, the videos between two machines and updating the code. The long work runs in jobs (jobs.py),
+running the pipeline and updating the code. The long work runs in jobs (jobs.py),
 which outlive the server.
 """
 
@@ -41,7 +41,6 @@ NAME = re.compile(r"[^,:]+")
 PROBED: dict[tuple, object] = {}
 # The length of the video review.TOOK's durations were measured on.
 TOOK_VIDEO_S = 4013.0
-VIDEOS = "videos"
 MODELS = "models"
 # The "Site" tab's jobs: every match online rebuilt and uploaded, every match changed copied to the server, the copies
 # checked against this machine's.
@@ -610,16 +609,6 @@ def fit_court(name: str, clicks: dict, court_name: str) -> None:
     jobs.start(OUTPUTS, name, "court", [("court", command)], manual=True)
 
 
-def videos_state() -> dict | None:
-    """The exchange of the videos with the other machine: waiting with its address and code, copying, or how it ended."""
-    job = next((j for j in jobs.state(OUTPUTS) if j["id"] == VIDEOS), None)
-    if not job:
-        return None
-    text = jobs.tail(jobs.folder(OUTPUTS) / f"{VIDEOS}.log")
-    found = re.search(r"data_sync (\S+):(\d+) (\w+)", text)
-    return {**job, "address": found and found[1], "port": found and int(found[2]), "code": found and found[3], "copying": "::stage copying" in text}
-
-
 def server_state() -> dict:
     """The "Site" tab: the server, whether this machine copies its matches by itself, how its last copies and check
     went, and the tab's jobs."""
@@ -737,7 +726,7 @@ def tasks(review: dict | None = None, match: str | None = None) -> list[dict]:
 
 
 def state(listed: list[dict]) -> dict:
-    return {"preparing": preparing(listed), "videos": videos_state(), "models": models_state(), "system": doctor.system(), "backup": server.warning(OUTPUTS), "learn": learn_state(listed)}
+    return {"preparing": preparing(listed), "models": models_state(), "backup": server.warning(OUTPUTS), "learn": learn_state(listed)}
 
 
 def handle(
@@ -898,15 +887,6 @@ def handle(
             return reply({})
         if route == "models":
             jobs.start(OUTPUTS, MODELS, "models", [("models", ["volleyball_stats.doctor", "--models"])])
-            return reply({})
-        if route == "videos/wait":
-            jobs.start(OUTPUTS, VIDEOS, "videos", [("videos", ["volleyball_stats.data_sync"])])
-            return reply({})
-        if route == "videos/join":
-            peer, code = str(body["address"]).strip(), str(body["code"]).strip()
-            if not re.fullmatch(r"[\w.-]+:\d+", peer) or not re.fullmatch(r"\w+", code):
-                raise ValueError("address")
-            jobs.start(OUTPUTS, VIDEOS, "videos", [("videos", ["volleyball_stats.data_sync", peer, code])])
             return reply({})
         if route == "quit":
             if busy():

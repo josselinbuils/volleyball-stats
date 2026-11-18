@@ -1,5 +1,4 @@
-"""The matches kept in step between machines through the hosting server, outside its website, the videos aside
-(`data_sync`). A push is the backup (`backup.py`), the review's own every 10 minutes only when this machine chose it (`auto`). Any
+"""The matches kept in step between machines through the hosting server, outside its website, the videos aside. A push is the backup (`backup.py`), the review's own every 10 minutes only when this machine chose it (`auto`). Any
 machine works on any match: the server keeps each match's version, and a push goes only from it. The review opening a match
 (once this machine keeps its matches there, `active`) brings the server's newer copy when nothing changed here (`check`); when
 both changed, the owner keeps one, the other set aside (`take`, `keep`). Pulling a match brings its newest copy, this machine's

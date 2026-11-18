@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Download, FolderInput, Shield, Stethoscope, TriangleAlert, Wifi } from 'lucide-react';
+import { Download, FolderInput, Shield, Stethoscope, TriangleAlert, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorNote } from '@/components/ErrorNote';
@@ -10,7 +10,6 @@ import { Doctor, checkText } from './Doctor';
 import { ImportDialog } from './ImportDialog';
 import { NetworkDialog } from './NetworkDialog';
 import { PreparingCard } from './PreparingCard';
-import { VideosDialog } from './VideosDialog';
 import { UpdateLine } from '@/components/Update';
 import { explain, type Explained } from '@/lib/errors';
 import { call } from '@/lib/app';
@@ -22,7 +21,7 @@ const BUSY_MS = 3000;
 const IDLE_MS = 20_000;
 
 /** On the review's list of the matches: what used to need a command. The machine's problems, importing a match, the
- * matches being prepared until their review opens, and the videos of the other machine. */
+ * matches being prepared until their review opens. */
 export function Setup() {
   const { t } = useTranslation();
   const f = useFormat();
@@ -30,7 +29,7 @@ export function Setup() {
   // The machine's checks: null while they run the first time, 'failed' when the server did not answer.
   const [checks, setChecks] = useState<Check[] | 'failed' | null>(null);
   const [modelsError, setModelsError] = useState<Explained | null>(null);
-  const [dialog, setDialog] = useState<'import' | 'doctor' | 'videos' | 'club' | 'network' | null>(null);
+  const [dialog, setDialog] = useState<'import' | 'doctor' | 'club' | 'network' | null>(null);
   const refresh = useCallback(async () => {
     // Unanswered (the server restarts): the next poll reads it.
     const found = await call<AppState>('state');
@@ -51,7 +50,7 @@ export function Setup() {
     void recheck();
   }, [refresh, recheck]);
   const updating = !!state?.learn.job?.running;
-  const running = !!state && (state.preparing.some((p) => p.job?.running) || !!state.videos?.running || !!state.models?.running || updating);
+  const running = !!state && (state.preparing.some((p) => p.job?.running) || !!state.models?.running || updating);
   useEffect(() => {
     const timer = window.setInterval(() => void refresh(), running || dialog ? BUSY_MS : IDLE_MS);
     return () => window.clearInterval(timer);
@@ -137,10 +136,6 @@ export function Setup() {
           <FolderInput aria-hidden />
           {t('app.import.open')}
         </Button>
-        <Button variant="outline" className="bg-card" busy={!state} onClick={() => setDialog('videos')}>
-          <ArrowLeftRight aria-hidden />
-          {t('app.videos.open')}
-        </Button>
         <Button variant="outline" className="bg-card" onClick={() => setDialog('club')}>
           <Shield aria-hidden />
           {t('app.club.open')}
@@ -180,7 +175,6 @@ export function Setup() {
       {dialog === 'club' && <ClubDialog onClose={() => setDialog(null)} />}
       {dialog === 'network' && <NetworkDialog onClose={() => setDialog(null)} />}
       {dialog === 'doctor' && <Doctor checks={checks} onRecheck={recheck} onClose={() => setDialog(null)} />}
-      {dialog === 'videos' && state && <VideosDialog job={state.videos} system={state.system} onChange={refresh} onClose={() => setDialog(null)} />}
     </section>
   );
 }
