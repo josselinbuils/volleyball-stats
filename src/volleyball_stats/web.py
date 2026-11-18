@@ -21,6 +21,7 @@ theme from branding/NAME/brand.json (logo, colours), `none` for the neutral one;
 
 import argparse
 import base64
+from copy import deepcopy
 import csv
 import hashlib
 import json
@@ -1422,19 +1423,44 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     shown_films = copy_films(films if video else None, site, {q["name"] for q in data.get("people", {}).values() if q.get("name")})
     if shown_films:
         data["films"] = shown_films
-    # The unhashed scripts load with the build's hash in their URL: a host or CDN caching them by URL
-    # serves each build its own.
-    built = json.dumps(data, sort_keys=True) + "".join(positions) + (video_js or "") + places_js + voice_js + (site / "scene3d.js").read_text() + (site / "review-app.js").read_text()
-    data["v"] = hashlib.sha256(built.encode()).hexdigest()[:10]
-    (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
-    index = site / "index.html"
-    index.write_text(index.read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
+    write_data(site, data)
     # Copied with their dates: an upload skips the unchanged ones.
     for kept in filter(None, (video, video and av1, video and small)):
         if copy:
             linked(kept, site / kept.name)
         else:
             (site / kept.name).symlink_to(kept.resolve())
+
+
+def version(site: Path, data: dict) -> str:
+    """data.js's `v` for `data` (without it): its content, the files the page at `site` loads by it and the code beside it.
+    The unhashed scripts load with it in their URL: a host or CDN caching them by URL serves each build its own."""
+    loaded = [site / "positions" / f"{n}.js" for n in range((data.get("positions") or {}).get("files", 0))]
+    loaded += [site / VIDEO_JS, site / "ball3d.js", site / "voice" / "index.js", site / "scene3d.js", site / "review-app.js"]
+    # As read back from data.js: renew_code finds the same.
+    text = json.dumps(json.loads(json.dumps(data)), sort_keys=True) + "".join(p.read_text() for p in loaded if p.exists())
+    return hashlib.sha256(text.encode()).hexdigest()[:10]
+
+
+def write_data(site: Path, data: dict) -> None:
+    """data.js holding `data` with its `v`, and the page loading it under that address."""
+    data["v"] = version(site, data)
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
+    index = site / "index.html"
+    index.write_text((TEMPLATE / "index.html").read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
+
+
+def renew_code(site: Path) -> None:
+    """The hosted page at `site` with the page's code as built now (TEMPLATE), its data as it is: a change of the page's
+    code alone reaches it without building its data again (`matches.upload_all`)."""
+    from volleyball_stats.review import page_data
+
+    data = page_data(site)
+    data.pop("v", None)
+    shutil.rmtree(site / "assets", ignore_errors=True)
+    shutil.copytree(TEMPLATE, site, dirs_exist_ok=True)
+    write_data(site, data)
+    (site / "review-app.js").unlink(missing_ok=True)
 
 
 def cut(image: np.ndarray, x: float, top: int, bottom: int, wide: int) -> tuple[np.ndarray, tuple[int, int, float]]:
@@ -1900,22 +1926,25 @@ def build(
     small: Path | None = None,
     review: bool = False,
     share: jobs.Share = jobs.quiet,
+    made: tuple[dict, dict | None] | None = None,
 ) -> dict:
     """The match page in `site` with the `footage` FOOTAGE says (`club` the user's team) and the
     pictures of the `pictured` teams' players; `light` a lighter copy of `video` on its timeline for
     the page to play with the full footage, `av1` an AV1 copy played first where the browser can, `small` a 720p one played in a small player, and `link`, on a page without footage, where the same
     page with it is (behind a password); `feedback` where viewers report what is wrong in a moment
-    (none: they are not asked); `review` keeps the review's screens (review-app.js) beside it; returns data.js's match.
-    The share done told as it goes (`share`). ValueError for `light`, `av1` or `small` with a footage to blur (blurring
+    (none: they are not asked); `review` keeps the review's screens (review-app.js) beside it; `made` the match's data
+    (`computed`) when another page took it already; returns data.js's match. The share done told as it goes (`share`). ValueError for `light`, `av1` or `small` with a footage to blur (blurring
     works on the tracked video)."""
     if (light or av1 or small) and footage != "full":
         raise ValueError("--light-video, --av1-video and --small-video go with --footage full")
     # Its parts' shares of the time, measured on the second match (15 Nov): players.csv read for the samples, the rest of
     # the data, the pictures, the ball, the zoom's views, the files written.
     part = jobs.parts(share, {"rows": 3.6, "data": 3.5, "photos": 2.0 if pictures else 0.0, "ball": 1.5, "views": 1.7, "write": 4.1})
-    calibration = Calibration.load(court)
-    calibration.check(decode.size(video))
-    data, players = match_data(match, video, calibration, part("rows"))
+    if made:
+        # The players' positions only read below.
+        data, players = deepcopy(made[0]), made[1]
+    else:
+        data, players = computed(match, video, court, part("rows"))
     part("data")(1.0)
     blurred = {3 - (club or 1)} if footage == "blur-opponents" else {"none": None, "full": set(), "blur-all": {1, 2}}[footage]
     if pictures:
@@ -1971,6 +2000,13 @@ def build(
     if not review:
         (site / "review-app.js").unlink(missing_ok=True)
     return data
+
+
+def computed(match: Path, video: Path, court: Path, share: jobs.Share = jobs.quiet) -> tuple[dict, dict | None]:
+    """`match_data` for `build`, the court checked against the video: computed once for the pages of a match (`made`)."""
+    calibration = Calibration.load(court)
+    calibration.check(decode.size(video))
+    return match_data(match, video, calibration, share)
 
 
 def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictures: bool = True, share: jobs.Share = jobs.quiet) -> dict:
@@ -2040,10 +2076,10 @@ def patch_people(site: Path, people: dict) -> None:
     index.write_text(index.read_text().replace(f"data.js?v={old}", f"data.js?v={new}"))
 
 
-def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None, share: jobs.Share = jobs.quiet) -> tuple[dict, dict]:
+def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None, share: jobs.Share = jobs.quiet, made: tuple[dict, dict | None] | None = None) -> tuple[dict, dict]:
     """The page to publish, MATCH/site/ built with page.json's choices, those `given` (not None)
     replacing theirs and saved back, or `site` (to host) with only those `given`: no footage nor
-    pictures unless asked; returns data.js's match and the choices. ValueError for a choice needing a
+    pictures unless asked, from the data `made` when given (`build`); returns data.js's match and the choices. ValueError for a choice needing a
     club without one, or a court calibrated on another video."""
     path = match / "page.json"
     saved = json.loads(path.read_text()) if path.exists() and site is None else {}
@@ -2059,7 +2095,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     light = Path(settings["light"]) if settings["light"] else None
     av1 = Path(settings["av1"]) if settings["av1"] else None
     small = Path(settings["small"]) if settings["small"] else None
-    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"], av1=av1, small=small, share=share)
+    data = build(match, video, court, site or match / "site", settings["copy"], theme, settings["footage"], settings["club"], pictured, light=light, link=settings["link"], feedback=settings["feedback"], av1=av1, small=small, share=share, made=made)
     return data, settings
 
 

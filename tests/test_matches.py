@@ -243,7 +243,8 @@ class TestHost:
         built, ran = [], []
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match)))
-        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or ({}, {}))
+        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or args[5].mkdir(parents=True, exist_ok=True) or ({}, {}))
+        monkeypatch.setattr(matches.web, "computed", lambda *args: ({}, None))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
         monkeypatch.setattr(backup, "free_gb", lambda host, ssh, folder: 100.0)
@@ -344,7 +345,15 @@ class TestHostAll:
             hosted.append((match, tmp_path / f"{name}.mp4", Path("court.json"), config))
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match.name)))
-        monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[0].name, args[4]["footage"], args[5])) or ({}, {}))
+        def publish(*args):
+            built.append((args[0].name, args[4]["footage"], args[5]))
+            (args[5] / "data.js").parent.mkdir(parents=True, exist_ok=True)
+            (args[5] / "data.js").write_text(f"window.MATCH = {json.dumps({'name': args[0].name, 'rallies': []})};\n")
+            return {}, {}
+
+        monkeypatch.setattr(matches.web, "publish", publish)
+        monkeypatch.setattr(matches.web, "computed", lambda *args: ({}, None))
+        monkeypatch.setattr(matches.web, "renew_code", lambda page: built.append(("renewed", page)))
         monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "first/"}, {"name": "second", "path": "second/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
         monkeypatch.setattr(backup, "free_gb", lambda host, ssh, folder: 100.0)
@@ -369,6 +378,30 @@ class TestHostAll:
         assert built == [("voice", "first"), ("first", "full", site / "first" / "video"), ("first", "none", site / "first"), ("voice", "second"), ("second", "none", site / "second")]
         assert [command[0] for command in ran] == ["rsync", "ssh", "rsync", "rsync"] and "--delay-updates" in ran[3]
         assert "--include=/first/**.mp4" in ran[3] and "--include=/second/**.mp4" in ran[3]
+
+    def test_only_puts_the_page_s_code_in_a_match_built_from_the_same_inputs(self, tmp_path, monkeypatch):
+        hosted, built, ran, site = self.matches_of(tmp_path, monkeypatch)
+        matches.host_all(hosted, "aspom")
+        built.clear(), ran.clear()
+        (hosted[1][0] / "identity_answers.json").write_text("{}")
+
+        matches.host_all(hosted, "aspom")
+
+        # The first's data as online, its two pages' code renewed; the second changed, built again.
+        assert built == [("voice", "first"), ("renewed", site / "first"), ("renewed", site / "first" / "video"), ("voice", "second"), ("second", "none", site / "second")]
+        # The first's video copies are not here (`mirror`): those online stay.
+        assert "--include=/first/**.mp4" not in ran[-1] and "--include=/second/**.mp4" in ran[-1]
+
+    def test_builds_again_a_page_said_built_from_other_inputs_or_missing(self, tmp_path, monkeypatch):
+        hosted, built, _, site = self.matches_of(tmp_path, monkeypatch)
+        matches.host_all(hosted, "aspom")
+        built.clear()
+        (site / "first" / "video" / "data.js").unlink()
+        (site / "second" / matches.MADE).write_text(json.dumps({"from": "other"}))
+
+        matches.host_all(hosted, "aspom")
+
+        assert ("first", "full", site / "first" / "video") in built and ("second", "none", site / "second") in built
 
     def test_tells_its_stages_and_keeps_their_durations(self, tmp_path, monkeypatch, capsys):
         hosted, _, _, _ = self.matches_of(tmp_path, monkeypatch)
@@ -756,3 +789,22 @@ class TestSsh:
     def test_rsync_keeps_a_key_path_with_spaces_whole(self, tmp_path):
         command = matches.upload_command({"key": "/Users/A B/key", "upload": "root@h:/site/"}, tmp_path, [])
         assert "'/Users/A B/key'" in command[command.index("-e") + 1]
+
+
+class TestMadeFrom:
+    def test_follows_the_match_s_inputs_not_what_hosting_or_the_review_s_code_writes(self, tmp_path):
+        match, court = tmp_path / "m", tmp_path / "court.json"
+        (match / "review" / "assets").mkdir(parents=True)
+        (match / "rallies.csv").write_text("start_frame\n1\n")
+        (match / "review" / "data.js").write_text('window.MATCH = {"name": "m", "v": "1"};\n')
+        court.write_text("{}")
+        made = lambda **config: matches.made_from(match, tmp_path / "m.mp4", court, "aspom", {"video": False, **config})  # noqa: E731
+        first = made()
+
+        (match / "hosted.json").write_text("{}")
+        (match / "review" / "assets" / "index-abc.js").write_text("code")
+        (match / "review" / "data.js").write_text('window.MATCH = {"name": "m", "v": "2"};\n')
+        assert made() == first
+        assert made(club=2) != first
+        (match / "rallies.csv").write_text("start_frame\n2\n")
+        assert made() != first

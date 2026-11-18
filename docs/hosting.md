@@ -115,7 +115,16 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
 - Each match page carries the code it was built with, so a change of the page or of the data it is built from reaches the
   matches online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`)
   rebuilds every match online and uploads them at once (`rsync --delay-updates`: the new files replace the old together),
-  nothing if one cannot be rebuilt (on the two matches: 26 s).
+  nothing if one cannot be rebuilt.
+- A match built from the same inputs as its pages online only takes the page's code (`web.renew_code`: the template copied
+  in, data.js's `v` renewed, 0.1 s against 18-28 s for the Haillan match; byte for byte its rebuild's, on 18 Nov). Its
+  inputs are one digest in the hosted folder's `made.json` (`matches.made_from`, 1.5 s): the Python code, the match's
+  folder (what hosting, syncing and opening the review write aside), the review's page data without its `v`, the video,
+  court, copies, `publish.json` and the club's theme. Online with the pages, the mirror brings it back with those another
+  machine built. A change of the page alone (31 of the last 80 commits) or of another match no longer rebuilds them; a
+  change of the Python code still rebuilds all.
+- A match rebuilt computes its data once for both pages (`web.computed`, `build`'s `made`): on the Haillan match 8.7 s
+  of 17.8 (warm cache), its photos 5.8 (the review's questions loaded, 5.2), `players.csv` read twice (4.9 s).
 
 By hand:
 
@@ -323,7 +332,7 @@ Uploads with two machines: never an older version online.
 - A match whose server copy is newer than this machine's is left as it is online (`sync.behind`: "Mettre à jour" refuses
   it, the update of every match skips it; on 8 Nov the PC's put the first match's older copy online).
 - The site folder is first made what the server holds (`matches.mirror`, the video copies aside), so the pages the other
-  machine put online stay; the upload sends only the rebuilt matches' video copies, and refuses if its dry run would
+  machine put online stay; the upload sends only the video copies of the matches built again (not those renewed), and refuses if its dry run would
   delete another match's page.
 - The mirror brings the films too: a match with no `films/` folder here (made on the other machine, not pulled since)
   takes those online, names from the page (`matches.adopt_films`), so its rebuild keeps them; an upload that would still

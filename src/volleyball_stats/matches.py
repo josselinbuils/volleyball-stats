@@ -47,6 +47,15 @@ RESERVED = ("assets", "club")
 REDIRECTS = "redirects.json"
 # Where a match folder says how to host it.
 PUBLISH = "publish.json"
+# In a hosted match's folder, what its pages were built from (`made_from`): unchanged, an update only puts the page's code
+# in (`web.renew_code`). Online with them: the mirror brings it back with the pages another machine built.
+MADE = "made.json"
+# What `made_from` leaves out of a match folder: what hosting, syncing and opening the review write without a change of the
+# match, and the review page's copy of the page's code (its data counts, without its `v`); files from MADE_BIG bytes count
+# by their size and time, not their content.
+MADE_SKIP = ("hosted.json", "hosted_page.json", ".sync.json", "review_timings.json", "photos_stale", "site", "before-rerun", "backup-*", "*.tmp")
+MADE_REVIEW = ("assets", "scene3d.js", "review-app.js", "index.html", "data.js")
+MADE_BIG = 8 << 20
 # The owner's server: the docker compose service whose nginx serves the site (docs/hosting.md); any other reloads nginx itself.
 SERVICE = "volleyballstats"
 VIDEO_SALT = "volleyball:"
@@ -584,6 +593,47 @@ def removed_pages(itemized: str, rebuilt: list[str]) -> list[str]:
     return sorted({path.split("/")[0] for path in gone if path.endswith("/data.js") and path.count("/") == 1} - set(rebuilt))
 
 
+def made_from(match: Path, video: Path, court: Path, theme: str, config: dict) -> str:
+    """What a match's hosted pages are built from, as one digest: the Python code, the match's folder (`MADE_SKIP` aside), the
+    review's page data, its video and court, the copies and the settings of `config`, the club's theme."""
+    digest = hashlib.sha256()
+
+    def add(path: Path, name: str) -> None:
+        size = path.stat().st_size
+        digest.update(f"{name}\0{size}\0".encode())
+        digest.update(str(path.stat().st_mtime_ns).encode() if size >= MADE_BIG else path.read_bytes())
+
+    for path in sorted(Path(web.__file__).parent.glob("*.py")):
+        add(path, path.name)
+    for path in sorted(match.rglob("*")):
+        parts = path.relative_to(match).parts
+        if not path.is_file() or any(Path(part).match(skip) for part in parts for skip in MADE_SKIP) or (parts[0] == "review" and parts[1] in MADE_REVIEW):
+            continue
+        add(path, "/".join(parts))
+    from volleyball_stats.review import page_data
+
+    data = page_data(match / "review") or {}
+    data.pop("v", None)
+    digest.update(json.dumps(data, sort_keys=True).encode())
+    for path in [video, *(Path(config[key]).expanduser() for key in ("light", "av1", "small") if config.get(key))]:
+        if path.exists():
+            digest.update(f"{path}\0{path.stat().st_size}\0{path.stat().st_mtime_ns}".encode())
+    if court.exists():
+        add(court, "court")
+    own = club_settings.FOLDER if theme == CLUB else club_settings.THEMES / theme
+    for path in sorted(own.rglob("*")) if own.is_dir() else []:
+        if path.is_file():
+            add(path, f"club/{path.relative_to(own).as_posix()}")
+    digest.update(json.dumps({**config, "theme": theme}, sort_keys=True).encode())
+    return digest.hexdigest()[:16]
+
+
+def made_as(folder: Path) -> str | None:
+    """What the hosted pages in `folder` were built from (`made_from`), None if not said."""
+    path = folder / MADE
+    return json.loads(path.read_text()).get("from") if path.exists() else None
+
+
 def adopt_films(match: Path, page: Path) -> int:
     """The films online in the hosted page folder `page` (mirrored) taken as `match`'s when this machine has none (made on
     the other machine, not pulled since): the next build keeps them online. How many."""
@@ -664,22 +714,35 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
     if not mirrored:
         told.start("mirror")
         mirror(config, told.share_of_stage)
-    # ponytail: one match at a time, ~13 s each (2 matches: 26 s); rebuild them in parallel if a season makes it long.
+    # ponytail: one match at a time, ~23 s each rebuilt, under a second when only the page's code changed; rebuild them in
+    # parallel if a season makes it long.
+    renewed = []
     for match, video, court, c in hosted:
         told.start(f"match:{match.name}")
         folder = hosted_folder(match, site) or site / match.name
-        # The two builds count their own share; ponytail: weights not measured, the page with the video's copy taken as the longer.
-        part = jobs.parts(told.share_of_stage, {"video": 2.0 if c["video"] else 0.0, "page": 1.0})
         ensure_review_page(match, video, court, theme)
         make_voice(match)
+        made = made_from(match, video, court, theme, {**c, "feedback": feedback})
+        pages = [folder, *([folder / "video"] if c["video"] else [])]
+        if made_as(folder) == made and all((page / "data.js").exists() for page in pages):
+            # Its data as online: the page's code alone changed. The video's copies stay online as they are.
+            for page in pages:
+                web.renew_code(page)
+            renewed.append(match)
+            continue
+        # The data once for both pages, then each counts its own share; on the four matches (18 Nov) the data took ~5 s,
+        # the page with the video ~16 s, the other ~3 s.
+        part = jobs.parts(told.share_of_stage, {"data": 5.0, "video": 16.0 if c["video"] else 0.0, "page": 3.0})
+        data = web.computed(match, video, court, part("data"))
         if c["video"]:
             adopt_films(match, folder / "video")
             path = lambda key: str(Path(c[key]).expanduser())  # noqa: E731
-            web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": feedback}, folder / "video", part("video"))
+            web.publish(match, video, court, theme, {"footage": "full", "club": "both", "pictures": True, "copy": True, "light": path("light"), "av1": path("av1"), "small": path("small"), "feedback": feedback}, folder / "video", part("video"), data)
         else:
             shutil.rmtree(folder / "video", ignore_errors=True)
         public = {"footage": "none", "club": c.get("club", 1), "pictures": False, "feedback": feedback, **({"link": "video/"} if c["video"] else {})}
-        web.publish(match, video, court, theme, public, folder, part("page"))
+        web.publish(match, video, court, theme, public, folder, part("page"), data)
+        files.write_text(folder / MADE, json.dumps({"from": made}) + "\n")
     told.start("upload")
     paths = {m["name"]: m["path"] for m in build(site, theme, config["url"])}
     guarded = []
@@ -699,8 +762,10 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
     if outside:
         raise RuntimeError(f"videos outside a password's folder: {', '.join(p.name for p in outside)}: not uploaded")
     rebuilt = [paths[match.name].rstrip("/") for match, *_ in hosted]
+    # The video's copies of those built again only: a renewed page has none here (`mirror`), its online ones stay.
+    copied = [paths[match.name].rstrip("/") for match, *_ in hosted if match not in renewed]
     # Pages another machine put online since the mirror (`mirror`) stay.
-    dry = subprocess.run(upload_command(config, site, rebuilt, dry=True), check=True, capture_output=True, text=True)
+    dry = subprocess.run(upload_command(config, site, copied, dry=True), check=True, capture_output=True, text=True)
     missing = removed_pages(dry.stdout, rebuilt)
     if missing:
         raise RuntimeError(f"online but not here: {', '.join(missing)}: not uploaded")
@@ -714,7 +779,7 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
 
     host, ssh = backup.connection(config)
     backup.room(backup.free_gb(host, ssh, config["upload"].split(":", 1)[1]), backup.sent_bytes(dry.stdout, lambda name: site / name))
-    counted(upload_command(config, site, rebuilt), files_to_send(dry.stdout), told.share_of_stage)
+    counted(upload_command(config, site, copied), files_to_send(dry.stdout), told.share_of_stage)
     for page, key in guarded:
         if not opens(page, key):
             raise RuntimeError(f"{page} does not open with its password")
