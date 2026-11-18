@@ -192,10 +192,20 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
                     )}
                   >
                     <Card className={cn('h-full gap-1.5 px-4 py-3.5 transition-colors', clickable && 'group-hover:bg-muted')}>
-                      {m.date && (
-                        <time dateTime={m.date} className="text-sm font-medium text-muted-foreground">
-                          {f.date(m.date)}
-                        </time>
+                      {(m.date || busy) && (
+                        <div className="flex items-center gap-2">
+                          {m.date && (
+                            <time dateTime={m.date} className="text-sm font-medium text-muted-foreground">
+                              {f.date(m.date)}
+                            </time>
+                          )}
+                          {busy && (
+                            <span role="status" className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+                              <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
+                              {t(m.remote ? 'matches.pulling' : 'matches.opening')}
+                            </span>
+                          )}
+                        </div>
                       )}
                       <h2 className={cn('text-lg leading-snug font-semibold [overflow-wrap:anywhere]', clickable && 'group-hover:underline')}>
                         {m.title ?? (names ? t('matchTitle', { one: names[0], two: names[1] }) : m.name)}
@@ -210,14 +220,12 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
                           ))}
                         </span>
                       )}
-                      <span className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
-                        {busy && <LoaderCircle aria-hidden className="size-3.5 shrink-0 animate-spin" />}
+                      <span className="text-sm text-muted-foreground tabular-nums">
                         {[
                           m.sets > 0 && t('matches.setsN', { count: m.sets }),
                           m.rallies > 0 && t('ralliesN', { count: m.rallies }),
                           scores.length > 0 && scores.join(' · '),
-                          opening === m.path && t(m.remote ? 'matches.pulling' : 'matches.opening'),
-                          review && opening !== m.path && m.remote && t('matches.toPull'),
+                          review && !busy && m.remote && t('matches.toPull'),
                           review && m.missing && t(m.missing === 'video' ? 'matches.noVideo' : 'matches.noCourt'),
                         ]
                           .filter(Boolean)
