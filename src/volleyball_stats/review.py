@@ -1095,8 +1095,9 @@ def report_question(report: dict, page: dict, fps: float) -> tuple[dict, dict]:
         "set": rally.get("set"), "time": round(rally["start"], 2), "crops": [], "choices": [],
         "clip": {"start": round(rally["start"], 2), "end": round(rally["end"], 2), "around": RALLY_AROUND_S, "boxes": []},
         # What the viewer's page said it was about: the clip playing; without one, the rally and its time, which the
-        # rally's header and the report's own time say (an older page named the next rally between two, by its start).
-        "reports": [{"kind": report.get("kind"), "shown": report.get("shown") if report.get("clip") else None, "comment": report.get("comment") or "", "time": round(at, 2), "received": report.get("received"), **({"at": report["at"]} if report.get("at") else {})}],
+        # rally's header and the report's own time say (an older page named the next rally between two, by its start); the
+        # review's own checks, their value (a record's).
+        "reports": [{"kind": report.get("kind"), "shown": report.get("shown") if report.get("clip") or str(report.get("kind") or "").startswith("auto.") else None, "comment": report.get("comment") or "", "time": round(at, 2), "received": report.get("received"), **({"at": report["at"]} if report.get("at") else {})}],
         "touches": touches, "winner": rally.get("winner"),
     }
     key = rally.get("key", round(rally["start"] * fps)) if k is not None else None

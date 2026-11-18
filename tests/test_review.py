@@ -240,6 +240,11 @@ class TestReports:
         assert (question["reports"][0]["shown"], question["reports"][0]["time"]) == (None, 52.0)
         assert report_question({"time": 100.0, "clip": {"time": 12.0}, "shown": "Service"}, self.page, 50.0)[0]["reports"][0]["shown"] == "Service"
 
+    def test_the_review_s_own_check_keeps_its_value(self):
+        question, _ = report_question({"time": 52.0, "kind": "auto.record.jump", "shown": "71 cm", "comment": None}, self.page, 50.0)
+
+        assert question["reports"][0]["shown"] == "71 cm"
+
     def test_a_moment_in_a_rally_is_about_it_rather_than_the_one_just_before(self):
         page = {**self.page, "rallies": [{"start": 10.0, "end": 36.0, "set": 1, "winner": 1}, *self.page["rallies"][1:]]}
 
