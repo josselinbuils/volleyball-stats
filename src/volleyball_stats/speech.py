@@ -71,7 +71,10 @@ FAULTS = {
     "block": ("Le contre de {name} ne suffit pas.",),
     "relance": ("La relance de {name} ne passe pas.",),
     "fault": ("Faute de jeu de {name}.",),
+    "missed": ("{name} laisse tomber le ballon.",),
 }
+# A ball let fall between two players (`partner`).
+BETWEEN = ("Le ballon tombe entre {name} et {other}.",)
 # A rally's end tells the score; who took the lead, levelled or pulled away is said so.
 SCORES = {
     "tie": ("{team} égalise, {a} partout.", "{a} partout, {team} revient à hauteur.", "Tout est à refaire, {a} partout !"),
@@ -203,10 +206,10 @@ def _end(rally: dict, k: int, contacts: list[dict], name, team, set_end: tuple[i
     if rally.get("redo"):
         return {"t": rally["end"] - 0.2, "text": "Le point est à rejouer.", "strong": True, "late": True}
     winner = rally.get("winner")
-    moves = [c for c in contacts if c["type"] in TOUCHES or c["type"] == "fault"]
+    moves = [c for c in contacts if c["type"] in TOUCHES or c["type"] in ("fault", "missed")]
     if not winner or not moves:
         return None
-    scored = _scored([c for c in moves if c["type"] != "fault"])
+    scored = _scored([c for c in moves if c["type"] in TOUCHES])
     final = moves[-1]
     t = max(final["t"] + 0.2, min(rally["end"], (scored or final)["t"] + 0.6))
     seed = _seed(scored or final, k)
@@ -217,6 +220,8 @@ def _end(rally: dict, k: int, contacts: list[dict], name, team, set_end: tuple[i
         kind = scored["type"]
         said = ways(f"point:{kind}", POINTS[kind], seed, name=who) if who else ways(f"team:{kind}", TEAM_POINTS[kind], seed, team=team(winner))
         named = not who
+    elif final.get("team") != winner and final["result"] == "error" and final["type"] == "missed" and name(final["person"]) and final.get("partner") is not None and name(final["partner"]):
+        said = ways("fault:between", BETWEEN, seed, name=name(final["person"]), other=name(final["partner"]))
     elif final.get("team") != winner and final["result"] == "error" and final["type"] in FAULTS and name(final["person"]):
         said = ways(f"fault:{final['type']}", FAULTS[final["type"]], seed, name=name(final["person"]))
     if set_end:

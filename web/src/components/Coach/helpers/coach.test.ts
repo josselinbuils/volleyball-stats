@@ -33,6 +33,12 @@ describe('coach', () => {
       expect(lostOn(rally(0, 2, [touch(0, 'attack', 1, 'error'), touch(0, 'block', 3, 'point')]), 1)?.cause).toBe('attack');
     });
 
+    it("counts a ball let fall as the other team's touch beating it, else as a ball left", () => {
+      expect(lostOn(rally(0, 2, [touch(0, 'serve', 3, 'point'), touch(0, 'missed', 1, 'error')]), 1)?.cause).toBe('reception');
+      expect(lostOn(rally(0, 2, [touch(0, 'attack', 3, 'point'), touch(0, 'missed', 1, 'error', { partner: 2 })]), 1)?.cause).toBe('missed');
+      expect(lostOn(rally(0, 2, [touch(0, 'pass', 1), touch(0, 'missed', 2, 'error')]), 1)?.cause).toBe('missed');
+    });
+
     it('skips a rally won, to replay or wrongly called, and floor contacts', () => {
       const fault = [touch(0, 'attack', 1, 'error')];
       expect(lostOn(rally(0, 1, fault), 1)).toBeNull();

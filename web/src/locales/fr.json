@@ -131,6 +131,7 @@
     "block": "Contre",
     "dig": "Défense",
     "fault": "Faute de jeu",
+    "missed": "Balle manquée",
     "floor": "Ballon au sol",
     "net": "Filet"
   },
@@ -174,6 +175,11 @@
       "play": "Faute de jeu",
       "point": "Faute de jeu",
       "error": "Faute de jeu"
+    },
+    "missed": {
+      "play": "Balle manquée",
+      "point": "Balle manquée",
+      "error": "Balle manquée"
     }
   },
   "short": {
@@ -185,6 +191,7 @@
     "block": "C",
     "dig": "D",
     "fault": "FJ",
+    "missed": "BM",
     "floor": "Sol",
     "net": "Fi"
   },
@@ -433,6 +440,7 @@
     "reportResult": "Résultat",
     "cause": "Responsable de la faute",
     "causeSelf": "Sa faute",
+    "partner": "Faute partagée avec",
     "causeOf": "À cause de : {{touch}}",
     "reportWinner": "Gagnant de l'échange",
     "reportComment": "Commentaire",
@@ -790,7 +798,7 @@
       "unattackedDigs": "Les défenses après lesquelles l'équipe renvoie le ballon ou le perd sans attaquer.",
       "points": "Les ballons joués qui tombent chez l'adversaire.",
       "faults": "Les ballons dehors, dans le filet ou tombés de son côté, aces subis et fautes de jeu compris.",
-      "between": "Les ballons tombés sans être touchés à moins de 2,5 m de deux coéquipiers à peu près aussi proches l'un que l'autre. Ils se gagnent en s'annonçant : « J'ai ! »",
+      "between": "Les ballons tombés sans être touchés à moins de 2,5 m de deux coéquipiers à peu près aussi proches l'un que l'autre, ou laissés par deux joueurs selon la relecture. Ils se gagnent en s'annonçant : « J'ai ! »",
       "strengths": "Ce qu'un joueur apporte à son équipe : ce qu'il réussit mieux que les autres, sa présence sur le terrain, sa fiabilité, ce qu'il donne aux autres et ses points quand ça compte. Deux au plus, les plus rares de son équipe d'abord, chacun à partir d'un minimum. Cliquez dessus pour revoir ces moments.",
       "toWorkOn": "Le point qu'un joueur rate le plus nettement par rapport au reste de son équipe, avec au moins 5 essais de chaque côté et 20 points d'écart. Cliquez dessus pour revoir ces moments.",
       "time": "Temps passé sur le terrain pendant les échanges (minutes:secondes).",
@@ -1309,7 +1317,8 @@
         "set": "Les passes perdues",
         "relance": "Les relances perdues",
         "block": "Les contres perdants",
-        "fault": "Les fautes de jeu"
+        "fault": "Les fautes de jeu",
+        "missed": "Les ballons laissés"
       },
       "tips": {
         "serve": "Dans les moments serrés, un service dans le terrain oblige l'adversaire à construire.",
@@ -1319,7 +1328,8 @@
         "set": "Se placer sous le ballon et annoncer à qui on passe.",
         "relance": "Sans attaque possible, renvoyer haut et au fond plutôt que de forcer.",
         "block": "Sauter droit, mains au-dessus du filet, sans le toucher.",
-        "fault": "Attention au filet, à la ligne centrale et à la rotation."
+        "fault": "Attention au filet, à la ligne centrale et à la rotation.",
+        "missed": "Annoncer « J'ai ! » et aller au ballon."
       }
     },
     "setters": {
@@ -1466,7 +1476,13 @@
       "relanceFaultNamed": "La relance {{ofName}} ne passe pas. Point pour {{team}}, {{score}}.",
       "relanceFaultNamedSet": "La relance {{ofName}} ne passe pas. {{team}} remporte le set {{score}}.",
       "faultFaultNamed": "Faute de jeu {{ofName}}. Point pour {{team}}, {{score}}.",
-      "faultFaultNamedSet": "Faute de jeu {{ofName}}. {{team}} remporte le set {{score}}."
+      "faultFaultNamedSet": "Faute de jeu {{ofName}}. {{team}} remporte le set {{score}}.",
+      "missedFault": "Le ballon tombe côté {{other}}. Point pour {{team}}, {{score}}.",
+      "missedFaultSet": "Le ballon tombe côté {{other}}. {{team}} remporte le set {{score}}.",
+      "missedFaultNamed": "{{name}} laisse tomber le ballon. Point pour {{team}}, {{score}}.",
+      "missedFaultNamedSet": "{{name}} laisse tomber le ballon. {{team}} remporte le set {{score}}.",
+      "missedFaultBetween": "Le ballon tombe entre {{name}} et {{partner}}. Point pour {{team}}, {{score}}.",
+      "missedFaultBetweenSet": "Le ballon tombe entre {{name}} et {{partner}}. {{team}} remporte le set {{score}}."
     },
     "voiceCredit": "Voix de synthèse : Kokoro, corpus SIWIS (CC BY 4.0)."
   },

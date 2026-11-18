@@ -187,7 +187,7 @@ def line_call(rally: dict) -> dict | None:
     its bounce `t`, in or out from who won the point (the other team on a wrong call), the measured `mark` where it says the same."""
     if not rally.get("winner") or rally.get("redo"):
         return None
-    played = [c for c in rally["contacts"] if c["type"] != "fault"]
+    played = [c for c in rally["contacts"] if c["type"] not in ("fault", "missed")]
     hits = [c for c in played if is_touch(c)]
     if not played or not hits or played[-1]["type"] != "floor":
         return None

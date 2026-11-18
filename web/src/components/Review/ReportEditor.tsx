@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Star, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Star, Trash2, TriangleAlert, Undo2, UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
@@ -40,14 +40,14 @@ import {
   withSplits,
 } from '@/components/Review/helpers/report';
 import { problems, warningTimes, type Problem } from '@/components/Review/helpers/checks';
-import { labelled } from '@/helpers/contacts';
+import { labelled, noBall } from '@/helpers/contacts';
 import { Tip } from '@/components/Tip';
 import { ask } from '@/components/ask';
 import { SLOW_BEFORE_S } from '@/helpers/slow';
 
-export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault'] as const;
+export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault', 'missed'] as const;
 /** Outside the fields, a key gives the touch named over the video its action, by its French name's letter. */
-export const TYPE_KEYS: Record<string, (typeof TYPES)[number]> = { s: 'serve', r: 'pass', p: 'set', a: 'attack', l: 'relance', c: 'block', d: 'dig', f: 'fault' };
+export const TYPE_KEYS: Record<string, (typeof TYPES)[number]> = { s: 'serve', r: 'pass', p: 'set', a: 'attack', l: 'relance', c: 'block', d: 'dig', f: 'fault', m: 'missed' };
 /** Outside the fields, this key validates the rally on the video, this one adds a touch at its moment. */
 export const VALIDATE_KEY = 'v';
 export const ADD_KEY = 'n';
@@ -93,7 +93,7 @@ export type Caption = {
 };
 
 /** `cause`: the frame of the teammate's touch a fault is put on, 0 for nobody else. */
-type Fix = { player?: string; type?: string; result?: string; cause?: number };
+type Fix = { player?: string; type?: string; result?: string; cause?: number; partner?: string };
 /** `join`: the rally and the next one are one, ending at the next one's end. `redo`: to replay,
  * nobody gets the point; false takes back what the page shows. `wrong`: the referee gave the
  * point to the wrong team, `winner` being the one that got it; false likewise. */
@@ -102,9 +102,22 @@ type RallyFix = { winner?: Group; play?: false; end?: number; join?: true; redo?
 const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 const frameOf = (time: number) => Math.round(time * match.fps);
 /** A touch added: its team the picked player's, else the touch before's. */
-type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string; cause?: number };
+type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string; cause?: number; partner?: string };
 /** A touch as listed: one of the page's, or one added. */
-type Row = { frame: number; time: number; rally: number; team: Group; type: string; result: string; player: string; cause: number; removed: boolean; added: boolean; contact?: Contact };
+type Row = {
+  frame: number;
+  time: number;
+  rally: number;
+  team: Group;
+  type: string;
+  result: string;
+  player: string;
+  cause: number;
+  partner: string;
+  removed: boolean;
+  added: boolean;
+  contact?: Contact;
+};
 
 /** Where the ball lands (`closedEnd`), in order. */
 const landings = contacts
@@ -112,13 +125,16 @@ const landings = contacts
   .map((c) => c.t)
   .sort((a, b) => a - b);
 
-/** The page's touches a player makes, with that player as "TEAM:IDENTITY". */
+/** A player of `match.people` as "TEAM:IDENTITY", '' for none. */
+const playerOf = (person: number | null | undefined) => {
+  const p = person == null ? undefined : match.people[person];
+  return p && p.number !== null ? `${p.team}:${p.number}` : '';
+};
+
+/** The page's touches a player makes, with that player as "TEAM:IDENTITY", and the one its fault is shared with. */
 const touches = contacts
   .filter((c) => (TYPES as readonly string[]).includes(c.type) && c.team !== null)
-  .map((c) => {
-    const p = c.person === null ? undefined : match.people[c.person];
-    return { contact: c, frame: c.f ?? frameOf(c.t), player: p && p.number !== null ? `${p.team}:${p.number}` : '' };
-  });
+  .map((c) => ({ contact: c, frame: c.f ?? frameOf(c.t), player: playerOf(c.person), partner: playerOf(c.partner) }));
 
 // How often the list checks on the rail's end, and how near its edges that end may come, in pixels.
 const RAIL_FOLLOW_PX = 24;
@@ -217,6 +233,8 @@ export function ReportEditor({
   const [added, setAdded] = useState<Added[]>(() => (saved.added ?? []).map((a) => ({ ...a, time: a.frame / match.fps })));
   // The rallies started by the review, by their start frame.
   const [splits, setSplits] = useState<number[]>(() => saved.splits ?? []);
+  // The faults whose second player is being picked, by frame.
+  const [sharing, setSharing] = useState<number[]>([]);
   // By the rally's key: a rally started before one keeps its index from moving its fixes.
   const [rallyFixes, setRallyFixes] = useState<Record<number, RallyFix>>(() =>
     Object.fromEntries((saved.rallies ?? []).map(({ start, end, ...fix }) => [start, { ...fix, ...(end !== undefined ? { end: end / match.fps } : {}) }])),
@@ -240,8 +258,9 @@ export function ReportEditor({
     setFixes((all) => {
       const c = row.contact!;
       const next: Fix = { ...all[row.frame], ...change };
-      const own: Fix = { player: touches.find((x) => x.frame === row.frame)?.player || undefined, type: c.type, result: labelled(c), cause: c.cause ?? 0 };
-      for (const k of ['player', 'type', 'result', 'cause'] as const) {
+      const mine = touches.find((x) => x.frame === row.frame);
+      const own: Fix = { player: mine?.player || undefined, type: c.type, result: labelled(c), cause: c.cause ?? 0, partner: mine?.partner || 'none' };
+      for (const k of ['player', 'type', 'result', 'cause', 'partner'] as const) {
         if (next[k] === undefined || next[k] === own[k]) {
           delete next[k];
         }
@@ -278,8 +297,8 @@ export function ReportEditor({
 
   // A touch's action or result changed.
   const changeRow = (row: Row, said: Fix) => {
-    // A touch no longer a fault is put on nobody.
-    const c: Fix = said.result && said.result !== 'error' ? { ...said, cause: 0 } : said;
+    // A touch no longer a fault is put on nobody, nor shared.
+    const c: Fix = said.result && said.result !== 'error' ? { ...said, cause: 0, partner: 'none' } : said;
     // A point or a fault said on a touch ends the rally: it is no longer to replay.
     const owner = joinStart(row.rally, joins);
     if (c.result && c.result !== 'play' && toReplay(owner)) {
@@ -292,9 +311,14 @@ export function ReportEditor({
     }
   };
   // A playing fault is always one, its player's.
-  const setType = (row: Row, type: string) => changeRow(row, { type, ...(type === 'fault' ? { result: 'error', cause: 0 } : {}) });
+  const setType = (row: Row, type: string) => changeRow(row, { type, ...(noBall({ type }) ? { result: 'error', cause: 0 } : {}) });
   // A touch added takes its player's team.
   const setPlayer = (row: Row, who: string) => (row.added ? editAdded(row.frame, { player: who, team: teamOf(who) }) : changeRow(row, { player: who }));
+  // A fault shared with a second player of its team, '' for no one.
+  const setPartner = (row: Row, who: string) => {
+    setSharing((all) => all.filter((f) => f !== row.frame));
+    return row.added ? editAdded(row.frame, { partner: who || 'none' }) : edit(row, { partner: who || 'none' });
+  };
 
   // The rally the video is in, or just ended, and those shown around it.
   const here = rallyAt(shown, now);
@@ -305,7 +329,7 @@ export function ReportEditor({
   const listed = (player: string) => (offered.has(player) ? player : '');
   // Every touch, to check every rally; those of the rallies around listed.
   const allRows: Row[] = [
-    ...touches.map(({ contact: c, frame, player }) => {
+    ...touches.map(({ contact: c, frame, player, partner }) => {
       const fix = fixes[frame] ?? {};
       return {
         frame,
@@ -316,12 +340,13 @@ export function ReportEditor({
         result: fix.result ?? labelled(c),
         player: fix.player === 'none' ? '' : listed(fix.player ?? player),
         cause: fix.cause ?? c.cause ?? 0,
+        partner: listed(fix.partner === 'none' ? '' : (fix.partner ?? partner)),
         removed: fix.player === 'none',
         added: false,
         contact: c,
       };
     }),
-    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: listed(a.player ?? ''), cause: a.cause ?? 0, removed: false, added: true })),
+    ...added.map((a) => ({ ...a, rally: rallyOf(shown, a.time, a.type), player: listed(a.player ?? ''), cause: a.cause ?? 0, partner: listed(a.partner ?? ''), removed: false, added: true })),
   ].sort((a, b) => a.time - b.time);
   const rows = allRows.filter((row) => row.rally >= first && row.rally <= last);
   // The touches kept, by rally.
@@ -361,7 +386,19 @@ export function ReportEditor({
 
   const changes: ReportChanges = {
     touches: Object.entries(fixes).map(([frame, c]) => ({ frame: Number(frame), ...c })),
-    ...(added.length ? { added: added.map(({ frame, team, type, result, player, cause }) => ({ frame, team, type, result, ...(player ? { player } : {}), ...(cause ? { cause } : {}) })) } : {}),
+    ...(added.length
+      ? {
+          added: added.map(({ frame, team, type, result, player, cause, partner }) => ({
+            frame,
+            team,
+            type,
+            result,
+            ...(player ? { player } : {}),
+            ...(cause ? { cause } : {}),
+            ...(partner && partner !== 'none' && result === 'error' ? { partner } : {}),
+          })),
+        }
+      : {}),
     ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([key, f]) => ({ start: Number(key), ...f, ...(f.end !== undefined ? { end: frameOf(f.end) } : {}) })) } : {}),
     ...(splits.length ? { splits } : {}),
   };
@@ -373,7 +410,7 @@ export function ReportEditor({
   useEffect(() => {
     onUnsaved?.(unsavedKeys);
   }, [unsavedJson]);
-  const touchesJson = JSON.stringify(allRows.filter((row) => !row.removed && row.type !== 'fault').map((row) => row.time));
+  const touchesJson = JSON.stringify(allRows.filter((row) => !row.removed && !noBall(row)).map((row) => row.time));
   useEffect(() => {
     onTouches?.(JSON.parse(touchesJson));
   }, [touchesJson]);
@@ -393,7 +430,7 @@ export function ReportEditor({
     const follows = before && before.rally === rallyAt(shown, time) && time - before.time < NEXT_TOUCH_S;
     const guess = nextTouch(follows ? before : undefined, (before && winnerOf(before.rally)) ?? before?.team ?? GROUPS[0], before ? time - before.time : Infinity);
     // The ball played on after a point or a fault: that touch was in play (a playing fault stays one).
-    if (follows && before.result !== 'play' && before.type !== 'fault') {
+    if (follows && before.result !== 'play' && !noBall(before)) {
       changeRow(before, { result: 'play' });
     }
     setAdded((all) => [...all, { frame, time, ...guess, result: 'play' }]);
@@ -402,7 +439,7 @@ export function ReportEditor({
   };
   // The attack the editor's doubt on a set says may be missing, by the set's team, after it: the video there, its player
   // field ready. A rally ending on the set ends on the attack instead.
-  const nextAfter = (row: Row) => mineOf(joinStart(row.rally, joins)).find((r) => r.time > row.time && r.type !== 'fault')?.time;
+  const nextAfter = (row: Row) => mineOf(joinStart(row.rally, joins)).find((r) => r.time > row.time && !noBall(r))?.time;
   const missedAttack = (row: Row) => {
     const next = nextAfter(row);
     const at = missedAttackAt(row.time, next);
@@ -440,7 +477,7 @@ export function ReportEditor({
     if (k < 0) {
       return GROUPS[0];
     }
-    const last = (kept.get(k) ?? []).filter((row) => row.time < time && row.type !== 'fault').at(-1);
+    const last = (kept.get(k) ?? []).filter((row) => row.time < time && !noBall(row)).at(-1);
     const said = time > shown[k].end ? null : last?.result === 'point' ? last.team : last?.result === 'error' ? ((3 - last.team) as Group) : null;
     return said ?? winnerOf(joinStart(k, joins)) ?? GROUPS[0];
   };
@@ -1007,9 +1044,7 @@ export function ReportEditor({
                         // A fault may be put on one of the team's two touches just before it (and on one picked before, kept
                         // shown). A playing fault is always its player's.
                         const earlier = (
-                          row.removed || row.result !== 'error' || row.type === 'fault'
-                            ? []
-                            : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && r.type !== 'fault')
+                          row.removed || row.result !== 'error' || noBall(row) ? [] : mineOf(joinStart(row.rally, joins)).filter((r) => r.team === row.team && r.time < row.time && !noBall(r))
                         ).sort((a, b) => a.time - b.time);
                         const causes = earlier.filter((r, n) => n >= earlier.length - CAUSE_TOUCHES || r.frame === row.cause);
                         const about = openOn(row);
@@ -1065,7 +1100,7 @@ export function ReportEditor({
                                     aria-label={t('review.reportResult')}
                                     value={row.result}
                                     // A playing fault is always one.
-                                    disabled={row.type === 'fault'}
+                                    disabled={noBall(row)}
                                     onChange={(e) => {
                                       change({ result: e.target.value });
                                     }}
@@ -1123,19 +1158,44 @@ export function ReportEditor({
                               </p>
                             )}
                             {!row.removed && (
+                              <div className="flex items-center gap-1.5">
+                                <PlayerSelect
+                                  // Anyone of either team: the touch takes the player's team.
+                                  players={players}
+                                  nameOf={nameOf}
+                                  value={row.player}
+                                  empty={t('review.pickPlayer')}
+                                  label={t('review.reportPlayer')}
+                                  className="h-8 min-w-0 flex-1 text-sm font-normal"
+                                  openOnFocus={false}
+                                  likely={likelyFor(row)}
+                                  // Done, the keys work again.
+                                  onDone={() => (document.activeElement as HTMLElement | null)?.blur()}
+                                  onChange={(who) => who && setPlayer(row, who)}
+                                />
+                                {row.result === 'error' && !row.partner && !sharing.includes(row.frame) && (
+                                  <Tip label={t('review.partner')}>
+                                    <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={t('review.partner')} onClick={() => setSharing((all) => [...all, row.frame])}>
+                                      <UserPlus aria-hidden />
+                                    </Button>
+                                  </Tip>
+                                )}
+                              </div>
+                            )}
+                            {!row.removed && row.result === 'error' && (row.partner || sharing.includes(row.frame)) && (
                               <PlayerSelect
-                                // Anyone of either team: the touch takes the player's team.
-                                players={players}
+                                // A teammate: the fault is the team's once.
+                                players={players.filter((p) => p.team === row.team)}
                                 nameOf={nameOf}
-                                value={row.player}
-                                empty={t('review.pickPlayer')}
-                                label={t('review.reportPlayer')}
+                                exclude={row.player ? { team: teamOf(row.player), identity: Number(row.player.split(':')[1]) } : undefined}
+                                value={row.partner}
+                                empty={t('review.partner')}
+                                label={t('review.partner')}
                                 className="h-8 min-w-0 text-sm font-normal"
-                                openOnFocus={false}
+                                autoFocus={!row.partner}
                                 likely={likelyFor(row)}
-                                // Done, the keys work again.
                                 onDone={() => (document.activeElement as HTMLElement | null)?.blur()}
-                                onChange={(who) => who && setPlayer(row, who)}
+                                onChange={(who) => setPartner(row, who)}
                               />
                             )}
                             {causes.length > 0 && (

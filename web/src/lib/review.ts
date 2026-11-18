@@ -72,9 +72,10 @@ export interface ReportTouch {
  * touch), action, result or, for a fault, the frame of the teammate's touch it is put on (`cause`, 0 for nobody
  * else); the rally's winner, or no play. */
 export interface ReportChanges {
-  touches: { frame: number; player?: string; type?: string; result?: string; cause?: number }[];
+  /** `partner`: the second player ("TEAM:IDENTITY", "none" for no one) a fault is shared with. */
+  touches: { frame: number; player?: string; type?: string; result?: string; cause?: number; partner?: string }[];
   /** Touches the rallies missed, at their frame. */
-  added?: { frame: number; team: Group; type: string; result: string; player?: string; cause?: number }[];
+  added?: { frame: number; team: Group; type: string; result: string; player?: string; cause?: number; partner?: string }[];
   /** Rallies by their start frame: their winner, no play, their end frame, to replay, or the referee wrong. */
   rallies?: { start: number; winner?: Group; play?: false; end?: number; join?: true; redo?: boolean; wrong?: boolean }[];
   /** Rallies started at these frames: one missed, or the second of two taken for one. */

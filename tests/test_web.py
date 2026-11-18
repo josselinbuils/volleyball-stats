@@ -233,6 +233,28 @@ class TestContacts:
         # The label stays what happened: the attack's fault.
         assert labelled(found[2]) == "error" and found[1]["result"] == "play"
 
+    def test_a_ball_let_fall_after_a_serve_or_an_attack_scores_for_them(self):
+        def c(kind, team, rally, result="play"):
+            return {"type": kind, "team": team, "rally": rally, "result": result}
+
+        found = [c("serve", 2, 1), c("missed", 1, 1, "error"), c("attack", 2, 2), c("missed", 1, 2, "error"), c("dig", 1, 3), c("missed", 1, 3, "error")]
+
+        credited(found, [{"frame": str(k)} for k in range(len(found))])
+
+        assert [x["result"] for x in found] == ["point", "error", "point", "error", "play", "error"]
+
+    def test_a_fault_shared_with_a_second_player_names_them(self):
+        found = [
+            {"type": "missed", "result": "error", "person": 0}, {"type": "dig", "result": "error", "person": 1},
+            {"type": "dig", "result": "play", "person": 1}, {"type": "missed", "result": "error", "person": 2}, {"type": "floor", "result": "error", "person": None},
+        ]
+        typed = [{"frame": str(10 * k)} for k in range(len(found))]
+
+        web.partnered(found, typed, {0: (1, 5), 10: (1, 6), 20: (1, 7), 30: (1, 2), 40: (1, 5)}, lambda track, frame, said=None: said[1])
+
+        # Not on a touch in play, nor on the fault's own player, nor on the ball.
+        assert [x.get("partner") for x in found] == [5, 6, None, None, None]
+
     def test_the_review_s_types_and_results_replace_the_touches(self):
         found = [{"type": "serve", "result": "point"}, {"type": "pass", "result": "play"}]
 

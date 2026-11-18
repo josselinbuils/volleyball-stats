@@ -47,7 +47,7 @@ def spans(match: Path) -> list[Span] | None:
         return None
     last: dict[int, float] = {}
     for c in page["contacts"]:
-        if c["type"] not in ("floor", "net", "fault"):
+        if c["type"] not in ("floor", "net", "fault", "missed"):
             last[c["rally"]] = max(last.get(c["rally"], 0.0), c["t"])
     return sorted((r["start"], last.get(k, r["start"]), r["end"]) for k, r in enumerate(page["rallies"]))
 

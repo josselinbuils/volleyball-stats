@@ -1,3 +1,4 @@
+import { noBall } from '@/helpers/contacts';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Maximize, Minimize } from 'lucide-react';
@@ -154,7 +155,7 @@ export function MatchTab({
                           </option>
                         ))}
                       </select>
-                      <select className={SELECT} aria-label={t('review.reportResult')} value={caption.result} disabled={caption.type === 'fault'} onChange={(e) => caption.setResult?.(e.target.value)}>
+                      <select className={SELECT} aria-label={t('review.reportResult')} value={caption.result} disabled={noBall(caption)} onChange={(e) => caption.setResult?.(e.target.value)}>
                         {RESULTS.map((result) => (
                           <option key={result} value={result}>
                             {t(`results.${result}`)}

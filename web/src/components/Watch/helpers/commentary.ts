@@ -1,6 +1,6 @@
 import { ofName } from '@/lib/format';
 import type { Contact, Group, Rally } from '@/lib/match';
-import { isTouch } from '@/helpers/contacts';
+import { isTouch, noBall } from '@/helpers/contacts';
 import { scoresBefore, scoringTouch } from '@/helpers/plays';
 
 /** A line of commentary: `key` under `broadcast.lines`, `vars` its values, shown from `t`. `strong` lines are spoken over
@@ -23,7 +23,7 @@ const SHOWN_S = 5;
 const LONG_RALLY = 8;
 // How many ways a line can be said: picked by the moment so that it stays the same on a replay of the moment.
 const WAYS: Record<string, number> = { serve: 3, pass: 2, set: 2, attack: 3, dig: 2, block: 2, relance: 1 };
-const FAULTS = ['serve', 'attack', 'pass', 'set', 'dig', 'block', 'relance', 'fault'];
+const FAULTS = ['serve', 'attack', 'pass', 'set', 'dig', 'block', 'relance', 'fault', 'missed'];
 const SET_AT = 25;
 const LAST_SET_AT = 15;
 
@@ -50,7 +50,7 @@ function touchLine(c: Contact, names: Names): Line | null {
 /** What the rally's end says: who scored, or who gave the point away, by name when known. */
 function endLine(rally: Rally, names: Names, set: boolean): Line | null {
   const winner = rally.winner;
-  const touches = rally.contacts.filter((c) => isTouch(c) || c.type === 'fault');
+  const touches = rally.contacts.filter((c) => isTouch(c) || noBall(c));
   const last = touches.at(-1);
   if (rally.redo) {
     return { t: rally.end - 0.2, key: 'redo', vars: {}, strong: true };
@@ -70,6 +70,10 @@ function endLine(rally: Rally, names: Names, set: boolean): Line | null {
   if (last.g !== winner && last.result === 'error') {
     const kind = FAULTS.includes(last.type) ? last.type : 'other';
     const name = names.player(last.person);
+    const partner = last.type === 'missed' && name ? names.player(last.partner ?? null) : null;
+    if (partner) {
+      return { t, key: `missedFaultBetween${suffix}`, vars: vars({ ...common, name: name ?? '', partner }), strong: true };
+    }
     return { t, key: `${kind}Fault${name && kind !== 'other' ? 'Named' : ''}${suffix}`, vars: vars({ ...common, name: name ?? '' }), strong: true };
   }
   return { t, key: `point${suffix}`, vars: vars(common), strong: true };

@@ -1,5 +1,5 @@
 import type { Contact, Group, Person, Rally } from '@/lib/match';
-import { isTouch } from '@/helpers/contacts';
+import { isTouch, noBall } from '@/helpers/contacts';
 import { playerKey } from '@/helpers/players';
 import { setAttacks } from '@/helpers/plays';
 
@@ -9,20 +9,28 @@ const THINGS = 3;
 // A setter from this many sets: under them there is nothing to read.
 const SETTER_FROM = 5;
 
-export const CAUSES = ['serve', 'attack', 'defense', 'reception', 'set', 'relance', 'block', 'fault'] as const;
+export const CAUSES = ['serve', 'attack', 'defense', 'reception', 'set', 'relance', 'block', 'fault', 'missed'] as const;
 export type Cause = (typeof CAUSES)[number];
 
 const OWN: Partial<Record<Contact['type'], Cause>> = { serve: 'serve', attack: 'attack', dig: 'defense', pass: 'reception', set: 'set', relance: 'relance', block: 'block', fault: 'fault' };
 const THEIRS: Partial<Record<Contact['type'], Cause>> = { serve: 'reception', attack: 'defense', relance: 'defense', block: 'attack' };
 
 /** Why `g` lost a rally, with the touch that lost it: its own last touch's fault (the teammate's touch the review puts
- * it on, `cause`), or the other team's last touch scoring. Nothing for a rally they did not lose, one to replay, one the
+ * it on, `cause`), or the other team's last touch scoring. A ball one of them let fall (`missed`) after the other team's
+ * touch is that touch's, as an untouched one, unless the review shares it between two of them (`partner`): left between
+ * two, or after a touch of their own, it is a ball left. Nothing for a rally they did not lose, one to replay, one the
  * referee got wrong or one ending otherwise. */
 export function lostOn(rally: Rally, g: Group): { cause: Cause; contact: Contact } | null {
   if (rally.redo || rally.wrongCall || !rally.winner || rally.winner === g) {
     return null;
   }
-  const last = rally.contacts.filter((c) => isTouch(c) || c.type === 'fault').at(-1);
+  const played = rally.contacts.filter((c) => isTouch(c) || noBall(c));
+  const last = played.at(-1);
+  if (last?.type === 'missed' && last.g === g) {
+    const before = played.filter(isTouch).at(-1);
+    const theirs = before && before.g !== g && last.partner == null ? THEIRS[before.type] : undefined;
+    return theirs && before ? { cause: theirs, contact: before } : { cause: 'missed', contact: last };
+  }
   const lost = (last?.g === g && last.cause != null && rally.contacts.find((c) => c.f === last.cause)) || last;
   const cause = !last || !lost ? undefined : last.g === g ? (last.result === 'error' ? OWN[lost.type] : undefined) : last.result === 'point' ? THEIRS[last.type] : undefined;
   return cause && lost ? { cause, contact: lost } : null;

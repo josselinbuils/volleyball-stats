@@ -217,7 +217,7 @@ def fit_touches(contacts: list[dict], ball: Path, calibration: Calibration, fps:
         return Fitted(P, {}, width, [])
     by_rally: dict[int, list[tuple[int, dict]]] = {}
     for i, c in enumerate(contacts):
-        if c["type"] != "fault" and c.get("f") is not None:
+        if c["type"] not in ("fault", "missed") and c.get("f") is not None:
             by_rally.setdefault(c["rally"], []).append((i, c))
     margin = round(ATTACK_AROUND_S * fps)
     spans = [(min(c["f"] for _, c in cs) - margin, max(c["f"] for _, c in cs) + margin) for cs in by_rally.values()]

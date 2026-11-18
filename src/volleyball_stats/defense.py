@@ -108,7 +108,8 @@ def flight(contacts: list[dict], k: int) -> tuple[tuple[float, float], tuple[flo
     c = contacts[k]
     sign = 1 if c["side"] == "left" else -1
     start = (sign * c["x"], -sign * c["y"])
-    after = next((n for n in contacts[k + 1 :] if n["rally"] == c["rally"]), None)
+    # A ball the review says a defender let fall is no place of the ball (`web.NO_BALL`).
+    after = next((n for n in contacts[k + 1 :] if n["rally"] == c["rally"] and n["type"] != "missed"), None)
     if c["result"] == "error" or not after or after["type"] in ("block", "fault", "net") or after.get("x") is None or after.get("y") is None:
         return start, None, False
     end = (sign * after["x"], -sign * after["y"])

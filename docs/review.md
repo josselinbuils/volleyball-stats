@@ -90,6 +90,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - A fault may be put on one of the team's two touches just before it, a bad set or reception (the Match tab, under the fault's
   player: "Sa faute" or "À cause de" that touch, an older one picked before still shown; `cause` in the `action` answer, `web.blamed`): the statistics count it for that
   touch's player, graded 0, and no longer for the one who made it, whose touch is left ungraded (the owner's rule, 13 Nov).
+- "Faute partagée avec" (the person icon beside a fault's player, `partner` answers, `web.partnered`): a second player of the
+  team shares the fault, a full one each in their statistics, once for the team (the owner's rule, 18 Nov).
 
 ## What it asks
 
@@ -161,7 +163,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - A click on the caption opens under it (the video paused) the touch's action and result, as in its card, and a player
   field: the touch named takes what is picked; a drag moves the caption.
 - Keys, outside the fields (their tips say them): Space plays or pauses; the touch named over the video takes its action by
-  its French name's letter (S service, R réception, P passe, A attaque, L relance, C contre, D défense, F faute de jeu); V
+  its French name's letter (S service, R réception, P passe, A attaque, L relance, C contre, D défense, F faute de jeu, M balle manquée); V
   validates the rally on the video, N adds a touch at its moment. A player picked in a touch's field leaves it, for the
   keys to work again.
 - A player field lists first the players with touches in the touch's set, its team's first, most touches first: those
@@ -204,6 +206,12 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - A rally's winner follows its last touch (`web.followed`).
 - "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in the review: always a
   fault, no touch of the ball in the checks, counted in its player's faults, never put on a touch before it.
+- "Balle manquée" (`missed`, `web.NO_BALL` with `fault`): a ball its player should have played, let fall untouched, only
+  added in the review, at the moment it passes them. A fault as a playing fault is; the touch before keeps its result: the
+  other team's serve or attack stays their point (`web.credited`), and it counts for its player as a missed reception after a
+  serve, a missed dig after another touch of the other team (stats.ts), so the ace needs no receiver (`review.aces`). Shared
+  ("Faute partagée avec"), it is in both players' "Entre deux" in place of the guess from where it landed (between.ts); "Le
+  coin du coach" counts it as "Les ballons laissés" when shared or after the team's own touch, else as what beat it.
 - "À rejouer" (`redo`, beside the winners): the rally stays, its touches in play, nobody scores; picking a winner takes it
   back.
 - "Erreur d'arbitrage" (`referee` answers, `wrongCall` on the page): the winner stays the team that got the point, the

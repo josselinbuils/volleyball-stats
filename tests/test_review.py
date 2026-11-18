@@ -425,6 +425,20 @@ class TestReports:
             {"frame": 2150, "result": "error", "cause": 2100}, {"frame": 2100, "cause": 2050}, {"frame": 3050, "result": "error", "cause": None}, {"frame": 2050, "cause": None},
         ]
 
+    def test_a_fault_shared_with_a_second_player_becomes_a_partner_answer(self):
+        changes = {
+            "touches": [{"frame": 2100, "partner": "1:4"}, {"frame": 3050, "partner": "none"}],
+            "added": [{"frame": 2150, "team": 1, "type": "missed", "result": "error", "partner": "2:7"}],
+        }
+
+        out = report_answer(changes, self.teams, self.windows, {(1, 4): {"name": "Léa"}}, 20)
+
+        assert out["added"] == [{"start": 2000, "frame": 2150, "team": 1, "type": "missed"}]
+        assert out["partner"] == [
+            {"frame": 2150, "team": 2, "identity": 7, "name": None}, {"frame": 2100, "team": 1, "identity": 4, "name": "Léa"}, {"frame": 3050, "team": 1, "identity": None, "name": None},
+        ]
+        assert "partner" not in report_answer({"touches": [{"frame": 2100, "result": "error"}]}, self.teams, self.windows, {}, 20)
+
     def test_the_referee_s_error_or_no_longer_becomes_a_referee_answer_beside_the_winner(self):
         changes = {"rallies": [{"start": 2000, "winner": 2, "wrong": True}, {"start": 3000, "wrong": False}]}
 
@@ -624,7 +638,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "team": [], "touch": [], "rally": [], "receiver": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "referee": [], "wrong": [], "log": log}
+        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "team": [], "touch": [], "rally": [], "receiver": [], "partner": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "referee": [], "wrong": [], "log": log}
 
 
 class TestRange:

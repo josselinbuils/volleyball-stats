@@ -93,6 +93,22 @@ describe('lines', () => {
     expect([total.id, count(total.stats)]).toEqual(['total', { receptions: 1, missed: 1, rated: 1, faults: 1 }]);
   });
 
+  it('counts a ball let fall as a fault, a missed reception after a serve and a missed dig after an attack, for both players it is shared by', () => {
+    const inRally = (k: number, c: Contact) => ({ ...c, rally: 100 + k });
+    const missed = (k: number, extra: Partial<Contact> = {}) => inRally(k, { ...touch('missed', 1, 0, 'error'), ...extra });
+    const contacts = [inRally(0, touch('serve', 2, 3, 'point')), missed(0), inRally(1, touch('attack', 2, 3, 'point')), missed(1, { partner: 1 }), inRally(2, touch('set', 1, 1)), missed(2)];
+    const [two, one, total] = lines(contacts, people, 1);
+    expect([one.id, count(one.stats)]).toEqual([0, { receptions: 1, missed: 1, rated: 1, digs: 1, digFaults: 1, digRated: 1, faults: 3 }]);
+    expect([two.id, count(two.stats)]).toEqual([1, { touches: 1, sets: 1, digs: 1, digFaults: 1, digRated: 1, faults: 1 }]);
+    expect(count(total.stats)).toEqual({ touches: 1, sets: 1, receptions: 1, missed: 1, rated: 1, digs: 1, digFaults: 1, digRated: 1, faults: 3 });
+  });
+
+  it('counts a fault shared with a teammate for both, once for the team', () => {
+    const shared = { ...touch('dig', 1, 0, 'error'), partner: 1 };
+    const [one, two, total] = lines([shared], people, 1);
+    expect([one.stats.faults.length, two.id, count(two.stats), total.stats.faults.length]).toEqual([1, 1, { faults: 1 }, 1]);
+  });
+
   it('counts a ball dropped between two players for each of them, once for the team', () => {
     const landing = touch('floor', 1, null);
     const dropped: Drop[] = [{ landing, pair: [0, 2] }];

@@ -23,6 +23,13 @@ describe('drops', () => {
     expect(drops(landed([0, -5, 2.4, 1, -5, -2.8]), people)).toEqual([]);
   });
 
+  it('takes a ball the review says two players let fall, and no other of its rally', () => {
+    const rally = landed([0, -5, 1, 1, -5, -1.5, 2, -8, 0]);
+    const missed = { ...touch('missed', 1, 0.9, null, null, 'error'), person: 0, partner: 2 };
+    expect(drops([rally[0], missed, rally[1]], people)).toEqual([{ landing: missed, pair: [0, 2] }]);
+    expect(drops([rally[0], { ...missed, partner: undefined }, rally[1]], people)).toEqual([]);
+  });
+
   it('counts only the landing team’s players on its half', () => {
     expect(drops(landed([0, -5, 1, 3, -5, -1]), people)).toEqual([]);
     expect(drops(landed([0, -5, 1, 1, 1, 0]), people)).toEqual([]);

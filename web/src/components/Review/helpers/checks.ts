@@ -1,3 +1,5 @@
+import { noBall } from '@/helpers/contacts';
+
 /** What looks wrong in a rally, as the review's automatic reports find it (review.unusual). */
 export type Problem =
   | 'empty'
@@ -75,7 +77,7 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
   const touch = new Map<number, Problem[]>();
   const mark = (k: number, p: Problem) => touch.set(k, [...(touch.get(k) ?? []), p]);
   // The touches of the ball by their index, playing faults aside.
-  const played = touches.flatMap((c, k) => (c.type === 'fault' ? [] : [k]));
+  const played = touches.flatMap((c, k) => (noBall(c) ? [] : [k]));
   if (!touches.length) {
     rally.push('empty');
   } else if (played.length && touches[played[0]].type !== 'serve') {

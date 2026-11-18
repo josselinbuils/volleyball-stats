@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { clock } from '@/lib/format';
 import { contacts, groupName, match, playerLabel, teamColor, teamEdge, type Group } from '@/lib/match';
 import type { Span } from '@/components/Review/helpers/report';
-import { isTouch, labelled } from '@/helpers/contacts';
+import { isTouch, labelled, noBall } from '@/helpers/contacts';
 import type { ReportChanges, Timeout } from '@/lib/review';
 import { tickStep, zoomed } from '@/components/Review/helpers/timeline';
 import { Tip } from '@/components/Tip';
@@ -118,7 +118,7 @@ export function MatchTimeline({
   const removed = new Set((saved.touches ?? []).filter((c) => c.player === 'none').map((c) => c.frame));
   const touches = [
     ...contacts
-      .filter((c) => isTouch(c) || c.type === 'fault')
+      .filter((c) => isTouch(c) || noBall(c))
       .map((c) => ({ key: `c${c.i}`, time: c.t, team: c.g, removed: removed.has(c.f ?? Math.round(c.t * match.fps)), label: touchLabel(t, c.type, labelled(c), c.g, c.person) })),
     ...(saved.added ?? []).map((a) => ({ key: `a${a.frame}`, time: a.frame / match.fps, team: a.team, removed: false, label: touchLabel(t, a.type, a.result, a.team, null) })),
   ];

@@ -1,3 +1,4 @@
+import { noBall } from '@/helpers/contacts';
 import type { Group, Rally } from '@/lib/match';
 import type { ReportChanges } from '@/lib/review';
 import { HOLD_S } from '@/components/Review/helpers/box';
@@ -80,7 +81,7 @@ export function closedEnd(end: number, last: { time: number; type: string } | un
     return end;
   }
   const lands = landings.find((time) => time >= last.time) ?? Infinity;
-  return Math.min(end, last.type === 'fault' ? last.time : Math.min(lands, last.time + CLOSE_S));
+  return Math.min(end, noBall(last) ? last.time : Math.min(lands, last.time + CLOSE_S));
 }
 
 /** The first of the rallies joined together that `k` is one of; `joins` says a rally is joined to the next one. */

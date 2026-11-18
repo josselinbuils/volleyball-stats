@@ -1,3 +1,4 @@
+import { noBall } from '@/helpers/contacts';
 import type { Contact } from '@/lib/match';
 
 /** A point of the 3D scene: court metres, `h` the height above the floor. */
@@ -60,7 +61,7 @@ function placeOf(c: Contact, places: Places): Placed3 | null {
 export function ball3dAt(contacts: Contact[], time: number, places: Places = null): Point3 | null {
   // A playing fault is no touch of the ball.
   const pts = contacts.flatMap((c) => {
-    const at = c.type === 'fault' ? null : placeOf(c, places);
+    const at = noBall(c) ? null : placeOf(c, places);
     return at ? [at] : [];
   });
   if (!pts.length) {

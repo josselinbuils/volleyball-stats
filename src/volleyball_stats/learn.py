@@ -143,7 +143,8 @@ def from_checked(match: Path, page: dict, fps: float) -> dict[str, Score]:
     shown = mine = 0
     for k, r in rallies:
         start, end = round(r["start"] * fps), round(r["end"] * fps)
-        truth = [c for c in page["contacts"] if c["rally"] == k]
+        # What the review adds without a touch of the ball, the pipeline cannot find.
+        truth = [c for c in page["contacts"] if c["rally"] == k and c["type"] not in web.NO_BALL]
         auto = [x for x in rows if start - lead <= int(x["frame"]) <= end]
         frames = [int(x["frame"]) for x in auto]
         shown, mine = shown + len(truth), mine + len(auto)

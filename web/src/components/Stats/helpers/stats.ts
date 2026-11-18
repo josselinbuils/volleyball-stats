@@ -1,5 +1,5 @@
 import type { Contact, Group, Person } from '@/lib/match';
-import { isTouch } from '@/helpers/contacts';
+import { isTouch, noBall } from '@/helpers/contacts';
 import { playerKey } from '@/helpers/players';
 import type { Drop } from '@/components/Stats/helpers/between';
 
@@ -187,9 +187,12 @@ export function blamed(contacts: Contact[]): Set<number> {
 }
 
 /** The stats of the touches `mine` holds; `missedAce` holds the aces counted against them, as
- * receptions and faults, but those a reception touched: that touch counts. A fault put on a teammate's
- * touch (`cause`) is that touch's, graded 0, and no longer its own touch's, which is left ungraded. */
-export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missedAce: (c: Contact) => boolean): Stats {
+ * receptions and faults, but those a reception touched or the review says a player let fall: that one counts. A fault put
+ * on a teammate's touch (`cause`) is that touch's, graded 0, and no longer its own touch's, which is left ungraded. A ball
+ * let fall (`missed`) is a fault, a missed reception after the other team's serve, a missed dig after their other touches.
+ * `shares` holds the faults shared with them (`partner`): a ball let fall counts for them as for its player, another fault
+ * as a fault alone. */
+export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missedAce: (c: Contact) => boolean, shares: (c: Contact) => boolean = () => false): Stats {
   const out = Object.fromEntries(STATS.map((s) => [s, [] as Contact[]])) as Stats;
   const charged = blamed(contacts);
   for (const [k, c] of contacts.entries()) {
@@ -200,21 +203,33 @@ export function stats(contacts: Contact[], mine: (c: Contact) => boolean, missed
     const graded = (grade: number | null) => (excused ? null : taken ? 0 : grade);
     const ace = c.type === 'serve' && c.result === 'point';
     // A reception touched and missed counts as its own fault, even after the ball hit the net.
-    const touched = ace && contacts.slice(k + 1).some((n) => n.rally === c.rally && isTouch(n));
+    const touched = ace && contacts.slice(k + 1).some((n) => n.rally === c.rally && (isTouch(n) || n.type === 'missed'));
     if (ace && !touched && missedAce(c)) {
       out.receptions.push(c);
       out.missed.push(c);
       out.faults.push(c);
       out.rated.push(c);
     }
-    // A playing fault is a fault of its player, no touch of the ball.
-    if (c.type === 'fault' && mine(c)) {
-      if (fault) {
+    const shared = c.result === 'error' && !mine(c) && shares(c);
+    if (c.type === 'missed' && (mine(c) || shared)) {
+      out.faults.push(c);
+      const before = contacts.slice(0, k).findLast((n) => n.rally === c.rally && isTouch(n));
+      if (before && before.g !== c.g) {
+        const [stats, faults, rated] = before.type === 'serve' ? (['receptions', 'missed', 'rated'] as const) : (['digs', 'digFaults', 'digRated'] as const);
+        out[stats].push(c);
+        out[faults].push(c);
+        out[rated].push(c);
+      }
+      continue;
+    }
+    // A playing fault is a fault of its player, no touch of the ball; a fault shared with them too.
+    if ((c.type === 'fault' && mine(c)) || shared) {
+      if (fault || shared) {
         out.faults.push(c);
       }
       continue;
     }
-    if (!isTouch(c) || !mine(c)) {
+    if (noBall(c) || !isTouch(c) || !mine(c)) {
       continue;
     }
     out.touches.push(c);
@@ -320,7 +335,7 @@ export function mvp(found: Line[], seconds: (person: number) => number): number 
   return kept[0]?.id ?? null;
 }
 
-/** The table of team `g`: its identified players who touched the ball or missed an ace, most touches
+/** The table of team `g`: its identified players who touched the ball, missed an ace or made a fault, most touches
  * first, then the touches of no identified player and the whole team. A player is the identities
  * sharing their `playerKey`. A touch is a player's when they play for the touch's team: a track
  * swapping players across the net can lend it the other's. A ball of `dropped` counts for each of
@@ -344,11 +359,12 @@ export function lines(contacts: Contact[], people: Record<string, Person>, g: Gr
           contacts,
           (c) => c.g === g && owner(c.person, g) === key,
           (c) => owner(c.receiver, g) === key,
+          (c) => c.g === g && owner(c.partner, g) === key,
         ),
         between: between((k) => k === key),
       },
     }))
-    .filter((line) => line.stats.touches.length || line.stats.missed.length)
+    .filter((line) => line.stats.touches.length || line.stats.faults.length)
     .sort((a, b) => b.stats.touches.length - a.stats.touches.length);
   const rest = {
     ...stats(
@@ -366,5 +382,5 @@ export function lines(contacts: Contact[], people: Record<string, Person>, g: Gr
     ),
     between: between(() => true),
   };
-  return [...players, ...(rest.touches.length || rest.missed.length ? [{ id: 'rest' as const, stats: rest }] : []), { id: 'total', stats: total }];
+  return [...players, ...(rest.touches.length || rest.faults.length ? [{ id: 'rest' as const, stats: rest }] : []), { id: 'total', stats: total }];
 }

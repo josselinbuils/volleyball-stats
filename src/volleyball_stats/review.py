@@ -53,7 +53,7 @@ CROP_PX, CROP_MARGIN = 448, 0.15
 # 4K readers at once in the server, its pictures and its new cards' together: about 1 GB each; 7 at once beside another job
 # froze the PC (15 Nov).
 READERS = 2
-KINDS = ("same", "different", "not_player", "cut", "team", "touch", "rally", "receiver", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee", "wrong")
+KINDS = ("same", "different", "not_player", "cut", "team", "touch", "rally", "receiver", "partner", "action", "winner", "added", "end", "join", "split", "pinned", "locked", "redo", "referee", "wrong")
 # Named players on court during more than TOGETHER of a card's time are not suggested for it: on
 # the first ASPOM match, the right name overlapped 0-7%, the others 18-99%.
 TOGETHER = 0.15
@@ -676,8 +676,8 @@ def touches_in(actions: list[dict], window: tuple[int, int]) -> list[dict]:
 
 
 def aces(page: dict | None) -> list[tuple[dict, dict | None, int]]:
-    """The aces of the page no touch follows in their rally, those its stats count as missed
-    receptions (stats.ts), each with the contact after it (the landing, None when unseen) and its
+    """The aces of the page no touch follows in their rally, nor a ball the review says a player let fall, those its stats
+    count as missed receptions (stats.ts), each with the contact after it (the landing, None when unseen) and its
     rally's key (an ace may be no play at all); a contact as {"frame", "team"}."""
     if page is None:
         return []
@@ -763,8 +763,9 @@ def page_data(site: Path) -> dict | None:
 
 
 # Touches a report's corrections can give, and their results.
-# "fault": a fault made without the ball (net, centre line, rotation), only the review adds it.
-TOUCH_TYPES, RESULTS = ("serve", "pass", "set", "attack", "relance", "block", "dig", "fault"), ("play", "point", "error")
+# "fault": a fault made without the ball (net, centre line, rotation), "missed": a ball its player should have played, let
+# fall untouched; only the review adds them (`web.NO_BALL`).
+TOUCH_TYPES, RESULTS = ("serve", "pass", "set", "attack", "relance", "block", "dig", "fault", "missed"), ("play", "point", "error")
 # A report outside every rally window is about the one starting up to REPORT_BEFORE_S after it or
 # ending up to REPORT_AFTER_S before it (a viewer reports while it plays or just after); the page's report button labels
 # it so (web/src/lib/playlist.ts, rallyReported).
@@ -808,7 +809,7 @@ def odd_heights(page: dict, places: list) -> dict[int, dict[str, list[float]]]:
     out: dict[int, dict[str, list[float]]] = defaultdict(dict)
     before, run = None, 0
     for i, c in sorted(enumerate(page["contacts"]), key=lambda x: (x[1]["rally"], x[1]["t"])):
-        if c["type"] in web.NO_PLAYER or c["type"] == "fault":
+        if c["type"] in web.NO_PLAYER or c["type"] in web.NO_BALL:
             continue
         if before is not None and before["rally"] != c["rally"]:
             before, run = None, 0
@@ -868,7 +869,7 @@ def unusual(page: dict, places: list | None = None, done: set[int] = frozenset()
     before (unless the referee got that point wrong: the serve may follow what really happened), no winner (with teams), a set's last rally ending off the final score given ("scoreOff",
     its id with the score: asked again once it moves), over GAP_S between two touches, a server out of their team's order
     (`rotation_slips`), and, on the first rally either plays, two players of a team with one jersey.
-    A playing fault ("fault") is no touch of the ball in the order of touches; one ends the rally as a fault does. The same rally
+    A playing fault or a ball let fall (`web.NO_BALL`) is no touch of the ball in the order of touches; one ends the rally as a fault does. The same rally
     and reason keep the same id: one handled is not asked again. `shown` names who it is about."""
     out = []
     rallies = page["rallies"]
@@ -879,8 +880,8 @@ def unusual(page: dict, places: list | None = None, done: set[int] = frozenset()
     heights = odd_heights(page, places) if places else {}
     for k, r in enumerate(rallies):
         touches = [c for c in page["contacts"] if c["rally"] == k and c["type"] not in web.NO_PLAYER]
-        # The touches of the ball, playing faults aside.
-        played = [c for c in touches if c["type"] != "fault"]
+        # The touches of the ball, playing faults and balls let fall aside.
+        played = [c for c in touches if c["type"] not in web.NO_BALL]
         serves = [c for c in played if c["type"] == "serve"]
         why = []
         if not touches:
@@ -1058,7 +1059,7 @@ def not_over(page: dict, crossed: list[int], done: set[int] = frozenset()) -> li
     Second match: 17 flags, 16 on a correction; first match: 10, 10."""
     fps = page["fps"]
     at = np.array(crossed, dtype=int)
-    last = {c["rally"]: c for c in page["contacts"] if c["type"] not in web.NO_PLAYER and c["type"] != "fault"}
+    last = {c["rally"]: c for c in page["contacts"] if c["type"] not in web.NO_PLAYER and c["type"] not in web.NO_BALL}
     out = []
     for k, c in last.items():
         r = page["rallies"][k]
@@ -1116,11 +1117,24 @@ def cause_of(change: dict) -> dict:
         return {"cause": None}
 
 
+def partner_of(change: dict, frame: int, team: int, given: dict[tuple[int, int], dict]) -> list[dict]:
+    """A correction's `partner`, the second player ("TEAM:IDENTITY") its fault is shared with, as `partner` answers (`touch`
+    ones' shape): no one for "none", nothing when the correction says nothing of it."""
+    said = change.get("partner")
+    if said == "none":
+        return touch_answer({"frame": frame, "team": team}, "nobody", given)["touch"]
+    if not said:
+        return []
+    t, i = (int(v) for v in str(said).split(":"))
+    return touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
+
+
 def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int, int]], given: dict[tuple[int, int], dict], lead: int, keys: list[int] | None = None) -> dict:
     """What the corrections made in the review add to identity_answers.json, anywhere in the match
     (the page's touches' `teams` by frame, its rally `windows` and the `keys` naming them, their
     starts by default): a touch's player ("TEAM:IDENTITY") or none ("none", no touch) as `touch`
-    answers, its type or result as `action` ones; a touch added (frame, team, type, result, player)
+    answers, its type or result as `action` ones, the second player a fault is shared with ("TEAM:IDENTITY", "none" for no
+    one) as `partner` ones; a touch added (frame, team, type, result, player, partner)
     as an `added` one with those, in its rally (`window_of`); a rally's (`rallies`, by its key) no
     play (`rally`), winner (`winner`), end frame (`end`), joining the next one (`join`) or being
     replayed, or no longer (`redo`), the referee giving the point to the wrong team, or no longer
@@ -1150,6 +1164,7 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
         if c.get("player"):
             t, i = (int(v) for v in str(c["player"]).split(":"))
             out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
+        out["partner"] += partner_of(c, frame, team, given)
     for c in changes.get("touches", []):
         # A page without its touches' frames gives them from their time, a frame off at times.
         frame = next((f for f in (int(c["frame"]), int(c["frame"]) - 1, int(c["frame"]) + 1) if f in teams), int(c["frame"]))
@@ -1161,9 +1176,12 @@ def report_answer(changes: dict, teams: dict[int, int], windows: list[tuple[int,
         elif c.get("player"):
             t, i = (int(v) for v in str(c["player"]).split(":"))
             out["touch"] += touch_answer({"frame": frame, "team": t}, f"player:{t}:{i}", given)["touch"]
+        out["partner"] += partner_of(c, frame, team, given)
         fix = {**{k: c[k] for k, allowed in (("type", TOUCH_TYPES), ("result", RESULTS)) if c.get(k) in allowed}, **cause_of(c)}
         if fix:
             out["action"].append({"frame": frame, **fix})
+    if not out["partner"]:
+        del out["partner"]
     starts = set(keys)
     for r in changes.get("rallies", []):
         start = int(r["start"])
@@ -1832,7 +1850,7 @@ def pinned(page: dict | None, keys: list[int]) -> list[dict]:
 
 def locked(page: dict | None, keys: list[int], given: dict[tuple[int, int], dict]) -> list[dict]:
     """An answer locking the rallies checked (`keys`) as `page` shows them: each touch's named
-    player (`touch`), action and result (`action`), and the touches themselves (`locked`: the page
+    player (`touch`), action and result (`action`), the second player of a fault shared (`partner`), and the touches themselves (`locked`: the page
     keeps those, re-adds one a rerun loses and lets in no other but those the review adds). None
     without one to lock. The page shows them already: applied."""
     out: dict[str, list] = defaultdict(list)
@@ -1851,6 +1869,9 @@ def locked(page: dict | None, keys: list[int], given: dict[tuple[int, int], dict
             p = people.get(str(c["person"]), people.get(c["person"])) if c.get("person") is not None else None
             if p and p.get("number") is not None and p["team"] == c["team"]:
                 out["touch"] += touch_answer({"frame": frame, "team": c["team"]}, f"player:{p['team']}:{p['number']}", given)["touch"]
+            q = people.get(str(c["partner"]), people.get(c["partner"])) if c.get("partner") is not None else None
+            if q and q.get("number") is not None:
+                out["partner"] += touch_answer({"frame": frame, "team": q["team"]}, f"player:{q['team']}:{q['number']}", given)["touch"]
         out["locked"].append({"start": r["key"], "touches": mine})
     return [{"id": "lock", "choice": "locked", **out, "applied": True}] if out else []
 

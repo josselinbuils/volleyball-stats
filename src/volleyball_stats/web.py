@@ -77,8 +77,12 @@ POSITIONS_S, HOLD_S = 300, 0.5
 OUTLIER_M, OUTLIER_S, FILL_S, FILL_M_S, SMOOTH_S, TEAM_ON_COURT = 0.5, 0.5, 5.0, 7.0, 0.2, 6
 # How finely the page's files place a player, fine enough for a walk to stay even between samples (`docs/history.md`).
 POSITION_CM = 2
-# The touches that lose a serve, an attack or a block coming at them: not a serve, nor an attack of their own.
-LOSING_TOUCHES = ("pass", "set", "relance", "block", "dig")
+# The touches that lose a serve, an attack or a block coming at them: not a serve, nor an attack of their own; nor the
+# ball they let fall (`missed`).
+LOSING_TOUCHES = ("pass", "set", "relance", "block", "dig", "missed")
+# What the review adds without a touch of the ball, a fault of its player each: a playing fault (net, centre line,
+# rotation) and a ball they should have played, untouched (`missed`).
+NO_BALL = ("fault", "missed")
 # The cards' pictures: in the pieces of a player the review shows and the user left unmarked (sure
 # to be them), PHOTO_SAMPLES moments each, alone, on the court (ON_COURT m around it at most: not
 # walking past the camera) and with room around them for a centred picture (ROOM of their height
@@ -282,7 +286,7 @@ def with_added(
     within `same` frames of one, of its team, or within `floor` frames, a floor or net, is that touch
     found again (a rerun) and goes, the added touch taking its window (started `lead` frames early):
     a rerun moves the windows the answers named. A touch's team and type are those the review gave it
-    (`said`, `kinds`, by frame), else its own. A playing fault is no touch of the ball: none goes for it.
+    (`said`, `kinds`, by frame), else its own. A playing fault or a ball let fall is no touch of the ball: none goes for it.
     A block and another touch are two: the same player may play the ball again right after their block.
     So are two touches the review names (`named`, by frame) different players of: a double block."""
     starts = {start: k for k, (start, _) in enumerate(windows)}
@@ -297,7 +301,7 @@ def with_added(
 
     def same_touch(r: dict, a: dict) -> bool:
         apart = abs(int(r["frame"]) - a["frame"])
-        if a["type"] == "fault" or int(r["frame"]) in given:
+        if a["type"] in NO_BALL or int(r["frame"]) in given:
             return False
         if r["type"] in NO_PLAYER:
             return apart <= floor
@@ -352,10 +356,12 @@ def receivers(found: list[dict], typed: list[dict], players: dict[int, list[dict
     missed it (`receiver`): the identity the review `said` (by the serve's frame), None when it said
     no one; else the nearest to where it lands in its rally on the other side; unknown (no key)
     without such a landing or a player there, or when a reception touched it. A player said of the serve's own team means no serve:
-    a window starting late took their touch for one; it becomes their missed reception."""
+    a window starting late took their touch for one; it becomes their missed reception. One the review says a player let
+    fall (`missed`) is theirs: no receiver to add."""
     said = said or {}
+    let_fall = {c["rally"] for c in found if c["type"] == "missed"}
     for k, (contact, after) in enumerate(zip(found, found[1:] + [None])):
-        if contact["type"] != "serve" or contact["result"] != "point":
+        if contact["type"] != "serve" or contact["result"] != "point" or contact["rally"] in let_fall:
             continue
         frame = int(typed[k]["frame"])
         if frame in said and said[frame] is not None and said[frame][0] == contact["team"]:
@@ -368,6 +374,18 @@ def receivers(found: list[dict], typed: list[dict], players: dict[int, list[dict
             found_by = receiver(after, players.get(at, []), lambda track: who(track, at))
             if found_by is not None:
                 contact["receiver"] = found_by
+
+
+def partnered(found: list[dict], typed: list[dict], said: dict[int, tuple[int, int] | None], who: Who) -> None:
+    """The faults of `found` (from actions CSV rows `typed`) the review shares with a second player (`said`, the identity by
+    the fault's frame, None for no one): `partner`, that player's key. The statistics count the fault for both, once for the
+    team (the owner's rule, 18 Nov)."""
+    for contact, row in zip(found, typed):
+        frame = int(row["frame"])
+        if said.get(frame) is not None and contact["result"] == "error" and contact["type"] not in NO_PLAYER:
+            partner = who(None, frame, said[frame])
+            if partner != contact.get("person"):
+                contact["partner"] = partner
 
 
 def receiver(landing: dict, here: list[dict], who: Callable[[int], int | None]) -> int | None:
@@ -525,7 +543,8 @@ def poster(video: Path, frame: int, path: Path) -> bool:
 def touched(match: Path, given: dict[tuple[int, int], dict], kind: str = "touch") -> dict[int, tuple[int, int] | None]:
     """The touches the review's answers settle, by frame: the player's (team, identity), found by
     the name `given` them (it outlives the identities' numbers), else by number; None for no touch.
-    With `kind` "receiver", the aces' receivers by the serve's frame, None for no one."""
+    With `kind` "receiver", the aces' receivers by the serve's frame, None for no one; "partner", the second player a fault
+    is shared with, by the fault's frame."""
     path = match / "identity_answers.json"
     answers = json.loads(path.read_text()).get(kind, []) if path.exists() else []
     by_name = {(team, g["name"]): (team, number) for (team, number), g in given.items() if g.get("name")}
@@ -611,8 +630,8 @@ def followed(rallies: list[dict], found: list[dict], redo: frozenset[int] | set[
     touch says what really happened."""
     replayed = {k for k, rally in enumerate(rallies) if rally.get("key") in redo}
     for c in found:
-        # A playing fault is a fault, whatever the rally's winner said.
-        if c["type"] == "fault":
+        # A playing fault or a ball let fall is a fault, whatever the rally's winner said.
+        if c["type"] in NO_BALL:
             c["result"] = "error"
         elif c["rally"] in replayed and c["type"] not in NO_PLAYER:
             c["result"] = "play"
@@ -729,7 +748,7 @@ def blamed(found: list[dict], typed: list[dict], causes: dict[int, int | None]) 
         on = at.get(causes.get(frame))
         if (
             on is not None and c["result"] == "error" and labelled(c) == "error" and c["type"] not in NO_PLAYER
-            and on["rally"] == c["rally"] and on["t"] < c["t"] and on["type"] not in (*NO_PLAYER, "fault") and on.get("team") and on["team"] == c.get("team")
+            and on["rally"] == c["rally"] and on["t"] < c["t"] and on["type"] not in (*NO_PLAYER, *NO_BALL) and on.get("team") and on["team"] == c.get("team")
         ):
             c["cause"] = causes[frame]
 
@@ -929,6 +948,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
     followed(rallies, found, said_on(match, "redo", "redo"), wrong)
     missed = touched(match, given, "receiver")
     receivers(found, actions, by_frame, who, missed)
+    partnered(found, actions, touched(match, given, "partner"), who)
     times = playing_time(samples, step, windows, [r["set"] for r in rallies], fps)
     unjoined(table, leftovers(on_court(identities, fps), given))
     brief(found, actions, table, times, said, missed)
@@ -990,7 +1010,7 @@ def line_calls(data: dict) -> list[dict]:
     camera zooms on their bounce (`framing.camera`)."""
     by_rally: dict[int, list[dict]] = {}
     for c in data["contacts"]:
-        if c["type"] != "fault":
+        if c["type"] not in NO_BALL:
             by_rally.setdefault(c["rally"], []).append(c)
     out = []
     for k, rally in enumerate(data["rallies"]):

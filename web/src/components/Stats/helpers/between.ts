@@ -13,10 +13,18 @@ export interface Drop {
 }
 
 /** The balls that landed in untouched, the two teammates nearest to where they landed both within
- * REACH_M and about as near: the nearer at least EVEN of the other's distance. */
+ * REACH_M and about as near: the nearer at least EVEN of the other's distance. A ball the review says a player let fall
+ * (`missed`) is between them and the one it shares the fault with, else no one's: the review's word replaces the guess. */
 export function drops(contacts: Contact[], people: Record<string, Person>): Drop[] {
   const out: Drop[] = [];
+  const said = new Set(contacts.filter((c) => c.type === 'missed').map((c) => c.rally));
   for (const [k, c] of contacts.entries()) {
+    if (c.type === 'missed' && c.person != null && c.partner != null) {
+      out.push({ landing: c, pair: [c.person, c.partner] });
+    }
+    if (said.has(c.rally)) {
+      continue;
+    }
     // A point of the touch before is the ball landing in, on the other side of the net.
     const before = contacts[k - 1];
     if (c.type !== 'floor' || c.x === null || c.y === null || before?.rally !== c.rally || before.result !== 'point' || !c.around) {

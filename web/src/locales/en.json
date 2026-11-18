@@ -131,6 +131,7 @@
     "block": "Block",
     "dig": "Dig",
     "fault": "Playing fault",
+    "missed": "Missed ball",
     "floor": "Ball on the floor",
     "net": "Into the net"
   },
@@ -174,6 +175,11 @@
       "play": "Playing fault",
       "point": "Playing fault",
       "error": "Playing fault"
+    },
+    "missed": {
+      "play": "Missed ball",
+      "point": "Missed ball",
+      "error": "Missed ball"
     }
   },
   "short": {
@@ -185,6 +191,7 @@
     "block": "B",
     "dig": "D",
     "fault": "PF",
+    "missed": "MB",
     "floor": "F",
     "net": "N"
   },
@@ -433,6 +440,7 @@
     "reportResult": "Result",
     "cause": "Who the fault is on",
     "causeSelf": "Own fault",
+    "partner": "Fault shared with",
     "causeOf": "Because of: {{touch}}",
     "reportWinner": "Rally won by",
     "reportComment": "Comment",
@@ -790,7 +798,7 @@
       "unattackedDigs": "The digs after which the team sends the ball back or loses it without attacking.",
       "points": "Balls played that land in the other court.",
       "faults": "Balls out, into the net or landing on the player's own side, aces conceded and playing faults included.",
-      "between": "Balls that landed untouched within 2.5 m of two teammates about as close as each other. Calling the ball wins them: “Mine!”",
+      "between": "Balls that landed untouched within 2.5 m of two teammates about as close as each other, or left by two players in the review. Calling the ball wins them: “Mine!”",
       "strengths": "What a player brings to the team: what they do better than the others, their presence on the court, their reliability, what they give the others and their points when it counts. Two at most, the rarest in their team first, each from a minimum. Click to replay these moments.",
       "toWorkOn": "The one thing a player misses most clearly compared with the rest of their team, with at least 5 attempts on each side and a 20-point gap. Click to replay these moments.",
       "time": "Time on the court during the rallies (minutes:seconds).",
@@ -1309,7 +1317,8 @@
         "set": "Sets lost",
         "relance": "Free balls lost",
         "block": "Losing blocks",
-        "fault": "Playing faults"
+        "fault": "Playing faults",
+        "missed": "Balls left"
       },
       "tips": {
         "serve": "In tight moments, a serve in the court makes the other team build a play.",
@@ -1319,7 +1328,8 @@
         "set": "Get under the ball and call who you are setting.",
         "relance": "With no attack on, send it high and deep rather than forcing it.",
         "block": "Jump straight up, hands above the net, without touching it.",
-        "fault": "Watch the net, the centre line and the rotation."
+        "fault": "Watch the net, the centre line and the rotation.",
+        "missed": "Call “Mine!” and go for the ball."
       }
     },
     "setters": {
@@ -1466,7 +1476,13 @@
       "relanceFaultNamed": "{{name}} can't play it back. Point {{team}}, {{score}}.",
       "relanceFaultNamedSet": "{{name}} can't play it back. {{team}} take the set {{score}}.",
       "faultFaultNamed": "A playing fault by {{name}}. Point {{team}}, {{score}}.",
-      "faultFaultNamedSet": "A playing fault by {{name}}. {{team}} take the set {{score}}."
+      "faultFaultNamedSet": "A playing fault by {{name}}. {{team}} take the set {{score}}.",
+      "missedFault": "The ball drops on {{other}}'s side. Point {{team}}, {{score}}.",
+      "missedFaultSet": "The ball drops on {{other}}'s side. {{team}} take the set {{score}}.",
+      "missedFaultNamed": "{{name}} lets the ball drop. Point {{team}}, {{score}}.",
+      "missedFaultNamedSet": "{{name}} lets the ball drop. {{team}} take the set {{score}}.",
+      "missedFaultBetween": "The ball drops between {{name}} and {{partner}}. Point {{team}}, {{score}}.",
+      "missedFaultBetweenSet": "The ball drops between {{name}} and {{partner}}. {{team}} take the set {{score}}."
     },
     "voiceCredit": "French synthetic voice: Kokoro, SIWIS corpus (CC BY 4.0)."
   },

@@ -5,7 +5,7 @@ import { playerMarks } from '@/helpers/players';
 import { ofName } from '@/lib/format';
 
 /** `fault`: a playing fault, made without the ball (net, centre line, rotation); only the review adds it. */
-export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault', 'floor', 'net'] as const;
+export const TYPES = ['serve', 'pass', 'set', 'attack', 'relance', 'block', 'dig', 'fault', 'missed', 'floor', 'net'] as const;
 /** The two teams, or without player tracks the two sides of the net: 1 left, 2 right. */
 export const GROUPS = [1, 2] as const;
 
@@ -58,6 +58,9 @@ export interface Contact {
   /** For an ace, key of the receiver who missed it: the review's answer, else the nearest to where it
    * landed; null when the review says no one did, absent when unknown. */
   receiver?: number | null;
+  /** On a fault the review shares with a second player, that player's key: the statistics count it for both, once for
+   * the team (`web.partnered`). */
+  partner?: number;
   /** A serve's speed in mid-flight, in km/h, where its flight is well seen. */
   speed?: number;
   /** An attack's speed over its flight to the next touch, in km/h, where that flight is well seen. */
