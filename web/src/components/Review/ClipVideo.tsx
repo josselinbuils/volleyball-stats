@@ -78,6 +78,7 @@ function saveFlag(key: string, on: boolean) {
  * `touches`: the ball's touches (times, sorted), which a button beside the speeds slows the video down at.
  * `spans`: in free play, the rallies drawn on the bar, as they stand with the corrections (the page's by default).
  * `captionEdit`: what a click on the caption opens under it, the video paused, until `close` is called or the caption changes.
+ * `captionAction`: a button beside the caption, on its side with more room.
  * `onPaused`: told whenever the video pauses or plays.
  * `extra`: at the right end of the buttons' line, after the sound's. */
 export function ClipVideo({
@@ -95,6 +96,7 @@ export function ClipVideo({
   touches,
   spans,
   captionEdit,
+  captionAction,
   onPaused,
   extra,
 }: {
@@ -112,6 +114,7 @@ export function ClipVideo({
   touches?: number[];
   spans?: { start: number; end: number }[];
   captionEdit?: (close: () => void) => ReactNode;
+  captionAction?: ReactNode;
   onPaused?: (paused: boolean) => void;
   extra?: ReactNode;
 }) {
@@ -528,30 +531,34 @@ export function ClipVideo({
           </div>
           <VideoError video={video} />
           {caption && (
-            <Tip label={t(captionEdit && caption.key ? 'review.captionEdit' : 'review.captionMove')}>
-              <span
-                onPointerDown={(event) => {
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt, moved: false };
-                }}
-                onPointerMove={dragCaption}
-                onPointerUp={dropCaption}
-                onPointerCancel={dropCaption}
-                onDoubleClick={() => {
-                  setCaptionAt(CAPTION_AT);
-                  try {
-                    localStorage.removeItem(CAPTION_KEY);
-                  } catch {
-                    // Kept for this page only.
-                  }
-                }}
-                style={{ left: `${captionAt.x * 100}%`, top: `${captionAt.y * 100}%` }}
-                className="absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
-              >
-                <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
-                <span className="truncate">{caption.text}</span>
-              </span>
-            </Tip>
+            // The action hangs beside the caption: the caption stays where it was dragged.
+            <div className="absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2" style={{ left: `${captionAt.x * 100}%`, top: `${captionAt.y * 100}%` }}>
+              <Tip label={t(captionEdit && caption.key ? 'review.captionEdit' : 'review.captionMove')}>
+                <span
+                  onPointerDown={(event) => {
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt, moved: false };
+                  }}
+                  onPointerMove={dragCaption}
+                  onPointerUp={dropCaption}
+                  onPointerCancel={dropCaption}
+                  onDoubleClick={() => {
+                    setCaptionAt(CAPTION_AT);
+                    try {
+                      localStorage.removeItem(CAPTION_KEY);
+                    } catch {
+                      // Kept for this page only.
+                    }
+                  }}
+                  className="flex max-w-full cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
+                >
+                  <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
+                  <span className="truncate">{caption.text}</span>
+                </span>
+              </Tip>
+              {/* On the caption's side with more room: it stays on the video. */}
+              {captionAction && <div className={cn('absolute top-1/2 -translate-y-1/2', captionAt.x > 0.6 ? 'right-full mr-2' : 'left-full ml-2')}>{captionAction}</div>}
+            </div>
           )}
           {/* Under the caption, as wide as a field needs. */}
           {caption && captionEdit && editing !== null && editing === caption.key && (

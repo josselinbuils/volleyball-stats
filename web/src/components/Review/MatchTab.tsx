@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Maximize, Minimize } from 'lucide-react';
+import { Check, Maximize, Minimize } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tip } from '@/components/Tip';
 import { VideoButton } from '@/components/VideoButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -12,7 +14,7 @@ import { liveReports, openingTime, pageSpans, REPORT_LEAD_S, type Span } from '@
 import { ClipVideo } from '@/components/Review/ClipVideo';
 import { MatchTimeline } from '@/components/Review/MatchTimeline';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
-import { RESULTS, ReportEditor, SELECT, TYPES, type Caption } from '@/components/Review/ReportEditor';
+import { RESULTS, ReportEditor, SELECT, TYPES, VALIDATE_KEY, type Caption } from '@/components/Review/ReportEditor';
 import { Shortcuts } from '@/components/Review/Shortcuts';
 import { slowStarts } from '@/components/Review/helpers/scrub';
 import type { HeightDoubt } from '@/components/Review/helpers/checks';
@@ -173,6 +175,24 @@ export function MatchTab({
                     />
                   </div>
                 ))
+              }
+              captionAction={
+                caption?.validate && (
+                  <Tip label={t('review.withKey', { label: caption.validate.label, key: VALIDATE_KEY.toUpperCase() })}>
+                    {/* As tall as the caption; on a phone its icon only, to stay on the video. */}
+                    <Button
+                      size="sm"
+                      className="h-8 rounded-full px-3 max-sm:w-8 max-sm:px-0"
+                      aria-label={caption.validate.label}
+                      busy={caption.validate.busy}
+                      disabled={caption.validate.disabled}
+                      onClick={caption.validate.run}
+                    >
+                      <Check aria-hidden />
+                      <span className="max-sm:sr-only">{t('review.validate')}</span>
+                    </Button>
+                  </Tip>
+                )
               }
               spans={spans}
               onPaused={(paused) => (playing.current = !paused)}

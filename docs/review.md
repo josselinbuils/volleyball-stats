@@ -221,7 +221,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ### Checking a rally
 
-- "Valider" in a rally's header, or beside its winner under the video, saves and checks it: green, its reports handled, until a new report. With a warning that
+- "Valider" in a rally's header, or beside the video's caption on its rally's last touch, saves and checks it: green, its reports handled, until a new report. With a warning that
   checking leaves (not a doubt), it asks first ("Valider quand même"). A press in the list holds it still 3 s, as leaving a
   field does: scrolling to the video's touch moved the button from under the pointer, and the click was lost. The button then
   becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections.

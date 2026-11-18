@@ -88,6 +88,8 @@ export type Caption = {
   setType?: (type: string) => void;
   setResult?: (result: string) => void;
   setPlayer?: (player: string) => void;
+  /** Its rally's last touch: checks that rally. */
+  validate?: { label: string; busy: boolean; disabled: boolean; run: () => void };
 };
 
 /** `cause`: the frame of the teammate's touch a fault is put on, 0 for nobody else. */
@@ -479,24 +481,6 @@ export function ReportEditor({
   );
   const named = coming && !joins(coming.rally - 1) ? coming : inHere;
   const caption = named && (named.removed ? `${t(`types.${named.type}`)} · ${t('review.reportRemoved')}` : `${t(`actions.${named.type}.${named.result}`)} · ${who(named.player)}`);
-  useEffect(() => {
-    onCaption?.(
-      named && caption
-        ? {
-            team: named.team,
-            text: caption,
-            key: `t${named.frame}`,
-            type: named.type,
-            result: named.result,
-            player: named.player,
-            likely: likelyFor(named),
-            setType: named.removed ? undefined : (type) => setType(named, type),
-            setResult: named.removed ? undefined : (result) => changeRow(named, { result }),
-            setPlayer: named.removed ? undefined : (who) => setPlayer(named, who),
-          }
-        : null,
-    );
-  }, [caption, named?.team, named?.frame, named?.type, named?.result, named?.player, named && likelyFor(named).join()]);
   useEffect(() => () => onCaption?.(null), []);
   const isCurrent = (o: Timeout) => o.start / match.fps <= now && now < o.end / match.fps;
   const inTimeout = timeouts.find(isCurrent);
@@ -710,6 +694,30 @@ export function ReportEditor({
   };
   // Whether the rally's header offers "Valider".
   const validatable = (k: number) => !isDeleted(k) && !(checked.has(keyOf(k)) && !unsaved.has(keyOf(k))) && !canDelete(k);
+  // The video's caption on its rally's last touch offers "Valider", as the button under the video does.
+  const closing = named && !named.removed && lastOf(joinStart(named.rally, joins)) === named && validatable(named.rally) ? named.rally : null;
+  const validateRef = useRef(validate);
+  validateRef.current = validate;
+  useEffect(() => {
+    onCaption?.(
+      named && caption
+        ? {
+            team: named.team,
+            text: caption,
+            key: `t${named.frame}`,
+            type: named.type,
+            result: named.result,
+            player: named.player,
+            likely: likelyFor(named),
+            setType: named.removed ? undefined : (type) => setType(named, type),
+            setResult: named.removed ? undefined : (result) => changeRow(named, { result }),
+            setPlayer: named.removed ? undefined : (who) => setPlayer(named, who),
+            validate:
+              closing === null ? undefined : { label: t('review.validateRally', { n: closing + 1 }), busy: busyOn(closing), disabled: saving !== null, run: () => void validateRef.current(closing) },
+          }
+        : null,
+    );
+  }, [caption, named?.team, named?.frame, named?.type, named?.result, named?.player, named && likelyFor(named).join(), closing, saving]);
   const onKey = useRef<(event: KeyboardEvent) => void>(() => {});
   onKey.current = (event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
@@ -1226,15 +1234,6 @@ export function ReportEditor({
                   </ToggleGroupItem>
                 </Tip>
               </ToggleGroup>
-              {/* The winner said, the rally is checked from here. */}
-              {validatable(here) && (
-                <Tip label={t('review.withKey', { label: t('review.validateRally', { n: here + 1 }), key: VALIDATE_KEY.toUpperCase() })}>
-                  <Button variant="outline" className="bg-card" busy={busyOn(here)} disabled={saving !== null} onClick={() => void validate(here)}>
-                    <Check aria-hidden />
-                    {t('review.validate')}
-                  </Button>
-                </Tip>
-              )}
             </span>
             <Tip label={t('review.reportWrongCallHelp')}>
               <label className={cn('flex items-center gap-2', winner === null && 'text-muted-foreground')}>
