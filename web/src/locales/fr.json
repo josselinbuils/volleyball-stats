@@ -1129,7 +1129,8 @@
         "digLater": "Une défense ou une réception après une touche de l'équipe",
         "twoSets": "Deux passes de suite",
         "endsOnSet": "L'échange finit sur une passe",
-        "pointOnTouch": "Un point sur une réception ou une défense"
+        "pointOnTouch": "Un point sur une réception ou une défense",
+        "endsInPlay": "L'échange finit sans point ni faute"
       }
     },
     "details": "Préciser",

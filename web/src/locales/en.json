@@ -1129,7 +1129,8 @@
         "digLater": "A dig or reception after the team's own touch",
         "twoSets": "Two sets in a row",
         "endsOnSet": "The rally ends on a set",
-        "pointOnTouch": "A point on a reception or dig"
+        "pointOnTouch": "A point on a reception or dig",
+        "endsInPlay": "The rally ends without a point or a fault"
       }
     },
     "details": "Add details",

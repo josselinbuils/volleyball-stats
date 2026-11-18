@@ -26,7 +26,19 @@ describe('warningTimes', () => {
 
 describe('problems', () => {
   const c = (type: string, team: number, player = '', result = 'play'): Checked => ({ type, team, player, result });
-  const marks = (found: ReturnType<typeof problems>) => Object.fromEntries(found.touch);
+  // Without how the rally ends: most rallies here stop short (its own test below).
+  const marks = (found: ReturnType<typeof problems>) =>
+    Object.fromEntries([...found.touch].flatMap(([k, list]) => (list.some((p) => p !== 'endsInPlay') ? [[k, list.filter((p) => p !== 'endsInPlay')]] : [])));
+
+  it('marks a rally not to replay ending without a point or a fault, on its last touch', () => {
+    const of = (rally: Checked[], teams = true) => Object.fromEntries(problems(rally, 1, null, teams).touch);
+    expect(of([c('serve', 1), c('pass', 2), c('set', 2), c('attack', 2)])).toEqual({ 3: ['endsInPlay'] });
+    expect(of([c('serve', 1), c('pass', 2), c('set', 2), c('attack', 2, '', 'point')])).toEqual({});
+    expect(of([c('serve', 1, '', 'error')])).toEqual({});
+    expect(of([c('serve', 1), c('pass', 2), c('missed', 1, '', 'error')])).toEqual({});
+    // To replay, or no teams: no winner, no point.
+    expect(of([c('serve', 1), c('pass', 2)], false)).toEqual({});
+  });
 
   it('finds nothing in a clean rally', () => {
     const found = problems([c('serve', 1, '1:2'), c('pass', 2, '2:1'), c('set', 2, '2:3'), c('attack', 2, '2:4', 'point')], 2, 1, true);
@@ -85,7 +97,7 @@ describe('problems', () => {
 
   describe('what may be right after all', () => {
     const at = (type: string, team: number, time: number, result = 'play') => ({ ...c(type, team, '', result), time });
-    const others = ['noServe', 'passWithoutServe', 'serveNotReceived', 'afterPoint', 'afterFault', 'noWinner'];
+    const others = ['noServe', 'passWithoutServe', 'serveNotReceived', 'afterPoint', 'afterFault', 'noWinner', 'endsInPlay'];
     // The touches after a first one, without the problems a rally not starting with a serve has anyway.
     const of = (rally: Checked[], teams = false, validated = false) =>
       Object.fromEntries(
@@ -135,6 +147,6 @@ describe('problems', () => {
     const c = (type: string, team: number, result = 'play', player = '') => ({ type, team, result, player });
     // A rotation fault of the receivers at the serve; then a touch after it.
     const found = problems([c('serve', 1), c('fault', 2, 'error'), c('pass', 2)], 1, 1, true);
-    expect(found.touch).toEqual(new Map([[2, ['afterFault']]]));
+    expect(marks(found)).toEqual({ 2: ['afterFault'] });
   });
 });

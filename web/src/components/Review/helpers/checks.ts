@@ -17,6 +17,7 @@ export type Problem =
   | 'server'
   | 'noWinner'
   | 'gap'
+  | 'endsInPlay'
   | DoubtfulProblem;
 
 /** What the editor finds as the server's automatic reports do (review.unusual): the editor's warning stands for such a report. */
@@ -71,7 +72,8 @@ export function warningTimes(found: { rally: Problem[]; touch: Map<number, Probl
  * those of each touch by its index, on the touch that shows them. `winner` is the rally's,
  * `previous` the winner of the rally before in the same set (null: none, or unknown), `teams`
  * whether the match has teams (no winner then is a problem; a rally to replay says false),
- * `validated` whether the rally is checked as it stands. */
+ * `validated` whether the rally is checked as it stands. A rally not to replay ends on a point or a fault (`endsInPlay`, the
+ * editor's only: its last touch). */
 export function problems(touches: Checked[], winner: number | null, previous: number | null, teams: boolean, validated = false): { rally: Problem[]; touch: Map<number, Problem[]> } {
   const rally: Problem[] = [];
   const touch = new Map<number, Problem[]>();
@@ -139,6 +141,10 @@ export function problems(touches: Checked[], winner: number | null, previous: nu
   }
   if (teams && winner === null) {
     rally.push('noWinner');
+  }
+  const last = touches.at(-1);
+  if (teams && last && last.result !== 'point' && last.result !== 'error') {
+    mark(touches.length - 1, 'endsInPlay');
   }
   if (!validated) {
     doubtful(touches, played, teams, mark);
