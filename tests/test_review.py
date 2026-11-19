@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import analysis, files, presence, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import records, due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
+from volleyball_stats.review import applied_too, to_apply, records, due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -814,10 +814,10 @@ class TestWaiting:
         log = [{**self.entry, "applied": True}]
         (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
 
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "due": None}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "toApply": [], "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "due": None}
         assert waiting(tmp_path, [])["changed"]
         write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Julie", "jersey": None}])
-        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "due": None}
+        assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "toApply": [["names", None]], "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "due": None}
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
         assert waiting(tmp_path, log)["changed"]
 
@@ -851,6 +851,29 @@ class TestWaiting:
 
         assert not waiting(tmp_path, [])["changed"]
         assert waiting(tmp_path, [{"id": "touch:5", "partner": [{"frame": 5}], "applied": True}])["changed"]
+
+    def test_says_what_an_apply_takes_in_by_what_its_answers_are_about(self, tmp_path):
+        log = [
+            self.entry,
+            {"id": "report:a", "choice": "report", "action": [{"frame": 1}], "touch": [{"frame": 1}], "applied": False},
+            {"id": "touch:5", "choice": "player:1:4", "touch": [{"frame": 5}], "applied": False},
+            {"id": "touch:6", "choice": "player:1:4", "touch": [{"frame": 6}], "applied": True},
+            {"id": "piece:3:0", "choice": "skip", "applied": False},
+        ]
+
+        assert to_apply(log, {"answers": True, "jerseys": False, "timeouts": True, "names": False}) == [["players", 1], ["touches", 2], ["timeouts", None]]
+        # Answers changed with none to apply, as after an undo: said so.
+        assert to_apply([], {"answers": True, "jerseys": True, "timeouts": False, "names": True}) == [["answers", None], ["jerseys", None], ["names", None]]
+
+    def test_rallies_checked_locked_at_the_start_are_no_change(self, tmp_path):
+        log = [{**self.entry, "applied": True}]
+        (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
+        lock = [{"id": "lock", "choice": "locked", "action": [{"frame": 5, "type": "serve", "result": "play"}], "locked": [{"start": 1, "touches": []}], "applied": True}]
+
+        assert waiting(tmp_path, lock + log)["changed"]
+        applied_too(tmp_path, lock)
+        assert not waiting(tmp_path, lock + log)["changed"]
+        applied_too(tmp_path / "none", lock)
 
     def test_jersey_numbers_copied_through_the_server_to_the_second_are_no_change(self, tmp_path):
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")

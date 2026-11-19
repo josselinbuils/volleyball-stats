@@ -137,6 +137,10 @@ export interface PhotoMoment {
   crop: string;
 }
 
+/** What an apply takes in (review.to_apply): the answers not applied yet by what they are about, with how many, then the
+ * other parts changed. */
+export type ToApply = ['players' | 'touches' | 'actions' | 'rallies' | 'answers' | 'jerseys' | 'timeouts' | 'names', number | null][];
+
 /** review.js, served by volleyball_stats.review. */
 interface ReviewData {
   width: number;
@@ -151,6 +155,7 @@ interface ReviewData {
   pending: number;
   changed: boolean;
   namesPending: boolean;
+  toApply: ToApply;
   /** The corrections of the reports answered, not applied yet: where each report starts from. */
   corrections: Partial<ReportChanges>;
   /** The rallies checked, by their key. */
@@ -230,6 +235,7 @@ export interface Saved {
   pending?: number;
   changed?: boolean;
   namesPending?: boolean;
+  toApply?: ToApply;
   corrections?: Partial<ReportChanges>;
   checked?: number[];
   rebuilt?: boolean;

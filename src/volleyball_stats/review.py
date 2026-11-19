@@ -1975,6 +1975,42 @@ def given(answers: dict) -> dict:
     return {kind: said for kind, said in answers.items() if said}
 
 
+# What an apply takes in, by what the answers are about (`waiting`'s `toApply`): an answer counts once, under its first.
+ABOUT = {
+    "players": ("same", "different", "not_player", "cut", "team", "join", "split"),
+    "touches": ("touch", "receiver", "partner"),
+    "actions": ("action", "added", "wrong", "redo"),
+    "rallies": ("rally", "winner", "end", "referee"),
+}
+
+
+def to_apply(log: list[dict], changed: dict[str, bool]) -> list[list]:
+    """What an apply takes in, for its button: the answers not applied yet by what they are about, with how many, then
+    `changed`'s parts ("answers" when the answers differ with none of those, as after an undo)."""
+    counts = dict.fromkeys(ABOUT, 0)
+    for e in log:
+        said = [kind for kind in KINDS if e.get(kind)]
+        if not e.get("applied", True) and said:
+            counts[next((a for a, kinds in ABOUT.items() if set(kinds) & set(said)), "rallies")] += 1
+    out = [[about, n] for about, n in counts.items() if n]
+    return out + [[part, None] for part, on in changed.items() if on and not (part == "answers" and out)]
+
+
+def applied_too(match: Path, entries: list[dict]) -> None:
+    """`entries`, saying what the page shows already, first in what the identities were computed from (APPLIED), as they
+    are first in the log: else they would show as answers to apply."""
+    computed = match / APPLIED
+    if not computed.exists():
+        return
+    then = json.loads(computed.read_text())
+    answers = then.setdefault("answers", {})
+    for kind in KINDS:
+        said = [x for e in entries for x in e.get(kind, [])]
+        if said and kind not in ("pinned", "locked"):
+            answers[kind] = said + answers.get(kind, [])
+    files.write_text(computed, json.dumps(json.loads(json.dumps(then))))
+
+
 def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = frozenset()) -> dict:
     """What an apply would take in: the answers saying something not applied yet (those saved
     before the flag were), whether the answers or the jersey numbers, and the names, differ from
@@ -1983,11 +2019,18 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
     `films` to make, players' and highlights, and whether the last learning run saw these answers."""
     computed = match / APPLIED
     now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
+    parts = {
+        "answers": given(now["answers"]) != given(then.get("answers") or {}),
+        # The jersey numbers' time to the second: a copy through the server (`sync`) keeps no less.
+        "jerseys": now["jerseys"] != (None if then.get("jerseys") is None else int(then["jerseys"])),
+        "timeouts": now["timeouts"] != then.get("timeouts", []),
+        "names": now["names"] != then.get("names"),
+    }
     return {
         "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
-        # The jersey numbers' time to the second: a copy through the server (`sync`) keeps no less.
-        "changed": (given(now["answers"]), now["jerseys"], now["timeouts"]) != (given(then.get("answers") or {}), None if then.get("jerseys") is None else int(then["jerseys"]), then.get("timeouts", [])),
-        "namesPending": now["names"] != then.get("names"),
+        "changed": parts["answers"] or parts["jerseys"] or parts["timeouts"],
+        "namesPending": parts["names"],
+        "toApply": to_apply(log, parts),
         "corrections": corrections(log, shown),
         "checked": checked(log),
         "films": film.status(match),
@@ -2517,6 +2560,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     lock = locked(questions.page, [k for k in checked(log) if k not in have], identity.named(questions.table, identity.read_names(match)))
     if lock:
         save(answers, lock + log)
+        applied_too(match, lock)
         print(f"{len(lock[0]['locked'])} rallies checked locked", flush=True)
     where = lambda r: identity.lookup(questions.table, r["track"], r["frame"])  # noqa: E731
     computed = match / APPLIED

@@ -38,7 +38,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ## Applying and learning
 
-- Each apply rebuilds the pages.
+- Each apply rebuilds the pages. Its button shows while something differs from the last apply (`review.waiting`); its tip
+  lists what (`to_apply`: the answers not applied by what they are about, jersey numbers, time-outs, names). The rallies
+  checked that a start locks (`locked`) say what the page shows already: they count as applied (`applied_too`).
 - "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video, behind the videos' one password
   ([hosting.md](hosting.md#the-video-and-its-password)), or without it (`outputs/matches/MATCH/publish.json`). Its video's copies come cut by the automatic zoom
   and shorter than the match ([hosting.md](hosting.md)): once their zoom or time map has changed since they were made (a

@@ -29,7 +29,7 @@ import { clock, useFormat } from '@/lib/format';
 import { match } from '@/lib/match';
 import { openMatch } from '@/lib/openMatch';
 import { cn } from '@/lib/utils';
-import { review, type Backup, type FilmCounts, type Hosted } from '@/lib/review';
+import { review, type Backup, type FilmCounts, type Hosted, type ToApply } from '@/lib/review';
 import { ClubDialog } from '@/components/ClubDialog';
 import { ExportDialog } from '@/components/ExportSite';
 import { HostChoice } from '@/components/Review/HostChoice';
@@ -196,7 +196,7 @@ export function ReviewHeader({
   fetched?: { at: string; count: number; error: string | null } | null;
   filmsError?: string | null;
   films: FilmCounts;
-  pending: { answers: number; changed: boolean; names: boolean };
+  pending: { answers: number; changed: boolean; names: boolean; items: ToApply };
   /** What runs: one of the actions, or the app's update. */
   busy: Action | 'update' | null;
   run: (action: Action, body?: object) => void;
@@ -395,16 +395,28 @@ export function ReviewHeader({
             </DropdownMenuContent>
           </DropdownMenu>
           {toApply || busy === 'apply' ? (
-            <Button busy={busy === 'apply'} disabled={busy !== null} onClick={() => run('apply')}>
-              <Check aria-hidden />
-              {busy === 'apply'
-                ? t('review.applying')
-                : pending.names
-                  ? t(pending.changed ? 'review.applyBoth' : 'review.applyNames')
-                  : pending.answers
-                    ? t('review.apply', { count: pending.answers })
-                    : t('review.applyChanges')}
-            </Button>
+            <Tip
+              label={
+                pending.items.length > 0 && busy !== 'apply' ? (
+                  <ul className="list-disc space-y-0.5 pl-4">
+                    {pending.items.map(([about, count]) => (
+                      <li key={about}>{t(`review.toApply.${about}`, { count: count ?? 0 })}</li>
+                    ))}
+                  </ul>
+                ) : undefined
+              }
+            >
+              <Button busy={busy === 'apply'} disabled={busy !== null} onClick={() => run('apply')}>
+                <Check aria-hidden />
+                {busy === 'apply'
+                  ? t('review.applying')
+                  : pending.names
+                    ? t(pending.changed ? 'review.applyBoth' : 'review.applyNames')
+                    : pending.answers
+                      ? t('review.apply', { count: pending.answers })
+                      : t('review.applyChanges')}
+              </Button>
+            </Tip>
           ) : (
             <span className="inline-flex items-center gap-1.5 pl-1 text-sm text-muted-foreground">
               <Check aria-hidden className="size-4" />

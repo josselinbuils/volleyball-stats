@@ -32,6 +32,7 @@ import {
   type Suggestion,
   type Timeout,
   type TimeoutChange,
+  type ToApply,
 } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
@@ -84,6 +85,7 @@ export function Review({
   pending: waiting,
   changed,
   namesPending: renamed,
+  toApply,
   corrections: savedCorrections,
   checked: savedChecked,
   comments: savedComments,
@@ -107,6 +109,7 @@ export function Review({
   pending: number;
   changed: boolean;
   namesPending: boolean;
+  toApply: ToApply;
   corrections: Partial<ReportChanges>;
   comments: Record<number, string>;
   picks: number[];
@@ -130,8 +133,8 @@ export function Review({
   const f = useFormat();
   const [questions, setQuestions] = useState(initial);
   const [answered, setAnswered] = useState(before);
-  // What an apply would take in: answers not applied yet, answers and names changed since.
-  const [pending, setPending] = useState({ answers: waiting, changed, names: renamed });
+  // What an apply would take in: answers not applied yet, answers and names changed since, each part.
+  const [pending, setPending] = useState({ answers: waiting, changed, names: renamed, items: toApply ?? [] });
   const [corrections, setCorrections] = useState(savedCorrections);
   const [checked, setChecked] = useState(savedChecked);
   // Every rally checked: only the questions that teach the next matches are left.
@@ -154,7 +157,7 @@ export function Review({
       setAnswered(saved.answered);
     }
     if (saved.pending !== undefined) {
-      setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false });
+      setPending({ answers: saved.pending, changed: saved.changed ?? false, names: saved.namesPending ?? false, items: saved.toApply ?? [] });
     }
   };
   const films = savedFilms ?? { players: { total: 0, stale: [] }, highlights: { total: 0, stale: [] } };
