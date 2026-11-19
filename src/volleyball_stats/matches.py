@@ -51,7 +51,7 @@ PUBLISH = "publish.json"
 # machines share it (`backup.SHARED`); the server and the viewers' cookie hold only its fingerprint. Before 19 Nov each match
 # had its own, sealed by a master password, in the match's folder under the same name: removed once the password is set.
 PASSWORD = "video_password.json"
-PASSWORD_MIN, PASSWORD_MAX = 8, 200
+PASSWORD_MIN, PASSWORD_MAX = 6, 200
 KEY = re.compile(r"[0-9a-f]{64}")
 # In a hosted match's folder, what its pages were built from (`made_from`): unchanged, an update only puts the page's code
 # in (`web.renew_code`). Online with them: the mirror brings it back with the pages another machine built.

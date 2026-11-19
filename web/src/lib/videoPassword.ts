@@ -1,7 +1,7 @@
 // The one password of every match's video. The app keeps it (matches.PASSWORD); the server and the viewer's cookie only
 // its fingerprint, which a shared link carries too (`#key=`) to open the videos without the password.
 
-export const VIDEO_MIN = 8;
+export const VIDEO_MIN = 6;
 // The video page's cookie holds the SHA-256 of this and the password, the server the same (matches.fingerprint).
 const SALT = 'volleyball:';
 const COOKIE = 'video_key';
