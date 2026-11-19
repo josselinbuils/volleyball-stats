@@ -3,7 +3,7 @@ import json
 import pytest
 
 from volleyball_stats import learn
-from volleyball_stats.learn import from_answers, near, record, report
+from volleyball_stats.learn import from_answers, from_checked, near, record, report
 
 
 class TestRecord:
@@ -49,6 +49,20 @@ class TestFromAnswers:
         assert out["actions: types set"] == (1, 1)
         assert out["rallies: kept"] == (1, 1)
         assert out["rallies: dropped"] == (1, 1)
+
+
+class TestFromChecked:
+    def test_bounces_after_the_rallys_end_leave_both_sides(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(learn, "players", lambda _: ([], {}))
+        (tmp_path / "identity_answers.json").write_text(json.dumps({"log": [{"checked": [90]}]}))
+        # The pipeline's touch at 2 s and its bounce after the end (3 s), the review's the same.
+        (tmp_path / "actions.csv").write_text("frame,type,team,identity\n100,pass,1,3\n175,floor,,\n")
+        page = {"rallies": [{"key": 90, "start": 1.8, "end": 3.0}], "people": {}, "contacts": [{"rally": 0, "t": 2.0, "type": "pass"}, {"rally": 0, "t": 3.5, "type": "floor"}]}
+
+        out = from_checked(tmp_path, page, 50.0)
+
+        assert out["checked: touches found"] == (1, 1)
+        assert out["checked: pipeline touches kept"] == (1, 1)
 
 
 class TestAnswered:
