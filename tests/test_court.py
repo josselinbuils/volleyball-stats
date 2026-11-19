@@ -181,6 +181,16 @@ class TestSnapping:
         assert calibration.points == {}
         assert calibrate(image, clicks).points != {}
 
+    def test_a_snap_onto_another_line_is_taken_back(self, monkeypatch):
+        image, truth = self.image()
+        exact = {n: truth[n] for n in ("corner_left_far", "corner_right_far", "corner_left_near", "attack_left_near", "attack_right_near", "corner_right_near")}
+        snapped = {"attack_left_far": (truth["attack_left_far"][0] + 29, truth["attack_left_far"][1])}
+        monkeypatch.setattr("volleyball_stats.court.refine", lambda *_: (dict(snapped), np.ones(3), np.zeros((0, 2))))
+
+        calibration = calibrate(image, {**exact, "attack_left_far": truth["attack_left_far"]})
+
+        assert calibration.points == {} and calibration.error < 0.1
+
     def test_refuses_a_court_whose_fit_is_too_far_off(self, monkeypatch):
         image, truth = self.image()
         court = calibrate(image, self.clicks(truth))

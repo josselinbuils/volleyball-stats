@@ -92,6 +92,10 @@ MATCH_LANDMARKS = 0.75
 # match: a false snap at 27). A fit's error may reach MATCH_WORSE times the stored court's plus MATCH_ERROR: without a lens
 # a good one is already 9-14 px on the club's, while that false snap took 1.1 px to 17 at 4K.
 MATCH_REACH = 10.0
+# Pixels at 720p: a snapped landmark this far from the fit took another line, its click is kept (Eysines 3 vs ASPOM 2:
+# attack_left_far snapped 87 px at 4K onto another sport's line, the court at 25.7 px RMS against 6.5 on the clicks, its
+# 3D heights 0.9 m low). A good fit without a lens is 9-14 px RMS at 4K.
+SNAP_WORST = 15.0
 MATCH_WORSE = 3.0
 MATCH_ERROR = 1.0
 
@@ -402,9 +406,14 @@ def refine(image: np.ndarray, guesses: Points, lens: Lens | None = None, colour=
 def calibrate(image: np.ndarray, clicks: Points, lens: Lens | None = None, colour=None, reach: float = BANDS[0]) -> Calibration:
     """Refine rough clicks on `image` and fit the court: on the snapped landmarks alone when there are
     5 (4 fit exactly, whatever their error), else by least squares on them and the other clicks
-    (RANSAC picks bad subsets of ±20 px clicks). The calibration keeps both."""
+    (RANSAC picks bad subsets of ±20 px clicks), a snap far from the fit taken back (SNAP_WORST). The calibration keeps both."""
     points, colour, on_lines = refine(image, clicks, lens, colour, reach)
-    calibration = fit(points, lens) if len(points) >= 5 else fit({**clicks, **points}, lens, ransac=False)
+    while True:
+        calibration = fit(points, lens) if len(points) >= 5 else fit({**clicks, **points}, lens, ransac=False)
+        off = {n: float(np.hypot(*(calibration.to_image(np.array([LANDMARKS[n]]))[0] - p))) for n, p in points.items()}
+        if not off or max(off.values()) <= SNAP_WORST * image.shape[0] / 720:
+            break
+        points.pop(max(off, key=off.get))
     calibration.clicks = {n: [float(v) for v in p] for n, p in clicks.items()}
     calibration.points = {n: list(p) for n, p in points.items()}
     calibration.colour = colour.tolist()
