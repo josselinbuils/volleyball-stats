@@ -951,7 +951,7 @@ def search_ball(match: Path, video: Path, court: Path, films: dict[str, dict], p
     sizes: dict[str, float] = cache.get("sizes", {})
     sized = {int(q) for q in cache.get("sized", [])}
     rejected = {int(q): tuple(v) for q, v in cache.get("rejected", {}).items()}
-    least = least_sizes(Calibration.load(court))
+    least = least_sizes(Calibration.load(court).with_lens((SOURCE_W, SOURCE_H)))
     detected = read_ball(match / "ball.csv")
     times = frame_times(match, video)
     marks_of = marks(page)
@@ -1261,7 +1261,7 @@ class Maker:
         from ultralytics import YOLO
 
         self.match, self.video, self.page = match, video, page
-        self.cal = Calibration.load(court)
+        self.cal = Calibration.load(court).with_lens((SOURCE_W, SOURCE_H))
         self.times = frame_times(match, video)
         self.seg, self.fine = YOLO(str(SEG_S)), YOLO(str(SEG_M))
         self.italic, self.din, self.cond = font("Arial Bold Italic.ttf"), font("DIN Alternate Bold.ttf"), font("DIN Condensed Bold.ttf")

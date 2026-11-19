@@ -21,7 +21,7 @@ OpenCV intrinsics for the video resolution: {"model": "fisheye" | "standard", "K
 import argparse
 import base64
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import cv2
@@ -110,6 +110,20 @@ def zone(x: float, y: float) -> int:
     return (4, 3, 2)[third] if abs(x) < ATTACK else (5, 6, 1)[third]
 
 
+def pinhole(homography: np.ndarray, size: tuple[int, int]) -> Lens:
+    """A lens without distortion for a court fitted without one: square pixels, the centre of the picture, the focal
+    length the homography's two court axes give, at right angles and of one length (within 2-4% of the calibrated one on
+    our courts); a 90 degree wide view when they give none."""
+    width, height = size
+    h = np.array([[1, 0, -width / 2], [0, 1, -height / 2], [0, 0, 1]]) @ np.asarray(homography, float)
+    h /= np.linalg.norm(h[:, 0])
+    a = np.array([h[0, 0] * h[0, 1] + h[1, 0] * h[1, 1], h[0, 1] ** 2 + h[1, 1] ** 2 - h[0, 0] ** 2 - h[1, 0] ** 2])
+    b = np.array([h[2, 0] * h[2, 1], h[2, 1] ** 2 - h[2, 0] ** 2])
+    inverse_square = -(a @ b) / (a @ a) if a @ a > 0 else 0.0
+    focal = 1 / np.sqrt(inverse_square) if inverse_square > 0 else width / 2
+    return {"model": "pinhole", "K": [[focal, 0.0, width / 2], [0.0, focal, height / 2], [0.0, 0.0, 1.0]], "D": [0.0] * 5}
+
+
 def undistort(points: np.ndarray, lens: Lens) -> np.ndarray:
     """Distorted pixels to pinhole pixels of the same intrinsics."""
     k, d = np.array(lens["K"], float), np.array(lens["D"], float)
@@ -178,6 +192,10 @@ class Calibration:
     def load(cls, path: Path) -> "Calibration":
         data = json.loads(path.read_text())
         return cls(**{**data, "homography": np.array(data["homography"])})
+
+    def with_lens(self, size: tuple[int, int]) -> "Calibration":
+        """This calibration, a `pinhole` lens given when it was fitted without one: for what needs the camera."""
+        return self if self.lens else replace(self, lens=pinhole(self.homography, tuple(self.size or size)))
 
     def check(self, size: tuple[int, int]) -> None:
         """ValueError unless made on frames of `size` (width, height), when its size is known: on

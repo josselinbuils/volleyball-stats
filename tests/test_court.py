@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import pytest
 
-from volleyball_stats.court import LANDMARKS, LINES, UNSNAPPED, Calibration, Clicks, calibrate, distort, draw_grid, fit, magnifier, match, overlay, refine, undistort
+from volleyball_stats.court import LANDMARKS, LINES, UNSNAPPED, Calibration, Clicks, calibrate, distort, draw_grid, fit, magnifier, match, overlay, pinhole, refine, undistort
 
 
 class TestFit:
@@ -86,6 +86,37 @@ class TestLens:
         loaded = Calibration.load(tmp_path / "courts" / "gym.json")
 
         assert (loaded.clicks, loaded.points, loaded.colour, loaded.template, loaded.size) == (calibration.clicks, calibration.points, [1.0, 0.0, 0.0], [[5.0, 6.0]], [1280, 720])
+
+
+class TestPinhole:
+    # A camera 8 m from the court's centre line, 3 m up, looking down at it: court metres to pixels.
+    K = np.array([[1540.0, 0.0, 1920.0], [0.0, 1540.0, 1080.0], [0.0, 0.0, 1.0]])
+
+    def homography(self):
+        tilt = np.radians(75)
+        rotation = np.array([[1, 0, 0], [0, -np.cos(tilt), -np.sin(tilt)], [0, np.sin(tilt), -np.cos(tilt)]])
+        t = -rotation @ np.array([0.0, -8.0, 3.0])
+        return self.K @ np.c_[rotation[:, 0], rotation[:, 1], t]
+
+    def test_finds_the_focal_length_of_the_camera_that_made_the_homography(self):
+        lens = pinhole(self.homography() * 7.0, (3840, 2160))
+
+        assert lens["K"][0][0] == pytest.approx(1540, rel=1e-6)
+        assert lens["K"][0][2:] == [1920.0] and lens["D"] == [0.0] * 5
+
+    def test_maps_like_the_court_without_a_lens(self):
+        bare = Calibration(self.homography(), size=[3840, 2160])
+        given = bare.with_lens((3840, 2160))
+        points = np.array([[0.0, 0.0], [9.0, 4.5], [-6.0, -2.0]])
+
+        assert np.allclose(given.to_image(points), bare.to_image(points), atol=1e-3)
+        assert np.allclose(given.to_court(given.to_image(points)), points, atol=1e-6)
+
+    def test_keeps_a_calibrated_lens(self):
+        lens = {"model": "pinhole", "K": self.K.tolist(), "D": [0.1, 0, 0, 0, 0]}
+        calibration = Calibration(self.homography(), lens=lens)
+
+        assert calibration.with_lens((3840, 2160)) is calibration
 
 
 class TestSnapping:
