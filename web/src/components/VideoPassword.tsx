@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
+import { copyText } from '@/lib/clipboard';
 import { keyLink, VIDEO_MIN } from '@/lib/videoPassword';
 import { useRunning } from '@/hooks/useRunning';
 
@@ -73,7 +74,7 @@ export function VideoPassword({ matches, list, busy, onState }: { matches: { nam
   const links = [...(list ? [{ name: '', label: t('passwords.list'), url: list }] : []), ...matches];
   const copy = async (name: string, url: string) => {
     try {
-      await navigator.clipboard.writeText(keyLink(url, key!));
+      await copyText(keyLink(url, key!));
       setCopied(name);
       setCopyFailed(false);
     } catch {
