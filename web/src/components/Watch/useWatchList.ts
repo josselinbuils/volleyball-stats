@@ -41,7 +41,7 @@ export function useWatchList() {
     whole: true,
     entries: rallies.map((rally): Entry => ({ rally })),
     at,
-    pick: (k: number) => play(ralliesTitle, rallyClips(rallies, match.duration), k),
+    pick: (k: number) => play(ralliesTitle, rallyClips(rallies, match.duration), k, true),
     step: (by: number) => video && seek(video, Math.max(0, rallies[at + by].start - PAD)),
   };
 }

@@ -30,7 +30,7 @@ export function PlaylistBar() {
       seekTo(video, Math.max(0, rallies[to].start - PAD));
     }
   };
-  const playFrom = () => play((tr) => (set === null ? tr('rallies') : tr('set', { n: set })), rallyClips(rallies, match.duration), k);
+  const playFrom = () => play((tr) => (set === null ? tr('rallies') : tr('set', { n: set })), rallyClips(rallies, match.duration), k, true);
 
   const clip = playlist?.clips[playlist.at];
   const shown = useVideoTime((time) => clip?.contact ?? lastTouch(rallyAt(allRallies, time)?.contacts ?? [], time)?.i ?? -1);

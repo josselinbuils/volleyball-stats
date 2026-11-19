@@ -15,7 +15,9 @@ moments.
 ## Replay
 
 - The match's title and date head the page.
-- Every number and chart element plays its moments in the video or on the animated court.
+- Every number and chart element plays its moments in the video or on the animated court. Started from elsewhere on the
+  page, the player waits at the first one, "Lire" over the picture, for a tap (the page scrolls or the sheet opens there
+  meanwhile); started from the player's own controls, a card under it or "Regarder le match", it plays at once.
 - Above the video: the set and its score (estimated, or the final score you gave once the set is
   over; nothing said in a set whose rallies add up to its final score, `exactSet`). A set's final score is the one given,
   else its counted one once every rally of it is checked in the review (`web.settled_scores`): no "(estimé)" then. During a timeout, "Temps mort" and its team over the video and beside the court; in TV mode its card, the

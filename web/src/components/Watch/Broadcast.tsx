@@ -58,7 +58,7 @@ export function BroadcastControls() {
   const clips = useMemo(() => broadcastClips(rallies, chosen, match.duration, timeouts), [rallies, chosen]);
   return (
     <div className="mt-3 grid gap-2 [[data-player]:fullscreen_&]:hidden">
-      <Button size="sm" className="justify-self-start" disabled={!clips.length} onClick={() => play((tr) => tr('broadcast.watching'), clips)}>
+      <Button size="sm" className="justify-self-start" disabled={!clips.length} onClick={() => play((tr) => tr('broadcast.watching'), clips, 0, true)}>
         <Play aria-hidden />
         {t('broadcast.watch')}
       </Button>

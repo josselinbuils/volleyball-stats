@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { LoaderCircle, Lock, ZoomOut } from 'lucide-react';
+import { LoaderCircle, Lock, Play, ZoomOut } from 'lucide-react';
 import { VideoError } from '@/components/VideoError';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -237,8 +237,9 @@ export function Watch() {
             <Scoreboard />
             {/* Full screen: the view fills the screen above the controls, its title bar over it. */}
             <div ref={court} className="overflow-hidden lg:col-start-1 rounded-lg border bg-card [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
-              <div className="p-3 pb-2 [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:p-0">
+              <div className="relative p-3 pb-2 [:fullscreen>&]:min-h-0 [:fullscreen>&]:flex-1 [:fullscreen>&]:p-0">
                 <Replay captioned={false} />
+                <PlayCue />
               </div>
               <div className="border-t bg-muted">
                 <VideoControls light />
@@ -337,6 +338,7 @@ export function Watch() {
                       )}
                     />
                     {drawn && video instanceof HTMLVideoElement && typeof ball === 'object' && <Overlay video={video} ball={ball} paint={paint} />}
+                    <PlayCue />
                     {video instanceof HTMLVideoElement && <Buffering video={video} />}
                     {video instanceof HTMLVideoElement && <VideoError video={video} />}
                   </div>
@@ -371,6 +373,23 @@ export function Watch() {
         </PlayerSheet>
       </CardContent>
     </Card>
+  );
+}
+
+/** Over a playlist started from elsewhere on the page, waiting at its start: a tap anywhere on the picture plays it. */
+function PlayCue() {
+  const { t } = useTranslation();
+  const { waiting, video } = usePlayer();
+  if (!waiting) {
+    return null;
+  }
+  return (
+    <button type="button" onClick={() => video?.play().catch(() => {})} className="group absolute inset-0 z-[5] grid cursor-pointer place-items-center outline-none">
+      <span className="inline-flex items-center gap-2 rounded-full bg-black/60 px-5 py-3 text-base font-semibold text-white backdrop-blur-sm group-hover:bg-black/75 group-focus-visible:ring-3 group-focus-visible:ring-white/60">
+        <Play aria-hidden className="size-6 fill-current" />
+        {t('playCue')}
+      </span>
+    </button>
   );
 }
 
@@ -437,6 +456,7 @@ function useUnstuck(video: HTMLVideoElement) {
 /** A spinner over `video` while it waits for data, getting it going again when that wait is stuck. */
 function Buffering({ video }: { video: HTMLVideoElement }) {
   const { t } = useTranslation();
+  const { waiting } = usePlayer();
   const [shown, setShown] = useState(false);
   useUnstuck(video);
   useEffect(() => {
@@ -456,7 +476,8 @@ function Buffering({ video }: { video: HTMLVideoElement }) {
       events.forEach((e) => video.removeEventListener(e, check));
     };
   }, [video]);
-  if (!shown) {
+  // Under the cue to play, nothing more.
+  if (!shown || waiting) {
     return null;
   }
   // Over the picture, in the video's own box.

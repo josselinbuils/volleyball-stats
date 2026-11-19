@@ -16,6 +16,7 @@
   "watchN_other": "Revoir ces {{count, number}} moments",
   "video": "Vidéo",
   "videoCaption": "Cliquez sur un échange pour le revoir.",
+  "playCue": "Lire",
   "videoLoading": "Chargement de la vidéo",
   "videoPage": "Voir le match en vidéo (mot de passe)",
   "replayTitle": "Revoir le jeu",

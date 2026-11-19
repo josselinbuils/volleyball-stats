@@ -17,7 +17,10 @@ export interface Playlist {
 
 interface Player {
   playlist: Playlist | null;
-  play: (title: Playlist['title'], clips: Clip[], at?: number) => void;
+  /** Starts at once from the player's own controls (`now`); from elsewhere on the page it waits at its start for a tap. */
+  play: (title: Playlist['title'], clips: Clip[], at?: number, now?: boolean) => void;
+  /** A playlist stands at its start, waiting for a tap to play. */
+  waiting: boolean;
   go: (at: number) => void;
   /** Leaves the playlist and pauses the video. */
   stop: () => void;
@@ -95,6 +98,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loop, setLoop] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  // The next seek of a clip's start leaves the video paused (`waiting`).
+  const hold = useRef(false);
   const looping = useRef(false);
   // The playlist for the loop and the event handlers, ahead of the next render.
   const current = useRef<Playlist | null>(null);
@@ -107,12 +113,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     current.current = next;
     seeking.current = next !== null;
     setPlaylist(next);
+    if (!next) {
+      hold.current = false;
+      setWaiting(false);
+    }
   }, []);
 
   const play = useCallback<Player['play']>(
-    (title, clips, at = 0) => {
+    (title, clips, at = 0, now = false) => {
       if (!clips.length) {
         return;
+      }
+      hold.current = !now;
+      setWaiting(!now);
+      if (!now) {
+        video?.pause();
       }
       update({ title, clips, at });
       // The box holding the video and its controls, not the video, scaled by the zoom past that box.
@@ -134,6 +149,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const go = useCallback(
     (at: number) => {
       if (current.current) {
+        hold.current = false;
         update({ ...current.current, at });
       }
     },
@@ -152,13 +168,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     looping.current = loop;
   }, [loop]);
 
-  // Every new playlist or clip seeks to the clip's start.
+  // Every new playlist or clip seeks to the clip's start, and plays unless it waits for a tap.
   useEffect(() => {
     if (video && playlist) {
-      video.currentTime = playlist.clips[playlist.at].start;
-      video.play().catch(() => {});
+      seek(video, playlist.clips[playlist.at].start);
+      if (!hold.current) {
+        video.play().catch(() => {});
+      }
     }
   }, [video, playlist]);
+
+  // Played by any means (a tap on the cue or the video, the controls, a key), it waits no more.
+  useEffect(() => {
+    const played = () => {
+      hold.current = false;
+      setWaiting(false);
+    };
+    video?.addEventListener('play', played);
+    return () => video?.removeEventListener('play', played);
+  }, [video]);
 
   useEffect(() => {
     if (!video) {
@@ -175,8 +203,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           update(null);
         }
       }
+      // Left paused there, the picture shows at once: no fade in.
       if (seeking.current) {
-        landed.current = video.currentTime;
+        landed.current = video.paused ? -Infinity : video.currentTime;
       }
       seeking.current = false;
       held = rallyAt(rallies, video.currentTime);
@@ -230,6 +259,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [video, update]);
 
-  const value = useMemo(() => ({ playlist, play, go, stop, loop, setLoop, video, setVideo, sheet, closeSheet }), [playlist, play, go, stop, loop, video, sheet, closeSheet]);
+  const value = useMemo(() => ({ playlist, play, waiting, go, stop, loop, setLoop, video, setVideo, sheet, closeSheet }), [playlist, play, waiting, go, stop, loop, video, sheet, closeSheet]);
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
