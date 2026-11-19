@@ -40,7 +40,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 import numpy as np
 
-from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, network, presence, rallies, rename, scoreboard, sync, tables, timeouts, web
+from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, network, presence, rallies, rename, scoreboard, speech, sync, tables, timeouts, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.players import Row
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
@@ -2192,7 +2192,12 @@ def page_stamp(match: Path, pages: tuple[str, ...] = STAMPED) -> str:
     """What the hosted page would show: the review's page data, as content (its keys in any order), and the code of `pages`.
     Not the data's `v`, its address for the browser's cache, which each patch of the pictures moves (`web.patch_people`): a
     restart rebuilding the same page then patching it gave another, and the online page looked late."""
-    digest = hashlib.sha256(json.dumps(page_content(match)["data"], sort_keys=True, ensure_ascii=False).encode())
+    return data_stamp(page_content(match)["data"], pages)
+
+
+def data_stamp(data: dict, pages: tuple[str, ...] = STAMPED) -> str:
+    """`page_stamp` of the page data `data`."""
+    digest = hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode())
     for name in pages:
         digest.update(CODE_PAGES[name].read_bytes())
     return digest.hexdigest()[:16]
@@ -2293,6 +2298,13 @@ def record_hosted(match: Path, taken: tuple[dict, str] | None = None) -> None:
     sent (HOSTED_PAGE): the page as the upload began (`taken`, `page_taken`), a change made while it ran left late. The stamp
     is the review's page as last built, by older code maybe: `restamp` then takes the next build."""
     content, stamp = taken or page_taken(match)
+    # The upload made the commentary's missing audio (`matches.make_voice`) after it took the page, and its build took it:
+    # the review's page takes it at its next build, and the online page was shown late for it ("Commentaire").
+    data = {k: v for k, v in content["data"].items() if k != "voice"}
+    if speech.voice_index(match, data):
+        data["voice"] = True
+    if data != content["data"]:
+        content, stamp = {**content, "data": data}, data_stamp(data)
     files.write_text(match / HOSTED_PAGE, json.dumps(content, ensure_ascii=False) + "\n")
     files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": stamp, "pages": list(STAMPED), "code": code_version()}) + "\n")
 

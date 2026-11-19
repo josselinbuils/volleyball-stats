@@ -1462,6 +1462,22 @@ def test_a_change_made_while_an_upload_runs_leaves_its_page_late(tmp_path):
     assert hosted["behind"] and hosted["changes"]
 
 
+def test_the_commentary_an_upload_makes_leaves_its_page_on_time(tmp_path, monkeypatch):
+    from volleyball_stats import review, speech
+
+    site = tmp_path / "review"
+    site.mkdir()
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n")
+    taken = review.page_taken(tmp_path)
+    # The upload's voice made, the review's next build takes it.
+    monkeypatch.setattr(speech, "voice_index", lambda match, data, walls=(): {"lines": [[1.0, "a.mp3"]], "replay": {}, "folder": match})
+
+    review.record_hosted(tmp_path, taken)
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'voice': True, 'v': 'b'})};\n")
+
+    assert not review.read_hosted(tmp_path)["behind"]
+
+
 class TestPageChanges:
     def test_each_changed_part_with_how_many_of_its_items_then_the_code(self):
         from volleyball_stats.review import page_changes
