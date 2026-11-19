@@ -122,6 +122,20 @@ def local(match: Path) -> dict:
     return json.loads(path.read_text()) if path.exists() else {"version": 0, "signature": None}
 
 
+def own(match: Path) -> bool:
+    """Whether `match` is the folder its sync state was written for. A copy of it (a test's, a folder duplicated by hand)
+    never reaches the server while that folder holds it still: it would send itself as this machine's newest (19 Nov). A
+    folder moved, or a state written before it named its folder, takes the state."""
+    state = local(match)
+    here = str(match.resolve())
+    if state.get("folder") == here or not (match / STATE).exists():
+        return True
+    if state.get("folder") and (Path(state["folder"]) / STATE).exists():
+        return False
+    files.write_text(match / STATE, json.dumps({**state, "folder": here}) + "\n")
+    return True
+
+
 def changed(match: Path) -> bool:
     """Whether the match changed here since this machine last pushed or pulled it."""
     return match.exists() and any(match.iterdir()) and local(match)["signature"] != list(backup.signature([match]))
@@ -130,7 +144,7 @@ def changed(match: Path) -> bool:
 def remember(match: Path, version: int, signature: tuple[int, float] | None) -> None:
     """The server's version this machine's copy now starts from, and its files' signature then: None leaves it changed,
     to send again."""
-    files.write_text(match / STATE, json.dumps({"version": version, "signature": list(signature) if signature else None}) + "\n")
+    files.write_text(match / STATE, json.dumps({"version": version, "signature": list(signature) if signature else None, "folder": str(match.resolve())}) + "\n")
 
 
 def settle(match: Path, record: dict) -> bool:
@@ -158,7 +172,7 @@ def check(match: Path) -> dict | None:
     """The server's copy of `match` brought here when it is newer and nothing changed here since; what the review shows
     when both changed (`shown`), the owner to keep one. None otherwise, and when the server cannot be reached."""
     config = server(files.root(match))
-    if config is None:
+    if config is None or not own(match):
         return None
     try:
         found = remote(config, "status", match.name, timeout=CHECK_S)
@@ -176,6 +190,8 @@ def push(match: Path, force: bool = False) -> None:
     """The match's backup from the server's version: Conflict when another machine pushed since. With `force` (the owner
     keeping this machine's), from any version, the server's copy set aside there first. RuntimeError while another machine
     copies it."""
+    if not own(match):
+        raise RuntimeError(f"a copy of {local(match)['folder']}: only that one is sent")
     config = json.loads((match / matches.PUBLISH).read_text())
     base = local(match)["version"]
     found = remote(config, "begin", match.name, base, force)
@@ -207,7 +223,7 @@ def push_all(outputs: Path, told: bool = False) -> list[str]:
     """Every match changed here since this machine last pushed or pulled it, then what sits beside them kept in step
     (`keep_shared`); what failed. Its stages `told` as it goes for the app's job."""
     failed = []
-    found = [p.parent for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")) if (p.parent / files.SOURCE).exists() and changed(p.parent)]
+    found = [p.parent for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")) if (p.parent / files.SOURCE).exists() and own(p.parent) and changed(p.parent)]
     config = server(outputs)
     stages = jobs.Stages(outputs / TIMINGS, [*(f"match:{m.name}" for m in found), *(["shared"] if config else [])], TOOK, told)
     for match in found:
@@ -387,13 +403,15 @@ def pull(name: str, outputs: Path = DEFAULT_OUTPUTS, copy: str | None = None) ->
     """The match `name` brought from the server's newest copy into outputs/matches/; this machine's unpushed changes to
     it kept in its `backup-sync-<time>` folder. With `copy` (a restore) that copy's, this machine's set aside whatever
     it is, and the match left to send again: it becomes the newest. LookupError if the server has no such copy."""
+    match = outputs / "matches" / name
+    if match.exists() and not own(match):
+        raise RuntimeError(f"a copy of {local(match)['folder']}: only that one is brought")
     config = server(outputs)
     if config is None:
         raise LookupError("no server: set it in the Site tab")
     found = remote(config, "list")["matches"]
     if name not in found:
         raise LookupError(name)
-    match = outputs / "matches" / name
     match.mkdir(parents=True, exist_ok=True)
     aside = ["--backup", f"--backup-dir=backup-sync-{time.strftime('%Y%m%d-%H%M%S')}"] if copy or changed(match) else []
     day = f"{backup.ROOT}/{copy or found[name]['day']}"

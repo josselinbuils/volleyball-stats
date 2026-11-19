@@ -332,6 +332,10 @@ match (the owner's rule, 8 Nov: no machine holds one).
 - A push stopped once the server moved its version on, before this machine noted it (the review stopped or restarted
   mid-copy, 15 Nov: the PC then "changed on both sides" against itself): a `sending` mark left in `.sync.json` before
   the commit lets the next check or push take the server's version as this machine's own (`sync.settle`).
+- A copy of a match folder (a test's, one duplicated by hand) never reaches the server: `.sync.json` names the folder it
+  was written for, and while that folder still holds it the copy neither sends, checks nor brings (`sync.own`). On 19 Nov a
+  test review on a copy sent itself as the PC's newest, and the PC then "changed on both sides" against itself. A folder
+  moved takes the state.
 - The list of matches offers those only on the server ("À télécharger"), asked once the page shows
   (`/matches/remote.json`: the ssh round trip takes a second).
 - A pull also brings the courts, lens, club and sponsors this machine lacks, and the roster is joined, each match's names

@@ -1,4 +1,5 @@
 import json
+import shutil
 import time
 from datetime import datetime
 
@@ -113,6 +114,44 @@ class TestChanged:
         assert not sync.changed(match) and sync.local(match)["version"] == 3
         (match / "answers.json").write_text("bb")
         assert sync.changed(match)
+
+
+class TestOwn:
+    @staticmethod
+    def copied(tmp_path):
+        match = tmp_path / "outputs" / "matches" / "m"
+        match.mkdir(parents=True)
+        (match / "answers.json").write_text("a")
+        sync.remember(match, 3, backup.signature([match]))
+        copy = tmp_path / "test" / "matches" / "m"
+        shutil.copytree(match, copy)
+        return match, copy
+
+    def test_a_copy_of_a_match_never_reaches_the_server(self, tmp_path, monkeypatch):
+        match, copy = self.copied(tmp_path)
+        (copy / "publish.json").write_text(json.dumps({"upload": "root@host:/site/", "key": "k"}))
+        (copy / "answers.json").write_text("test")
+        monkeypatch.setattr(sync, "remote", lambda *a, **k: pytest.fail("reached the server"))
+
+        assert sync.own(match) and not sync.own(copy)
+        assert sync.check(copy) is None
+        with pytest.raises(RuntimeError, match="a copy of"):
+            sync.push(copy)
+        with pytest.raises(RuntimeError, match="a copy of"):
+            sync.pull("m", copy.parent.parent)
+
+    def test_a_moved_match_takes_its_state(self, tmp_path):
+        match, copy = self.copied(tmp_path)
+        shutil.rmtree(match)
+
+        assert sync.own(copy) and sync.local(copy)["folder"] == str(copy.resolve()) and sync.local(copy)["version"] == 3
+
+    def test_a_state_written_before_it_named_its_folder_takes_it(self, tmp_path):
+        match = tmp_path / "m"
+        match.mkdir()
+        (match / sync.STATE).write_text(json.dumps({"version": 4, "signature": None}))
+
+        assert sync.own(match) and sync.local(match) == {"version": 4, "signature": None, "folder": str(match.resolve())}
 
 
 class TestPush:

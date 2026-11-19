@@ -2652,7 +2652,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         (`sync.changed`), else what sits beside it kept in step (`sync.keep_shared`): a change there alone moves no
         match's version."""
         while True:
-            if sync.auto(outputs):
+            # A copy of a match (a test's) reaches no server: it would send itself as this machine's (`sync.own`).
+            if sync.auto(outputs) and sync.own(match):
                 try:
                     if sync.changed(match):
                         back_up()
