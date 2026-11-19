@@ -392,6 +392,16 @@ export async function lookAlikes(team: Group, identity: number): Promise<Found[]
   return (await response.json()) as Found[];
 }
 
+/** The named players ("TEAM:IDENTITY") nearest the ball at `frame`, nearest first: who likely made a touch of `type`
+ * added there. */
+export async function nearestPlayers(frame: number, type: string): Promise<string[]> {
+  const response = await tracked('loading', fetch(`nearest?f=${frame}&type=${type}`));
+  if (!response.ok) {
+    throw new Error(`nearest: ${response.status}`);
+  }
+  return (await response.json()) as string[];
+}
+
 /** A piece's key in `odd`. */
 export const pieceKey = (p: Piece) => `${p.track}:${p.frame}`;
 

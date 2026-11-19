@@ -1653,3 +1653,21 @@ class TestRecords:
 )
 def test_tells_a_request_from_this_machine_from_the_local_networks(address, here):
     assert review_module.from_here(SimpleNamespace(client_address=(address, 50000))) is here
+
+
+class TestNearest:
+    def test_names_the_players_nearest_the_ball_nearest_first_on_both_sides(self):
+        q = Questions.__new__(Questions)
+        q.fps = 50.0
+        # Frame 10: track 1 (identity 4 of team 1) beside the ball, track 2 (team 2's 7) farther, track 3 unnamed.
+        q.frame_of = np.array([10, 10, 10])
+        q.track_of = np.array([1, 2, 3])
+        q.box_of = np.array([[100, 100, 150, 300], [400, 100, 450, 300], [120, 100, 170, 300]])
+        q.court_of = np.array([[-3.0, 2.0], [3.0, 2.0], [-2.0, 2.0]])
+        q.left_of = np.array([True, False, True])
+        q.table = [(1, 0, 99, 1, 4), (2, 0, 99, 2, 7), (3, 0, 99, 1, 0)]
+        q.ball = (np.array([5, 40]), np.array([[160.0, 200.0], [0.0, 0.0]]))
+
+        assert q.nearest(10, "pass") == ["1:4", "2:7"]
+        # No ball seen near the frame: no one.
+        assert q.nearest(25, "pass") == []

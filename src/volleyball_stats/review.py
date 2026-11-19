@@ -43,6 +43,7 @@ import numpy as np
 
 from volleyball_stats import analysis, app, applog, attribution, backup, ball3d, contacts, decode, feedback, film, files, git_check, identity, jerseys, jobs, likeness, matches, network, presence, rallies, rename, scoreboard, sync, tables, timeouts, web
 from volleyball_stats.court import Calibration
+from volleyball_stats.players import Row
 from volleyball_stats.teams import clock, given_end, match_end, parse_colour, seconds
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
@@ -50,6 +51,8 @@ from volleyball_stats.teams import clock, given_end, match_end, parse_colour, se
 BOX_STEP, PIECE_CROPS, IDENTITY_CROPS, CANDIDATES = 2, 3, 8, 12
 # A player is alone in a frame where no other box covers ALONE of theirs.
 ALONE = 0.05
+# A touch added in the review is looked for near the ball seen up to BALL_NEAR frames from it (`Questions.nearest`).
+BALL_NEAR = 12
 CROP_PX, CROP_MARGIN = 448, 0.15
 # 4K readers at once in the server, its pictures and its new cards' together: about 1 GB each; 7 at once beside another job
 # froze the PC (15 Nov).
@@ -134,8 +137,10 @@ class Questions:
         # compact arrays, a 2-hour match holds millions of boxes.
         t = tables.players(match / "players.csv")
         table = np.column_stack([t[k] for k in ("frame", "track", "x1", "y1", "x2", "y2", "court_x", "court_y")]).astype(float).reshape(-1, 8)
-        # Where each box's feet stand on the court, in meters.
+        # Where each box's feet stand on the court, in meters; which side of the net its track plays.
         self.court_of = table[:, 6:]
+        self.left_of = t["team"] == "left"
+        self.ball: tuple[np.ndarray, np.ndarray] | None = None
         table = table[:, :6].round().astype(np.int32)
         self.frame_of, self.track_of, self.box_of = table[:, 0], table[:, 1], table[:, 2:]
         by_track = np.lexsort((table[:, 0], table[:, 1]))
@@ -186,6 +191,33 @@ class Questions:
         lo, hi = np.searchsorted(self.frame_of, frame), np.searchsorted(self.frame_of, frame, side="right")
         found = np.nonzero((self.box_of[lo:hi] == np.array(box)).all(axis=1))[0]
         return int(self.track_of[lo + found[0]]) if len(found) else None
+
+    def nearest(self, frame: int, kind: str) -> list[str]:
+        """The named players ("TEAM:IDENTITY") nearest the ball at `frame` (seen within BALL_NEAR frames), nearest
+        first, as the pipeline picks a touch's player (`attribution.ranked`) on either side of the net: who likely made
+        a touch added there (first ASPOM match: the right one first 107 of 147, against 32 by touches in the set)."""
+        if self.ball is None:
+            b = tables.ball(self.match / "ball.csv")
+            seen = b["visible"] & ~np.isnan(b["x"])
+            self.ball = (b["frame"][seen], np.column_stack([b["x"][seen], b["y"][seen]]))
+        frames, places = self.ball
+        near = np.flatnonzero(np.abs(frames - frame) <= BALL_NEAR)
+        if not len(near):
+            return []
+        x, y = places[near[np.argmin(np.abs(frames[near] - frame))]]
+        gap = round(attribution.GAP_S * self.fps)
+        rows = range(np.searchsorted(self.frame_of, frame - gap), np.searchsorted(self.frame_of, frame + gap, side="right"))
+        boxes = [Row(int(self.frame_of[r]), int(self.track_of[r]), tuple(map(float, self.box_of[r])), 1.0, (0.0, 0.0), tuple(map(float, self.court_of[r])), "left" if self.left_of[r] else "right") for r in rows]
+        best: dict[int, float] = {}
+        for side in ("left", "right"):
+            for d, _, track in attribution.ranked([(frame, float(x), float(y), kind, side)], boxes, self.fps)[0]:
+                best[track] = min(d, best.get(track, d))
+        out = []
+        for track in sorted(best, key=best.get):
+            found = identity.lookup(self.table, track, frame)
+            if found and f"{found[0]}:{found[1]}" not in out:
+                out.append(f"{found[0]}:{found[1]}")
+        return out
 
     def box(self, track: int, frame: int) -> tuple:
         rows = self.rows[track]
@@ -3014,6 +3046,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     seen = {questions.segment_of(r) for entry in log if entry.get("choice") == "more" for r in entry["pieces"]}
                     found = questions.more(team, number, seen)
                 return self.send(json.dumps(found).encode(), "application/json")
+            if url.path == "/nearest":
+                q = parse_qs(url.query)
+                return self.send(json.dumps(questions.nearest(int(q["f"][0]), q["type"][0])).encode(), "application/json")
             if url.path == "/crop":
                 q = parse_qs(url.query)
                 body = picture(int(q["f"][0]), tuple(int(v) for v in q["b"][0].split(",")))

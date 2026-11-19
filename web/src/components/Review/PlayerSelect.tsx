@@ -78,7 +78,12 @@ export function PlayerSelect({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const place = useFieldPlace(field, open);
-  useEffect(() => setText(current), [current]);
+  // A player given meanwhile (a guess come late) leaves what is being typed.
+  const before = useRef(current);
+  useEffect(() => {
+    setText((typed) => (typed === before.current ? current : typed));
+    before.current = current;
+  }, [current]);
   const found = matching(entries, text === current ? '' : text);
   // The picture stays while the field shows its player, not once typing starts.
   const picture = text === current ? chosen?.picture : undefined;

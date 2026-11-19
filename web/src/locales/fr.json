@@ -545,7 +545,6 @@
     "timeoutStart": "Début à {{time}}",
     "timeoutEnd": "Fin à {{time}}",
     "reportGo": "Revoir ce moment",
-    "addMissedAttack": "Ajouter l'attaque",
     "makeServe": "En faire le service",
     "reportHandled": "Traité",
     "recordRight": "Juste",

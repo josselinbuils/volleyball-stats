@@ -172,7 +172,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   validates the rally on the video, N adds a touch at its moment. A player picked in a touch's field leaves it, for the
   keys to work again.
 - A player field lists first the players with touches in the touch's set, its team's first, most touches first: those
-  likely on court; then everyone, as before.
+  likely on court; then everyone, as before. A touch added lists first its team's players nearest the ball there.
 - Played past the end of a rally not checked, the video stops 1.5 s after it (the ball may still be up at the end found), once until moved back, to check it; "Valider" plays
   on from the next one.
 - Under it, a zoomable bar of every rally, touch, report (red flag) and warning (orange flag: on its touch, else the
@@ -197,19 +197,21 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   three matches blocks came 0.02-0.54 s after it, median 0.2 s; digs 0.1-1.7 s, median 0.8 s), else a dig.
   After a point, the losing team's touch (the ball fell on their side): a reception after an ace, a block or a dig after
   an attack, else a dig.
-- "Ajouter l'attaque" beside a set's doubt ("Une passe suivie par l'autre équipe", "L'échange finit sur une passe"; the
-  owner's, 15 Nov) adds the attack the ball unseen hid, by the set's team, 1.42 s after the set and 0.2 s before the next
-  touch at most (`missedAttackAt`), the video paused there and its player field ready; a rally ending on the set ends on
-  the attack instead (the set's point or fault moves to it). On the three matches' pipeline runs (`add-15nov`), an attack
-  was missing at 46 of the 116 sets doubted so, the rest sets really sent over or ending the rally, or relances and
-  attacks typed as sets (a key fixes those); the time found within 0.2 s 33-84% of the time, 0.3 s 67-95% (on the 397
-  attacks seen after a set: 1.42 s median, 70% within 0.2 s).
+- A touch added comes with its player (the owner's, 19 Nov): a serve's as the set's serves before it say (`nextServer`:
+  the same server when the team kept the serve, else the one after them in the rotation; on the first ASPOM match 82 of
+  82 and 41 of 43), else the nearest named player of its team to the ball (`Questions.nearest`, `GET /nearest`, as the
+  pipeline picks a touch's player, the ball seen up to 12 frames from it: on that match the right one first for 117 of
+  the 193 touches added, against 32 for the field's first name), never over a player picked meanwhile; the field is
+  empty when the ball is not seen.
 - Rallies are named by their `rallies.csv` start (`key` on the page). A rally starts at its first touch kept, its serve
   (`web.started`, never before the one before ends; the editor's `startOf` as the touches are removed or added): on the
   three matches, 55 of 444 started 0.5-11 s before their serve (touches removed in the review), most others 0.33 s after
   it. Its automatic reports keep the id of its window's start (`window` on the page), so none handled comes back.
 - A touch added after a point or a fault in its rally puts that touch back in play (a playing fault stays one) and is
-  the fault instead (the owner's, 19 Nov): after a point the losing team's, after a fault the ball touched on. A line between rallies
+  the fault instead (the owner's, 19 Nov): after a point the losing team's, after a fault the ball touched on. The
+  other way round, a rally's last touch removed, the touch in play before it ends the rally as it ended: a point if its
+  team won it, else a fault (the owner's, 19 Nov: 19 of the 27 results changed on the first ASPOM match came after a
+  touch removed after them); put back, that touch is in play again. A line between rallies
   shows the score after each one; a rally's whole surface turns orange with a warning, else light green once checked.
 - A rally's winner follows its last touch (`web.followed`).
 - "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in the review: always a

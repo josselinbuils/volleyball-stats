@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Group } from '@/lib/match';
 import {
   settled,
   closedEnd,
@@ -11,7 +12,7 @@ import {
   liveReports,
   unwarnedReports,
   matchFinished,
-  missedAttackAt,
+  nextServer,
   nextTouch,
   offGiven,
   openingTime,
@@ -254,6 +255,19 @@ describe('nextTouch', () => {
   });
 });
 
+describe('nextServer', () => {
+  const serve = (team: Group, player: string) => ({ team, player });
+  it("keeps the server of a team that kept the serve, else takes the rotation's next", () => {
+    expect(nextServer([], 1)).toBeUndefined();
+    expect(nextServer([serve(1, '1:4')], 1)).toBe('1:4');
+    expect(nextServer([serve(1, '1:4'), serve(2, '2:7')], 1)).toBeUndefined();
+    const set = [serve(1, '1:4'), serve(2, '2:7'), serve(1, '1:9'), serve(1, '1:9'), serve(2, '2:3'), serve(1, '1:2'), serve(2, '2:7'), serve(1, '1:4'), serve(2, '2:5')];
+    expect(nextServer(set, 1)).toBe('1:9');
+    expect(nextServer(set, 2)).toBe('2:5');
+    expect(nextServer(set.slice(0, -1), 2)).toBe('2:3');
+  });
+});
+
 describe('runningScores', () => {
   it('counts each set from 0, a rally of no play or joined to the one before for nothing', () => {
     const scores = runningScores([
@@ -327,18 +341,6 @@ describe('liveReports', () => {
       { rally: null, reports: [report('auto.gap')] },
     ];
     expect(liveReports(questions, new Set([1]))).toEqual(questions);
-  });
-});
-
-describe('missedAttackAt', () => {
-  it('puts the attack 1.42 s after the set, before the next touch', () => {
-    expect(missedAttackAt(10)).toBe(11.42);
-    expect(missedAttackAt(10, 13)).toBe(11.42);
-    expect(missedAttackAt(10, 11.3)).toBe(11.1);
-  });
-
-  it('finds no room right before the next touch', () => {
-    expect(missedAttackAt(10, 10.8)).toBeNull();
   });
 });
 

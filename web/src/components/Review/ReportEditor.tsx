@@ -9,7 +9,7 @@ import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
 import { railAt, shiftOf, topOf } from '@/components/Review/helpers/timeline';
-import { type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
+import { nearestPlayers, type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
 import { ReportRow, autoReport } from '@/components/Review/ReportRow';
@@ -26,7 +26,7 @@ import {
   freeFrame,
   LEAD_S,
   NEXT_TOUCH_S,
-  missedAttackAt,
+  nextServer,
   nextTouch,
   offGiven,
   pieceOf,
@@ -239,6 +239,8 @@ export function ReportEditor({
   const [added, setAdded] = useState<Added[]>(() => (saved.added ?? []).map((a) => ({ ...a, time: a.frame / match.fps })));
   // The rallies started by the review, by their start frame.
   const [splits, setSplits] = useState<number[]>(() => saved.splits ?? []);
+  // The players nearest the ball at each touch added, nearest first (`nearestPlayers`), by its frame.
+  const [near, setNear] = useState<Record<number, string[]>>({});
   // The faults whose second player is being picked, by frame.
   const [sharing, setSharing] = useState<number[]>([]);
   // By the rally's key: a rally started before one keeps its index from moving its fixes.
@@ -373,10 +375,15 @@ export function ReportEditor({
       inSet.set(set, counts);
     }
   }
-  const likelyFor = (row: Row): string[] =>
-    [...(inSet.get(shown[row.rally]?.set ?? -1) ?? new Map<string, number>())]
-      .sort(([a, x], [b, y]) => Number(teamOf(b) === row.team) - Number(teamOf(a) === row.team) || y - x)
-      .map(([player]) => player);
+  // A touch added lists first its team's players nearest the ball.
+  const likelyFor = (row: Row): string[] => [
+    ...new Set([
+      ...(near[row.frame] ?? []).filter((player) => teamOf(player) === row.team),
+      ...[...(inSet.get(shown[row.rally]?.set ?? -1) ?? new Map<string, number>())]
+        .sort(([a, x], [b, y]) => Number(teamOf(b) === row.team) - Number(teamOf(a) === row.team) || y - x)
+        .map(([player]) => player),
+    ]),
+  ];
   /** Where a rally starts: at its first touch kept (its serve), never before the one before ends, as the apply puts it
    * (`web.started`): removing its first touches moves it. */
   const startOf = (k: number) => Math.max(kept.get(k)?.[0]?.time ?? shown[k].start, shown[k - 1]?.end ?? 0);
@@ -441,28 +448,55 @@ export function ReportEditor({
     if (ended) {
       changeRow(before, { result: 'play' });
     }
-    setAdded((all) => [...all, { frame, time, ...guess, result: ended ? 'error' : 'play' }]);
+    setAdded((all) => [...all, { frame, time, ...guess, result: ended ? 'error' : 'play', player: guess.type === 'serve' ? serverOf(guess.team, time) : undefined }]);
+    guessPlayer(frame, guess.type);
     setFresh({ key: `t${frame}` });
     onPause(time);
   };
-  // The attack the editor's doubt on a set says may be missing, by the set's team, after it: the video there, its player
-  // field ready. A rally ending on the set ends on the attack instead.
-  const nextAfter = (row: Row) => mineOf(joinStart(row.rally, joins)).find((r) => r.time > row.time && !noBall(r))?.time;
-  const missedAttack = (row: Row) => {
-    const next = nextAfter(row);
-    const at = missedAttackAt(row.time, next);
-    if (at === null) {
-      return;
+  // A serve's player: as the serves before it in the set say (`nextServer`).
+  const serverOf = (team: Group, time: number) => {
+    const set = shown[rallyAt(shown, time)]?.set;
+    const serves = allRows.filter((row) => !row.removed && row.type === 'serve' && row.player && row.time < time && shown[row.rally]?.set === set);
+    return nextServer(serves, team) || undefined;
+  };
+  // The players nearest the ball where a touch is added; the nearest of its team made it, unless one was picked meanwhile.
+  const guessPlayer = (frame: number, type: string) =>
+    void nearestPlayers(frame, type)
+      .then((found) => {
+        setNear((all) => ({ ...all, [frame]: found }));
+        setAdded((all) =>
+          all.map((a) => {
+            const pick = found.find((player) => teamOf(player) === a.team);
+            return a.frame === frame && a.player === undefined && pick && offered.has(pick) ? { ...a, player: pick } : a;
+          }),
+        );
+      })
+      // No guess leaves the field to fill, as without one.
+      .catch(() => undefined);
+  // A rally's last touch removed, the touch now last ends it as it ended: a point if its team won it, else a fault
+  // (a touch in play said none: the rally's winner given).
+  const remove = (row: Row) => {
+    const k = joinStart(row.rally, joins);
+    const mine = mineOf(k);
+    const won = winnerOf(k);
+    const before = mine.at(-2);
+    if (mine.at(-1) === row && won !== null && !calledWrong(k) && before && before.result === 'play' && !noBall(before)) {
+      changeRow(before, { result: before.team === won ? 'point' : 'error' });
     }
-    const frame = freeFrame([...contacts.map((c) => c.f ?? frameOf(c.t)), ...added.map((a) => a.frame)], frameOf(at));
-    const time = frame / match.fps;
-    const result = next || row.result === 'play' ? 'play' : row.result;
-    if (result !== 'play') {
-      changeRow(row, { result: 'play' });
+    if (row.added) {
+      setAdded((all) => all.filter((a) => a.frame !== row.frame));
+    } else {
+      edit(row, { player: 'none' });
     }
-    setAdded((all) => [...all, { frame, time, type: 'attack', team: row.team, result }]);
-    setFresh({ key: `t${frame}` });
-    onPause(time);
+  };
+  // Put back as its rally's last touch ending it, the touch before it is in play again, as when it was removed.
+  const restore = (row: Row) => {
+    const k = joinStart(row.rally, joins);
+    const last = mineOf(k).at(-1);
+    if (last && last.time < row.time && row.result !== 'play' && last.result !== 'play' && !noBall(last) && !calledWrong(k)) {
+      changeRow(last, { result: 'play' });
+    }
+    edit(row, { player: undefined });
   };
   // A rally started where one already starts is that one. A new one comes with its serve (unless one is there), by
   // the last rally's winner, its player field ready to type in.
@@ -472,7 +506,9 @@ export function ReportEditor({
     if (!shown.some((r) => r.key === frame || frameOf(r.start) === frame)) {
       setSplits((all) => [...all, frame]);
       if (!allRows.some((row) => !row.removed && row.type === 'serve' && Math.abs(row.time - time) < SERVE_NEAR_S)) {
-        setAdded((all) => [...all, { frame, time, type: 'serve', team: serverAt(time), result: 'play' }]);
+        const team = serverAt(time);
+        setAdded((all) => [...all, { frame, time, type: 'serve', team, result: 'play', player: serverOf(team, time) }]);
+        guessPlayer(frame, 'serve');
         setFresh({ key: `t${frame}` });
       }
     }
@@ -1049,7 +1085,6 @@ export function ReportEditor({
                     ...rows
                       .filter((row) => row.rally === k)
                       .flatMap((row) => {
-                        const remove = () => (row.added ? setAdded((all) => all.filter((a) => a.frame !== row.frame)) : edit(row, { player: 'none' }));
                         const change = (said: Fix) => changeRow(row, said);
                         // A fault may be put on one of the team's two touches just before it (and on one picked before, kept
                         // shown). A playing fault is always its player's.
@@ -1143,7 +1178,7 @@ export function ReportEditor({
                                   size="icon"
                                   className="size-8 shrink-0"
                                   aria-label={t(row.removed ? 'review.reportRestore' : 'review.reportRemove')}
-                                  onClick={() => (row.removed ? edit(row, { player: undefined }) : remove())}
+                                  onClick={() => (row.removed ? restore(row) : remove(row))}
                                 >
                                   {row.removed ? <Undo2 aria-hidden /> : <Trash2 aria-hidden />}
                                 </Button>
@@ -1153,12 +1188,6 @@ export function ReportEditor({
                               <p className="m-0 flex items-center gap-1.5 px-1 text-xs text-amber-800 dark:text-amber-300">
                                 <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
                                 <span className="min-w-0 flex-1">{describe(problemsOf(row))}</span>
-                                {row.type === 'set' && problemsOf(row).some((p) => p === 'setToOtherTeam' || p === 'endsOnSet') && missedAttackAt(row.time, nextAfter(row)) !== null && (
-                                  <Button variant="outline" size="sm" className="h-7 shrink-0 text-foreground" onClick={() => missedAttack(row)}>
-                                    <Plus aria-hidden />
-                                    {t('review.addMissedAttack')}
-                                  </Button>
-                                )}
                                 {problemsOf(row).includes('noServe') && (
                                   <Button variant="outline" size="sm" className="h-7 shrink-0 text-foreground" onClick={() => setType(row, 'serve')}>
                                     <PenLine aria-hidden />
