@@ -872,7 +872,8 @@ def handle(
             from volleyball_stats import matches
 
             if route == "server/password/get":
-                return reply({"password": matches.password(OUTPUTS)})
+                # With its fingerprint: a page on the local network (plain http) has no crypto.subtle to make it.
+                return reply({"password": matches.password(OUTPUTS), "key": matches.video_key(OUTPUTS)})
             if route != "server/password":
                 return None
             # Not while an upload runs: it would put the former password back online.

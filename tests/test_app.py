@@ -165,7 +165,7 @@ class TestApp:
         monkeypatch.setattr(app, "server_state", lambda: {})
         monkeypatch.setattr(matches, "set_password", lambda outputs, password: set_.append(password))
         monkeypatch.setattr(matches, "password", lambda outputs: "secret-one")
-        assert json.loads(app.handle("POST", "/app/server/password/get", "", {}, list)[0]) == {"password": "secret-one"}
+        assert json.loads(app.handle("POST", "/app/server/password/get", "", {}, list)[0]) == {"password": "secret-one", "key": matches.fingerprint("secret-one")}
         assert app.handle("POST", "/app/server/password", "", {"password": "new-password"}, list)[2] == 200
         assert set_ == ["new-password"]
         monkeypatch.setattr(app.jobs, "state", lambda outputs: [{"id": app.HOSTING, "running": True}])

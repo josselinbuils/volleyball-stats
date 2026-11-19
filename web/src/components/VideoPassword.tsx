@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
-import { fingerprint, keyLink, VIDEO_MIN } from '@/lib/videoPassword';
+import { keyLink, VIDEO_MIN } from '@/lib/videoPassword';
 import { useRunning } from '@/hooks/useRunning';
 
 // The "Copié" mark this long on a link's button.
@@ -27,19 +27,17 @@ export function VideoPassword({ matches, list, busy, onState }: { matches: { nam
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
-  // The password and its fingerprint together: the links appear with it.
-  const take = useCallback(async (next: string | null) => {
-    setKey(next ? await fingerprint(next) : null);
-    setPassword(next);
-  }, []);
+  // The password and its fingerprint together, the server's (a page on the local network cannot make it): the links
+  // appear with it.
   const load = useCallback(async () => {
-    const r = await call<{ password: string | null }>('server/password/get', {});
+    const r = await call<{ password: string | null; key: string | null }>('server/password/get', {});
     if (!r.ok) {
       setPassword('failed');
       return;
     }
-    await take(r.password).catch(() => setPassword('failed'));
-  }, [take]);
+    setKey(r.key);
+    setPassword(r.password);
+  }, []);
   useEffect(() => {
     void load();
   }, [load]);
@@ -136,9 +134,9 @@ export function VideoPassword({ matches, list, busy, onState }: { matches: { nam
       {editing && (
         <EditDialog
           current={password}
-          onSaved={async (state, next) => {
+          onSaved={async (state) => {
             onState(state);
-            await take(next);
+            await load();
             setEditing(false);
             setSaved(true);
           }}
@@ -150,7 +148,7 @@ export function VideoPassword({ matches, list, busy, onState }: { matches: { nam
 }
 
 /** The videos' password chosen or changed: online at once for every match with its video. */
-function EditDialog({ current, onSaved, onClose }: { current: string | null; onSaved: (state: unknown, password: string) => Promise<void>; onClose: () => void }) {
+function EditDialog({ current, onSaved, onClose }: { current: string | null; onSaved: (state: unknown) => Promise<void>; onClose: () => void }) {
   const { t } = useTranslation();
   const [password, setPassword] = useState(current ?? '');
   const [error, setError] = useState<Explained | null>(null);
@@ -167,7 +165,7 @@ function EditDialog({ current, onSaved, onClose }: { current: string | null; onS
         setError(explain(t, r.error));
         return;
       }
-      await onSaved(r, password);
+      await onSaved(r);
     });
   };
 
