@@ -24,7 +24,7 @@ export function HostChoice({ onChoose, onCancel }: { onChoose: (body: HostBody) 
       if (r.ok) {
         setChosen(!!r.password);
       } else {
-        setError(r.error === 'local' ? { text: t('passwords.local'), detail: null, log: false } : explain(t, r.error, 'error.loadFailed'));
+        setError(explain(t, r.error, 'error.loadFailed'));
       }
     });
   }, [t]);

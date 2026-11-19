@@ -19,7 +19,6 @@ ROSTER_MATCHES matches, suggests the names of those who look most like each new 
 import argparse
 import csv
 import hashlib
-import ipaddress
 import json
 import os
 import re
@@ -2435,12 +2434,6 @@ def same_site(headers, port: int, lan: bool = False) -> bool:
     )
 
 
-def from_here(handler) -> bool:
-    """Whether `handler`'s request came from this machine, not the local network."""
-    address = ipaddress.ip_address(handler.client_address[0])
-    return (address.ipv4_mapped or address).is_loopback if isinstance(address, ipaddress.IPv6Address) else address.is_loopback
-
-
 def network_route(method: str, path: str, body: dict, port: int) -> tuple[bytes, str, int] | None:
     """The app's "Réseau local": GET /app/network its state (`network.state`); POST it switched (`on`: the server
     starts again to listen so, `network_restart`), kept from every start (`action` "always", `on`) or Windows set up for
@@ -2502,7 +2495,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
                 self.send_header("Location", "/matches/")
                 self.end_headers()
                 return
-            page = list_page(url.path, out, theme) if url.path.startswith("/matches/") else network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(out), local=from_here(self))
+            page = list_page(url.path, out, theme) if url.path.startswith("/matches/") else network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(out))
             self.send(*(page or (b"Not found", "text/plain", 404)))
 
         def do_POST(self) -> None:
@@ -2517,7 +2510,7 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             except ValueError:
                 return self.send(b'{"error":"not json"}', "application/json", 400)
             if self.path.startswith("/app/"):
-                answer = network_route("POST", self.path, body, port) or app.handle("POST", self.path, "", body, lambda: match_list(out), local=from_here(self)) or (b"Not found", "text/plain", 404)
+                answer = network_route("POST", self.path, body, port) or app.handle("POST", self.path, "", body, lambda: match_list(out)) or (b"Not found", "text/plain", 404)
                 self.send(*answer)
                 network_restart(self.path, body, answer)
                 if self.path == "/app/update" and answer[2] == 200:
@@ -2995,7 +2988,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return None
             if url.path == "/current":
                 return self.send(json.dumps({"name": match.name}).encode(), "application/json")
-            found = network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent), open_match=match.name, review=review_task, local=from_here(self))
+            found = network_route("GET", url.path, {}, port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(match.parent), open_match=match.name, review=review_task)
             if found:
                 return self.send(*found)
             if url.path == "/matches.json":
@@ -3088,7 +3081,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
             if self.path.startswith("/app/"):
-                answer = network_route("POST", self.path, body, port) or app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), club_changed, match.name, local=from_here(self)) or (b"Not found", "text/plain", 404)
+                answer = network_route("POST", self.path, body, port) or app.handle("POST", self.path, "", body, lambda: match_list(match.parent), lambda: bool(progress), club_changed, match.name) or (b"Not found", "text/plain", 404)
                 self.send(*answer)
                 network_restart(self.path, body, answer, lock)
                 if self.path == "/app/update" and answer[2] == 200:
@@ -3347,9 +3340,6 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 elif self.path == "/host" and (match / matches.PUBLISH).exists():
                     config = json.loads((match / matches.PUBLISH).read_text())
                     if "video" not in config:
-                        # The video only from this machine, which alone sees and sets its password (app.py's).
-                        if body.get("video") and not from_here(self):
-                            return self.send(b'{"error":"local"}', "application/json", 403)
                         if body.get("video") and not matches.password(outputs):
                             # The first match online with its video: the password chosen with it.
                             matches.set_password(outputs, body.get("password"))

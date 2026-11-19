@@ -743,12 +743,10 @@ def handle(
     club_changed=lambda: None,
     open_match: str | None = None,
     review=lambda: None,
-    local: bool = False,
 ) -> tuple[bytes, str, int] | None:
     """The response to an /app/ request; None when `path` is not one. `listed` gives the review's list of the matches,
     `busy` whether the server is applying answers (no update then), `club_changed` is told the club changed, `open_match`
-    the match whose review is open (it cannot be restored under it), `review` its run for the tasks (`tasks`), `local`
-    whether the request came from this machine (the videos' password only then)."""
+    the match whose review is open (it cannot be restored under it), `review` its run for the tasks (`tasks`)."""
     if not path.startswith("/app/"):
         return None
     reply = lambda data, status=200: (json.dumps(data, ensure_ascii=False).encode(), "application/json", status)  # noqa: E731
@@ -771,7 +769,7 @@ def handle(
                 return reply(learning())
             if route == "server":
                 # `here`: from this machine, which alone sees the videos' password.
-                return reply({**server_state(), "here": local})
+                return reply(server_state())
             if route == "server/copies":
                 return reply(server.copies(OUTPUTS))
             if route == "export":
@@ -863,9 +861,6 @@ def handle(
 
                 if jobs.is_running(OUTPUTS, HOSTING):
                     raise jobs.Running(HOSTING)
-                # The video only from this machine, which alone sees and sets its password.
-                if body.get("video") and not local:
-                    return reply({"error": "local"}, 403)
                 if body.get("video") and not matches.password(OUTPUTS):
                     # The first match online with its video: the password chosen with it.
                     matches.set_password(OUTPUTS, body.get("password"))
@@ -876,9 +871,6 @@ def handle(
         if route.startswith("server/password"):
             from volleyball_stats import matches
 
-            # The password only to this machine, never to the local network (`network.py`: no code there).
-            if not local:
-                return reply({"error": "local"}, 403)
             if route == "server/password/get":
                 return reply({"password": matches.password(OUTPUTS)})
             if route != "server/password":

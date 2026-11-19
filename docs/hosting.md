@@ -240,8 +240,8 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 - The Site tab's "Mot de passe des vidéos" shows and changes it (`matches.set_password`, not while an upload runs): the
   server's key at once, then the app checks the new one opens each video online. The app keeps it in
   `outputs/video_password.json` (owner's rights only, `files.write_secret`; in the backups' shared files, so either
-  machine uploads a video; never in a hosted folder). Only from the app's own computer (`review.from_here`, the
-  loopback): the local network ("Réseau local", no code) never reaches these routes, nor a first upload with the video.
+  machine uploads a video; never in a hosted folder). On the local network too once "Réseau local" opens it (the
+  owner's, 19 Nov), as a first upload with the video.
 - Its "Liens sans mot de passe" copy the list's or a match's address with `#key=<sha256>`: the page (`lib/videoPassword.ts`,
   `linkedKey`) takes it out of the address and keeps the cookie, so the video opens without typing the password. The key
   stays in the fragment, never sent to the server nor in a Referer. A changed password stops these links.

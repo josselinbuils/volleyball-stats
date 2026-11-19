@@ -149,25 +149,27 @@ class TestApp:
         for wrong in (["three"], [], "two"):
             assert app.handle("POST", "/app/server/host", "", {"matches": wrong}, list)[2] == 400
         assert len(started) == 2 and not first
-        # A match not online yet: its first upload's choice made, with the video from this machine alone.
-        assert app.handle("POST", "/app/server/host", "", {"matches": ["new", "one"], "video": True}, list)[2] == 403
+        # A match not online yet: its first upload's choice made, the videos' password chosen with the first video.
         assert app.handle("POST", "/app/server/host", "", {"matches": ["new", "one"], "video": False}, list)[2] == 200
         assert first == [(["new"], False)] and started[-1][-4:] == ["--only", "new", "--only", "one"]
+        chosen = []
+        from volleyball_stats import matches as app_matches
 
-    def test_the_videos_password_only_to_this_machine(self, place, monkeypatch):
+        monkeypatch.setattr(app_matches, "password", lambda outputs: None)
+        monkeypatch.setattr(app_matches, "set_password", lambda outputs, password: chosen.append(password))
+        assert app.handle("POST", "/app/server/host", "", {"matches": ["new"], "video": True, "password": "secret-one"}, list)[2] == 200
+        assert first[-1] == (["new"], True) and chosen == ["secret-one"]
+
+    def test_the_videos_password_shown_and_changed_unless_an_upload_runs(self, place, monkeypatch):
         set_ = []
         monkeypatch.setattr(app, "server_state", lambda: {})
         monkeypatch.setattr(matches, "set_password", lambda outputs, password: set_.append(password))
         monkeypatch.setattr(matches, "password", lambda outputs: "secret-one")
-        for route in ("server/password/get", "server/password"):
-            assert app.handle("POST", f"/app/{route}", "", {"password": "new-password"}, list)[2] == 403
-        assert json.loads(app.handle("GET", "/app/server", "", {}, list)[0])["here"] is False
-        assert json.loads(app.handle("GET", "/app/server", "", {}, list, local=True)[0])["here"] is True
-        assert json.loads(app.handle("POST", "/app/server/password/get", "", {}, list, local=True)[0]) == {"password": "secret-one"}
-        assert app.handle("POST", "/app/server/password", "", {"password": "new-password"}, list, local=True)[2] == 200
+        assert json.loads(app.handle("POST", "/app/server/password/get", "", {}, list)[0]) == {"password": "secret-one"}
+        assert app.handle("POST", "/app/server/password", "", {"password": "new-password"}, list)[2] == 200
         assert set_ == ["new-password"]
         monkeypatch.setattr(app.jobs, "state", lambda outputs: [{"id": app.HOSTING, "running": True}])
-        assert app.handle("POST", "/app/server/password", "", {"password": "other-one"}, list, local=True)[2] == 409
+        assert app.handle("POST", "/app/server/password", "", {"password": "other-one"}, list)[2] == 409
         assert set_ == ["new-password"]
 
     def test_the_update_starts_unless_answers_are_being_applied(self, monkeypatch):

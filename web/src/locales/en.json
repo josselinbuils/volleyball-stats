@@ -987,7 +987,6 @@
     "title": "Video password",
     "loading": "Loading the password…",
     "none": "None",
-    "local": "On the app's computer only.",
     "choose": "Choose",
     "change": "Change",
     "changeNote": "Links already shared will no longer open the videos.",

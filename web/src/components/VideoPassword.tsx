@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Check, Copy, Eye, EyeOff, LoaderCircle, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { PasswordField } from '@/components/PasswordField';
 import { Tip } from '@/components/Tip';
@@ -15,27 +14,10 @@ import { useRunning } from '@/hooks/useRunning';
 // The "Copié" mark this long on a link's button.
 const COPIED_MS = 2000;
 
-/** A refusal in words: "local" says where the password is seen. */
-function refused(t: TFunction, error: string | undefined): Explained {
-  return error === 'local' ? { text: t('passwords.local'), detail: null, log: false } : explain(t, error);
-}
-
 /** The "Site" tab's card of the videos' password: shown on request and changed, then the links opening the videos without
  * it, to the list (`list`, its address) and to each match online with its video (`matches`). `busy` while an upload runs
- * (no change then), `onState` given the server's state after a change. Only on the app's own computer (`here`). */
-export function VideoPassword({
-  matches,
-  list,
-  here,
-  busy,
-  onState,
-}: {
-  matches: { name: string; label: string; url: string }[];
-  list: string | null;
-  here: boolean;
-  busy: boolean;
-  onState: (state: unknown) => void;
-}) {
+ * (no change then), `onState` given the server's state after a change. */
+export function VideoPassword({ matches, list, busy, onState }: { matches: { name: string; label: string; url: string }[]; list: string | null; busy: boolean; onState: (state: unknown) => void }) {
   const { t } = useTranslation();
   // undefined while it loads, null before it is chosen.
   const [password, setPassword] = useState<string | null | undefined | 'failed'>(undefined);
@@ -59,10 +41,8 @@ export function VideoPassword({
     await take(r.password).catch(() => setPassword('failed'));
   }, [take]);
   useEffect(() => {
-    if (here) {
-      void load();
-    }
-  }, [here, load]);
+    void load();
+  }, [load]);
   useEffect(() => {
     if (!copied) {
       return;
@@ -71,9 +51,6 @@ export function VideoPassword({
     return () => window.clearTimeout(timer);
   }, [copied]);
 
-  if (!here) {
-    return <p className="text-muted-foreground">{t('passwords.local')}</p>;
-  }
   if (password === undefined) {
     return (
       <p role="status" className="flex items-center gap-2 text-muted-foreground">
@@ -187,7 +164,7 @@ function EditDialog({ current, onSaved, onClose }: { current: string | null; onS
     void run('save', async () => {
       const r = await call('server/password', { password });
       if (!r.ok) {
-        setError(refused(t, r.error));
+        setError(explain(t, r.error));
         return;
       }
       await onSaved(r, password);

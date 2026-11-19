@@ -107,7 +107,6 @@ export function SiteTab() {
   const f = useFormat();
   const [state, setState] = useState<ServerState | null>(null);
   // Whether this page runs on the app's computer, which alone sees the videos' password.
-  const [here, setHere] = useState(false);
   const [form, setForm] = useState<Server>(EMPTY);
   const [note, setNote] = useState<{ ok: true; text: string } | { ok: false; error: Explained } | null>(null);
   // The server's state unread: the tab says so, with a retry.
@@ -132,10 +131,9 @@ export function SiteTab() {
   const [doing, run] = useRunning();
   const removing = doing === 'keep' || !!doing?.startsWith('delete:');
   const refresh = useCallback(async () => {
-    const r = await call<ServerState & { here?: boolean }>('server');
+    const r = await call<ServerState>('server');
     if (r.ok) {
       setState(r);
-      setHere(!!r.here);
       const newest = r.matches.find(due);
       setPicked((p) => p ?? new Set(newest ? [newest.name] : []));
     }
@@ -519,7 +517,6 @@ export function SiteTab() {
           <VideoPassword
             matches={state.matches.flatMap((m) => (m.video && m.url ? [{ name: m.name, label: nameOf(m), url: m.url }] : []))}
             list={saved?.url || null}
-            here={here}
             busy={hosting}
             onState={(next) => setState(next as ServerState)}
           />
