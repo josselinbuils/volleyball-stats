@@ -268,9 +268,6 @@ Automatic reports (`review.unusual`) flag:
   second its team plays on (`relanceSecond`): a dig or a set by the owner's rule (14 Nov), on checked rallies too; on a checked
   rally, a set as a team's second touch the other team plays next (`setOver`): a relance (before, its 3rd touch is often
   missing: the editor's doubt "a set going to the other team" stands for it);
-- a relance from 2.6 m on a 2nd touch or later (`highRelance`, `review.odd_heights`, from the touches' 3D places in ball3d.js, kept across a rerun in `before-rerun/review-ball3d.js`): a
-  doubt, the touch flagged in the Match tab while its action stands; "Traité" keeps the action, validating handles it. An attack under 1.8 m was doubted too, dropped: the owner kept all 8
-  answered;
 - a set ending off the score given (`scoreOff`, asked again once the score moves; the list shows the running score);
 - the score board gaining more points than rallies played between two readings, the next one keeping that lead, a rally to
   replay allowed to explain one (`missedPoint`, `review.missed_points`: none on the first match, 26 of its 129 rallies

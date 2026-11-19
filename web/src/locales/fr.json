@@ -1115,7 +1115,6 @@
         "relanceFirst": "Une relance en première touche : c'est une défense",
         "relanceSecond": "Une relance en deuxième touche suivie par son équipe : c'est une passe",
         "setOver": "Une passe en deuxième touche suivie par l'autre équipe : c'est une relance",
-        "highRelance": "Une relance jouée haut : d'une main ?",
         "afterPoint": "Une action suit un point dans le même échange",
         "gap": "Longue pause entre deux touches",
         "serverOrder": "Serveur hors de l'ordre de rotation",
