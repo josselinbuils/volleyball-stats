@@ -136,32 +136,21 @@ class TestApp:
             assert app.handle("POST", "/app/server/host", "", {"matches": wrong}, list)[2] == 400
         assert len(started) == 2
 
-    def test_the_videos_passwords_only_to_this_machine(self, place, monkeypatch):
+    def test_the_videos_password_only_to_this_machine(self, place, monkeypatch):
         set_ = []
         monkeypatch.setattr(app, "server_state", lambda: {})
-        monkeypatch.setattr(app.server, "online", lambda outputs: [{"name": "one", "video": True}, {"name": "two", "video": False}])
-        monkeypatch.setattr(matches, "set_password", lambda match, key, sealed: set_.append((match.name, key, sealed)))
-        monkeypatch.setattr(matches, "sealed", lambda match: {"data": match.name})
-        self.match(place, "one")
-        self.match(place, "two")
-        (place / "outputs" / "matches" / "one" / "publish.json").write_text('{"video": true}')
-        (place / "outputs" / "matches" / "two" / "publish.json").write_text('{"video": false}')
-        one = {"name": "one", "key": "k", "sealed": {}}
-        for route in ("server/password/sealed", "server/password", "server/password/forget", "server/password/master"):
-            assert app.handle("POST", f"/app/{route}", "", {"matches": [one]}, list)[2] == 403
+        monkeypatch.setattr(matches, "set_password", lambda outputs, password: set_.append(password))
+        monkeypatch.setattr(matches, "password", lambda outputs: "secret-one")
+        for route in ("server/password/get", "server/password"):
+            assert app.handle("POST", f"/app/{route}", "", {"password": "new-password"}, list)[2] == 403
         assert json.loads(app.handle("GET", "/app/server", "", {}, list)[0])["here"] is False
         assert json.loads(app.handle("GET", "/app/server", "", {}, list, local=True)[0])["here"] is True
-        assert json.loads(app.handle("POST", "/app/server/password/sealed", "", {}, list, local=True)[0]) == {"sealed": {"one": {"data": "one"}}}
-        assert app.handle("POST", "/app/server/password", "", {"matches": [one]}, list, local=True)[2] == 200
-        assert set_ == [("one", "k", {})]
-        for wrong in ([{"name": "two"}], [], ["one"], None):
-            assert app.handle("POST", "/app/server/password", "", {"matches": wrong}, list, local=True)[2] == 400
+        assert json.loads(app.handle("POST", "/app/server/password/get", "", {}, list, local=True)[0]) == {"password": "secret-one"}
+        assert app.handle("POST", "/app/server/password", "", {"password": "new-password"}, list, local=True)[2] == 200
+        assert set_ == ["new-password"]
         monkeypatch.setattr(app.jobs, "state", lambda outputs: [{"id": app.HOSTING, "running": True}])
-        assert app.handle("POST", "/app/server/password", "", {"matches": [one]}, list, local=True)[2] == 409
-        resealed = []
-        monkeypatch.setattr(matches, "reseal", lambda folder, sealed: resealed.append(sealed))
-        assert app.handle("POST", "/app/server/password/master", "", {"sealed": {"one": {}}}, list, local=True)[2] == 200
-        assert resealed == [{"one": {}}]
+        assert app.handle("POST", "/app/server/password", "", {"password": "other-one"}, list, local=True)[2] == 409
+        assert set_ == ["new-password"]
 
     def test_the_update_starts_unless_answers_are_being_applied(self, monkeypatch):
         started = []

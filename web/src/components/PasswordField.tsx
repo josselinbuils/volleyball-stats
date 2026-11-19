@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/Tip';
 import { INPUT } from '@/lib/app';
-import { newPassword } from '@/lib/vault';
+import { newPassword } from '@/lib/videoPassword';
 
 /** A password typed hidden, shown on request, `min` characters at least (said once some are typed); with `generate`, a
  * button making a new one, shown. */

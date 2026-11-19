@@ -231,7 +231,7 @@ class TestHost:
     def test_stops_before_any_build_when_a_video_copy_is_missing(self, tmp_path, monkeypatch):
         built = []
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append(args))
-        config = {"site": str(tmp_path), "url": "https://example.org/", "upload": "host:/site/", "key": "key", "video": True, "videoKey": "abc", "light": str(tmp_path / "gone.mp4")}
+        config = {"site": str(tmp_path), "url": "https://example.org/", "upload": "host:/site/", "key": "key", "video": True, "light": str(tmp_path / "gone.mp4")}
 
         with pytest.raises(RuntimeError, match="light"):
             matches.host(Path("outputs/first"), Path("first.mp4"), Path("court.json"), "aspom", config)
@@ -264,7 +264,8 @@ class TestHost:
         return {key: str(path) for key, path in made.items()}
 
     def test_with_the_video_uploads_only_a_copy_the_password_guards_with_its_key_first(self, tmp_path, monkeypatch):
-        args, built, ran, site = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **self.copies(tmp_path))
+        args, built, ran, site = self.hosting(tmp_path, monkeypatch, video=True, **self.copies(tmp_path))
+        monkeypatch.setattr(matches, "video_key", lambda outputs: "abc")
 
         monkeypatch.setattr(matches, "protected", lambda url: False)
         with pytest.raises(RuntimeError):
@@ -276,12 +277,13 @@ class TestHost:
         monkeypatch.setattr(matches, "protected", lambda url: url == "https://example.org/volleyball/2026-10-29-a-vs-b/video/")
         matches.host(*args)
         assert ran[0][-2:] == ["host:/srv/service/site/", f"{site}/"]
-        assert ran[1][0] == "ssh" and '"2026-10-29-a-vs-b:abc" 1;' in ran[1][-1]
+        assert ran[1][0] == "ssh" and '"~^[^:/]+:abc$" 1;' in ran[1][-1]
         assert "--dry-run" in ran[2] and "--dry-run" not in ran[3]
         assert ran[3][:4] == ["rsync", "-rt", "--delete", "--delay-updates"] and ran[3][-2:] == [f"{site}/", "host:/srv/service/site/"]
 
     def test_says_so_when_its_password_does_not_open_it(self, tmp_path, monkeypatch):
-        args, _, _, _ = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **self.copies(tmp_path))
+        args, _, _, _ = self.hosting(tmp_path, monkeypatch, video=True, **self.copies(tmp_path))
+        monkeypatch.setattr(matches, "video_key", lambda outputs: "abc")
         monkeypatch.setattr(matches, "protected", lambda url: True)
         monkeypatch.setattr(matches, "opens", lambda url, key: False)
 
@@ -310,15 +312,17 @@ class TestHost:
     def test_never_falls_back_on_the_source_when_a_copy_was_never_made(self, tmp_path, monkeypatch, missing):
         copies = self.copies(tmp_path)
         del copies[missing]
-        args, built, _, _ = self.hosting(tmp_path, monkeypatch, video=True, videoKey="abc", **copies)
+        args, built, _, _ = self.hosting(tmp_path, monkeypatch, video=True, **copies)
+        monkeypatch.setattr(matches, "video_key", lambda outputs: "abc")
 
         with pytest.raises(RuntimeError, match=missing):
             matches.host(*args)
 
         assert built == []
 
-    def test_refuses_the_video_without_a_key(self, tmp_path, monkeypatch):
+    def test_refuses_the_video_without_a_password(self, tmp_path, monkeypatch):
         args, built, _, _ = self.hosting(tmp_path, monkeypatch, video=True, **self.copies(tmp_path))
+        monkeypatch.setattr(matches, "video_key", lambda outputs: None)
 
         with pytest.raises(RuntimeError, match="no password"):
             matches.host(*args)
@@ -338,11 +342,12 @@ class TestHostAll:
             match.mkdir(parents=True)
             (tmp_path / f"{name}.mp4").write_bytes(b"")
             (match / "source.json").write_text(json.dumps({"video": str(tmp_path / f"{name}.mp4"), "court": "court.json"}))
-            config = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "key", "video": video, **({"videoKey": "abc", **copies} if video else {})}
+            config = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "key", "video": video, **(copies if video else {})}
             (match / "publish.json").write_text(json.dumps(config))
             (site / name).mkdir(parents=True)
             (site / name / "data.js").write_text(f"window.MATCH = {json.dumps({'name': name, 'rallies': []})};\n")
             hosted.append((match, tmp_path / f"{name}.mp4", Path("court.json"), config))
+        monkeypatch.setattr(matches, "video_key", lambda outputs: "abc")
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match.name)))
         def publish(*args):
@@ -496,160 +501,95 @@ class TestClubTeam:
         assert matches.club_team(tmp_path, matches.CLUB) == 2
 
 
-SEALED = {"v": 1, "iter": 600_000, "salt": "c2FsdA==", "iv": "aXY=", "data": "c2VhbGVk"}
-KEY = "a" * 64
+KEY = matches.fingerprint("new-password")
 
 
 class TestChoose:
-    @staticmethod
-    def match(tmp_path):
+    def test_keeps_the_choice_alone(self, tmp_path):
         (tmp_path / matches.PUBLISH).write_text(json.dumps({"url": "https://example.org/"}))
-        return tmp_path
 
-    def test_keeps_the_fingerprint_and_the_sealed_password_only_for_its_user(self, tmp_path):
-        match = self.match(tmp_path)
-
-        matches.choose(match, True, KEY, SEALED)
-
-        assert json.loads((match / matches.PUBLISH).read_text()) == {"url": "https://example.org/", "video": True, "videoKey": KEY}
-        assert matches.sealed(match) == SEALED
-        if os.name == "posix":
-            assert (match / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
-
-    def test_a_copy_s_wider_rights_are_narrowed_on_reading(self, tmp_path):
-        match = self.match(tmp_path)
-        matches.choose(match, True, KEY, SEALED)
-        (match / matches.PASSWORD).chmod(0o644)
-
-        assert matches.sealed(match) == SEALED
-        if os.name == "posix":
-            assert (match / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
-
-    def test_without_the_video_needs_no_password(self, tmp_path):
-        assert matches.choose(self.match(tmp_path), False) == {"url": "https://example.org/", "video": False}
-
-    @pytest.mark.parametrize(
-        "key, sealed",
-        [
-            (None, SEALED),
-            ("secret", SEALED),
-            (KEY, None),
-            (KEY, {**SEALED, "iter": 1000}),
-            (KEY, {**SEALED, "data": "not base64!"}),
-            (KEY, {**SEALED, "data": "A" * 2000}),
-            (KEY, {**SEALED, "password": "clear"}),
-        ],
-    )
-    def test_the_video_needs_a_fingerprint_and_a_sealed_password(self, tmp_path, key, sealed):
-        match = self.match(tmp_path)
-
-        with pytest.raises(ValueError):
-            matches.choose(match, True, key, sealed)
-
-        assert "video" not in json.loads((match / matches.PUBLISH).read_text())
-        assert matches.sealed(match) is None
+        assert matches.choose(tmp_path, True) == {"url": "https://example.org/", "video": True}
+        assert matches.choose(tmp_path, False) == {"url": "https://example.org/", "video": False}
 
 
 class TestSetPassword:
     @staticmethod
-    def match(tmp_path, monkeypatch, online=True):
-        site, match = tmp_path / "site", tmp_path / "m"
+    def outputs(tmp_path, monkeypatch, online=True):
+        """A match online with its video, with the password it had before 19 Nov."""
+        site, match = tmp_path / "site", tmp_path / "matches" / "m"
         (site / "m").mkdir(parents=True)
-        match.mkdir()
+        match.mkdir(parents=True)
         config = {"site": str(site), "url": "https://example.org/v/", "upload": "host:/srv/site/", "key": "k", "video": True, "videoKey": "b" * 64}
         (match / matches.PUBLISH).write_text(json.dumps(config))
-        monkeypatch.setattr(matches, "hosted_folder", lambda m, s: site / "m" if online else None)
-        return match
+        files.write_secret(match / matches.PASSWORD, '{"v": 1}')
+        monkeypatch.setattr(matches, "online", lambda folder: [(match, Path("v.mp4"), Path("c.json"), json.loads((match / matches.PUBLISH).read_text()))] if online else [])
+        monkeypatch.setattr(matches, "hosted_folder", lambda m, s: site / "m")
+        return tmp_path
 
-    def test_goes_online_then_is_kept_then_checked(self, tmp_path, monkeypatch):
-        match = self.match(tmp_path, monkeypatch)
+    def test_goes_online_then_is_kept_for_its_user_alone_then_checked(self, tmp_path, monkeypatch):
+        outputs = self.outputs(tmp_path, monkeypatch)
         done = []
-        monkeypatch.setattr(matches, "install_key", lambda config, folder: done.append(("install", folder, config["videoKey"])))
+        monkeypatch.setattr(matches, "install_key", lambda config, key: done.append(("install", config["upload"], key)))
         monkeypatch.setattr(matches, "opens", lambda url, key: done.append(("opens", url, key)) or True)
 
-        matches.set_password(match, KEY, SEALED)
+        matches.set_password(outputs, "new-password")
 
-        assert done == [("install", "m", KEY), ("opens", "https://example.org/v/m/video/", KEY)]
-        assert json.loads((match / matches.PUBLISH).read_text())["videoKey"] == KEY
-        assert matches.sealed(match) == SEALED
+        assert done == [("install", "host:/srv/site/", KEY), ("opens", "https://example.org/v/m/video/", KEY)]
+        assert matches.password(outputs) == "new-password" and matches.video_key(outputs) == KEY
+        if os.name == "posix":
+            assert (outputs / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
+        # The match's own, from before 19 Nov, gone.
+        assert not (outputs / "matches" / "m" / matches.PASSWORD).exists()
+        assert "videoKey" not in json.loads((outputs / "matches" / "m" / matches.PUBLISH).read_text())
+
+    def test_a_copy_s_wider_rights_are_narrowed_on_reading(self, tmp_path, monkeypatch):
+        outputs = self.outputs(tmp_path, monkeypatch, online=False)
+        matches.set_password(outputs, "new-password")
+        (outputs / matches.PASSWORD).chmod(0o644)
+
+        assert matches.password(outputs) == "new-password"
+        if os.name == "posix":
+            assert (outputs / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
 
     def test_nothing_changes_when_the_server_refuses_it_nor_says_the_fingerprint(self, tmp_path, monkeypatch):
-        match = self.match(tmp_path, monkeypatch)
+        outputs = self.outputs(tmp_path, monkeypatch)
 
-        def refuse(config, folder):
-            raise subprocess.CalledProcessError(1, ["ssh", config["videoKey"]], stderr=b"Permission denied")
+        def refuse(config, key):
+            raise subprocess.CalledProcessError(1, ["ssh", key], stderr=b"Permission denied")
 
         monkeypatch.setattr(matches, "install_key", refuse)
 
         with pytest.raises(RuntimeError, match="^Permission denied$"):
-            matches.set_password(match, KEY, SEALED)
+            matches.set_password(outputs, "new-password")
 
-        assert json.loads((match / matches.PUBLISH).read_text())["videoKey"] == "b" * 64
-        assert matches.sealed(match) is None
+        assert matches.password(outputs) is None
+        assert json.loads((outputs / "matches" / "m" / matches.PUBLISH).read_text())["videoKey"] == "b" * 64
 
-    def test_a_match_not_online_keeps_it_for_its_upload(self, tmp_path, monkeypatch):
-        match = self.match(tmp_path, monkeypatch, online=False)
+    def test_without_a_match_online_kept_for_the_first_upload(self, tmp_path, monkeypatch):
+        outputs = self.outputs(tmp_path, monkeypatch, online=False)
         monkeypatch.setattr(matches, "install_key", lambda *a: pytest.fail("not online"))
 
-        matches.set_password(match, KEY, SEALED)
+        matches.set_password(outputs, "new-password")
 
-        assert json.loads((match / matches.PUBLISH).read_text())["videoKey"] == KEY
+        assert matches.password(outputs) == "new-password"
 
-    def test_not_for_a_match_without_the_video(self, tmp_path, monkeypatch):
-        match = self.match(tmp_path, monkeypatch)
-        matches.update_publish(match, video=False)
+    def test_says_so_when_a_page_does_not_open_with_it(self, tmp_path, monkeypatch):
+        outputs = self.outputs(tmp_path, monkeypatch)
+        monkeypatch.setattr(matches, "install_key", lambda config, key: None)
+        monkeypatch.setattr(matches, "opens", lambda url, key: False)
 
-        with pytest.raises(ValueError):
-            matches.set_password(match, KEY, SEALED)
+        with pytest.raises(RuntimeError, match="does not open"):
+            matches.set_password(outputs, "new-password")
 
-    def test_forgetting_removes_every_sealed_password_not_the_fingerprints(self, tmp_path, monkeypatch):
-        match = self.match(tmp_path, monkeypatch, online=False)
-        matches.set_password(match, KEY, SEALED)
-
-        matches.forget_passwords(tmp_path)
-
-        assert matches.sealed(match) is None and json.loads((match / matches.PUBLISH).read_text())["videoKey"] == KEY
-
-
-
-class TestReseal:
-    NEW = {**SEALED, "salt": "bmV3", "data": "bmV3IG9uZQ=="}
-
-    @staticmethod
-    def kept(tmp_path, *names):
-        for name in names:
-            (tmp_path / name).mkdir()
-            files.write_secret(tmp_path / name / matches.PASSWORD, json.dumps(SEALED))
-        (tmp_path / "none").mkdir(exist_ok=True)
-
-    def test_replaces_every_one_together_with_their_rights(self, tmp_path):
-        self.kept(tmp_path, "one", "two")
-
-        matches.reseal(tmp_path, {"one": self.NEW, "two": {**self.NEW, "iv": "aXYy"}})
-
-        assert matches.sealed(tmp_path / "one") == self.NEW and matches.sealed(tmp_path / "two")["iv"] == "aXYy"
-        assert not (tmp_path / "none" / matches.PASSWORD).exists() and not list(tmp_path.glob("*/.*.tmp"))
-        if os.name == "posix":
-            assert (tmp_path / "one" / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
-
-    @pytest.mark.parametrize(
-        "sealed",
-        [
-            {"one": NEW},
-            {"one": NEW, "two": NEW, "none": NEW},
-            {"one": NEW, "two": {**NEW, "salt": "b3RoZXI="}},
-            {"one": NEW, "two": {**NEW, "iter": 1000}},
-            {"one": NEW, "two": "clear"},
-            [NEW, NEW],
-        ],
-    )
-    def test_only_all_of_them_sealed_alike(self, tmp_path, sealed):
-        self.kept(tmp_path, "one", "two")
+    @pytest.mark.parametrize("wrong", [None, "", "short", "        x", "x" * 201, 12345678])
+    def test_refuses_one_too_short_or_too_long(self, tmp_path, monkeypatch, wrong):
+        outputs = self.outputs(tmp_path, monkeypatch)
+        monkeypatch.setattr(matches, "install_key", lambda *a: pytest.fail("refused first"))
 
         with pytest.raises(ValueError):
-            matches.reseal(tmp_path, sealed)
+            matches.set_password(outputs, wrong)
 
-        assert matches.sealed(tmp_path / "one") == SEALED == matches.sealed(tmp_path / "two")
+        assert matches.password(outputs) is None
 
 
 class TestAddCopies:
@@ -746,18 +686,17 @@ def test_sends_the_reports_beside_the_list():
 
 class TestKeyCommand:
     @staticmethod
-    def run(tmp_path, folder, key):
-        service = tmp_path / "docker" / "volleyball-stats"
+    def run(tmp_path, service, key):
         bin_ = tmp_path / "bin"
         bin_.mkdir(exist_ok=True)
         for name in ("docker", "nginx"):
             fake = bin_ / name
             fake.write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/{name}.log\n')
             fake.chmod(0o755)
-        subprocess.run(["sh", "-c", matches.key_command(service, folder, key)], check=True, env={**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"})
+        subprocess.run(["sh", "-c", matches.key_command(service, key)], check=True, env={**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"})
         return service / "video_key.conf"
 
-    def test_gives_the_folder_its_key_in_place_leaving_the_others_then_reloads(self, tmp_path):
+    def test_one_key_for_every_folder_in_place_the_former_ones_gone_then_reloads(self, tmp_path):
         service = tmp_path / "docker" / "volleyball-stats"
         service.mkdir(parents=True)
         (service.parent / "docker-compose.yml").write_text("services:\n  volleyballstats:\n    image: nginx\n")
@@ -765,9 +704,9 @@ class TestKeyCommand:
         keys.write_text('"old-match:111" 1;\n"m:222" 1;\n')
         inode = keys.stat().st_ino
 
-        self.run(tmp_path, "m", "333")
+        self.run(tmp_path, service, "333")
 
-        assert keys.read_text() == '"old-match:111" 1;\n"m:333" 1;\n'
+        assert keys.read_text() == '"~^[^:/]+:333$" 1;\n'
         assert keys.stat().st_ino == inode
         assert sorted(p.name for p in service.iterdir()) == ["video_key.conf"]
         assert "nginx -t -q && nginx -s reload" in (tmp_path / "docker.log").read_text()
@@ -777,21 +716,9 @@ class TestKeyCommand:
         service.mkdir(parents=True)
         (service / "video_key.conf").write_text("")
 
-        bin_ = tmp_path / "bin"
-        bin_.mkdir()
-        for name in ("docker", "nginx"):
-            (bin_ / name).write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/{name}.log\n')
-            (bin_ / name).chmod(0o755)
-        subprocess.run(["sh", "-c", matches.key_command(service, "m", "333")], check=True, env={**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"})
+        self.run(tmp_path, service, "333")
 
         assert (tmp_path / "nginx.log").read_text() == "-t -q\n-s reload\n" and not (tmp_path / "docker.log").exists()
-
-    def test_starts_an_empty_list(self, tmp_path):
-        service = tmp_path / "docker" / "volleyball-stats"
-        service.mkdir(parents=True)
-        (service / "video_key.conf").write_text("")
-
-        assert self.run(tmp_path, "m", "333").read_text() == '"m:333" 1;\n'
 
 
 def test_a_match_from_the_other_machine_gets_its_review_page_before_the_voice(tmp_path, monkeypatch):
@@ -851,7 +778,7 @@ class TestExport:
         built = []
         match = tmp_path / "outputs" / "matches" / "first"
         match.mkdir(parents=True)
-        (match / "publish.json").write_text(json.dumps({"club": 2, "video": True, "videoKey": "abc"}))
+        (match / "publish.json").write_text(json.dumps({"club": 2, "video": True}))
         (tmp_path / "first.mp4").write_bytes(b"")
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append("voice"))

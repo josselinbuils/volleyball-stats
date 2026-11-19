@@ -9,7 +9,7 @@ import { Tip } from '@/components/Tip';
 import { JobLine, type Told } from '@/components/JobLine';
 import { ExportSite } from '@/components/ExportSite';
 import { LateCauses } from '@/components/LateCauses';
-import { VideoPasswords } from '@/components/VideoPasswords';
+import { VideoPassword } from '@/components/VideoPassword';
 import { INPUT, call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
@@ -93,13 +93,13 @@ function Status({ ok, children }: { ok: boolean; children: ReactNode }) {
   );
 }
 
-/** The "Site" tab of the review's list: the hosting server, the matches online, their videos' passwords, the export and the
+/** The "Site" tab of the review's list: the hosting server, the matches online, the videos' password and links, the export and the
  * backups. */
 export function SiteTab() {
   const { t } = useTranslation();
   const f = useFormat();
   const [state, setState] = useState<ServerState | null>(null);
-  // Whether this page runs on the app's computer, which alone sees the videos' passwords.
+  // Whether this page runs on the app's computer, which alone sees the videos' password.
   const [here, setHere] = useState(false);
   const [form, setForm] = useState<Server>(EMPTY);
   const [note, setNote] = useState<{ ok: true; text: string } | { ok: false; error: Explained } | null>(null);
@@ -502,7 +502,13 @@ export function SiteTab() {
         </Card>
         <Card className="gap-3 px-4 py-3.5">
           <h2 className="text-lg font-semibold">{t('passwords.title')}</h2>
-          <VideoPasswords matches={state.online.filter((m) => m.video).map((m) => ({ name: m.name, label: nameOf(m) }))} here={here} busy={hosting} onState={(next) => setState(next as ServerState)} />
+          <VideoPassword
+            matches={state.online.flatMap((m) => (m.video && m.url ? [{ name: m.name, label: nameOf(m), url: m.url }] : []))}
+            list={saved?.url || null}
+            here={here}
+            busy={hosting}
+            onState={(next) => setState(next as ServerState)}
+          />
         </Card>
         <Card className="gap-3 px-4 py-3.5">
           <h2 className="text-lg font-semibold">{t('export.title')}</h2>

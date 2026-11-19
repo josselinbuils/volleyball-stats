@@ -28,7 +28,7 @@ match's commentary voice is made. None is ticked at first (the owner's rule, 15 
 
 The Site tab's "Serveur" card, for the uploads, the video's password, the viewers' reports and the backups, needs a Linux
 server reachable by SSH with a key, as root (the backups go to
-`/root/backups/volleyball-stats`, `backup.ROOT`; the passwords' list reloads nginx), and rsync on both sides: Windows (WSL2)
+`/root/backups/volleyball-stats`, `backup.ROOT`; the video's password reloads nginx), and rsync on both sides: Windows (WSL2)
 and macOS have both. Tested against nginx 1.24 (Ubuntu 24.04's) unprivileged, with [`nginx.conf`](nginx.conf): the video
 refused without its key then opened with it (`matches.protected`, `key_command`, `opens`), a report logged, a gzip copy sent.
 
@@ -37,7 +37,7 @@ refused without its key then opened with it (`matches.protected`, `key_command`,
    ```bash
    sudo apt install nginx rsync
    sudo mkdir -p /srv/volleyball/site /srv/volleyball/feedback
-   sudo touch /srv/volleyball/video_key.conf          # the videos' passwords, written by the app
+   sudo touch /srv/volleyball/video_key.conf          # the videos' password's key, written by the app
    sudo chown www-data /srv/volleyball/feedback       # the viewers' reports, written by nginx
    sudo cp nginx.conf /etc/nginx/conf.d/volleyball.conf   # this repository's docs/nginx.conf, its names changed
    sudo nginx -t && sudo systemctl reload nginx
@@ -52,7 +52,7 @@ refused without its key then opened with it (`matches.protected`, `key_command`,
 The app keeps `video_key.conf` and nginx `feedback/feedback.log` beside the site's folder (`matches.key_command`,
 `feedback.fetch`); the pages send the reports to `feedback` under the public address (`matches.feedback_address`). Under a
 path (`https://example.org/volleyball/`), name the site's folder after it (`/srv/www/volleyball/`, `root /srv/www;`) and put
-the path before the config's locations and patterns, as the owner's server below. After the passwords' list, the app runs
+the path before the config's locations and patterns, as the owner's server below. After writing the key, the app runs
 `nginx -t -q && nginx -s reload`, inside a `volleyballstats` docker compose service when the folder above the site's one
 composes it (the owner's). Left out of `nginx.conf`: the owner's crawler block (below) and Cloudflare (whose visitor's
 address, `$http_cf_connecting_ip`, keys the limits there).
@@ -104,14 +104,13 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
 - `outputs/hosted/` holds the hosted site: build each match into it without footage or pictures, list them (which names
   their folders), copy it over; nothing restarts.
 - With `outputs/matches/MATCH/publish.json` (`site`, `url`, `light`, `av1`, `small`, `club`, `upload` as
-  `root@<OVH IP>:…/site/`, `key`, `video`, `videoKey`; a match's video copies, once made, in its
+  `root@<OVH IP>:…/site/`, `key`, `video`; a match's video copies, once made, in its
   `data/matches/MATCH/reencoded/`), the review's "Mettre en ligne" does all of it (`matches.host`, refusing to upload a
   video copy that opens without the password) and says when.
 - The review writes an imported match's `publish.json` on opening (`matches.ensure_publish`: the hosting from another
   match's, its club team from the club's teams, else the theme's name).
-- The first "Mettre en ligne" asks: with the video and a password, or without it (`matches.choose`; to choose again, remove
-  `video` from `publish.json`). The password itself never reaches the app's server: the page keeps its fingerprint, and
-  the password sealed by the master password (below). Nothing is encoded before that choice: with the video, its copies
+- The first "Mettre en ligne" asks: with the video, behind the videos' password (chosen there for the first one), or
+  without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Nothing is encoded before that choice: with the video, its copies
   are made then (`video_copies.py`), cut by the automatic zoom (below).
 - Each match page carries the code it was built with, so a change of the page or of the data it is built from reaches the
   matches online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`)
@@ -228,24 +227,23 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 - A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21 frames to decode a jump instead of 131
   with `-g 250`, for +30% size in H.264, +60% in AV1.
 - The copies keep their source's date, so an upload skips an unchanged video.
-- The service's nginx serves a `/volleyball/FOLDER/video/` file only with the cookie `video_key`, the SHA-256 of
-  `volleyball:` and that match's password, listed in `volleyball-stats/video_key.conf` as `"FOLDER:<sha256>" 1;` (mounted
-  in the container: written in place, then `nginx -s reload`, as `matches.host` does). Otherwise it redirects to the page
-  with `?video=denied`, wrong keys limited to 10 a minute, `Cache-Control: private, no-store` so Cloudflare keeps nothing.
-  Check that a `curl` without it gets 302 before uploading a video.
-- The Site tab's "Mots de passe des vidéos" shows and changes them, once its master password (12 characters at least,
-  chosen at the first one sealed, in the Site tab or the first "Mettre en ligne") unlocks them. The browser seals each
-  password (`web/src/lib/vault.ts`: PBKDF2-SHA256, 600,000 rounds, into an AES-256-GCM key; one salt for all, so one
-  unlock opens them all) and makes its fingerprint; the app keeps only those, in `MATCH/video_password.json` (owner's
-  rights only, `files.write_secret`; backed up with the match, never in a hosted folder nor in `made_from`'s digest).
-  Changed (`matches.set_password`, one match or every one with the video), the server's list takes it at once, then
-  the app checks the new one opens the video; not while an upload runs. Unlocked 5 minutes at most.
-- Only from the app's own computer (`review.from_here`, the loopback): the local network ("Réseau local", no code) never
-  reaches these routes, nor a first upload with the video. A match whose password was chosen before 18 Nov shows
-  "Inconnu" until it is changed once. "Oublié ?" erases the sealed ones (`matches.forget_passwords`): the videos keep
-  their passwords, new ones then chosen. "Changer le mot de passe maître" asks the current one again, then the browser
-  opens every password and seals it by the new one (a new salt), and the app replaces them all at once
-  (`matches.reseal`: each written aside, then all put in place; refused unless it holds exactly those kept).
+- One password for every match's video. The service's nginx serves a `/volleyball/FOLDER/video/` file only with the
+  cookie `video_key`, the SHA-256 of `volleyball:` and the password, in `volleyball-stats/video_key.conf` as one line
+  `"~^[^:/]+:<sha256>$" 1;` for any folder (mounted in the container: written in place, then `nginx -s reload`, as
+  `matches.install_key` does). Otherwise it redirects to the page with `?video=denied`, wrong keys limited to 10 a minute,
+  `Cache-Control: private, no-store` so Cloudflare keeps nothing. Check that a `curl` without it gets 302 before uploading
+  a video. The browser keeps the cookie a year on the site's folder: one entry opens every match.
+- The Site tab's "Mot de passe des vidéos" shows and changes it (`matches.set_password`, not while an upload runs): the
+  server's key at once, then the app checks the new one opens each video online. The app keeps it in
+  `outputs/video_password.json` (owner's rights only, `files.write_secret`; in the backups' shared files, so either
+  machine uploads a video; never in a hosted folder). Only from the app's own computer (`review.from_here`, the
+  loopback): the local network ("Réseau local", no code) never reaches these routes, nor a first upload with the video.
+- Its "Liens sans mot de passe" copy the list's or a match's address with `#key=<sha256>`: the page (`lib/videoPassword.ts`,
+  `linkedKey`) takes it out of the address and keeps the cookie, so the video opens without typing the password. The key
+  stays in the fragment, never sent to the server nor in a Referer. A changed password stops these links.
+- Until 19 Nov each match had its own password, sealed by a master password, in `MATCH/video_password.json`: the first
+  password set removes them, with `videoKey` in `publish.json`, and rewrites the server's list; a page drops a match's
+  own former cookie on arrival.
 
 ## Films and voice
 
@@ -293,7 +291,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 
 - With "Sauvegarde automatique" on, every 10 minutes a match changed here since it was last sent or brought
   (`sync.changed`) is sent, and what sits beside the matches (courts and their clicks, roster, lens, the club, the viewers'
-  reports, the models trained on the reviewed matches: `learned/`, 345 MB) is kept in step with the server
+  reports, the videos' password, the models trained on the reviewed matches: `learned/`, 345 MB) is kept in step with the server
   (`sync.keep_shared`). The review's "Sauvegarder sur le serveur" and the Site tab's "Sauvegarder maintenant"
   (`sync push --all`) do it at once; `uv run python -m volleyball_stats.backup outputs/matches/MATCH` goes through
   `sync.push` too.

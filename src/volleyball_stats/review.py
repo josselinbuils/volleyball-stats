@@ -3213,10 +3213,13 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 elif self.path == "/host" and (match / matches.PUBLISH).exists():
                     config = json.loads((match / matches.PUBLISH).read_text())
                     if "video" not in config:
-                        # A password only from this machine, as the "Site" tab's (app.py).
+                        # The video only from this machine, which alone sees and sets its password (app.py's).
                         if body.get("video") and not from_here(self):
                             return self.send(b'{"error":"local"}', "application/json", 403)
-                        config = matches.choose(match, bool(body["video"]), body.get("videoKey"), body.get("sealed"))
+                        if body.get("video") and not matches.password(outputs):
+                            # The first match online with its video: the password chosen with it.
+                            matches.set_password(outputs, body.get("password"))
+                        config = matches.choose(match, bool(body["video"]))
                     # Hours of encoding only for a match that goes online with its video; copies cut by a former zoom
                     # only when the owner says so (`remake`).
                     remake = bool(body.get("remake"))

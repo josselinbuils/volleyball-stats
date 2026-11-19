@@ -744,7 +744,7 @@ def handle(
     """The response to an /app/ request; None when `path` is not one. `listed` gives the review's list of the matches,
     `busy` whether the server is applying answers (no update then), `club_changed` is told the club changed, `open_match`
     the match whose review is open (it cannot be restored under it), `review` its run for the tasks (`tasks`), `local`
-    whether the request came from this machine (the videos' passwords only then)."""
+    whether the request came from this machine (the videos' password only then)."""
     if not path.startswith("/app/"):
         return None
     reply = lambda data, status=200: (json.dumps(data, ensure_ascii=False).encode(), "application/json", status)  # noqa: E731
@@ -766,7 +766,7 @@ def handle(
             if route == "learning":
                 return reply(learning())
             if route == "server":
-                # `here`: from this machine, which alone sees the videos' passwords.
+                # `here`: from this machine, which alone sees the videos' password.
                 return reply({**server_state(), "here": local})
             if route == "server/copies":
                 return reply(server.copies(OUTPUTS))
@@ -859,31 +859,17 @@ def handle(
         if route.startswith("server/password"):
             from volleyball_stats import matches
 
-            # The passwords, sealed, only to this machine, never to the local network (`network.py`: no code there).
+            # The password only to this machine, never to the local network (`network.py`: no code there).
             if not local:
                 return reply({"error": "local"}, 403)
-            if route == "server/password/sealed":
-                # Every match's with the video, online or not: any tells the master password's salt.
-                chosen = [p.parent for p in sorted(MATCHES.glob(f"*/{matches.PUBLISH}")) if json.loads(p.read_text()).get("video")]
-                return reply({"sealed": {m.name: matches.sealed(m) for m in chosen}})
-            if route == "server/password/forget":
-                matches.forget_passwords(MATCHES)
-                return reply({})
-            if route == "server/password/master":
-                # Every one sealed again by the new master password, in the browser.
-                matches.reseal(MATCHES, body.get("sealed"))
-                return reply({})
+            if route == "server/password/get":
+                return reply({"password": matches.password(OUTPUTS)})
             if route != "server/password":
                 return None
             # Not while an upload runs: it would put the former password back online.
             if any(j["id"] == HOSTING and j["running"] for j in jobs.state(OUTPUTS)):
                 return reply({"error": "running"}, 409)
-            with_video = {m["name"] for m in server.online(OUTPUTS) if m["video"]}
-            picked = body.get("matches")
-            if not isinstance(picked, list) or not picked or not all(isinstance(m, dict) and m.get("name") in with_video for m in picked):
-                raise ValueError("matches")
-            for m in picked:
-                matches.set_password(MATCHES / m["name"], m.get("key"), m.get("sealed"))
+            matches.set_password(OUTPUTS, body.get("password"))
             return reply(server_state())
         if route == "export":
             export([str(n) for n in body["matches"]], listed(), body.get("folder") and str(body["folder"]))

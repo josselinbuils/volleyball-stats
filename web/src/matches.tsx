@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Matches, type MatchList } from '@/components/Matches';
 import { applyTheme } from '@/helpers/theme';
 import { keepPresence } from '@/lib/appServer';
+import { linkedKey, setVideoKey } from '@/lib/videoPassword';
 
 declare global {
   interface Window {
@@ -14,6 +15,11 @@ declare global {
 }
 
 /** The list of the match pages of a site, from matches.js. */
+// A shared link's key: every match's video then opens without the password.
+const linked = linkedKey();
+if (linked) {
+  setVideoKey(linked, location.pathname.replace(/[^/]*$/, ''));
+}
 applyTheme(null, window.MATCHES.club);
 keepPresence();
 createRoot(document.getElementById('root')!).render(

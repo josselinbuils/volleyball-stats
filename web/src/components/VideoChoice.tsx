@@ -4,20 +4,35 @@ import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { match } from '@/lib/match';
-import { fingerprint } from '@/lib/vault';
+import { fingerprint, hasVideoKey, linkedKey, setVideoKey } from '@/lib/videoPassword';
 
-// The copy with the video opens to the cookie COOKIE holding its password's fingerprint (`fingerprint`): the
-// server keeps the same fingerprint, never the password, and sends the visitor back with ?video=denied
-// without it. Kept for a year, on this match's folder.
-const COOKIE = 'video_key';
+// The copy with the video opens to the cookie holding the videos' password's fingerprint (`fingerprint`): the server keeps
+// the same fingerprint, never the password, and sends the visitor back with ?video=denied without it. Kept for every match
+// of the site, on the list's folder above this match's.
 const SKIPPED = 'video-skipped';
 const ASK = 'video-choice';
 
 const folder = () => location.pathname.replace(/index\.html$/, '');
-const hasKey = () => document.cookie.split('; ').some((c) => c.startsWith(`${COOKIE}=`));
+const site = () => folder().replace(/[^/]+\/$/, '');
 const setKey = (key: string | null) => {
-  document.cookie = `${COOKIE}=${key ?? ''}; Path=${folder()}; Max-Age=${key ? 31536000 : 0}; Secure; SameSite=Lax`;
+  // Each match had its own password, on its own folder, until 19 Nov.
+  setVideoKey(null, folder());
+  setVideoKey(key, site());
 };
+
+let arrived = false;
+/** On arrival, once: a shared link's key kept, a match's own former one dropped. */
+function arrive(): void {
+  if (arrived) {
+    return;
+  }
+  arrived = true;
+  const linked = linkedKey();
+  setVideoKey(null, folder());
+  if (linked) {
+    setVideoKey(linked, site());
+  }
+}
 
 /** Opens the choice, from a link to the copy with the video. */
 export function askVideo(): void {
@@ -32,9 +47,14 @@ export function VideoChoice() {
   const title = useId();
   const page = match.videoPage;
   const denied = new URLSearchParams(location.search).get('video') === 'denied';
-  const [open, setOpen] = useState(() => !!page && (denied || (!hasKey() && sessionStorageGet(SKIPPED) !== folder())));
+  const [open, setOpen] = useState(() => {
+    if (page) {
+      arrive();
+    }
+    return !!page && (denied || (!hasVideoKey() && sessionStorageGet(SKIPPED) !== folder()));
+  });
   const [password, setPassword] = useState('');
-  const [state, setState] = useState<'idle' | 'checking' | 'wrong' | 'changed' | 'unreached' | 'failed'>(() => (denied && hasKey() ? 'changed' : 'idle'));
+  const [state, setState] = useState<'idle' | 'checking' | 'wrong' | 'changed' | 'unreached' | 'failed'>(() => (denied && hasVideoKey() ? 'changed' : 'idle'));
   useEffect(() => {
     if (!page) {
       return;
@@ -43,7 +63,7 @@ export function VideoChoice() {
       // A key the server refused: the password changed.
       setKey(null);
       history.replaceState(null, '', folder());
-    } else if (hasKey()) {
+    } else if (hasVideoKey()) {
       location.replace(page);
     }
     const ask = () => setOpen(true);

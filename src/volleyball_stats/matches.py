@@ -47,13 +47,11 @@ RESERVED = ("assets", "club")
 REDIRECTS = "redirects.json"
 # Where a match folder says how to host it.
 PUBLISH = "publish.json"
-# A match's video password sealed by the owner's master password (in the browser: PBKDF2-SHA256 then AES-256-GCM,
-# web/src/lib/vault.ts), beside its publish.json, which keeps its fingerprint (`videoKey`): this code never sees a
-# password. Only this user may read it; it goes to the backups and nowhere else.
+# The one password of every match's video, in the outputs folder: only this user may read it (`files.write_secret`) and the
+# machines share it (`backup.SHARED`); the server and the viewers' cookie hold only its fingerprint. Before 19 Nov each match
+# had its own, sealed by a master password, in the match's folder under the same name: removed once the password is set.
 PASSWORD = "video_password.json"
-# What a sealed password holds, each in base64 but `v` and `iter`.
-SEALED = {"v": int, "iter": int, "salt": str, "iv": str, "data": str}
-SEALED_ROUNDS, SEALED_SIZE = 600_000, 1024
+PASSWORD_MIN, PASSWORD_MAX = 8, 200
 KEY = re.compile(r"[0-9a-f]{64}")
 # In a hosted match's folder, what its pages were built from (`made_from`): unchanged, an update only puts the page's code
 # in (`web.renew_code`). Online with them: the mirror brings it back with the pages another machine built.
@@ -415,79 +413,58 @@ def update_publish(match: Path, **changes) -> dict:
     return config
 
 
-def well_sealed(sealed: object) -> bool:
-    """Whether `sealed` is a password sealed as the page seals it (`SEALED`)."""
-    fine = isinstance(sealed, dict) and set(sealed) == set(SEALED)
-    fine = fine and all(type(sealed[k]) is kind for k, kind in SEALED.items()) and sealed["iter"] >= SEALED_ROUNDS
-    return fine and all(len(sealed[k]) <= SEALED_SIZE and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", sealed[k]) for k in ("salt", "iv", "data"))
+def password(outputs: Path) -> str | None:
+    """The videos' password, None before it is chosen."""
+    text = files.read_secret(outputs / PASSWORD)
+    return (json.loads(text).get("password") or None) if text else None
 
 
-def checked(key: object, sealed: object) -> tuple[str, dict]:
-    """A password's fingerprint and its sealed copy as the page sends them; ValueError("password") if not so."""
-    if not (isinstance(key, str) and KEY.fullmatch(key) and well_sealed(sealed)):
+def video_key(outputs: Path) -> str | None:
+    """The fingerprint of the videos' password, None before it is chosen."""
+    found = password(outputs)
+    return fingerprint(found) if found else None
+
+
+def choose(match: Path, video: bool) -> dict:
+    """The first upload's choice: with the video, behind the videos' password, or without it."""
+    return update_publish(match, video=bool(video))
+
+
+def set_password(outputs: Path, new: object) -> None:
+    """`new` the password of every match's video from now on: on the server at once when a match is online with its video,
+    then kept here, then checked on each. ValueError("password") for one too short or too long; RuntimeError when the server
+    does not take it (nothing changes) or a page does not open with it after."""
+    if not isinstance(new, str) or len(new.strip()) < PASSWORD_MIN or len(new) > PASSWORD_MAX:
         raise ValueError("password")
-    return key, sealed
-
-
-def sealed(match: Path) -> dict | None:
-    """The sealed password of `match`'s video, None when only its fingerprint is known (chosen before 18 Nov)."""
-    text = files.read_secret(match / PASSWORD)
-    return json.loads(text) if text else None
-
-
-def choose(match: Path, video: bool, key: str | None = None, sealed: dict | None = None) -> dict:
-    """The first upload's choice: with the video behind the password of fingerprint `key`, sealed beside it (`PASSWORD`),
-    or without it. ValueError("password") for the video without them."""
-    if not video:
-        return update_publish(match, video=False)
-    key, sealed = checked(key, sealed)
-    files.write_secret(match / PASSWORD, json.dumps(sealed) + "\n")
-    return update_publish(match, video=True, videoKey=key)
-
-
-def set_password(match: Path, key: str, sealed: dict) -> None:
-    """The password of fingerprint `key` opening the video of `match` from now on: on the server at once when the match is
-    online, then kept here, `sealed`. ValueError for a match without the video; RuntimeError when the server does not
-    take it (nothing changes) or its page does not open with it after."""
-    key, sealed = checked(key, sealed)
-    config = json.loads((match / PUBLISH).read_text())
-    if not config.get("video"):
-        raise ValueError("no video")
-    config = {**config, "videoKey": key}
-    folder = hosted_folder(match, Path(config["site"]).expanduser()) if config.get("site") else None
-    if folder is not None:
+    key = fingerprint(new)
+    shown = [config for _, _, _, config in online(outputs / "matches") if config["video"]]
+    for config in {c["upload"]: c for c in shown}.values():
         try:
-            install_key(config, folder.name)
+            install_key(config, key)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
             # Never the command's words: they hold the fingerprint.
             reason = (getattr(error, "stderr", None) or b"").decode(errors="replace").strip()
             raise RuntimeError(reason.splitlines()[-1] if reason else "ssh") from None
     # Kept as the server now has it, then checked.
-    files.write_secret(match / PASSWORD, json.dumps(sealed) + "\n")
-    update_publish(match, videoKey=key)
-    page = f"{config['url'].rstrip('/')}/{folder.name}/video/" if folder is not None and config.get("url") else None
-    if page and not opens(page, key):
-        raise RuntimeError(f"{page} does not open with its password")
+    files.write_secret(outputs / PASSWORD, json.dumps({"password": new}) + "\n")
+    forget_former(outputs / "matches")
+    for match, _, _, config in online(outputs / "matches"):
+        folder = hosted_folder(match, Path(config["site"]).expanduser())
+        if config["video"] and config.get("url") and folder is not None:
+            page = f"{config['url'].rstrip('/')}/{folder.name}/video/"
+            if not opens(page, key):
+                raise RuntimeError(f"{page} does not open with its password")
 
 
-def reseal(folder: Path, sealed: object) -> None:
-    """Every sealed password of the matches in `folder` replaced by `sealed` (match -> its password sealed by the new master
-    password, one salt): all together, or ValueError("password") when it does not hold exactly those kept, sealed alike."""
-    kept = {path.parent.name for path in folder.glob(f"*/{PASSWORD}")}
-    fine = isinstance(sealed, dict) and set(sealed) == kept and all(well_sealed(s) for s in sealed.values())
-    if not fine or len({(s["salt"], s["iter"]) for s in sealed.values()}) > 1:
-        raise ValueError("password")
-    # Each written aside first, then all put in place: never half under one master password, half under the other.
-    for name, one in sealed.items():
-        files.write_secret(folder / name / f".{PASSWORD}.tmp", json.dumps(one) + "\n")
-    for name in sealed:
-        os.replace(folder / name / f".{PASSWORD}.tmp", folder / name / PASSWORD)
-
-
-def forget_passwords(folder: Path) -> None:
-    """Every match's sealed password removed, its master password forgotten; the videos keep theirs."""
+def forget_former(folder: Path) -> None:
+    """The passwords each match of `folder` had before 19 Nov removed, sealed one and fingerprint."""
     for path in folder.glob(f"*/{PASSWORD}"):
         path.unlink()
+    for path in folder.glob(f"*/{PUBLISH}"):
+        config = json.loads(path.read_text())
+        if "videoKey" in config:
+            del config["videoKey"]
+            files.write_text(path, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
 
 
 def copies_gone(config: dict) -> list[str]:
@@ -543,16 +520,15 @@ def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet, remake:
     return update_publish(match, **{key: str(path.resolve()) for key, path in made.items()})
 
 
-def key_command(service: Path, folder: str, key: str) -> str:
-    """The server's shell command making `key` the one that opens the video of `folder`, then nginx reloaded: in the
-    SERVICE container when the folder above `service` composes it, else on the server. The list is written in place,
-    a container mounting it by its inode."""
+def key_command(service: Path, key: str) -> str:
+    """The server's shell command making `key` the one that opens every match's video/ folder, then nginx reloaded: in the
+    SERVICE container when the folder above `service` composes it, else on the server. The list is written in place, a
+    container mounting it by its inode; nginx's map takes the line as a pattern of any folder."""
     keys, compose = service / "video_key.conf", shlex.quote(str(service.parent))
-    listed = shlex.quote(f'"{folder}:')
-    line = shlex.quote(f'"{folder}:{key}" 1;')
+    line = shlex.quote(f'"~^[^:/]+:{key}$" 1;')
     reload = "nginx -t -q && nginx -s reload"
     composed = f"grep -qs '^  {SERVICE}:' docker-compose.yml docker-compose.yaml compose.yml compose.yaml"
-    return f"cd {compose} && conf={shlex.quote(str(keys))} && kept=$(grep -vF {listed} \"$conf\"); printf '%s\\n' \"$kept\" {line} | grep . > \"$conf.new\" && cat \"$conf.new\" > \"$conf\" && rm \"$conf.new\" && if {composed}; then docker compose exec -T {SERVICE} sh -c '{reload}'; else {reload}; fi"
+    return f"cd {compose} && printf '%s\\n' {line} > {shlex.quote(str(keys))} && if {composed}; then docker compose exec -T {SERVICE} sh -c '{reload}'; else {reload}; fi"
 
 
 def feedback_address(url: str | None) -> str | None:
@@ -572,10 +548,11 @@ def ssh_shell(key: str) -> str:
     return shlex.join(["ssh", *ssh_options(key)])
 
 
-def install_key(config: dict, folder: str) -> None:
+def install_key(config: dict, key: str) -> None:
+    """`key` made the one opening the videos on `config`'s server (`key_command`)."""
     host_name, path = config["upload"].split(":", 1)
     ssh = ["ssh", *ssh_options(config["key"]), host_name]
-    subprocess.run([*ssh, key_command(Path(path).parent, folder, config["videoKey"])], check=True, capture_output=True, timeout=60)
+    subprocess.run([*ssh, key_command(Path(path).parent, key)], check=True, capture_output=True, timeout=60)
 
 
 def opens(url: str, key: str) -> bool:
@@ -698,7 +675,7 @@ def made_from(match: Path, video: Path, court: Path, theme: str, config: dict) -
     for path in sorted(own.rglob("*")) if own.is_dir() else []:
         if path.is_file():
             add(path, f"club/{path.relative_to(own).as_posix()}")
-    # The password reaches the server alone (`set_password`), never the pages.
+    # The password reaches the server alone (`set_password`), never the pages; `videoKey`: a match's own until 19 Nov.
     kept = {k: v for k, v in config.items() if k != "videoKey"}
     digest.update(json.dumps({**kept, "theme": theme}, sort_keys=True).encode())
     return digest.hexdigest()[:16]
@@ -769,6 +746,7 @@ def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: 
 def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool, told: jobs.Stages) -> None:
     """`host_all`'s work."""
     config = hosted[0][3]
+    key = video_key(files.root(hosted[0][0]))
     if any((c["site"], c["upload"]) != (config["site"], config["upload"]) for *_, c in hosted):
         raise RuntimeError("the matches are hosted in different places")
     site = Path(config["site"]).expanduser()
@@ -783,7 +761,7 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
         # again before an upload).
         if c["video"] and (gone := copies_gone(c)):
             raise RuntimeError(f"{named(match)}video copies not found: {', '.join(gone)}")
-        if c["video"] and not c.get("videoKey"):
+        if c["video"] and not key:
             raise RuntimeError(f"{named(match)}the video has no password")
         if not video.exists():
             raise RuntimeError(f"{named(match)}video not found: {video}")
@@ -827,12 +805,13 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
             page = f"{config['url'].rstrip('/')}/{paths[match.name]}video/"
             if not protected(page):
                 raise RuntimeError(f"{page} opens without the password: not uploaded")
-            install_key(c, paths[match.name].rstrip("/"))
             # The players' films, real footage, only behind the password.
             films = sorted((site / paths[match.name] / "video" / "films").glob("*.mp4"))
             if films and not protected(f"{page}films/{films[0].name}"):
                 raise RuntimeError(f"{films[0].name} opens without the password: not uploaded")
-            guarded.append((page, c["videoKey"]))
+            guarded.append(page)
+    if guarded:
+        install_key(config, key)
     # Real footage only behind the password.
     outside = unguarded_videos(site)
     if outside:
@@ -856,7 +835,7 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
     host, ssh = backup.connection(config)
     backup.room(backup.free_gb(host, ssh, config["upload"].split(":", 1)[1]), backup.sent_bytes(dry.stdout, lambda name: site / name))
     counted(upload_command(config, site, copied), files_to_send(dry.stdout), told.share_of_stage)
-    for page, key in guarded:
+    for page in guarded:
         if not opens(page, key):
             raise RuntimeError(f"{page} does not open with its password")
 

@@ -38,7 +38,8 @@ STATE = ".sync.json"
 SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE, *tables.CACHES)
 # What sits beside the matches in the outputs folder, copied with each match and on its own (`backup_shared`).
 # "learned": the models trained on the reviewed matches (`playing.WEIGHTS`, 345 MB: a machine with no card gets them made).
-SHARED = ("courts", "court", "roster.json", "lens.json", "club", "feedback", "learned")
+# The videos' password (`matches.PASSWORD`): either machine uploads a match with its video.
+SHARED = ("courts", "court", "roster.json", "lens.json", "club", "feedback", "learned", matches.PASSWORD)
 REMOTE = Path(__file__).with_name("backup_remote.py")
 # How this machine's last copies went.
 STATE_FILE = "backup_state.json"

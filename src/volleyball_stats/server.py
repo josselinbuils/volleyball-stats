@@ -59,7 +59,6 @@ def online(outputs: Path) -> list[dict]:
                 "teams": [t.get("name") for t in page["teams"]] if page["teams"] else None,
                 "url": f"{url.rstrip('/')}/{folder.name}/" if url and folder else None,
                 **{k: hosted[k] for k in ("at", "day", "behind", "changes")},
-                # Its password only on its own request (app.py's server/password/show).
                 "video": bool(config["video"]),
             }
         )
