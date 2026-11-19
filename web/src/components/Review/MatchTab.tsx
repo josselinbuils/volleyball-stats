@@ -28,6 +28,16 @@ const HEIGHT_DOUBTS: Record<string, { problem: HeightDoubt; type: string }> = {
 /** The whole match to correct: its video, the bar of its rallies, touches and the viewers' reports
  * under it, the touches around where it stands beside it, each rally's reports left to handle under
  * its header. */
+/** Focuses a list and opens it, where the browser can (else focused, the keys open it). */
+const openList = (select: HTMLSelectElement | null) => {
+  select?.focus();
+  try {
+    select?.showPicker();
+  } catch {
+    // Focused only.
+  }
+};
+
 export function MatchTab({
   width,
   height,
@@ -144,11 +154,18 @@ export function MatchTab({
               caption={caption}
               captionEdit={
                 caption?.setPlayer &&
-                ((close) => (
+                ((close, part) => (
                   // The touch's action and result, as in its card, above its player.
                   <div className="grid gap-1.5 p-1.5">
                     <div className="flex gap-1.5">
-                      <select className={SELECT} aria-label={t('review.reportType')} value={caption.type} onChange={(e) => caption.setType?.(e.target.value)}>
+                      <select
+                        className={SELECT}
+                        aria-label={t('review.reportType')}
+                        value={caption.type}
+                        // The action clicked: its list opens.
+                        ref={part === 0 ? openList : undefined}
+                        onChange={(e) => caption.setType?.(e.target.value)}
+                      >
                         {TYPES.map((type) => (
                           <option key={type} value={type}>
                             {t(`types.${type}`)}
@@ -170,7 +187,7 @@ export function MatchTab({
                       likely={caption.likely}
                       empty={t('review.pickPlayer')}
                       label={t('review.reportPlayer')}
-                      autoFocus
+                      autoFocus={part !== 0}
                       onDone={close}
                       onChange={(who) => who && caption.setPlayer?.(who)}
                     />

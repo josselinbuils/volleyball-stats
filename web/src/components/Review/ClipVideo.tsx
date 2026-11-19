@@ -75,7 +75,9 @@ function saveFlag(key: string, on: boolean) {
  * `free`: the match plays on from the clip with its sound, no loop, the arrow keys moving it; the bar spans FREE_SPAN around where the video stands, the rallies in yellow. `caption`: over the video where the user dragged it (CAPTION_KEY), in its team's colour. Zooming by hand overrides the automatic zoom until the next rally.
  * `touches`: the ball's touches (times, sorted), which a button beside the speeds slows the video down at.
  * `spans`: in free play, the rallies drawn on the bar, as they stand with the corrections (the page's by default).
- * `captionEdit`: what a click on the caption opens under it, the video paused, until `close` is called or the caption changes.
+ * `caption`: its parts, shown with " · " between them.
+ * `captionEdit`: what a click on the caption opens under it, the video paused, until `close` is called or the caption changes;
+ *   `part` is the one clicked.
  * `captionAction`: a button beside the caption, on its side with more room.
  * `onPaused`: told whenever the video pauses or plays.
  * `extra`: at the right end of the buttons' line, after the sound's. */
@@ -107,11 +109,11 @@ export function ClipVideo({
   showTime?: boolean;
   free?: boolean;
   onTime?: (time: number) => void;
-  caption?: { team: Group; text: string; key?: string } | null;
+  caption?: { team: Group; parts: string[]; key?: string } | null;
   autoPlay?: boolean;
   touches?: number[];
   spans?: { start: number; end: number }[];
-  captionEdit?: (close: () => void) => ReactNode;
+  captionEdit?: (close: () => void, part: number) => ReactNode;
   captionAction?: ReactNode;
   onPaused?: (paused: boolean) => void;
   extra?: ReactNode;
@@ -156,9 +158,11 @@ export function ClipVideo({
   const grab = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [captionAt, setCaptionAt] = useState(savedCaption);
-  const captionDrag = useRef<{ x: number; y: number; from: { x: number; y: number }; moved: boolean } | null>(null);
+  const captionDrag = useRef<{ x: number; y: number; from: { x: number; y: number }; moved: boolean; part: number } | null>(null);
   // The caption whose editor is open, by its key.
   const [editing, setEditing] = useState<string | null>(null);
+  // The caption's part clicked to open its editor.
+  const [editPart, setEditPart] = useState(0);
   const dragCaption = (event: PointerEvent) => {
     const drag = captionDrag.current;
     const r = frame.current?.getBoundingClientRect();
@@ -177,6 +181,7 @@ export function ClipVideo({
       if (!drag.moved) {
         if (captionEdit && caption?.key) {
           video.current?.pause();
+          setEditPart(drag.part);
           setEditing(editing === caption.key ? null : caption.key);
         }
         return;
@@ -539,8 +544,10 @@ export function ClipVideo({
               <Tip label={t(captionEdit && caption.key ? 'review.captionEdit' : 'review.captionMove')}>
                 <span
                   onPointerDown={(event) => {
+                    // Between the parts, the last one (the player).
+                    const part = (event.target as HTMLElement).closest<HTMLElement>('[data-part]')?.dataset.part;
                     event.currentTarget.setPointerCapture(event.pointerId);
-                    captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt, moved: false };
+                    captionDrag.current = { x: event.clientX, y: event.clientY, from: captionAt, moved: false, part: Number(part ?? caption.parts.length - 1) };
                   }}
                   onPointerMove={dragCaption}
                   onPointerUp={dropCaption}
@@ -556,7 +563,14 @@ export function ClipVideo({
                   className="flex max-w-full cursor-grab touch-none items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm select-none active:cursor-grabbing"
                 >
                   <Swatch color={teamColor(caption.team)} ring={teamRing(caption.team)} />
-                  <span className="truncate">{caption.text}</span>
+                  <span className="truncate">
+                    {caption.parts.map((part, i) => (
+                      <span key={i} data-part={i}>
+                        {i > 0 && ' · '}
+                        {part}
+                      </span>
+                    ))}
+                  </span>
                 </span>
               </Tip>
               {/* On the caption's side with more room: it stays on the video. */}
@@ -571,7 +585,7 @@ export function ClipVideo({
               // Left for anything else: closed.
               onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setEditing(null)}
             >
-              {captionEdit(() => setEditing(null))}
+              {captionEdit(() => setEditing(null), editPart)}
             </div>
           )}
         </div>

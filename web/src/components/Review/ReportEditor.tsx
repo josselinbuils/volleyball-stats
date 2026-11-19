@@ -80,7 +80,8 @@ const STOP_AFTER_S = 1.5;
 /** The touch named over the video, which its editor (a click on it) changes: its action and result, its player. */
 export type Caption = {
   team: Group;
-  text: string;
+  /** The action, then the player. */
+  parts: string[];
   key: string;
   type: string;
   result: string;
@@ -522,7 +523,9 @@ export function ReportEditor({
     TOUCH_LEAD_S,
   );
   const named = coming && !joins(coming.rally - 1) ? coming : inHere;
-  const caption = named && (named.removed ? `${t(`types.${named.type}`)} · ${t('review.reportRemoved')}` : `${t(`actions.${named.type}.${named.result}`)} · ${who(named.player)}`);
+  // The action, then the player: a click on either opens its field.
+  const parts = named && (named.removed ? [t(`types.${named.type}`), t('review.reportRemoved')] : [t(`actions.${named.type}.${named.result}`), who(named.player)]);
+  const caption = parts && parts.join(' · ');
   useEffect(() => () => onCaption?.(null), []);
   const isCurrent = (o: Timeout) => o.start / match.fps <= now && now < o.end / match.fps;
   const inTimeout = timeouts.find(isCurrent);
@@ -745,7 +748,7 @@ export function ReportEditor({
       named && caption
         ? {
             team: named.team,
-            text: caption,
+            parts: parts!,
             key: `t${named.frame}`,
             type: named.type,
             result: named.result,
