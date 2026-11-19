@@ -891,3 +891,28 @@ class TestUpdateAll:
         matches.main()
 
         assert done == [("copies", "new"), ("host", [("old", {"video": False}), ("new", {"video": True, "light": "l"})], ["copies:new", "mirror", "match:old", "match:new", "upload"])]
+
+    def test_a_first_upload_with_the_video_makes_its_films_missing_first(self, tmp_path, monkeypatch):
+        from volleyball_stats import film
+
+        folder = tmp_path / "outputs" / "matches"
+        new, bare = folder / "new", folder / "bare"
+        for match, video in ((new, True), (bare, False)):
+            match.mkdir(parents=True)
+            (match / files.SOURCE).write_text(json.dumps({"video": str(tmp_path / "v.mp4"), "court": "c.json"}))
+            (match / matches.PUBLISH).write_text(json.dumps({"site": str(tmp_path / "site"), "video": video, "light": "l", "av1": "a", "small": "s"}))
+        (tmp_path / "v.mp4").write_bytes(b"v")
+        done = []
+        monkeypatch.setattr(matches, "online", lambda f: [])
+        monkeypatch.setattr(matches, "hosted_folder", lambda m, s: None)
+        monkeypatch.setattr(matches, "copies_missing", lambda c: False)
+        monkeypatch.setattr(sync, "behind", lambda found: {})
+        monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
+        monkeypatch.setattr(film, "status", lambda m: {"players": {"total": 2, "stale": ["A"]}, "highlights": {"total": 1, "stale": []}})
+        monkeypatch.setattr(film, "build", lambda m, v, c, share: done.append(("films", m.name)))
+        monkeypatch.setattr(matches, "host_all", lambda found, theme, mirrored, told: done.append(("host", told.plan)))
+        monkeypatch.setattr(sys, "argv", ["matches", "--all", str(folder), "--only", "new", "--only", "bare"])
+
+        matches.main()
+
+        assert done == [("films", "new"), ("host", ["films:new", "mirror", "match:new", "match:bare", "upload"])]

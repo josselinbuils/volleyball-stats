@@ -1040,6 +1040,7 @@
     "hosting": "Mise en ligne…",
     "stage": {
       "copies": "Vidéo du match {{n}} sur {{of}}",
+      "films": "Films du match {{n}} sur {{of}}",
       "mirror": "Lecture du site en ligne",
       "match": "Match {{n}} sur {{of}}",
       "check": "Match {{n}} sur {{of}}",

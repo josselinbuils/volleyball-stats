@@ -115,7 +115,8 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   match's, its club team from the club's teams, else the theme's name).
 - The first "Mettre en ligne" asks: with the video, behind the videos' password (chosen there for the first one), or
   without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Nothing is encoded before that choice: with the video, its copies
-  are made then (`video_copies.py`), cut by the automatic zoom (below).
+  are made then (`video_copies.py`), cut by the automatic zoom (below), then the players' films and the highlights not made
+  yet (`film.build`; `matches.first_with_video`), in the review's upload as in the app's list ("Films du match N sur M").
 - Each match page carries the code it was built with, so a change of the page or of the data it is built from reaches the
   matches online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`)
   rebuilds every match online and uploads them at once (`rsync --delay-updates`: the new files replace the old together),
@@ -253,7 +254,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 
 - The players' films and the match's summary (`film.py`, real footage): the review's "Créer N films de joueurs" and "Créer
   les highlights" each make those of their kind whose `plan` changed, never an apply; a player's card in "Noms" makes
-  their film alone when it is out of date (a rename, `/film`).
+  their film alone when it is out of date (a rename, `/film`). A match's first upload with the video makes those missing.
   `uv run python -m volleyball_stats.film outputs/matches/MATCH --video VIDEO --court COURT [--names A,B]` does the same.
   A clip whose point ends on a close call (`film.line_call`, the page's rule) is followed by its bounce again at 0.3 times
   the speed (3.3 s), still and pushing in on it, with the page's "Dedans" / "Dehors" card (`Maker.call_card`).

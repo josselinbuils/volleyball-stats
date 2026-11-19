@@ -2748,13 +2748,16 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             # The answers stay applied: only the hosted page is behind.
             hosted.update(at=time.strftime("%H:%M"), day=None, error=str(error) or type(error).__name__)
 
-    def filming(kind: str, names: list[str] | None = None) -> None:
+    def filming(kind: str, names: list[str] | None = None, strict: bool = False) -> None:
+        """The films of `kind` made (`film.build`), a failure kept for the page; raised too with `strict`."""
         try:
             film.build(match, video, court, staged, names, kind, shared)
             filmed["error"] = None
         except Exception as error:  # noqa: BLE001
             # The films made are kept: the next press makes those left.
             filmed["error"] = str(error) or type(error).__name__
+            if strict:
+                raise
 
     def page_mark() -> int | None:
         """When the review's page was last written."""
@@ -3361,7 +3364,10 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                     remake = bool(body.get("remake"))
                     needed = config["video"] and (matches.copies_missing(config) or (remake and matches.copies_stale(match, config)))
                     copies = [("copies", lambda: matches.add_copies(match, video, shared, remake))] if needed else []
-                    run_steps([*copies, ("hosting", hosting)])
+                    # A first upload with the video takes the players' films and the highlights, those not made yet.
+                    stale = film.status(match) if matches.first_with_video(match, config) else {}
+                    films = [(step, lambda kind=kind: filming(kind, strict=True)) for step, kind in (("films", "players"), ("highlights", "highlights")) if stale.get(kind, {}).get("stale")]
+                    run_steps([*copies, *films, *(pages() if films else []), ("hosting", hosting)])
                     return self.send(json.dumps({"answered": len(log), **waiting(match, log, shown), "rebuilt": False, "undone": None}).encode(), "application/json")
                 elif self.path == "/hostAll" and (match / matches.PUBLISH).exists():
                     # As each match's own upload: the video copies missing or at a former height made first.

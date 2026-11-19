@@ -81,7 +81,7 @@ SHARED_TAGS = re.compile(r"[ \t]*<meta (?:property=\"og:|name=\"twitter:)[^>]*>\
 LIST_TAG = re.compile(r'[ \t]*<meta name="list"[^>]*>\n?')
 # An update's stages (jobs.Stages) and their seconds before one is measured on this machine, kept in outputs/TIMINGS:
 # the site read from the server, each match rebuilt ("match:NAME"), the site uploaded and checked.
-TOOK = {"copies": 1800.0, "mirror": 10.0, "match": 15.0, "upload": 30.0}
+TOOK = {"copies": 1800.0, "films": 600.0, "mirror": 10.0, "match": 15.0, "upload": 30.0}
 TIMINGS = "hosting_timings.json"
 # The site exported for a host of one's own (`export`): outputs/EXPORT, its folder inside the zip unless named in the
 # page's language, its stages' durations.
@@ -465,6 +465,11 @@ def forget_former(folder: Path) -> None:
         if "videoKey" in config:
             del config["videoKey"]
             files.write_text(path, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+
+
+def first_with_video(match: Path, config: dict) -> bool:
+    """Whether `match` goes online for the first time with its video (publish.json `config`)."""
+    return bool(config.get("video")) and hosted_folder(match, Path(config["site"]).expanduser()) is None
 
 
 def copies_gone(config: dict) -> list[str]:
@@ -935,8 +940,17 @@ def main() -> None:
             print(f"{name}: newer on the server, from {other}: left as it is online")
         # As each match's own upload: the video copies missing or at a former height made first (hours for a match).
         encode = [m.name for m, v, _, c in found if c["video"] and v.exists() and copies_missing(c)]
+        # A first upload with the video takes the players' films and the highlights, those not made yet.
+        from volleyball_stats import film
+
+        filmed = []
+        for match, video, court, c in found:
+            if video.exists() and first_with_video(match, c):
+                ensure_review_page(match, video, court, args.theme)
+                if any(kind["stale"] for kind in film.status(match).values()):
+                    filmed.append(match.name)
         told = update_stages(args.all.parent, [m.name for m, *_ in found])
-        told.plan = [*(f"copies:{n}" for n in encode), *told.plan]
+        told.plan = [*(f"copies:{n}" for n in encode), *(f"films:{n}" for n in filmed), *told.plan]
         if not found:
             told.stopped.set()
             return None
@@ -945,6 +959,10 @@ def main() -> None:
                 told.start(f"copies:{match.name}")
                 ensure_review_page(match, video, court, args.theme)
                 found[k] = (match, video, court, add_copies(match, video, told.share_of_stage))
+        for match, video, court, _ in found:
+            if match.name in filmed:
+                told.start(f"films:{match.name}")
+                film.build(match, video, court, share=told.share_of_stage)
         told.start("mirror")
         from volleyball_stats import review
 

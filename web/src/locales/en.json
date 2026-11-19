@@ -1040,6 +1040,7 @@
     "hosting": "Uploading…",
     "stage": {
       "copies": "Video of match {{n}} of {{of}}",
+      "films": "Films of match {{n}} of {{of}}",
       "mirror": "Reading the site online",
       "match": "Match {{n}} of {{of}}",
       "check": "Match {{n}} of {{of}}",
