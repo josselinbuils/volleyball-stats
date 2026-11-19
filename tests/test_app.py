@@ -102,6 +102,17 @@ class TestApp:
         }
         assert app.handle("POST", "/app/server", "", {**body, "address": "nobody"}, list)[2] == 400
 
+    def test_fits_a_clicked_court_with_the_lens_once_calibrated(self, place, monkeypatch):
+        started = []
+        monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps, manual: started.append(steps[0][1]))
+        self.match(place, "m")
+        clicks = {"corner_left_far": [1, 2], "attack_left_far": [3, 4], "center_far": [5, 6], "corner_left_near": [7, 8]}
+        app.fit_court("m", clicks, "Gym")
+        (place / "outputs" / app.LENS).write_text("{}")
+        app.fit_court("m", clicks, "Gym")
+        assert "--lens" not in started[0] and started[1][-2:] == ["--lens", str(place / "outputs" / app.LENS)]
+
+
     def test_exports_only_the_matches_ready(self, place, monkeypatch):
         started = []
         monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append(steps[0][1]))

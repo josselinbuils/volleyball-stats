@@ -33,6 +33,8 @@ OUTPUTS = Path("outputs")
 MATCHES = OUTPUTS / "matches"
 COURTS = OUTPUTS / "courts"
 COURT, BACKGROUND = "court.json", "background.png"
+# The camera's lens (lens.py), when calibrated: a court clicked in the app is fitted with it.
+LENS = "lens.json"
 IMAGES = {"start": ("start.jpg", "image/jpeg"), "court": ("court.jpg", "image/jpeg"), "background": (BACKGROUND, "image/png")}
 # Where a camera's card or a video folder may be.
 MOUNTS = {"mac": ["/Volumes"], "linux": ["/media/{user}", "/run/media/{user}"]}
@@ -603,6 +605,8 @@ def fit_court(name: str, clicks: dict, court_name: str) -> None:
     command = ["volleyball_stats.court", "fit", str(folder / "court_clicks.json"), str(video_of(name)), "--court", slug, "--courts", str(COURTS), "--out", str(folder / COURT)]
     if (folder / BACKGROUND).exists():
         command += ["--background", str(folder / BACKGROUND)]
+    if (OUTPUTS / LENS).exists():
+        command += ["--lens", str(OUTPUTS / LENS)]
     if jobs.is_running(OUTPUTS, name):
         raise jobs.Running(name)
     (folder / COURT).unlink(missing_ok=True)

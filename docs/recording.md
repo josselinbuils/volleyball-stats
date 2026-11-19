@@ -98,6 +98,7 @@ the lens moved court positions by 5 cm at most (13 cm in the free zone).
 2. Keep it flat: tape it on a wall or door and move the camera, or show it full screen on a TV.
 3. Film it for a minute at about 1 m, from several angles. Watching the camera screen, place the
    whole board in each corner, at the middle of each edge and in the centre, 2 s each.
-4. Run `uv run python -m volleyball_stats.lens calibrate VIDEO`. It writes `outputs/lens.json`, to
-   pass as `--lens` to the court commands. The Osmo Action 3's, in Standard at 4K, is
+4. Run `uv run python -m volleyball_stats.lens calibrate VIDEO`. It writes `outputs/lens.json`: a court
+   mapped in the app is fitted with it (on videos of its frame size), and `--lens` passes it to the court
+   commands. The Osmo Action 3's, in Standard at 4K, is
    [`lens_osmo_action3_standard_4k.json`](lens_osmo_action3_standard_4k.json).

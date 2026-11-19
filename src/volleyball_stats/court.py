@@ -651,6 +651,9 @@ def main() -> None:
         clicks = {n: tuple(p) for n, p in json.loads(args.clicks.read_text()).items()}
         lens = json.loads(args.lens.read_text()) if args.lens else None
         image = cv2.imread(str(args.background)) if args.background and args.background.exists() else background(args.video)
+        if lens and lens.get("size") and list(lens["size"]) != [image.shape[1], image.shape[0]]:
+            print(f"The lens was calibrated on {lens['size'][0]}x{lens['size'][1]} frames, the video is {image.shape[1]}x{image.shape[0]}: fitted without it")
+            lens = None
         calibration = calibrate(image, clicks, lens)
         reprojected = calibration.to_image(np.array([LANDMARKS[name] for name in clicks]))
         print(f"{'landmark':20} {'snapped':>7} {'residual':>8}")
