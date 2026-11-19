@@ -32,6 +32,7 @@ import traceback
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -2345,6 +2346,10 @@ def reopening(name: str, out: Path, theme: str, port: int, roster: Path) -> list
     return [sys.executable, "-m", "volleyball_stats.review", str(out / name), "--outputs", str(out), "--theme", theme, "--port", str(port), "--roster", str(roster), "--no-browser", *(["--with-window"] if presence.ON else [])]
 
 
+class Busy(Exception):
+    """A request that would wait on the review's run until it ends: refused instead."""
+
+
 class Server(ThreadingHTTPServer):
     """The review's server, quiet when a page goes before its answer (a reload, a closed tab)."""
 
@@ -2570,6 +2575,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     # The answers and names before each change since the server started, for undo (see `undo`).
     history: list[dict] = []
     lock = threading.Lock()
+    # The review's data as the running run started, and the request that started it: a page opened meanwhile is
+    # answered from them, not left waiting on `lock` until the run ends.
+    at_start: dict = {"data": None, "action": None}
+    # The reports sent from the review's copy of the match page, one at a time.
+    reports_lock = threading.Lock()
+    acting: list[str | None] = [None]
     later = threading.Event()
     # Set while that work runs, for the app not to stop under it.
     after_apply = threading.Event()
@@ -2758,6 +2769,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
     def club_changed() -> None:
         """The pages rebuilt with the club as it now is, before the page reloads."""
         with lock:
+            acting[0] = None
             run_steps(pages())
 
     def afterwards() -> None:
@@ -2788,6 +2800,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 after_apply.clear()
 
     def run_steps(steps: list) -> None:
+        try:
+            at_start.update(data=review_data(), action=acting[0])
+        except Exception:  # noqa: BLE001
+            # A page opened during the run then waits for it.
+            traceback.print_exc()
+            at_start.update(data=None, action=None)
         # The weights of the share stay as the run started: the durations it records go to the next one.
         progress.update(steps=[name for name, _ in steps], started=time.time(), weights=dict(took))
         failure.clear()
@@ -2804,6 +2822,25 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 files.write_text(match / TIMINGS, json.dumps(took, indent=1) + "\n")
         finally:
             progress.clear()
+            at_start.update(data=None, action=None)
+
+    def taken(answered: bool = True) -> bool:
+        """`lock` taken once free; False instead while a run holds it (`progress`), for a request not to wait on it
+        until the run ends; with `answered` only if the run's start data (`at_start`) can answer it instead."""
+        while not lock.acquire(timeout=0.2):
+            if progress and (not answered or at_start["data"] is not None):
+                return False
+        return True
+
+    @contextmanager
+    def free():
+        """`lock` held, or Busy while a run holds it."""
+        if not taken(answered=False):
+            raise Busy
+        try:
+            yield
+        finally:
+            lock.release()
 
     def review_task() -> dict | None:
         """The review's run for the app's tasks: where it stands, else how the last one failed."""
@@ -2857,9 +2894,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             with lock:
                 questions.load()
 
-    def review_js() -> bytes:
-        # The page shows this match's new reports.
-        feedback.seen(outputs, match.name)
+    def review_data() -> dict:
+        """What review.js gives the page."""
         log = load_log(answers)
         found, _ = questions.build({entry["id"] for entry in log})
         follow_teams(roster, match.parent)
@@ -2882,7 +2918,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             "backup": backup_state(),
             "filmsError": filmed["error"],
         }
-        return f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode()
+        return data
 
     class Handler(BaseHTTPRequestHandler):
         def send(self, body: bytes | Path, kind: str, status: int = 200) -> None:
@@ -2913,6 +2949,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             """`handle`'s response; 400 for a request it cannot read (a field missing or of the wrong type)."""
             try:
                 handle()
+            except Busy:
+                self.send(b'{"error":"busy"}', "application/json", 503)
             except (LookupError, TypeError, ValueError, AttributeError, StopIteration) as error:
                 traceback.print_exc()
                 self.send(json.dumps({"error": repr(error)}).encode(), "application/json", 400)
@@ -2935,13 +2973,28 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(*page) if page else self.send(b"Not found", "text/plain", 404)
             if url.path == "/review.js":
                 follow()
-                with lock:
-                    body = review_js()
-                return self.send(body, "text/javascript")
+                if taken():
+                    try:
+                        # The page shows this match's new reports.
+                        feedback.seen(outputs, match.name)
+                        data = review_data()
+                    finally:
+                        lock.release()
+                else:
+                    # A run goes: the page as it started, which follows the run (`running`, the request that started
+                    # it) and reloads once it ends.
+                    data = {**at_start["data"], "running": at_start["action"] or "apply"}
+                return self.send(f"window.REVIEW = {json.dumps(data, separators=(',', ':'))};\n".encode(), "text/javascript")
             if url.path == "/photos":
-                with lock:
+                if not taken():
+                    # The new pictures come after the run: the page asks again.
+                    pending = {k: at_start["data"][k] for k in ("photos", "photosError")}
+                    return self.send(json.dumps({**pending, "photosPending": True, "people": {}}).encode(), "application/json")
+                try:
                     people = {k: p.get("photo") for k, p in ((page_data(match / "review") or {}).get("people") or {}).items()}
                     body = {**card_photos(), "people": people}
+                finally:
+                    lock.release()
                 return self.send(json.dumps(body).encode(), "application/json")
             if url.path == "/progress":
                 state = dict(progress)
@@ -2955,7 +3008,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             if url.path == "/more":
                 q = parse_qs(url.query)
                 team, number = int(q["team"][0]), int(q["identity"][0])
-                with lock:
+                with free():
                     log = load_log(answers)
                     questions.avoid = {questions.segment_of(o) for entry in log for o in entry.get("odd", [])}
                     seen = {questions.segment_of(r) for entry in log if entry.get("choice") == "more" for r in entry["pieces"]}
@@ -2995,7 +3048,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             # A report of what is wrong in a moment, from the review's copy of the match page: kept as
             # the hosting's nginx keeps the viewers' (volleyball_stats.feedback reads both).
             if self.path == "/feedback":
-                with lock, open(match / FEEDBACK, "a") as f:
+                with reports_lock, open(match / FEEDBACK, "a") as f:
                     f.write(json.dumps({"received": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "report": raw.decode()}, ensure_ascii=False) + "\n")
                 return self.send(b"", "text/plain", 204)
             body = json.loads(raw or b"{}")
@@ -3028,7 +3081,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 # The server's copy kept, this machine's set aside.
                 if progress:
                     return self.send(b'{"error":"busy"}', "application/json", 409)
-                with lock, backup_lock:
+                with free(), backup_lock:
                     try:
                         sync.take(match)
                     except (LookupError, OSError, RuntimeError, subprocess.SubprocessError) as error:
@@ -3041,7 +3094,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 # This machine's copy kept, the server's set aside there.
                 if progress:
                     return self.send(b'{"error":"busy"}', "application/json", 409)
-                with lock, backup_lock:
+                with free(), backup_lock:
                     try:
                         sync.keep(match)
                     except (LookupError, OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
@@ -3063,7 +3116,8 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 return self.send(b'{"error":"updating"}', "application/json", 409)
             follow()
             undone, undo_applied = None, False
-            with lock:
+            with free():
+                acting[0] = self.path.strip("/")
                 log = load_log(answers)
                 before, renamed, names_before = list(log), None, None
                 questions.avoid = {questions.segment_of(o) for entry in log for o in entry.get("odd", [])}

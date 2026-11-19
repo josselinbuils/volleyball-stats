@@ -187,6 +187,8 @@ interface ReviewData {
   due?: Due | null;
   /** The app's update runs (learn.update): the review waits for it. */
   updating?: boolean;
+  /** The request whose run goes on the server (an apply, the films...) as the page opened: the review follows it. */
+  running?: string;
   /** The last fetch of the viewers' reports from the hosting: when, how many for this match, why it failed. */
   fetched?: { at: string; count: number; error: string | null } | null;
   /** The copies of the data on the hosting server (none without one): the last one's time and failure, whether the review makes them by itself. */

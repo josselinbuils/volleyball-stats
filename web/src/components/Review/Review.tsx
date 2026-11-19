@@ -53,7 +53,7 @@ import { startUpdate, UpdateProgress, type Due } from '@/components/Update';
 import { call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
 import { matchFinished, unwarnedReports } from '@/components/Review/helpers/report';
-import { ReviewHeader } from '@/components/Review/ReviewHeader';
+import { ACTIONS, ReviewHeader, type Action } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
 import { windowTitle } from '@/lib/appServer';
 import { VideoButton } from '@/components/VideoButton';
@@ -102,6 +102,7 @@ export function Review({
   filmsError,
   due: wasDue = null,
   updating = false,
+  running,
 }: {
   width: number;
   height: number;
@@ -128,6 +129,8 @@ export function Review({
   due?: Due | null;
   /** The app's update runs: the review waits for it. */
   updating?: boolean;
+  /** The request whose run goes on the server, the page opened meanwhile: the review follows it. */
+  running?: string;
 }) {
   const { t } = useTranslation();
   const f = useFormat();
@@ -161,7 +164,7 @@ export function Review({
     }
   };
   const films = savedFilms ?? { players: { total: 0, stale: [] }, highlights: { total: 0, stale: [] } };
-  const [busy, setBusy] = useState<'apply' | 'undo' | 'update' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights' | null>(updating ? 'update' : null);
+  const [busy, setBusy] = useState<Action | 'update' | null>(updating ? 'update' : running ? (ACTIONS.find((a) => a === running) ?? 'apply') : null);
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -406,10 +409,9 @@ export function Review({
   const [progress, setProgress] = useState<{ fraction: number; part: number | null; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(
     null,
   );
-  const reload = async (path: 'undo' | 'apply' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights', body: object = {}) => {
-    setBusy(path);
-    // The server's steps, the share of the work they counted and the time left.
-    const poll = window.setInterval(async () => {
+  /** Follows the server's run: its steps, the share of the work they counted and the time left; `ended` once none goes. */
+  const watchRun = (ended?: () => void) =>
+    window.setInterval(async () => {
       try {
         const p = (await (await fetch('progress')).json()) as {
           steps?: string[];
@@ -433,11 +435,40 @@ export function Review({
             left: p.left,
             late: p.late,
           });
+        } else {
+          ended?.();
         }
       } catch {
         // The bar waits for the next poll.
       }
     }, 400);
+  // A run going as the page opened: the page as it started, reloaded once it ends.
+  useEffect(() => {
+    if (!running) {
+      return;
+    }
+    let over = false;
+    const timer = watchRun(async () => {
+      if (over) {
+        return;
+      }
+      over = true;
+      window.clearInterval(timer);
+      const failed = await readFailure();
+      if (!failed) {
+        location.reload();
+        return;
+      }
+      setProgress(null);
+      setBusy(null);
+      setFailure(failed);
+    });
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, as the page opens
+  }, [running]);
+  const reload = async (path: Action, body: object = {}) => {
+    setBusy(path);
+    const poll = watchRun();
     try {
       const saved = await post(path, body);
       window.clearInterval(poll);

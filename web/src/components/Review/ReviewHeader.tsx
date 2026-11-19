@@ -40,7 +40,9 @@ import type { Due } from '@/components/Update';
 import { BackLink } from '@/components/BackLink';
 import { Settings } from '@/components/Settings';
 
-type Action = 'undo' | 'apply' | 'sets' | 'host' | 'hostAll' | 'reports' | 'films' | 'film' | 'highlights';
+/** The requests that make the server run steps, with a progress bar. */
+export const ACTIONS = ['undo', 'apply', 'sets', 'host', 'hostAll', 'reports', 'films', 'film', 'highlights'] as const;
+export type Action = (typeof ACTIONS)[number];
 type Listed = { path: string; title: string | null; name: string; teams: { name: string | null }[] | null; date: string | null; ready: boolean };
 
 /** Between two items of the status line, which wraps on a phone. */

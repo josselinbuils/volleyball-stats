@@ -24,6 +24,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   `.wslconfig.bak`) and adds WSL's firewall rule for the port (`New-NetFirewallHyperVRule`, an administrator's approval
   asked), then the computer restarts.
 - `uv run stats stop` refuses while an apply runs (`curl -s 127.0.0.1:8765/progress` gives `{}` once none does).
+- A run (an apply, the films, an upload) holds the review's lock until it ends, but nothing waits on it: a page opened
+  meanwhile gets the review as the run started (`at_start`, `running` naming its request), follows its progress and
+  reloads once it ends; `/photos` says its pictures pending, and a request that would change something gets 503 `busy`.
 - The progress names each step and the pipeline's stage. Only counted work moves the bar (the owner's rule, 15 Nov):
   each step tells its own share (`shared`, `eta`'s `own`: the apply's rows of `players.csv` and page parts, the films'
   frames searched and shots made, the copies' ffmpeg time), else it holds; steps and stages weigh their last duration
