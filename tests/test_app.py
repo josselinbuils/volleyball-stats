@@ -92,8 +92,9 @@ class TestApp:
         assert app.played_teams() == ["B", "A", "C"]
 
     def test_saves_the_server_for_every_match(self, place):
-        self.match(place, "one", "source.json")
-        (place / "outputs" / "matches" / "one" / "publish.json").write_text(json.dumps({"club": 2, "video": True}))
+        folder = self.match(place, "one")
+        (folder / "source.json").write_text(json.dumps({"video": str(folder / "one.mp4"), "court": str(folder / "court.json")}))
+        (folder / "publish.json").write_text(json.dumps({"club": 2, "video": True}))
         body = {"address": "root@1.2.3.4", "folder": "/srv/site", "key": "~/.ssh/k", "url": "https://x.org/v"}
         answer = app.handle("POST", "/app/server", "", body, list)
         assert answer[2] == 200 and json.loads(answer[0])["server"] == {**body, "folder": "/srv/site/", "url": "https://x.org/v/"}
@@ -137,7 +138,9 @@ class TestApp:
         started = []
         monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append(steps[0][1]))
         monkeypatch.setattr(app, "server_state", lambda: {})
-        monkeypatch.setattr(app.server, "online", lambda outputs: [{"name": "one"}, {"name": "two"}])
+        monkeypatch.setattr(app.server, "listed", lambda outputs: [{"name": "one", "new": False}, {"name": "two", "new": False}, {"name": "new", "new": True}])
+        first = []
+        monkeypatch.setattr(app.server, "first_upload", lambda outputs, names, video: first.append((names, video)))
         matches = str(place / "outputs" / "matches")
         assert app.handle("POST", "/app/server/host", "", {}, list)[2] == 200
         assert started[-1] == ["volleyball_stats.matches", "--all", matches]
@@ -145,7 +148,11 @@ class TestApp:
         assert started[-1] == ["volleyball_stats.matches", "--all", matches, "--only", "two"]
         for wrong in (["three"], [], "two"):
             assert app.handle("POST", "/app/server/host", "", {"matches": wrong}, list)[2] == 400
-        assert len(started) == 2
+        assert len(started) == 2 and not first
+        # A match not online yet: its first upload's choice made, with the video from this machine alone.
+        assert app.handle("POST", "/app/server/host", "", {"matches": ["new", "one"], "video": True}, list)[2] == 403
+        assert app.handle("POST", "/app/server/host", "", {"matches": ["new", "one"], "video": False}, list)[2] == 200
+        assert first == [(["new"], False)] and started[-1][-4:] == ["--only", "new", "--only", "one"]
 
     def test_the_videos_password_only_to_this_machine(self, place, monkeypatch):
         set_ = []

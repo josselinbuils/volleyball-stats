@@ -64,12 +64,16 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
 - sets the server (its "Serveur" card, linking to [setting one up](#your-own-server)): address, site folder, ssh key,
   public address, in `outputs/server.json`, written into every match's `publish.json` (a new match takes it from there,
   `matches.ensure_publish`); "Tester" checks it answers and holds the folder;
-- lists the matches online, each "À jour" or "En retard" with its link (`server.online`). "En retard" once the page's data
+- lists the matches online, each "À jour" or "En retard" with its link, then those ready to go online, "Pas en ligne"
+  (`server.listed`: their pipeline ended, their files there, a real match, not in the site folder). "En retard" once the page's data
   or the code of the match's page, the list or the 3D view changed since its upload (`review.read_hosted`; the review's
   tip lists each cause on its line: "Joueurs" names only the named players whose card changed; the tracks without a name,
   kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs");
-- runs, as jobs that outlive the server, "Mettre à jour" the matches ticked in the list, late ones only (an up-to-date
-  one's box is off), at first the newest, "Tout sélectionner" ticking every late one ("Tout mettre à jour" when all are: `matches --all [--only MATCH ...]`, recording each upload as the review does: each page as the upload began, a change made while it runs left late),
+- runs, as jobs that outlive the server, "Mettre à jour" the matches ticked in the list, late or new ones only (an up-to-date
+  one's box is off), at first the newest, "Tout sélectionner" ticking every late or new one ("Tout mettre à jour" when all are: `matches --all [--only MATCH ...]`, recording each upload as the review does: each page as the upload began, a change made while it runs left late),
+  "Mettre en ligne" once a new one is ticked: the review's first-upload choice asked first for those without one
+  (`HostChoice`, `server.first_upload`: their `publish.json` written if missing), the video copies missing made in the job
+  before the mirror (a "copies" stage per match, hours on a 4K match),
   "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them) and "Vérifier"
   (`sync verify`). Each has a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
   duration on this machine, `outputs/hosting_timings.json`, `outputs/backup_timings.json`);

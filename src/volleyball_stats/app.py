@@ -623,7 +623,7 @@ def server_state() -> dict:
         "server": server.read(OUTPUTS),
         "auto": sync.auto(OUTPUTS),
         "last": {k: last[k] for k in ("at", "error", "verified", "problems")},
-        "online": server.online(OUTPUTS),
+        "matches": server.listed(OUTPUTS),
         "hosting": found.get(HOSTING),
         "backup": found.get(BACKUP),
         "verify": found.get(VERIFY),
@@ -852,11 +852,24 @@ def handle(
             sync.set_auto(OUTPUTS, body["on"])
             return reply(server_state())
         if route == "server/host":
-            # The matches picked, else every match online.
-            names = {m["name"] for m in server.online(OUTPUTS)}
+            # The matches picked, else every match online; those not online yet with the first upload's choice.
+            listed_ = server.listed(OUTPUTS)
             picked = body.get("matches")
-            if picked is not None and (not isinstance(picked, list) or not picked or not set(picked) <= names):
+            if picked is not None and (not isinstance(picked, list) or not picked or not set(picked) <= {m["name"] for m in listed_}):
                 raise ValueError("matches")
+            first = [m["name"] for m in listed_ if m["new"] and m["name"] in (picked or [])]
+            if first:
+                from volleyball_stats import matches
+
+                if jobs.is_running(OUTPUTS, HOSTING):
+                    raise jobs.Running(HOSTING)
+                # The video only from this machine, which alone sees and sets its password.
+                if body.get("video") and not local:
+                    return reply({"error": "local"}, 403)
+                if body.get("video") and not matches.password(OUTPUTS):
+                    # The first match online with its video: the password chosen with it.
+                    matches.set_password(OUTPUTS, body.get("password"))
+                server.first_upload(OUTPUTS, first, body.get("video"))
             only = [arg for name in picked or [] for arg in ("--only", name)]
             jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES), *only])])
             return reply(server_state())

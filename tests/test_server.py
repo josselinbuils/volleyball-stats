@@ -1,3 +1,4 @@
+import json
 import time
 
 import pytest
@@ -54,3 +55,43 @@ class TestServer:
         assert {"keep": 1} in remote and remote[-1] == f"rm -rf {backup.ROOT}/2026-01-01"
         with pytest.raises(ValueError):
             server.keep(tmp_path, 0, False)
+
+
+class TestListed:
+    @staticmethod
+    def match(outputs, name, config=None, video=True):
+        """A real match whose pipeline ended (data/matches/NAME/NAME.mp4), its publish.json `config`."""
+        folder, film = outputs / "matches" / name, outputs.parent / "data" / "matches" / name / f"{name}.mp4"
+        folder.mkdir(parents=True)
+        film.parent.mkdir(parents=True)
+        if video:
+            film.write_bytes(b"v")
+        (folder / "court.json").write_text("{}")
+        (folder / "report.md").write_text("")
+        (folder / "source.json").write_text(json.dumps({"video": str(film), "court": str(folder / "court.json")}))
+        if config is not None:
+            (folder / "publish.json").write_text(json.dumps(config))
+        return folder
+
+    def test_adds_the_matches_ready_to_go_online(self, tmp_path, monkeypatch):
+        outputs = tmp_path / "outputs"
+        monkeypatch.setattr(server.matches, "online", lambda folder: [])
+        self.match(outputs, "2026-11-16-a-vs-b", {"site": "site"})
+        self.match(outputs, "2026-11-12-c-vs-d", {"site": "site", "video": False})
+        # Its video gone: not ready.
+        self.match(outputs, "2026-11-10-e-vs-f", {"site": "site"}, video=False)
+
+        found = server.listed(outputs)
+
+        assert [(m["name"], m["new"], m["chosen"], m["behind"]) for m in found] == [("2026-11-16-a-vs-b", True, False, False), ("2026-11-12-c-vs-d", True, True, False)]
+
+    def test_the_first_upload_takes_the_choice_once(self, tmp_path, monkeypatch):
+        outputs = tmp_path / "outputs"
+        match = self.match(outputs, "m", {"site": "site"})
+
+        with pytest.raises(ValueError):
+            server.first_upload(outputs, ["m"], None)
+        server.first_upload(outputs, ["m"], True)
+        server.first_upload(outputs, ["m"], False)
+
+        assert json.loads((match / "publish.json").read_text())["video"] is True

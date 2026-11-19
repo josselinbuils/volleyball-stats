@@ -40,9 +40,10 @@ def save(outputs: Path, body: dict) -> None:
         matches.update_publish(path.parent, **{k: v for k, v in hosting.items() if v and (k != "site" or not given.get("site"))})
 
 
-def online(outputs: Path) -> list[dict]:
-    """The matches online, newest first: their name, date, title and teams' names, their page's address, and when it last
-    went up, whether the match changed since and what (`review.read_hosted`), whether it has the video."""
+def listed(outputs: Path) -> list[dict]:
+    """The matches online, then those ready to go online (`new`: their pipeline ended, their files there, a real match),
+    newest first: their name, date, title and teams' names, their page's address, and when it last went up, whether the
+    match changed since and what (`review.read_hosted`), whether it has the video (`chosen`: whether that is chosen)."""
     from volleyball_stats import review
 
     found = []
@@ -60,9 +61,53 @@ def online(outputs: Path) -> list[dict]:
                 "url": f"{url.rstrip('/')}/{folder.name}/" if url and folder else None,
                 **{k: hosted[k] for k in ("at", "day", "behind", "changes")},
                 "video": bool(config["video"]),
+                "new": False,
+                "chosen": True,
+            }
+        )
+    here = {m["name"] for m in found}
+    site = Path(SITE)
+    for m in review.match_list(outputs / "matches"):
+        match = outputs / "matches" / m["path"]
+        given = json.loads((match / files.SOURCE).read_text())
+        config = json.loads((match / matches.PUBLISH).read_text()) if (match / matches.PUBLISH).exists() else {}
+        if m["path"] in here or not m["ready"] or m.get("missing") or not matches.imported(match, Path(given["video"])):
+            continue
+        if matches.hosted_folder(match, Path(config.get("site") or site).expanduser()):
+            continue
+        teams = m.get("teams")
+        found.append(
+            {
+                "name": m["path"],
+                "date": m["date"],
+                "title": m["title"],
+                "teams": [t.get("name") for t in teams] if teams else None,
+                "url": None,
+                "at": None,
+                "day": None,
+                "behind": False,
+                "changes": None,
+                "video": bool(config.get("video")),
+                "new": True,
+                "chosen": "video" in config,
             }
         )
     return sorted(found, key=lambda m: (m["date"] or "", m["name"]), reverse=True)
+
+
+def first_upload(outputs: Path, names: list[str], video: object) -> None:
+    """The matches `names` not online yet given their publish.json if missing and the first upload's choice `video` when
+    none is made; ValueError("video") when one needs it and none is given."""
+    for name in names:
+        match = outputs / "matches" / name
+        given = json.loads((match / files.SOURCE).read_text())
+        matches.ensure_publish(match, Path(given["video"]), matches.CLUB)
+        if not (match / matches.PUBLISH).exists():
+            raise LookupError("server")
+        if "video" not in json.loads((match / matches.PUBLISH).read_text()):
+            if not isinstance(video, bool):
+                raise ValueError("video")
+            matches.choose(match, video)
 
 
 def ssh(found: dict, command: str, timeout: float = 30) -> str:

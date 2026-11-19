@@ -81,7 +81,7 @@ SHARED_TAGS = re.compile(r"[ \t]*<meta (?:property=\"og:|name=\"twitter:)[^>]*>\
 LIST_TAG = re.compile(r'[ \t]*<meta name="list"[^>]*>\n?')
 # An update's stages (jobs.Stages) and their seconds before one is measured on this machine, kept in outputs/TIMINGS:
 # the site read from the server, each match rebuilt ("match:NAME"), the site uploaded and checked.
-TOOK = {"mirror": 10.0, "match": 15.0, "upload": 30.0}
+TOOK = {"copies": 1800.0, "mirror": 10.0, "match": 15.0, "upload": 30.0}
 TIMINGS = "hosting_timings.json"
 # The site exported for a host of one's own (`export`): outputs/EXPORT, its folder inside the zip unless named in the
 # page's language, its stages' durations.
@@ -729,6 +729,21 @@ def online(folder: Path) -> list[tuple[Path, Path, Path, dict]]:
     return found
 
 
+def first_uploads(folder: Path, names: list[str]) -> list[tuple[Path, Path, Path, dict]]:
+    """The matches `names` of `folder` not online yet whose first upload's choice is made (`choose`), as `online` gives them."""
+    found = []
+    for name in names:
+        match = folder / name
+        path = match / PUBLISH
+        if not path.exists() or not (match / files.SOURCE).exists():
+            continue
+        config = json.loads(path.read_text())
+        if "video" in config and not hosted_folder(match, Path(config["site"]).expanduser()):
+            given = json.loads((match / files.SOURCE).read_text())
+            found.append((match, Path(given["video"]), Path(given["court"]), config))
+    return found
+
+
 def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool = False, told: jobs.Stages | None = None) -> None:
     """Each match of `hosted` (match, video, court, publish.json) rebuilt as `host` says, in the site as the server holds
     it (`mirror`, unless already `mirrored`), then the site uploaded once, its new files put in place together at the end.
@@ -882,7 +897,7 @@ def main() -> None:
     parser.add_argument("site", type=Path, nargs="?", help="Folder holding one match page per subfolder")
     parser.add_argument("--host", type=Path, help="Build this match's hosted pages from its publish.json and upload them")
     parser.add_argument("--all", type=Path, help="Rebuild every match of this folder whose page is online (outputs/matches), then upload them at once")
-    parser.add_argument("--only", action="append", default=[], metavar="MATCH", help="With --all, only this match online (its folder's name), again for each")
+    parser.add_argument("--only", action="append", default=[], metavar="MATCH", help="With --all, only this match (its folder's name), online or its first upload's choice made, again for each")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--court", type=Path)
     parser.add_argument("--theme", default=CLUB, help=f"Club theme: {CLUB} (the app's), one of branding/NAME/brand.json ({', '.join(themes)}) or none (default: {CLUB})")
@@ -912,16 +927,25 @@ def main() -> None:
         given = [json.loads(p.read_text()) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
         config = next((c for c in given if c.get("upload") and c.get("site")), None)
         found = [h for h in online(args.all) if not args.only or h[0].name in args.only]
-        told = update_stages(args.all.parent, [m.name for m, *_ in found])
-        told.start("mirror")
+        # The matches picked going online for the first time.
+        found += first_uploads(args.all, [n for n in args.only if n not in {m.name for m, *_ in found}])
         newer = sync.behind([m for m, *_ in found])
         found = [h for h in found if h[0].name not in newer]
-        told.plan = ["mirror", *(f"match:{m.name}" for m, *_ in found), "upload"]
         for name, other in newer.items():
             print(f"{name}: newer on the server, from {other}: left as it is online")
+        # As each match's own upload: the video copies missing or at a former height made first (hours for a match).
+        encode = [m.name for m, v, _, c in found if c["video"] and v.exists() and copies_missing(c)]
+        told = update_stages(args.all.parent, [m.name for m, *_ in found])
+        told.plan = [*(f"copies:{n}" for n in encode), *told.plan]
         if not found:
             told.stopped.set()
             return None
+        for k, (match, video, court, c) in enumerate(found):
+            if match.name in encode:
+                told.start(f"copies:{match.name}")
+                ensure_review_page(match, video, court, args.theme)
+                found[k] = (match, video, court, add_copies(match, video, told.share_of_stage))
+        told.start("mirror")
         from volleyball_stats import review
 
         # Each page as the upload begins: a change made while it runs stays late.

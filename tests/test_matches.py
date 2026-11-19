@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import pytest
 
-from volleyball_stats import backup, files, matches
+from volleyball_stats import backup, files, matches, sync
 from volleyball_stats.matches import build
 
 
@@ -867,3 +867,27 @@ class TestMadeFrom:
         assert made(videoKey="b") == first
         (match / "rallies.csv").write_text("start_frame\n2\n")
         assert made() != first
+
+
+class TestUpdateAll:
+    def test_puts_a_new_match_online_its_video_copies_made_first(self, tmp_path, monkeypatch):
+        folder = tmp_path / "outputs" / "matches"
+        old, new = folder / "old", folder / "new"
+        for match in (old, new):
+            match.mkdir(parents=True)
+            (match / files.SOURCE).write_text(json.dumps({"video": str(tmp_path / "v.mp4"), "court": "c.json"}))
+        (tmp_path / "v.mp4").write_bytes(b"v")
+        (new / matches.PUBLISH).write_text(json.dumps({"site": str(tmp_path / "site"), "video": True}))
+        online = [(old, tmp_path / "v.mp4", Path("c.json"), {"video": False})]
+        done = []
+        monkeypatch.setattr(matches, "online", lambda f: online)
+        monkeypatch.setattr(matches, "hosted_folder", lambda m, s: None)
+        monkeypatch.setattr(sync, "behind", lambda found: {})
+        monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
+        monkeypatch.setattr(matches, "add_copies", lambda m, v, share: done.append(("copies", m.name)) or {"video": True, "light": "l"})
+        monkeypatch.setattr(matches, "host_all", lambda found, theme, mirrored, told: done.append(("host", [(m.name, c) for m, *_, c in found], told.plan)))
+        monkeypatch.setattr(sys, "argv", ["matches", "--all", str(folder), "--only", "new", "--only", "old"])
+
+        matches.main()
+
+        assert done == [("copies", "new"), ("host", [("old", {"video": False}), ("new", {"video": True, "light": "l"})], ["copies:new", "mirror", "match:old", "match:new", "upload"])]
