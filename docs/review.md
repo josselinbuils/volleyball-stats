@@ -190,6 +190,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   there yet) by the rally before's winner, its player field ready.
 - A touch added guesses its action from the one before (`nextTouch`): after an attack, a block under 0.4 s later (on the
   three matches blocks came 0.02-0.54 s after it, median 0.2 s; digs 0.1-1.7 s, median 0.8 s), else a dig.
+  After a point, the losing team's touch (the ball fell on their side): a reception after an ace, a block or a dig after
+  an attack, else a dig.
 - "Ajouter l'attaque" beside a set's doubt ("Une passe suivie par l'autre équipe", "L'échange finit sur une passe"; the
   owner's, 15 Nov) adds the attack the ball unseen hid, by the set's team, 1.42 s after the set and 0.2 s before the next
   touch at most (`missedAttackAt`), the video paused there and its player field ready; a rally ending on the set ends on
@@ -201,7 +203,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   (`web.started`, never before the one before ends; the editor's `startOf` as the touches are removed or added): on the
   three matches, 55 of 444 started 0.5-11 s before their serve (touches removed in the review), most others 0.33 s after
   it. Its automatic reports keep the id of its window's start (`window` on the page), so none handled comes back.
-- A touch added after a point or a fault in its rally puts that touch back in play (a playing fault stays one). A line between rallies
+- A touch added after a point or a fault in its rally puts that touch back in play (a playing fault stays one) and is
+  the fault instead (the owner's, 19 Nov): after a point the losing team's, after a fault the ball touched on. A line between rallies
   shows the score after each one; a rally's whole surface turns orange with a warning, else light green once checked.
 - A rally's winner follows its last touch (`web.followed`).
 - "Faute de jeu" (`fault`): a fault without the ball (net, centre line, rotation), only added in the review: always a

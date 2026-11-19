@@ -245,6 +245,13 @@ describe('nextTouch', () => {
     expect(nextTouch({ type: 'dig', team: 1 }, 1)).toEqual({ type: 'set', team: 1 });
     expect(nextTouch({ type: 'block', team: 1 }, 1)).toEqual({ type: 'dig', team: 1 });
   });
+  it("after a point, gives the losing team's touch", () => {
+    expect(nextTouch({ type: 'block', team: 1, result: 'point' }, 1)).toEqual({ type: 'dig', team: 2 });
+    expect(nextTouch({ type: 'set', team: 1, result: 'point' }, 1)).toEqual({ type: 'dig', team: 2 });
+    expect(nextTouch({ type: 'attack', team: 1, result: 'point' }, 1, 0.2)).toEqual({ type: 'block', team: 2 });
+    expect(nextTouch({ type: 'serve', team: 1, result: 'point' }, 1)).toEqual({ type: 'pass', team: 2 });
+    expect(nextTouch({ type: 'set', team: 1, result: 'error' }, 1)).toEqual({ type: 'attack', team: 1 });
+  });
 });
 
 describe('runningScores', () => {

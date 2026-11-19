@@ -435,11 +435,13 @@ export function ReportEditor({
     const before = rows.filter((row) => !row.removed && row.time <= time).at(-1);
     const follows = before && before.rally === rallyAt(shown, time) && time - before.time < NEXT_TOUCH_S;
     const guess = nextTouch(follows ? before : undefined, (before && winnerOf(before.rally)) ?? before?.team ?? GROUPS[0], before ? time - before.time : Infinity);
-    // The ball played on after a point or a fault: that touch was in play (a playing fault stays one).
-    if (follows && before.result !== 'play' && !noBall(before)) {
+    // The ball played on after a point or a fault: that touch was in play (a playing fault stays one), the touch added
+    // the fault ending the rally (a dig or a block after a winning attack).
+    const ended = follows && before.result !== 'play' && !noBall(before);
+    if (ended) {
       changeRow(before, { result: 'play' });
     }
-    setAdded((all) => [...all, { frame, time, ...guess, result: 'play' }]);
+    setAdded((all) => [...all, { frame, time, ...guess, result: ended ? 'error' : 'play' }]);
     setFresh({ key: `t${frame}` });
     onPause(time);
   };

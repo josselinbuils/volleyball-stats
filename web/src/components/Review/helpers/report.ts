@@ -129,13 +129,16 @@ export const BLOCK_S = 0.4;
 
 /** The touch most likely added `apart` seconds after `before` (none: the rally's first, a serve by `server`): a
  * serve's reception, a free ball's or an attack's dig by the other team, a block just after an attack; a reception's or
- * a dig's set, a set's attack by the same team; after a block, a dig on the blockers' side. */
-export function nextTouch(before: { type: string; team: Group } | undefined, server: Group, apart = Infinity): { type: string; team: Group } {
+ * a dig's set, a set's attack by the same team; after a block, a dig on the blockers' side. After a point, the losing
+ * team's touch: the ball fell on their side. */
+export function nextTouch(before: { type: string; team: Group; result?: string } | undefined, server: Group, apart = Infinity): { type: string; team: Group } {
   if (!before) {
     return { type: 'serve', team: server };
   }
   const other = (3 - before.team) as Group;
-  switch (before.type) {
+  switch (before.result === 'point' && !['serve', 'attack', 'relance'].includes(before.type) ? 'point' : before.type) {
+    case 'point':
+      return { type: 'dig', team: other };
     case 'serve':
       return { type: 'pass', team: other };
     case 'attack':
