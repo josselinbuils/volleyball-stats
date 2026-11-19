@@ -1970,6 +1970,11 @@ def reviewed(page: dict | None, log: list[dict]) -> bool:
     return bool(keys) and keys <= set(checked(log))
 
 
+def given(answers: dict) -> dict:
+    """The kinds of `answers` with something said: a kind added since the last apply, empty, changes nothing."""
+    return {kind: said for kind, said in answers.items() if said}
+
+
 def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = frozenset()) -> dict:
     """What an apply would take in: the answers saying something not applied yet (those saved
     before the flag were), whether the answers or the jersey numbers, and the names, differ from
@@ -1981,7 +1986,7 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
     return {
         "pending": sum(not e.get("applied", True) and any(e.get(kind) for kind in KINDS) for e in log),
         # The jersey numbers' time to the second: a copy through the server (`sync`) keeps no less.
-        "changed": (now["answers"], now["jerseys"], now["timeouts"]) != (then.get("answers"), None if then.get("jerseys") is None else int(then["jerseys"]), then.get("timeouts", [])),
+        "changed": (given(now["answers"]), now["jerseys"], now["timeouts"]) != (given(then.get("answers") or {}), None if then.get("jerseys") is None else int(then["jerseys"]), then.get("timeouts", [])),
         "namesPending": now["names"] != then.get("names"),
         "corrections": corrections(log, shown),
         "checked": checked(log),

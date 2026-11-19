@@ -844,6 +844,14 @@ class TestWaiting:
         assert not learned(tmp_path, log + [{**handled, "checked": [2000]}])
         assert not learned(tmp_path, log + [handled, {"id": "piece:3:0", "choice": "skip"}])
 
+    def test_a_kind_of_answer_added_since_the_last_apply_with_nothing_said_is_no_change(self, tmp_path):
+        applied = state(tmp_path, [])
+        del applied["answers"]["partner"]
+        (tmp_path / APPLIED).write_text(json.dumps(applied))
+
+        assert not waiting(tmp_path, [])["changed"]
+        assert waiting(tmp_path, [{"id": "touch:5", "partner": [{"frame": 5}], "applied": True}])["changed"]
+
     def test_jersey_numbers_copied_through_the_server_to_the_second_are_no_change(self, tmp_path):
         (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
         os.utime(tmp_path / "jerseys.csv", (1793733733.7316, 1793733733.7316))
