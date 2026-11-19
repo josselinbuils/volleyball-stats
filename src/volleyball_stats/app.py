@@ -440,8 +440,12 @@ def import_steps(body: dict) -> tuple[str, str, list, float]:
     needed = 2 * sum(c.path.stat().st_size for c in chapters)
     if shutil.disk_usage(DATA).free < needed:
         raise OSError(f"disk:{round(needed / 1e9)}")
+    net = float(body.get("net") or 0) or None
+    if net is not None and not import_match.NET_RANGE[0] <= net <= import_match.NET_RANGE[1]:
+        raise ValueError("net")
     paths = paths_of(body["source"])
     command = ["volleyball_stats.import_match", *map(str, paths if isinstance(paths, list) else [paths]), "--teams", flag, "--date", day, "--recording", str(recording)]
+    command += ["--net", str(net)] if net else []
     command += [arg for k, flag_name in (("from", "--from"), ("to", "--to")) if body.get(k) for arg in (flag_name, str(body[k]))]
     return name, day, [("import", command), court_auto(name)], min(end or total, total) - (start or 0)
 
@@ -572,6 +576,16 @@ def played_teams() -> list[str]:
             if name:
                 counts[name] = counts.get(name, 0) + 1
     return sorted(counts, key=lambda n: (-counts[n], n))
+
+
+def last_net() -> float:
+    """The net's height of the last match that gives one, else a men's net."""
+    from volleyball_stats.ball3d import MEN_NET_M
+
+    for path in sorted(MATCHES.glob("*/teams.json"), reverse=True):
+        if net := json.loads(path.read_text()).get("net"):
+            return float(net)
+    return MEN_NET_M
 
 
 def swap(name: str) -> None:
@@ -789,7 +803,7 @@ def handle(
             if route == "video":
                 return chapter_video(query), "video/mp4", 200
             if route == "club":
-                return reply({"club": club_settings.read(), "themes": club_settings.themes(), "played": played_teams()})
+                return reply({"club": club_settings.read(), "themes": club_settings.themes(), "played": played_teams(), "net": last_net()})
             if route == "club/file":
                 found = club_settings.file(parse_qs(query).get("path", [""])[0])
                 if not found:

@@ -1,6 +1,7 @@
+import pytest
 import numpy as np
 
-from volleyball_stats.ball3d import G, attack_height, camera_place, fit_rally, fit_touches, measure, project, projection, serve_speed, touch_places
+from volleyball_stats.ball3d import G, Fitted, attack_height, camera_place, court_off, crossings, fit_rally, fit_touches, measure, project, projection, serve_speed, touch_places
 from volleyball_stats.court import Calibration, distort
 
 
@@ -162,6 +163,24 @@ class TestMeasures:
         assert attack_height(attack, np.array([1.0, 0.0, 2.7]), seen, self.FPS) == 2.7
         assert attack_height(attack, np.array([1.0, 0.0, 5.0]), seen, self.FPS) is None
         assert attack_height(attack, np.array([1.0, 0.0, 2.7]), {}, self.FPS) is None
+        assert attack_height(attack, np.array([1.0, 0.0, 2.3]), seen, self.FPS, net=2.35) is None
+
+    def test_the_ball_crosses_the_net_on_its_flight_s_arc(self):
+        touches = [(0, {"f": 0}), (1, {"f": 50}), (2, {"f": 60})]
+        places = np.array([[-4.0, 0.0, 2.0], [4.0, 0.0, 2.0], [5.0, 0.0, 1.0]])
+        # Halfway through a 1 s flight between two touches at 2 m: 2 + G / 8.
+        assert crossings(Fitted(None, {}, 0, [(touches, places)]), self.FPS) == pytest.approx([2 + G / 8])
+
+    def test_a_court_whose_crossings_pass_under_the_net_is_off(self):
+        def fitted(height, n=60):
+            touches = [(k, {"f": 50 * k}) for k in range(n)]
+            places = np.array([[(-1) ** k * 4.0, 0.0, height] for k in range(n)])
+            return Fitted(None, {}, 0, [(touches, places)])
+
+        # Touches at 1 m over 1 s flights cross at 2.23 m.
+        assert court_off(fitted(1.0), self.FPS, net=2.35)
+        assert not court_off(fitted(2.0), self.FPS, net=2.35)
+        assert not court_off(fitted(1.0, n=20), self.FPS, net=2.35)
 
     def test_measure_writes_them_on_the_contacts(self, tmp_path):
         ball = tmp_path / "ball.csv"

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats.ball3d import attack_height, attack_speed, camera_place, fit_rally, projection, read_sightings, serve_speed
+from volleyball_stats.ball3d import LOWEST_NET_M, attack_height, attack_speed, camera_place, fit_rally, projection, read_sightings, serve_speed
 from volleyball_stats.court import Calibration, undistort
 
 LEAST_SERVES, LEAST_ATTACKS = 5, 5
@@ -23,9 +23,10 @@ def main(match: Path, court: Path) -> None:
     P = projection(calibration)
     assert P is not None
     width = (calibration.size or [3840])[0]
-    text = (match / "site" / "data.js").read_text()
+    text = next(p for p in (match / "site" / "data.js", match / "review" / "data.js") if p.exists()).read_text()
     data = json.JSONDecoder().raw_decode(text[text.index("{") :])[0]
     fps = data["fps"]
+    net = (json.loads((match / "teams.json").read_text()).get("net") if (match / "teams.json").exists() else None) or LOWEST_NET_M
     rallies = defaultdict(list)
     for c in data["contacts"]:
         if c["type"] != "fault" and c.get("f") is not None:
@@ -52,7 +53,7 @@ def main(match: Path, court: Path) -> None:
             changed = [edit(c) for c in cs]
             places = fit_rally(changed, seen, P, fps, width)[0]
             for i, c in enumerate(changed):
-                if c["type"] == "attack" and (h := attack_height(c, places[i], seen, fps)) is not None:
+                if c["type"] == "attack" and (h := attack_height(c, places[i], seen, fps, net)) is not None:
                     out[(k, i)] = h
         return out
 

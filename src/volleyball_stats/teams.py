@@ -634,7 +634,7 @@ def settle(
         known = asked if scores is None else known
     if len(known) > len(starts):
         raise ValueError(f"{len(known)} set scores for {len(starts)} sets: give the set starts too")
-    data = {"teams": entries, "date": day, "title": title, "sets": starts, "scores": [*known, *[None] * (len(starts) - len(known))], **({"end": old["end"]} if old.get("end") else {})}
+    data = {"teams": entries, "date": day, "title": title, "sets": starts, "scores": [*known, *[None] * (len(starts) - len(known))], **{k: old[k] for k in ("end", "net") if old.get(k)}}
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return data
 

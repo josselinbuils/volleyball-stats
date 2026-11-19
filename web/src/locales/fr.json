@@ -1559,6 +1559,7 @@
       "sides": "Équipes au premier échange",
       "colour": "Couleur du maillot",
       "date": "Date du match",
+      "net": "Hauteur du filet",
       "from": "Début",
       "to": "Fin",
       "preview": "La vidéo à {{time}}",

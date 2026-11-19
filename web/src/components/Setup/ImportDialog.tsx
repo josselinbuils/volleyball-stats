@@ -10,7 +10,7 @@ import { INPUT, call } from '@/lib/app';
 import type { Explained } from '@/lib/errors';
 import { RecordingPlayer } from './RecordingPlayer';
 import { suggestedTeams, type ClubState } from '@/components/helpers/club';
-import { importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
+import { NET_RANGE, importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
 
 interface TeamField {
   name: string;
@@ -20,7 +20,8 @@ interface TeamField {
 /** A match imported from the camera's card, a folder or a video picked in the system's file window: where, which recording, the teams, the day. The copy, then the
  * court's search, run in the background. */
 export function ImportDialog({ onClose }: { onClose: (started: boolean) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const metres = (x: number) => x.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
   const f = useFormat();
   const [sources, setSources] = useState<Source[] | null>(null);
   // Whether this machine can open its own file window, and whether it is open.
@@ -38,6 +39,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   const [date, setDate] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [net, setNet] = useState('');
   // The player's time, following the last one typed in the cut's fields.
   const [previewAt, setPreviewAt] = useState(0);
   const [error, setError] = useState<Explained | null>(null);
@@ -47,6 +49,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
     void call<ClubState>('club').then((r) => {
       if (r.ok) {
         setSuggested(suggestedTeams(r));
+        setNet((typed) => typed || metres(r.net));
       }
     });
   }, []);
@@ -113,7 +116,9 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   };
 
   const times = [from, to].map((v) => (v.trim() ? parseTime(v) : 0));
-  const ready = found && teams.every((team) => validName(team.name)) && times.every((v) => v !== null) && !!date;
+  const netM = Number(net.replace(',', '.'));
+  const netOk = net.trim() !== '' && netM >= NET_RANGE[0] && netM <= NET_RANGE[1];
+  const ready = found && teams.every((team) => validName(team.name)) && times.every((v) => v !== null) && !!date && netOk;
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!ready || sending) {
@@ -126,6 +131,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
       recording: recording + 1,
       teams: teams.map((team) => ({ name: team.name.trim(), colour: team.colour })),
       date,
+      net: netM,
       from: from.trim() || null,
       to: to.trim() || null,
     });
@@ -275,10 +281,27 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
                 <option key={name} value={name} />
               ))}
             </datalist>
-            <label className="grid gap-1 font-medium">
-              {t('app.import.date')}
-              <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={cn(INPUT, 'w-fit')} />
-            </label>
+            <div className="flex flex-wrap gap-3">
+              <label className="grid gap-1 font-medium">
+                {t('app.import.date')}
+                <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={cn(INPUT, 'w-fit')} />
+              </label>
+              <label className="grid gap-1 font-medium">
+                {t('app.import.net')}
+                <span className="flex items-center gap-2 font-normal">
+                  <input
+                    inputMode="decimal"
+                    required
+                    placeholder={metres(2.43)}
+                    value={net}
+                    aria-invalid={net.trim() !== '' && !netOk}
+                    onChange={(e) => setNet(e.target.value)}
+                    className={cn(INPUT, 'w-20 tabular-nums')}
+                  />
+                  m
+                </span>
+              </label>
+            </div>
             <Button type="submit" busy={sending} disabled={!ready}>
               {t('app.import.start')}
             </Button>

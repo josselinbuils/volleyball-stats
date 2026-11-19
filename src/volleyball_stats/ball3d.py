@@ -42,8 +42,16 @@ AFTER_SERVE = {"pass", "dig", "relance", "set", "attack", "block"}
 # a frame off is 8%: 93 km/h on one attack at 0.2.
 ATTACK_TRIM_S, ATTACK_SHORTEST_S, ATTACK_LONGEST_S, ATTACK_LEAST_SEEN, ATTACK_SHORTEST_M = 0.06, 0.25, 1.5, 8, 2.0
 AFTER_ATTACK = {"dig", "pass", "relance", "set", "block", "net", "floor"}
-# One attack's height swings with its contact's frame: the page only shows a player's median over several.
-ATTACK_LOWEST_M, ATTACK_HIGHEST_M, ATTACK_AROUND_S, ATTACK_SEEN = 1.8, 3.8, 0.3, 0.65
+# One attack's height swings with its contact's frame: the page only shows a player's median over several. One under
+# the net's top is never shown.
+ATTACK_HIGHEST_M, ATTACK_AROUND_S, ATTACK_SEEN = 3.8, 0.3, 0.65
+# The net's top: the match's (teams.json's "net", asked at import), else the lowest a match plays at (women's); the
+# import's field starts at the last match's, else the men's.
+LOWEST_NET_M, MEN_NET_M = 2.24, 2.43
+# A court placed wrong lowers the ball as it crosses the net: over UNDER_NET of the crossings under the net's top (of
+# CROSSINGS at least), the match's 3D measures are left out. Crossings under 2.35 m: 5-10% on four matches, 54% on
+# Eysines 3 vs ASPOM 2 with a landmark snapped onto another sport's line (its heights then 0.9 m low).
+UNDER_NET, CROSSINGS = 0.25, 50
 
 
 def projection(calibration: Calibration) -> np.ndarray | None:
@@ -299,14 +307,33 @@ def attack_speed(attack: dict, after: dict, sightings: dict[int, np.ndarray], P:
     return float(far / flight * 3.6) if far >= ATTACK_SHORTEST_M and np.median(errors) <= SERVE_WORST_4K * width / 3840 else None
 
 
-def attack_height(attack: dict, place: np.ndarray, sightings: dict[int, np.ndarray], fps: float) -> float | None:
-    """An attack's fitted height (`place`), None if out of reach or its ball little seen around the contact."""
+def attack_height(attack: dict, place: np.ndarray, sightings: dict[int, np.ndarray], fps: float, net: float = LOWEST_NET_M) -> float | None:
+    """An attack's fitted height (`place`), None if under the `net`'s top or out of reach, or its ball little seen around
+    the contact."""
     around = round(ATTACK_AROUND_S * fps)
     seen = sum(f in sightings for f in range(attack["f"] - around, attack["f"] + around + 1))
-    return float(place[2]) if ATTACK_LOWEST_M <= place[2] <= ATTACK_HIGHEST_M and seen >= ATTACK_SEEN * (2 * around + 1) else None
+    return float(place[2]) if net <= place[2] <= ATTACK_HIGHEST_M and seen >= ATTACK_SEEN * (2 * around + 1) else None
 
 
-def measure(fitted: Fitted, fps: float) -> None:
+def crossings(fitted: Fitted, fps: float) -> np.ndarray:
+    """The ball's fitted height where it crosses the net, on each flight between two touches on either side."""
+    out = []
+    for touches, places in fitted.rallies:
+        for (_, a), (_, b), p, q in zip(touches, touches[1:], places, places[1:]):
+            seconds = (b["f"] - a["f"]) / fps
+            if p[0] * q[0] < 0 and 0 < seconds <= LONGEST_S:
+                u = p[0] / (p[0] - q[0])
+                out.append((1 - u) * p[2] + u * q[2] + G * seconds**2 * u * (1 - u) / 2)
+    return np.array(out)
+
+
+def court_off(fitted: Fitted, fps: float, net: float = LOWEST_NET_M) -> bool:
+    """Whether the ball crosses the net under its top too often for the court to be placed right (UNDER_NET)."""
+    heights = crossings(fitted, fps)
+    return len(heights) >= CROSSINGS and float((heights < net).mean()) > UNDER_NET
+
+
+def measure(fitted: Fitted, fps: float, net: float = LOWEST_NET_M) -> None:
     """Writes on the contacts each serve's `speed` and each attack's `attackSpeed` in km/h, and each attack's `reach` in
     metres, where they hold up."""
     for touches, places in fitted.rallies:
@@ -316,7 +343,7 @@ def measure(fitted: Fitted, fps: float) -> None:
                 if speed is not None:
                     c["speed"] = round(speed)
             elif c["type"] == "attack":
-                reach = attack_height(c, places[k], fitted.sightings, fps)
+                reach = attack_height(c, places[k], fitted.sightings, fps, net)
                 if reach is not None:
                     c["reach"] = round(reach, 2)
                 speed = attack_speed(c, touches[k + 1][1], fitted.sightings, fitted.P, fps, fitted.width) if k + 1 < len(touches) else None

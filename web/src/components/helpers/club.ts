@@ -15,6 +15,8 @@ export interface ClubState {
   themes: { id: string; name: string }[];
   /** The teams of the matches, most matches first. */
   played: string[];
+  /** The net's height of the last match, in metres. */
+  net: number;
 }
 
 /** A picture of the club, by its path in its folder. */

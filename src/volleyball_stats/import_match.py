@@ -25,6 +25,8 @@ SAME_RECORDING_S = 5.0
 CUT_TOLERANCE_S = 2.0
 # The import's preview: wide enough to see the serve and the scoreboard, quick to make from 4K.
 PREVIEW_WIDTH = 640
+# A net's height in metres: from children's (1.80) to men's (2.43) with room for a net set a little high.
+NET_RANGE = (1.6, 2.6)
 
 
 @dataclass
@@ -174,6 +176,7 @@ def main() -> None:
     parser.add_argument("--to", dest="end", help="Where it ends")
     parser.add_argument("--date", help="The match's date. Default: the camera's")
     parser.add_argument("--recording", type=int, help="Which recording, when the card holds several")
+    parser.add_argument("--net", type=float, help="The net's height in metres (2.43 men, 2.24 women)")
     parser.add_argument("--data", type=Path, default=Path("data/matches"))
     parser.add_argument("--out", type=Path, default=Path("outputs/matches"))
     args = parser.parse_args()
@@ -185,6 +188,8 @@ def main() -> None:
         parser.error(str(error))
     if not all(name for name, _ in names):
         parser.error("--teams needs both teams' names")
+    if args.net is not None and not NET_RANGE[0] <= args.net <= NET_RANGE[1]:
+        parser.error(f"Not a net's height: {args.net} m")
     if args.date and not teams.parse_date(args.date):
         parser.error(f"Not a date: {args.date!r} (use YYYY-MM-DD)")
     found = videos(args.source)
@@ -216,7 +221,7 @@ def main() -> None:
     release(list(args.source))
     out = args.out / name
     out.mkdir(parents=True, exist_ok=True)
-    files.write_text(out / "teams.json", json.dumps({"teams": [{"name": n, "colour": c} for n, c in names], "date": day}, indent=2, ensure_ascii=False) + "\n")
+    files.write_text(out / "teams.json", json.dumps({"teams": [{"name": n, "colour": c} for n, c in names], "date": day, **({"net": args.net} if args.net else {})}, indent=2, ensure_ascii=False) + "\n")
     subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-ss", str(min(3.0, probe(target).duration / 2)), "-i", str(target), "-frames:v", "1", "-vf", "scale=1280:-1", "-y", str(out / "start.jpg")], check=True)
     print(f"{target}\n{names[0][0]} must be on the left at the first rally: check {out / 'start.jpg'}")
     print(f"Next: uv run python -m volleyball_stats.court auto {target} --out {out / 'court.json'}")

@@ -36,7 +36,7 @@ import cv2
 import numpy as np
 
 from volleyball_stats import club_settings, decode, defense, files, framing, icon, jobs, jumps, likeness, tables, timeline, timeouts, video_copies
-from volleyball_stats.ball3d import fit_touches, measure, touch_places
+from volleyball_stats.ball3d import LOWEST_NET_M, court_off, fit_touches, measure, touch_places
 from volleyball_stats.speech import voice_index
 from volleyball_stats.actions import LEAD_S, UNDER_PX, player_under
 from volleyball_stats.attribution import GAP_S, NO_PLAYER, box_at
@@ -981,8 +981,16 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
             table[p]["seconds"] = {n: v for n, v in seconds.items() if v >= BRIEF_S}
     data["people"] = table
     fitted = fit_touches(found, match / "ball.csv", calibration, fps)
+    net = (teams or {}).get("net") or LOWEST_NET_M
+    if court_off(fitted, fps, net):
+        # ponytail: left out without a word; the app telling the court is to place again, and placing it on a match already
+        # run, is the upgrade.
+        fitted = fitted._replace(rallies=[])
+        for c in found:
+            for k in ("jump", "drift"):
+                c.pop(k, None)
     data["ball3d"] = touch_places(fitted)
-    measure(fitted, fps)
+    measure(fitted, fps, net)
     unmeasured(found, wrong_measures(answers(match, "wrong")), fps)
     unlikely(found)
     return data, {"step": step, "samples": samples} if any(samples) else None

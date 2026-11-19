@@ -132,7 +132,9 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
   into the other court (an attack 5 m past the net in 0.5 s, a block 1.5 m, a serve 6 m), an attack or serve fault past
   the end line, a ball in the net straight down, else on 1.5 m the way it came (`flight.fallAfter`). Each flight is an arc under gravity between two touches, each touch placed in 3D where the path best matches
   the ball in the video (`ball3d.py`, `ball3d.js` on the page, loaded with the 3D view). It needs the camera's lens: without
-  it, typical heights per action stay. `benchmarks/ball3d/bench.py` scores it.
+  it, typical heights per action stay. `benchmarks/ball3d/bench.py` scores it. The net's height, asked at the import ("Hauteur
+  du filet", the last match's at first, teams.json's `net`), is the lowest attack height shown; a match where over a quarter
+  of the flights cross the net under its top (`ball3d.court_off`: a court placed wrong) shows no 3D, speed, height or jump.
 - **Director** (`Watch/helpers/director.ts`, a function of the time alone, so pausing and jumping just work): behind the
   server, then a wide shot following the ball, a cut to the net's side from each set to the attack.
 - **Players** (`Watch/helpers/pose.ts`, in the plain 3D view too): they run as fast as the tracking says and make each

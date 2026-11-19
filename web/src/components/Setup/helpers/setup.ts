@@ -128,6 +128,9 @@ export function validName(name: string): boolean {
 
 /** The text key and values saying why an import or a scan was refused (app.py's errors), and the server's own words
  * when it is none of them. */
+/** A net's height the import takes, in metres (import_match.NET_RANGE). */
+export const NET_RANGE = [1.6, 2.6] as const;
+
 export function importError(error: string | undefined): [string, Record<string, string>, string?] {
   if (error?.startsWith('unreadable:')) {
     return ['app.import.unreadable', { name: error.slice('unreadable:'.length) }];

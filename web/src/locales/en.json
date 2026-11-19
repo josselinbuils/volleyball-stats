@@ -1559,6 +1559,7 @@
       "sides": "Teams at the first rally",
       "colour": "Jersey colour",
       "date": "Match date",
+      "net": "Net height",
       "from": "Start",
       "to": "End",
       "preview": "The video at {{time}}",

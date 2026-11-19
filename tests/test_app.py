@@ -91,6 +91,12 @@ class TestApp:
         (self.match(place, "two") / "teams.json").write_text(json.dumps({"teams": [{"name": "C"}, {"name": "B"}]}))
         assert app.played_teams() == ["B", "A", "C"]
 
+    def test_the_net_is_the_last_match_s_else_a_men_s(self, place):
+        assert app.last_net() == 2.43
+        (self.match(place, "2026-01-01-a") / "teams.json").write_text(json.dumps({"teams": [], "net": 2.24}))
+        (self.match(place, "2026-02-01-b") / "teams.json").write_text(json.dumps({"teams": []}))
+        assert app.last_net() == 2.24
+
     def test_saves_the_server_for_every_match(self, place):
         folder = self.match(place, "one")
         (folder / "source.json").write_text(json.dumps({"video": str(folder / "one.mp4"), "court": str(folder / "court.json")}))
