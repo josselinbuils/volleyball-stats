@@ -7,6 +7,7 @@
 
 import argparse
 import math
+import os
 import time
 import zlib
 
@@ -60,11 +61,16 @@ def batch(clips: np.ndarray, idx: list[int], train: bool) -> torch.Tensor:
     return (x.clamp(0, 1) - MEAN.cuda()) / STD.cuda()
 
 
+def clips_of(d: dict):
+    """The clips of a set: its clips.npy, or an object indexed the same way (several matches' sets)."""
+    return np.load(d["clips"], mmap_mode="r") if isinstance(d["clips"], (str, os.PathLike)) else d["clips"]
+
+
 def fit(train: dict, idx: np.ndarray, fused: bool, epochs: int, seed: int) -> Net:
     torch.manual_seed(seed)
     np.random.seed(seed)
     net = Net(train["tab"].shape[1], fused).cuda()
-    clips = np.load(train["clips"], mmap_mode="r")
+    clips = clips_of(train)
     tab = torch.from_numpy(train["tab"]).cuda()
     y = torch.from_numpy(train["y"]).cuda()
     body = [p for n, p in net.named_parameters() if n.startswith("body")]
@@ -100,7 +106,7 @@ def fit(train: dict, idx: np.ndarray, fused: bool, epochs: int, seed: int) -> Ne
 @torch.no_grad()
 def predict(net: Net, d: dict, idx: np.ndarray) -> np.ndarray:
     net.eval()
-    clips = np.load(d["clips"], mmap_mode="r")
+    clips = clips_of(d)
     tab = torch.from_numpy(d["tab"]).cuda()
     out = np.zeros((len(d["y"]), len(LABELS)), np.float32)
     for s in range(0, len(idx), 4):

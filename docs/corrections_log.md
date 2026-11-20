@@ -316,6 +316,15 @@ and features, a fine-tuned VideoMAE gains 16 and 15 right types (the bar: 15 on 
 play model in, which fixes some of the same floors: 14 and 12, under the bar. Not wired in; none tells a false touch. To try
 again with a third reviewed match.
 
+Again on four matches (20 Nov, `benchmarks/actions/learned/lomo.py`, clips around the `both-20nov` runs' contacts, `ACT_DIR=act-20nov`):
+each match tested on a VideoMAE trained on the other three, the stacking head on their out-of-fold scores. Right types over the
+rules: +18, +25, +33, +22 (of 872, 1,126, 1,277, 1,256 touches; the rules 797, 1,034, 1,171, 1,153), +98 in all, about a
+fifth of the 447 types to correct (1,501 corrections, so about 6.5%). Alone it is 59-108 under the rules, and over the rules
+with a threshold +16. It gains with the training data: 15-16 from one match, 18-25 from three on the same two. Mostly
+attack / relance / set swaps, pass or dig the rules typed floor. Its cost: the clips, 7-8 minutes a match on the 5080 and
+4-6 GB each kept for training, a second model of 345 MB, about 25 minutes to retrain on three matches (four trainings, the
+head's scores out of fold). Not wired in yet: the owner's call.
+
 ### Rally windows (11 Nov, runs `win-whole`, `win-whole2`, second match only)
 
 The 79 touches outside every window (first 26 / second 53): the rally's last 1-3 touches after the window's end 26 / 29 (the

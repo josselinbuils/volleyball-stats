@@ -177,3 +177,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     on the four); loosening the hidden contacts (`contacts.hidden_contacts`) loses more than it finds, the ball's sound
     finds 41 for 24 false, the rally's order with it 41 for 16 (`corrections_log.md` "The ball's sound where it is
     unseen").
+31. Types (20 Nov, [corrections_log.md](corrections_log.md) "Types", the largest share: 447 of 1,501): the gesture's VideoMAE
+    stacked on the rules, each match tested on a model trained on the other three, gains 18, 25, 33, 22 right types (98,
+    about 6.5% of the corrections). Not wired in, the owner's call: clips 7-8 min a match on the 5080 and 4-6 GB each kept
+    for training, a second model of 345 MB, about 25 min more to retrain.

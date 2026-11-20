@@ -192,7 +192,7 @@ def main() -> None:
     print(match, len(table), "contacts;", {k: sum(t["label"] == k for t in table) for k in sorted({t["label"] for t in table})}, flush=True)
     build_clips(match, table, video)
     print("clips done", flush=True)
-    if not (out / "pose.npz").exists():
+    if not (out / "pose.npz").exists() and os.environ.get("ACT_POSE", "1") == "1":  # ACT_POSE=0: no skeletons (VideoMAE needs none)
         build_pose(match, table)
     print("pose done", flush=True)
 

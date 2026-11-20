@@ -275,3 +275,19 @@ On the pipeline with the play model (`ACT_DIR=act-play`, the set built on the ru
 1032 of 1129, some of the floors already fixed): VideoMAE stacked +14 and +12, under the bar. Not wired in: a second
 345 MB model and a decoding pass around every contact for about 13 types of 95 a match. To try again with a third reviewed
 match in the training set (the models alone are weak for lack of examples: about 900 a match).
+
+Four matches (20 Nov), each tested on a model trained on the other three (sets on the `both-20nov` runs, `ACT_POSE=0` skips
+the skeletons VideoMAE does not use; clips about 7-8 min a match, 4-6 GB each):
+
+    ACT_DIR=act-20nov ACT_POSE=0 uv run python benchmarks/actions/learned/dataset.py MATCH both-20nov
+    ACT_DIR=act-20nov uv run python benchmarks/actions/learned/lomo.py              # about 1 h 45 on the 5080
+    ACT_DIR=act-20nov uv run python benchmarks/actions/learned/lomo.py --evaluate
+
+| Held out | Rules | Alone | Over the rules | Stacked |
+| --- | --- | --- | --- | --- |
+| 29 Oct | 797 of 872 | -76 | -3 | **+18** |
+| 2 Nov | 1034 of 1126 | -108 | +2 | **+25** |
+| 12 Nov | 1171 of 1277 | -59 | +2 | **+33** |
+| 16 Nov | 1153 of 1256 | -82 | +15 | **+22** |
+
+Stacked +98 of 4,531, over the bar on each; on the first two it gains 18 and 25 where one training match gave 16 and 15.
