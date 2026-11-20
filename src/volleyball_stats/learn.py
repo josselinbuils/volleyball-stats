@@ -44,7 +44,7 @@ SAME_S = 0.2
 SERVE_S = 1.5
 # The update's durations here (`update`), and before any: a training, a match's pipeline again, the play model's training.
 TIMINGS = "learn_timings.json"
-TOOK = {"training": 120.0, "match": 900.0, "play": 900.0}
+TOOK = {"training": 120.0, "match": 900.0, "play": 2100.0}
 
 Score = tuple[int, int]
 
@@ -231,9 +231,9 @@ def play_due(match: Path) -> bool:
 
 
 def train_play(match: Path, share: jobs.Share = jobs.quiet) -> None:
-    """The play model trained again on every match fully checked (`play_training`), in its own process: the review's
-    server keeps no model in memory. Its share is what it tells (`jobs.follow`), nothing yet: ponytail: it should tell
-    its steps done as it goes."""
+    """The play model trained again on every match fully checked (`play_training`, checked held out before its weights
+    replace the old ones), in its own process: the review's server keeps no model in memory. Its share is what it
+    tells (`jobs.follow`)."""
     jobs.follow([sys.executable, "-m", "volleyball_stats.play_training", str(match)], share, cwd=ROOT, stdin=subprocess.DEVNULL)
 
 

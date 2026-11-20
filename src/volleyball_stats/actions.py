@@ -409,7 +409,8 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
 def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, longest: float = 2.2, gravity: float = 9.81) -> list[Typed]:
     """`typed` with the attacks and relances retyped from the ball's 3D `places` by frame: how high
     it leaves and how fast it rises until the next contact, which is under `longest` seconds away;
-    those with no such flight stay. A set sent over the net within SET_OVER_S is one too, an attack when its flight is unknown."""
+    with no such flight, how high it leaves alone (four matches: 99 of 113 right, 88 kept as they were typed), the
+    others staying. A set sent over the net within SET_OVER_S is one too, an attack when its flight is unknown."""
     out = list(typed)
     for k, (frame, x, y, kind, side) in enumerate(typed):
         if kind not in ("attack", "relance", "set") or k + 1 == len(typed):
@@ -423,6 +424,8 @@ def by_flight(typed: list[Typed], places: dict[int, np.ndarray], fps: float, lon
         if frame in places and after in places and 0 < seconds <= longest:
             rise = (places[after][2] - places[frame][2] + gravity * seconds**2 / 2) / seconds
             out[k] = (frame, x, y, "attack" if places[frame][2] >= ATTACK_M and rise <= RISE_MS else "relance", side)
+        elif kind != "set" and frame in places and seconds > 0:
+            out[k] = (frame, x, y, "attack" if places[frame][2] >= ATTACK_M else "relance", side)
     return out
 
 

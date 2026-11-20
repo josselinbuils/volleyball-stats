@@ -4,7 +4,9 @@ their checked rallies, written beside the matches (`outputs/learned/play/`) wher
     uv run python -m volleyball_stats.play_training outputs/matches/MATCH [--steps 2000] [--force]
 
 "Apprendre de mes réponses" runs it on a match whose every rally is checked (`learn.train_play`), when the checked rallies
-of such matches changed since the last training (`due`). It runs on any machine: fast on an NVIDIA card (half an hour),
+of such matches changed since the last training (`due`). The new weights replace the old ones only when the same training
+without the newest of these matches places that match's rallies better than the pipeline does with no model (`check`),
+as the learned order is kept only when it gains on the rule held out. It runs on any machine: fast on an NVIDIA card (half an hour),
 hours on a Mac or a processor alone. Each match's frames at the model's size are kept in `outputs/cache/play/` (10 GB a
 match, made again when missing: safe to delete).
 """
@@ -16,11 +18,12 @@ import math
 import os
 import shutil
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import files, playing, review
+from volleyball_stats import files, jobs, playing, review
 
 # Its weights are CC BY-NC 4.0.
 BASE = "MCG-NJU/videomae-base-finetuned-kinetics"
@@ -35,6 +38,12 @@ SMALL_BATCH = 2
 # no play starts DEAD_AFTER_S after it, or at the window's end when later; between them, and EDGE_S around a serve, a
 # clip is left out: its label is unsure.
 PLAY_AFTER_S, DEAD_AFTER_S, EDGE_S = 0.5, 3.0, 0.25
+# Matches whose training the check refused (`check`), kept beside the weights so the same ones are not tried again, and
+# the cache's folder of the weights trained to be checked.
+REFUSED, HELD = "refused.json", "held"
+# The parts of a training's work, measured once on the PC (frames cached, four matches): the frames, the model trained
+# without the match held out, its P(play) there, the windows with no model (the audio read), the training on all.
+PARTS = {"frames": 1, "held": 30, "predict": 3, "windows": 1, "train": 30}
 
 Span = tuple[float, float, float]
 
@@ -90,7 +99,65 @@ def due(match: Path) -> list[tuple[Path, Path]]:
     found = sources(match)
     before = trained(playing.weights(match)).get("matches", {})
     now = signature(found)
-    return found if found and now != before and set(before) <= set(now) else []
+    return found if found and now != before and set(before) <= set(now) and now != refused(playing.weights(match)) else []
+
+
+def refused(folder: Path) -> dict[str, str] | None:
+    """The matches (`signature`) the check last refused to train the weights of `folder` on."""
+    path = folder / REFUSED
+    return json.loads(path.read_text())["matches"] if path.exists() else None
+
+
+def held_out(found: list[tuple[Path, Path]], folder: Path) -> tuple[Path, Path] | None:
+    """The match to check a training on: the last of `found` the weights of `folder` do not know as it is; None under two
+    matches, with nothing left to train on without it."""
+    if len(found) < 2:
+        return None
+    before = trained(folder).get("matches", {})
+    now = signature(found)
+    return ([f for f in found if before.get(f[0].name) != now[f[0].name]] or found)[-1]
+
+
+def placed(windows: list[tuple[int, int]], fps: float, label: np.ndarray, sure: np.ndarray) -> int:
+    """The sure clips (`labels`) whose middle `windows` (frames at `fps`) hold when they are play and do not when not."""
+    middle = (np.arange(len(label)) + playing.T / 2) / playing.FPS
+    inside = np.zeros(len(middle), bool)
+    for start, end in windows:
+        inside |= (middle >= start / fps) & (middle <= end / fps)
+    return int((sure & (inside == (label == 1))).sum())
+
+
+def no_model(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> tuple[list[tuple[int, int]], float]:
+    """The rally windows the pipeline finds in `match` with no play model (`match.rally_windows`), and the video's fps."""
+    import cv2
+
+    from volleyball_stats import attribution, rallies
+    from volleyball_stats import match as pipeline
+    from volleyball_stats.court import Calibration
+
+    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    calibration = Calibration.load(ROOT / json.loads((match / files.SOURCE).read_text())["court"])
+    track = rallies.load_track(match / "ball.csv")
+    rows = attribution.read_players(match / "players.csv") if (match / "players.csv").exists() else None
+    whistles = rallies.whistles(rallies.read_audio(video, len(track) / fps, share))
+    net_x = float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
+    return pipeline.rally_windows(track, whistles, fps, net_x, calibration, rows and [(r.frame, *r.court) for r in rows])[0], fps
+
+
+def check(found: list[tuple[Path, Path]], held: tuple[Path, Path], outputs: Path, steps: int, on: str, part: Callable[[str], jobs.Share], told=print) -> dict:
+    """The sure clips of `held` the windows place right (`placed`) with a model trained on the other matches of `found`
+    (P(play) moving the pipeline's windows: `playing.moved`, `added`) and with none, and their count."""
+    folder = outputs / CACHE / HELD
+    train([f for f in found if f != held], outputs, steps, on, told, folder, part("held"))
+    store = frames(held[1], outputs / CACHE, held[0].name)
+    told(f"P(play) on {held[0].name}")
+    starts, p = playing.clips_p(store, folder, on=on, seen=jobs.every(len(store), part("predict")), total=len(store))
+    shutil.rmtree(folder, ignore_errors=True)
+    times = (np.array(starts) + playing.T / 2) / playing.FPS
+    windows, fps = no_model(*held, part("windows"))
+    moved = playing.added(playing.moved(windows, fps, times, np.array(p)), fps, times, np.array(p))
+    label, sure = labels(spans(held[0]), len(store))
+    return {"held": held[0].name, "model": placed(moved, fps, label, sure), "none": placed(windows, fps, label, sure), "of": int(sure.sum())}
 
 
 def frames(video: Path, cache: Path, name: str) -> np.ndarray:
@@ -113,9 +180,13 @@ def frames(video: Path, cache: Path, name: str) -> np.ndarray:
     return np.memmap(path, np.uint8, "r", shape=(count, *shape))
 
 
-def train(found: list[tuple[Path, Path]], outputs: Path, steps: int = STEPS, on: str | None = None, told=print) -> None:
-    """The model fine-tuned on the matches of `found` (folder, video), its weights put in `outputs`' learned folder once
-    done, with what they were trained on."""
+def train(
+    found: list[tuple[Path, Path]], outputs: Path, steps: int = STEPS, on: str | None = None, told=print, folder: Path | None = None, share: jobs.Share = jobs.quiet,
+    checked: dict | None = None,
+) -> None:
+    """The model fine-tuned on the matches of `found` (folder, video), its weights put in `folder` (`outputs`' learned
+    folder by default) once done, with what they were trained on and the `checked` scores; the share of its steps done
+    told to `share`."""
     import torch
     from transformers import VideoMAEForVideoClassification
 
@@ -159,14 +230,19 @@ def train(found: list[tuple[Path, Path]], outputs: Path, steps: int = STEPS, on:
         schedule.step()
         if step % 50 == 0 or step == steps:
             told(f"step {step}/{steps} loss {loss.item():.3f} {time.time() - start:.0f} s")
+            share(step / steps)
     made = outputs / CACHE / "weights"
     model.save_pretrained(made)
-    folder = outputs / playing.WEIGHTS
+    folder = folder or outputs / playing.WEIGHTS
     folder.mkdir(parents=True, exist_ok=True)
     # The weights last: their time says which ones a match's P(play) was made with.
     os.replace(made / "config.json", folder / "config.json")
     os.replace(made / playing.MODEL, folder / playing.MODEL)
-    files.write_text(folder / TRAINED, json.dumps({"trained": time.strftime("%Y-%m-%d %H:%M"), "matches": signature(found), "steps": steps, "base": BASE, "device": on}, indent=1) + "\n")
+    files.write_text(
+        folder / TRAINED,
+        json.dumps({"trained": time.strftime("%Y-%m-%d %H:%M"), "matches": signature(found), "steps": steps, "base": BASE, "device": on, **({"checked": checked} if checked else {})}, indent=1) + "\n",
+    )
+    (folder / REFUSED).unlink(missing_ok=True)
     shutil.rmtree(made, ignore_errors=True)
 
 
@@ -180,8 +256,29 @@ def main() -> None:
     if not found:
         print("Nothing new to learn: the weights know every match checked here, or a match they know is not on this machine.")
         return
-    train(found, files.root(args.match), args.steps)
+    learn(found, files.root(args.match), playing.weights(args.match), args.steps)
 
+
+def learn(found: list[tuple[Path, Path]], outputs: Path, weights: Path, steps: int = STEPS) -> bool:
+    """The weights in `weights` trained on the matches of `found`, when the check passes (`check`, none under two
+    matches); else they stay and the matches are written as refused (`due` skips them). Whether they were trained."""
+    on, held = playing.device(), held_out(found, weights)
+    part = jobs.parts(jobs.tell, PARTS if held else {k: PARTS[k] for k in ("frames", "train")})
+    for k, (match, video) in enumerate(found):
+        print(f"frames {match.name}", flush=True)
+        frames(video, outputs / CACHE, match.name)
+        part("frames")((k + 1) / len(found))
+    checked = None
+    if held:
+        checked = check(found, held, outputs, steps, on, part)
+        print(f"{held[0].name} held out: {checked['model'] / checked['of']:.2%} of its time placed right with a model trained without it, {checked['none'] / checked['of']:.2%} with none", flush=True)
+        if checked["model"] <= checked["none"]:
+            weights.mkdir(parents=True, exist_ok=True)
+            files.write_text(weights / REFUSED, json.dumps({"matches": signature(found), **checked}, indent=1) + "\n")
+            print("The play model's weights stay as they were: trained without it, it would not place that match's rallies better than no model.", flush=True)
+            return False
+    train(found, outputs, steps, on, folder=weights, share=part("train"), checked=checked)
+    return True
 
 if __name__ == "__main__":
     main()

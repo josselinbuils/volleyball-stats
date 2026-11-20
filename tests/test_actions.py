@@ -325,6 +325,21 @@ class TestByFlight:
     def test_no_flight_known_stays(self):
         assert by_flight(self.typed("attack"), {}, self.FPS)[0][3] == "attack"
 
+    def test_without_a_flight_a_low_ball_is_a_relance(self):
+        # The next contact's place unknown: the touch's height alone.
+        assert by_flight(self.typed("attack"), {0: np.array([1.0, 0.0, 1.6])}, self.FPS)[0][3] == "relance"
+
+    def test_without_a_flight_a_high_ball_is_an_attack(self):
+        typed = [(0, 0, 0, "relance", "left"), (200, 0, 0, "dig", "right")]
+        places = {0: np.array([1.0, 0.0, 2.6]), 200: np.array([-5.0, 0.0, 0.5])}
+
+        assert by_flight(typed, places, self.FPS)[0][3] == "attack"
+
+    def test_without_a_flight_a_set_stays(self):
+        typed = [(0, 0, 0, "set", "left"), (50, 0, 0, "attack", "left")]
+
+        assert by_flight(typed, {0: np.array([1.0, 0.0, 1.6])}, self.FPS)[0][3] == "set"
+
     def test_two_contacts_on_one_frame_are_no_flight(self):
         typed = [(0, 0, 0, "attack", "left"), (0, 0, 0, "dig", "right")]
 

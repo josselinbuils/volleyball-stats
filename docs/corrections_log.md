@@ -88,6 +88,7 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | A touch typed block over 1.6 m from the net is none, dropped once the touches are typed (`actions.off_net_blocks`; run `block-net` against `ctl`, 12 Nov) | 281 -> 279 (to add 62 -> 63, remove 47 -> 46, types 82 -> 81, players 81 -> 80) | 351 -> 345 (to add 62 -> 65, remove 74 -> 68, types 105 -> 103, players 103 -> 102) |
 | The ball's width in the picture, a depth cue in the learned order of who touched (`ballsize.py`, 13 Nov; runs `hw-width` against `hw-none`, both with weights fit on the other match and the school clips) | 283 -> 274 (players 84 -> 75) | 345 -> 340 (players 102 -> 97) |
 | A rally the play model sees and no window holds added: play 3 s or more apart from every window, one ending and one starting within 30 s of it (`playing.added`, 15 Nov; runs `add-15nov` against `ctl-15nov`, the play model held out; set on the third match, 479 -> 470 there: to add 129 -> 117, winners 22 -> 18) | 274 -> 273 | 332 -> 332 |
+| An attack or relance with no flight to the next contact typed by how high it leaves alone: attack from 2.1 m (`actions.ATTACK_M`, `by_flight`, 20 Nov; runs `height-20nov` against the corrections of 20 Nov; four matches: 99 of 113 such touches right, 88 as typed before; third 468 -> 463, fourth held out 433 -> 428, types -5 each) | 328 -> 329 | 432 -> 432 |
 
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
@@ -553,8 +554,13 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
    gives the processor's P(play) (0 clips of 233 differ) at 1.32 times the video's length, about 1 h 30 a match (10 min
    on the 5080), the processor alone 2.66 times; a training step 8.6 s, about 5 hours for the 2000. No fix needed. The
    weights came from the server's copy (`sync.merge_shared`, nothing sent).
-5. A check that a retrained play model is better before it replaces the weights (the learned order has one): with three
-   matches, train on two and compare the windows on the third.
+5. Done (20 Nov): a retrained play model is checked before it replaces the weights (`play_training.check`), as the learned
+   order is: the same training without the match the weights do not know yet, then that match's sure clips placed right by the
+   windows it moves (`playing.moved`, `added`) against the pipeline's windows with no model. The weights are trained on every
+   match only when it gains; else they stay, the matches are written in `refused.json` beside them and are not tried again
+   until another rally or match is checked. One training more (about 15 min on the 5080, hours on a Mac). Held out today
+   (clips placed right, no model -> model): third match 91.8% -> 93.9%, fourth 95.5% -> 96.7%; the first two, not held out,
+   96.6% -> 96.9% and 95.3% -> 96.8%.
 6. The play model on someone else's footage: its windows are worse on the one other match (`benchmarks/rallies/README.md`);
    a threshold or uses set per footage, or training on more views, before it runs on anything but the footage it knows.
 7. Done (13 Nov, day): the two leads on the wrong names, the side check near the net and the attacker's hole, both dropped

@@ -94,3 +94,55 @@ class TestFrames:
         video.write_bytes(b"another video")
         play_training.frames(video, tmp_path / "cache", "match")
         assert len(calls) == 2
+
+
+class TestHeldOut:
+    def test_the_last_match_the_weights_do_not_know_as_it_is(self, tmp_path):
+        a, _ = make(tmp_path, "a", [100, 200]), make(tmp_path, "b", [100, 200])
+        make(tmp_path, "c", [100, 200])
+        found = play_training.sources(a)
+        weights(tmp_path, {**play_training.signature(found), "b": "old"})
+
+        assert play_training.held_out(found, tmp_path / playing.WEIGHTS)[0].name == "b"
+        assert play_training.held_out(found, tmp_path / "none")[0].name == "c"
+
+    def test_none_with_a_single_match(self, tmp_path):
+        a = make(tmp_path, "a", [100, 200])
+
+        assert play_training.held_out(play_training.sources(a), tmp_path / playing.WEIGHTS) is None
+
+
+class TestPlaced:
+    def test_the_sure_clips_the_windows_hold_as_they_are(self):
+        label, sure = play_training.labels([(10.0, 16.0, 20.0)], 8 * 60)
+        right = play_training.placed([(10 * 50, 17 * 50)], 50.0, label, sure)
+
+        assert right == sure.sum()
+        assert play_training.placed([], 50.0, label, sure) < right
+        assert play_training.placed([(30 * 50, 40 * 50)], 50.0, label, sure) < play_training.placed([], 50.0, label, sure)
+
+
+class TestLearn:
+    def run(self, tmp_path, monkeypatch, model: int, none: int):
+        a, _ = make(tmp_path, "a", [100, 200]), make(tmp_path, "b", [100, 200])
+        trained = []
+        monkeypatch.setattr(playing, "device", lambda: "cpu")
+        monkeypatch.setattr(play_training, "frames", lambda *_: None)
+        monkeypatch.setattr(play_training, "check", lambda found, held, *_: {"held": held[0].name, "model": model, "none": none, "of": 10})
+        monkeypatch.setattr(play_training, "train", lambda found, *_, **options: trained.append(options["checked"]))
+        found = play_training.sources(a)
+        return play_training.learn(found, tmp_path, tmp_path / playing.WEIGHTS, 1), trained, a
+
+    def test_trained_when_the_held_out_match_is_placed_better_than_with_no_model(self, tmp_path, monkeypatch):
+        done, trained, a = self.run(tmp_path, monkeypatch, 9, 8)
+
+        assert done and trained == [{"held": "b", "model": 9, "none": 8, "of": 10}]
+        assert play_training.due(a)
+
+    def test_kept_and_not_tried_again_otherwise(self, tmp_path, monkeypatch):
+        done, trained, a = self.run(tmp_path, monkeypatch, 8, 8)
+
+        assert not done and not trained
+        assert play_training.due(a) == []
+        make(tmp_path, "c", [100, 200])
+        assert [m.name for m, _ in play_training.due(a)] == ["a", "b", "c"]

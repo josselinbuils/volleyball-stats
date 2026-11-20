@@ -9,7 +9,7 @@ Without the weights the stage does not run and the pipeline is as before. The we
 
 import subprocess
 from collections import deque
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 import numpy as np
@@ -177,6 +177,18 @@ def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | Non
     """P(play) of the clips of `video` by the weights of `folder`, streamed (16 frames in memory), written to `out` as
     `load` reads it; `on` names the device (the best one here by default). The share of the video's `seconds` read is
     told to `share` as it goes (none without `seconds`)."""
+    total = round(seconds * FPS)
+    starts, probabilities = clips_p(frames(video), folder, batch, on, jobs.every(total, share) if total else None, total)
+    share(1.0)
+    with files.replacing(out, "wb") as f:
+        np.savez(f, starts=np.array(starts), p=np.array(probabilities), fps=FPS, T=T, weights=stamp(folder) or 0)
+
+
+def clips_p(
+    stream: Iterable[np.ndarray], folder: Path, batch: int = 32, on: str | None = None, seen: Callable[[int], None] | None = None, total: int = 0
+) -> tuple[list[int], list[float]]:
+    """Each clip's first frame and P(play) by the weights of `folder`, over `stream`'s frames at FPS (`frames`), `seen(k)`
+    told after frame k while k < `total`."""
     import torch
     from transformers import VideoMAEForVideoClassification
 
@@ -194,10 +206,8 @@ def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | Non
         probabilities.extend(logits.float().softmax(-1)[:, 1].cpu().tolist())
         clips.clear()
 
-    total = round(seconds * FPS)
-    seen = jobs.every(total, share) if total else None
-    for n, frame in enumerate(frames(video), 1):
-        window.append(frame.copy())
+    for n, frame in enumerate(stream, 1):
+        window.append(np.array(frame))
         if n >= T and (n - T) % STRIDE == 0:
             clips.append(np.stack(window))
             starts.append(n - T)
@@ -207,6 +217,4 @@ def predict(video: Path, out: Path, folder: Path, batch: int = 32, on: str | Non
             seen(n - 1)
     if clips:
         flush()
-    share(1.0)
-    with files.replacing(out, "wb") as f:
-        np.savez(f, starts=np.array(starts), p=np.array(probabilities), fps=FPS, T=T, weights=stamp(folder) or 0)
+    return starts, probabilities
