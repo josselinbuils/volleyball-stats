@@ -89,6 +89,7 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | The ball's width in the picture, a depth cue in the learned order of who touched (`ballsize.py`, 13 Nov; runs `hw-width` against `hw-none`, both with weights fit on the other match and the school clips) | 283 -> 274 (players 84 -> 75) | 345 -> 340 (players 102 -> 97) |
 | A rally the play model sees and no window holds added: play 3 s or more apart from every window, one ending and one starting within 30 s of it (`playing.added`, 15 Nov; runs `add-15nov` against `ctl-15nov`, the play model held out; set on the third match, 479 -> 470 there: to add 129 -> 117, winners 22 -> 18) | 274 -> 273 | 332 -> 332 |
 | An attack or relance with no flight to the next contact typed by how high it leaves alone: attack from 2.1 m (`actions.ATTACK_M`, `by_flight`, 20 Nov; runs `height-20nov` against the corrections of 20 Nov; four matches: 99 of 113 such touches right, 88 as typed before; third 468 -> 463, fourth held out 433 -> 428, types -5 each) | 328 -> 329 | 432 -> 432 |
+| A rally's end carried on by the play model up to 30 s past it, 15 s before (`playing.AHEAD_S`, 20 Nov; runs `both-20nov` against `height-20nov`; third 463 -> 463, fourth held out 428 -> 419: to add 134 -> 123) | 329 -> 329 | 432 -> 432 |
 
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches

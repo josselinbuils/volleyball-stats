@@ -30,8 +30,9 @@ ALIVE_S = (1.0, 3.0)
 KEEP_FRAC = 0.85
 THRESHOLD = 0.3
 GAP_S = 1.0
-# An end is moved when play goes on 1.5 s or more past it, up to 15 s and never into the next window.
-MARGIN_S, AHEAD_S = 1.5, 15.0
+# An end is moved when play goes on 1.5 s or more past it, up to 30 s and never into the next window (15 s until 20 Nov:
+# the fourth match's long rallies were cut, 428 -> 419 corrections, the first three unchanged).
+MARGIN_S, AHEAD_S = 1.5, 30.0
 # A start is pulled back when play began 2 s or more before it, up to 30 s and never into the previous window.
 START_MARGIN_S, BACK_S = 2.0, 30.0
 # A rally no window holds: play ADD_MIN_S or more apart from every window, one ending and one starting within ADD_NEAR_S of it

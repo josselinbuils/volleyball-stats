@@ -395,7 +395,7 @@ RTX 5080, the frames 8-9 min a match (NVDEC).
 | first → second | 0.994 | 97.6% of 18262 |
 
 Ends moved by the held-out P(play) (over 0.3, dips under 1 s bridged): a window's end carried on through play the model
-sees, when that is 1.5 s or more past it, up to 15 s and never into the next window. Cutting ends back to where P(play)
+sees, when that is 1.5 s or more past it, up to 15 s (30 s since 20 Nov) and never into the next window. Cutting ends back to where P(play)
 falls too loses touches: the model's P falls before the ball lands, and the floor contact ending the rally falls out.
 
 | | 26:00-36:00 F1 ±1 s / ±2 s | 50:00-60:00 | Touches in windows M1 / M2 | Contacts no touch |
