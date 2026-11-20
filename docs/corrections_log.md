@@ -358,6 +358,18 @@ has 14 / 31 and the real one mistimed 9 / 3; no real touch within 0.5 s 23 / 39.
 Out of a rule's reach: the block after an attack needs the blockers' hands at the net (pose) or a learned filter; the rest a
 better ball track.
 
+### The ball's sound where it is unseen (20 Nov, offline on the `both-20nov` runs, no rerun)
+
+The match's sound (mono, 24 kHz, 24 log bands 150 Hz-11 kHz, 5 ms steps; about 1 min a match through ffmpeg, numpy only),
+its spectral rises against random moments of the rallies 0.4 s from any touch: AUC 0.78-0.82 on all the truth's touches
+(serves, attacks, passes 0.84-0.94; sets 0.68-0.74), 0.68-0.73 on the touches to add where the ball is seen under half of
+±0.4 s; the sound comes 30-50 ms after the truth's time (median: its travel). A logistic regression on the peaks' shape
+(level, rise and decay per band; trained on three matches, tested on the fourth), the peaks kept in those gaps with no
+pipeline touch within 0.3 s, on the four: over 0.85, 41 of the 239 touches to add found for 24 false; over 0.7, 52 for 65;
+over 0.5, 74 for 158. At best about 17 corrections of 1,643 (1%) with every new touch's type and player right: dropped. The
+unseen touches are the quiet ones (sets, the far court), and the other courts' hits sound like ours. Scripts in
+`outputs/benchmarks/ball_audio/` (`hits.py` the curve and AUCs, `hits2.py` the regression, `hits3.py` the net count).
+
 ## The owner's answers
 
 - The Mac (11 Nov): the pipeline must still run on it end to end, but it may be a different one, a bit less accurate. So a

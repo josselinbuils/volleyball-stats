@@ -172,4 +172,5 @@ The pipeline's weak spots and what is left to do, most useful first.
     329, 432, 463, 419 corrections (328, 432, 468, 433 before; the fourth held out). A retrained play model replaces the
     weights only when, trained without the newest checked match, it places that match's rallies better than no model
     (`play_training.check`). The ball unseen around touches is still the most (266 touches to add with no contact found
-    on the four); loosening the hidden contacts (`contacts.hidden_contacts`) loses more than it finds.
+    on the four); loosening the hidden contacts (`contacts.hidden_contacts`) loses more than it finds, the ball's sound
+    finds 41 for 24 false (`corrections_log.md` "The ball's sound where it is unseen").
