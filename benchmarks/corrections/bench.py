@@ -107,6 +107,12 @@ def overlapping(windows: list[dict], start: int, end: int) -> dict | None:
     return best if best and min(end, int(best["end_frame"])) > max(start, int(best["start_frame"])) else None
 
 
+def in_rally(rally: dict) -> list[dict]:
+    """A truth rally's touches up to its end: the review's bounces after a checked rally's end (`web.closed`, since 18 Nov)
+    leave, as the pipeline's there do."""
+    return [c for c in rally["touches"] if c["frame"] <= rally["end_frame"]]
+
+
 def corrections(folder: Path, truth: dict) -> tuple[dict, list[dict], dict[int, int]]:
     """The checked metrics, every correction and each rally's count, `folder`'s pipeline output against the frozen truth."""
     fps = truth["fps"]
@@ -121,13 +127,14 @@ def corrections(folder: Path, truth: dict) -> tuple[dict, list[dict], dict[int, 
     for r in truth["rallies"]:
         auto = [x for x in rows if r["start_frame"] - lead <= int(x["frame"]) <= r["end_frame"]]
         frames = [int(x["frame"]) for x in auto]
-        shown, mine = shown + len(r["touches"]), mine + len(auto)
+        touches = in_rally(r)
+        shown, mine = shown + len(touches), mine + len(auto)
         matched, mine_here = set(), []
 
         def add(kind: str, **fields) -> None:
             mine_here.append({"rally": r["key"], "kind": kind, **fields})
 
-        for c in r["touches"]:
+        for c in touches:
             f = learn.near(c["frame"], frames, within)
             if f is None:
                 nearest = learn.near(c["frame"], frames, 10**6)
@@ -151,7 +158,7 @@ def corrections(folder: Path, truth: dict) -> tuple[dict, list[dict], dict[int, 
         kept += len(matched)
         for x in auto:
             if int(x["frame"]) not in matched:
-                nearest = learn.near(int(x["frame"]), [c["frame"] for c in r["touches"]], 10**6)
+                nearest = learn.near(int(x["frame"]), [c["frame"] for c in touches], 10**6)
                 add("remove", frame=int(x["frame"]), t=round(int(x["frame"]) / fps, 2), pipe_type=x["type"], pipe_team=x["team"], nearest_s=None if nearest is None else round(abs(nearest - int(x["frame"])) / fps, 2))
         w = overlapping(windows, r["start_frame"], r["end_frame"])
         p = points.get(w["start_frame"], {}) if w else {}

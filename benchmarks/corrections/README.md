@@ -20,7 +20,8 @@ Differences from `learn.from_checked`: the truth is the frozen file, and a rally
 `rallies.csv` overlapping the truth rally the most (not the window with the exact same start): reviewed rallies the review split,
 merged or moved still find their window. A rally with no window, or no winner on the page and not a redo, counts as a winner to fix.
 Touches match as in `from_checked`: within `SAME_S`, in the rally's span with `LEAD_S` before it; a pipeline touch can serve two
-truth touches, as there.
+truth touches, as there. Both sides stop at the truth rally's end (`in_rally`): since 18 Nov a checked rally ends with its last action
+(`web.closed`), the review's bounces after it kept in the truth (106 on the fourth match) while the pipeline's leave.
 
 A run copies the match folder without what a rerun does not read (films, voice, backups, photos, site, crops, review but data.js)
 and runs `learn.rerun` on it with the scratch parent as `--out`. The pipeline writes only inside that folder

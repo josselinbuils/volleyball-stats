@@ -427,6 +427,24 @@ filled track, `newtouch.py` the new touches against the truth). What it would ta
 type and player too; the box-based jumps (the best jumper near the net in a gap: the right player 43-58%, timing within 0.2 s
 37-54%) do not give it either.
 
+## The fourth match (20 Nov): a second match nothing was tuned on
+
+`2026-11-16-eysines-3-vs-aspom-2`, 181 rallies all checked, 1,414 touches up to the rallies' ends (`bench.py freeze`, 20 Nov).
+Today's code (b1b31c7), the play model and the learned order both held out (the match's own `play.npz`, made on 17 Nov by the
+weights of 15 Nov trained on the other three; the order of before its answers, `8b317f3^`; run `m4-heldout`, 10 min):
+**433 corrections, 2.39 a rally** (2.18, 2.34, 2.92 on the first three): to add 134, remove 48, types 140, players 101, winners
+10; 34 rallies at zero. Touches found 1,280 of 1,414, kept 1,250 of 1,298, types 1,140 of 1,280, named players 1,051 of 1,152,
+winners 169 of 179.
+
+The harness first said 540 (2.98): since 18 Nov a checked rally ends with its last action (`web.closed`), so the review's
+bounces after it (106 floors on this match, none on the first three) stood in the truth while the pipeline's there leave.
+`bench.in_rally` cuts both at the rally's end, as `learn.from_checked` does since 19 Nov; the first three's scores unchanged.
+
+What differs (`breakdown-m4-heldout.md`): to add, the ball seen in under half of ±0.4 s 66 (74 on the third), outside every
+window 37 (5 checked rallies without one, 15 touches), no player at the ball 15 (5); "Balle manquée" (new on 18 Nov) 29
+corrections, 15 of them a pipeline floor; types: relance and attack confused both ways 30, attack -> set 11, block -> attack 10;
+players: 87 of 101 another named player, 81 on the right team.
+
 ## State (13 Nov): hand-over
 
 Today's code with the play model's weights: 281 and 351 corrections (294 and 410 at the start, 283 and 389 on 11 Nov); 279

@@ -140,5 +140,30 @@ The pipeline's weak spots and what is left to do, most useful first.
     off as well; ball.js is now video.js (the ball and the camera). The hosted video is shorter than the match (`timeline.py`):
     breaks within a set x2, long pauses cut with a fade, each close call slowed to its bounce and held while the camera
     closes in, the page's data and commentary retimed by it, the review on the match's time (67, 85, 91 min play in 40, 47,
-    52). Every match online has copies made before: the next upload asks for each. Left: the Mac's time;
-    a reading thread (ponytail in `video_copies.py`).
+    52). The four matches' copies remade so (16-19 Nov) and online. Left: the Mac's time; a reading thread (ponytail in
+    `video_copies.py`); the cuts through black and the x2 breaks not watched on a full match.
+25. The fourth match (`2026-11-16-eysines-3-vs-aspom-2`, 181 rallies): imported and its court clicked in the app (16 Nov),
+    reviewed, learned from and online (19 Nov; the learned order retrained, held out set by set 3,680 of 4,061 against the
+    rule's 3,545). Held out (20 Nov, [corrections_log.md](corrections_log.md) "The fourth match"): 433 corrections, 2.39 a
+    rally (2.18, 2.34, 2.92 on the first three), most the ball unseen around touches.
+26. The review (17-19 Nov, [review.md](review.md)): both tabs full screen, the columns beside the video; "Balle manquée" (M, a
+    ball let fall untouched, a fault) and "Faute partagée avec" (a second player sharing a fault); "Valider" beside the video's
+    caption on a rally's last touch; the arrow keys step a frame, slowing at 0.5×; a touch added comes with its player (the
+    serve rotation, else the nearest named one, `GET /nearest`); a checked rally ends with its last action (`web.closed`); the
+    editor warns of a rally ending without a point or a fault; Names validates a card at a time, a name removed stays removed,
+    a card picture swaps in a second (22 s before); a piece nobody named holds takes the one named player off court; the
+    review answers while a run goes; "Une relance jouée haut : d'une main ?" no longer asked (the owner, 19 Nov).
+27. The site and the app (16-19 Nov, [hosting.md](hosting.md)): one password for every match's video (6 characters at least),
+    the Site tab's links opening the videos without it, also on the local network's machines; the Site tab ticks the matches to
+    update and lists those "Pas en ligne", a first upload with the video making its copies, films and highlights; an update
+    rebuilds only the matches whose inputs changed (`web.renew_code`, the others 0.1 s); the app's tasks in a pill on every
+    page; the viewers' reports fetched every 10 minutes; "Synchroniser les vidéos" removed (18 Nov). The match page: a zoom by
+    hand (Ctrl + wheel, a pinch), full screen as YouTube's, a playlist started from elsewhere waiting for a tap, a link back to
+    the list, a Haikyu!! theme, the club's band the same on every page.
+28. Speed (18 Nov): `players.csv` and `ball.csv` cached as numpy columns, identity 2.1-2.4x faster: an apply 54.9 -> 44.6 s,
+    the two hosted pages 22.2 -> 14.1 s, the same outputs to the bit on the four matches.
+29. Courts and the net (19 Nov): a court clicked in the app is fitted with the camera's lens (`outputs/lens.json`), a pinhole
+    camera without one; a snapped landmark over 15 px from the fit takes its click back (the fourth match's court 25.7 -> 7.0 px
+    RMS, its 3D heights were 0.9 m low); the net's height asked at import ("Hauteur du filet"): no attack height under it, and a
+    match whose flights cross under the net's top over a quarter of the time (a court placed wrong) shows no 3D, speed, height
+    or jump.
