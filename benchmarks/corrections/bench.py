@@ -181,9 +181,32 @@ def corrections(folder: Path, truth: dict) -> tuple[dict, list[dict], dict[int, 
     return metrics, out, per
 
 
-def score(name: str, run_name: str, folder: Path | None, other: str | None) -> None:
+def load_truth(name: str, folder: Path | None = None) -> dict:
+    """truth.json with its `renames` applied ({"old": "new"}: a player renamed in the review after the freeze), those
+    `folder`'s run still knows by the old name left."""
     truth = json.loads((BASE / name / "truth.json").read_text())
+    known = {who for _, who in learn.players(folder)[1]} if folder else set()
+    renames = {a: b for a, b in truth.get("renames", {}).items() if a not in known}
+    for r in truth["rallies"]:
+        for c in r["touches"]:
+            c["name"] = renames.get(c["name"], c["name"])
+    return truth
+
+
+def unknown_names(folder: Path, truth: dict) -> dict[str, int]:
+    """The truth's names no player of the run bears, with their touches: a rename since the freeze, to add to `renames`."""
+    _, by_name = learn.players(folder)
+    lost: dict[str, int] = {}
+    for r in truth["rallies"]:
+        for c in in_rally(r):
+            if c["name"] and (c["person_team"], c["name"]) not in by_name:
+                lost[c["name"]] = lost.get(c["name"], 0) + 1
+    return lost
+
+
+def score(name: str, run_name: str, folder: Path | None, other: str | None) -> None:
     folder = folder or (MATCHES / name if run_name == "real" else BASE / name / "runs" / run_name / name)
+    truth = load_truth(name, folder)
     metrics, found, per = corrections(folder, truth)
     count = {k: sum(c["kind"] == k for c in found) for k in KINDS}
     count["total"] = len(found)
@@ -197,6 +220,8 @@ def score(name: str, run_name: str, folder: Path | None, other: str | None) -> N
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     before = json.loads((BASE / name / "runs" / other / "summary.json").read_text()) if other else None
     print(f"== {name} [{run_name}]")
+    for who, n in unknown_names(folder, truth).items():
+        print(f"WARNING: {who} ({n} touches) is no player of this run: renamed since the freeze? add it to truth.json's renames")
     for k, (right, total) in metrics.items():
         was = before["metrics"][k] if before else None
         print(f"{k:34} {right}/{total}" + (f"   (was {was[0]}/{was[1]})" if was and tuple(was) != (right, total) else ""))

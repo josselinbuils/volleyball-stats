@@ -88,8 +88,8 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | A touch typed block over 1.6 m from the net is none, dropped once the touches are typed (`actions.off_net_blocks`; run `block-net` against `ctl`, 12 Nov) | 281 -> 279 (to add 62 -> 63, remove 47 -> 46, types 82 -> 81, players 81 -> 80) | 351 -> 345 (to add 62 -> 65, remove 74 -> 68, types 105 -> 103, players 103 -> 102) |
 | The ball's width in the picture, a depth cue in the learned order of who touched (`ballsize.py`, 13 Nov; runs `hw-width` against `hw-none`, both with weights fit on the other match and the school clips) | 283 -> 274 (players 84 -> 75) | 345 -> 340 (players 102 -> 97) |
 | A rally the play model sees and no window holds added: play 3 s or more apart from every window, one ending and one starting within 30 s of it (`playing.added`, 15 Nov; runs `add-15nov` against `ctl-15nov`, the play model held out; set on the third match, 479 -> 470 there: to add 129 -> 117, winners 22 -> 18) | 274 -> 273 | 332 -> 332 |
-| An attack or relance with no flight to the next contact typed by how high it leaves alone: attack from 2.1 m (`actions.ATTACK_M`, `by_flight`, 20 Nov; runs `height-20nov` against the corrections of 20 Nov; four matches: 99 of 113 such touches right, 88 as typed before; third 468 -> 463, fourth held out 433 -> 428, types -5 each) | 328 -> 329 | 432 -> 432 |
-| A rally's end carried on by the play model up to 30 s past it, 15 s before (`playing.AHEAD_S`, 20 Nov; runs `both-20nov` against `height-20nov`; third 463 -> 463, fourth held out 428 -> 419: to add 134 -> 123) | 329 -> 329 | 432 -> 432 |
+| An attack or relance with no flight to the next contact typed by how high it leaves alone: attack from 2.1 m (`actions.ATTACK_M`, `by_flight`, 20 Nov; runs `height-20nov` against the corrections of 20 Nov; four matches: 99 of 113 such touches right, 88 as typed before; third 468 -> 463, fourth held out 433 -> 428, types -5 each) | 280 -> 281 | 338 -> 338 |
+| A rally's end carried on by the play model up to 30 s past it, 15 s before (`playing.AHEAD_S`, 20 Nov; runs `both-20nov` against `height-20nov`; third 463 -> 463, fourth held out 428 -> 419: to add 134 -> 123) | 281 -> 281 | 338 -> 338 |
 
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
@@ -366,7 +366,7 @@ its spectral rises against random moments of the rallies 0.4 s from any touch: A
 ±0.4 s; the sound comes 30-50 ms after the truth's time (median: its travel). A logistic regression on the peaks' shape
 (level, rise and decay per band; trained on three matches, tested on the fourth), the peaks kept in those gaps with no
 pipeline touch within 0.3 s, on the four: over 0.85, 41 of the 239 touches to add found for 24 false; over 0.7, 52 for 65;
-over 0.5, 74 for 158. At best about 17 corrections of 1,643 (1%) with every new touch's type and player right: dropped. The
+over 0.5, 74 for 158. At best about 17 corrections of 1,501 (1%) with every new touch's type and player right: dropped. The
 unseen touches are the quiet ones (sets, the far court), and the other courts' hits sound like ours. Scripts in
 `outputs/benchmarks/ball_audio/` (`hits.py` the curve and AUCs, `hits2.py` the regression, `hits3.py` the net count).
 
@@ -375,7 +375,18 @@ set then the other side, a pass or dig then an attack on the same side, a send t
 148 of the 368 touches to add, but most such pairs hold none (a send 56 of 203, a set 16 of 72, a long gap 29 of 48): the
 type is wrong there, not a touch missing. A touch put at the surest sound inside a flagged pair, 40 ms before it: over 0.7,
 41 right for 16 false (over 0.5, 54 for 41), on the four; each right one still needs its type and player (half a correction
-each), so about 5 of 1,643 at best: dropped.
+each), so about 5 of 1,501 at best: dropped.
+
+### A renamed player in the truth (20 Nov)
+
+The first two matches' 20 Nov runs said 328 and 432 corrections against 273 and 332 on 15 Nov, players 72 -> 126 and
+92 -> 192: "Laëticia", renamed "Laëtitia" in the review after the freeze (11 Nov), stood in their `truth.json` on 56 and 107
+named touches, which the runs' names no longer matched (48 and 92 counted wrong). The scorer now takes the truth's `renames`
+(`{"old": "new"}`, set on both, applied unless the run still knows the old name) and warns of a truth name no player of the
+run bears (`bench.unknown_names`). Rescored: `both-20nov` 281 and 338 (players 79, 98), the four 1,501 (types 447, players
+413, to add 368, remove 230, winners 43). Between `add-15nov` and `both-20nov` the first two's players moved 72 -> 79 and
+92 -> 98, scattered (7 and 11 new, 0 and 5 gone, no player twice): the learned order of who touched retrained on more answers
+(they are not held out from it).
 
 ## The owner's answers
 

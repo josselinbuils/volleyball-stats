@@ -13,6 +13,9 @@ on the reviewed matches. The real folders in `outputs/matches/` are only read; e
     uv run python benchmarks/corrections/breakdown.py NAME          # outputs/benchmarks/corrections/breakdown.md
     uv run python benchmarks/corrections/doubts.py MATCH NAME       # the review's doubts on a scored run: their share on a correction
 
+A player renamed in the review after the freeze: `"renames": {"old": "new"}` in `truth.json` (`score` warns of a truth
+name no player of the run bears; a run still knowing the old name keeps it).
+
 `score` prints the five "checked" metrics of `learn.from_checked`, then the counts (add, remove, type, player, winner, total, per
 rally, rallies at zero) and writes `corrections.json` and `summary.json` beside the run.
 

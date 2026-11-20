@@ -16,7 +16,7 @@ import numpy as np
 from volleyball_stats import actions, attribution, contacts, learn, match, rallies
 from volleyball_stats.court import Calibration
 
-from bench import in_rally
+from bench import in_rally, load_truth
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "outputs/benchmarks/corrections"
@@ -45,10 +45,10 @@ def raw_contacts(folder: Path, court: Path, fps: float, windows: list[tuple[int,
 
 
 def breakdown(name: str, run: str) -> list[str]:
-    truth = json.loads((BASE / name / "truth.json").read_text())
+    folder = BASE / name / "runs" / run / name
+    truth = load_truth(name, folder)
     for r in truth["rallies"]:
         r["touches"] = in_rally(r)
-    folder = BASE / name / "runs" / run / name
     found = json.loads((BASE / name / "runs" / run / "corrections.json").read_text())
     summary = json.loads((BASE / name / "runs" / run / "summary.json").read_text())
     fps = truth["fps"]

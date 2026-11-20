@@ -169,7 +169,9 @@ The pipeline's weak spots and what is left to do, most useful first.
     or jump.
 30. Fewer corrections (20 Nov, [corrections_log.md](corrections_log.md) "Kept", "Next" 5): an attack or relance with no flight
     to the next contact typed by its height alone, a rally's end carried on by the play model up to 30 s (15 s before):
-    329, 432, 463, 419 corrections (328, 432, 468, 433 before; the fourth held out). A retrained play model replaces the
+    281, 338, 463, 419 corrections (280, 338, 468, 433 before; the fourth held out; the first two said 328 and 432 until
+    the benchmark followed a player renamed after its freeze, `corrections_log.md` "A renamed player in the truth"). A
+    retrained play model replaces the
     weights only when, trained without the newest checked match, it places that match's rallies better than no model
     (`play_training.check`). The ball unseen around touches is still the most (266 touches to add with no contact found
     on the four); loosening the hidden contacts (`contacts.hidden_contacts`) loses more than it finds, the ball's sound
