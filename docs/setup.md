@@ -61,8 +61,9 @@ uv sync
 The models (ball, players, re-identification) download on their first use (the 3D figures' hair and skin one, from
 Hugging Face, at the first pictures; offline the figures keep made-up looks), or ahead from the app's warning
 (`uv run python -m volleyball_stats.doctor --models`). One model is not downloaded but learned from the matches reviewed here and
-shared between a person's machines by the backup: the play / no-play model (`outputs/learned/play/`, [hosting.md](hosting.md));
-without it the pipeline runs on its rules alone.
+shared between a person's machines by the backup: the play / no-play model (`outputs/learned/play/`, [hosting.md](hosting.md))
+and the touch types' from the gesture (`outputs/learned/gesture/`, from two fully checked matches); without them the
+pipeline runs on its rules alone.
 
 ## Performance
 

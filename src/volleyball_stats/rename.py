@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from volleyball_stats import backup, files, matches, video_copies
+from volleyball_stats import backup, files, gesture, matches, video_copies
 
 ROSTER = "roster.json"
 PORT = 8765
@@ -105,6 +105,10 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
         cache = files.root(target) / "benchmarks" / "ranker" / f"{old}_{kept}.json"
         if cache.exists():
             cache.rename(cache.with_name(f"{new}_{kept}.json"))
+    # The gesture model's clips, by match (`gesture.CACHE`): minutes to cut again.
+    clips = files.root(target) / gesture.CACHE / old
+    if clips.exists() and not clips.with_name(new).exists():
+        clips.rename(clips.with_name(new))
     shutil.rmtree(outputs / ".review_matches", ignore_errors=True)
     return target
 

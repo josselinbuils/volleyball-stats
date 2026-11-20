@@ -1879,12 +1879,12 @@ def unlocked(keys: list[int]) -> list[dict]:
 # embeddings computed (17 Nov, 0.39 s per second of video).
 TOOK = {
     "reports": 3.0, "training": 270.0, "playTraining": 2400.0, "pipeline": 2400.0, "players": 25.0, "questions": 3.0, "roster": 1.0, "review": 15.0, "page": 10.0, "hosting": 60.0, "hostingAll": 120.0, "copies": 4800.0, "films": 2400.0, "film": 180.0, "highlights": 300.0,
-    "pipeline:tracking": 7200.0, "pipeline:play": 620.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
+    "pipeline:tracking": 7200.0, "pipeline:play": 620.0, "pipeline:rallies": 25.0, "pipeline:actions": 640.0, "pipeline:wrists": 790.0, "pipeline:gesture": 480.0, "pipeline:teams": 880.0, "pipeline:jerseys": 2400.0, "pipeline:scoreboard": 360.0,
     "pipeline:identity": 1560.0, "pipeline:jumps": 420.0, "pipeline:answers": 60.0,
 }
 # The pipeline's stages in order (match.stage): "tracking" only when the trackers run again, "play" only with its model
-# (`playing.available`) on a match it has not seen.
-STAGES = ("tracking", "play", "rallies", "actions", "wrists", "teams", "jerseys", "scoreboard", "identity", "jumps", "answers")
+# (`playing.available`) on a match it has not seen, "gesture" only with its model (`gesture.wanted`).
+STAGES = ("tracking", "play", "rallies", "actions", "wrists", "gesture", "teams", "jerseys", "scoreboard", "identity", "jumps", "answers")
 TIMINGS = "review_timings.json"
 
 

@@ -524,6 +524,7 @@
       "rallies": "Rallies and touches",
       "actions": "Actions and free balls",
       "wrists": "Who touched (wrists)",
+      "gesture": "Touch types (gesture)",
       "teams": "Teams",
       "jerseys": "Jersey numbers",
       "scoreboard": "Scoreboard",
@@ -688,7 +689,8 @@
     "stage": {
       "training": "Learning from your answers",
       "match": "Match {{n}} of {{of}}",
-      "play": "Learning the play"
+      "play": "Learning the play",
+      "gesture": "Learning the gestures"
     },
     "why": {
       "answers": "Answers to learn",

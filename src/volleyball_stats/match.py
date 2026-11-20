@@ -28,7 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, files, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, files, gesture, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -468,7 +468,8 @@ def main() -> None:
     new_ball = args.force or not track_path.exists()
     new_players = args.players and (args.force or not players_path.exists())
     with_page = bool(args.players and args.court and not args.no_page)
-    later = ["rallies", "actions", *(["wrists", "teams", "jerseys", "scoreboard", "identity", "jumps"] if args.players else []), *(["page"] if with_page else [])]
+    by_gesture = bool(args.players and calibration is not None and gesture.wanted(args.video, out))
+    later = ["rallies", "actions", *(["wrists", *(["gesture"] if by_gesture else []), "teams", "jerseys", "scoreboard", "identity", "jumps"] if args.players else []), *(["page"] if with_page else [])]
     # A copy's run (`--out` elsewhere, the benchmarks') keeps no durations outside its folder; a run on the same player
     # tracks none either: its later stages read what the last one computed (wrists, jerseys, embeddings, jumps) in seconds.
     plan(
@@ -563,6 +564,16 @@ def main() -> None:
         keep = [k for k, t in enumerate(typed) if rally_of(t[0], windows, lead) not in idle]
         typed, touchers, gaps = [typed[k] for k in keep], [touchers[k] for k in keep], [gaps[k] for k in keep]
         windows = [w for k, w in enumerate(windows) if k not in idle]
+    if by_gesture:
+        stage("gesture")
+        start = time.perf_counter()
+        part = jobs.parts(told(), {"places": 1, "types": 60})
+        places = ball3d.flight_places(typed, windows, lead, track_path, calibration, fps, part("places")) if calibration.lens else {}
+        part("places")(1.0)
+        typed = gesture.retype(args.video, out, typed, touchers, windows, rows, calibration, places, fps, part("types"))
+        timings["gesture"] = time.perf_counter() - start
+    else:
+        (out / gesture.FILE).unlink(missing_ok=True)
     crossings = in_rallies(crossings, windows, lead)
     write_csv(out / "net.csv", ["frame"], [[f] for f in crossings])
     if args.players:

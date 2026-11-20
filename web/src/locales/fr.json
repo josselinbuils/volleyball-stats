@@ -524,6 +524,7 @@
       "rallies": "Échanges et touches",
       "actions": "Actions et relances",
       "wrists": "Qui a touché (poignets)",
+      "gesture": "Type des touches (geste)",
       "teams": "Équipes",
       "jerseys": "Numéros de maillot",
       "scoreboard": "Tableau de score",
@@ -688,7 +689,8 @@
     "stage": {
       "training": "Apprentissage de vos réponses",
       "match": "Match {{n}} sur {{of}}",
-      "play": "Apprentissage des phases de jeu"
+      "play": "Apprentissage des phases de jeu",
+      "gesture": "Apprentissage des gestes"
     },
     "why": {
       "answers": "Réponses à apprendre",

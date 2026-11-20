@@ -61,7 +61,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   teaches nothing and does not count, `review.silent`) or for other code or models than those its
   analysis was made with ("Nouvelle version de l'analyse", "Nouvelle version" on the card:
   `analysis.py`'s fingerprint of the pipeline's modules, comments and docstrings left out, of the learned order of who
-  touched and of the play model, kept in the match's `analysis.json` by each run; web.py is not part of it, an apply
+  touched and of the play and gesture models, kept in the match's `analysis.json` by each run; web.py is not part of it, an apply
   rebuilds the pages). The job trains the learned attribution once on every match's answers (each match's held-out
   scores in its `ranker.json`), then reruns the pipeline of each match waiting (the open one alone from a review),
   those the new learned order makes older included (`learn.rerun`: 3 min on the M4 with the poses cached, 40 without),
@@ -72,7 +72,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - A match whose every rally is checked keeps its labels: only new answers make it wait, and the update only measures it
   (`learn.measured`), then trains the play model again when such matches' checked rallies changed since its last training
   (`learn.train_play`, `play_training`: half an hour on an NVIDIA card, hours without), its new weights kept only when the
-  same training without the newest such match places that match's rallies better than no model (`play_training.check`).
+  same training without the newest such match places that match's rallies better than no model (`play_training.check`);
+  then the gesture model (`learn.train_gesture`, `gesture_training`: about an hour on the 5080 for four matches, the clips cut once), kept
+  only when each match typed by a model trained without it gets more types right than the rules, over all of them.
   The match stays as reviewed (`review.reviewed`), and the review asks only what teaches the next matches: who made a
   touch, a piece or two players whose answer may mend a touch the training reads (`review.untaught`).
 - The list's "Progrès" tab (`Progress/Progress.tsx`, in `app.js`: never hosted) shows every run's scores on the answers of

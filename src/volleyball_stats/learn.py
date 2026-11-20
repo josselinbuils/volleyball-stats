@@ -42,9 +42,9 @@ RANKER = "ranker.json"
 SAME_S = 0.2
 # How far a window's start may be from its labelled serve.
 SERVE_S = 1.5
-# The update's durations here (`update`), and before any: a training, a match's pipeline again, the play model's training.
+# The update's durations here (`update`), and before any: a training, a match's pipeline again, the play and gesture models' trainings.
 TIMINGS = "learn_timings.json"
-TOOK = {"training": 120.0, "match": 900.0, "play": 2100.0}
+TOOK = {"training": 120.0, "match": 900.0, "play": 2100.0, "gesture": 3600.0}
 
 Score = tuple[int, int]
 
@@ -237,6 +237,19 @@ def train_play(match: Path, share: jobs.Share = jobs.quiet) -> None:
     jobs.follow([sys.executable, "-m", "volleyball_stats.play_training", str(match)], share, cwd=ROOT, stdin=subprocess.DEVNULL)
 
 
+def gesture_due(match: Path) -> bool:
+    """Whether the gesture model has something new to learn here (`gesture_training.due`)."""
+    from volleyball_stats import gesture_training
+
+    return bool(gesture_training.due(match))
+
+
+def train_gesture(match: Path, share: jobs.Share = jobs.quiet) -> None:
+    """The gesture model trained again on every match fully checked (`gesture_training`, kept only when it types the
+    touches of each match it did not see better than the rules), in its own process as the play model's."""
+    jobs.follow([sys.executable, "-m", "volleyball_stats.gesture_training", str(match)], share, cwd=ROOT, stdin=subprocess.DEVNULL)
+
+
 def measured(match: Path, video: Path, court: Path, update: str | None = None, share: jobs.Share = jobs.quiet) -> dict[str, Score]:
     """The match left as it is, measured in learn.json like a rerun: a fully checked one after a training. Its share is
     players.csv read for the two measures, told as it goes."""
@@ -322,7 +335,7 @@ def waiting(outputs: Path) -> list[tuple[Path, Path, Path]]:
 def update(outputs: Path, only: str | None = None) -> None:
     """Every match of `outputs` waiting brought up to date, or the one named `only`: the learned order trained once on
     all the matches' answers, then each one's pipeline again with its pages, the answers applied (`review.rebuilt`); a
-    fully checked one only measured, the play model then trained again if one taught it something. Its stages told as
+    fully checked one only measured, the play and gesture models then trained again if one taught them something. Its stages told as
     it goes (jobs.Stages)."""
     pick = lambda: [m for m in waiting(outputs) if only is None or m[0].name == only]  # noqa: E731
     found = pick()
@@ -336,13 +349,14 @@ def update(outputs: Path, only: str | None = None) -> None:
     # A new learned order makes every match's analysis older: each one not fully checked waits too.
     found = pick()
     told.plan = ["training", *(f"match:{m.name}" for m, *_ in found)]
-    taught = None
+    taught = typed = None
     for match, video, court in found:
         told.start(f"match:{match.name}")
         print(f"{match.name}:", flush=True)
         if review.reviewed(review.page_data(match / "review"), review.load_log(match / "identity_answers.json")):
             measured(match, video, court, started, told.share_of_stage)
             taught = taught or (match if play_due(match) else None)
+            typed = typed or (match if gesture_due(match) else None)
         else:
             rerun(match, video, court, on_share=told.share_of_stage, update=started)
             review.rebuilt(match, video, court)
@@ -350,6 +364,10 @@ def update(outputs: Path, only: str | None = None) -> None:
         told.plan.append("play")
         told.start("play")
         train_play(taught, told.share_of_stage)
+    if typed:
+        told.plan.append("gesture")
+        told.start("gesture")
+        train_gesture(typed, told.share_of_stage)
     told.start(None)
 
 

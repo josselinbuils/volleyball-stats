@@ -1,7 +1,7 @@
 """The corrections the owner makes in the review, counted for the pipeline's current code on the reviewed matches.
 
     uv run python benchmarks/corrections/bench.py freeze [MATCH]
-    uv run python benchmarks/corrections/bench.py run RUN [MATCH] [--ball PATH] [--play PATH]
+    uv run python benchmarks/corrections/bench.py run RUN [MATCH] [--ball PATH] [--play PATH] [--gesture DIR]
     uv run python benchmarks/corrections/bench.py score RUN [MATCH] [--compare OTHER] [--folder PATH]
 
 MATCH is a prefix of a match folder's name (default: every reviewed match). Everything is written under
@@ -19,7 +19,7 @@ from pathlib import Path
 
 import cv2
 
-from volleyball_stats import actions, learn, review, web
+from volleyball_stats import actions, files, gesture, learn, review, web
 
 ROOT = Path(__file__).resolve().parents[2]
 MATCHES = ROOT / "outputs/matches"
@@ -64,10 +64,12 @@ def freeze(name: str) -> None:
     print(f"{name}: {len(out)} rallies, {sum(len(r['touches']) for r in out)} touches -> {path}")
 
 
-def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | None = None) -> None:
+def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | None = None, typed_by: Path | None = None) -> None:
     """The match folder copied to a scratch folder and the pipeline run again on it, as the review's rerun does (no training).
     With `ball_path`, its ball track replaces the copy's ball.csv; the caches keyed by frame and ball place (wrists.json,
-    relances.json, jumps.json) stay, the other contacts' entries unused, and net.csv is rewritten by the run."""
+    relances.json, jumps.json) stay, the other contacts' entries unused, and net.csv is rewritten by the run. With
+    `typed_by`, the gesture model's weights there (`gesture_training --held`: DIR/MATCH, trained without the match) type
+    the touches, the clips read from the real matches' cache."""
     video, court = source(name)
     scratch = BASE / name / "runs" / run_name / name
     if scratch.exists():
@@ -79,6 +81,13 @@ def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | No
         (scratch / "net.csv").unlink(missing_ok=True)
     if play:
         shutil.copy2(play, scratch / "play.npz")
+    if typed_by:
+        os.environ[gesture.OVERRIDE] = str(typed_by.resolve())
+        clips, real = files.root(scratch) / gesture.CACHE / name, ROOT / "outputs" / gesture.CACHE / name
+        real.mkdir(parents=True, exist_ok=True)
+        if not clips.is_symlink():
+            clips.parent.mkdir(parents=True, exist_ok=True)
+            clips.symlink_to(real.resolve(), target_is_directory=True)
     shutil.copy2(MATCHES / name / "review" / "data.js", scratch / "review" / "data.js")
     start, stages = time.perf_counter(), {}
     last = ["start", start]
@@ -240,6 +249,7 @@ def main() -> None:
         p.add_argument("match", nargs="?")
     sub.choices["run"].add_argument("--ball", type=Path, help="Use this ball track (a ball.csv) in the copy instead of the match's")
     sub.choices["run"].add_argument("--play", type=Path, help="A play.npz (the play model's P(play)) for the copy: the scratch folder finds no weights")
+    sub.choices["run"].add_argument("--gesture", type=Path, help="The gesture model's held-out weights (gesture_training --held DIR): the scratch folder finds none")
     sub.choices["score"].add_argument("--compare", metavar="OTHER_RUN")
     sub.choices["score"].add_argument("--folder", type=Path, help="Score this folder instead of the run's")
     args = parser.parse_args()
@@ -251,7 +261,7 @@ def main() -> None:
             else:
                 freeze(name)
         elif args.command == "run":
-            run(name, args.run, args.ball, args.play)
+            run(name, args.run, args.ball, args.play, args.gesture)
         else:
             score(name, args.run, args.folder, args.compare)
 

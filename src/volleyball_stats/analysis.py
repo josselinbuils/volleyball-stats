@@ -52,10 +52,10 @@ def code(path: Path) -> str:
 
 
 def fingerprint(match: Path | None = None) -> str:
-    """The pipeline's code and the learned order of who touched the ball (ranker.py), with the play model of `match`'s
-    folder (playing.py). ponytail: one fingerprint for every step, so a change to one step reruns them all; a step's own
+    """The pipeline's code and the learned order of who touched the ball (ranker.py), with the play and gesture models of `match`'s
+    folder (playing.py, gesture.py). ponytail: one fingerprint for every step, so a change to one step reruns them all; a step's own
     would rerun only from it."""
-    from volleyball_stats import playing, ranker
+    from volleyball_stats import gesture, playing, ranker
 
     parts = [*modules(), ranker.WEIGHTS]
     key = tuple((p, p.stat().st_mtime_ns, p.stat().st_size) for p in parts if p.exists())
@@ -66,7 +66,8 @@ def fingerprint(match: Path | None = None) -> str:
             digest.update((code(path) if path.suffix == ".py" else path.read_text()).encode())
         _seen[key] = digest.hexdigest()[:16]
     play = playing.stamp(playing.weights(match)) if match else None
-    return f"{_seen[key]}-{play or 0}"
+    typed = gesture.stamp(gesture.weights(match)) if match else None
+    return f"{_seen[key]}-{play or 0}" + (f"-{typed}" if typed else "")
 
 
 def made_by(match: Path) -> str | None:

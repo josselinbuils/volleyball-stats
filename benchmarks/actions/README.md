@@ -291,3 +291,9 @@ the skeletons VideoMAE does not use; clips about 7-8 min a match, 4-6 GB each):
 | 16 Nov | 1153 of 1256 | -82 | +15 | **+22** |
 
 Stacked +98 of 4,531, over the bar on each; on the first two it gains 18 and 25 where one training match gave 16 and 15.
+
+In the pipeline since 20 Nov (`gesture.py`, the stage "gesture"; trained by "Apprendre", `gesture_training.py`), the
+contacts grouped by the pipeline's windows. The corrections rerun, each match typed by a model trained without it
+(`bench.py run NAME MATCH --gesture outputs/benchmarks/gesture-held`, the held-out models from
+`gesture_training MATCH --held outputs/benchmarks/gesture-held`): 1,501 -> 1,412, types 447 -> 329
+([corrections_log.md](../../docs/corrections_log.md) "Kept").

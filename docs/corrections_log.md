@@ -90,6 +90,7 @@ The second match's real folder (429 corrections) predates the 5 Nov rally fixes:
 | A rally the play model sees and no window holds added: play 3 s or more apart from every window, one ending and one starting within 30 s of it (`playing.added`, 15 Nov; runs `add-15nov` against `ctl-15nov`, the play model held out; set on the third match, 479 -> 470 there: to add 129 -> 117, winners 22 -> 18) | 274 -> 273 | 332 -> 332 |
 | An attack or relance with no flight to the next contact typed by how high it leaves alone: attack from 2.1 m (`actions.ATTACK_M`, `by_flight`, 20 Nov; runs `height-20nov` against the corrections of 20 Nov; four matches: 99 of 113 such touches right, 88 as typed before; third 468 -> 463, fourth held out 433 -> 428, types -5 each) | 280 -> 281 | 338 -> 338 |
 | A rally's end carried on by the play model up to 30 s past it, 15 s before (`playing.AHEAD_S`, 20 Nov; runs `both-20nov` against `height-20nov`; third 463 -> 463, fourth held out 428 -> 419: to add 134 -> 123) | 281 -> 281 | 338 -> 338 |
+| The touch's type from the gesture: VideoMAE on a clip of the credited player and the ball, its scores read with the rules' type by small heads, where its weights are (`gesture.py`, `gesture_training.py`, 20 Nov; runs `gesture-20nov` against `both-20nov`, each match typed by a model trained without it, `bench.py run --gesture outputs/benchmarks/gesture-held`; third 463 -> 429, types 127 -> 87, fourth 419 -> 392, types 136 -> 105; the four 1,501 -> 1,412, types 447 -> 329, players 413 -> 440) | 281 -> 265 (types 84 -> 61, players 79 -> 86) | 338 -> 326 (types 100 -> 76, players 98 -> 105, winners 7 -> 12) |
 
 The play model (12 Nov, `benchmarks/rallies/README.md` "12 Nov: the play model in the pipeline", each use measured alone): the
 players to fix rise because 12 and 55 more named touches are found (10 and 45 of them given to the right player). Both matches
@@ -323,7 +324,17 @@ fifth of the 447 types to correct (1,501 corrections, so about 6.5%). Alone it i
 with a threshold +16. It gains with the training data: 15-16 from one match, 18-25 from three on the same two. Mostly
 attack / relance / set swaps, pass or dig the rules typed floor. Its cost: the clips, 7-8 minutes a match on the 5080 and
 4-6 GB each kept for training, a second model of 345 MB, about 25 minutes to retrain on three matches (four trainings, the
-head's scores out of fold). Not wired in yet: the owner's call.
+head's scores out of fold).
+
+Wired in (20 Nov, the owner's call): the stage "gesture" after the wrists (`gesture.retype`), its weights trained by
+"Apprendre" from two fully checked matches (`learn.train_gesture`, `gesture_training`: one model a match left out to check
+it gains over the rules, then one on all; 50 min for the four on the 5080 once the clips are cut). The production one groups
+the contacts by the pipeline's windows (the benchmark by the true rallies). Its own check, each match typed by the model
+trained without it on the matches' 18-19 Nov results: +45, +46, +43, +67 right types (+201 of 4,242). The rerun
+(`gesture-20nov`): 1,501 -> 1,412 corrections (-6%): types 84 -> 61, 100 -> 76, 127 -> 87, 136 -> 105 (447 -> 329);
+players 413 -> 440, every one on a touch newly named (a floor typed pass or dig: 27 more named touches, the player of those
+wrong); winners 43 -> 45. 56-85 types changed a match. Its cost on a new match: the clips cut around every contact, about
+7-8 min on the 5080 (0.2-0.4 min once cut, `outputs/cache/gesture/`), the model 345 MB beside the play one.
 
 ### Rally windows (11 Nov, runs `win-whole`, `win-whole2`, second match only)
 

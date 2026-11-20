@@ -68,8 +68,10 @@ class TestApp:
     def test_deletes_only_a_match_not_reviewed(self, place):
         self.match(place, "a")
         (place / "data" / "matches" / "a").mkdir(parents=True)
+        (place / "outputs" / "cache" / "gesture" / "a").mkdir(parents=True)
         app.delete("a")
         assert not (place / "outputs" / "matches" / "a").exists() and not (place / "data" / "matches" / "a").exists()
+        assert not (place / "outputs" / "cache" / "gesture" / "a").exists()
         self.match(place, "b", "identity_answers.json")
         with pytest.raises(PermissionError):
             app.delete("b")

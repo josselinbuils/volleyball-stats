@@ -526,7 +526,7 @@ def time_left(job: dict, now: float) -> float | None:
     """Seconds left of a job's step: as it tells them (the pipeline), else from its progress while it tells one (the
     copy), then for a pipeline that tells none (started before 13 Nov) each later stage's duration on the first ASPOM
     match (review.TOOK), in proportion to the video's length."""
-    from volleyball_stats import playing, review
+    from volleyball_stats import gesture, playing, review
 
     # The pipeline tells its own (`jobs.Stages`).
     if job.get("toldLeft") is not None:
@@ -536,7 +536,7 @@ def time_left(job: dict, now: float) -> float | None:
     if job.get("step") != "pipeline":
         return here
     stage = job.get("stage") or "tracking"
-    later = [s for s in review.STAGES[review.STAGES.index(stage) + 1 :] if s != "play" or playing.stamp(OUTPUTS / playing.WEIGHTS)] if stage in review.STAGES else []
+    later = [s for s in review.STAGES[review.STAGES.index(stage) + 1 :] if (s != "play" or playing.stamp(OUTPUTS / playing.WEIGHTS)) and (s != "gesture" or gesture.stamp(OUTPUTS / gesture.WEIGHTS))] if stage in review.STAGES else []
     scale = job.get("duration", TOOK_VIDEO_S) / TOOK_VIDEO_S
     rest = scale * sum(review.TOOK.get(f"pipeline:{s}", 0.0) for s in later)
     if stage == "tracking":
@@ -597,13 +597,15 @@ def swap(name: str) -> None:
 
 
 def delete(name: str) -> None:
-    """A match not reviewed yet taken away, its video too."""
-    folder = MATCHES / name
+    """A match not reviewed yet taken away, its video and its gesture clips too."""
+    from volleyball_stats import gesture
+
+    folder, clips = MATCHES / name, OUTPUTS / gesture.CACHE
     if (folder / "report.md").exists() or (folder / "identity_answers.json").exists() or any(j["id"] == name and j["running"] for j in jobs.state(OUTPUTS)):
         raise PermissionError(name)
     jobs.forget(OUTPUTS, name)
-    for path in (folder, DATA / name):
-        if path.is_dir() and path.resolve().parent in (MATCHES.resolve(), DATA.resolve()):
+    for path in (folder, DATA / name, clips / name):
+        if path.is_dir() and path.resolve().parent in (MATCHES.resolve(), DATA.resolve(), clips.resolve()):
             shutil.rmtree(path)
 
 
