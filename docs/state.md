@@ -173,4 +173,5 @@ The pipeline's weak spots and what is left to do, most useful first.
     weights only when, trained without the newest checked match, it places that match's rallies better than no model
     (`play_training.check`). The ball unseen around touches is still the most (266 touches to add with no contact found
     on the four); loosening the hidden contacts (`contacts.hidden_contacts`) loses more than it finds, the ball's sound
-    finds 41 for 24 false (`corrections_log.md` "The ball's sound where it is unseen").
+    finds 41 for 24 false, the rally's order with it 41 for 16 (`corrections_log.md` "The ball's sound where it is
+    unseen").

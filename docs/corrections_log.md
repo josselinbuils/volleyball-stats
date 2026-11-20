@@ -370,6 +370,13 @@ over 0.5, 74 for 158. At best about 17 corrections of 1,643 (1%) with every new 
 unseen touches are the quiet ones (sets, the far court), and the other courts' hits sound like ours. Scripts in
 `outputs/benchmarks/ball_audio/` (`hits.py` the curve and AUCs, `hits2.py` the regression, `hits3.py` the net count).
 
+The rally's order, the same day (`grammar.py`, `grammar2.py` there): two pipeline touches in a row that break it (a pass or
+set then the other side, a pass or dig then an attack on the same side, a send then the same side, over 2.5 s apart) hold
+148 of the 368 touches to add, but most such pairs hold none (a send 56 of 203, a set 16 of 72, a long gap 29 of 48): the
+type is wrong there, not a touch missing. A touch put at the surest sound inside a flagged pair, 40 ms before it: over 0.7,
+41 right for 16 false (over 0.5, 54 for 41), on the four; each right one still needs its type and player (half a correction
+each), so about 5 of 1,643 at best: dropped.
+
 ## The owner's answers
 
 - The Mac (11 Nov): the pipeline must still run on it end to end, but it may be a different one, a bit less accurate. So a
