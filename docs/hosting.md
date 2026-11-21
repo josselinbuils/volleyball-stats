@@ -297,8 +297,11 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 - With "Sauvegarde automatique" on, every 10 minutes a match changed here since it was last sent or brought
   (`sync.changed`) is sent, and what sits beside the matches (courts and their clicks, roster, lens, the club, the viewers'
   reports, the videos' password, the models trained on the reviewed matches: `learned/`, 345 MB) is kept in step with the server
-  (`sync.keep_shared`). The review's "Sauvegarder sur le serveur" and the Site tab's "Sauvegarder maintenant"
-  (`sync push --all`) do it at once; `uv run python -m volleyball_stats.backup outputs/matches/MATCH` goes through
+  (`sync.keep_shared`). From the list it is the Site tab's job (`app.start_backup`, marked `auto`): the tab shows
+  "Sauvegarde automatique" and its bar from the tasks, asked every 2 s while it is open (a run with nothing to send ends
+  in 6 s), the tasks' pill leaves it out. Neither it nor "Sauvegarder maintenant" starts while the other runs (the
+  button, clicked before the tab saw it, joins it); a match's review skips its own while that job runs. The review's
+  "Sauvegarder sur le serveur" and the Site tab's "Sauvegarder maintenant" (`sync push --all`) do it at once; `uv run python -m volleyball_stats.backup outputs/matches/MATCH` goes through
   `sync.push` too.
 - The choice is each machine's own (`outputs/backup.json`), on by default once a server is set.
 - Copies go to `/root/backups/volleyball-stats/COPY/` on the OVH server (outside the website, root only), one per hour
