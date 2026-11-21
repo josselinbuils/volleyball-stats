@@ -927,7 +927,9 @@ def handle(
             jobs.start(OUTPUTS, VERIFY, VERIFY, [(VERIFY, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "verify"])])
             return reply(server_state())
         if route == "server/backup":
-            start_backup()
+            # One running already (the list's timer, unseen yet) does the same: the tab then shows it.
+            if not jobs.is_running(OUTPUTS, BACKUP):
+                start_backup()
             return reply(server_state())
         if route == "swap":
             swap(name)

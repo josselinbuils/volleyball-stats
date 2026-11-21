@@ -28,6 +28,8 @@ const IDLE_MS = 10_000;
 let tasks: Task[] = [];
 const listeners = new Set<() => void>();
 let timer: number | undefined;
+// The screens shown that want each task as it starts (`useQuickTasks`).
+let quick = 0;
 
 async function poll() {
   try {
@@ -43,7 +45,7 @@ async function poll() {
     // The next poll tries again.
   }
   if (listeners.size) {
-    timer = window.setTimeout(poll, tasks.some((task) => task.running) ? RUNNING_MS : IDLE_MS);
+    timer = window.setTimeout(poll, quick || tasks.some((task) => task.running) ? RUNNING_MS : IDLE_MS);
   }
 }
 
@@ -66,6 +68,18 @@ const idle = () => () => {};
 /** The app's tasks, asked of its server every few seconds while one runs: only on the app's pages (`on`). */
 export function useTasks(on = true): Task[] {
   return useSyncExternalStore(on ? subscribe : idle, () => (on ? tasks : none));
+}
+
+/** The app's tasks, asked every RUNNING_MS while this screen is shown, idle or not: the Site tab, whose automatic
+ * backup starts any time and may end in seconds. */
+export function useQuickTasks(): Task[] {
+  useEffect(() => {
+    quick += 1;
+    return () => {
+      quick -= 1;
+    };
+  }, []);
+  return useTasks();
 }
 
 // The tasks a bar of this page already shows, kept on the window: the page, the review and the app's screens are
