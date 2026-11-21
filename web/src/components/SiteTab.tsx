@@ -140,9 +140,10 @@ export function SiteTab() {
     }
     return r;
   }, []);
-  const listCopies = useCallback(async () => {
+  // `asked`: the request already sent, the tab's first one.
+  const listCopies = useCallback(async (asked?: ReturnType<typeof call<Copies>>) => {
     setListing(true);
-    const r = await call<Copies>('server/copies');
+    const r = await (asked ?? call<Copies>('server/copies'));
     setListing(false);
     setCopies(r.ok ? r : 'failed');
     if (r.ok) {
@@ -151,11 +152,13 @@ export function SiteTab() {
   }, []);
   const load = useCallback(() => {
     setUnread(false);
+    // The backups asked at once, not after the state: each takes seconds.
+    const asked = call<Copies>('server/copies');
     void refresh().then((r) => {
       if (r.ok) {
         setForm(r.server ?? EMPTY);
         if (r.server) {
-          void listCopies();
+          void listCopies(asked);
         }
       } else {
         setUnread(true);

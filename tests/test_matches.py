@@ -637,8 +637,12 @@ class TestAddCopies:
         made = []
         monkeypatch.setattr(matches.video_copies, "make", lambda video, p, share: made.append(p) or copies)
 
+        (tmp_path / "review").mkdir()
+        (tmp_path / "review" / "data.js").write_text("a")
         assert not matches.copies_stale(tmp_path, config)
         plan["map"] = [[0, 5, 0, 5]]
+        assert not matches.copies_stale(tmp_path, config)  # the review's files unchanged: its former cut
+        (tmp_path / "review" / "data.js").write_text("ab")
         assert matches.copies_stale(tmp_path, config)
         matches.add_copies(tmp_path, Path("m.mp4"))
         assert made == []

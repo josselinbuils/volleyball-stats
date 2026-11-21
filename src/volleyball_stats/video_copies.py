@@ -159,13 +159,24 @@ def duration(path: Path) -> float:
     return float(subprocess.run(run, capture_output=True, text=True, check=True).stdout)
 
 
+# Each file's height by its path, with the size and time it had: the Site tab asks it on every look.
+_heights: dict[str, tuple[tuple[int, int], int | None]] = {}
+
+
 def height(path: Path) -> int | None:
     """The height of `path`'s picture, None if it is no video."""
+    stat = path.stat()
+    stamp = (stat.st_size, stat.st_mtime_ns)
+    known = _heights.get(str(path))
+    if known and known[0] == stamp:
+        return known[1]
     run = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=height", "-of", "csv=p=0", str(path)]
     try:
-        return int(subprocess.run(run, capture_output=True, text=True, check=True).stdout)
+        found = int(subprocess.run(run, capture_output=True, text=True, check=True).stdout)
     except (subprocess.CalledProcessError, ValueError):
-        return None
+        found = None
+    _heights[str(path)] = (stamp, found)
+    return found
 
 
 def current(key: str, path: Path) -> bool:

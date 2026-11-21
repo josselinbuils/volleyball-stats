@@ -506,7 +506,23 @@ def copies_stale(match: Path, config: dict) -> bool:
     if not config.get("video") or copies_missing(config):
         return False
     made = video_copies.recorded(match, Path(config["light"]).expanduser())
-    return made is None or timeline.moved(made["map"], review_cut(match)["map"])
+    return made is None or timeline.moved(made["map"], review_map(match))
+
+
+# Each match's review_cut map by its folder, with the size and time its review's files had: seconds to make, asked on every
+# look at the Site tab.
+_maps: dict[str, tuple[tuple, list]] = {}
+
+
+def review_map(match: Path) -> list:
+    """review_cut's map, made again only when the review's page data or ball changed."""
+    stamp = tuple((s.st_size, s.st_mtime_ns) if (p := match / "review" / name).exists() and (s := p.stat()) else None for name in ("data.js", web.VIDEO_JS, "ball.js"))
+    known = _maps.get(str(match))
+    if known and known[0] == stamp:
+        return known[1]
+    found = review_cut(match)["map"]
+    _maps[str(match)] = (stamp, found)
+    return found
 
 
 def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet, remake: bool = False) -> dict:
