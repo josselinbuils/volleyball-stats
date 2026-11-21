@@ -60,6 +60,20 @@ class TestApp:
         failed = app.tasks({"running": False, "failed": "copies", "error": "boom"}, "m")[0]
         assert failed["step"] == "copies" and failed["failed"] and app.tasks(None) == [found["m"]]
 
+    def test_the_automatic_backup_is_the_site_tabs_job_and_one_runs_at_a_time(self, place, monkeypatch):
+        started = []
+        monkeypatch.setattr(jobs, "start", lambda outputs, job_id, kind, steps, **extra: started.append((job_id, extra)))
+        app.start_backup(auto=True)
+        app.start_backup()
+        assert started == [(app.BACKUP, {"auto": True}), (app.BACKUP, {})]
+        monkeypatch.undo()
+        monkeypatch.setattr(app, "OUTPUTS", place / "outputs")
+        monkeypatch.setattr(jobs, "state", lambda outputs: [{"id": app.BACKUP, "kind": "backup", "running": True, "auto": True, "started": 1.0}])
+        assert app.tasks(None)[0]["auto"]
+        monkeypatch.setattr(jobs, "is_running", lambda outputs, job_id: True)
+        with pytest.raises(jobs.Running):
+            app.start_backup()
+
     def test_swaps_the_sides(self, place):
         folder = self.match(place, "a")
         app.swap("a")

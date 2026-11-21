@@ -8,9 +8,9 @@ import type { Job } from '@/components/Setup/helpers/setup';
 /** A job of the Site tab, with its stage ("match": the `n`th of `of`) and the seconds spent and left while it runs. */
 export type Told = Job & { n?: number | null; of?: number | null; elapsed?: number; left?: number | null };
 
-/** A job's last run: running (its bar, what it does and the time left), failed with its reason, or done and when
- * (unless `quiet`: the card already says it). */
-export function JobLine({ job, running, quiet }: { job: Told | null; running: string; quiet?: boolean }) {
+/** A job's last run: running (its bar, what it does after `lead` and the time left), failed with its reason, or done and
+ * when (unless `quiet`: the card already says it). */
+export function JobLine({ job, running, quiet, lead }: { job: Told | null; running: string; quiet?: boolean; lead?: string }) {
   const { t } = useTranslation();
   const f = useFormat();
   if (!job || (quiet && !job.running && !job.failed)) {
@@ -19,7 +19,7 @@ export function JobLine({ job, running, quiet }: { job: Told | null; running: st
   if (job.running) {
     return (
       <JobProgress label={running} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed} task={job.id}>
-        {job.stage ? t(`server.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: running }) : running}
+        {job.stage ? [lead, t(`server.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: running })].filter(Boolean).join(' · ') : (lead ?? running)}
       </JobProgress>
     );
   }

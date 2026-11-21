@@ -16,6 +16,7 @@ import { explain, type Explained } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
 import type { PageChange } from '@/lib/hostedChanges';
 import { useRunning } from '@/hooks/useRunning';
+import { useTasks } from '@/lib/tasks';
 
 /** The hosting server as server.py reads it. */
 interface Server {
@@ -162,6 +163,13 @@ export function SiteTab() {
     });
   }, [refresh, listCopies]);
   useEffect(load, [load]);
+  // The list's timer starts the automatic backup: the tasks' poll tells it began.
+  const autoStarted = useTasks().some((task) => task.id === 'backup' && task.auto && task.running);
+  useEffect(() => {
+    if (autoStarted) {
+      void refresh();
+    }
+  }, [autoStarted, refresh]);
   const running = !!(state?.hosting?.running || state?.backup?.running || state?.verify?.running);
   useEffect(() => {
     if (!running) {
@@ -352,7 +360,13 @@ export function SiteTab() {
             {restored !== null && <Status ok={restored}>{t(restored ? 'server.restored' : 'error.failed')}</Status>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="bg-card" busy={doing === 'backup' || !!state.backup?.running} disabled={!saved} onClick={() => void start('backup')}>
+            <Button
+              variant="outline"
+              className="bg-card"
+              busy={doing === 'backup' || !!(state.backup?.running && !state.backup.auto)}
+              disabled={!saved || !!state.backup?.running}
+              onClick={() => void start('backup')}
+            >
               <DatabaseBackup aria-hidden />
               {t('server.backUp')}
             </Button>
@@ -362,7 +376,7 @@ export function SiteTab() {
             </Button>
           </div>
           {backupError && <ErrorNote {...backupError} />}
-          <JobLine job={state.backup} running={t('server.backingUp')} quiet />
+          <JobLine job={state.backup} running={t('server.backingUp')} lead={state.backup?.running && state.backup.auto ? t('server.auto') : undefined} quiet />
           {state.verify?.running && <JobLine job={state.verify} running={t('server.verifying')} />}
           {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
           {copies === 'failed' && !listing && (

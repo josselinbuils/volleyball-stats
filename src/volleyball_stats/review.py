@@ -2501,17 +2501,18 @@ def serve_list(out: Path, theme: str, port: int, browser: bool, roster: Path) ->
             switch(command, threading.Lock())
 
     def backing() -> None:
-        """While the copies are automatic: every match changed here sent and what sits beside them kept in step
-        (`sync.push_all`), the copies checked once a week (`sync.verify`). No match is open."""
+        """While the copies are automatic: every match changed here sent and what sits beside them kept in step, as the
+        Site tab's job (`app.start_backup`: it shows there, and neither starts while the other runs), the copies checked
+        once a week (`sync.verify`). No match is open."""
         outputs = out.parent
         while True:
-            config = sync.server(outputs)
-            if config and sync.auto(outputs):
+            if sync.server(outputs) and sync.auto(outputs) and not jobs.is_running(app.OUTPUTS, app.BACKUP):
                 try:
-                    for failed in sync.push_all(outputs):
-                        print(f"backup failed: {failed}", flush=True)
+                    app.start_backup(auto=True)
+                    while jobs.is_running(app.OUTPUTS, app.BACKUP):
+                        time.sleep(2)
                     sync.verify_weekly(outputs)
-                except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
+                except (jobs.Running, OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
                     print(f"backup failed: {error}", flush=True)
             time.sleep(BACKUP_EVERY_S)
 
@@ -2661,8 +2662,9 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
         (`sync.changed`), else what sits beside it kept in step (`sync.keep_shared`): a change there alone moves no
         match's version."""
         while True:
-            # A copy of a match (a test's) reaches no server: it would send itself as this machine's (`sync.own`).
-            if sync.auto(outputs) and sync.own(match):
+            # A copy of a match (a test's) reaches no server: it would send itself as this machine's (`sync.own`). None
+            # while the Site tab's backup still runs.
+            if sync.auto(outputs) and sync.own(match) and not jobs.is_running(app.OUTPUTS, app.BACKUP):
                 try:
                     if sync.changed(match):
                         back_up()

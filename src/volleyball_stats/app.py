@@ -629,6 +629,13 @@ def fit_court(name: str, clicks: dict, court_name: str) -> None:
     jobs.start(OUTPUTS, name, "court", [("court", command)], manual=True)
 
 
+def start_backup(auto: bool = False) -> None:
+    """Every match changed here sent, then what sits beside them kept in step (`sync push --all`): the Site tab's
+    "Sauvegarder maintenant", or the list's timer (`auto`, left out of the tasks' pill: it runs every 10 minutes). One at
+    a time: jobs.Running while one runs."""
+    jobs.start(OUTPUTS, BACKUP, BACKUP, [(BACKUP, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "push", "--all"])], **({"auto": True} if auto else {}))
+
+
 def server_state() -> dict:
     """The "Site" tab: the server, whether this machine copies its matches by itself, how its last copies and check
     went, and the tab's jobs."""
@@ -738,7 +745,7 @@ def tasks(review: dict | None = None, match: str | None = None) -> list[dict]:
     for job in jobs.state(OUTPUTS):
         if not job["running"] and now - (job.get("ended") or 0) > RECENT_S:
             continue
-        item = {"id": job["id"], "kind": job["kind"], "running": job["running"], "step": job.get("step"), "fraction": job.get("progress"), "part": job.get("part"), "error": job.get("error"), "failed": bool(job.get("failed"))}
+        item = {"id": job["id"], "kind": job["kind"], "running": job["running"], "step": job.get("step"), "fraction": job.get("progress"), "part": job.get("part"), "error": job.get("error"), "failed": bool(job.get("failed")), "auto": bool(job.get("auto"))}
         if job["kind"] in MATCH_JOBS:
             item.update(match=job["id"], teams=teams_of(job["id"]) or [t.get("name") for t in job.get("teams") or []] or None)
         found.append({**item, **told(job, now)} if job["running"] else item)
@@ -920,7 +927,7 @@ def handle(
             jobs.start(OUTPUTS, VERIFY, VERIFY, [(VERIFY, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "verify"])])
             return reply(server_state())
         if route == "server/backup":
-            jobs.start(OUTPUTS, BACKUP, BACKUP, [(BACKUP, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "push", "--all"])])
+            start_backup()
             return reply(server_state())
         if route == "swap":
             swap(name)

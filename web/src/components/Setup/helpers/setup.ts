@@ -34,6 +34,8 @@ export interface Job {
   stage?: string | null;
   started: number;
   ended?: number;
+  /** A backup the list's timer started, not the Site tab's button. */
+  auto?: boolean;
 }
 
 /** A match not ready for the review (app.preparing) and what it waits for. */

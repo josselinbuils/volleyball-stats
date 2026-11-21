@@ -18,6 +18,8 @@ export type Task = {
   late?: boolean;
   failed?: boolean;
   error?: string | null;
+  /** A backup the list's timer started: left out of the pill, the Site tab shows it. */
+  auto?: boolean;
 };
 
 const RUNNING_MS = 2000;

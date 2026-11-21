@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Check, CircleAlert, LoaderCircle } from 'lucide-react';
@@ -64,7 +64,9 @@ function Ring({ fraction }: { fraction: number | null | undefined }) {
  * ended well says so a moment, one failed stays until its panel closes. The share also leads the window's title. */
 export function Tasks() {
   const { t } = useTranslation();
-  const all = useTasks();
+  const polled = useTasks();
+  // The automatic backup runs every 10 minutes: only the Site tab shows it.
+  const all = useMemo(() => polled.filter((task) => !task.auto), [polled]);
   const shown = useShownTasks();
   const duration = useDuration();
   const percent = usePercent();
