@@ -134,9 +134,9 @@ The pipeline's weak spots and what is left to do, most useful first.
 24. Done (16 Nov): the automatic zoom cut into the hosted video's copies from the 4K source (`video_copies.py`,
     `framing.camera`, [hosting.md](hosting.md)), no "Zoom auto" switch any more (the owner's call): VMAF zoomed 1.9x 88.7
     against 76.9 on a 1080p screen, 88.8 against 69.8 on a 1440p one. About 28 minutes of encoding an hour of match on the
-    5080 PC (the copies were made in 10 on the GPU alone); the Mac, slower, untimed. Made at "Mettre en ligne"; once a
-    correction has changed the zoom, the upload asks before making them again, else "Refaire les vidéos au nouveau zoom"
-    waits in the menu. The close calls' zoom on the bounce is cut in too (`framing.bounces`), shown with "Vidéo augmentée"
+    5080 PC (the copies were made in 10 on the GPU alone); the Mac, slower, untimed. Made at "Mettre en ligne"; once the
+    rallies have moved past 2 s or a close call changed (`timeline.moved`, 21 Nov: was any change), the upload asks
+    before making them again, else "Refaire les vidéos" waits in the menu. The close calls' zoom on the bounce is cut in too (`framing.bounces`), shown with "Vidéo augmentée"
     off as well; ball.js is now video.js (the ball and the camera). The hosted video is shorter than the match (`timeline.py`):
     breaks within a set x2, long pauses cut with a fade, each close call slowed to its bounce and held while the camera
     closes in, the page's data and commentary retimed by it, the review on the match's time (67, 85, 91 min play in 40, 47,

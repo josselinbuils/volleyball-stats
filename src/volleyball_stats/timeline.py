@@ -24,6 +24,8 @@ SLOW_S, SLOW = 0.6, 0.5
 HOLD_S = 2.0
 # The bounce: the ball's lowest place in the picture this near the landing touch.
 BOUNCE_S = 0.3
+# A copy's cut this near the review's still serves: the copies are worth making again past it (the owner's call, 21 Nov).
+MOVED_S = 2.0
 
 
 def bounce_at(t: float, ball: np.ndarray) -> float | None:
@@ -87,6 +89,26 @@ def plan(data: dict, ball: np.ndarray) -> list[list[float]]:
             pieces.append([round(start, 3), round(end, 3), round(out, 3), round(out + length, 3)])
         out += length
     return pieces
+
+
+def moved(made: list[list[float]], now: list[list[float]]) -> bool:
+    """Whether the map `now` differs from `made` enough to make the copies again: a piece's end on the source over
+    MOVED_S from every one of the other map (a rally moved, added or gone), or a close call's held frame added, gone or
+    moved past BOUNCE_S. The camera follows them."""
+
+    def ends(pieces: list[list[float]]) -> np.ndarray:
+        return np.unique(np.array(pieces, dtype=float).reshape(-1, 4)[:, :2])
+
+    def far(a: np.ndarray, b: np.ndarray) -> bool:
+        return bool((np.abs(a[:, None] - b[None, :]).min(axis=1) > MOVED_S).any())
+
+    a, b = ends(made), ends(now)
+    if not len(a) or not len(b):
+        return len(a) != len(b)
+    holds = [np.array(sorted(p[0] for p in pieces if p[0] == p[1])) for pieces in (made, now)]
+    if len(holds[0]) != len(holds[1]) or (len(holds[0]) and np.abs(holds[0] - holds[1]).max() > BOUNCE_S):
+        return True
+    return far(a, b) or far(b, a)
 
 
 def cuts(pieces: list[list[float]]) -> list[float]:

@@ -500,12 +500,13 @@ def review_cut(match: Path) -> dict:
 
 
 def copies_stale(match: Path, config: dict) -> bool:
-    """Whether the copies of the video, all there, were made otherwise than the review would now (`review_cut`): a
-    correction moved a rally or a touch since, or they were made before 16 Nov. They are made again only when the owner
-    says so."""
+    """Whether the copies of the video, all there, were made otherwise than the review would now (`review_cut`): its
+    rallies or close calls moved since (`timeline.moved`), or they were made before 16 Nov. They are made again only
+    when the owner says so."""
     if not config.get("video") or copies_missing(config):
         return False
-    return video_copies.recorded(match, Path(config["light"]).expanduser()) != review_cut(match)
+    made = video_copies.recorded(match, Path(config["light"]).expanduser())
+    return made is None or timeline.moved(made["map"], review_cut(match)["map"])
 
 
 def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet, remake: bool = False) -> dict:

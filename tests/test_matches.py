@@ -638,7 +638,7 @@ class TestAddCopies:
         monkeypatch.setattr(matches.video_copies, "make", lambda video, p, share: made.append(p) or copies)
 
         assert not matches.copies_stale(tmp_path, config)
-        plan["map"] = [[0, 8, 0, 8]]
+        plan["map"] = [[0, 5, 0, 5]]
         assert matches.copies_stale(tmp_path, config)
         matches.add_copies(tmp_path, Path("m.mp4"))
         assert made == []

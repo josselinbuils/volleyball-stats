@@ -251,7 +251,7 @@ export function ReviewHeader({
       setChoosing(true);
       return;
     }
-    const remake = hosted.zoomStale ? await choose({ title: t('review.zoomStale'), text: t('review.zoomStaleText'), confirm: t('review.remake'), other: t('review.later') }) : false;
+    const remake = hosted.copiesStale ? await choose({ title: t('review.videosStale'), text: t('review.videosStaleText'), confirm: t('review.remake'), other: t('review.later') }) : false;
     if (remake !== null) {
       run('host', { remake });
     }
@@ -348,7 +348,7 @@ export function ReviewHeader({
                   </DropdownMenuItem>
                 </Tip>
               )}
-              {hosted?.zoomStale && (
+              {hosted?.copiesStale && (
                 <DropdownMenuItem onSelect={() => run('host', { remake: true })}>
                   <Crop aria-hidden />
                   {t('review.remakeVideos')}

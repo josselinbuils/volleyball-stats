@@ -46,9 +46,10 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   checked that a start locks (`locked`) say what the page shows already: they count as applied (`applied_too`).
 - "Mettre en ligne" uploads the hosted ones when the owner wants, the first time asking with the video, behind the videos' one password
   ([hosting.md](hosting.md#the-video-and-its-password)), or without it (`outputs/matches/MATCH/publish.json`). Its video's copies come cut by the automatic zoom
-  and shorter than the match ([hosting.md](hosting.md)): once their zoom or time map has changed since they were made (a
-  correction moved a rally or a touch, or copies made before 16 Nov), it asks "Refaire les vidéos ?" first; "Plus tard" uploads with them as they are, and "Refaire
-  les vidéos au nouveau zoom" (the "..." menu, while they wait) makes them again and uploads (the owner's call, 16 Nov:
+  and shorter than the match ([hosting.md](hosting.md)): once their rallies have moved since they were made (`timeline.moved`:
+  a rally's start or end over 2 s from the copies', a rally added or gone, a close call added, gone or moved; or copies
+  made before 16 Nov), it asks "Refaire les vidéos ?" first; "Plus tard" uploads with them as they are (the page keeps the
+  copies' own time), and "Refaire les vidéos" (the "..." menu, while they wait) makes them again and uploads (the owner's call, 16 Nov:
   never on its own, hours of encoding). "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds
   every match online and uploads them at once. "Exporter le site" (the same menu, a server set or not) zips the pages for
   any host ([hosting.md](hosting.md#without-a-server-the-export)).

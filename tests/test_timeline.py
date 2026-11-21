@@ -66,3 +66,17 @@ def test_positions_on_the_copys_time():
     out = tl.retimed_positions(players, 50, [[0, 2, 0, 2], [5, 6, 2, 3]])
 
     assert [s[0] for s in out["samples"]][::5] == [0, 5, 10, 15, 50, 55, 60]
+
+
+def test_copies_are_worth_making_again_once_a_rally_or_a_close_call_moved():
+    plan = tl.plan(match([(10, 16, 1), (30, 40, 1)]), np.empty((0, 3)))
+    ball = np.array([[t / 100, 0.5, 0.3 + (0.1 if t == 1507 else 0)] for t in range(1450, 1550)])
+
+    assert not tl.moved(plan, plan)
+    # A rally's end a second later still serves; three seconds, or a rally more, not.
+    assert not tl.moved(plan, tl.plan(match([(10, 17, 1), (30, 40, 1)]), np.empty((0, 3))))
+    assert tl.moved(plan, tl.plan(match([(10, 19, 1), (30, 40, 1)]), np.empty((0, 3))))
+    assert tl.moved(plan, tl.plan(match([(10, 16, 1), (30, 40, 1), (60, 70, 1)]), np.empty((0, 3))))
+    assert tl.moved(plan, tl.plan(match([(10, 16, 1)]), np.empty((0, 3))))
+    # A close call added.
+    assert tl.moved(plan, tl.plan(match([(10, 16, 1), (30, 40, 1)], calls=[{"t": 15.0}]), ball))

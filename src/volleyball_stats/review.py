@@ -2248,13 +2248,13 @@ def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
 
 def read_hosted(match: Path) -> dict:
     """`hosted_state`, with what changed since the last upload when the page is late and it kept what it sent (`changes`),
-    and whether the video's copies were cut by another zoom than the review's now (`zoomStale`)."""
+    and whether the video's copies were made from other rallies than the review's now (`copiesStale`)."""
     path, sent = match / HOSTED, match / HOSTED_PAGE
     saved = json.loads(path.read_text()) if path.exists() else None
     state = hosted_state(saved, page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)) if saved else STAMPED), date.today())
     state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
     config = match / matches.PUBLISH
-    state["zoomStale"] = config.exists() and matches.copies_stale(match, json.loads(config.read_text()))
+    state["copiesStale"] = config.exists() and matches.copies_stale(match, json.loads(config.read_text()))
     return state
 
 
@@ -2765,7 +2765,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
             history.clear()
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
-            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
+            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "copiesStale")})
             generation[0] += 1
             page_seen[0] = page_mark()
 
@@ -2783,7 +2783,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                 stale_photos.touch()
             shown.clear()
             shown.update(e["id"] for e in load_log(answers))
-            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
+            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "copiesStale")})
 
         steps = [("review", own)]
         if (match / "page.json").exists():
@@ -2816,7 +2816,7 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                             web.patch_people(match / "review", people)
                             page_seen[0] = page_mark()
                             stale_photos.unlink(missing_ok=True)
-                            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
+                            hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "copiesStale")})
                 questions.read_pictures(picture)
             except Exception:
                 traceback.print_exc()
@@ -3157,12 +3157,12 @@ def serve(match: Path, video: Path, court: Path, squad, theme: str, port: int, b
                         run_steps(pages())
                     else:
                         page_seen[0] = page_mark()
-                        hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
+                        hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "copiesStale")})
                     return self.send(json.dumps({**waiting(match, log, shown), "person": person}).encode(), "application/json")
                 if self.path == "/look":
                     set_look(match, questions.table, int(body["team"]), int(body["identity"]), str(body["field"]), str(body["value"]))
                     page_seen[0] = page_mark()
-                    hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "zoomStale")})
+                    hosted.update({k: v for k, v in read_hosted(match).items() if k in ("behind", "changes", "copiesStale")})
                     return self.send(json.dumps(waiting(match, log, shown)).encode(), "application/json")
                 if self.path == "/end":
                     set_end(match, body.get("time"))
