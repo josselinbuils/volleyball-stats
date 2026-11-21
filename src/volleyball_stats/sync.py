@@ -259,9 +259,10 @@ def sending(match: Path, force: bool) -> None:
     remember(match, done["version"], signature)
 
 
-# A backup's and a check's stages (jobs.Stages) and their seconds before one is measured on this machine, kept in
-# outputs/TIMINGS: each match copied ("match:NAME") or compared ("check:NAME"), what sits beside them, the copies listed.
-TOOK = {"match": 30.0, "shared": 10.0, "list": 5.0, "check": 15.0}
+# A backup's, a check's and a pull's stages (jobs.Stages) and their seconds before one is measured on this machine, kept
+# in outputs/TIMINGS: each match copied ("match:NAME"), compared ("check:NAME") or brought ("pull:NAME"), what sits beside
+# them, the copies listed.
+TOOK = {"match": 30.0, "shared": 10.0, "list": 5.0, "check": 15.0, "pull": 30.0}
 TIMINGS = "backup_timings.json"
 
 
@@ -438,6 +439,34 @@ def behind(found: list[Path]) -> dict[str, str]:
     return {m.name: known[m.name].get("pushedBy") or "?" for m in found if m.name in known and known[m.name]["version"] > local(m)["version"] and not settle(m, known[m.name])}
 
 
+def due(outputs: Path) -> list[tuple[str, bool]]:
+    """The matches whose server copy is newer than this machine's, or not here: their name, and whether it changed here
+    (a pull sets that aside, `pull`)."""
+    found = []
+    for name, claim in sorted(listing(outputs).items()):
+        here = outputs / "matches" / name
+        if here.exists() and (not own(here) or local(here)["version"] >= claim["version"] or settle(here, claim)):
+            continue
+        found.append((name, changed(here)))
+    return found
+
+
+def pull_all(outputs: Path, told: bool = False) -> list[str]:
+    """Every match `due` brought from the server (`pull`); what failed. Its stages `told` as it goes for the app's job."""
+    names = [name for name, _ in due(outputs)]
+    stages = jobs.Stages(outputs / TIMINGS, [f"pull:{name}" for name in names], TOOK, told)
+    failed = []
+    for name in names:
+        stages.start(f"pull:{name}")
+        try:
+            pull(name, outputs)
+            print(f"{name}: brought", flush=True)
+        except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
+            failed.append(f"{name}: {error}")
+    stages.start(None)
+    return failed
+
+
 def listing(outputs: Path) -> dict[str, dict]:
     """The matches with a copy on the server: their day, claim and version. Empty without a server."""
     config = server(outputs)
@@ -543,7 +572,7 @@ def main() -> None:
     commands.add_parser("verify", help="Compare every match unchanged here with its copy on the server, byte by byte")
     pulling = commands.add_parser("pull", help="Bring matches from the server")
     pulling.add_argument("names", nargs="*")
-    pulling.add_argument("--all", action="store_true", help="Every match on the server")
+    pulling.add_argument("--all", action="store_true", help="Every match newer on the server, or not here")
     pushing = commands.add_parser("push", help="Send a match to the server")
     pushing.add_argument("match", type=Path, nargs="?")
     pushing.add_argument("--all", action="store_true", help="Every match changed here, then what sits beside them")
@@ -553,16 +582,14 @@ def main() -> None:
             here = args.outputs / "matches" / name
             state = "not here" if not here.exists() else f"here v{local(here)['version']}" + (", changed" if changed(here) else "")
             print(f"{name}  v{c['version']}  from {c['pushedBy'] or '?'}  copy {c['day']}  ({state})")
+    elif args.command == "pull" and args.all:
+        failed = pull_all(args.outputs, told=True)
+        if failed:
+            parser.exit(1, "\n".join(failed) + "\n")
     elif args.command == "pull":
-        found = listing(args.outputs)
-        names = sorted(found) if args.all else args.names
-        if not names:
+        if not args.names:
             parser.error("name matches or pass --all")
-        for name in names:
-            here = args.outputs / "matches" / name
-            # This machine's own and those it has up to date.
-            if args.all and here.exists() and local(here)["version"] >= found[name]["version"]:
-                continue
+        for name in args.names:
             print(pull(name, args.outputs), flush=True)
     elif args.command == "verify":
         problems = verify(args.outputs, told=True)

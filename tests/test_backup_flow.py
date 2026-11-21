@@ -155,6 +155,32 @@ class TestBackupFlow:
         sync.keep(m)
         assert app.conflicts(log) == []
 
+    def test_get_everything_brings_what_is_newer_and_asks_before_replacing_a_change_here(self, place, monkeypatch):
+        from volleyball_stats import app, jobs
+
+        tmp_path, _, machine, _ = place
+        a = self.machine(tmp_path, "a")
+        sync.push(self.match(a, "m"))
+        sync.push(self.match(a, "n"))
+        machine["name"] = "pc"
+        b = self.machine(tmp_path, "b")
+        assert sync.due(b) == [("m", False), ("n", False)]
+        assert sync.pull_all(b) == [] and sync.due(b) == []
+        (b / "matches" / "m" / "answers.json").write_text("pc's")
+        sync.push(b / "matches" / "m")
+        machine["name"] = "mac"
+        (a / "matches" / "m" / "answers.json").write_text("mac's")
+        assert sync.due(a) == [("m", True)]
+        started = []
+        monkeypatch.setattr(app, "MATCHES", a / "matches")
+        monkeypatch.setattr(app, "OUTPUTS", a)
+        monkeypatch.setattr(app, "server_state", lambda: {})
+        monkeypatch.setattr(jobs, "start", lambda *args, **kwargs: started.append(args[1]))
+        assert app.start_pull(False) == {"due": 1, "changed": [{"name": "m", "title": None, "teams": None}]} and not started
+        assert app.start_pull(True)["due"] == 1 and started == ["pull"]
+        assert sync.pull_all(a) == [] and (a / "matches" / "m" / "answers.json").read_text() == "pc's"
+        assert any(p.name.startswith("backup-sync-") for p in (a / "matches" / "m").iterdir())
+
     def test_the_site_tab_saved_unchanged_leaves_the_matches_unchanged(self, place):
         tmp_path, _, _, _ = place
         a = self.machine(tmp_path, "a")

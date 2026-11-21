@@ -74,8 +74,10 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   "Mettre en ligne" once a new one is ticked: the review's first-upload choice asked first for those without one
   (`HostChoice`, `server.first_upload`: their `publish.json` written if missing), the video copies missing made in the job
   before the mirror (a "copies" stage per match, hours on a 4K match),
-  "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them) and "Vérifier"
-  (`sync verify`). Each has a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
+  "Sauvegarder maintenant" (`sync push --all`: every match changed here, then what sits beside them), "Vérifier"
+  (`sync verify`) and "Tout récupérer" (`sync pull --all`: every match newer on the server or not here, `sync.due`; those
+  changed here replaced once confirmed, their copy from here kept in `backup-sync-<time>/`; the page reloads after, for
+  the list). Each has a bar, its stage (which match of how many) and the time left (`jobs.Stages`: each stage's last
   duration on this machine, `outputs/hosting_timings.json`, `outputs/backup_timings.json`);
 - zips the site to put on any host ("Exporter le site", [above](#without-a-server-the-export));
 - shows how the last copy and check went, switches the automatic backup and lists the copies on the server: its used and
@@ -355,7 +357,8 @@ match (the owner's rule, 8 Nov: no machine holds one).
   (`/matches/remote.json`: the ssh round trip takes a second).
 - A pull also brings the courts, lens, club and sponsors this machine lacks, and the roster is joined, each match's names
   from this machine where its copy is not behind the server's.
-- By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all | push outputs/matches/MATCH`; a machine
+- By hand: `uv run python -m volleyball_stats.sync list | pull NAME... | pull --all | push outputs/matches/MATCH` (`pull --all`
+  is "Tout récupérer"); a machine
   with no match yet first sets the server in the Site tab (the key copied there).
 - The videos never go through the server: copied by hand between the machines (the app's exchange, `data_sync.py`, was
   removed on 18 Nov, the owner's call).

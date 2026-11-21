@@ -45,10 +45,11 @@ PROBED: dict[tuple, object] = {}
 TOOK_VIDEO_S = 4013.0
 MODELS = "models"
 # The "Site" tab's jobs: every match online rebuilt and uploaded, every match changed copied to the server, the copies
-# checked against this machine's.
+# checked against this machine's, every match newer there brought.
 HOSTING = "hosting"
 BACKUP = "backup"
 VERIFY = "verify"
+PULL = "pull"
 # The site zipped for a host of one's own (matches.export).
 EXPORT = "export"
 # Every match waiting brought up to date (learn.update).
@@ -639,27 +640,43 @@ def start_backup(auto: bool = False) -> None:
 def conflicts(text: str) -> list[dict]:
     """The matches a backup's log `text` left to the owner's choice (`sync.CONFLICT`), while it waits: their name,
     title and teams, and the machine whose copy is newer."""
-    from volleyball_stats import matches
-
     told = {}
     for line in text.splitlines():
         if line.startswith(sync.CONFLICT):
             c = json.loads(line[len(sync.CONFLICT) :])
             told[c["match"]] = c
-    found = []
-    for c in told.values():
-        match = MATCHES / c["match"]
-        # Kept or brought since (`sync.keep`, `sync.take`), its version moved on.
-        if match.exists() and sync.local(match)["version"] == c["version"] and sync.changed(match):
-            page = matches.listed(match / "review") if (match / "review" / "data.js").exists() else {}
-            found.append({"name": c["match"], "title": page.get("title"), "teams": [t.get("name") for t in page["teams"]] if page.get("teams") else None, "machine": c["machine"]})
-    return found
+    # Kept or brought since (`sync.keep`, `sync.take`), its version moved on.
+    waiting = (c for c in told.values() if (MATCHES / c["match"]).exists() and sync.local(MATCHES / c["match"])["version"] == c["version"] and sync.changed(MATCHES / c["match"]))
+    return [{**named(c["match"]), "machine": c["machine"]} for c in waiting]
+
+
+def named(name: str) -> dict:
+    """A match as the Site tab names it: its folder's name, its page's title and teams."""
+    from volleyball_stats import matches
+
+    review = MATCHES / name / "review"
+    page = matches.listed(review) if (review / "data.js").exists() else {}
+    return {"name": name, "title": page.get("title"), "teams": [t.get("name") for t in page["teams"]] if page.get("teams") else None}
+
+
+def start_pull(apply: bool) -> dict:
+    """The Site tab's "Tout récupérer": every match newer on the server, or not here, brought (`sync pull --all`). Those
+    changed here first named (`changed`) for the owner to confirm, unless `apply`; `due`, how many come."""
+    if any(jobs.is_running(OUTPUTS, j) for j in (HOSTING, BACKUP, PULL)):
+        raise jobs.Running(PULL)
+    found = sync.due(OUTPUTS)
+    changed = [named(name) for name, mine in found if mine]
+    if changed and not apply:
+        return {"due": len(found), "changed": changed}
+    if found:
+        jobs.start(OUTPUTS, PULL, PULL, [(PULL, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "pull", "--all"])])
+    return {"due": len(found), "changed": [], **server_state()}
 
 
 def server_state() -> dict:
     """The "Site" tab: the server, whether this machine copies its matches by itself, how its last copies and check
     went, and the tab's jobs."""
-    found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP, VERIFY)}
+    found = {j["id"]: j for j in jobs.state(OUTPUTS) if j["id"] in (HOSTING, BACKUP, VERIFY, PULL)}
     last = backup.state(OUTPUTS)
     found = {k: {**j, **told(j, time.time())} if j["running"] else j for k, j in found.items()}
     return {
@@ -670,6 +687,7 @@ def server_state() -> dict:
         "hosting": found.get(HOSTING),
         "backup": found.get(BACKUP),
         "verify": found.get(VERIFY),
+        "pull": found.get(PULL),
         "conflicts": conflicts(jobs.tail(jobs.folder(OUTPUTS) / f"{BACKUP}.log")) if found.get(BACKUP) and not found[BACKUP]["running"] else [],
     }
 
@@ -947,6 +965,8 @@ def handle(
         if route == "server/verify":
             jobs.start(OUTPUTS, VERIFY, VERIFY, [(VERIFY, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "verify"])])
             return reply(server_state())
+        if route == "server/pull":
+            return reply(start_pull(bool(body.get("apply"))))
         if route == "server/backup":
             # One running already (the list's timer, unseen yet) does the same: the tab then shows it.
             if not jobs.is_running(OUTPUTS, BACKUP):

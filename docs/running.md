@@ -33,7 +33,8 @@
 - Every `python -m volleyball_stats.X` command fetches in the background and warns when the branch is behind its remote
   (`git_check.py`; once per command, not in the ones it starts). The review and its list say it too, with "Mettre à
   jour" (`/app/update`).
-- A match's results come from the other machine through the review's list ("À télécharger") or `sync pull`
+- A match's results come from the other machine through the review's list ("À télécharger"), the Site tab's "Tout
+  récupérer" or `sync pull`
   ([hosting.md](hosting.md)); its video is copied by hand (the app's video exchange was removed, 18 Nov).
 - A new match starts with `import_match` ([processing.md](processing.md)): `data/matches/MATCH/MATCH.mp4` and `outputs/matches/MATCH/`, named like its hosted page, everything of a match in those two folders.
 - `match` refuses to track at a low priority or on a busy machine (`slow_run_reasons`, `--anyway`): tell the owner what it lists, stopping their work

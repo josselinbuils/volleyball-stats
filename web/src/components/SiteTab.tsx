@@ -1,5 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { CircleCheck, CloudUpload, DatabaseBackup, ExternalLink, FolderOpen, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Square, SquareCheck, Trash2, TriangleAlert } from 'lucide-react';
+import {
+  CircleCheck,
+  CloudDownload,
+  CloudUpload,
+  DatabaseBackup,
+  ExternalLink,
+  FolderOpen,
+  LoaderCircle,
+  PlugZap,
+  RotateCcw,
+  ShieldCheck,
+  Square,
+  SquareCheck,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
@@ -15,6 +30,7 @@ import { INPUT, call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
 import type { PageChange } from '@/lib/hostedChanges';
+import { ask } from '@/components/ask';
 import { useRunning } from '@/hooks/useRunning';
 import { openMatch } from '@/lib/openMatch';
 import { useQuickTasks } from '@/lib/tasks';
@@ -53,9 +69,12 @@ interface ServerState {
   hosting: Told | null;
   backup: Told | null;
   verify: Told | null;
+  pull: Told | null;
   /** The matches the last backup left to the owner: changed here and on `machine`. */
-  conflicts: (Pick<SiteMatch, 'name' | 'title' | 'teams'> & { machine: string })[];
+  conflicts: (Named & { machine: string })[];
 }
+
+type Named = Pick<SiteMatch, 'name' | 'title' | 'teams'>;
 
 // What sits beside the matches, restored as one.
 const SHARED = 'shared';
@@ -119,6 +138,8 @@ export function SiteTab() {
   const [hostError, setHostError] = useState<Explained | null>(null);
   const [backupError, setBackupError] = useState<Explained | null>(null);
   const [openError, setOpenError] = useState<{ name: string; error: Explained } | null>(null);
+  // Nothing newer on the server: "Tout récupérer" says so.
+  const [nothingNewer, setNothingNewer] = useState(false);
   const [copies, setCopies] = useState<Copies | null | 'failed'>(null);
   const [listing, setListing] = useState(false);
   const [keep, setKeep] = useState('');
@@ -176,7 +197,8 @@ export function SiteTab() {
   const backupJob: Told | null = autoTask ? { ...autoTask, kind: 'backup', progress: autoTask.fraction, failed: undefined, started: 0 } : (state?.backup ?? null);
   const backupRunning = !!backupJob?.running;
   const autoRunning = backupRunning && !!backupJob?.auto;
-  const running = !!(state?.hosting?.running || state?.backup?.running || state?.verify?.running);
+  const pulling = !!state?.pull?.running;
+  const running = !!(state?.hosting?.running || state?.backup?.running || state?.verify?.running || pulling);
   useEffect(() => {
     if (!running) {
       return;
@@ -195,6 +217,14 @@ export function SiteTab() {
     }
     backingUp.current = backupRunning ? (autoRunning ? 'auto' : 'manual') : null;
   }, [backupRunning, autoRunning, listCopies, refresh]);
+  // The matches brought show in the list, which the page carries: it loads again once they came.
+  const wasPulling = useRef(false);
+  useEffect(() => {
+    if (wasPulling.current && !pulling && !state?.pull?.failed) {
+      location.reload();
+    }
+    wasPulling.current = pulling;
+  }, [pulling, state?.pull?.failed]);
 
   const save = (event: FormEvent) => {
     event.preventDefault();
@@ -265,6 +295,24 @@ export function SiteTab() {
       }
       (key === 'host' ? setHostError : setBackupError)(r.ok ? null : explain(t, r.error));
     });
+  // Every match newer on the server brought; those changed here replaced once confirmed, their copy from here set aside.
+  const pullAll = () =>
+    run('pull', async () => {
+      setNothingNewer(false);
+      let r = await call<ServerState & { due: number; changed: Named[] }>('server/pull', {});
+      if (r.ok && r.changed.length) {
+        const names = r.changed.map(nameOf).join(', ');
+        if (!(await ask({ title: t('server.replace', { count: r.changed.length }), text: t('server.replaceText', { count: r.changed.length, names }), confirm: t('server.replaceConfirm') }))) {
+          return;
+        }
+        r = await call<ServerState & { due: number; changed: Named[] }>('server/pull', { apply: true });
+      }
+      if (r.ok) {
+        setState(r);
+        setNothingNewer(!r.due);
+      }
+      setBackupError(r.ok ? null : explain(t, r.error));
+    });
   const restore = (body: { day: string; what: string }) => {
     setRestoring(null);
     return run(`restore:${body.day}`, async () => {
@@ -296,8 +344,7 @@ export function SiteTab() {
       return next;
     });
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
-  const nameOf = (m: Pick<SiteMatch, 'name' | 'title' | 'teams'>) =>
-    m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
+  const nameOf = (m: Named) => m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
   if (!state) {
     return unread ? (
       <ErrorNote
@@ -394,7 +441,13 @@ export function SiteTab() {
             {restored !== null && <Status ok={restored}>{t(restored ? 'server.restored' : 'error.failed')}</Status>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="bg-card" busy={doing === 'backup' || (backupRunning && !autoRunning)} disabled={!saved || backupRunning} onClick={() => void start('backup')}>
+            <Button
+              variant="outline"
+              className="bg-card"
+              busy={doing === 'backup' || (backupRunning && !autoRunning)}
+              disabled={!saved || backupRunning || pulling || doing === 'pull'}
+              onClick={() => void start('backup')}
+            >
               <DatabaseBackup aria-hidden />
               {t('server.backUp')}
             </Button>
@@ -402,10 +455,22 @@ export function SiteTab() {
               <ShieldCheck aria-hidden />
               {t('server.verify')}
             </Button>
+            <Button
+              variant="outline"
+              className="bg-card"
+              busy={doing === 'pull' || pulling}
+              disabled={!saved || backupRunning || pulling || !!state.hosting?.running || doing !== null}
+              onClick={() => void pullAll()}
+            >
+              <CloudDownload aria-hidden />
+              {t('server.pullAll')}
+            </Button>
           </div>
+          {nothingNewer && <p className="text-muted-foreground">{t('server.nothingNewer')}</p>}
           {backupError && <ErrorNote {...backupError} />}
           <JobLine job={backupJob} running={t('server.backingUp')} lead={autoRunning ? t('server.auto') : undefined} quiet />
           {state.verify?.running && <JobLine job={state.verify} running={t('server.verifying')} />}
+          <JobLine job={state.pull} running={t('server.pulling')} quiet />
           {listing && !(copies && copies !== 'failed') && <Loading text={t('server.listing')} />}
           {copies === 'failed' && !listing && (
             <ErrorNote
