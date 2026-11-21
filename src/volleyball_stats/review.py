@@ -2178,7 +2178,8 @@ def page_content(match: Path) -> dict:
 def page_changes(sent: dict, now: dict) -> list[dict]:
     """What changed from the page content `sent` to `now` (`page_content`): each part of the data that differs, with how many of
     its items changed, added or went (a list's, a mapping's) and, for NAMED_KEYS, which (`keys`: the players by name), then
-    "code" with the pages whose code did (`keys` None when `sent` is older than the stamps by page)."""
+    "code" with the pages whose code did (`keys` None when `sent` is older than the stamps by page) and the commits that changed
+    it when git tells them (`commits`, `code_commits`)."""
     out = []
     old, new = sent["data"], now["data"]
     for part in sorted(set(old) | set(new)):
@@ -2213,7 +2214,27 @@ def page_changes(sent: dict, now: dict) -> list[dict]:
         return out
     # An upload records the code it knew of: the 3D view's is unknown for the older ones.
     pages = [name for name in CODE_PAGES if name in sent["code"] and sent["code"][name] != now["code"].get(name)]
-    return out + ([{"part": "code", "count": None, "keys": pages}] if pages else [])
+    if not pages:
+        return out
+    commits = code_commits({name: sent["code"][name] for name in pages}, now["code"])
+    return [*out, {"part": "code", "count": None, "keys": pages, **({"commits": commits} if commits else {})}]
+
+
+# The commits the late page's tip names under the code, at most.
+CODE_COMMITS = 5
+
+
+def code_commits(sent: dict[str, str], now: dict[str, str]) -> list[str] | None:
+    """The commits that changed the code of the pages of `sent` (their stamps at the upload) since, newest first, each once,
+    CODE_COMMITS at most: then "+N" last. None when git cannot tell for one of them."""
+    found = {}
+    for name, stamp in sent.items():
+        commits = git_check.commits_since(CODE_PAGES[name].resolve(), stamp, now.get(name, ""))
+        if commits is None:
+            return None
+        found.update(dict.fromkeys(commits))
+    subjects = [subject for _, subject in sorted(found, reverse=True)]
+    return subjects if len(subjects) <= CODE_COMMITS else [*subjects[: CODE_COMMITS - 1], f"+{len(subjects) - CODE_COMMITS + 1}"]
 
 
 def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:

@@ -1,6 +1,9 @@
-"""Warn at the start of a command when the branch lacks commits of its remote."""
+"""Warn at the start of a command when the branch lacks commits of its remote; the commits that changed a file since a version."""
 
+import functools
+import hashlib
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -61,3 +64,45 @@ def check() -> None:
         return
     os.environ[CHECKED_ENV] = "1"
     threading.Thread(target=_warn, name="git-check").start()
+
+
+# A commit's subject as the late page's tip shows it: without its type ("feat: ") nor its details (after "; ", " (" or ": ",
+# not a French " : " which a quoted text of the page may hold).
+SUBJECT_TYPE, SUBJECT_DETAILS = re.compile(r"^\w+(\([^)]*\))?!?: "), re.compile(r"; | \(|(?<! ): ")
+
+
+def short_subject(subject: str) -> str:
+    """`subject` without its type nor its details (SUBJECT_TYPE, SUBJECT_DETAILS)."""
+    return SUBJECT_DETAILS.split(SUBJECT_TYPE.sub("", subject.strip()), maxsplit=1)[0]
+
+
+@functools.cache
+def commits_since(path: Path, since: str, now: str) -> list[tuple[int, str]] | None:
+    """The commits that changed `path` after its version whose content's sha256 starts with `since`, newest first, by time and
+    short subject; `now` its stamp today, for the cache. None when git cannot tell (no history, that version not in it)."""
+    try:
+        log = _git(path.parent, "log", "--format=%x00%ct %s", "--raw", "--no-abbrev", "--", path.name)
+        entries = []
+        for chunk in log.stdout.split("\0")[1:] if log.returncode == 0 else []:
+            head, *raw = chunk.strip().split("\n")
+            when, _, subject = head.partition(" ")
+            entries.append((int(when), subject, next((line.split()[3] for line in raw if line.startswith(":")), None)))
+        blobs = [blob for *_, blob in entries if blob and blob.strip("0")]
+        out = subprocess.run(["git", "-C", str(path.parent), "cat-file", "--batch"], input="\n".join(blobs).encode() + b"\n", capture_output=True, timeout=5).stdout
+    except (OSError, subprocess.TimeoutExpired, ValueError, IndexError):
+        return None
+    stamps, at = {}, 0
+    while (end := out.find(b"\n", at)) != -1:
+        oid, _, size = out[at:end].decode().partition(" blob ")
+        if not size:
+            break
+        content = out[end + 1 : end + 1 + int(size)]
+        # A checkout may turn the line ends into Windows' ones.
+        stamps[oid] = {hashlib.sha256(text).hexdigest()[:16] for text in (content, content.replace(b"\n", b"\r\n"))}
+        at = end + 1 + int(size) + 1
+    found = []
+    for when, subject, blob in entries:
+        if since in stamps.get(blob, ()):
+            return found
+        found.append((when, short_subject(subject)))
+    return None

@@ -1495,6 +1495,17 @@ class TestPageChanges:
 
         assert page_changes({"data": {}, "code": "a"}, {"data": {}, "code": {"page": "b", "list": "c"}}) == [{"part": "code", "count": None}]
 
+    def test_the_code_comes_with_the_commits_that_changed_it_once_each_at_most_five(self, monkeypatch):
+        from volleyball_stats import git_check, review
+
+        found = {"a": [(5, "e"), (3, "c")], "b": [(6, "f"), (5, "e"), (4, "d"), (2, "b"), (1, "a")]}
+        monkeypatch.setattr(git_check, "commits_since", lambda path, since, now: found.get(since))
+
+        change = review.page_changes({"data": {}, "code": {"page": "a", "list": "b"}}, {"data": {}, "code": {"page": "x", "list": "y"}})[-1]
+        assert change["commits"] == ["f", "e", "d", "c", "+2"]
+        found["a"] = None
+        assert "commits" not in review.page_changes({"data": {}, "code": {"page": "a", "list": "b"}}, {"data": {}, "code": {"page": "x", "list": "y"}})[-1]
+
     def test_a_late_page_says_what_changed_since_the_upload(self, tmp_path):
         from volleyball_stats import review
 
