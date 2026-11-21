@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { CircleCheck, CloudUpload, DatabaseBackup, ExternalLink, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Square, SquareCheck, Trash2, TriangleAlert } from 'lucide-react';
+import { CircleCheck, CloudUpload, DatabaseBackup, ExternalLink, FolderOpen, LoaderCircle, PlugZap, RotateCcw, ShieldCheck, Square, SquareCheck, Trash2, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { explain, type Explained } from '@/lib/errors';
 import { useFormat } from '@/lib/format';
 import type { PageChange } from '@/lib/hostedChanges';
 import { useRunning } from '@/hooks/useRunning';
+import { openMatch } from '@/lib/openMatch';
 import { useQuickTasks } from '@/lib/tasks';
 
 /** The hosting server as server.py reads it. */
@@ -52,6 +53,8 @@ interface ServerState {
   hosting: Told | null;
   backup: Told | null;
   verify: Told | null;
+  /** The matches the last backup left to the owner: changed here and on `machine`. */
+  conflicts: (Pick<SiteMatch, 'name' | 'title' | 'teams'> & { machine: string })[];
 }
 
 // What sits beside the matches, restored as one.
@@ -115,6 +118,7 @@ export function SiteTab() {
   // What failed to start in the hosting's card and in the backups'.
   const [hostError, setHostError] = useState<Explained | null>(null);
   const [backupError, setBackupError] = useState<Explained | null>(null);
+  const [openError, setOpenError] = useState<{ name: string; error: Explained } | null>(null);
   const [copies, setCopies] = useState<Copies | null | 'failed'>(null);
   const [listing, setListing] = useState(false);
   const [keep, setKeep] = useState('');
@@ -240,6 +244,19 @@ export function SiteTab() {
       void remove({ keep: count, apply: true });
     }
   };
+  // The match opened in the review, which asks which copy to keep; its loader stays until the page goes.
+  const choose = (name: string) => {
+    setOpenError(null);
+    return run(`open:${name}`, async () => {
+      try {
+        await openMatch(name);
+      } catch (e) {
+        setOpenError({ name, error: explain(t, (e as Error).message, 'matches.openFailed') });
+        return;
+      }
+      await new Promise<never>(() => {});
+    });
+  };
   const start = (key: 'host' | 'backup' | 'verify', choice?: HostBody) =>
     run(key, async () => {
       const r = await call<ServerState>(`server/${key}`, key === 'host' ? { matches: chosen, ...choice } : {});
@@ -279,7 +296,8 @@ export function SiteTab() {
       return next;
     });
   const changed = FIELDS.some(({ key }) => form[key].trim() !== (saved?.[key] ?? ''));
-  const nameOf = (m: SiteMatch) => m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
+  const nameOf = (m: Pick<SiteMatch, 'name' | 'title' | 'teams'>) =>
+    m.title ?? (m.teams ? t('matchTitle', { one: m.teams[0] ?? t('team', { n: 1 }), two: m.teams[1] ?? t('team', { n: 2 }) }) : m.name);
   if (!state) {
     return unread ? (
       <ErrorNote
@@ -349,6 +367,18 @@ export function SiteTab() {
             ) : (
               <Status ok={!!state.last.at}>{state.last.at ? t('server.lastAt', { at: f.when(state.last.at) }) : t('server.never')}</Status>
             )}
+            {state.conflicts.map((c) => (
+              <Status key={c.name} ok={false}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="min-w-0">{t('server.conflict', { name: nameOf(c), machine: c.machine })}</p>
+                  <Button size="sm" variant="outline" className="ml-auto bg-card text-foreground" busy={doing === `open:${c.name}`} disabled={doing !== null} onClick={() => void choose(c.name)}>
+                    <FolderOpen aria-hidden />
+                    {t('server.choose')}
+                  </Button>
+                </div>
+                {openError?.name === c.name && <ErrorNote {...openError.error} />}
+              </Status>
+            ))}
             {!state.verify?.running && state.last.verified && (
               <Status ok={!state.last.problems.length}>
                 <p>{state.last.problems.length ? t('server.differ', { at: f.when(state.last.verified) }) : t('server.same', { at: f.when(state.last.verified) })}</p>

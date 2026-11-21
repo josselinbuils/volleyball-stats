@@ -1059,6 +1059,8 @@
     "backUp": "Back up now",
     "lastAt": "Last backup: {{at}}",
     "never": "No backup from this computer yet.",
+    "conflict": "{{name}}: changed here and on {{machine}}",
+    "choose": "Choose a version",
     "lastFailed": "Last backup failed.",
     "verify": "Verify",
     "verifying": "Checking…",

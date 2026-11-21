@@ -408,8 +408,11 @@ def fingerprint(password: str) -> str:
 
 def update_publish(match: Path, **changes) -> dict:
     path = match / PUBLISH
-    config = {**json.loads(path.read_text()), **changes}
-    files.write_text(path, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+    given = json.loads(path.read_text())
+    config = {**given, **changes}
+    # Rewritten unchanged, the match would look changed here and wait to be sent (`sync.changed`).
+    if config != given:
+        files.write_text(path, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
     return config
 
 

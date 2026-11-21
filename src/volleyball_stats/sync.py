@@ -265,9 +265,13 @@ TOOK = {"match": 30.0, "shared": 10.0, "list": 5.0, "check": 15.0}
 TIMINGS = "backup_timings.json"
 
 
+# A match changed both here and on another machine, in a backup's log: the owner keeps one.
+CONFLICT = "::conflict "
+
+
 def push_all(outputs: Path, told: bool = False) -> list[str]:
     """Every match changed here since this machine last pushed or pulled it, then what sits beside them kept in step
-    (`keep_shared`); what failed. Its stages `told` as it goes for the app's job."""
+    (`keep_shared`); what failed. Its stages `told` as it goes for the app's job, its conflicts too (CONFLICT)."""
     failed = []
     found = [p.parent for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")) if (p.parent / files.SOURCE).exists() and own(p.parent) and changed(p.parent)]
     config = server(outputs)
@@ -277,7 +281,10 @@ def push_all(outputs: Path, told: bool = False) -> list[str]:
         try:
             if push(match, changed_only=True):
                 print(f"{match.name}: pushed", flush=True)
-        except (Conflict, OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
+        except Conflict as error:
+            # The owner's choice, not a failure: the review asks it when the match opens (`app.conflicts`).
+            print(CONFLICT + json.dumps({"match": match.name, "version": local(match)["version"], "machine": error.claim["machine"]}), flush=True)
+        except (OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
             failed.append(f"{match.name}: {error}")
     if config:
         stages.start("shared")

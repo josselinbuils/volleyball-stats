@@ -636,6 +636,26 @@ def start_backup(auto: bool = False) -> None:
     jobs.start(OUTPUTS, BACKUP, BACKUP, [(BACKUP, ["volleyball_stats.sync", "--outputs", str(OUTPUTS), "push", "--all"])], **({"auto": True} if auto else {}))
 
 
+def conflicts(text: str) -> list[dict]:
+    """The matches a backup's log `text` left to the owner's choice (`sync.CONFLICT`), while it waits: their name,
+    title and teams, and the machine whose copy is newer."""
+    from volleyball_stats import matches
+
+    told = {}
+    for line in text.splitlines():
+        if line.startswith(sync.CONFLICT):
+            c = json.loads(line[len(sync.CONFLICT) :])
+            told[c["match"]] = c
+    found = []
+    for c in told.values():
+        match = MATCHES / c["match"]
+        # Kept or brought since (`sync.keep`, `sync.take`), its version moved on.
+        if match.exists() and sync.local(match)["version"] == c["version"] and sync.changed(match):
+            page = matches.listed(match / "review") if (match / "review" / "data.js").exists() else {}
+            found.append({"name": c["match"], "title": page.get("title"), "teams": [t.get("name") for t in page["teams"]] if page.get("teams") else None, "machine": c["machine"]})
+    return found
+
+
 def server_state() -> dict:
     """The "Site" tab: the server, whether this machine copies its matches by itself, how its last copies and check
     went, and the tab's jobs."""
@@ -650,6 +670,7 @@ def server_state() -> dict:
         "hosting": found.get(HOSTING),
         "backup": found.get(BACKUP),
         "verify": found.get(VERIFY),
+        "conflicts": conflicts(jobs.tail(jobs.folder(OUTPUTS) / f"{BACKUP}.log")) if found.get(BACKUP) and not found[BACKUP]["running"] else [],
     }
 
 

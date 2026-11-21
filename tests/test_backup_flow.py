@@ -134,6 +134,39 @@ class TestBackupFlow:
             t.join()
         assert failed == [] and sync_remote.read(str(root), "m")["version"] == 1 and not sync.changed(a / "matches" / "m")
 
+    def test_a_match_changed_on_both_machines_waits_for_the_owner_not_failing_the_backup(self, place, monkeypatch, capsys):
+        from volleyball_stats import app, jobs
+
+        tmp_path, _, machine, _ = place
+        a = self.machine(tmp_path, "a")
+        m = self.match(a)
+        sync.push(m)
+        machine["name"] = "pc"
+        b = self.machine(tmp_path, "b")
+        sync.pull("m", b)
+        (b / "matches" / "m" / "answers.json").write_text("pc's")
+        sync.push(b / "matches" / "m")
+        machine["name"] = "mac"
+        (m / "answers.json").write_text("mac's")
+        assert sync.push_all(a) == []
+        monkeypatch.setattr(app, "MATCHES", a / "matches")
+        log = capsys.readouterr().out
+        assert app.conflicts(log) == [{"name": "m", "title": None, "teams": None, "machine": "pc"}] and jobs.error_of(log) is None
+        sync.keep(m)
+        assert app.conflicts(log) == []
+
+    def test_the_site_tab_saved_unchanged_leaves_the_matches_unchanged(self, place):
+        tmp_path, _, _, _ = place
+        a = self.machine(tmp_path, "a")
+        m = self.match(a)
+        sync.push(m)
+        server.save(a, {"address": "root@here", "folder": "/site", "key": "k"})
+        server.save(a, {"address": "root@here", "folder": "/site", "key": "k"})
+        sync.push(m)
+        before = (m / "publish.json").stat().st_mtime_ns
+        server.save(a, {"address": "root@here", "folder": "/site", "key": "k"})
+        assert (m / "publish.json").stat().st_mtime_ns == before and not sync.changed(m)
+
     def test_a_failed_copy_is_noted_for_the_app(self, place, monkeypatch):
         tmp_path, _, _, _ = place
         a = self.machine(tmp_path, "a")

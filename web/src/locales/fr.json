@@ -1059,6 +1059,8 @@
     "backUp": "Sauvegarder maintenant",
     "lastAt": "Dernière sauvegarde : {{at}}",
     "never": "Pas encore de sauvegarde depuis cet ordinateur.",
+    "conflict": "{{name}} : modifié ici et sur {{machine}}",
+    "choose": "Choisir la version",
     "lastFailed": "Dernière sauvegarde échouée.",
     "verify": "Vérifier",
     "verifying": "Vérification…",

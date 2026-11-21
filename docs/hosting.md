@@ -336,7 +336,10 @@ match (the owner's rule, 8 Nov: no machine holds one).
 - Changed on both sides (at opening, or a copy refused later), it asks which to keep, "Modifié ici et sur MACHINE": "Celle
   de MACHINE" pulls it (this machine's changes kept in `backup-sync-<time>/`), "Celle d'ici" sends this one, the server's
   set aside first in `aside/<time>-v<version>/` beside the dated copies (hard links). Its time is this machine's (the
-  server's clock is UTC).
+  server's clock is UTC). A backup (`sync push --all`) skips such a match without failing: the Site tab lists it, "Choisir
+  la version" opening it (`sync.CONFLICT` lines in the job's log, `app.conflicts`), until it is kept or brought.
+- The Site tab saved rewrites a match's `publish.json` only when it changes (`matches.update_publish`): rewritten the
+  same on 21 Nov, every match looked changed here and two waited on a choice against the PC's newer copies.
 - A push stopped once the server moved its version on, before this machine noted it (the review stopped or restarted
   mid-copy, 15 Nov: the PC then "changed on both sides" against itself): a `sending` mark left in `.sync.json` before
   the commit lets the next check or push take the server's version as this machine's own (`sync.settle`).
