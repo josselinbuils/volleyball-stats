@@ -337,6 +337,10 @@ match (the owner's rule, 8 Nov: no machine holds one).
 - A push stopped once the server moved its version on, before this machine noted it (the review stopped or restarted
   mid-copy, 15 Nov: the PC then "changed on both sides" against itself): a `sending` mark left in `.sync.json` before
   the commit lets the next check or push take the server's version as this machine's own (`sync.settle`).
+- One process of a machine sends or brings a match at a time, the others waiting (`sync.alone`: a lock in
+  `outputs/.sync_locks/`, freed by the system when its process stops); the server tells machines apart, not processes. On
+  21 Nov the review's timer and the Site tab's "Sauvegarder maintenant" sent the same matches together: one refused as
+  "newer on the server, from" the PC itself, the others cut off. A push for every match skips one the other just sent.
 - A copy of a match folder (a test's, one duplicated by hand) never reaches the server: `.sync.json` names the folder it
   was written for, and while that folder still holds it the copy neither sends, checks nor brings (`sync.own`). On 19 Nov a
   test review on a copy sent itself as the PC's newest, and the PC then "changed on both sides" against itself. A folder

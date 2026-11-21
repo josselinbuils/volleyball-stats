@@ -16,8 +16,9 @@ import shlex
 import socket
 import subprocess
 import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import datetime
-from collections.abc import Callable
 from pathlib import Path
 
 from volleyball_stats import backup, files, jobs, matches
@@ -186,12 +187,57 @@ def check(match: Path) -> dict | None:
     return None
 
 
-def push(match: Path, force: bool = False) -> None:
+# This machine's locks, one a match (`alone`).
+LOCKS = ".sync_locks"
+
+
+@contextmanager
+def alone(match: Path) -> Iterator[None]:
+    """The match sent or brought by one process of this machine at a time, the others waiting: the server tells machines
+    apart, not a machine's processes (21 Nov: the review's timer and the app's "Sauvegarder maintenant" sent the same
+    matches together, one refused as newer from this machine itself, the others cut off). The system frees the lock of a
+    process that stopped."""
+    path = files.root(match) / LOCKS / f"{match.name}.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a+b") as f:
+        if os.name == "nt":
+            import msvcrt
+
+            while True:
+                try:
+                    f.seek(0)
+                    msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError:
+                    time.sleep(0.5)
+            try:
+                yield
+            finally:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(f, fcntl.LOCK_EX)
+            yield
+
+
+def push(match: Path, force: bool = False, changed_only: bool = False) -> bool:
     """The match's backup from the server's version: Conflict when another machine pushed since. With `force` (the owner
     keeping this machine's), from any version, the server's copy set aside there first. RuntimeError while another machine
-    copies it."""
+    copies it. With `changed_only`, nothing when this machine's copy is the one last sent or brought (another of its
+    processes may have just sent it). Whether it was sent."""
     if not own(match):
         raise RuntimeError(f"a copy of {local(match)['folder']}: only that one is sent")
+    with alone(match):
+        if changed_only and not changed(match):
+            return False
+        sending(match, force)
+        return True
+
+
+def sending(match: Path, force: bool) -> None:
+    """`push` once this machine's other processes leave the match alone."""
     config = json.loads((match / matches.PUBLISH).read_text())
     base = local(match)["version"]
     found = remote(config, "begin", match.name, base, force)
@@ -199,7 +245,7 @@ def push(match: Path, force: bool = False) -> None:
         raise RuntimeError(f"{found['pushing']['machine']} is sending it: try again in a moment")
     if not found["ok"]:
         if settle(match, found):
-            return push(match, force)
+            return sending(match, force)
         raise Conflict(shown(found, match))
     signature = backup.signature([match])
     merge_shared(files.root(match), config)
@@ -229,8 +275,8 @@ def push_all(outputs: Path, told: bool = False) -> list[str]:
     for match in found:
         stages.start(f"match:{match.name}")
         try:
-            push(match)
-            print(f"{match.name}: pushed", flush=True)
+            if push(match, changed_only=True):
+                print(f"{match.name}: pushed", flush=True)
         except (Conflict, OSError, RuntimeError, ValueError, LookupError, subprocess.SubprocessError) as error:
             failed.append(f"{match.name}: {error}")
     if config:
@@ -409,14 +455,16 @@ def pull(name: str, outputs: Path = DEFAULT_OUTPUTS, copy: str | None = None) ->
     config = server(outputs)
     if config is None:
         raise LookupError("no server: set it in the Site tab")
-    found = remote(config, "list")["matches"]
-    if name not in found:
-        raise LookupError(name)
-    match.mkdir(parents=True, exist_ok=True)
-    aside = ["--backup", f"--backup-dir=backup-sync-{time.strftime('%Y%m%d-%H%M%S')}"] if copy or changed(match) else []
-    day = f"{backup.ROOT}/{copy or found[name]['day']}"
-    rsync(config, f"{day}/{name}/", match, "--delete", *[f"--exclude={p}" for p in backup.SKIP], *aside)
-    remember(match, found[name]["version"], None if copy else backup.signature([match]))
+    # The server's list read once this machine's other processes leave the match alone: one may have just sent it.
+    with alone(match):
+        found = remote(config, "list")["matches"]
+        if name not in found:
+            raise LookupError(name)
+        match.mkdir(parents=True, exist_ok=True)
+        aside = ["--backup", f"--backup-dir=backup-sync-{time.strftime('%Y%m%d-%H%M%S')}"] if copy or changed(match) else []
+        day = f"{backup.ROOT}/{copy or found[name]['day']}"
+        rsync(config, f"{day}/{name}/", match, "--delete", *[f"--exclude={p}" for p in backup.SKIP], *aside)
+        remember(match, found[name]["version"], None if copy else backup.signature([match]))
     relative_copies(match)
     merge_shared(outputs, config, copy or found[name]["day"], roster=False)
     merge_roster(outputs / "matches", config, pulled=name, claims=found)

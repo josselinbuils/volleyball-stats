@@ -1,6 +1,8 @@
 import json
 import os
 import stat
+import threading
+import time
 
 import pytest
 
@@ -111,6 +113,26 @@ class TestBackupFlow:
         sync.push(m)
         assert sorted(p.name for p in root.iterdir() if backup.COPY.fullmatch(p.name)) == ["2026-01-01T12"]
         assert (root / "2026-01-01T12" / "m" / "answers.json").read_text() == "first"
+
+    def test_two_processes_of_one_machine_send_a_match_one_after_the_other(self, place, monkeypatch):
+        # 21 Nov: the review's timer and the app's "Sauvegarder maintenant" sent the same matches together.
+        tmp_path, root, _, _ = place
+        a = self.machine(tmp_path, "a")
+        self.match(a)
+        copy = backup.backup
+
+        def slow(match):
+            copy(match)
+            time.sleep(0.3)
+
+        monkeypatch.setattr(backup, "backup", slow)
+        failed = []
+        both = [threading.Thread(target=lambda: failed.extend(sync.push_all(a))) for _ in range(2)]
+        for t in both:
+            t.start()
+        for t in both:
+            t.join()
+        assert failed == [] and sync_remote.read(str(root), "m")["version"] == 1 and not sync.changed(a / "matches" / "m")
 
     def test_a_failed_copy_is_noted_for_the_app(self, place, monkeypatch):
         tmp_path, _, _, _ = place
