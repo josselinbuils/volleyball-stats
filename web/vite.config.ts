@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
+import { online } from './online';
 
 /** The page opens from file://, where module scripts and crossorigin requests are blocked: the app
  * loads as a deferred classic script, after the deferred data.js. */
@@ -19,7 +20,7 @@ function classicScript(): Plugin {
 // Vite needs a default export. `--mode matches` builds the list of the match pages instead.
 export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [react(), tailwindcss(), classicScript()],
+  plugins: [mode === 'matches' ? online('matches.html', 'matches.tsx') : online('index.html', 'main.tsx'), react(), tailwindcss(), classicScript()],
   resolve: {
     alias: {
       '@': resolve(import.meta.dirname, './src'),

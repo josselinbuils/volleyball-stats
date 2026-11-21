@@ -268,3 +268,6 @@ npm run dev      # reads web/public/data.js, copied from a built match
 npm test
 npm run build    # updates src/volleyball_stats/site/ and matches_site/
 ```
+
+The online files (the page, the list, `scene3d.js`) hold only their own code's styles and texts (`web/online.ts`):
+a change of the review (`review-app.js`) or of the app's screens (`app.js`) leaves them byte for byte the same.

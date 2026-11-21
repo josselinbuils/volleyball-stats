@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import '@/index.css';
 import '@/i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ListLoading } from '@/components/ListLoading';
 import { Matches, type MatchList } from '@/components/Matches';
 import { applyTheme } from '@/helpers/theme';
 import { keepPresence } from '@/lib/appServer';
@@ -11,6 +12,7 @@ import { linkedKey, setVideoKey } from '@/lib/videoPassword';
 declare global {
   interface Window {
     MATCHES: MatchList;
+    VolleyAppBundle?: { mountList: (element: HTMLElement, list: MatchList) => void };
   }
 }
 
@@ -22,10 +24,26 @@ if (linked) {
 }
 applyTheme(null, window.MATCHES.club);
 keepPresence();
-createRoot(document.getElementById('root')!).render(
+const element = document.getElementById('root')!;
+const root = createRoot(element);
+root.render(
   <StrictMode>
-    <TooltipProvider delayDuration={200}>
-      <Matches {...window.MATCHES} />
-    </TooltipProvider>
+    <TooltipProvider delayDuration={200}>{window.MATCHES.review ? <ListLoading /> : <Matches {...window.MATCHES} />}</TooltipProvider>
   </StrictMode>,
 );
+// The review server's list is the app's script's (app.js), which the online list never loads.
+if (window.MATCHES.review) {
+  const script = document.createElement('script');
+  script.src = 'app.js';
+  script.onload = () => {
+    root.unmount();
+    window.VolleyAppBundle?.mountList(element, window.MATCHES);
+  };
+  script.onerror = () =>
+    root.render(
+      <StrictMode>
+        <ListLoading failed />
+      </StrictMode>,
+    );
+  document.head.append(script);
+}

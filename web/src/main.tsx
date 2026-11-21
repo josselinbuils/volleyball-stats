@@ -6,11 +6,11 @@ import { App } from '@/App';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { applyTheme } from '@/helpers/theme';
 import { match, teams, versioned } from '@/lib/match';
-import { keepPresence } from '@/lib/appServer';
+import { keepPresence, reviewPreview } from '@/lib/appServer';
 
 declare global {
   interface Window {
-    VolleyReviewBundle?: { mount: (element: HTMLElement) => void };
+    VolleyReviewBundle?: { mount: (element: HTMLElement) => void; mountTasks: (element: HTMLElement) => void };
   }
 }
 
@@ -32,4 +32,13 @@ if (window.REVIEW) {
       </TooltipProvider>
     </StrictMode>,
   );
+  // On the app's preview of the page, its tasks too, from the review's script.
+  if (reviewPreview()) {
+    const tasks = document.createElement('div');
+    document.body.append(tasks);
+    const script = document.createElement('script');
+    script.src = versioned('review-app.js');
+    script.onload = () => window.VolleyReviewBundle?.mountTasks(tasks);
+    document.head.append(script);
+  }
 }

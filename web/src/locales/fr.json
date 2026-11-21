@@ -923,6 +923,7 @@
   },
   "matches": {
     "heading": "Statistiques",
+    "loading": "Chargement des matchs…",
     "sections": "Sections de la liste",
     "title": "Matchs",
     "intro": "Les statistiques de chaque match. Choisissez un match pour voir son bilan.",

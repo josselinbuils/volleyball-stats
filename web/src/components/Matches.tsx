@@ -1,23 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorNote } from '@/components/ErrorNote';
-import { JobProgress } from '@/components/JobProgress';
-import { Tasks, taskLabel } from '@/components/Tasks';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
 import type { Due } from '@/components/Update';
-import { Behind } from '@/components/Behind';
 import { ClubBar } from '@/components/ClubBar';
 import { Season } from '@/components/Season/Season';
 import { seasonTeams } from '@/components/Season/helpers/season';
 import { Swatch } from '@/components/Swatch';
 import { Settings } from '@/components/Settings';
 import { useFormat } from '@/lib/format';
-import { openMatch, pullMatch } from '@/lib/openMatch';
-import { NewReports } from '@/components/NewReports';
-import { withRemote } from '@/lib/remoteMatches';
-import { useTasks } from '@/lib/tasks';
 import { cn } from '@/lib/utils';
 import type { Club, Team } from '@/lib/match';
 import { windowTitle } from '@/lib/appServer';
@@ -48,85 +39,38 @@ export interface ListedMatch {
 export interface MatchList {
   matches: ListedMatch[];
   club: Club | null;
-  /** Listed by the review server: a card opens the match's review there. */
+  /** Listed by the review server: the app's script (app.js) shows the list, a card opening the match's review there. */
   review?: boolean;
 }
 
-declare global {
-  interface Window {
-    VolleyAppBundle?: { mount: (element: HTMLElement) => void; mountSite: (element: HTMLElement) => void; mountProgress: (element: HTMLElement) => void };
-  }
-}
+/** A tab of the list: its id, its address (the list's with this hash) and its name. */
+export type ListTab<T extends string> = { id: T; hash: string; label: string };
 
-/** The match pages, newest first, each a card linking to it. In the review, the app's screens above them (app.js):
- * importing a match and preparing it until its review opens. */
-type View = 'matches' | 'season' | 'progress' | 'site';
-// The tabs' own addresses: the list's with these hashes.
-const HASHES: Record<View, string> = { matches: '', season: '#saison', progress: '#progres', site: '#site' };
-
-export function Matches({ matches: here, club, review = false }: MatchList) {
-  const { t } = useTranslation();
-  const f = useFormat();
-  // In the review, the matches only on the server, asked after the page shows: reaching it takes a second.
-  const [remote, setRemote] = useState<ListedMatch[]>([]);
+/** The tab shown among `tabs`, the one the address names (the first otherwise), and its switch, which the address follows:
+ * a link to a tab (the copies' warning opens the server's) switches to it. */
+export function useListTab<T extends string>(tabs: ListTab<T>[]): [T, (id: T) => void] {
+  const named = () => (tabs.find((tab) => tab.hash && location.hash === tab.hash) ?? tabs[0]).id;
+  const [tab, setTab] = useState<T>(named);
   useEffect(() => {
-    if (review) {
-      fetch('remote.json')
-        .then((r) => (r.ok ? (r.json() as Promise<ListedMatch[]>) : []))
-        .then(setRemote)
-        .catch(() => setRemote([]));
-    }
-  }, [review]);
-  const matches = remote.length ? withRemote(here, remote) : here;
-  // The matches being prepared show in the app's screens.
-  const listed = review ? matches.filter((m) => m.ready || m.remote || m.missing) : matches;
-  const setup = useRef<HTMLDivElement>(null);
-  const siteBox = useRef<HTMLDivElement>(null);
-  const progressBox = useRef<HTMLDivElement>(null);
-  const loaded = useRef(false);
-  useEffect(() => {
-    if (!review || loaded.current) {
-      return;
-    }
-    loaded.current = true;
-    const script = document.createElement('script');
-    script.src = 'app.js';
-    script.onload = () => {
-      if (setup.current && siteBox.current && progressBox.current) {
-        window.VolleyAppBundle?.mount(setup.current);
-        window.VolleyAppBundle?.mountSite(siteBox.current);
-        window.VolleyAppBundle?.mountProgress(progressBox.current);
-      }
-    };
-    document.head.append(script);
-  }, [review]);
-  // The app's tasks: a match's own shows on its card.
-  const tasks = useTasks(review);
-  const [opening, setOpening] = useState<string | null>(null);
-  const [failed, setFailed] = useState<'open' | 'pull' | 'busy' | null>(null);
-  const hasSeason = seasonTeams(matches, club?.teams).length > 0;
-  const views: View[] = ['matches', ...(hasSeason ? (['season'] as const) : []), ...(review ? (['progress', 'site'] as const) : [])];
-  const [view, setView] = useState<View>(() => views.find((v) => v !== 'matches' && location.hash === HASHES[v]) ?? 'matches');
-  // A link to a tab (the copies' warning opens the server's) switches to it.
-  useEffect(() => {
-    const follow = () => setView(views.find((v) => v !== 'matches' && location.hash === HASHES[v]) ?? 'matches');
+    const follow = () => setTab(named());
     window.addEventListener('hashchange', follow);
     return () => window.removeEventListener('hashchange', follow);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the tabs shown, not the array made each render
-  }, [views.join()]);
-  const open = (name: string, remote = false) => {
-    setOpening(name);
-    setFailed(null);
-    (remote ? pullMatch(name) : openMatch(name)).catch((error: Error) => {
-      setOpening(null);
-      setFailed(remote ? 'pull' : error.message === 'busy' ? 'busy' : 'open');
-    });
+  }, [tabs.map((t) => t.id).join()]);
+  const pick = (id: T) => {
+    setTab(id);
+    history.replaceState(null, '', tabs.find((t) => t.id === id)?.hash || location.pathname + location.search);
   };
+  return [tab, pick];
+}
+
+/** The list's page: the club's band, the heading with `note` under it, then `children`. */
+export function ListPage({ club, note, children }: { club: Club | null; note?: ReactNode; children: ReactNode }) {
+  const { t } = useTranslation();
   const heading = t('matches.heading');
   useEffect(() => {
     document.title = windowTitle(club ? `${heading} · ${club.name}` : heading);
   }, [heading, club]);
-
   return (
     <>
       <ClubBar club={club} />
@@ -134,125 +78,111 @@ export function Matches({ matches: here, club, review = false }: MatchList) {
         <header className="flex items-start justify-between gap-4 px-1">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
-            {failed && <ErrorNote text={t({ pull: 'matches.pullFailed', busy: 'error.busy', open: 'matches.openFailed' }[failed])} log={failed !== 'busy'} className="mt-1 text-sm" />}
+            {note}
           </div>
           {!club && <Settings />}
         </header>
-        {review && <Behind />}
-        {review && <NewReports />}
-        {review && <div ref={setup} />}
-        {views.length > 1 && (
-          <Tabs
-            label={t('matches.sections')}
-            value={view}
-            onChange={(v) => {
-              setView(v);
-              history.replaceState(null, '', HASHES[v] || location.pathname + location.search);
-            }}
-            tabs={views.map((id) => ({ id, label: t({ matches: 'matches.title', season: 'season.title', progress: 'progress.tab', site: 'server.title' }[id]) }))}
-          />
-        )}
-        <p className="px-1 text-muted-foreground">
-          {t(view === 'site' ? 'server.intro' : view === 'progress' ? 'progress.intro' : view === 'season' ? 'season.intro' : review ? 'matches.pick' : 'matches.intro')}
-        </p>
-        {review && <div ref={siteBox} className={view === 'site' ? undefined : 'hidden'} />}
-        {review && <div ref={progressBox} className={view === 'progress' ? undefined : 'hidden'} />}
-        {view === 'site' || view === 'progress' ? null : view === 'season' ? (
-          <Season matches={matches} club={club?.teams} />
-        ) : listed.length ? (
-          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {listed.map((m) => {
-              const names = m.teams?.map((team, k) => team.name ?? t('team', { n: k + 1 }));
-              const scores = (m.scores ?? []).filter(Boolean);
-              // In the review, a card waits for its pipeline, and all wait while one opens.
-              const busy = opening === m.path;
-              const task = tasks.find((x) => x.running && x.match === m.path);
-              const clickable = !review || ((m.ready || m.remote) && opening === null);
-              // From the disk, a folder opens as a file listing: its page is named.
-              return (
-                <li key={m.path}>
-                  <a
-                    href={location.protocol === 'file:' ? `${m.path}index.html` : m.path}
-                    aria-disabled={!clickable}
-                    aria-busy={busy || undefined}
-                    onClick={
-                      review
-                        ? (event) => {
-                            event.preventDefault();
-                            if (clickable) {
-                              open(m.path, m.remote);
-                            }
-                          }
-                        : undefined
-                    }
-                    className={cn(
-                      'group block h-full rounded-[10px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
-                      ((review && !m.ready) || (opening !== null && !busy)) && 'opacity-60',
-                      busy ? 'cursor-wait' : !clickable && 'cursor-default',
-                    )}
-                  >
-                    <Card className={cn('h-full gap-1.5 px-4 py-3.5 transition-colors', clickable && 'group-hover:bg-muted')}>
-                      {(m.date || busy) && (
-                        <div className="flex items-center gap-2">
-                          {m.date && (
-                            <time dateTime={m.date} className="text-sm font-medium text-muted-foreground">
-                              {f.date(m.date)}
-                            </time>
-                          )}
-                          {busy && (
-                            <span role="status" className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                              <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
-                              {t(m.remote ? 'matches.pulling' : 'matches.opening')}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <h2 className={cn('text-lg leading-snug font-semibold [overflow-wrap:anywhere]', clickable && 'group-hover:underline')}>
-                        {m.title ?? (names ? t('matchTitle', { one: names[0], two: names[1] }) : m.name)}
-                      </h2>
-                      {m.teams && names && (
-                        <span className="flex flex-wrap gap-x-4 gap-y-1">
-                          {m.teams.map((team, k) => (
-                            <span key={k} className="inline-flex min-w-0 items-center gap-2">
-                              <Swatch color={team.colour} ring="var(--border)" />
-                              <span className="truncate">{names[k]}</span>
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                      <span className="text-sm text-muted-foreground tabular-nums">
-                        {[
-                          m.sets > 0 && t('matches.setsN', { count: m.sets }),
-                          m.rallies > 0 && t('ralliesN', { count: m.rallies }),
-                          scores.length > 0 && scores.join(' · '),
-                          review && !busy && m.remote && t('matches.toPull'),
-                          review && m.missing && t(m.missing === 'video' ? 'matches.noVideo' : 'matches.noCourt'),
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                      {task && (
-                        <JobProgress label={taskLabel(t, task)} fraction={task.fraction ?? null} left={task.left} task={task.id} className="mt-1">
-                          {taskLabel(t, task)}
-                        </JobProgress>
-                      )}
-                      {review && m.due && !m.remote && (
-                        <span className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground">
-                          <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-                          {t(`update.short.${m.due}`)}
-                        </span>
-                      )}
-                    </Card>
-                  </a>
-                </li>
-              );
-            })}
-          </ol>
-        ) : (
-          <p className="px-1 text-muted-foreground">{t('matches.none')}</p>
-        )}
+        {children}
       </main>
-      {review && <Tasks />}
     </>
+  );
+}
+
+/** The list's tabs, when there are several. */
+export function ListTabs<T extends string>({ tabs, value, onChange }: { tabs: ListTab<T>[]; value: T; onChange: (id: T) => void }) {
+  const { t } = useTranslation();
+  return tabs.length > 1 ? <Tabs label={t('matches.sections')} value={value} onChange={onChange} tabs={tabs} /> : null;
+}
+
+/** What a card of the list shows beside its match, in the review: whether it opens, its state, its notes and below them `children`. */
+export type CardState = { clickable?: boolean; dim?: boolean; busy?: boolean; status?: ReactNode; notes?: (string | false | undefined)[]; onOpen?: () => void; children?: ReactNode };
+
+/** A match's card, a link to its page. */
+export function MatchCard({ m, clickable = true, dim = false, busy = false, status, notes = [], onOpen, children }: { m: ListedMatch } & CardState) {
+  const { t } = useTranslation();
+  const f = useFormat();
+  const names = m.teams?.map((team, k) => team.name ?? t('team', { n: k + 1 }));
+  const scores = (m.scores ?? []).filter(Boolean);
+  // From the disk, a folder opens as a file listing: its page is named.
+  return (
+    <a
+      href={location.protocol === 'file:' ? `${m.path}index.html` : m.path}
+      aria-disabled={!clickable}
+      aria-busy={busy || undefined}
+      onClick={
+        onOpen
+          ? (event) => {
+              event.preventDefault();
+              if (clickable) {
+                onOpen();
+              }
+            }
+          : undefined
+      }
+      className={cn('group block h-full rounded-[10px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50', dim && 'opacity-60', busy ? 'cursor-wait' : !clickable && 'cursor-default')}
+    >
+      <Card className={cn('h-full gap-1.5 px-4 py-3.5 transition-colors', clickable && 'group-hover:bg-muted')}>
+        {(m.date || status) && (
+          <div className="flex items-center gap-2">
+            {m.date && (
+              <time dateTime={m.date} className="text-sm font-medium text-muted-foreground">
+                {f.date(m.date)}
+              </time>
+            )}
+            {status}
+          </div>
+        )}
+        <h2 className={cn('text-lg leading-snug font-semibold [overflow-wrap:anywhere]', clickable && 'group-hover:underline')}>
+          {m.title ?? (names ? t('matchTitle', { one: names[0], two: names[1] }) : m.name)}
+        </h2>
+        {m.teams && names && (
+          <span className="flex flex-wrap gap-x-4 gap-y-1">
+            {m.teams.map((team, k) => (
+              <span key={k} className="inline-flex min-w-0 items-center gap-2">
+                <Swatch color={team.colour} ring="var(--border)" />
+                <span className="truncate">{names[k]}</span>
+              </span>
+            ))}
+          </span>
+        )}
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {[m.sets > 0 && t('matches.setsN', { count: m.sets }), m.rallies > 0 && t('ralliesN', { count: m.rallies }), scores.length > 0 && scores.join(' · '), ...notes].filter(Boolean).join(' · ')}
+        </span>
+        {children}
+      </Card>
+    </a>
+  );
+}
+
+/** The cards of `matches`, `state` telling each one's in the review; "no match" without any. */
+export function MatchCards({ matches, state }: { matches: ListedMatch[]; state?: (m: ListedMatch) => CardState }) {
+  const { t } = useTranslation();
+  return matches.length ? (
+    <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {matches.map((m) => (
+        <li key={m.path}>
+          <MatchCard m={m} {...state?.(m)} />
+        </li>
+      ))}
+    </ol>
+  ) : (
+    <p className="px-1 text-muted-foreground">{t('matches.none')}</p>
+  );
+}
+
+/** The online list of the match pages, newest first, each a card linking to it, and the season's tab when there is one. */
+export function Matches({ matches, club }: MatchList) {
+  const { t } = useTranslation();
+  const tabs: ListTab<'matches' | 'season'>[] = [
+    { id: 'matches', hash: '', label: t('matches.title') },
+    ...(seasonTeams(matches, club?.teams).length ? [{ id: 'season' as const, hash: '#saison', label: t('season.title') }] : []),
+  ];
+  const [tab, setTab] = useListTab(tabs);
+  return (
+    <ListPage club={club}>
+      <ListTabs tabs={tabs} value={tab} onChange={setTab} />
+      <p className="px-1 text-muted-foreground">{t(tab === 'season' ? 'season.intro' : 'matches.intro')}</p>
+      {tab === 'season' ? <Season matches={matches} club={club?.teams} /> : <MatchCards matches={matches} />}
+    </ListPage>
   );
 }

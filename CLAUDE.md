@@ -60,6 +60,9 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
   that the page loads only when the 3D view is shown, `review-app.js` (the review's screens) that it loads
   only in the review, and in `matches_site/` the list of the hosted matches (`matches.html`, `src/matches.tsx`) with
   `app.js`, the app's screens the review server's list loads (`src/appPanel.tsx`, never hosted).
+  The online files are built from their own code only (`web/online.ts`): Tailwind's classes and the locales' texts
+  of their import graph, a build reaching an app module (its `LOCAL`) fails; so a review or app change never shows
+  the hosted pages late. A new module of the review or the app goes in `LOCAL`; their scripts carry their own sheet.
 - Python style: short docstrings, comments only where needed, `ponytail:` comments for deliberate
   limits with their upgrade path. Tests in `tests/`, web tests beside their helpers.
 

@@ -923,6 +923,7 @@
   },
   "matches": {
     "heading": "Stats",
+    "loading": "Loading the matches…",
     "sections": "List sections",
     "title": "Matches",
     "intro": "Each match's stats. Pick a match to see its report.",
