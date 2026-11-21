@@ -223,9 +223,9 @@ The "Statistiques" table gives, team by team, each player's and the whole team's
   teammates about as close as each other, or that the review says two players let fall ("Balle manquée" shared), the
   pair on hover.
 
-Its "Analyse" group lists each player's main thing to work on, its largest gap with the rest of the team, and, the rarest in their team first, two strengths at most, beside the MVP's badge:
-the rates at least 20 points above the rest of their team's; how present they are for their time on the court (on every ball,
-in defence); how reliable (serve, attack, few faults); tough serves; sets followed by an attack; assists, winning blocks, points when the score is
+Its "Analyse" group lists each player's main thing to work on, its largest gap with the rest of the team (20 points at least), and, the rarest in their team first, two strengths at most, beside the MVP's badge:
+the rates at least 10 points above the rest of their team's; how present they are for their time on the court (on every ball,
+in defence); how reliable (serve, attack, few faults); tough serves (15 points above); sets followed by an attack; assists, winning blocks, points when the score is
 high and close, the most points in the team, and playing all around. Each is earned from a minimum, from 5 attempts on each side
 for a rate, so a player can have none.
 

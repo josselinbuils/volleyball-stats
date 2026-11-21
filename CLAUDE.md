@@ -38,7 +38,7 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 
 ## Conventions
 
-- Web commands need Node 22 (`.nvmrc`): `nvm use` first.
+- Web commands need Node 22 (`web/.nvmrc`): `nvm use` first.
 - Format web files with `npx prettier --single-quote --print-width 200` (no config file: the
   defaults restyle everything). Some files already differ; only format the ones you touch.
 - Spacing in `web/`: the design system's values only, and coherent: mirror what the neighbouring elements use.

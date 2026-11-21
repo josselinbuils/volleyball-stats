@@ -24,13 +24,13 @@ The pipeline's weak spots and what is left to do, most useful first.
 3. `docs/history.md` "The page": the 3D ball and TV mode's limits.
 4. Rally ends and winners. Done (5 Nov, `benchmarks/rallies/README.md`): `no_play` keeps rallies with touches and no serve seen,
    short whistled serves count, a ball bounced 20 times is no rally; rallies missed 2 -> 0 of 129 and 9 -> 2 of 150, false windows
-   2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Mettre à jour".
+   2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Réanalyser".
    12 of the second match's 18 wrong winners are rallies with no window. Left: ends with the ball out of sight or another court's
    whistle (50:00-60:00 F1 ±1 s 0.58; four end rules tried, none gains; 7 Nov, the players' speed and the cheer after a
    point dropped too), then how rallies end (in, out, fault). A learned play / no-play clip model (`playing.py`, `history.md` "Left"
    item 14) is in the pipeline since 12 Nov where its weights are (`outputs/learned/play/`, shared by the backup): 50:00-60:00 F1 ±1 s 0.58 -> 0.67,
-   the touches outside every window 26 -> 8 and 53 -> 2; trained again by "Mettre à jour" when it takes a fully checked match; runs on the Mac too (1 h 30 a match on its GPU), kept to the camera's own 4K footage (worse windows on the one other match there is).
-5. Done (5 Nov): the checked rallies as labels (`checked.py` scores `match.py`'s windows). The 6 false windows left have
+   the touches outside every window 26 -> 8 and 53 -> 2; trained again by "Réanalyser" when it takes a fully checked match; runs on the Mac too (1 h 30 a match on its GPU), kept to the camera's own 4K footage (worse windows on the one other match there is).
+5. Done (5 Nov): the checked rallies as labels (`benchmarks/rallies/checked.py` scores `match.py`'s windows). The 6 false windows left have
    no feature apart from real rallies: review questions.
 6. Done (5 Nov, `docs/history.md`): the pose on every touch type and the serve rotation, both dropped.
 7. Done (8 Nov, `benchmarks/speed.py`): tracking on the RTX 5080 runs at 26 fps, 3.9 h for a 2-hour 4K match (7.8 h on the M4 Pro);
@@ -132,7 +132,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     and WSL's firewall rule for port 8765 added (16 Nov); checked after WSL's restart: the dialog's address opens from
     another machine. The Mac needs nothing but the switch (macOS may ask to allow incoming connections).
 24. Done (16 Nov): the automatic zoom cut into the hosted video's copies from the 4K source (`video_copies.py`,
-    `framing.camera`, [hosting.md](hosting.md)), no "Zoom auto" switch any more (the owner's call): VMAF zoomed 1.9x 88.7
+    `framing.camera`, [hosting.md](hosting.md)), no "Zoom auto" switch on the hosted page any more (the owner's call): VMAF zoomed 1.9x 88.7
     against 76.9 on a 1080p screen, 88.8 against 69.8 on a 1440p one. About 28 minutes of encoding an hour of match on the
     5080 PC (the copies were made in 10 on the GPU alone); the Mac, slower, untimed. Made at "Mettre en ligne"; once the
     rallies have moved past 2 s or a close call changed (`timeline.moved`, 21 Nov: was any change), the upload asks
@@ -177,8 +177,8 @@ The pipeline's weak spots and what is left to do, most useful first.
     on the four); loosening the hidden contacts (`contacts.hidden_contacts`) loses more than it finds, the ball's sound
     finds 41 for 24 false, the rally's order with it 41 for 16 (`corrections_log.md` "The ball's sound where it is
     unseen").
-31. Types (20 Nov, [corrections_log.md](corrections_log.md) "Types"): the gesture's VideoMAE stacked on the rules, wired
-    in (stage "gesture", trained by "Apprendre" from two fully checked matches). Rerun with each match typed by a model
+31. Types (20 Nov, [corrections_log.md](corrections_log.md) "Types (11 Nov)"): the gesture's VideoMAE stacked on the rules, wired
+    in (stage "gesture", trained by "Réanalyser" from two fully checked matches). Rerun with each match typed by a model
     trained without it: 1,501 -> 1,412 corrections, types 447 -> 329, players 413 -> 440 (touches newly named). Cost: clips
     7-8 min a new match on the 5080 and 4-7 GB each in `outputs/cache/gesture/`, a second model of 345 MB, 50 min more to
     retrain on four matches. Next: the players now the largest share (440).

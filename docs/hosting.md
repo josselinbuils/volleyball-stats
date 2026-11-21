@@ -70,7 +70,7 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   tip lists each cause on its line: "Joueurs" names only the named players whose card changed; the tracks without a name,
   kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs");
 - runs, as jobs that outlive the server, "Mettre à jour" the matches ticked in the list, late or new ones only (an up-to-date
-  one's box is off), at first the newest, "Tout sélectionner" ticking every late or new one ("Tout mettre à jour" when all are: `matches --all [--only MATCH ...]`, recording each upload as the review does: each page as the upload began, a change made while it runs left late),
+  one's box is off), at first the newest, "Tout sélectionner" ticking every late or new one ("Tout mettre à jour" when all are, "Tout mettre en ligne" if a new one is among them: `matches --all outputs/matches [--only MATCH ...]`, recording each upload as the review does: each page as the upload began, a change made while it runs left late),
   "Mettre en ligne" once a new one is ticked: the review's first-upload choice asked first for those without one
   (`HostChoice`, `server.first_upload`: their `publish.json` written if missing), the video copies missing made in the job
   before the mirror (a "copies" stage per match, hours on a 4K match),
@@ -111,8 +111,8 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   `root@<OVH IP>:…/site/`, `key`, `video`; a match's video copies, once made, in its
   `data/matches/MATCH/reencoded/`), the review's "Mettre en ligne" does all of it (`matches.host`, refusing to upload a
   video copy that opens without the password) and says when.
-- The review writes an imported match's `publish.json` on opening (`matches.ensure_publish`: the hosting from another
-  match's, its club team from the club's teams, else the theme's name).
+- The review writes an imported match's `publish.json` on opening (`matches.ensure_publish`: the hosting the Site tab's,
+  else another match's, its club team from the club's teams, else the theme's name).
 - The first "Mettre en ligne" asks: with the video, behind the videos' password (chosen there for the first one), or
   without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Nothing is encoded before that choice: with the video, its copies
   are made then (`video_copies.py`), cut by the automatic zoom (below), then the players' films and the highlights not made
@@ -188,9 +188,9 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   source where the zoom looks then (`framing.camera`, every 0.1 s, close calls' bounces included, the same in video.js for the page to draw by), so a zoomed
   moment keeps the source's pixels instead of the page enlarging a 1440p copy. ffmpeg decodes the source (on the GPU when it
   can) into raw frames, OpenCV cuts each one at sub-pixel precision (`warpAffine`, bicubic), ffmpeg encodes the three copies
-  from them with the source's sound. The camera they were cut by is kept in `outputs/matches/MATCH/copies_camera.json`
-  (now `copies_made.json`, with the time map, the 1440p copy's name and size): the hosted page draws by it (`match.zoomed`), even once the review's zoom has
-  changed, until the owner makes them again (review.md). VMAF of the 1440p H.264 copy (NVENC CQ 33) on 20 s of the Avia
+  from them with the source's sound. The camera they were cut by is kept in `outputs/matches/MATCH/copies_made.json`
+  (with the time map, the 1440p copy's name and size): the hosted page draws by it (`match.zoomed`), even once the review's zoom has
+  changed, until they are made again once the rallies moved (`timeline.moved`, review.md). VMAF of the 1440p H.264 copy (NVENC CQ 33) on 20 s of the Avia
   match, against the 4K source cut the same way (lanczos), each shown as the browser does (bilinear):
 
   | 20 s of the Avia match | Screen | Before: 1440p zoomed by the page | Cut from the 4K | Cut, CQ 35 (same size as before) |
@@ -206,7 +206,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   (about 37 minutes a match of an hour): the 4K frames go through the CPU. Rejected: ffmpeg's `crop` changed every frame
   (`sendcmd`): stuck on the size change, and whole pixels only. ponytail: a thread reading the next frame while one is cut
   and encoded.
-- Before 16 Nov, on an NVIDIA GPU the frames stayed there (`video_copies.on_gpu`, `decode.scale_cuda`, `decode.nvenc`; 14 Nov): decoded,
+- Before 16 Nov, on an NVIDIA GPU the frames stayed there (`video_copies.ON_GPU`, `decode.scale_cuda`, `decode.nvenc`; 14 Nov): decoded,
   resized by `scale_cuda` (lanczos) and encoded by NVENC (`-preset p4 -tune hq -rc vbr -b:v 0`, H.264 at `-cq 33` for 1440p
   and `-cq 34` for 720p, AV1 at `-cq 40`), else as above, each copy on NVENC when it can there. Same harness:
 
@@ -296,7 +296,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
 
 - With "Sauvegarde automatique" on, every 10 minutes a match changed here since it was last sent or brought
   (`sync.changed`) is sent, and what sits beside the matches (courts and their clicks, roster, lens, the club, the viewers'
-  reports, the videos' password, the models trained on the reviewed matches: `learned/`, 345 MB) is kept in step with the server
+  reports, the videos' password, the models trained on the reviewed matches: `learned/`, 660 MB) is kept in step with the server
   (`sync.keep_shared`). From the list it is the Site tab's job (`app.start_backup`, marked `auto`): the tab shows
   "Sauvegarde automatique" and its bar from the tasks, asked every 2 s while it is open (a run with nothing to send ends
   in 6 s), the tasks' pill leaves it out. Neither it nor "Sauvegarder maintenant" starts while the other runs (the

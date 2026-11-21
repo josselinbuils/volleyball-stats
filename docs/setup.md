@@ -31,10 +31,10 @@ on: a Mac's shortcut opens without Homebrew's). The app's start and the club's c
 Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl.exe …`: no window, the icon in
 `%LOCALAPPDATA%`), on a Mac `Volleyball Stats.app` in `~/Applications` and on the desktop (`LSUIElement`: no Dock icon),
 on Linux an applications menu entry. The icon (`icon.py`) is a volleyball in the club logo's two main colours (else its
-main colour, else blue and yellow), drawn with Pillow for the shortcut and as SVG for the pages' favicon (`club.favicon`,
-named after its colours: Windows caches icons by path). The page opens in a window of its own (`--app`) of Chrome, Edge,
-Brave or Chromium, else in the browser (`app.app_window`), its title ending in "– Volleyball Stats" there. Closing
-it stops the server (`presence.py`), once no job runs (Windows may stop WSL with it). The app's "Diagnostic" (`doctor.py`) checks the tools, the graphics card
+main colour, else blue and yellow), drawn with Pillow for the shortcut and as SVG for the pages' favicon (`icon.favicon`,
+named after its colours: Windows caches icons by path). The page opens in a window of its own (`--app`) of Chrome or Edge
+(Brave or Chromium too on a Mac or Linux), else in the browser (`app.app_window`), its title ending in "– Volleyball Stats" there. Closing
+it stops the server (`presence.py`), once no job runs (Windows may stop WSL with it). The app's "Diagnostics" (`doctor.py`) checks the tools, the graphics card
 and its driver, the memory, the disk, the models (downloaded there) and the code's version. By hand:
 
 On a Windows PC with an NVIDIA GPU:
@@ -77,7 +77,7 @@ pipeline runs on its rules alone.
 - **Processing time:** the RTX 5080 ran a 91-minute 4K match end to end in 4 h 15. Tracking, the longest step,
   runs the ball's and the players' models in two threads on an NVIDIA card (37 frames a second); on the M4 Pro in turn,
   7.8 h for 2 hours of 4K 50 fps (Metal aborts on two threads). `speed.py` projects a video's tracking time.
-- **Memory:** a 2-hour match at 50 fps needs about 8 GB of RAM at its peak, the identity step
+- **Memory:** a 2-hour match at 50 fps needs about 6.3 GB of RAM at its peak, the identity step
   holding the players' rows (`benchmarks/scale.py` measures each step on a synthetic long match).
 - **WSL2 memory:** WSL2 gets half of the PC's RAM by default. With 16 GB, raise it in
   `%UserProfile%\.wslconfig` (`[wsl2]`, then `memory=12GB`) and restart WSL (`wsl --shutdown`).

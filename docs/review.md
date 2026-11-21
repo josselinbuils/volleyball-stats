@@ -137,7 +137,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 - The review opens without a match on the list of the matches (`review.match_list`, those with a `source.json`); opening
   one replaces the server's process (`review.switch`).
-- The list's "La saison" tab reads each match's `review/data.js` (`/matches/NAME/data.js`); hosted, each match's `data.js`
+- The list's "Saison" tab reads each match's `review/data.js` (`/matches/NAME/data.js`); hosted, each match's `data.js`
   ([history.md](history.md)).
 - A match is named by its date and teams (`rename.target_name`): changing a team's name in the review renames its folders,
   video and backups, and restarts the server (`rename.py`); the old name stays an alias (`source.json`) for reports and
@@ -279,7 +279,7 @@ Automatic reports (`review.unusual`) flag:
 - the running score parting from the score board's for two readings in a row (`boardOff`, `scoreboard.py`: the board read
   before each serve, a misread one dropped, its sides fitted set by set);
 - one jersey on two players of a team (allowed, the owner's: both may wear no team jersey; handled once).
-- each trophy's record (`review.records`, `record.KEY`: the fastest serve and attack, the highest jump, from 5 measured; ties
+- each trophy's record (`review.records`, `auto.record.KEY`: the fastest serve and attack, the highest jump, from 5 measured; ties
   each), on its touch, its own question: the trophies take the best single reading (the owner, 15 Nov), which a wrong one
   wins, and the numbers alone do not tell a wrong one (on the three matches the outstanding ones were not all wrong).
   "Juste" (or checking its rally) keeps it; "Fausse" (a `wrong` answer: the key and frame; pending, it asks for the apply) takes that reading off the

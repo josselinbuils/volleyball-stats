@@ -15,8 +15,11 @@ short path is in the [README's getting started](../README.md#getting-started).
 ## Import a match
 
 ```bash
-uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "NAME_1[:COLOUR],NAME_2[:COLOUR]" [--from TIME] [--to TIME] [--date DATE]
+uv run python -m volleyball_stats.import_match /Volumes/SD_CARD --teams "NAME_1[:COLOUR],NAME_2[:COLOUR]" [--from TIME] [--to TIME] [--date DATE] [--recording N] [--net M]
 ```
+
+The source is the card, a folder of chapters, or one or more videos; `--recording` picks one when the card holds several,
+`--net` gives the net's height in metres (2.43 men, 2.24 women).
 
 It joins the camera's chapters without re-encoding, cut at the times given in the joined video, into
 `data/matches/MATCH/MATCH.mp4`, where `MATCH` is the name of the match's hosted page (date and teams), and starts
@@ -36,21 +39,25 @@ its hosted page, with a redirect from the old address. `uv run python -m volleyb
 uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
 uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens docs/lens_osmo_action3_standard_4k.json]
 uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
+uv run python -m volleyball_stats.court grid VIDEO [--frame N] [--crop X,Y,W,H] [--scale N]   # a frame with a labelled pixel grid
 ```
 
 - **First match on a court:** `click`, then `fit`. It writes `outputs/courts/NAME.json`.
 - **Next matches on that court:** `auto` recognises it, even when the stand moved a little. It
   writes `outputs/court/VIDEO.json`.
 
-Either file is the `--court` of the next steps.
+Either file is the `--court` of the next steps. `fit --out` and `auto --out` write elsewhere; `auto --background` saves the median
+frame, which `fit --background` reads instead of the video again (the app does so when no court matches).
 
 ## 2. Run the pipeline
 
 ```bash
-uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE] [--sets M:SS,...] [--scores 25-21,...] [--squad N[,N]]]
+uv run python -m volleyball_stats.match VIDEO --court outputs/court/VIDEO.json|--net-x X [--force] [--anyway] [--no-page] [--players [--teams "NAME_1[:COLOUR],NAME_2[:COLOUR]"] [--date YYYY-MM-DD] [--title TITLE] [--sets M:SS,...] [--scores 25-21,...] [--squad N[,N]]]
 ```
 
-`match` writes to `outputs/matches/VIDEO/`:
+`--net-x` gives the net's position in frame pixels instead of a calibration (no floor contacts). `--force` tracks again
+even if tracks exist, `--anyway` even at a low priority or on a busy machine, `--no-page` leaves the review's page to the
+review. `match` writes to `outputs/matches/VIDEO/`:
 
 - the ball track, rallies, typed contacts, net crossings and a report;
 - the actions CSV: each contact with its type and side of the net.
@@ -121,7 +128,9 @@ uv run python -m volleyball_stats.review outputs/matches/VIDEO   # opens on this
 
 The list shows the matches `match --players` has run on (`outputs/matches/VIDEO/source.json` holds their video and court), one still
 being processed greyed out; "Changer de match" goes back to it from a review. Choosing another match restarts the server on it,
-which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved.
+which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved; the match is also given by its name.
+`--outputs` is where the list looks, `--theme` the pages' club, `--port` the server's, `--no-browser` opens no page,
+`--with-window` stops it once the app's last window closes.
 
 `review` opens, on this machine only, on the **"Noms" tab** (below), then asks about the players the
 identity step is least sure of, most at stake first. Each question shows the player outlined on a
@@ -139,7 +148,7 @@ For two numbers never on court together: 1 for the same person, 2 for two people
 
 - **Answers** are saved at once to `identity_answers.json` and hold as hard constraints. Undoing one
   not applied yet is instant.
-- **"Ou choisissez qui c'est"** answers a question with any player of either team: type part of a
+- **"Tapez son nom"** answers a question with any player of either team: type part of a
   name, Enter picks the one left. **"La personne change ici"** (C), the clip paused when the outlined
   person changes, cuts the piece of track there into two players.
 - Only doubts with 10 s or more at stake are asked (a touch counting as 10 s): the questions end.
@@ -207,7 +216,7 @@ which the page then shows instead of the match number.
 ## 4. Build the match page
 
 ```bash
-uv run python -m volleyball_stats.web outputs/matches/VIDEO --video VIDEO --court CALIBRATION_JSON [--club N] [--footage none|full|blur-opponents|blur-all] [--pictures] [--copy-video] [--theme NAME]
+uv run python -m volleyball_stats.web outputs/matches/VIDEO --video VIDEO --court CALIBRATION_JSON [--club 1|2|both] [--footage none|full|blur-opponents|blur-all] [--pictures] [--copy-video] [--theme NAME] [--out DIR]
 ```
 
 `web` builds the page in `outputs/matches/VIDEO/site/`: open `index.html` (French by default). What it shows
@@ -215,14 +224,16 @@ is described in [The match page](match-page.md).
 
 | `--footage` | The page shows |
 | --- | --- |
-| `none` (default) | No video: every moment replays on an animated top view of the court |
+| `none` (default with `--out`, else the previous build's) | No video: every moment replays on an animated top view of the court |
 | `full` | The video |
-| `blur-opponents` | The video, with the team other than `--club` (your team, 1 or 2) pixelated |
+| `blur-opponents` | The video, with the team other than `--club` (your team, 1 or 2; `both`: two teams of your club) pixelated |
 | `blur-all` | The video, with both teams pixelated |
 
 - **Blurring** (`volleyball_stats.blur`) pixelates the tracked players' boxes, carried across
   tracking gaps. People never tracked, such as the bench or the public, stay visible. The blurred
   copy is kept beside the outputs.
+- **The hosted copies' options** (`--light-video`, `--av1-video`, `--small-video`, `--feedback`, `--video-page`) are in
+  [hosting.md](hosting.md#the-video-and-its-password).
 - **`--pictures`** puts your team's players' pictures on their cards. Without it, the cards show a
   silhouette.
 - **`--theme`** picks the club the pages show: by default `club`, the app's "Club" dialog (`outputs/club/`,
@@ -247,7 +258,8 @@ cut from them) without every player's consent. To host the matches:
 
 1. Build each one with `--footage none --no-pictures --out SITE/NAME`, any NAME.
 2. List them, newest first, on `SITE/index.html`: `uv run python -m volleyball_stats.matches SITE`
-   (again after each new match). It renames each folder after the match's date and teams' names,
+   (again after each new match; its other options, `--host`, `--all`, `--export`..., are the app's upload and export:
+   [hosting.md](hosting.md)). It renames each folder after the match's date and teams' names,
    its address: `SITE/2026-10-25-aspom-begles-vs-talence/`. A new build of a match replaces its
    folder.
 3. Copy `SITE` to a server that supports gzip (nginx does).
