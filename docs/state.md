@@ -93,16 +93,14 @@ The pipeline's weak spots and what is left to do, most useful first.
 19. "Vidéo augmentée" (14-15 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail, the score, each measured serve's
     and attack's speed (`ball3d.attack_speed`, 15 Nov) and attack's height and jump on film-like cards, drawn on the video.
     Attack speeds also in "Mon match", the trophies ("Le Canon") and the films (card under the replay, end card).
-20. Built (22 Nov), not yet tried in a headset: the 3D view in VR ([match-page.md](match-page.md) "3D view"), checked in
-    headless Chrome with Meta's emulator (IWER, Quest 3: the button, entering and leaving, sticks, trigger, the video time).
-    First try (22 Nov, Brave on Windows through Virtual Desktop): the page froze; Brave opens the session but never
-    sends a frame to a WebXR projection layer, which three.js picks where the browser has them (a test page: the plain
-    `XRWebGLLayer` ran at 90 fps). `scene.enterVr` hides them while three.js picks, and leaves VR with an error when no
-    frame comes in 5 s. The owner's Quest 3 tries it two ways: through Virtual Desktop on the PC (SteamVR or the Oculus runtime as OpenXR, then
-    Chrome or Edge on Windows at the review, localhost), and standalone in the Quest Browser on the hosted page (HTTPS) once
-    uploaded with the owner. To check there: comfort and speeds (`WALK`, `CLIMB`, `TURN` in `scene3d/scene.ts`), the name
-    tags' size (`tag`'s `sizeAttenuation: false`, screen-sized), the controllers' grey spheres, the frame rate standalone
-    (the 2048 shadow map).
+20. Works in a PC headset (22 Nov): the 3D view in VR ([match-page.md](match-page.md) "3D view"), tried by the owner in
+    Brave on Windows through Virtual Desktop (Quest 3) at the review, and checked in headless Chrome with Meta's emulator
+    (IWER, Quest 3: the button, entering and leaving, sticks, trigger, the video time). Brave's first try froze: it opens
+    the session but never sends a frame to a WebXR projection layer, which three.js picks where the browser has them;
+    `scene.enterVr` hides them while three.js picks (the plain `XRWebGLLayer`), and leaves VR with an error when no frame
+    comes in 5 s. Left: standalone in the Quest Browser on the hosted page (HTTPS) once uploaded with the owner; comfort and
+    speeds (`WALK`, `CLIMB`, `TURN` in `scene3d/scene.ts`), the name tags' size (`tag`'s `sizeAttenuation: false`,
+    screen-sized), the grip drag's direction, the frame rate standalone (the 2048 shadow map).
 21. Done (15-16 Nov): the 3D players' looks (`likeness.py`, [match-page.md](match-page.md) "3D view",
     [benchmark](../benchmarks/likeness/README.md)). Hair colour, hairstyle and skin guessed from each player's card picture
     (SegFormer human parsing, MIT; seconds a match, cached in each match's `likeness_seen.json`); the review's Names tab sets the
