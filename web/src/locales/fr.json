@@ -923,7 +923,7 @@
     "vr": "Voir en VR",
     "leaveVr": "Quitter la VR",
     "vrFailed": "La VR n'a pas pu s'ouvrir.",
-    "vrNote": "Stick gauche : avancer. Stick droit : regarder autour. B, Y : monter ; A, X : descendre. Grip : déplacer la salle. Gâchette : lecture, pause, ou viser les boutons sur la main gauche."
+    "vrNote": "Stick gauche : avancer. Stick droit : tourner, monter, descendre. Grip : déplacer la salle. Gâchette : lecture, pause, ou viser les boutons sur la main gauche."
   },
   "matches": {
     "heading": "Statistiques",

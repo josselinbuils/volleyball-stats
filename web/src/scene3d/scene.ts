@@ -91,19 +91,15 @@ const FAST = 14;
 // Twice the real ball's radius, to follow it at a glance as on the top view.
 const BALL_R = 0.21;
 // In VR the viewer starts standing 3.5 m behind the near sideline, in line with the net, facing it; the left stick moves
-// them at up to WALK m/s along the floor, the right one turns their view at up to TURN rad/s in any direction (the floor
-// tilted MAX_TILT at most), two buttons move them CLIMB m/s up or down, under the roof.
+// them at up to WALK m/s along the floor, the right one turns them at up to TURN rad/s, always upright, and moves them
+// CLIMB m/s up or down, under the roof.
 const VR_START = at(0, 8, 0);
 const WALK = 3;
 const TURN = Math.PI / 2;
-const MAX_TILT = THREE.MathUtils.degToRad(80);
 const CLIMB = 2;
 const ROOF = 10;
 // A stick's travel under DEAD is rest.
 const DEAD = 0.15;
-// The xr-standard gamepad's lower and upper face buttons: A and B on the right hand, X and Y on the left.
-const DOWN_BUTTON = 4;
-const UP_BUTTON = 5;
 // The video's panel above the left hand, tilted towards the eyes; the right hand's ray reaches it from up to RAY_M.
 const PANEL_AT = new THREE.Vector3(0, 0.07, 0.02);
 const PANEL_TILT = -0.7;
@@ -609,28 +605,20 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
         continue;
       }
       const [x, y] = [axes[2], axes[3]].map((a) => (Math.abs(a) < DEAD ? 0 : a));
-      const buttons = source!.gamepad!.buttons;
-      const climb = (buttons[UP_BUTTON]?.pressed ? 1 : 0) - (buttons[DOWN_BUTTON]?.pressed ? 1 : 0);
-      rig.position.y = Math.min(ROOF, Math.max(0, rig.position.y + climb * CLIMB * seconds));
       if (source!.handedness === 'left') {
         // Forward where the viewer looks, on the floor's plane.
         const forward = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x);
         rig.position.addScaledVector(forward, -y * WALK * seconds).addScaledVector(right, x * WALK * seconds);
-      } else if (x || y) {
-        // Around the viewer's head, which stays where it is: sideways around the vertical, up and down around the
-        // horizontal across the view, as long as the floor stays under MAX_TILT.
-        camera.getWorldPosition(head);
-        const turn = new THREE.Quaternion().setFromAxisAngle(up, -x * TURN * seconds);
-        const across = camera.getWorldDirection(new THREE.Vector3()).cross(up);
-        if (across.lengthSq() > 1e-4) {
-          const tilted = turn.clone().multiply(new THREE.Quaternion().setFromAxisAngle(across.normalize(), -y * TURN * seconds));
-          if (up.clone().applyQuaternion(tilted.clone().multiply(rig.quaternion)).y > Math.cos(MAX_TILT)) {
-            turn.copy(tilted);
-          }
+      } else {
+        rig.position.y = Math.min(ROOF, Math.max(0, rig.position.y - y * CLIMB * seconds));
+        if (x) {
+          // Around the vertical through the viewer's head, which stays where it is.
+          const angle = -x * TURN * seconds;
+          camera.getWorldPosition(head);
+          rig.position.sub(head).applyAxisAngle(up, angle).add(head);
+          rig.rotation.y += angle;
         }
-        rig.position.sub(head).applyQuaternion(turn).add(head);
-        rig.quaternion.premultiply(turn);
       }
     }
   };
