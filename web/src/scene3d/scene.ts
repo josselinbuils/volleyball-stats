@@ -43,7 +43,17 @@ export interface Scene {
   update: (state: SceneState) => void;
   /** The key of the player at a point of the page, if any. */
   pick: (clientX: number, clientY: number) => number | null;
+  /** Opens the view in the headset; resolves once it shows there. */
+  enterVr: () => Promise<void>;
+  /** Back from the headset to the page. */
+  leaveVr: () => void;
   dispose: () => void;
+}
+
+/** What the page hears from the headset: its session starting (null when it ends), the trigger pressed. */
+export interface SceneEvents {
+  onSession?: (session: XRSession | null) => void;
+  onSelect?: () => void;
 }
 
 // The camera's direction, from the stand behind the camera's sideline, a little to the left so the
@@ -73,6 +83,16 @@ const SLOW = 4;
 const FAST = 14;
 // Twice the real ball's radius, to follow it at a glance as on the top view.
 const BALL_R = 0.21;
+// In VR the viewer starts standing 3.5 m behind the near sideline, in line with the net, facing it; the sticks move them
+// at up to WALK m/s along the floor and CLIMB m/s up or down, under the roof, and turn them in TURN steps.
+const VR_START = at(0, 8, 0);
+const WALK = 3;
+const CLIMB = 2;
+const ROOF = 10;
+const TURN = Math.PI / 6;
+// A stick's travel under DEAD is rest; a turn waits for the stick past PUSHED, then back under DEAD.
+const DEAD = 0.15;
+const PUSHED = 0.7;
 
 /** A number painted on a sprite, facing the camera. */
 function badge(text: string, background: string, color: string): THREE.Sprite {
@@ -184,7 +204,7 @@ function tag(text: string, background: string, color: string): THREE.Sprite {
 
 /** The scene in `element`: a court, its net, the players and the ball, turned with the pointer;
  * it draws only when something changes. */
-export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
+export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: SceneEvents = {}): Scene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
@@ -193,6 +213,12 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   const scene = new THREE.Scene();
   // A depth range no wider than the scene: depth stays precise near the floor.
   const camera = new THREE.PerspectiveCamera(FOV, 1, NEAR, FAR);
+  // In VR the headset places the camera in `rig`, which the sticks and grips move through the hall; at rest outside it.
+  const rig = new THREE.Group();
+  rig.add(camera);
+  scene.add(rig);
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType('local-floor');
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI / 2 - 0.05;
@@ -492,6 +518,98 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
   let tip: { text: string; sprite: THREE.Sprite } | null = null;
   const raycaster = new THREE.Raycaster();
 
+  // The controllers, in the rig: their sticks read every frame, a grip held drags the hall, the trigger plays and pauses.
+  const hands = [0, 1].map((k) => {
+    const hand = renderer.xr.getController(k);
+    hand.addEventListener('connected', (e) => (hand.userData.source = e.data));
+    hand.addEventListener('disconnected', () => (hand.userData.source = null));
+    hand.addEventListener('select', () => events.onSelect?.());
+    hand.addEventListener('squeezestart', () => (hand.userData.held = hand.position.clone()));
+    hand.addEventListener('squeezeend', () => (hand.userData.held = null));
+    // A small ball where the hand is: the controllers are not drawn.
+    hand.add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), solid(0xdddddd)));
+    rig.add(hand);
+    return hand;
+  });
+  let turnReady = true;
+  const head = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  /** Moves the rig by the sticks and grips over `seconds`. */
+  const steer = (seconds: number) => {
+    for (const hand of hands) {
+      const held = hand.userData.held as THREE.Vector3 | null;
+      if (held) {
+        // The hand moved by `delta` in the rig: the rig moves the other way, the hall staying in the hand.
+        const delta = hand.position.clone().sub(held).applyQuaternion(rig.quaternion);
+        rig.position.sub(delta);
+        held.copy(hand.position);
+      }
+      const source = hand.userData.source as XRInputSource | null;
+      const axes = source?.gamepad?.axes;
+      if (!axes || axes.length < 4) {
+        continue;
+      }
+      const [x, y] = [axes[2], axes[3]].map((a) => (Math.abs(a) < DEAD ? 0 : a));
+      if (source!.handedness === 'left') {
+        // Forward where the viewer looks, on the floor's plane.
+        const forward = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+        const right = new THREE.Vector3(-forward.z, 0, forward.x);
+        rig.position.addScaledVector(forward, -y * WALK * seconds).addScaledVector(right, x * WALK * seconds);
+      } else {
+        rig.position.y = Math.min(ROOF, Math.max(0, rig.position.y - y * CLIMB * seconds));
+        if (turnReady && Math.abs(x) > PUSHED) {
+          // Around the viewer's head: it stays where it is.
+          const angle = -Math.sign(x) * TURN;
+          camera.getWorldPosition(head);
+          rig.position.sub(head).applyAxisAngle(up, angle).add(head);
+          rig.rotation.y += angle;
+          turnReady = false;
+        } else if (x === 0) {
+          turnReady = true;
+        }
+      }
+    }
+  };
+  // The page's view, put back on leaving VR.
+  let before: { position: THREE.Vector3; quaternion: THREE.Quaternion; target: THREE.Vector3; fov: number; near: number; controls: boolean } | null = null;
+  let last = 0;
+  renderer.xr.addEventListener('sessionstart', () => {
+    before = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), target: controls.target.clone(), fov: camera.fov, near: camera.near, controls: controls.enabled };
+    controls.enabled = false;
+    rig.position.copy(VR_START);
+    rig.rotation.set(0, 0, 0);
+    camera.near = DIRECTED_NEAR;
+    camera.updateProjectionMatrix();
+    cancelAnimationFrame(frame);
+    frame = 0;
+    last = 0;
+    events.onSession?.(renderer.xr.getSession());
+    renderer.setAnimationLoop((time) => {
+      steer(last ? Math.min(0.1, (time - last) / 1000) : 0);
+      last = time;
+      renderer.render(scene, camera);
+    });
+  });
+  renderer.xr.addEventListener('sessionend', () => {
+    renderer.setAnimationLoop(null);
+    events.onSession?.(null);
+    hands.forEach((hand) => (hand.userData.held = null));
+    rig.position.set(0, 0, 0);
+    rig.rotation.set(0, 0, 0);
+    if (before) {
+      camera.position.copy(before.position);
+      camera.quaternion.copy(before.quaternion);
+      controls.target.copy(before.target);
+      controls.enabled = before.controls;
+      camera.fov = before.fov;
+      camera.near = before.near;
+      camera.updateProjectionMatrix();
+      before = null;
+    }
+    request();
+  });
+  const inVr = () => renderer.xr.isPresenting;
+
   let frame = 0;
   const draw = () => {
     frame = 0;
@@ -505,6 +623,10 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
     }
   };
   const request = () => {
+    // The headset's loop draws every frame.
+    if (inVr()) {
+      return;
+    }
     frame ||= requestAnimationFrame(draw);
   };
   let moving = false;
@@ -539,7 +661,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
 
   let updated = 0;
   return {
-    update(state) {
+    update(given) {
+      // In VR the viewer moves themself: no director's camera, nobody hidden.
+      const state = inVr() ? { ...given, camera: null, hidden: null } : given;
       const { colors } = state;
       const now = performance.now();
       const elapsed = (now - updated) / 1000;
@@ -610,6 +734,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
         const height = (TIP_PX / Math.max(1, renderer.domElement.clientHeight)) * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
         tip.sprite.scale.set(height * tip.sprite.userData.aspect, height, 1);
         tip.sprite.position.copy(at(tipped.x, tipped.y, tipped.jump + 2.4));
+        // Sized in the page's pixels: none in the headset.
+        tip.sprite.visible = !inVr();
         scene.add(tip.sprite);
       }
       ball.visible = ballShadow.visible = state.ball !== null;
@@ -621,6 +747,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       // The trail: a ribbon facing the camera, from transparent at its tail to the ball, as wide and
       // strong as the ball is fast (a slow set leaves almost none, an attack a streak).
       const points = state.trail.map((p) => at(p.x, p.y, Math.max(BALL_R, p.h)));
+      const eye = camera.getWorldPosition(new THREE.Vector3());
       const length = points.slice(1).reduce((sum, p, k) => sum + p.distanceTo(points[k]), 0);
       const strength = Math.min(1, Math.max(0, (length / TRAIL_S - SLOW) / (FAST - SLOW)));
       trail.visible = points.length > 1 && strength > 0;
@@ -634,7 +761,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
           const along = (k + 1) / points.length;
           const side = new THREE.Vector3()
             .subVectors(next, back)
-            .cross(new THREE.Vector3().subVectors(camera.position, p))
+            .cross(new THREE.Vector3().subVectors(eye, p))
             .normalize()
             .multiplyScalar(BALL_R * (0.35 + 0.65 * strength) * along);
           vertices.push(p.x + side.x, p.y + side.y, p.z + side.z, p.x - side.x, p.y - side.y, p.z - side.z);
@@ -682,7 +809,15 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = []): Scene {
       }
       return hit ? (hit.userData.key as number) : null;
     },
+    async enterVr() {
+      const session = await navigator.xr!.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'bounded-floor'] });
+      await renderer.xr.setSession(session);
+    },
+    leaveVr() {
+      void renderer.xr.getSession()?.end();
+    },
     dispose() {
+      void renderer.xr.getSession()?.end();
       hall.stop();
       observer.disconnect();
       cancelAnimationFrame(frame);

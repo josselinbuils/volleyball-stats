@@ -919,7 +919,11 @@
     "note": "The ball's height is estimated. Drag to turn around the court, pinch or scroll to zoom.",
     "badgeFound": "Reconstructed from the video",
     "noteFound": "The ball's path is computed from the video. Drag to turn around the court, pinch or scroll to zoom.",
-    "tv": "TV"
+    "tv": "TV",
+    "vr": "View in VR",
+    "leaveVr": "Leave VR",
+    "vrFailed": "VR could not open.",
+    "vrNote": "Left stick: move. Right stick: turn, go up or down. Grip: drag the hall. Trigger: play, pause."
   },
   "matches": {
     "heading": "Stats",

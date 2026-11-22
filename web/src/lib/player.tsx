@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { TFunction } from 'i18next';
 import type { Clock } from '@/lib/clock';
 import { rallies, type Rally } from '@/lib/match';
+import { nextFrame } from '@/lib/frames';
 import { isPhone } from '@/lib/phone';
 import { PAD, rallyAt, type Clip } from '@/lib/playlist';
 
@@ -210,7 +211,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       seeking.current = false;
       held = rallyAt(rallies, video.currentTime);
     };
-    let frame = 0;
+    let cancel = () => {};
     // One loop ends the clips and publishes the video time.
     const tick = () => {
       const p = current.current;
@@ -249,13 +250,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         now = time;
         listeners.forEach((listener) => listener());
       }
-      frame = requestAnimationFrame(tick);
+      cancel = nextFrame(tick);
     };
     video.addEventListener('seeked', onSeeked);
     tick();
     return () => {
       video.removeEventListener('seeked', onSeeked);
-      cancelAnimationFrame(frame);
+      cancel();
     };
   }, [video, update]);
 

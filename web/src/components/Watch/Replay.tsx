@@ -154,6 +154,8 @@ export function Replay({ captioned = true }: { captioned?: boolean }) {
         {view !== '2d' && (
           <Scene3D
             badge={!tv}
+            vr={!tv}
+            onSelect={() => togglePlay(video)}
             overlay={tv ? <BroadcastOverlay time={time} rally={playing?.i ?? null} replay={replay} score={score} /> : null}
             state={sceneAt({
               dots,

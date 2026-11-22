@@ -93,17 +93,13 @@ The pipeline's weak spots and what is left to do, most useful first.
 19. "Vidéo augmentée" (14-15 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail, the score, each measured serve's
     and attack's speed (`ball3d.attack_speed`, 15 Nov) and attack's height and jump on film-like cards, drawn on the video.
     Attack speeds also in "Mon match", the trophies ("Le Canon") and the films (card under the replay, end card).
-20. Idea, not started (the owner's, 15 Nov): the 3D view in a VR headset (WebXR, built into three.js; not the TV view: a
-    camera moving the viewer's head for them sickens). A free camera as today, steered with the controllers: left stick
-    moves where one looks, right stick turns in steps and goes up or down, a grip drags the hall, the trigger plays and
-    pauses; the scoreboard on the hall's wall as today, the page's controls out of sight. To change in `scene3d/scene.ts`:
-    `renderer.xr.enabled`, a loop drawing every frame while in VR (`setAnimationLoop`; today it draws on change), the
-    viewer moved by an offset reference space, the orbit and camera put back on leaving, the name tags sized in metres
-    (`tag`'s `sizeAttenuation: false` is in screen pixels). A "Voir en VR" button where `navigator.xr` offers
-    `immersive-vr` (Quest Browser, Chrome with a PC headset, Safari on Vision Pro). To check: whether the page's
-    `requestAnimationFrame` (the video time in `lib/player.tsx`) still runs in VR, else the scene's loop drives it; the
-    frame rate on a standalone headset (the 2048 shadow map); WebXR needs HTTPS or localhost, so a standalone headset only
-    on the hosted page. Needs a headset to test.
+20. Built (22 Nov), not yet tried in a headset: the 3D view in VR ([match-page.md](match-page.md) "3D view"), checked in
+    headless Chrome with Meta's emulator (IWER, Quest 3: the button, entering and leaving, sticks, trigger, the video time).
+    The owner's Quest 3 tries it two ways: through Virtual Desktop on the PC (SteamVR or the Oculus runtime as OpenXR, then
+    Chrome or Edge on Windows at the review, localhost), and standalone in the Quest Browser on the hosted page (HTTPS) once
+    uploaded with the owner. To check there: comfort and speeds (`WALK`, `CLIMB`, `TURN` in `scene3d/scene.ts`), the name
+    tags' size (`tag`'s `sizeAttenuation: false`, screen-sized), the controllers' grey spheres, the frame rate standalone
+    (the 2048 shadow map).
 21. Done (15-16 Nov): the 3D players' looks (`likeness.py`, [match-page.md](match-page.md) "3D view",
     [benchmark](../benchmarks/likeness/README.md)). Hair colour, hairstyle and skin guessed from each player's card picture
     (SegFormer human parsing, MIT; seconds a match, cached in each match's `likeness_seen.json`); the review's Names tab sets the

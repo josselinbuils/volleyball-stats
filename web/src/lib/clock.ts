@@ -1,3 +1,5 @@
+import { nextFrame } from '@/lib/frames';
+
 /** A clock standing in for the video when the page holds none: the video's controls and playlists
  * drive it the same way, and the court's top view follows its time. `element` is what the page scrolls
  * to and puts full screen. */
@@ -5,7 +7,7 @@ export class Clock extends EventTarget {
   #time = 0;
   #paused = true;
   #rate = 1;
-  #frame = 0;
+  #cancel = () => {};
   #last = 0;
   readonly seeking = false;
   // Nothing to hear.
@@ -52,7 +54,7 @@ export class Clock extends EventTarget {
     if (this.#paused) {
       this.#paused = false;
       this.#last = performance.now();
-      this.#frame = requestAnimationFrame(this.#tick);
+      this.#cancel = nextFrame(this.#tick);
       this.dispatchEvent(new Event('play'));
     }
     return Promise.resolve();
@@ -61,7 +63,7 @@ export class Clock extends EventTarget {
   pause(): void {
     if (!this.#paused) {
       this.#paused = true;
-      cancelAnimationFrame(this.#frame);
+      this.#cancel();
       this.dispatchEvent(new Event('pause'));
     }
   }
@@ -77,7 +79,7 @@ export class Clock extends EventTarget {
     if (this.#time >= this.duration) {
       this.pause();
     } else {
-      this.#frame = requestAnimationFrame(this.#tick);
+      this.#cancel = nextFrame(this.#tick);
     }
   };
 }

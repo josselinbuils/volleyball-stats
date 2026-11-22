@@ -103,7 +103,13 @@ moments.
     and the hair colour (or bald) as set in the review's Names tab (a woman's short hair drawn as a long bob, to mid-neck); only on a page with the video (the review, a local one, the hosted one behind its password), never for a blurred team:
     elsewhere made-up looks;
   - the ball's height reconstructed, each flight rising as high as gravity requires for its duration,
-    and over the net when it crosses it, each touch at a typical height for its action.
+    and over the net when it crosses it, each touch at a typical height for its action;
+  - "Voir en VR" (in the 3D view, not TV, where the browser offers `immersive-vr`: Quest Browser, Chrome or Edge with a PC
+    headset, Safari on Vision Pro) puts the scene in a headset (WebXR, `scene.enterVr`), standing at the side line: left
+    stick moves where one looks, right stick turns in 30° steps and goes up or down (floor to 10 m), a grip drags the
+    hall, the trigger plays and pauses; the hover tip hidden, the orbit and camera back on leaving. The page's loops take
+    their frames from the headset meanwhile (`lib/frames.ts`: a browser may hold the window's back). WebXR needs HTTPS or
+    localhost: a standalone headset only on the hosted page.
 
 ## Mon match and L'histoire du match
 

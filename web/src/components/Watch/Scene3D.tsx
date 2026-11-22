@@ -4,6 +4,10 @@ import { loadBall3d } from '@/lib/ball3d';
 import { match, versioned } from '@/lib/match';
 import type { Scene, SceneState } from '@/scene3d/scene';
 import { Hint } from '@/components/Tip';
+import { Button } from '@/components/ui/button';
+import { ErrorNote } from '@/components/ErrorNote';
+import { explain } from '@/lib/errors';
+import { frameSource } from '@/lib/frames';
 
 let loading: Promise<void> | null = null;
 
@@ -67,13 +71,59 @@ export function sceneColors(element: Element): SceneState['colors'] {
   };
 }
 
+/** Whether a VR headset can show the 3D view, asked again when one is plugged in or out. */
+function useVrOffered(): boolean {
+  const [offered, setOffered] = useState(false);
+  useEffect(() => {
+    const xr = navigator.xr;
+    if (!xr) {
+      return;
+    }
+    let gone = false;
+    const ask = () =>
+      xr.isSessionSupported('immersive-vr').then(
+        (yes) => !gone && setOffered(yes),
+        () => !gone && setOffered(false),
+      );
+    void ask();
+    xr.addEventListener('devicechange', ask);
+    return () => {
+      gone = true;
+      xr.removeEventListener('devicechange', ask);
+    };
+  }, []);
+  return offered;
+}
+
 /** The 3D scene of the court at the moment `state` describes, turned with the pointer; `onHover`
- * hears of the player under the pointer, null when none or while turning. */
-export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit<SceneState, 'colors'>; onHover: (key: number | null) => void; badge?: boolean; overlay?: ReactNode }) {
+ * hears of the player under the pointer, null when none or while turning. `vr` offers it in a headset where there is one,
+ * `onSelect` hearing of its trigger. */
+export function Scene3D({
+  state,
+  onHover,
+  badge = true,
+  overlay,
+  vr = false,
+  onSelect,
+}: {
+  state: Omit<SceneState, 'colors'>;
+  onHover: (key: number | null) => void;
+  badge?: boolean;
+  overlay?: ReactNode;
+  vr?: boolean;
+  onSelect?: () => void;
+}) {
   const { t } = useTranslation();
   const box = useRef<HTMLDivElement>(null);
   const scene = useRef<Scene | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const offered = useVrOffered();
+  // In the headset, on the way there, or why it failed.
+  const [inVr, setInVr] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [vrError, setVrError] = useState<string | null>(null);
+  const selected = useRef(onSelect);
+  selected.current = onSelect;
   // The theme, the `dark` class on <html>, or the scene moving into full screen's dark panel (its size changes): it
   // recolours, paused or not.
   const [theme, setTheme] = useState(0);
@@ -97,13 +147,21 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
     loadScene()
       .then(() => {
         if (!gone && box.current && window.VolleyScene) {
-          scene.current = window.VolleyScene.mount(box.current, match.club?.sponsors ?? []);
+          scene.current = window.VolleyScene.mount(box.current, match.club?.sponsors ?? [], {
+            onSession: (session) => {
+              // The video's time and the page's loops run on the headset's frames while it shows the view.
+              frameSource(session);
+              setInVr(!!session);
+            },
+            onSelect: () => selected.current?.(),
+          });
           setStatus('ready');
         }
       })
       .catch(() => setStatus('failed'));
     return () => {
       gone = true;
+      frameSource(null);
       scene.current?.dispose();
       scene.current = null;
     };
@@ -127,6 +185,35 @@ export function Scene3D({ state, onHover, badge = true, overlay }: { state: Omit
       />
       {status !== 'ready' && <p className="absolute inset-0 m-0 grid place-items-center text-sm text-muted-foreground">{t(status === 'failed' ? 'scene3d.failed' : 'scene3d.loading')}</p>}
       {overlay}
+      {status === 'ready' && (vr || inVr) && offered && (
+        // Its own clicks: not the view's, which play or pause.
+        <div className="absolute bottom-2 left-2 grid justify-items-start gap-1" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+          {vrError && <ErrorNote {...explain(t, vrError, 'scene3d.vrFailed')} className="rounded-md bg-card/85 px-2 py-1 text-xs" />}
+          <div className="flex items-center gap-1.5 rounded-md bg-card/85 py-1 pr-2 pl-1">
+            <Button
+              size="sm"
+              variant="outline"
+              busy={opening}
+              onClick={() => {
+                if (inVr) {
+                  scene.current?.leaveVr();
+                  return;
+                }
+                setVrError(null);
+                setOpening(true);
+                // Asked at once: the browser opens the headset only within the click.
+                scene.current
+                  ?.enterVr()
+                  .catch((e: unknown) => setVrError(e instanceof Error ? e.message : String(e)))
+                  .finally(() => setOpening(false));
+              }}
+            >
+              {t(inVr ? 'scene3d.leaveVr' : 'scene3d.vr')}
+            </Button>
+            <Hint label={t('scene3d.vrNote')} />
+          </div>
+        </div>
+      )}
       {status === 'ready' && badge && (
         <p className="absolute top-2 right-2 m-0 [:fullscreen_&]:top-auto [:fullscreen_&]:bottom-2 flex max-w-[60%] items-center gap-1.5 rounded-md bg-card/85 px-2 py-1 text-[11px] leading-tight text-muted-foreground">
           {t(match.ball3d ? 'scene3d.badgeFound' : 'scene3d.badge')}

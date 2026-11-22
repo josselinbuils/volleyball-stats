@@ -919,7 +919,11 @@
     "note": "Hauteur du ballon estimée. Faites glisser pour tourner autour du terrain, pincez ou faites défiler pour zoomer.",
     "badgeFound": "Reconstitution d'après la vidéo",
     "noteFound": "Trajectoire du ballon calculée d'après la vidéo. Faites glisser pour tourner autour du terrain, pincez ou faites défiler pour zoomer.",
-    "tv": "TV"
+    "tv": "TV",
+    "vr": "Voir en VR",
+    "leaveVr": "Quitter la VR",
+    "vrFailed": "La VR n'a pas pu s'ouvrir.",
+    "vrNote": "Stick gauche : avancer. Stick droit : tourner, monter, descendre. Grip : déplacer la salle. Gâchette : lecture, pause."
   },
   "matches": {
     "heading": "Statistiques",
