@@ -190,13 +190,14 @@ export function addHall(scene: THREE.Scene, sponsors: Sponsor[], board: THREE.Te
   // The x > 0 side stays open above the grey wall where the stand is.
   wall([WALL_X, FAR_Y], [WALL_X, STAND.from], GREY_TOP, EAVES, pale);
   wall([WALL_X, STAND.to], [WALL_X, NEAR_Y], GREY_TOP, EAVES, pale);
-  // The stand: dark tiers going up and back, a wall behind them, closed above and at its ends.
+  // The stand: dark tiers going up and back, a wall behind them, closed above and at its ends. The tiers start at the grey
+  // wall's top: lower, their front would share the wall's plane and flicker with it.
   const standLength = STAND.to - STAND.from;
   for (let row = 0; row < STAND.rows; row++) {
     const depth = (STAND.back - WALL_X) / STAND.rows;
     const top = GREY_TOP + ((STAND.top - GREY_TOP) * (row + 1)) / STAND.rows;
-    const step = new THREE.Mesh(new THREE.BoxGeometry(depth, top - GREY_TOP + 0.1, standLength), new THREE.MeshLambertMaterial({ color: row % 2 ? 0x45443c : 0x3c3b34 }));
-    step.position.copy(at(WALL_X + depth * (row + 0.5), (STAND.from + STAND.to) / 2, (top + GREY_TOP) / 2 - 0.05));
+    const step = new THREE.Mesh(new THREE.BoxGeometry(depth, top - GREY_TOP, standLength), new THREE.MeshLambertMaterial({ color: row % 2 ? 0x45443c : 0x3c3b34 }));
+    step.position.copy(at(WALL_X + depth * (row + 0.5), (STAND.from + STAND.to) / 2, (top + GREY_TOP) / 2));
     hall.add(step);
   }
   const standInside = at(WALL_X + 1, (STAND.from + STAND.to) / 2, 6);

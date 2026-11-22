@@ -90,14 +90,11 @@ const SLOW = 4;
 const FAST = 14;
 // Twice the real ball's radius, to follow it at a glance as on the top view.
 const BALL_R = 0.21;
-// In VR the viewer starts standing 3.5 m behind the near sideline, in line with the net, facing it; the left stick moves
-// them at up to WALK m/s along the floor, the right one turns them at up to TURN rad/s, always upright, and moves them
-// CLIMB m/s up or down, under the roof.
+// In VR the viewer starts standing 3.5 m behind the near sideline, in line with the net, facing it, and moves as one
+// walks: the left stick takes them at up to WALK m/s along the floor, the right one turns them at up to TURN rad/s.
 const VR_START = at(0, 8, 0);
 const WALK = 3;
 const TURN = Math.PI / 2;
-const CLIMB = 2;
-const ROOF = 10;
 // A stick's travel under DEAD is rest.
 const DEAD = 0.15;
 // The video's panel above the left hand, tilted towards the eyes; the right hand's ray reaches it from up to RAY_M.
@@ -594,8 +591,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     for (const hand of hands) {
       const held = hand.userData.held as THREE.Vector3 | null;
       if (held) {
-        // The hand moved by `delta` in the rig: the rig moves the other way, the hall staying in the hand.
-        const delta = hand.position.clone().sub(held).applyQuaternion(rig.quaternion);
+        // The hand moved by `delta` in the rig: the rig moves the other way along the floor, the hall staying in the hand.
+        const delta = hand.position.clone().sub(held).applyQuaternion(rig.quaternion).setY(0);
         rig.position.sub(delta);
         held.copy(hand.position);
       }
@@ -610,15 +607,12 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
         const forward = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x);
         rig.position.addScaledVector(forward, -y * WALK * seconds).addScaledVector(right, x * WALK * seconds);
-      } else {
-        rig.position.y = Math.min(ROOF, Math.max(0, rig.position.y - y * CLIMB * seconds));
-        if (x) {
-          // Around the vertical through the viewer's head, which stays where it is.
-          const angle = -x * TURN * seconds;
-          camera.getWorldPosition(head);
-          rig.position.sub(head).applyAxisAngle(up, angle).add(head);
-          rig.rotation.y += angle;
-        }
+      } else if (x) {
+        // Around the vertical through the viewer's head, which stays where it is.
+        const angle = -x * TURN * seconds;
+        camera.getWorldPosition(head);
+        rig.position.sub(head).applyAxisAngle(up, angle).add(head);
+        rig.rotation.y += angle;
       }
     }
   };
