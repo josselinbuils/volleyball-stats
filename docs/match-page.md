@@ -108,8 +108,10 @@ moments.
     headset, Safari on Vision Pro) puts the scene in a headset (WebXR, `scene.enterVr`), standing at the side line: left
     stick moves where one looks, right stick turns in 30° steps and goes up or down (floor to 10 m), a grip drags the
     hall, the trigger plays and pauses; the hover tip hidden, the orbit and camera back on leaving. The page's loops take
-    their frames from the headset meanwhile (`lib/frames.ts`: a browser may hold the window's back). WebXR needs HTTPS or
-    localhost: a standalone headset only on the hosted page.
+    their frames from the headset meanwhile (`lib/frames.ts`: a browser may hold the window's back). It draws in the
+    plain `XRWebGLLayer`, never a projection layer (Brave on a PC headset sends those no frame), and leaves VR with an
+    error when the headset sends no frame in 5 s. WebXR needs HTTPS or localhost: a standalone headset only on the hosted
+    page.
 
 ## Mon match and L'histoire du match
 

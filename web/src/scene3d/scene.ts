@@ -93,6 +93,8 @@ const TURN = Math.PI / 6;
 // A stick's travel under DEAD is rest; a turn waits for the stick past PUSHED, then back under DEAD.
 const DEAD = 0.15;
 const PUSHED = 0.7;
+// How long a headset has to send its first frame.
+const FIRST_FRAME_MS = 5000;
 
 /** A number painted on a sprite, facing the camera. */
 function badge(text: string, background: string, color: string): THREE.Sprite {
@@ -573,6 +575,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   // The page's view, put back on leaving VR.
   let before: { position: THREE.Vector3; quaternion: THREE.Quaternion; target: THREE.Vector3; fov: number; near: number; controls: boolean } | null = null;
   let last = 0;
+  // Heard at the headset's first frame, while `enterVr` waits for it.
+  let firstFrame: (() => void) | null = null;
   renderer.xr.addEventListener('sessionstart', () => {
     before = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), target: controls.target.clone(), fov: camera.fov, near: camera.near, controls: controls.enabled };
     controls.enabled = false;
@@ -584,7 +588,13 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     frame = 0;
     last = 0;
     events.onSession?.(renderer.xr.getSession());
-    renderer.setAnimationLoop((time) => {
+    // Set after three.js stopped the window's loop at the session's start, which this restarts: only the headset's frames
+    // (with an XRFrame) draw.
+    renderer.setAnimationLoop((time, xrFrame) => {
+      if (!xrFrame) {
+        return;
+      }
+      firstFrame?.();
       steer(last ? Math.min(0.1, (time - last) / 1000) : 0);
       last = time;
       renderer.render(scene, camera);
@@ -811,7 +821,30 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     },
     async enterVr() {
       const session = await navigator.xr!.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'bounded-floor'] });
-      await renderer.xr.setSession(session);
+      // three.js draws in a projection layer where the browser has them; Brave's (Chromium 158, a PC headset) never gets a
+      // frame: the plain layer every browser has instead, hiding them while three.js picks.
+      const binding = typeof XRWebGLBinding === 'undefined' ? null : XRWebGLBinding.prototype;
+      const layers = binding && Object.getOwnPropertyDescriptor(binding, 'createProjectionLayer');
+      if (layers) {
+        delete (binding as Partial<XRWebGLBinding>).createProjectionLayer;
+      }
+      try {
+        await renderer.xr.setSession(session);
+      } finally {
+        if (layers) {
+          Object.defineProperty(binding, 'createProjectionLayer', layers);
+        }
+      }
+      // A headset sending no frame would leave the page still: out of VR, said as failed.
+      const shown = await new Promise<boolean>((resolve) => {
+        firstFrame = () => resolve(true);
+        setTimeout(() => resolve(false), FIRST_FRAME_MS);
+      });
+      firstFrame = null;
+      if (!shown) {
+        void session.end();
+        throw new Error('The headset sent no frame.');
+      }
     },
     leaveVr() {
       void renderer.xr.getSession()?.end();

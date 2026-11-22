@@ -95,7 +95,10 @@ The pipeline's weak spots and what is left to do, most useful first.
     Attack speeds also in "Mon match", the trophies ("Le Canon") and the films (card under the replay, end card).
 20. Built (22 Nov), not yet tried in a headset: the 3D view in VR ([match-page.md](match-page.md) "3D view"), checked in
     headless Chrome with Meta's emulator (IWER, Quest 3: the button, entering and leaving, sticks, trigger, the video time).
-    The owner's Quest 3 tries it two ways: through Virtual Desktop on the PC (SteamVR or the Oculus runtime as OpenXR, then
+    First try (22 Nov, Brave on Windows through Virtual Desktop): the page froze; Brave opens the session but never
+    sends a frame to a WebXR projection layer, which three.js picks where the browser has them (a test page: the plain
+    `XRWebGLLayer` ran at 90 fps). `scene.enterVr` hides them while three.js picks, and leaves VR with an error when no
+    frame comes in 5 s. The owner's Quest 3 tries it two ways: through Virtual Desktop on the PC (SteamVR or the Oculus runtime as OpenXR, then
     Chrome or Edge on Windows at the review, localhost), and standalone in the Quest Browser on the hosted page (HTTPS) once
     uploaded with the owner. To check there: comfort and speeds (`WALK`, `CLIMB`, `TURN` in `scene3d/scene.ts`), the name
     tags' size (`tag`'s `sizeAttenuation: false`, screen-sized), the controllers' grey spheres, the frame rate standalone
