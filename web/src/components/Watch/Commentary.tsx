@@ -71,7 +71,8 @@ export function Commentary({ time, rally, replay }: { time: number; rally: numbe
       const from = share;
       const start = performance.now();
       const step = (now: number) => {
-        const k = Math.min(1, (now - start) / ms);
+        // A frame's time can come before `start`.
+        const k = Math.min(1, Math.max(0, (now - start) / ms));
         share = from + (to - from) * k;
         setUnder(share);
         if (k < 1) {
