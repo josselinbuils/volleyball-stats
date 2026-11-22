@@ -4,11 +4,12 @@ import { playerKey } from '@/helpers/players';
 import { ball3dAt, type Places, type Point3 } from '@/components/Watch/helpers/flight';
 
 /** An arm: `pitch` its angle up from hanging down, forward at a quarter turn, overhead at a half; `roll` towards the other
- * arm; `stretch` its length against its rest. */
+ * arm; `stretch` its length against its rest; `bend` the elbow's, the forearm folding the way the arm rises. */
 export interface Arm {
   pitch: number;
   roll: number;
   stretch: number;
+  bend: number;
 }
 
 /** How a figure stands at a moment: all of it a function of the moment, so pausing, jumping and slowing down just work.
@@ -51,6 +52,10 @@ const STRIDE = 0.9;
 // Set for the next ball while a rally plays, relaxed outside it, over this long.
 const READY_S = 1;
 const READY = { crouch: 0.15, pitch: 0.45 };
+// The elbows: nearly straight hanging, bent waiting for the ball, more running. Set, a player bobs on their feet.
+const BEND = { rest: 0.2, ready: 0.9, run: 1.4 };
+const BOB_HZ = 1.6;
+const BOB = 0.12;
 const EASE_S = 0.15;
 // A body within this of the ball leans into it, up to REACH_M; further, the ball's place cannot be trusted to aim at.
 const AIM_M = 2.5;
@@ -98,15 +103,28 @@ const hash = (n: number) => ((n * 2654435761) % 1000) / 1000;
 export function restPose(person: number, time: number, speed: number, ready: number): Pose {
   const run = smooth(WALK, SPRINT, speed);
   const swing = Math.sin(2 * Math.PI * (CADENCE_HZ * time + hash(person)));
-  const arm = (sign: number): Arm => ({ pitch: mix(0, READY.pitch, ready) + mix(0, 0.6 + sign * ARM_SWING * swing, run), roll: 0, stretch: 1 });
-  return { jump: 0, crouch: Math.max(READY.crouch * ready, 0.1 * run), lean: 0.25 * run, stride: STRIDE * run * swing, shift: { x: 0, y: 0 }, arms: [arm(1), arm(-1)] };
+  const arm = (sign: number): Arm => ({
+    pitch: mix(0, READY.pitch, ready) + mix(0, 0.6 + sign * ARM_SWING * swing, run),
+    roll: 0,
+    stretch: 1,
+    bend: mix(mix(BEND.rest, BEND.ready, ready), BEND.run, run),
+  });
+  const bob = BOB * ready * (1 - run) * (0.5 + 0.5 * Math.sin(2 * Math.PI * (BOB_HZ * time + hash(person + 7))));
+  return {
+    jump: 0,
+    crouch: Math.max(READY.crouch * ready + bob, 0.1 * run),
+    lean: 0.25 * run,
+    stride: STRIDE * run * swing,
+    shift: { x: 0, y: 0 },
+    arms: [arm(1), arm(-1)],
+  };
 }
 
 /** The action's pose `t` after its contact, `up` the arm's angle to the ball at the contact, `long` its stretch to it. */
 function gesture(type: Contact['type'], t: number, jump: number, up: number, long: number, high: boolean): Pick<Pose, 'crouch' | 'lean' | 'arms'> {
-  const both = (pitch: number, roll: number, stretch: number): [Arm, Arm] => [
-    { pitch, roll, stretch },
-    { pitch, roll, stretch },
+  const both = (pitch: number, roll: number, stretch: number, bend: number): [Arm, Arm] => [
+    { pitch, roll, stretch, bend },
+    { pitch, roll, stretch, bend },
   ];
   // A free ball over the head is played as a set, under it as a pass.
   const kind = type === 'relance' ? (high ? 'set' : 'pass') : type;
@@ -156,6 +174,17 @@ function gesture(type: Contact['type'], t: number, jump: number, up: number, lon
             ],
             t,
           ),
+          // Cocked behind the head, whipped straight at the ball.
+          bend: keyed(
+            [
+              [-0.45, 0.2],
+              [-0.25, 1.9],
+              [-0.1, 1.2],
+              [0, 0],
+              [0.2, 0.3],
+            ],
+            t,
+          ),
         },
         {
           pitch: keyed(
@@ -170,6 +199,14 @@ function gesture(type: Contact['type'], t: number, jump: number, up: number, lon
           ),
           roll: 0,
           stretch: 1,
+          bend: keyed(
+            [
+              [-0.2, 0.1],
+              [0, 0.7],
+              [0.3, 0.4],
+            ],
+            t,
+          ),
         },
       ],
     };
@@ -208,6 +245,7 @@ function gesture(type: Contact['type'], t: number, jump: number, up: number, lon
           ],
           t,
         ),
+        0.1,
       ),
     };
   }
@@ -242,6 +280,17 @@ function gesture(type: Contact['type'], t: number, jump: number, up: number, lon
             [-0.05, 1],
             [0, Math.min(long, 1.25)],
             [0.2, 1],
+          ],
+          t,
+        ),
+        // The hands over the forehead, pushed up through the ball.
+        keyed(
+          [
+            [-0.6, 0.9],
+            [-0.3, 1.7],
+            [-0.03, 1.6],
+            [0.22, 0.15],
+            [0.5, 0.4],
           ],
           t,
         ),
@@ -288,6 +337,16 @@ function gesture(type: Contact['type'], t: number, jump: number, up: number, lon
             ],
             t,
           ),
+          bend: keyed(
+            [
+              [-0.45, 0.4],
+              [-0.2, 1.9],
+              [-0.08, 1.2],
+              [0, 0],
+              [0.25, 0.3],
+            ],
+            t,
+          ),
         },
         {
           pitch: keyed(
@@ -302,6 +361,15 @@ function gesture(type: Contact['type'], t: number, jump: number, up: number, lon
           ),
           roll: 0,
           stretch: 1,
+          bend: keyed(
+            [
+              [-1, 0.9],
+              [-0.55, 0.1],
+              [0, 0.6],
+              [0.3, 0.3],
+            ],
+            t,
+          ),
         },
       ],
     };
@@ -330,6 +398,7 @@ function gesture(type: Contact['type'], t: number, jump: number, up: number, lon
       ),
       0.35,
       1,
+      0,
     ),
   };
 }
@@ -403,6 +472,7 @@ export function posesAt(rally: Rally | undefined, time: number, dots: Dot[], bef
         pitch: mix(rest.arms[k].pitch, pose.arms[k].pitch, ease),
         roll: mix(rest.arms[k].roll, pose.arms[k].roll, ease),
         stretch: mix(rest.arms[k].stretch, pose.arms[k].stretch, ease),
+        bend: mix(rest.arms[k].bend, pose.arms[k].bend, ease),
       })) as [Arm, Arm],
     });
   }

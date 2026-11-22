@@ -153,7 +153,11 @@ whole match can be public without anyone's consent. "Regarder le match" plays ev
 - **Players** (`Watch/helpers/pose.ts`, in the plain 3D view too): they run as fast as the tracking says and make each
   action's gesture around its real contact: jumping to the ball's height (an attack with its jump measured, `air`, from its
   real takeoff to its real landing), lunging up to 1.2 m towards it when it is within 2.5 m. The gestures are
-  illustrative, not the player's own technique. A serve starts in the server's hand.
+  illustrative, not the player's own technique. A serve starts in the server's hand. Knees bend with the crouch and the run
+  (two-bone legs, feet flat, `scene.ts`), elbows with each gesture (`Arm.bend`: cocked before an attack or a serve, the
+  hands' bend of a set), arms swing bent while running, waiting players bob in their ready stance, and heads look at the
+  ball. Cartoon look, lit as a hall: figures and ball take the soft light of a room (`RoomEnvironment`, on their own
+  materials only: the hall keeps its colours), round soft shadows, and a panelled ball spinning with its flight.
 - **Replays:** in the real pauses between rallies, slowed down, through the eyes of who scored: aces, winning blocks, attacks
   ending a long rally or a set, and one winning attack in four otherwise.
 - **Commentary** (`Watch/helpers/commentary.ts`): generated from the touches, in French then English, shown as captions, naming who

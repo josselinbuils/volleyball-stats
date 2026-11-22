@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { Sponsor } from '@/lib/match';
 import { HAIRS as HAIR_COLOURS, SKINS, lookKey, type Look } from '@/lib/looks';
 import { FLOOR, addHall, at, painted } from '@/scene3d/hall';
@@ -17,12 +18,12 @@ export interface Point3 {
 }
 
 /** How a figure stands: how low (0 to 1), how far it leans forward, its legs' swing, in radians, and its arms, right first:
- * up from hanging down, towards the other arm, and their length against their rest. */
+ * up from hanging down, towards the other arm, their length against their rest and the elbow's bend. */
 export interface FigurePose {
   crouch: number;
   lean: number;
   stride: number;
-  arms: { pitch: number; roll: number; stretch: number }[];
+  arms: { pitch: number; roll: number; stretch: number; bend?: number }[];
 }
 
 /** What the scene shows at a moment. Colours are CSS colours. */
@@ -67,11 +68,22 @@ export interface SceneEvents {
 // net shows in perspective, and the point it looks at; the pointer turns it around that point.
 const EYE = new THREE.Vector3(-3.5, 7.5, 15.5);
 const TARGET = new THREE.Vector3(0.5, 0.6, 0);
-// A figure's hips, shoulders and eyes, and how far a full crouch lowers its pelvis.
+// A figure's ankles, knees, hips, shoulders, neck and eyes, and how far a full crouch lowers its pelvis.
+const ANKLE = 0.08;
+const KNEE = 0.3;
 const HIP = 0.5;
 const SHOULDER = 1.08;
+const NECK = 1.18;
 const EYES = 1.39;
 const CROUCH_M = 0.25;
+// Its arm's two bones, the elbow's bend when a pose gives none; the back leg's knee folding as it swings, running; how far
+// its head tilts up and down.
+const UPPER_ARM = 0.24;
+const FOREARM = 0.2;
+const REST_BEND = 0.2;
+const RUN_KICK = 0.9;
+const HEAD_UP = 0.6;
+const HEAD_DOWN = 0.35;
 const FOV = 40;
 const NEAR = 0.5;
 const FAR = 90;
@@ -89,8 +101,16 @@ const NET_TOP = 2.35;
 const TRAIL_S = 0.35;
 const SLOW = 4;
 const FAST = 14;
-// Twice the real ball's radius, to follow it at a glance as on the top view.
+// Twice the real ball's radius, to follow it at a glance as on the top view. It turns at SPIN of a rolling ball's speed,
+// not across a jump of SPIN_MAX_M or more.
 const BALL_R = 0.21;
+const SPIN = 0.6;
+const SPIN_MAX_M = 2;
+// The lights: the hemisphere's, the room's around the figures; the figures' cloth and skin, matte to a little sheen.
+const HEMISPHERE = 2.2;
+const ROOM = 0.5;
+const CLOTH = 0.8;
+const SKIN_SHEEN = 0.6;
 // In VR the viewer starts 3.5 m behind the near sideline, in line with the net, facing it, their eyes at the figures'
 // whatever their height. They move as in Half-Life: Alyx: the left stick pushed forward throws an arc of dots from the left
 // hand at ARC_SPEED m/s, released it blinks them where the arc lands on the floor, WALL_GAP from the walls (the view fades out
@@ -184,6 +204,50 @@ const stripes = () => {
 };
 
 /** A jersey number painted on a transparent square, for the front and back of a shirt. */
+/** A volleyball's skin, wrapped as a sphere's: on each face of a cube around it, three panels running across the next face's,
+ * yellow round a blue one, a seam between each. */
+function ballSkin(): THREE.CanvasTexture {
+  const [w, h] = [512, 256];
+  return painted(w, h, (g) => {
+    const image = g.createImageData(w, h);
+    const yellow = [245, 197, 24];
+    const blue = [28, 78, 170];
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        // The point of the sphere this pixel wraps (three.js's sphere uv).
+        const [phi, theta] = [((i + 0.5) / w) * 2 * Math.PI, ((j + 0.5) / h) * Math.PI];
+        const n = [-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta)];
+        const a = n.map(Math.abs);
+        const face = a[0] >= a[1] && a[0] >= a[2] ? 0 : a[1] >= a[2] ? 1 : 2;
+        // Across the panels: the axis after the face's, so neighbouring faces cross.
+        const across = n[(face + 1) % 3] / a[face];
+        const panel = Math.min(2, Math.floor(((across + 1) / 2) * 3));
+        const edge = Math.min(Math.abs(((across + 1) / 2) * 3 - Math.round(((across + 1) / 2) * 3)) / 3, (a[face] - Math.max(...a.filter((_, k) => k !== face))) * 0.6);
+        const shade = edge < 0.012 ? 0.55 : 1;
+        const colour = panel === 1 ? blue : yellow;
+        const k = 4 * (j * w + i);
+        image.data[k] = colour[0] * shade;
+        image.data[k + 1] = colour[1] * shade;
+        image.data[k + 2] = colour[2] * shade;
+        image.data[k + 3] = 255;
+      }
+    }
+    g.putImageData(image, 0, 0);
+  });
+}
+
+/** A soft round shadow, darkest at its centre. */
+function blob(): THREE.CanvasTexture {
+  return painted(64, 64, (g) => {
+    const fade = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    fade.addColorStop(0, 'rgba(0, 0, 0, 0.42)');
+    fade.addColorStop(0.5, 'rgba(0, 0, 0, 0.22)');
+    fade.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    g.fillStyle = fade;
+    g.fillRect(0, 0, 64, 64);
+  });
+}
+
 function shirtNumber(text: string, color: string): THREE.MeshBasicMaterial {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 128;
@@ -265,7 +329,12 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   // Until the pointer turns the view, each new shape of it frames the court again.
   let turned = false;
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 2.2));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, HEMISPHERE));
+  // A soft room's light all round, on the figures, the ball and the net: rounder than the lights alone. Not the hall's, whose
+  // floor it would wash out.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const room = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
   // The hall's lights, high above: the players, the referee and the net cast soft shadows on the floor.
   const sun = new THREE.DirectionalLight(0xffffff, 1.3);
   sun.position.set(-4, 16, 6);
@@ -277,7 +346,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   scene.add(sun);
   const castShadows = (object: THREE.Object3D) => object.traverse((o) => (o.castShadow = o instanceof THREE.Mesh));
 
-  const solid = (color: THREE.ColorRepresentation = 0xffffff) => new THREE.MeshLambertMaterial({ color });
+  const solid = (color: THREE.ColorRepresentation = 0xffffff, roughness = CLOTH) => new THREE.MeshStandardMaterial({ color, roughness, envMap: room, envMapIntensity: ROOM });
   // The lines, black in this gym, over the floor: the boundary, the centre line and the attack lines, 5 cm wide.
   const lines = new THREE.Group();
   const line = new THREE.MeshBasicMaterial({ color: 0x17140c, depthWrite: false });
@@ -334,7 +403,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
 
   // Players: chibi figures about 1.65 m tall facing +z, shirt and shorts in their team's colours, a
   // soft shadow and their number above them; made as they first show.
-  const shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false });
+  const shadow = new THREE.MeshBasicMaterial({ map: blob(), transparent: true, depthWrite: false });
   const disc = new THREE.CircleGeometry(1, 24);
   const bodies = new Map<number, { group: THREE.Group; shadow: THREE.Mesh; label: string; team: number; taped: boolean; look: string }>();
   const teamMaterials = [solid(), solid()];
@@ -344,7 +413,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   const coloured = (color: string | number) => {
     const id = String(color);
     if (!colours.has(id)) {
-      colours.set(id, solid(color));
+      colours.set(id, solid(color, SKIN_SHEEN));
     }
     return colours.get(id)!;
   };
@@ -352,6 +421,13 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   const pads = solid(0x222222);
   const tape = solid(0x8f959c);
   const eye = solid(0x1c1410);
+  type Limbs = {
+    torso: THREE.Group;
+    head: THREE.Group;
+    legs: { hip: THREE.Group; knee: THREE.Group; ankle: THREE.Group }[];
+    arms: { shoulder: THREE.Group; upper: THREE.Mesh; elbow: THREE.Group; forearm: THREE.Mesh; hand: THREE.Mesh }[];
+  };
+  const limbsOf = (group: THREE.Object3D) => group.userData.limbs as Limbs;
   // The figures' shapes, shared by all of them.
   const shapes = {
     shoe: new THREE.BoxGeometry(0.12, 0.08, 0.23),
@@ -362,7 +438,9 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     thigh: new THREE.CylinderGeometry(0.066, 0.06, 0.22, 10),
     kneePad: new THREE.CylinderGeometry(0.075, 0.075, 0.1, 10),
     sleeve: new THREE.CapsuleGeometry(0.075, 0.1, 4, 10),
-    arm: new THREE.CapsuleGeometry(0.055, 0.22, 4, 10),
+    upperArm: new THREE.CapsuleGeometry(0.056, UPPER_ARM - 0.06, 4, 10),
+    forearm: new THREE.CapsuleGeometry(0.05, FOREARM - 0.06, 4, 10),
+    hand: new THREE.SphereGeometry(0.058, 12, 8),
     eye: new THREE.SphereGeometry(0.03, 10, 8),
     shorts: new THREE.CylinderGeometry(0.21, 0.22, 0.2, 18),
     chest: new THREE.CylinderGeometry(0.24, 0.2, 0.42, 18),
@@ -380,7 +458,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   // The shirt numbers and badges, one per team and label, shared by the figures showing them.
   const marks = new Map<string, { numbers: THREE.MeshBasicMaterial; badge: THREE.Sprite }>();
   /** A figure in `shirt` and `shorts` with `look`'s hair and skin, else short black hair and a made-up skin, jointed at the
-   * hips and shoulders (`userData.limbs`, its right side first). */
+   * hips, knees, ankles, shoulders, elbows and neck (`limbsOf`, its right side first). */
   const figure = (shirt: THREE.Material, shorts: THREE.Material, taped = false, look?: Look) => {
     const skin = coloured(look?.skin ? SKINS[look.skin - 1] : SKIN);
     // A woman's: narrower shoulders and waist, wider hips, a little smaller.
@@ -398,37 +476,57 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     const torso = new THREE.Group();
     torso.position.y = HIP;
     group.add(torso);
-    const legs: THREE.Group[] = [];
-    const arms: THREE.Group[] = [];
+    // The head tilts on the neck towards the ball.
+    const head = new THREE.Group();
+    head.position.y = NECK - HIP;
+    torso.add(head);
+    const legs: Limbs['legs'] = [];
+    const arms: Limbs['arms'] = [];
     for (const side of [-1, 1]) {
-      const leg = new THREE.Group();
-      leg.position.set(side * 0.1, HIP, 0);
-      group.add(leg);
-      legs.push(leg);
-      part(leg, shapes.shoe, white, 0, 0.04 - HIP, 0.03);
-      part(leg, shapes.sock, white, 0, 0.19 - HIP);
+      // A leg: the thigh from the hip, the shin from the knee, the foot from the ankle, each part at its height standing.
+      const hip = new THREE.Group();
+      hip.position.set(side * 0.1, HIP, 0);
+      group.add(hip);
+      const knee = new THREE.Group();
+      knee.position.y = KNEE - HIP;
+      hip.add(knee);
+      const ankle = new THREE.Group();
+      ankle.position.y = ANKLE - KNEE;
+      knee.add(ankle);
+      legs.push({ hip, knee, ankle });
+      part(ankle, shapes.shoe, white, 0, 0.04 - ANKLE, 0.03);
+      part(knee, shapes.sock, white, 0, 0.19 - KNEE);
       if (taped) {
         // Wound in a hurry, an end trailing behind the heel.
-        part(leg, shapes.tapeBand, tape, 0, 0.04 - HIP, 0.09).rotation.y = side * 0.15;
-        part(leg, shapes.tapeBand, tape, 0, 0.04 - HIP, -0.03).rotation.y = side * -0.12;
-        part(leg, shapes.tapeAnkle, tape, 0, 0.12 - HIP);
-        part(leg, shapes.tapeEnd, tape, side * 0.02, 0.006 - HIP, -0.16).rotation.y = side * 0.25;
+        part(ankle, shapes.tapeBand, tape, 0, 0.04 - ANKLE, 0.09).rotation.y = side * 0.15;
+        part(ankle, shapes.tapeBand, tape, 0, 0.04 - ANKLE, -0.03).rotation.y = side * -0.12;
+        part(knee, shapes.tapeAnkle, tape, 0, 0.12 - KNEE);
+        part(ankle, shapes.tapeEnd, tape, side * 0.02, 0.006 - ANKLE, -0.16).rotation.y = side * 0.25;
       }
-      part(leg, shapes.thigh, skin, 0, 0.39 - HIP);
-      part(leg, shapes.kneePad, pads, 0, 0.4 - HIP);
-      const arm = new THREE.Group();
-      arm.position.set(side * 0.25 * shoulders, SHOULDER - HIP, 0);
-      torso.add(arm);
-      arms.push(arm);
-      part(arm, shapes.sleeve, shirt, side * 0.01, 1.0 - SHOULDER).rotation.z = side * 0.3;
-      part(arm, shapes.arm, skin, side * 0.05, 0.78 - SHOULDER).rotation.z = side * 0.12;
-      part(torso, shapes.eye, eye, side * 0.085, EYES - HIP, 0.235);
+      part(hip, shapes.thigh, skin, 0, 0.39 - HIP);
+      part(knee, shapes.kneePad, pads, 0, 0.32 - KNEE);
+      // An arm: the sleeve on the shoulder, the upper arm a little out from the body, the forearm and hand from the elbow.
+      const shoulder = new THREE.Group();
+      shoulder.position.set(side * 0.25 * shoulders, SHOULDER - HIP, 0);
+      torso.add(shoulder);
+      part(shoulder, shapes.sleeve, shirt, side * 0.01, 1.0 - SHOULDER).rotation.z = side * 0.3;
+      const out = new THREE.Group();
+      out.rotation.z = side * 0.17;
+      shoulder.add(out);
+      const upper = part(out, shapes.upperArm, skin, 0, -UPPER_ARM / 2);
+      const elbow = new THREE.Group();
+      elbow.position.y = -UPPER_ARM;
+      out.add(elbow);
+      const forearm = part(elbow, shapes.forearm, skin, 0, -FOREARM / 2);
+      const hand = part(elbow, shapes.hand, skin, 0, -FOREARM);
+      arms.push({ shoulder, upper, elbow, forearm, hand });
+      part(head, shapes.eye, eye, side * 0.085, EYES - NECK, 0.235);
     }
     part(torso, shapes.shorts, shorts, 0, 0.58 - HIP).scale.set(hips, 1, 0.75);
     part(torso, shapes.chest, shirt, 0, 0.88 - HIP).scale.set(waist, 1, 0.7);
     part(torso, shapes.shoulders, shirt, 0, SHOULDER - HIP).scale.set(shoulders, 0.42, 0.7);
     part(torso, shapes.neck, skin, 0, 1.15 - HIP);
-    part(torso, shapes.head, skin, 0, 1.38 - HIP);
+    part(head, shapes.head, skin, 0, 1.38 - NECK);
     // A cap of hair over the top, tilted back to leave the forehead bare. Never guessed bald (the owner's rule, 16 Nov): only
     // when the Names tab says so.
     // A woman's short hair in a long bob: the card's picture, from the front, does not show hair tied behind.
@@ -436,39 +534,58 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     if (bald) {
       // Nothing over the head.
     } else if (style === 'short') {
-      part(torso, shapes.hair, hair, 0, 1.4 - HIP).rotation.x = -0.35;
+      part(head, shapes.hair, hair, 0, 1.4 - NECK).rotation.x = -0.35;
     } else {
-      part(torso, shapes.hairMid, hair, 0, 1.4 - HIP).rotation.x = style === 'ponytail' ? -0.42 : -0.58;
+      part(head, shapes.hairMid, hair, 0, 1.4 - NECK).rotation.x = style === 'ponytail' ? -0.42 : -0.58;
       if (style === 'long') {
         // Down to the middle of the neck (the owner's pick among five, 16 Nov: a long bob).
-        part(torso, shapes.hairBack, hair, 0, 1.26 - HIP, -0.02);
+        part(head, shapes.hairBack, hair, 0, 1.26 - NECK, -0.02);
       } else if (style === 'ponytail') {
         // Tied high at the back, the tail hanging clear of the head: seen from the side and over the shoulders.
-        part(torso, shapes.bun, hair, 0, 1.54 - HIP, -0.22);
-        part(torso, shapes.tail, hair, 0, 1.34 - HIP, -0.36).rotation.x = 0.45;
+        part(head, shapes.bun, hair, 0, 1.54 - NECK, -0.22);
+        part(head, shapes.tail, hair, 0, 1.34 - NECK, -0.36).rotation.x = 0.45;
       }
     }
-    group.userData.limbs = { torso, legs, arms };
+    group.userData.limbs = { torso, head, legs, arms };
     group.scale.setScalar(woman ? 0.95 : 1);
     return group;
   };
-  /** Stands a figure in `pose`: the pelvis down and the legs squashed by the crouch, the feet staying on the floor. */
+  /** Stands a figure in `pose`: the pelvis lowered by the crouch, the knees bending forward to keep the feet flat on the
+   * floor, the back leg's knee folding as it swings when running, the elbows bent. */
   const posed = (group: THREE.Group, pose: FigurePose) => {
-    const { torso, legs, arms } = group.userData.limbs as { torso: THREE.Group; legs: THREE.Group[]; arms: THREE.Group[] };
+    const { torso, legs, arms } = limbsOf(group);
     const pelvis = HIP - CROUCH_M * pose.crouch;
     torso.position.y = pelvis;
     torso.rotation.x = pose.lean;
+    // The hip and knee angles bringing the ankle under the hip (two bones, the law of cosines).
+    const [thigh, shin, reach] = [HIP - KNEE, KNEE - ANKLE, Math.max(0.05, pelvis - ANKLE)];
+    const hipAngle = Math.acos(Math.min(1, (thigh * thigh + reach * reach - shin * shin) / (2 * thigh * reach)));
+    const kneeAngle = Math.PI - Math.acos(Math.max(-1, Math.min(1, (thigh * thigh + shin * shin - reach * reach) / (2 * thigh * shin))));
     legs.forEach((leg, k) => {
-      leg.position.y = pelvis;
-      leg.scale.y = pelvis / HIP;
-      leg.rotation.x = (k ? 1 : -1) * pose.stride;
+      const swing = (k ? 1 : -1) * pose.stride;
+      const kick = RUN_KICK * Math.max(0, swing);
+      leg.hip.position.y = pelvis;
+      leg.hip.rotation.x = swing - hipAngle;
+      leg.knee.rotation.x = kneeAngle + kick;
+      leg.ankle.rotation.x = hipAngle - kneeAngle - swing - kick * 0.5;
     });
     arms.forEach((arm, k) => {
-      const { pitch, roll, stretch } = pose.arms[k];
-      arm.rotation.x = -pitch;
-      arm.rotation.z = (k ? -1 : 1) * roll;
-      arm.scale.y = stretch;
+      const { pitch, roll, stretch, bend = REST_BEND } = pose.arms[k];
+      arm.shoulder.rotation.x = -pitch;
+      arm.shoulder.rotation.z = (k ? -1 : 1) * roll;
+      arm.upper.scale.y = stretch;
+      arm.upper.position.y = (-UPPER_ARM / 2) * stretch;
+      arm.elbow.position.y = -UPPER_ARM * stretch;
+      arm.elbow.rotation.x = -bend;
+      arm.forearm.scale.y = stretch;
+      arm.forearm.position.y = (-FOREARM / 2) * stretch;
+      arm.hand.position.y = -FOREARM * stretch;
     });
+  };
+  /** Tilts a figure's head up or down towards the height `rise` above its eyes, `away` from it. */
+  const looks = (group: THREE.Group, rise: number, away: number) => {
+    const { head, torso } = limbsOf(group);
+    head.rotation.x = Math.max(-HEAD_UP, Math.min(HEAD_DOWN, -Math.atan2(rise, Math.max(0.3, away)) - torso.rotation.x));
   };
   // The first referee on a stand behind the far post, facing the court.
   const black = solid(0x202020);
@@ -499,7 +616,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
       const mesh = new THREE.Mesh(shapes.number, mark.numbers);
       mesh.position.set(0, 0.9 - HIP, side * 0.158);
       mesh.rotation.y = side === 1 ? 0 : Math.PI;
-      (group.userData.limbs as { torso: THREE.Group }).torso.add(mesh);
+      limbsOf(group).torso.add(mesh);
     }
     // A clone shares its material, so its texture.
     const number = mark.badge.clone();
@@ -510,7 +627,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     castShadows(group);
     const ground = new THREE.Mesh(disc, shadow);
     ground.rotation.x = -Math.PI / 2;
-    ground.scale.setScalar(0.32);
+    ground.scale.setScalar(0.42);
     scene.add(group, ground);
     const made = { group, shadow: ground, label, team, taped, look: worn };
     bodies.set(key, made);
@@ -518,8 +635,11 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   };
 
   // A match ball's yellow: it stands out from the floor and both teams.
-  const ballMaterial = new THREE.MeshLambertMaterial({ color: 0xf5c518, emissive: 0x3a2a00 });
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 24, 16), ballMaterial);
+  const ballMaterial = new THREE.MeshStandardMaterial({ map: ballSkin(), roughness: 0.45, emissive: 0x3a2a00, envMap: room, envMapIntensity: ROOM });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 32, 20), ballMaterial);
+  // Where the ball was last drawn: it rolls over the way it went.
+  const rolled = new THREE.Vector3();
+  let rolling = false;
   const ballShadow = new THREE.Mesh(disc, shadow);
   ballShadow.rotation.x = -Math.PI / 2;
   ballShadow.scale.setScalar(BALL_R * 1.2);
@@ -850,6 +970,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
           const facing = Math.atan2(tx - p.x, ty - p.y);
           body.group.rotation.y = body.group.visible ? turnedTo(body.group.rotation.y, facing, elapsed) : facing;
         }
+        // The eyes on the ball while it flies, else ahead.
+        looks(body.group, state.ball ? state.ball.h - p.jump - EYES : 0, state.ball ? Math.hypot(state.ball.x - p.x, state.ball.y - p.y) : 1);
         body.shadow.position.copy(at(p.x, p.y, 0.006));
         body.group.visible = p.key !== state.hidden;
         // On TV the shirts and the commentary say who it is: a badge would fill a close-up.
@@ -885,9 +1007,18 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
         scene.add(tip.sprite);
       }
       ball.visible = ballShadow.visible = state.ball !== null;
+      rolling &&= state.ball !== null;
       ball.scale.setScalar(state.camera ? TV_BALL : 1);
       if (state.ball) {
         ball.position.copy(at(state.ball.x, state.ball.y, Math.max(BALL_R, state.ball.h)));
+        // It spins forward as it flies, at SPIN of a rolling ball's turn; not across a jump in the video.
+        const way = ball.position.clone().sub(rolled);
+        const far = way.length();
+        if (rolling && far > 0.001 && far < SPIN_MAX_M) {
+          ball.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0).cross(way).normalize(), (SPIN * far) / BALL_R);
+        }
+        rolled.copy(ball.position);
+        rolling = true;
         ballShadow.position.copy(at(state.ball.x, state.ball.y, 0.007));
       }
       // The trail: a ribbon facing the camera, from transparent at its tail to the ball, as wide and
@@ -995,6 +1126,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
       cancelAnimationFrame(frame);
       controls.dispose();
       panel.dispose();
+      room.dispose();
       renderer.dispose();
       // dispose() keeps the WebGL context, and browsers hold only a few.
       renderer.forceContextLoss();

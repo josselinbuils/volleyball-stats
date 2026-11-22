@@ -110,7 +110,7 @@ describe('pose', () => {
     });
 
     it('gives a floor or net contact no gesture', () => {
-      expect(pose(rally([touch(5, 'floor', null)]), 5).crouch).toBeLessThan(0.2);
+      expect(pose(rally([touch(5, 'floor', null)]), 5).crouch).toBeLessThan(0.3);
     });
 
     it('keeps the nearest touch in time on a body with two', () => {
