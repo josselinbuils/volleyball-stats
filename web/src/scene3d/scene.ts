@@ -102,6 +102,7 @@ const ARC_POINTS = 80;
 const ARC_STEP_S = 0.02;
 const WALL_GAP = 0.4;
 const FADE_S = 0.1;
+const VEIL_M = 1;
 const SNAP = Math.PI / 4;
 const PUSH = 0.6;
 const REST = 0.3;
@@ -581,8 +582,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     mark.renderOrder = 5;
     scene.add(mark);
   }
-  // Black around the eyes during a blink.
-  const veil = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 8), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide, transparent: true, depthTest: false }));
+  // Black around the eyes during a blink, VEIL_M away: nearer, the near plane (DIRECTED_NEAR) cut it off the view's sides.
+  const veil = new THREE.Mesh(new THREE.SphereGeometry(VEIL_M, 16, 8), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide, transparent: true, depthTest: false }));
   veil.renderOrder = 10;
   veil.visible = false;
   camera.add(veil);
