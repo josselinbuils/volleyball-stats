@@ -25,9 +25,9 @@ The pipeline's weak spots and what is left to do, most useful first.
 4. Rally ends and winners. Done (5 Nov, `benchmarks/rallies/README.md`): `no_play` keeps rallies with touches and no serve seen,
    short whistled serves count, a ball bounced 20 times is no rally; rallies missed 2 -> 0 of 129 and 9 -> 2 of 150, false windows
    2 -> 3 and 3 -> 3, `side_holdout` F1 ±1 s 0.77 -> 0.86; in the matches' outputs at the next "Réanalyser".
-   12 of the second match's 18 wrong winners are rallies with no window. Left: ends with the ball out of sight or another court's
+   12 of the second match's 18 wrong winners are rallies with no window. Ends with the ball out of sight or another court's
    whistle (50:00-60:00 F1 ±1 s 0.58; four end rules tried, none gains; 7 Nov, the players' speed and the cheer after a
-   point dropped too), then how rallies end (in, out, fault). A learned play / no-play clip model (`playing.py`, `history.md` "Left"
+   point dropped too) and how rallies end (in, out, fault): not pursued (22 Nov, no lead left; wrong winners about 10 a match). A learned play / no-play clip model (`playing.py`, `history.md` "Left"
    item 14) is in the pipeline since 12 Nov where its weights are (`outputs/learned/play/`, shared by the backup): 50:00-60:00 F1 ±1 s 0.58 -> 0.67,
    the touches outside every window 26 -> 8 and 53 -> 2; trained again by "Réanalyser" when it takes a fully checked match; runs on the Mac too (1 h 30 a match on its GPU), kept to the camera's own 4K footage (worse windows on the one other match there is).
 5. Done (5 Nov): the checked rallies as labels (`benchmarks/rallies/checked.py` scores `match.py`'s windows). The 6 false windows left have
@@ -92,14 +92,13 @@ The pipeline's weak spots and what is left to do, most useful first.
     7-10. Done (14 Nov): unseen tap areas of 44 px (the curve's and timeline's rallies left: a few pixels each); the
        theme and language as two menus on the club's band; the replay's score bar on two lines and its header without the
        last touch on a phone, the rally cards and the selected rally's box their own height; the trophies two a row.
-    Not looked at: 3D and TV mode on a real phone, the review, dark mode, "Mon match" with a player picked. How to look: Playwright's
+    To look at a phone: Playwright's
     cached `chromium_headless_shell-1148` lacks `libnss3` in WSL (`apt-get download libnss3 libnspr4`, `dpkg -x` them in a scratch
     folder, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu`), driven by `playwright` installed in a scratch folder (not in `web/`)
     with `devices['iPhone 13']`; Windows' Edge headless cannot go under about 500 px wide.
 19. "Vidéo augmentée" (14-15 Nov, [match-page.md](match-page.md) "Replay"): the ball's trail, the score, each measured serve's
     and attack's speed (`ball3d.attack_speed`, 15 Nov) and attack's height and jump on film-like cards, drawn on the video.
-    Attack speeds also in "Mon match", the trophies ("Le Canon") and the films (card under the replay, end card). Not looked at: the video playing at 50 fps on the 4K original, full screen with the court beside,
-    dark mode, an iPhone, the review's own clips (no overlay there).
+    Attack speeds also in "Mon match", the trophies ("Le Canon") and the films (card under the replay, end card).
 20. Idea, not started (the owner's, 15 Nov): the 3D view in a VR headset (WebXR, built into three.js; not the TV view: a
     camera moving the viewer's head for them sickens). A free camera as today, steered with the controllers: left stick
     moves where one looks, right stick turns in steps and goes up or down, a grip drags the hall, the trigger plays and
@@ -140,8 +139,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     off as well; ball.js is now video.js (the ball and the camera). The hosted video is shorter than the match (`timeline.py`):
     breaks within a set x2, long pauses cut with a fade, each close call slowed to its bounce and held while the camera
     closes in, the page's data and commentary retimed by it, the review on the match's time (67, 85, 91 min play in 40, 47,
-    52). The four matches' copies remade so (16-19 Nov) and online. Left: the Mac's time; a reading thread (ponytail in
-    `video_copies.py`); the cuts through black and the x2 breaks not watched on a full match.
+    52). The four matches' copies remade so (16-19 Nov) and online. A reading thread: ponytail in `video_copies.py`.
 25. The fourth match (`2026-11-16-eysines-3-vs-aspom-2`, 181 rallies): imported and its court clicked in the app (16 Nov),
     reviewed, learned from and online (19 Nov; the learned order retrained, held out set by set 3,680 of 4,061 against the
     rule's 3,545). Held out (20 Nov, [corrections_log.md](corrections_log.md) "The fourth match"): 433 corrections, 2.39 a
@@ -176,7 +174,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     (`play_training.check`). The ball unseen around touches is still the most (266 touches to add with no contact found
     on the four); loosening the hidden contacts (`contacts.hidden_contacts`) loses more than it finds, the ball's sound
     finds 41 for 24 false, the rally's order with it 41 for 16 (`corrections_log.md` "The ball's sound where it is
-    unseen").
+    unseen"): not pursued (22 Nov, no lead left).
 31. Types (20 Nov, [corrections_log.md](corrections_log.md) "Types (11 Nov)"): the gesture's VideoMAE stacked on the rules, wired
     in (stage "gesture", trained by "Réanalyser" from two fully checked matches). Rerun with each match typed by a model
     trained without it: 1,501 -> 1,412 corrections, types 447 -> 329, players 413 -> 440 (touches newly named). Cost: clips

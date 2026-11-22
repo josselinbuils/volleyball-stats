@@ -596,6 +596,7 @@ What is left with the play model in (run `play-eskb`, first / second match: 281 
 2. The ball unseen around a touch (69 touches to add). The fine-tuned ball model is ruled out for good (the owner, 22 Nov:
    3% fewer corrections, 1,075 -> 1,040 on three matches, not worth a second ball pass; "The third match"), in any variant:
    never to be proposed again. The pretrained model on zoomed crops in the gaps 1,075 -> 1,157, dropped (15 Nov, same place).
+   The sound, the rally's order and looser hidden contacts dropped too (20 Nov): no lead left, not pursued (22 Nov).
 3. Done (12 Nov, evening): the block right after an attack. The blocks away from the net dropped (279 / 345, "Kept"); the
    merged attack and block and the rest out of a rule's reach ("Tried and dropped", "The block right after an attack").
 4. Done (12 Nov): the play model on the Mac (M4 Pro, `play_device.py --cpu`, one minute of the first match): its GPU (MPS)
