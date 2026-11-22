@@ -81,7 +81,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     this one included) and the match run again (13 Nov, 17:01): 4 sets. Reviewed and learned from (15 Nov): held out, 482
     corrections (2.92 a rally, 2.1-2.3 on the first two), most from the ball unseen around touches; the rallies the play model
     sees and no window holds now added (479 -> 470). [corrections_log.md](corrections_log.md) "The third match"; the
-    fine-tuned ball model's contacts on the three (1,075 -> 1,040) dropped for their cost (15 Nov).
+    fine-tuned ball model's contacts on the three (1,075 -> 1,040) dropped for their cost (15 Nov), for good (22 Nov: never again).
 18. Phones (13 Nov; done on 14 Nov): the hosted page looked at as an iPhone 13 (390 px, touch, French) on the second match. Fine: no
     horizontal page scroll, 1.3 MB loaded (`data.js` 51 KB compressed). Done, in the order advised:
     1-3. Done (14 Nov): on a phone, something played while the replay is out of sight opens it in a sheet from the bottom
