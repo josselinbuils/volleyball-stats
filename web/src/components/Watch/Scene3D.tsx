@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { loadBall3d } from '@/lib/ball3d';
+import { clock } from '@/lib/format';
 import { match, versioned } from '@/lib/match';
-import type { Scene, SceneState } from '@/scene3d/scene';
+import { seek, togglePlay, usePlayer, useVideoTime } from '@/lib/player';
+import { useSet } from '@/lib/sets';
+import type { Scene, SceneState, VrAction } from '@/scene3d/scene';
+import { span as allowed } from '@/components/Watch/helpers/span';
+import { useWatchList } from '@/components/Watch/useWatchList';
 import { Hint } from '@/components/Tip';
 import { Button } from '@/components/ui/button';
 import { ErrorNote } from '@/components/ErrorNote';
@@ -95,23 +100,69 @@ function useVrOffered(): boolean {
   return offered;
 }
 
+// Seconds the panel's buttons move the video by, as the page's.
+const SKIP = 10;
+
+/** The video's controls on the headset's panel: its time and state shown there, its presses (and the trigger away from it)
+ * acting on the video, as the page's controls do. `act` hears them. */
+function VrControls({ scene, act }: { scene: Scene; act: { current: (action: VrAction | 'select') => void } }) {
+  const { video } = usePlayer();
+  const { set, rallies } = useSet();
+  const { entries, at, step } = useWatchList();
+  const span = useMemo(() => allowed(rallies, set === null, match.duration), [rallies, set]);
+  const time = Math.min(span.end, Math.max(span.start, useVideoTime(Math.floor)));
+  const [playing, setPlaying] = useState(!!video && !video.paused);
+  useEffect(() => {
+    if (!video) {
+      return;
+    }
+    const heard = () => setPlaying(!video.paused);
+    heard();
+    video.addEventListener('play', heard);
+    video.addEventListener('pause', heard);
+    return () => {
+      video.removeEventListener('play', heard);
+      video.removeEventListener('pause', heard);
+    };
+  }, [video]);
+  useEffect(() => {
+    scene.panel({ playing, time: `${clock(time)} / ${clock(span.end)}`, share: (time - span.start) / Math.max(1, span.end - span.start) });
+  }, [scene, playing, time, span]);
+  act.current = (action) => {
+    if (!video) {
+      return;
+    }
+    if (action === 'select' || action === 'play') {
+      togglePlay(video);
+    } else if (typeof action === 'number') {
+      seek(video, span.start + action * (span.end - span.start));
+    } else if (action === 'back' || action === 'forward') {
+      seek(video, Math.min(span.end, Math.max(span.start, video.currentTime + (action === 'back' ? -SKIP : SKIP))));
+    } else {
+      const by = action === 'next' ? 1 : -1;
+      if (entries[at + by]) {
+        step(by);
+      }
+    }
+  };
+  return null;
+}
+
 /** The 3D scene of the court at the moment `state` describes, turned with the pointer; `onHover`
  * hears of the player under the pointer, null when none or while turning. `vr` offers it in a headset where there is one,
- * `onSelect` hearing of its trigger. */
+ * the video's controls on a panel there. */
 export function Scene3D({
   state,
   onHover,
   badge = true,
   overlay,
   vr = false,
-  onSelect,
 }: {
   state: Omit<SceneState, 'colors'>;
   onHover: (key: number | null) => void;
   badge?: boolean;
   overlay?: ReactNode;
   vr?: boolean;
-  onSelect?: () => void;
 }) {
   const { t } = useTranslation();
   const box = useRef<HTMLDivElement>(null);
@@ -122,8 +173,8 @@ export function Scene3D({
   const [inVr, setInVr] = useState(false);
   const [opening, setOpening] = useState(false);
   const [vrError, setVrError] = useState<string | null>(null);
-  const selected = useRef(onSelect);
-  selected.current = onSelect;
+  // The headset's presses, heard by `VrControls` while it shows the view.
+  const act = useRef<(action: VrAction | 'select') => void>(() => {});
   // The theme, the `dark` class on <html>, or the scene moving into full screen's dark panel (its size changes): it
   // recolours, paused or not.
   const [theme, setTheme] = useState(0);
@@ -153,7 +204,8 @@ export function Scene3D({
               frameSource(session);
               setInVr(!!session);
             },
-            onSelect: () => selected.current?.(),
+            onSelect: () => act.current('select'),
+            onControl: (action) => act.current(action),
           });
           setStatus('ready');
         }
@@ -183,6 +235,7 @@ export function Scene3D({
         onPointerMove={(e) => onHover(e.buttons || !scene.current ? null : scene.current.pick(e.clientX, e.clientY))}
         onPointerLeave={() => onHover(null)}
       />
+      {inVr && scene.current && <VrControls scene={scene.current} act={act} />}
       {status !== 'ready' && <p className="absolute inset-0 m-0 grid place-items-center text-sm text-muted-foreground">{t(status === 'failed' ? 'scene3d.failed' : 'scene3d.loading')}</p>}
       {overlay}
       {status === 'ready' && (vr || inVr) && offered && (

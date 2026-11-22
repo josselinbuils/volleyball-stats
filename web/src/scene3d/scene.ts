@@ -4,6 +4,9 @@ import type { Sponsor } from '@/lib/match';
 import { HAIRS as HAIR_COLOURS, SKINS, lookKey, type Look } from '@/lib/looks';
 import { addHall, at, painted } from '@/scene3d/hall';
 import { turnedTo } from '@/scene3d/turn';
+import { vrPanel, type VrAction, type VrPanelState } from '@/scene3d/vrPanel';
+
+export type { VrAction, VrPanelState };
 
 /** A point of the scene in court metres: x along the court (net at 0), y across it (towards the
  * camera positive), h above the floor. */
@@ -47,13 +50,17 @@ export interface Scene {
   enterVr: () => Promise<void>;
   /** Back from the headset to the page. */
   leaveVr: () => void;
+  /** What the video's panel on the left hand shows. */
+  panel: (state: VrPanelState) => void;
   dispose: () => void;
 }
 
-/** What the page hears from the headset: its session starting (null when it ends), the trigger pressed. */
+/** What the page hears from the headset: its session starting (null when it ends), the trigger pressed away from the
+ * panel, a press on the panel. */
 export interface SceneEvents {
   onSession?: (session: XRSession | null) => void;
   onSelect?: () => void;
+  onControl?: (action: VrAction) => void;
 }
 
 // The camera's direction, from the stand behind the camera's sideline, a little to the left so the
@@ -83,16 +90,24 @@ const SLOW = 4;
 const FAST = 14;
 // Twice the real ball's radius, to follow it at a glance as on the top view.
 const BALL_R = 0.21;
-// In VR the viewer starts standing 3.5 m behind the near sideline, in line with the net, facing it; the sticks move them
-// at up to WALK m/s along the floor and CLIMB m/s up or down, under the roof, and turn them in TURN steps.
+// In VR the viewer starts standing 3.5 m behind the near sideline, in line with the net, facing it; the left stick moves
+// them at up to WALK m/s along the floor, the right one turns their view at up to TURN rad/s in any direction (the floor
+// tilted MAX_TILT at most), two buttons move them CLIMB m/s up or down, under the roof.
 const VR_START = at(0, 8, 0);
 const WALK = 3;
+const TURN = Math.PI / 2;
+const MAX_TILT = THREE.MathUtils.degToRad(80);
 const CLIMB = 2;
 const ROOF = 10;
-const TURN = Math.PI / 6;
-// A stick's travel under DEAD is rest; a turn waits for the stick past PUSHED, then back under DEAD.
+// A stick's travel under DEAD is rest.
 const DEAD = 0.15;
-const PUSHED = 0.7;
+// The xr-standard gamepad's lower and upper face buttons: A and B on the right hand, X and Y on the left.
+const DOWN_BUTTON = 4;
+const UP_BUTTON = 5;
+// The video's panel above the left hand, tilted towards the eyes; the right hand's ray reaches it from up to RAY_M.
+const PANEL_AT = new THREE.Vector3(0, 0.07, 0.02);
+const PANEL_TILT = -0.7;
+const RAY_M = 3;
 // How long a headset has to send its first frame.
 const FIRST_FRAME_MS = 5000;
 
@@ -520,12 +535,35 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   let tip: { text: string; sprite: THREE.Sprite } | null = null;
   const raycaster = new THREE.Raycaster();
 
-  // The controllers, in the rig: their sticks read every frame, a grip held drags the hall, the trigger plays and pauses.
+  // The controllers, in the rig: their sticks read every frame, a grip held drags the hall, the trigger presses the panel's
+  // button the right hand points at, else plays and pauses. The panel rides the left hand, the ray the right one.
+  const panel = vrPanel();
+  panel.mesh.position.copy(PANEL_AT);
+  panel.mesh.rotation.x = PANEL_TILT;
+  const ray = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xffffff }));
+  ray.visible = false;
+  let pointed: VrAction | null = null;
   const hands = [0, 1].map((k) => {
     const hand = renderer.xr.getController(k);
-    hand.addEventListener('connected', (e) => (hand.userData.source = e.data));
-    hand.addEventListener('disconnected', () => (hand.userData.source = null));
-    hand.addEventListener('select', () => events.onSelect?.());
+    hand.addEventListener('connected', (e) => {
+      hand.userData.source = e.data;
+      if (e.data.handedness === 'left') {
+        hand.add(panel.mesh);
+      } else if (e.data.handedness === 'right') {
+        hand.add(ray);
+      }
+    });
+    hand.addEventListener('disconnected', () => {
+      hand.userData.source = null;
+      hand.remove(panel.mesh, ray);
+    });
+    hand.addEventListener('select', () => {
+      if (pointed !== null && ray.parent === hand) {
+        events.onControl?.(pointed);
+      } else {
+        events.onSelect?.();
+      }
+    });
     hand.addEventListener('squeezestart', () => (hand.userData.held = hand.position.clone()));
     hand.addEventListener('squeezeend', () => (hand.userData.held = null));
     // A small ball where the hand is: the controllers are not drawn.
@@ -533,9 +571,28 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     rig.add(hand);
     return hand;
   });
-  let turnReady = true;
   const head = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
+  const pointer = new THREE.Raycaster();
+  /** Finds what the right hand's ray points at on the panel, lit, the ray drawn up to it. */
+  const point = () => {
+    const hand = ray.parent;
+    pointed = null;
+    if (hand && panel.mesh.parent) {
+      hand.updateMatrixWorld();
+      panel.mesh.updateMatrixWorld();
+      pointer.ray.origin.setFromMatrixPosition(hand.matrixWorld);
+      pointer.ray.direction.set(0, 0, -1).transformDirection(hand.matrixWorld);
+      pointer.far = RAY_M;
+      const hit = pointer.intersectObject(panel.mesh, false)[0];
+      if (hit?.uv) {
+        pointed = panel.at(hit.uv);
+        ray.scale.z = hit.distance;
+      }
+    }
+    ray.visible = pointed !== null;
+    panel.hover(pointed);
+  };
   /** Moves the rig by the sticks and grips over `seconds`. */
   const steer = (seconds: number) => {
     for (const hand of hands) {
@@ -552,23 +609,28 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
         continue;
       }
       const [x, y] = [axes[2], axes[3]].map((a) => (Math.abs(a) < DEAD ? 0 : a));
+      const buttons = source!.gamepad!.buttons;
+      const climb = (buttons[UP_BUTTON]?.pressed ? 1 : 0) - (buttons[DOWN_BUTTON]?.pressed ? 1 : 0);
+      rig.position.y = Math.min(ROOF, Math.max(0, rig.position.y + climb * CLIMB * seconds));
       if (source!.handedness === 'left') {
         // Forward where the viewer looks, on the floor's plane.
         const forward = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x);
         rig.position.addScaledVector(forward, -y * WALK * seconds).addScaledVector(right, x * WALK * seconds);
-      } else {
-        rig.position.y = Math.min(ROOF, Math.max(0, rig.position.y - y * CLIMB * seconds));
-        if (turnReady && Math.abs(x) > PUSHED) {
-          // Around the viewer's head: it stays where it is.
-          const angle = -Math.sign(x) * TURN;
-          camera.getWorldPosition(head);
-          rig.position.sub(head).applyAxisAngle(up, angle).add(head);
-          rig.rotation.y += angle;
-          turnReady = false;
-        } else if (x === 0) {
-          turnReady = true;
+      } else if (x || y) {
+        // Around the viewer's head, which stays where it is: sideways around the vertical, up and down around the
+        // horizontal across the view, as long as the floor stays under MAX_TILT.
+        camera.getWorldPosition(head);
+        const turn = new THREE.Quaternion().setFromAxisAngle(up, -x * TURN * seconds);
+        const across = camera.getWorldDirection(new THREE.Vector3()).cross(up);
+        if (across.lengthSq() > 1e-4) {
+          const tilted = turn.clone().multiply(new THREE.Quaternion().setFromAxisAngle(across.normalize(), -y * TURN * seconds));
+          if (up.clone().applyQuaternion(tilted.clone().multiply(rig.quaternion)).y > Math.cos(MAX_TILT)) {
+            turn.copy(tilted);
+          }
         }
+        rig.position.sub(head).applyQuaternion(turn).add(head);
+        rig.quaternion.premultiply(turn);
       }
     }
   };
@@ -596,6 +658,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
       }
       firstFrame?.();
       steer(last ? Math.min(0.1, (time - last) / 1000) : 0);
+      point();
       last = time;
       renderer.render(scene, camera);
     });
@@ -604,6 +667,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     renderer.setAnimationLoop(null);
     events.onSession?.(null);
     hands.forEach((hand) => (hand.userData.held = null));
+    pointed = null;
+    ray.visible = false;
     rig.position.set(0, 0, 0);
     rig.rotation.set(0, 0, 0);
     if (before) {
@@ -849,12 +914,16 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     leaveVr() {
       void renderer.xr.getSession()?.end();
     },
+    panel(state) {
+      panel.set(state);
+    },
     dispose() {
       void renderer.xr.getSession()?.end();
       hall.stop();
       observer.disconnect();
       cancelAnimationFrame(frame);
       controls.dispose();
+      panel.dispose();
       renderer.dispose();
       // dispose() keeps the WebGL context, and browsers hold only a few.
       renderer.forceContextLoss();

@@ -99,7 +99,7 @@ The pipeline's weak spots and what is left to do, most useful first.
     the session but never sends a frame to a WebXR projection layer, which three.js picks where the browser has them;
     `scene.enterVr` hides them while three.js picks (the plain `XRWebGLLayer`), and leaves VR with an error when no frame
     comes in 5 s. Left: standalone in the Quest Browser on the hosted page (HTTPS) once uploaded with the owner; comfort and
-    speeds (`WALK`, `CLIMB`, `TURN` in `scene3d/scene.ts`), the name tags' size (`tag`'s `sizeAttenuation: false`,
+    speeds (`WALK`, `CLIMB`, `TURN` in `scene3d/scene.ts`), the video panel's place on the left hand (`PANEL_AT`, `PANEL_TILT`), the name tags' size (`tag`'s `sizeAttenuation: false`,
     screen-sized), the grip drag's direction, the frame rate standalone (the 2048 shadow map).
 21. Done (15-16 Nov): the 3D players' looks (`likeness.py`, [match-page.md](match-page.md) "3D view",
     [benchmark](../benchmarks/likeness/README.md)). Hair colour, hairstyle and skin guessed from each player's card picture
