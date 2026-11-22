@@ -923,7 +923,7 @@
     "vr": "View in VR",
     "leaveVr": "Leave VR",
     "vrFailed": "VR could not open.",
-    "vrNote": "Left stick: move. Right stick: turn. Grip: drag the hall. Trigger: play, pause, or aim at the buttons on the left hand."
+    "vrNote": "Left stick: push to aim, release to go there. Right stick: turn. Trigger: play, pause, or aim at the buttons on the left hand."
   },
   "matches": {
     "heading": "Stats",

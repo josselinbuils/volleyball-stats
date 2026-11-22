@@ -105,9 +105,11 @@ moments.
   - the ball's height reconstructed, each flight rising as high as gravity requires for its duration,
     and over the net when it crosses it, each touch at a typical height for its action;
   - "Voir en VR" (in the 3D view, not TV, where the browser offers `immersive-vr`: Quest Browser, Chrome or Edge with a PC
-    headset, Safari on Vision Pro) puts the scene in a headset (WebXR, `scene.enterVr`), standing at the side line: left
-    stick moves where one looks, right stick turns smoothly around the head, as one walks (always upright, on the
-    floor), a grip drags the hall along the floor. The video's controls ride the
+    headset, Safari on Vision Pro) puts the scene in a headset (WebXR, `scene.enterVr`), standing at the side line, the eyes at
+    the figures' (1.39 m, whatever the viewer's height, measured at the first pose). One moves as in Half-Life: Alyx:
+    the left stick pushed forward throws a dotted arc from the left hand, blue where it lands on the floor, red on a
+    wall or near one, and released blinks the viewer there (a 0.1 s fade out and in); the right stick snaps 45° turns
+    around the head. The video's controls ride the
     left hand (`scene3d/vrPanel.ts`: previous and next rally, 10 s back and forward, play and pause, the timeline and
     time, from `VrControls` in `Scene3D.tsx`), the right hand's ray lighting the button the trigger presses; the trigger
     elsewhere plays and pauses. The hover tip hidden, the orbit and camera back on leaving. The page's loops take

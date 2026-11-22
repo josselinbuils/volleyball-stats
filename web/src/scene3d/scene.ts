@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Sponsor } from '@/lib/match';
 import { HAIRS as HAIR_COLOURS, SKINS, lookKey, type Look } from '@/lib/looks';
-import { addHall, at, painted } from '@/scene3d/hall';
+import { FLOOR, addHall, at, painted } from '@/scene3d/hall';
 import { turnedTo } from '@/scene3d/turn';
 import { vrPanel, type VrAction, type VrPanelState } from '@/scene3d/vrPanel';
 
@@ -67,9 +67,10 @@ export interface SceneEvents {
 // net shows in perspective, and the point it looks at; the pointer turns it around that point.
 const EYE = new THREE.Vector3(-3.5, 7.5, 15.5);
 const TARGET = new THREE.Vector3(0.5, 0.6, 0);
-// A figure's hips and shoulders, and how far a full crouch lowers its pelvis.
+// A figure's hips, shoulders and eyes, and how far a full crouch lowers its pelvis.
 const HIP = 0.5;
 const SHOULDER = 1.08;
+const EYES = 1.39;
 const CROUCH_M = 0.25;
 const FOV = 40;
 const NEAR = 0.5;
@@ -90,13 +91,20 @@ const SLOW = 4;
 const FAST = 14;
 // Twice the real ball's radius, to follow it at a glance as on the top view.
 const BALL_R = 0.21;
-// In VR the viewer starts standing 3.5 m behind the near sideline, in line with the net, facing it, and moves as one
-// walks: the left stick takes them at up to WALK m/s along the floor, the right one turns them at up to TURN rad/s.
+// In VR the viewer starts 3.5 m behind the near sideline, in line with the net, facing it, their eyes at the figures'
+// whatever their height. They move as in Half-Life: Alyx: the left stick pushed forward throws an arc of dots from the left
+// hand at ARC_SPEED m/s, released it blinks them where the arc lands on the floor, WALL_GAP from the walls (the view fades out
+// and in over FADE_S each way); the right stick pushed aside turns them by SNAP. A stick past PUSH is pushed, under REST
+// released.
 const VR_START = at(0, 8, 0);
-const WALK = 3;
-const TURN = Math.PI / 2;
-// A stick's travel under DEAD is rest.
-const DEAD = 0.15;
+const ARC_SPEED = 9;
+const ARC_POINTS = 80;
+const ARC_STEP_S = 0.02;
+const WALL_GAP = 0.4;
+const FADE_S = 0.1;
+const SNAP = Math.PI / 4;
+const PUSH = 0.6;
+const REST = 0.3;
 // The video's panel above the left hand, tilted towards the eyes; the right hand's ray reaches it from up to RAY_M.
 const PANEL_AT = new THREE.Vector3(0, 0.07, 0.02);
 const PANEL_TILT = -0.7;
@@ -413,7 +421,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
       arms.push(arm);
       part(arm, shapes.sleeve, shirt, side * 0.01, 1.0 - SHOULDER).rotation.z = side * 0.3;
       part(arm, shapes.arm, skin, side * 0.05, 0.78 - SHOULDER).rotation.z = side * 0.12;
-      part(torso, shapes.eye, eye, side * 0.085, 1.39 - HIP, 0.235);
+      part(torso, shapes.eye, eye, side * 0.085, EYES - HIP, 0.235);
     }
     part(torso, shapes.shorts, shorts, 0, 0.58 - HIP).scale.set(hips, 1, 0.75);
     part(torso, shapes.chest, shirt, 0, 0.88 - HIP).scale.set(waist, 1, 0.7);
@@ -528,8 +536,8 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   let tip: { text: string; sprite: THREE.Sprite } | null = null;
   const raycaster = new THREE.Raycaster();
 
-  // The controllers, in the rig: their sticks read every frame, a grip held drags the hall, the trigger presses the panel's
-  // button the right hand points at, else plays and pauses. The panel rides the left hand, the ray the right one.
+  // The controllers, in the rig: their sticks read every frame, the trigger presses the panel's button the right hand points
+  // at, else plays and pauses. The panel rides the left hand, the ray the right one.
   const panel = vrPanel();
   panel.mesh.position.copy(PANEL_AT);
   panel.mesh.rotation.x = PANEL_TILT;
@@ -557,8 +565,6 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
         events.onSelect?.();
       }
     });
-    hand.addEventListener('squeezestart', () => (hand.userData.held = hand.position.clone()));
-    hand.addEventListener('squeezeend', () => (hand.userData.held = null));
     // A small ball where the hand is: the controllers are not drawn.
     hand.add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), solid(0xdddddd)));
     rig.add(hand);
@@ -566,6 +572,57 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
   });
   const head = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
+  // The teleport's arc, dots ARC_STEP_S of flight apart, and the ring where it lands: light blue, red where one cannot go.
+  const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ depthTest: false, transparent: true }), ARC_POINTS);
+  const spot = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ depthTest: false, transparent: true }));
+  for (const mark of [dots, spot]) {
+    mark.frustumCulled = false;
+    mark.visible = false;
+    mark.renderOrder = 5;
+    scene.add(mark);
+  }
+  // Black around the eyes during a blink.
+  const veil = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 8), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide, transparent: true, depthTest: false }));
+  veil.renderOrder = 10;
+  veil.visible = false;
+  camera.add(veil);
+  // The rig's height putting the viewer's eyes at the figures', measured at their first pose; the hand aiming, where its
+  // arc lands (null on a wall or near one), the blink under way, whether the right stick turned and is not yet back.
+  let lift: number | null = null;
+  let aiming: THREE.Object3D | null = null;
+  let landing: THREE.Vector3 | null = null;
+  let blink: { t: number; to: THREE.Vector3; moved: boolean } | null = null;
+  let snapped = false;
+  /** Throws the arc from `hand` and finds where it lands, null on a wall or near one. */
+  const throwArc = (hand: THREE.Object3D) => {
+    hand.updateWorldMatrix(true, false);
+    const p = new THREE.Vector3().setFromMatrixPosition(hand.matrixWorld);
+    const v = new THREE.Vector3(0, 0, -1).transformDirection(hand.matrixWorld).multiplyScalar(ARC_SPEED);
+    const place = new THREE.Matrix4();
+    let landed = false;
+    let count = 0;
+    while (!landed && count < ARC_POINTS) {
+      dots.setMatrixAt(count++, place.makeTranslation(p));
+      const next = p.clone().addScaledVector(v, ARC_STEP_S);
+      v.y -= 9.8 * ARC_STEP_S;
+      // A wall stops it.
+      if (Math.abs(next.x) > FLOOR.x || next.z < FLOOR.far || next.z > FLOOR.near) {
+        break;
+      }
+      landed = next.y <= 0;
+      p.copy(landed ? p.lerp(next, p.y / (p.y - next.y)).setY(0) : next);
+    }
+    dots.count = count;
+    dots.instanceMatrix.needsUpdate = true;
+    const inside = Math.abs(p.x) < FLOOR.x - WALL_GAP && p.z > FLOOR.far + WALL_GAP && p.z < FLOOR.near - WALL_GAP;
+    landing = landed && inside ? p : null;
+    const colour = landing ? 0x7dd3fc : 0xef4444;
+    (dots.material as THREE.MeshBasicMaterial).color.set(colour);
+    (spot.material as THREE.MeshBasicMaterial).color.set(colour);
+    spot.position.copy(p);
+    dots.visible = true;
+    spot.visible = landed;
+  };
   const pointer = new THREE.Raycaster();
   /** Finds what the right hand's ray points at on the panel, lit, the ray drawn up to it. */
   const point = () => {
@@ -586,35 +643,61 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     ray.visible = pointed !== null;
     panel.hover(pointed);
   };
-  /** Moves the rig by the sticks and grips over `seconds`. */
+  /** Moves the rig by the sticks over `seconds`: the teleport's arc and blink, the snap turns. */
   const steer = (seconds: number) => {
-    for (const hand of hands) {
-      const held = hand.userData.held as THREE.Vector3 | null;
-      if (held) {
-        // The hand moved by `delta` in the rig: the rig moves the other way along the floor, the hall staying in the hand.
-        const delta = hand.position.clone().sub(held).applyQuaternion(rig.quaternion).setY(0);
-        rig.position.sub(delta);
-        held.copy(hand.position);
+    rig.position.y = lift ?? 0;
+    if (blink) {
+      blink.t += seconds;
+      if (!blink.moved && blink.t >= FADE_S) {
+        // The head lands on the spot, the eyes at their height.
+        camera.getWorldPosition(head);
+        rig.position.x += blink.to.x - head.x;
+        rig.position.z += blink.to.z - head.z;
+        blink.moved = true;
       }
+      (veil.material as THREE.MeshBasicMaterial).opacity = Math.min(1, blink.t < FADE_S ? blink.t / FADE_S : 2 - blink.t / FADE_S);
+      veil.visible = blink.t < 2 * FADE_S;
+      if (!veil.visible) {
+        blink = null;
+      }
+    }
+    for (const hand of hands) {
       const source = hand.userData.source as XRInputSource | null;
       const axes = source?.gamepad?.axes;
       if (!axes || axes.length < 4) {
         continue;
       }
-      const [x, y] = [axes[2], axes[3]].map((a) => (Math.abs(a) < DEAD ? 0 : a));
+      const [x, y] = [axes[2], axes[3]];
       if (source!.handedness === 'left') {
-        // Forward where the viewer looks, on the floor's plane.
-        const forward = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
-        const right = new THREE.Vector3(-forward.z, 0, forward.x);
-        rig.position.addScaledVector(forward, -y * WALK * seconds).addScaledVector(right, x * WALK * seconds);
-      } else if (x) {
+        if (!aiming && -y > PUSH) {
+          aiming = hand;
+        }
+        if (aiming === hand && Math.hypot(x, y) < REST) {
+          aiming = null;
+          dots.visible = spot.visible = false;
+          if (landing && !blink) {
+            blink = { t: 0, to: landing.clone(), moved: false };
+          }
+        } else if (aiming === hand) {
+          throwArc(hand);
+        }
+      } else if (!snapped && Math.abs(x) > PUSH) {
         // Around the vertical through the viewer's head, which stays where it is.
-        const angle = -x * TURN * seconds;
+        const angle = -Math.sign(x) * SNAP;
         camera.getWorldPosition(head);
         rig.position.sub(head).applyAxisAngle(up, angle).add(head);
         rig.rotation.y += angle;
+        snapped = true;
+      } else if (Math.abs(x) < REST) {
+        snapped = false;
       }
     }
+  };
+  /** Forgets the moves under way. */
+  const still = () => {
+    lift = landing = aiming = blink = null;
+    snapped = false;
+    dots.visible = spot.visible = veil.visible = false;
   };
   // The page's view, put back on leaving VR.
   let before: { position: THREE.Vector3; quaternion: THREE.Quaternion; target: THREE.Vector3; fov: number; near: number; controls: boolean } | null = null;
@@ -626,6 +709,7 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
     controls.enabled = false;
     rig.position.copy(VR_START);
     rig.rotation.set(0, 0, 0);
+    still();
     camera.near = DIRECTED_NEAR;
     camera.updateProjectionMatrix();
     cancelAnimationFrame(frame);
@@ -643,12 +727,16 @@ export function mount(element: HTMLElement, sponsors: Sponsor[] = [], events: Sc
       point();
       last = time;
       renderer.render(scene, camera);
+      // The render put the headset's pose in the camera, in the rig.
+      if (lift === null && camera.position.y > 0.5) {
+        lift = EYES - camera.position.y;
+      }
     });
   });
   renderer.xr.addEventListener('sessionend', () => {
     renderer.setAnimationLoop(null);
     events.onSession?.(null);
-    hands.forEach((hand) => (hand.userData.held = null));
+    still();
     pointed = null;
     ray.visible = false;
     rig.position.set(0, 0, 0);

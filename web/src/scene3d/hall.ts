@@ -29,6 +29,8 @@ const SIDE_BANNERS = [-14, -5, 4];
 const FAR_BANNER = { x: -7.5, h: 2, width: 4 };
 
 /** A point in court metres to the scene's axes: x, height up, y towards the viewer. */
+/** The hall's floor between its walls, in court metres: across to ±x, from `far` to `near` along y. */
+export const FLOOR = { x: WALL_X, far: FAR_Y, near: NEAR_Y };
 export const at = (x: number, y: number, h = 0) => new THREE.Vector3(x, h, y);
 
 /** A canvas of `width` × `height` pixels drawn by `paint`, as a texture. */
