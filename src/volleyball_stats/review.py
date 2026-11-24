@@ -2177,9 +2177,7 @@ def page_content(match: Path) -> dict:
 
 def page_changes(sent: dict, now: dict) -> list[dict]:
     """What changed from the page content `sent` to `now` (`page_content`): each part of the data that differs, with how many of
-    its items changed, added or went (a list's, a mapping's) and, for NAMED_KEYS, which (`keys`: the players by name), then
-    "code" with the pages whose code did (`keys` None when `sent` is older than the stamps by page) and the commits that changed
-    it when git tells them (`commits`, `code_commits`)."""
+    its items changed, added or went (a list's, a mapping's) and, for NAMED_KEYS, which (`keys`: the players by name)."""
     out = []
     old, new = sent["data"], now["data"]
     for part in sorted(set(old) | set(new)):
@@ -2206,20 +2204,9 @@ def page_changes(sent: dict, now: dict) -> list[dict]:
         else:
             count = None
         out.append({"part": part, "count": count, **({"keys": keys} if keys else {})})
-    # Once each: the positions may come with the players' and on their own.
-    out = list({c["part"]: c for c in out}.values())
-    if "code" not in sent:
-        return out
-    if isinstance(sent["code"], str):
-        if sent["code"] != now["code"]:
-            out.append({"part": "code", "count": None})
-        return out
-    # An upload records the code it knew of: the 3D view's is unknown for the older ones.
-    pages = [name for name in CODE_PAGES if name in sent["code"] and sent["code"][name] != now["code"].get(name)]
-    if not pages:
-        return out
-    commits = code_commits({name: sent["code"][name] for name in pages}, now["code"])
-    return [*out, {"part": "code", "count": None, "keys": pages, **({"commits": commits} if commits else {})}]
+    # Once each: the positions may come with the players' and on their own. The code an older upload recorded is the site's
+    # now (`site_code`).
+    return list({c["part"]: c for c in out}.values())
 
 
 # The commits the late page's tip names under the code, at most.
@@ -2256,6 +2243,9 @@ def read_hosted(match: Path, code: bool = True) -> dict:
     saved = json.loads(path.read_text()) if path.exists() else None
     state = hosted_state(saved, page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)) if saved else STAMPED), date.today())
     state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
+    # An upload before the shared code stamped its pages' code too: late only for its data now.
+    if state["behind"] and saved and saved.get("pages", OLD_STAMPED) and state["changes"] == []:
+        state["behind"], state["changes"] = False, None
     config = match / matches.PUBLISH
     given = json.loads(config.read_text()) if config.exists() else None
     state["copiesStale"] = bool(given) and matches.copies_stale(match, given)

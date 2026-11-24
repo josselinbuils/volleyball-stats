@@ -1466,7 +1466,7 @@ def test_the_commentary_an_upload_makes_leaves_its_page_on_time(tmp_path, monkey
 
 
 class TestPageChanges:
-    def test_each_changed_part_with_how_many_of_its_items_then_the_code(self):
+    def test_each_changed_part_with_how_many_of_its_items(self):
         from volleyball_stats.review import page_changes
 
         sent = {"data": {"contacts": [{"f": 1}, {"f": 2}, {"f": 3}], "people": {"1": {"name": "Ana"}, "2": {"name": "Bob"}}, "ball3d": True, "club": {"name": "A"}, "positions": {"step": 1}, "name": "m"}, "code": {"page": "a", "list": "c"}}
@@ -1478,7 +1478,6 @@ class TestPageChanges:
             {"part": "contacts", "count": 2},
             {"part": "people", "count": 1, "keys": ["Bobby"]},
             {"part": "positions", "count": 1},
-            {"part": "code", "count": None, "keys": ["page"]},
         ]
         assert page_changes(sent, sent) == []
 
@@ -1490,10 +1489,10 @@ class TestPageChanges:
 
         assert page_changes(sent, now) == [{"part": "positions", "count": None}]
 
-    def test_an_upload_older_than_the_stamps_by_page_says_only_the_code_changed(self):
+    def test_the_code_an_older_upload_recorded_is_no_change_of_its_page(self):
         from volleyball_stats.review import page_changes
 
-        assert page_changes({"data": {}, "code": "a"}, {"data": {}, "code": {"page": "b", "list": "c"}}) == [{"part": "code", "count": None}]
+        assert page_changes({"data": {}, "code": "a"}, {"data": {}, "code": {"page": "b", "list": "c"}}) == []
 
     def test_the_code_comes_with_the_commits_that_changed_it_once_each_at_most_five(self, monkeypatch):
         from volleyball_stats import git_check, review
@@ -1501,10 +1500,9 @@ class TestPageChanges:
         found = {"a": [(5, "e"), (3, "c")], "b": [(6, "f"), (5, "e"), (4, "d"), (2, "b"), (1, "a")]}
         monkeypatch.setattr(git_check, "commits_since", lambda path, since, now: found.get(since))
 
-        change = review.page_changes({"data": {}, "code": {"page": "a", "list": "b"}}, {"data": {}, "code": {"page": "x", "list": "y"}})[-1]
-        assert change["commits"] == ["f", "e", "d", "c", "+2"]
+        assert review.code_commits({"page": "a", "list": "b"}, {"page": "x", "list": "y"}) == ["f", "e", "d", "c", "+2"]
         found["a"] = None
-        assert "commits" not in review.page_changes({"data": {}, "code": {"page": "a", "list": "b"}}, {"data": {}, "code": {"page": "x", "list": "y"}})[-1]
+        assert review.code_commits({"page": "a", "list": "b"}, {"page": "x", "list": "y"}) is None
 
     def test_a_late_page_says_what_changed_since_the_upload(self, tmp_path):
         from volleyball_stats import review
@@ -1537,7 +1535,7 @@ class TestPageChanges:
         assert state["behind"] and state["changes"] == [{"part": "siteCode", "count": None, "keys": ["3d"]}]
         assert review.site_code(site)["change"] == {"part": "code", "count": None, "keys": ["3d"]}
 
-    def test_an_upload_recorded_with_the_code_of_each_page_shows_it_late_until_the_next(self, tmp_path, monkeypatch):
+    def test_an_upload_recorded_with_the_code_of_each_page_is_late_only_for_its_data(self, tmp_path, monkeypatch):
         from volleyball_stats import review
 
         scene = tmp_path / "scene3d.js"
@@ -1550,8 +1548,10 @@ class TestPageChanges:
         assert not review.read_hosted(tmp_path)["behind"]
         scene.write_text("b")
 
+        assert not review.read_hosted(tmp_path)["behind"]
+        TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
         state = review.read_hosted(tmp_path)
-        assert state["behind"] and state["changes"] == [{"part": "code", "count": None, "keys": ["3d"]}]
+        assert state["behind"] and state["changes"] == [{"part": "name", "count": None}]
 
     def test_an_upload_from_before_the_3d_views_stamp_is_judged_without_it(self, tmp_path, monkeypatch):
         from volleyball_stats import review
