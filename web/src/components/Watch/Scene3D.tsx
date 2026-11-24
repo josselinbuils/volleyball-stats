@@ -16,11 +16,12 @@ import { frameSource } from '@/lib/frames';
 
 let loading: Promise<void> | null = null;
 
-/** scene3d.js, beside the page, loaded once on the first 3D view. */
+/** scene3d.js, beside the page (online, the site's copy its meta names), loaded once on the first 3D view. */
 export function loadScene(): Promise<void> {
   loading ??= new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = versioned('scene3d.js');
+    // Online, the site's one named by its content (`matches.share_code`); beside the page in the review.
+    script.src = document.querySelector<HTMLMetaElement>('meta[name="scene3d"]')?.content || versioned('scene3d.js');
     script.onload = () => resolve();
     script.onerror = () => {
       loading = null;

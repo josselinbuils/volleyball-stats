@@ -684,6 +684,7 @@ def server_state() -> dict:
         "auto": sync.auto(OUTPUTS),
         "last": {k: last[k] for k in ("at", "error", "verified", "problems")},
         "matches": server.listed(OUTPUTS),
+        "code": server.code_state(OUTPUTS),
         "hosting": found.get(HOSTING),
         "backup": found.get(BACKUP),
         "verify": found.get(VERIFY),
@@ -912,7 +913,11 @@ def handle(
             sync.set_auto(OUTPUTS, body["on"])
             return reply(server_state())
         if route == "server/host":
-            # The matches picked, else every match online; those not online yet with the first upload's choice.
+            # The matches picked, else every match online; those not online yet with the first upload's choice. `code`: the
+            # pages' code alone (`matches --code`).
+            if body.get("code") is True:
+                jobs.start(OUTPUTS, HOSTING, HOSTING, [(HOSTING, ["volleyball_stats.matches", "--all", str(MATCHES), "--code"])])
+                return reply(server_state())
             listed_ = server.listed(OUTPUTS)
             picked = body.get("matches")
             if picked is not None and (not isinstance(picked, list) or not picked or not set(picked) <= {m["name"] for m in listed_}):

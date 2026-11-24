@@ -2142,11 +2142,11 @@ def range_of(header: str | None, size: int) -> tuple[int, int] | None:
     return (max(0, first), min(last, size - 1)) if first < size else None
 
 
-# The code the hosted pages run, by the name the late page's tip gives each: the match's page (its scripts and styles are
-# named by their content in it), the list, and the 3D view the page loads by a name that stays.
-CODE_PAGES = {"page": web.TEMPLATE / "index.html", "list": matches.TEMPLATE / "matches.html", "3d": web.TEMPLATE / "scene3d.js"}
-# The code page_stamp takes, in its order; uploads recorded without their `pages` took the first two only.
-STAMPED, OLD_STAMPED = ("list", "page", "3d"), ("list", "page")
+# The code the hosted pages run, by the name the late page's tip gives each (`matches.CODE_FILES`).
+CODE_PAGES = matches.CODE_FILES
+# The code page_stamp takes, in its order: since the site runs one code for all its pages (`matches.share_code`, 24 Nov), none,
+# the code late on its own (`site_code`); uploads recorded without their `pages` took the first two only, then all three.
+STAMPED, OLD_STAMPED = (), ("list", "page")
 
 
 def page_stamp(match: Path, pages: tuple[str, ...] = STAMPED) -> str:
@@ -2208,6 +2208,8 @@ def page_changes(sent: dict, now: dict) -> list[dict]:
         out.append({"part": part, "count": count, **({"keys": keys} if keys else {})})
     # Once each: the positions may come with the players' and on their own.
     out = list({c["part"]: c for c in out}.values())
+    if "code" not in sent:
+        return out
     if isinstance(sent["code"], str):
         if sent["code"] != now["code"]:
             out.append({"part": "code", "count": None})
@@ -2246,16 +2248,33 @@ def hosted_state(saved: dict | None, stamp: str, today: date) -> dict:
     return {"at": at.strftime("%H:%M"), "day": None if at.date() == today else at.date().isoformat(), "error": None, "behind": saved["stamp"] != stamp}
 
 
-def read_hosted(match: Path) -> dict:
+def read_hosted(match: Path, code: bool = True) -> dict:
     """`hosted_state`, with what changed since the last upload when the page is late and it kept what it sent (`changes`),
-    and whether the video's copies were made from other rallies than the review's now (`copiesStale`)."""
+    and whether the video's copies were made from other rallies than the review's now (`copiesStale`). With `code`, the site's
+    code late (`site_code`) makes it late too, as its last cause: its upload puts the code in."""
     path, sent = match / HOSTED, match / HOSTED_PAGE
     saved = json.loads(path.read_text()) if path.exists() else None
     state = hosted_state(saved, page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)) if saved else STAMPED), date.today())
     state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
     config = match / matches.PUBLISH
-    state["copiesStale"] = config.exists() and matches.copies_stale(match, json.loads(config.read_text()))
+    given = json.loads(config.read_text()) if config.exists() else None
+    state["copiesStale"] = bool(given) and matches.copies_stale(match, given)
+    late = site_code(Path(given["site"]).expanduser()) if code and saved and given and given.get("site") else None
+    if late and late["behind"]:
+        state["behind"] = True
+        state["changes"] = [*(state["changes"] or []), {**late["change"], "part": "siteCode"}]
     return state
+
+
+def site_code(site: Path) -> dict:
+    """Whether the pages' code online in `site` (as last uploaded or mirrored, `matches.CODE`) is older than this app's, and
+    what changed (`change`: the pages whose code did, the commits when git tells them). Before CODE, every site was."""
+    sent, now = matches.online_code(site), matches.code_stamps()
+    if sent and sent.get("code") == now:
+        return {"behind": False, "change": None}
+    pages = [name for name in CODE_PAGES if not sent or (sent.get("code") or {}).get(name) != now[name]]
+    commits = code_commits({name: sent["code"][name] for name in pages if name in sent["code"]}, now) if sent and sent.get("code") else None
+    return {"behind": True, "change": {"part": "code", "count": None, "keys": pages, **({"commits": commits} if commits else {})}}
 
 
 def code_version() -> str:
@@ -2287,7 +2306,8 @@ def record_hosted(match: Path, taken: tuple[dict, str] | None = None) -> None:
         data["voice"] = True
     if data != content["data"]:
         content, stamp = {**content, "data": data}, data_stamp(data)
-    files.write_text(match / HOSTED_PAGE, json.dumps(content, ensure_ascii=False) + "\n")
+    # Without the code: the site's, late on its own (`site_code`).
+    files.write_text(match / HOSTED_PAGE, json.dumps({"data": content["data"]}, ensure_ascii=False) + "\n")
     files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": stamp, "pages": list(STAMPED), "code": code_version()}) + "\n")
 
 
@@ -2298,8 +2318,8 @@ def restamp(match: Path, before: str | None) -> None:
     saved = json.loads(path.read_text()) if path.exists() else None
     if not saved or before is None or saved["stamp"] != before or saved.get("code") != CODE or page_stamp(match) == before:
         return
-    files.write_text(match / HOSTED_PAGE, json.dumps(page_content(match), ensure_ascii=False) + "\n")
-    files.write_text(path, json.dumps({**saved, "stamp": page_stamp(match)}) + "\n")
+    files.write_text(match / HOSTED_PAGE, json.dumps({"data": page_content(match)["data"]}, ensure_ascii=False) + "\n")
+    files.write_text(path, json.dumps({**saved, "stamp": page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)))}) + "\n")
 
 
 def match_list(out: Path) -> list[dict]:

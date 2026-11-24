@@ -66,9 +66,13 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   `matches.ensure_publish`); "Tester" checks it answers and holds the folder;
 - lists the matches online, each "À jour" or "En retard" with its link, then those ready to go online, "Pas en ligne"
   (`server.listed`: their pipeline ended, their files there, a real match, not in the site folder). "En retard" once the page's data
-  or the code of the match's page, the list or the 3D view changed since its upload (`review.read_hosted`; the review's
+  changed since its upload (`review.read_hosted`; the review's
   tip lists each cause on its line: "Joueurs" names only the named players whose card changed; the tracks without a name,
-  kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs");
+  kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs"). Above them
+  "Code des pages", the code all the pages share ([below](#the-pages-code)): "En retard" when the app's page, list or 3D
+  view differs from the one online, its tip naming which and the commits since; the review's tip on a match adds it as
+  "Code des pages (tous les matchs)". Ticked alone it goes up alone (`matches --all outputs/matches --code`, seconds);
+  any match's upload takes it too, so its box is ticked and locked while a match is;
 - runs, as jobs that outlive the server, "Mettre à jour" the matches ticked in the list, late or new ones only (an up-to-date
   one's box is off), at first the newest, "Tout sélectionner" ticking every late or new one ("Tout mettre à jour" when all are, "Tout mettre en ligne" if a new one is among them: `matches --all outputs/matches [--only MATCH ...]`, recording each upload as the review does: each page as the upload began, a change made while it runs left late),
   "Mettre en ligne" once a new one is ticked: the review's first-upload choice asked first for those without one
@@ -102,8 +106,9 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
 - `matches.build` tells each match page, and its `video/` one, where the list is (`<meta name="list">`, `link_list`):
   "Tous les matchs" at its top goes back to it, in an export too.
 - Caching: `matches.build` writes `.gz` copies nginx sends as they are (`gzip_static`). Cloudflare and browsers keep the
-  hashed and `?v=` files for good (the unhashed ones load with the build's hash, card pictures with their own), images a
-  day; pages are checked each time; the video copy's files only in the viewer's browser (`private`).
+  hashed and `?v=` files for good (the root `assets/`, named by their content; the unhashed ones load with the build's
+  hash, card pictures with their own), images a day; pages are checked each time; the video copy's files only in the
+  viewer's browser (`private`).
 
 ## Uploading
 
@@ -119,10 +124,9 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   without it (`matches.choose`; to choose again, remove `video` from `publish.json`). Nothing is encoded before that choice: with the video, its copies
   are made then (`video_copies.py`), cut by the automatic zoom (below), then the players' films and the highlights not made
   yet (`film.build`; `matches.first_with_video`), in the review's upload as in the app's list ("Films du match N sur M").
-- Each match page carries the code it was built with, so a change of the page or of the data it is built from reaches the
-  matches online only once rebuilt: the review's "Mettre à jour tous les matchs en ligne" (`matches --all outputs/matches`)
-  rebuilds every match online and uploads them at once (`rsync --delay-updates`: the new files replace the old together),
-  nothing if one cannot be rebuilt.
+- A change of the data a page is built from reaches the matches online only once rebuilt: the review's "Mettre à jour tous
+  les matchs en ligne" (`matches --all outputs/matches`) rebuilds every match online and uploads them at once
+  (`rsync --delay-updates`: the new files replace the old together), nothing if one cannot be rebuilt.
 - A match built from the same inputs as its pages online only takes the page's code (`web.renew_code`: the template copied
   in, data.js's `v` renewed, 0.1 s against 18-28 s for the Haillan match; byte for byte its rebuild's, on 18 Nov). Its
   inputs are one digest in the hosted folder's `made.json` (`matches.made_from`, 1.5 s): the Python code, the match's
@@ -134,6 +138,27 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   of 17.8 (warm cache), its photos 5.8 (the review's questions loaded, 5.2); `players.csv` from its cache
   (`tables`, [pipeline](pipeline.md)): 22.2 -> 16.6 s for both pages; the players' smoothed motion made once for both
   (`natural_motion`): 15.8 -> 14.1 s on the Haillan match.
+
+### The pages' code
+
+Every page online loads the same code, so uploading it takes the same time whatever the number of matches:
+
+- `matches.share_code` moves each page's `assets/` (the page's script and sheet, Vite's hashed names) and its
+  `scene3d.js` (copied as `assets/scene3d-HASH.js`, named in the page's `<meta name="scene3d">`) into the site's root
+  `assets/`, the page's links pointing there. Pages built from the same code name the same files: each is sent once.
+- Any upload (a match's "Mettre en ligne" in the review, the Site tab's) gives the app's code to every other page online of
+  the same data format (`web.renew_code`, a fraction of a second each), so all the pages online run one code.
+  `outputs/hosted/code.json` names it: each page's stamp, the commit and the data format.
+- The data format (`web.FORMAT`, `"format"` in data.js): a page online reads data built before the code. A new field is
+  optional, read with a fallback; a field gone or changed raises `FORMAT` (`web/src/lib/dataFormat.test.ts` fails until it
+  is, from the data's types it keeps in `dataFormat.json`; `UPDATE_FORMAT=1 npx vitest run dataFormat` keeps the new
+  ones). A page of another format keeps its own code until it is rebuilt.
+- A file no page names any longer stays a week (`assets/retired.json`, its day), for a viewer whose page loaded before,
+  then goes (`matches.retire_code`).
+- Two machines: the mirror brings the server's `code.json` first; when it was put there by a newer commit than this
+  machine's (`git merge-base --is-ancestor`), the upload stops: "Le code en ligne vient d'une app plus récente : mettez
+  l'app à jour". A file of `assets/` online that this machine would remove without having retired it stops it too. Update
+  the app on both machines before the first upload with shared code: an older one would remove the root `assets/`.
 
 By hand:
 

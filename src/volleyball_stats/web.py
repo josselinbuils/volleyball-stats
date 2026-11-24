@@ -46,6 +46,10 @@ from volleyball_stats.points import landing
 from volleyball_stats.teams import match_end, parse_colour, parse_date, recording_date
 
 TEMPLATE = Path(__file__).with_name("site")
+# The shape of data.js the page's code reads: raised when a field goes or changes its type (`web/src/lib/dataFormat.test.ts` fails until it is), a
+# page online built with another then keeps the code it was built with (`matches.share_code`); a new field needs none,
+# the page reading it with a fallback. A page without it: 1.
+FORMAT = 1
 # What is drawn on the video, beside the page: the ball's places and the automatic zoom's camera.
 VIDEO_JS = "video.js"
 # The club, edited in the app (club_settings.py): the default theme.
@@ -1444,6 +1448,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     shown_films = copy_films(films if video else None, site, {q["name"] for q in data.get("people", {}).values() if q.get("name")})
     if shown_films:
         data["films"] = shown_films
+    data["format"] = FORMAT
     write_data(site, data)
     # Copied with their dates: an upload skips the unchanged ones.
     for kept in filter(None, (video, video and av1, video and small)):
@@ -1454,10 +1459,11 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
 
 
 def version(site: Path, data: dict) -> str:
-    """data.js's `v` for `data` (without it): its content, the files the page at `site` loads by it and the code beside it.
-    The unhashed scripts load with it in their URL: a host or CDN caching them by URL serves each build its own."""
+    """data.js's `v` for `data` (without it): its content and the files the page at `site` loads by it. The unhashed scripts
+    load with it in their URL: a host or CDN caching them by URL serves each build its own. Not the code: online it is named
+    by its content (`matches.share_code`), the review's server has the browser ask for it each time."""
     loaded = [site / "positions" / f"{n}.js" for n in range((data.get("positions") or {}).get("files", 0))]
-    loaded += [site / VIDEO_JS, site / "ball3d.js", site / "voice" / "index.js", site / "scene3d.js", site / "review-app.js"]
+    loaded += [site / VIDEO_JS, site / "ball3d.js", site / "voice" / "index.js"]
     # As read back from data.js: renew_code finds the same.
     text = json.dumps(json.loads(json.dumps(data)), sort_keys=True) + "".join(p.read_text() for p in loaded if p.exists())
     return hashlib.sha256(text.encode()).hexdigest()[:10]
@@ -1466,14 +1472,17 @@ def version(site: Path, data: dict) -> str:
 def write_data(site: Path, data: dict) -> None:
     """data.js holding `data` with its `v`, and the page loading it under that address."""
     data["v"] = version(site, data)
-    (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
+    text = f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n"
+    # Its date kept when it stays: an upload skips it.
+    if not (site / "data.js").exists() or (site / "data.js").read_text() != text:
+        (site / "data.js").write_text(text)
     index = site / "index.html"
     index.write_text((TEMPLATE / "index.html").read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
 
 
 def renew_code(site: Path) -> None:
     """The hosted page at `site` with the page's code as built now (TEMPLATE), its data as it is: a change of the page's
-    code alone reaches it without building its data again (`matches.upload_all`)."""
+    code alone reaches it without building its data again (`matches.upload_all`), its data.js as it was."""
     from volleyball_stats.review import page_data
 
     data = page_data(site)

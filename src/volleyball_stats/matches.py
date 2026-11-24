@@ -1,7 +1,7 @@
 """The list of the match pages of a site, for hosting several matches.
 
     uv run python -m volleyball_stats.matches SITE [--theme NAME]
-    uv run python -m volleyball_stats.matches --all outputs/matches [--only MATCH ...] [--theme NAME]
+    uv run python -m volleyball_stats.matches --all outputs/matches [--only MATCH ...] [--code] [--theme NAME]
     uv run python -m volleyball_stats.matches --export ZIP --match outputs/matches/MATCH [--match ...]
 
 Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the match's date and teams
@@ -9,8 +9,9 @@ Each SITE/NAME/ holds a match page (web.py --out SITE/NAME), renamed after the m
 first from their data.js, each linking to its folder. The list is a page of its own (matches_site/, built
 from web/ with `npm run build`), its matches in matches.js. `host` rebuilds a match's two hosted pages
 and uploads the site, as the review does after each change when the match folder holds publish.json;
-`host_all` (`--all`) rebuilds every match online (those named by `--only` when given), each carrying the code as built, and uploads them at once; those with a
-newer copy on the server (`sync.behind`) stay as they are online. `export` (`--export`) zips the public pages and their
+`host_all` (`--all`) rebuilds every match online (those named by `--only` when given), every other page taking the code as built
+(`--code`: the code alone), and uploads them at once; those with a newer copy on the server (`sync.behind`) stay as they are
+online. The pages' code sits once in the site's assets/ (`share_code`). `export` (`--export`) zips the public pages and their
 list instead, for a host of one's own.
 """
 
@@ -32,6 +33,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
+from datetime import date
 from pathlib import Path
 
 import cv2
@@ -44,6 +46,14 @@ TEMPLATE = Path(__file__).with_name("matches_site")
 APP_JS = "app.js"
 # The list's own folders, which no match folder may take.
 RESERVED = ("assets", "club")
+# The site's code, every page's in one folder named by content (`share_code`): an upload sends a new build once, whatever the
+# number of matches. A file no page names any more goes RETIRED_DAYS after, a page open from before still finding it; the
+# days in RETIRED, beside them. CODE says what code the site runs: an older app does not put its own back (`newer_code`).
+ASSETS, RETIRED, RETIRED_DAYS, CODE = "assets", "retired.json", 7, "code.json"
+SCENE3D = "scene3d.js"
+# What a page names in the shared folder: its scripts, styles and 3D view.
+ASSET_NAMES = re.compile(r'(?:\./|\.\./|\.\./\.\./)assets/([^"\'?#/]+)')
+SCENE_TAG = re.compile(r'[ \t]*<meta name="scene3d"[^>]*>\n?')
 REDIRECTS = "redirects.json"
 # Where a match folder says how to host it.
 PUBLISH = "publish.json"
@@ -241,10 +251,11 @@ def share_match(folder: Path, url: str) -> None:
     share(folder, url, title, description, match_card(data, logo), club.get("name"))
 
 
-def build(site: Path, theme: str = CLUB, url: str | None = None) -> list[dict]:
+def build(site: Path, theme: str = CLUB, url: str | None = None, retired: list[str] | None = None) -> list[dict]:
     """SITE/index.html and matches.js listing SITE/*/'s match pages, tagged for link previews at `url`, the
-    list's address, when given (`share`), a page whose address changed still found at its old one (`write_redirects`), the site's
-    text files compressed (`compress`); returns them."""
+    list's address, when given (`share`), a page whose address changed still found at its old one (`write_redirects`), the pages'
+    code in one folder (`share_code`, `retire_code`: the files it removes added to `retired`), the site's text files compressed
+    (`compress`); returns them."""
     path = site / REDIRECTS
     redirects = json.loads(path.read_text()) if path.exists() else {}
     for data in sorted(site.glob("*/data.js")):
@@ -260,7 +271,6 @@ def build(site: Path, theme: str = CLUB, url: str | None = None) -> list[dict]:
             shutil.rmtree(named, ignore_errors=True)
             data.parent.rename(named)
     matches = sorted((listed(p.parent) for p in site.glob("*/data.js")), key=lambda m: (m["date"] or "", m["path"]), reverse=True)
-    shutil.rmtree(site / "assets", ignore_errors=True)
     for folder in ("club", "brand"):
         shutil.rmtree(site / folder, ignore_errors=True)
     # The app's screens (app.js) are the review server's only.
@@ -285,8 +295,122 @@ def build(site: Path, theme: str = CLUB, url: str | None = None) -> list[dict]:
         logo = site / club["logo"] if club and club.get("logo") else None
         share(site, root, f"Statistiques · {name}" if name else "Statistiques", "Les matchs de volley et leurs statistiques.", list_card("Statistiques", name, logo), name)
     write_redirects(site, redirects)
+    share_code(site)
+    (retired if retired is not None else []).extend(retire_code(site))
     compress(site)
     return matches
+
+
+def share_code(site: Path) -> None:
+    """Each page of `site` built since the last time (its own assets/ and scene3d.js, as `web.write_site` copies them) made to
+    load them from the site's ASSETS, where each name, given by its content, is kept once."""
+    shared = site / ASSETS
+    shared.mkdir(exist_ok=True)
+    for index in [*site.glob("*/index.html"), *site.glob("*/video/index.html")]:
+        page, up = index.parent, "../" * len(index.parent.relative_to(site).parts)
+        own, scene = page / ASSETS, page / SCENE3D
+        if not own.is_dir() and not scene.exists():
+            continue
+        text = index.read_text()
+        for path in sorted(own.glob("*")) if own.is_dir() else []:
+            if path.is_file() and path.suffix != ".gz" and not (shared / path.name).exists():
+                shutil.copy2(path, shared / path.name)
+        shutil.rmtree(own, ignore_errors=True)
+        text = text.replace('="./assets/', f'="{up}assets/')
+        if scene.exists():
+            name = f"scene3d-{hashlib.sha256(scene.read_bytes()).hexdigest()[:10]}.js"
+            if not (shared / name).exists():
+                shutil.copy2(scene, shared / name)
+            scene.unlink()
+            text = SCENE_TAG.sub("", text)
+            tag = f'    <meta name="scene3d" content="{up}assets/{name}" />\n'
+            text = re.sub(r"[ \t]*</head>", lambda _: tag + "  </head>", text, count=1)
+        (page / f"{SCENE3D}.gz").unlink(missing_ok=True)
+        _save_if_changed(index, text.encode())
+
+
+def retire_code(site: Path, today: date | None = None) -> list[str]:
+    """The files of `site`'s ASSETS no page names (`ASSET_NAMES`) dated in RETIRED when first found so, removed RETIRED_DAYS
+    after: a page loaded before an upload still finds its 3D view. Those named again lose their date. Returns those removed."""
+    today = today or date.today()
+    shared = site / ASSETS
+    named = {name for index in site.rglob("index.html") for name in ASSET_NAMES.findall(index.read_text())}
+    path = shared / RETIRED
+    retired = json.loads(path.read_text()) if path.exists() else {}
+    kept, removed = {}, []
+    for file in sorted(shared.glob("*")):
+        if not file.is_file() or file.suffix == ".gz" or file.name == RETIRED or file.name in named:
+            continue
+        since = retired.get(file.name, today.isoformat())
+        if (today - date.fromisoformat(since)).days >= RETIRED_DAYS:
+            file.unlink()
+            removed.append(file.name)
+        else:
+            kept[file.name] = since
+    if kept:
+        files.write_text(path, json.dumps(kept, indent=1) + "\n")
+    else:
+        path.unlink(missing_ok=True)
+    return removed
+
+
+# The pages' code by its name in the late page's tip: the match's page (its scripts and styles named by their content in it),
+# the list, the 3D view.
+CODE_FILES = {"page": web.TEMPLATE / "index.html", "list": TEMPLATE / "matches.html", "3d": web.TEMPLATE / SCENE3D}
+
+
+def code_stamps() -> dict[str, str]:
+    """The pages' code as built here, a stamp each (CODE_FILES)."""
+    return {name: hashlib.sha256(path.read_bytes()).hexdigest()[:16] for name, path in CODE_FILES.items()}
+
+
+def head_commit() -> str | None:
+    """The app's commit, None outside a git checkout."""
+    from volleyball_stats import git_check
+
+    try:
+        run = git_check._git(git_check.ROOT, "rev-parse", "HEAD")
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return run.stdout.strip() if run.returncode == 0 else None
+
+
+def online_code(site: Path) -> dict | None:
+    """What the site in `site` said of its code at its last upload (CODE), None before."""
+    path = site / CODE
+    try:
+        return json.loads(path.read_text()) if path.exists() else None
+    except ValueError:
+        return None
+
+
+def newer_code(site: Path) -> bool:
+    """Whether the code online (CODE, the site as mirrored) was built by an app newer than this one, or one this one does not
+    know: an upload from here would put the pages' code back to an older one."""
+    sent = online_code(site)
+    if not sent or sent.get("code") == code_stamps() or not sent.get("commit"):
+        return False
+    here = head_commit()
+    if here is None:
+        # ponytail: an app outside git cannot tell its age; a version number in CODE would.
+        return False
+    from volleyball_stats import git_check
+
+    try:
+        # Also when this app does not know that commit: newer, or another branch's.
+        return git_check._git(git_check.ROOT, "merge-base", "--is-ancestor", sent["commit"], here).returncode != 0
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+
+
+def write_code(site: Path) -> None:
+    """CODE in `site`: the code its pages run now, its app's commit and data format."""
+    files.write_text(site / CODE, json.dumps({"code": code_stamps(), "commit": head_commit(), "format": web.FORMAT}) + "\n")
+
+
+def page_format(page: Path) -> int:
+    """The data format of the page in `page` (`web.FORMAT`): 1 when it does not say."""
+    return page_of(page).get("format", 1)
 
 
 def write_redirects(site: Path, redirects: dict[str, str]) -> None:
@@ -662,6 +786,13 @@ def upload_command(config: dict, site: Path, rebuilt: list[str], dry: bool = Fal
     ]  # fmt: skip
 
 
+def removed_code(itemized: str, retired: list[str]) -> list[str]:
+    """The files of the site's ASSETS a dry run's output (--itemize-changes) deletes but this upload did not retire: put
+    online by another machine since the mirror."""
+    gone = [line.split(" ", 1)[1].strip() for line in itemized.splitlines() if line.startswith("*deleting ")]
+    return sorted({path.split("/")[1].removesuffix(".gz") for path in gone if path.startswith(f"{ASSETS}/") and path.count("/") == 1} - set(retired) - {RETIRED})
+
+
 def removed_pages(itemized: str, rebuilt: list[str]) -> list[str]:
     """The match folders, other than the `rebuilt` ones, whose page a dry run's output (--itemize-changes) deletes."""
     gone = [line.split(" ", 1)[1].strip() for line in itemized.splitlines() if line.startswith("*deleting ")]
@@ -769,24 +900,25 @@ def first_uploads(folder: Path, names: list[str]) -> list[tuple[Path, Path, Path
     return found
 
 
-def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool = False, told: jobs.Stages | None = None) -> None:
+def host_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool = False, told: jobs.Stages | None = None, config: dict | None = None) -> None:
     """Each match of `hosted` (match, video, court, publish.json) rebuilt as `host` says, in the site as the server holds
-    it (`mirror`, unless already `mirrored`), then the site uploaded once, its new files put in place together at the end.
+    it (`mirror`, unless already `mirrored`), every other page given the code as built (`web.renew_code`), then the site
+    uploaded once, its new files put in place together at the end. None: the pages' code alone, to the server of `config`.
     Nothing goes up when one cannot be rebuilt; among several, the error names the match. Its stages `told` as it goes."""
-    if not hosted:
+    config = config or (hosted[0][3] if hosted else None)
+    if not config:
         raise RuntimeError("no match online")
     told = told or update_stages(files.root(hosted[0][0]), [m.name for m, *_ in hosted])
     try:
-        upload_all(hosted, theme, mirrored, told)
+        upload_all(hosted, theme, mirrored, told, config)
     finally:
         told.stopped.set()
     told.start(None)
 
 
-def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool, told: jobs.Stages) -> None:
+def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored: bool, told: jobs.Stages, config: dict) -> None:
     """`host_all`'s work."""
-    config = hosted[0][3]
-    key = video_key(files.root(hosted[0][0]))
+    key = video_key(files.root(hosted[0][0])) if hosted else None
     if any((c["site"], c["upload"]) != (config["site"], config["upload"]) for *_, c in hosted):
         raise RuntimeError("the matches are hosted in different places")
     site = Path(config["site"]).expanduser()
@@ -808,6 +940,8 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
     if not mirrored:
         told.start("mirror")
         mirror(config, told.share_of_stage)
+    if newer_code(site):
+        raise RuntimeError("newer code online: update the app")
     # ponytail: one match at a time, ~23 s each rebuilt, under a second when only the page's code changed; rebuild them in
     # parallel if a season makes it long.
     renewed = []
@@ -838,7 +972,30 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
         web.publish(match, video, court, theme, public, folder, part("page"), data)
         files.write_text(folder / MADE, json.dumps({"from": made}) + "\n")
     told.start("upload")
-    paths = {m["name"]: m["path"] for m in build(site, theme, config["url"])}
+    # Every other page online, this machine's or another's, takes the code as built: the site runs one. Those of another data
+    # format keep theirs, which cannot read them (`web.FORMAT`).
+    done = {hosted_folder(match, site) for match, *_ in hosted}
+    for data in [*site.glob("*/data.js"), *site.glob("*/video/data.js")]:
+        page = data.parent
+        if (page.parent if page.name == "video" else page) not in done and page_format(page) == web.FORMAT:
+            web.renew_code(page)
+    retired: list[str] = []
+    paths = {m["name"]: m["path"] for m in build(site, theme, config["url"], retired)}
+    # What the server says of its code until the upload has put this one in: the Site tab's code stays late if it fails.
+    before = (site / CODE).read_bytes() if (site / CODE).exists() else None
+    write_code(site)
+    try:
+        send(hosted, config, site, key, paths, retired, renewed, told)
+    except BaseException:
+        if before is None:
+            (site / CODE).unlink(missing_ok=True)
+        else:
+            (site / CODE).write_bytes(before)
+        raise
+
+
+def send(hosted: list[tuple[Path, Path, Path, dict]], config: dict, site: Path, key: str | None, paths: dict[str, str], retired: list[str], renewed: list[Path], told: jobs.Stages) -> None:
+    """`upload_all`'s upload of the site built: once the videos' password guards them and nothing online would be lost."""
     guarded = []
     for match, _, _, c in hosted:
         if c["video"]:
@@ -864,6 +1021,10 @@ def upload_all(hosted: list[tuple[Path, Path, Path, dict]], theme: str, mirrored
     missing = removed_pages(dry.stdout, rebuilt)
     if missing:
         raise RuntimeError(f"online but not here: {', '.join(missing)}: not uploaded")
+    # The code another machine put online since stays: its pages name it.
+    others = removed_code(dry.stdout, retired)
+    if others:
+        raise RuntimeError(f"code online but not here: {', '.join(others)}: not uploaded")
     # Films made on another machine stay online (`adopt_films`); should one not come here, nothing goes up.
     unmade = [paths[match.name].rstrip("/") for match, *_ in hosted if not (match / "films").is_dir()]
     lost = removed_films(dry.stdout, unmade)
@@ -923,6 +1084,7 @@ def main() -> None:
     parser.add_argument("--host", type=Path, help="Build this match's hosted pages from its publish.json and upload them")
     parser.add_argument("--all", type=Path, help="Rebuild every match of this folder whose page is online (outputs/matches), then upload them at once")
     parser.add_argument("--only", action="append", default=[], metavar="MATCH", help="With --all, only this match (its folder's name), online or its first upload's choice made, again for each")
+    parser.add_argument("--code", action="store_true", help="With --all, the pages' code put online even with no match to rebuild")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--court", type=Path)
     parser.add_argument("--theme", default=CLUB, help=f"Club theme: {CLUB} (the app's), one of branding/NAME/brand.json ({', '.join(themes)}) or none (default: {CLUB})")
@@ -951,7 +1113,8 @@ def main() -> None:
     if args.all:
         given = [json.loads(p.read_text()) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
         config = next((c for c in given if c.get("upload") and c.get("site")), None)
-        found = [h for h in online(args.all) if not args.only or h[0].name in args.only]
+        # --code alone: no match rebuilt.
+        found = [h for h in online(args.all) if (not args.only and not args.code) or h[0].name in args.only]
         # The matches picked going online for the first time.
         found += first_uploads(args.all, [n for n in args.only if n not in {m.name for m, *_ in found}])
         newer = sync.behind([m for m, *_ in found])
@@ -971,7 +1134,7 @@ def main() -> None:
                     filmed.append(match.name)
         told = update_stages(args.all.parent, [m.name for m, *_ in found])
         told.plan = [*(f"copies:{n}" for n in encode), *(f"films:{n}" for n in filmed), *told.plan]
-        if not found:
+        if not found and not (args.code and config):
             told.stopped.set()
             return None
         for k, (match, video, court, c) in enumerate(found):
@@ -990,7 +1153,7 @@ def main() -> None:
         taken = {m: review.page_taken(m) for m, *_ in found if (m / "review" / "data.js").exists()}
         if config:
             mirror(config, told.share_of_stage)
-        host_all(found, args.theme, mirrored=config is not None, told=told)
+        host_all(found, args.theme, mirrored=config is not None, told=told, config=config)
         for match, page in taken.items():
             review.record_hosted(match, page)
         return None

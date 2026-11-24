@@ -241,11 +241,12 @@ class TestHost:
     @staticmethod
     def hosting(tmp_path, monkeypatch, **config):
         built, ran = [], []
+        monkeypatch.setattr(matches, "head_commit", lambda: "c0ffee")
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match)))
         monkeypatch.setattr(matches.web, "publish", lambda *args: built.append((args[4]["footage"], args[4].get("link"), args[5])) or args[5].mkdir(parents=True, exist_ok=True) or ({}, {}))
         monkeypatch.setattr(matches.web, "computed", lambda *args: ({}, None))
-        monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
+        monkeypatch.setattr(matches, "build", lambda site, theme, url, retired=None: [{"name": "first", "path": "2026-10-29-a-vs-b/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
         monkeypatch.setattr(backup, "free_gb", lambda host, ssh, folder: 100.0)
         monkeypatch.setattr(matches, "counted", lambda command, total, share=None: ran.append(command))
@@ -348,6 +349,7 @@ class TestHostAll:
             (site / name / "data.js").write_text(f"window.MATCH = {json.dumps({'name': name, 'rallies': []})};\n")
             hosted.append((match, tmp_path / f"{name}.mp4", Path("court.json"), config))
         monkeypatch.setattr(matches, "video_key", lambda outputs: "abc")
+        monkeypatch.setattr(matches, "head_commit", lambda: "c0ffee")
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append(("voice", match.name)))
         def publish(*args):
@@ -359,7 +361,7 @@ class TestHostAll:
         monkeypatch.setattr(matches.web, "publish", publish)
         monkeypatch.setattr(matches.web, "computed", lambda *args: ({}, None))
         monkeypatch.setattr(matches.web, "renew_code", lambda page: built.append(("renewed", page)))
-        monkeypatch.setattr(matches, "build", lambda site, theme, url: [{"name": "first", "path": "first/"}, {"name": "second", "path": "second/"}])
+        monkeypatch.setattr(matches, "build", lambda site, theme, url, retired=None: [{"name": "first", "path": "first/"}, {"name": "second", "path": "second/"}])
         monkeypatch.setattr(matches.subprocess, "run", lambda command, **kwargs: ran.append(command) or matches.subprocess.CompletedProcess(command, 0, ""))
         monkeypatch.setattr(backup, "free_gb", lambda host, ssh, folder: 100.0)
         monkeypatch.setattr(matches, "counted", lambda command, total, share=None: ran.append(command))
@@ -435,6 +437,105 @@ class TestHostAll:
             matches.host_all(hosted, "aspom")
 
         assert built == []
+
+
+    def test_gives_the_code_to_every_other_page_online_of_the_same_data_format(self, tmp_path, monkeypatch):
+        hosted, built, _, site = self.matches_of(tmp_path, monkeypatch)
+        # Put online by the other machine, and one built for another data format.
+        for name, data in (("theirs", {"name": "theirs", "rallies": []}), ("older", {"name": "older", "rallies": [], "format": matches.web.FORMAT + 1})):
+            (site / name / "video").mkdir(parents=True)
+            for page in (site / name, site / name / "video"):
+                (page / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+
+        matches.host_all(hosted[1:], "aspom")
+
+        renewed = sorted(entry[1] for entry in built if entry[0] == "renewed")
+        assert renewed == [site / "first", site / "theirs", site / "theirs" / "video"]
+        assert json.loads((site / matches.CODE).read_text()) == {"code": matches.code_stamps(), "commit": "c0ffee", "format": matches.web.FORMAT}
+
+    def test_puts_the_code_alone_online(self, tmp_path, monkeypatch):
+        hosted, built, ran, site = self.matches_of(tmp_path, monkeypatch)
+
+        matches.host_all([], "aspom", told=matches.update_stages(tmp_path, []), config=hosted[0][3])
+
+        assert [entry[0] for entry in built] == ["renewed"] * 2 and ran[-1][0] == "rsync" and "--delay-updates" in ran[-1]
+
+    def test_never_puts_back_the_code_of_an_older_app(self, tmp_path, monkeypatch):
+        hosted, built, ran, site = self.matches_of(tmp_path, monkeypatch)
+        (site / matches.CODE).write_text(json.dumps({"code": {"page": "newer"}, "commit": "beef"}))
+        monkeypatch.setattr(matches, "newer_code", lambda site: True)
+
+        with pytest.raises(RuntimeError, match="newer code online"):
+            matches.host_all(hosted, "aspom")
+
+        assert built == [] and all(command[0] != "rsync" or "--dry-run" not in command for command in ran)
+
+
+class TestSharedCode:
+    @staticmethod
+    def page(folder, code="a"):
+        (folder / "assets").mkdir(parents=True)
+        (folder / "assets" / f"index-{code}.js").write_text(f"code {code}")
+        (folder / "assets" / f"index-{code}.js.gz").write_bytes(b"gz")
+        (folder / "scene3d.js").write_text(f"three {code}")
+        (folder / "index.html").write_text(f'<head>\n<script src="./assets/index-{code}.js"></script>\n  </head>')
+
+    def test_every_page_loads_its_code_once_from_the_site_s_folder(self, tmp_path):
+        for folder in (tmp_path / "one", tmp_path / "one" / "video", tmp_path / "two"):
+            self.page(folder)
+
+        matches.share_code(tmp_path)
+
+        scene = f"scene3d-{hashlib.sha256(b'three a').hexdigest()[:10]}.js"
+        assert sorted(p.name for p in (tmp_path / "assets").iterdir()) == ["index-a.js", scene]
+        assert not (tmp_path / "one" / "assets").exists() and not (tmp_path / "one" / "scene3d.js").exists()
+        page = (tmp_path / "one" / "video" / "index.html").read_text()
+        assert 'src="../../assets/index-a.js"' in page and f'<meta name="scene3d" content="../../assets/{scene}" />' in page
+        assert 'src="../assets/index-a.js"' in (tmp_path / "two" / "index.html").read_text()
+
+    def test_a_page_built_again_takes_the_new_code_its_old_one_kept_a_week(self, tmp_path):
+        from datetime import date, timedelta
+
+        self.page(tmp_path / "one")
+        matches.share_code(tmp_path)
+        self.page(tmp_path / "two", "b")
+        (tmp_path / "one" / "index.html").write_text('<script src="../assets/index-b.js"></script>')
+        matches.share_code(tmp_path)
+        day = date(2026, 11, 24)
+
+        assert matches.retire_code(tmp_path, day) == []
+        assert set(json.loads((tmp_path / "assets" / matches.RETIRED).read_text())) == {"index-a.js", next(p.name for p in (tmp_path / "assets").glob("scene3d-*.js") if "three a" == p.read_text())}
+        assert matches.retire_code(tmp_path, day + timedelta(days=matches.RETIRED_DAYS)) != []
+        assert not (tmp_path / "assets" / "index-a.js").exists() and (tmp_path / "assets" / "index-b.js").exists()
+        assert not (tmp_path / "assets" / matches.RETIRED).exists()
+
+    def test_a_file_named_again_is_no_longer_retired(self, tmp_path):
+        from datetime import date
+
+        (tmp_path / "assets").mkdir()
+        (tmp_path / "assets" / "x.js").write_text("")
+        matches.retire_code(tmp_path, date(2026, 11, 1))
+        (tmp_path / "index.html").write_text('<script src="./assets/x.js"></script>')
+
+        assert matches.retire_code(tmp_path, date(2026, 11, 20)) == [] and not (tmp_path / "assets" / matches.RETIRED).exists()
+
+    def test_an_upload_never_removes_code_another_machine_put_online(self):
+        itemized = "*deleting   assets/index-old.js\n*deleting   assets/index-old.js.gz\n*deleting   assets/index-theirs.js\n*deleting   one/assets/index-a.js\n"
+
+        assert matches.removed_code(itemized, ["index-old.js"]) == ["index-theirs.js"]
+
+    def test_tells_code_online_from_an_app_this_one_does_not_come_after(self, tmp_path, monkeypatch):
+        from volleyball_stats import git_check
+
+        monkeypatch.setattr(matches, "head_commit", lambda: "here")
+        ancestors = {("beef", "here"): 0, ("cafe", "here"): 1}
+        monkeypatch.setattr(git_check, "_git", lambda root, *args: subprocess.CompletedProcess(args, ancestors[args[-2:]]))
+        assert not matches.newer_code(tmp_path)
+        for commit, newer in (("beef", False), ("cafe", True)):
+            (tmp_path / matches.CODE).write_text(json.dumps({"code": {"page": "other"}, "commit": commit}))
+            assert matches.newer_code(tmp_path) is newer
+        (tmp_path / matches.CODE).write_text(json.dumps({"code": matches.code_stamps(), "commit": "cafe"}))
+        assert not matches.newer_code(tmp_path)
 
 
 class TestEnsurePublish:
@@ -889,7 +990,7 @@ class TestUpdateAll:
         monkeypatch.setattr(sync, "behind", lambda found: {})
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "add_copies", lambda m, v, share: done.append(("copies", m.name)) or {"video": True, "light": "l"})
-        monkeypatch.setattr(matches, "host_all", lambda found, theme, mirrored, told: done.append(("host", [(m.name, c) for m, *_, c in found], told.plan)))
+        monkeypatch.setattr(matches, "host_all", lambda found, theme, mirrored, told, config=None: done.append(("host", [(m.name, c) for m, *_, c in found], told.plan)))
         monkeypatch.setattr(sys, "argv", ["matches", "--all", str(folder), "--only", "new", "--only", "old"])
 
         matches.main()
@@ -914,7 +1015,7 @@ class TestUpdateAll:
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(film, "status", lambda m: {"players": {"total": 2, "stale": ["A"]}, "highlights": {"total": 1, "stale": []}})
         monkeypatch.setattr(film, "build", lambda m, v, c, share: done.append(("films", m.name)))
-        monkeypatch.setattr(matches, "host_all", lambda found, theme, mirrored, told: done.append(("host", told.plan)))
+        monkeypatch.setattr(matches, "host_all", lambda found, theme, mirrored, told, config=None: done.append(("host", told.plan)))
         monkeypatch.setattr(sys, "argv", ["matches", "--all", str(folder), "--only", "new", "--only", "bare"])
 
         matches.main()

@@ -403,7 +403,9 @@
       "defense": "Placement en défense",
       "voice": "Commentaire",
       "films": "Films",
-      "code": "Code"
+      "code": "Code",
+      "siteCode": "Code des pages (tous les matchs)",
+      "format": "Format des données"
     },
     "changedKeys": {
       "club": {
@@ -1098,7 +1100,8 @@
     "deleteText": "Elle est effacée du serveur pour de bon.",
     "copiesFailed": "Sauvegardes illisibles.",
     "matchesN_one": "{{count}} match",
-    "matchesN_other": "{{count}} matchs"
+    "matchesN_other": "{{count}} matchs",
+    "code": "Code des pages"
   },
   "feedback": {
     "open": "Signaler un problème sur ce moment : un clic suffit, les détails sont facultatifs",
@@ -1744,7 +1747,8 @@
     "logLoading": "Chargement…",
     "logEmpty": "Rien d'écrit pour l'instant.",
     "video": "La vidéo n'a pas pu se charger.",
-    "updating": "La mise à jour des matchs est en cours : réessayez à sa fin."
+    "updating": "La mise à jour des matchs est en cours : réessayez à sa fin.",
+    "newerCode": "Le code en ligne vient d'une app plus récente : mettez l'app à jour."
   },
   "tasks": {
     "title": "Tâches en cours",

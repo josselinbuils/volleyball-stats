@@ -754,7 +754,7 @@ class TestWriteSite:
         version = (site / "index.html").read_text().split('src="data.js?v=')[1].split('"')[0]
         assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":2500,"files":1,"cm":2}},"contacts":[],"v":"{version}"}};\n'
+        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":2500,"files":1,"cm":2}},"contacts":[],"format":1,"v":"{version}"}};\n'
         assert (site / "positions" / "0.js").read_text() == "window.MATCH_POSITIONS(0,[1,[]]);\n"
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
@@ -1223,3 +1223,9 @@ def test_closed_ends_checked_rallies_with_their_last_action():
     web.closed(rallies, found, {0, 1, 2, 3})
     # Its landing, at most CLOSE_S after it, at once after a fault, never past its end; one not checked keeps its end.
     assert [r["end"] for r in rallies] == [4.2, 13.0 + web.CLOSE_S, 23.0, 39.0, 49.0]
+
+
+def test_the_data_format_is_the_one_the_page_s_types_were_checked_with():
+    # web/src/lib/dataFormat.test.ts keeps the data's shape for this format.
+    snapshot = Path(web.__file__).parents[2] / "web" / "src" / "lib" / "dataFormat.json"
+    assert json.loads(snapshot.read_text())["format"] == web.FORMAT

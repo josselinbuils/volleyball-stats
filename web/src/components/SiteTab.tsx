@@ -72,9 +72,14 @@ interface ServerState {
   pull: Told | null;
   /** The matches the last backup left to the owner: changed here and on `machine`. */
   conflicts: (Named & { machine: string })[];
+  /** The code all pages online share (`review.site_code`): late when the app's changed since; null with no match online. */
+  code: { behind: boolean; change: PageChange } | null;
 }
 
 type Named = Pick<SiteMatch, 'name' | 'title' | 'teams'>;
+
+// The pages' code in the matches picked: any match's upload takes it too.
+const CODE = ':code';
 
 // What sits beside the matches, restored as one.
 const SHARED = 'shared';
@@ -160,8 +165,8 @@ export function SiteTab() {
     const r = await call<ServerState>('server');
     if (r.ok) {
       setState(r);
-      const newest = r.matches.find(due);
-      setPicked((p) => p ?? new Set(newest ? [newest.name] : []));
+      const newest = r.matches.find(due)?.name ?? (r.code?.behind ? CODE : null);
+      setPicked((p) => p ?? new Set(newest ? [newest] : []));
     }
     return r;
   }, []);
@@ -289,7 +294,8 @@ export function SiteTab() {
   };
   const start = (key: 'host' | 'backup' | 'verify', choice?: HostBody) =>
     run(key, async () => {
-      const r = await call<ServerState>(`server/${key}`, key === 'host' ? { matches: chosen, ...choice } : {});
+      const body = key !== 'host' ? {} : chosen.length ? { matches: chosen, ...choice } : { code: true };
+      const r = await call<ServerState>(`server/${key}`, body);
       if (r.ok) {
         setState(r);
       }
@@ -329,6 +335,11 @@ export function SiteTab() {
   const saved = state?.server;
   const late = state?.matches.filter(due).map((m) => m.name) ?? [];
   const chosen = late.filter((name) => picked?.has(name));
+  // The code goes with any match; alone when picked alone.
+  const codeDue = !!state?.code?.behind;
+  const codeAlone = codeDue && !chosen.length && !!picked?.has(CODE);
+  const pickable = [...late, ...(codeDue ? [CODE] : [])];
+  const allPicked = pickable.every((name) => (name === CODE ? codeAlone || chosen.length > 0 : chosen.includes(name)));
   const fresh = state?.matches.filter((m) => m.new && picked?.has(m.name)) ?? [];
   // The new matches picked without their first upload's choice ask it first.
   const host = () => (fresh.some((m) => !m.chosen) ? setChoosing(true) : void start('host'));
@@ -555,6 +566,24 @@ export function SiteTab() {
           <h2 className="text-lg font-semibold">{t('server.online')}</h2>
           {state.matches.length ? (
             <ul className="grid max-h-80 auto-rows-max divide-y overflow-y-auto overscroll-contain rounded-md border text-sm">
+              {state.code && (
+                <li className="flex min-w-0 items-center gap-3 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    aria-label={t('server.code')}
+                    checked={codeDue && (codeAlone || chosen.length > 0)}
+                    disabled={hosting || !codeDue || chosen.length > 0}
+                    onChange={(e) => pick(CODE, e.target.checked)}
+                  />
+                  <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">{t('server.code')}</span>
+                  <Tip label={codeDue ? <LateCauses changes={[state.code.change]} /> : undefined}>
+                    <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap ${codeDue ? '' : 'text-muted-foreground'}`}>
+                      {codeDue ? <span aria-hidden className="size-2 rounded-full bg-primary" /> : <CircleCheck aria-hidden className="size-4" />}
+                      {t(codeDue ? 'server.late' : 'server.upToDate')}
+                    </span>
+                  </Tip>
+                </li>
+              )}
               {state.matches.map((m) => {
                 const name = nameOf(m);
                 return (
@@ -595,16 +624,14 @@ export function SiteTab() {
             <p className="text-muted-foreground">{t('server.noneOnline')}</p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button busy={hosting} disabled={!saved || !chosen.length} onClick={host}>
+            <Button busy={hosting} disabled={!saved || !(chosen.length || codeAlone)} onClick={host}>
               <CloudUpload aria-hidden />
-              {chosen.length && chosen.length === late.length
-                ? t(fresh.length ? 'server.putAllOnline' : 'server.hostAll')
-                : t(fresh.length ? 'server.putOnline' : 'server.host', { count: chosen.length })}
+              {(chosen.length || codeAlone) && allPicked ? t(fresh.length ? 'server.putAllOnline' : 'server.hostAll') : t(fresh.length ? 'server.putOnline' : 'server.host', { count: chosen.length })}
             </Button>
-            {late.length > 1 && (
-              <Button variant="outline" className="bg-card" disabled={hosting} onClick={() => setPicked(new Set(chosen.length === late.length ? [] : late))}>
-                {chosen.length === late.length ? <Square aria-hidden /> : <SquareCheck aria-hidden />}
-                {t(chosen.length === late.length ? 'server.pickNone' : 'server.pickAll')}
+            {pickable.length > 1 && (
+              <Button variant="outline" className="bg-card" disabled={hosting} onClick={() => setPicked(new Set(allPicked ? [] : pickable))}>
+                {allPicked ? <Square aria-hidden /> : <SquareCheck aria-hidden />}
+                {t(allPicked ? 'server.pickNone' : 'server.pickAll')}
               </Button>
             )}
             {saved?.url && (

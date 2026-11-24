@@ -181,6 +181,9 @@ class TestApp:
         monkeypatch.setattr(app_matches, "set_password", lambda outputs, password: chosen.append(password))
         assert app.handle("POST", "/app/server/host", "", {"matches": ["new"], "video": True, "password": "secret-one"}, list)[2] == 200
         assert first[-1] == (["new"], True) and chosen == ["secret-one"]
+        # The pages' code alone.
+        assert app.handle("POST", "/app/server/host", "", {"code": True}, list)[2] == 200
+        assert started[-1] == ["volleyball_stats.matches", "--all", matches, "--code"]
 
     def test_the_videos_password_shown_and_changed_unless_an_upload_runs(self, place, monkeypatch):
         set_ = []

@@ -1517,14 +1517,36 @@ class TestPageChanges:
         state = review.read_hosted(tmp_path)
         assert state["behind"] and state["changes"] == [{"part": "contacts", "count": 1}]
 
-    def test_a_new_3d_view_makes_the_page_late(self, tmp_path, monkeypatch):
+    def test_the_code_no_longer_makes_a_page_late_the_site_s_code_does(self, tmp_path, monkeypatch):
+        from volleyball_stats import matches, review
+
+        scene = tmp_path / "scene3d.js"
+        scene.write_text("a")
+        monkeypatch.setitem(review.CODE_PAGES, "3d", scene)
+        TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
+        site = tmp_path / "site"
+        site.mkdir()
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"site": str(site)}))
+        (site / matches.CODE).write_text(json.dumps({"code": matches.code_stamps()}))
+        review.record_hosted(tmp_path)
+        assert not review.read_hosted(tmp_path)["behind"]
+        scene.write_text("b")
+
+        assert not review.read_hosted(tmp_path, code=False)["behind"]
+        state = review.read_hosted(tmp_path)
+        assert state["behind"] and state["changes"] == [{"part": "siteCode", "count": None, "keys": ["3d"]}]
+        assert review.site_code(site)["change"] == {"part": "code", "count": None, "keys": ["3d"]}
+
+    def test_an_upload_recorded_with_the_code_of_each_page_shows_it_late_until_the_next(self, tmp_path, monkeypatch):
         from volleyball_stats import review
 
         scene = tmp_path / "scene3d.js"
         scene.write_text("a")
         monkeypatch.setitem(review.CODE_PAGES, "3d", scene)
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
-        review.record_hosted(tmp_path)
+        pages = ("list", "page", "3d")
+        (tmp_path / review.HOSTED_PAGE).write_text(json.dumps(review.page_content(tmp_path)))
+        (tmp_path / review.HOSTED).write_text(json.dumps({"at": "2026-11-20T23:01:11", "stamp": review.page_stamp(tmp_path, pages), "pages": list(pages), "code": "x"}))
         assert not review.read_hosted(tmp_path)["behind"]
         scene.write_text("b")
 

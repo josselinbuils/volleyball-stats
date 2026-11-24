@@ -403,7 +403,9 @@
       "defense": "Defence placement",
       "voice": "Commentary",
       "films": "Films",
-      "code": "Code"
+      "code": "Code",
+      "siteCode": "Pages' code (all matches)",
+      "format": "Data format"
     },
     "changedKeys": {
       "club": {
@@ -1098,7 +1100,8 @@
     "deleteText": "It is erased from the server for good.",
     "copiesFailed": "Backups unreadable.",
     "matchesN_one": "{{count}} match",
-    "matchesN_other": "{{count}} matches"
+    "matchesN_other": "{{count}} matches",
+    "code": "Pages' code"
   },
   "feedback": {
     "open": "Report a problem in this moment: one click is enough, details are optional",
@@ -1744,7 +1747,8 @@
     "logLoading": "Loading…",
     "logEmpty": "Nothing written yet.",
     "video": "The video could not load.",
-    "updating": "The matches are being updated: try again once it ends."
+    "updating": "The matches are being updated: try again once it ends.",
+    "newerCode": "The code online comes from a newer app: update the app."
   },
   "tasks": {
     "title": "Running tasks",

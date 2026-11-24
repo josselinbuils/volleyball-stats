@@ -50,7 +50,7 @@ def listed(outputs: Path) -> list[dict]:
     for match, _, _, config in matches.online(outputs / "matches"):
         folder = matches.hosted_folder(match, Path(config["site"]).expanduser())
         page = matches.listed(match / "review") if (match / "review" / "data.js").exists() else {"date": None, "title": None, "teams": None}
-        hosted = review.read_hosted(match)
+        hosted = review.read_hosted(match, code=False)
         url = config.get("url") or ""
         found.append(
             {
@@ -93,6 +93,14 @@ def listed(outputs: Path) -> list[dict]:
             }
         )
     return sorted(found, key=lambda m: (m["date"] or "", m["name"]), reverse=True)
+
+
+def code_state(outputs: Path) -> dict | None:
+    """The pages' code online (`review.site_code`), None with no match online."""
+    from volleyball_stats import review
+
+    found = matches.online(outputs / "matches")
+    return review.site_code(Path(found[0][3]["site"]).expanduser()) if found else None
 
 
 def first_upload(outputs: Path, names: list[str], video: object) -> None:

@@ -50,7 +50,9 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   a rally's start or end over 2 s from the copies', a rally added or gone, a close call added, gone or moved; or copies
   made before 16 Nov), it asks "Refaire les vidéos ?" first; "Plus tard" uploads with them as they are (the page keeps the
   copies' own time), and "Refaire les vidéos" (the "..." menu, while they wait) makes them again and uploads (the owner's call, 16 Nov:
-  never on its own, hours of encoding). "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds
+  never on its own, hours of encoding). Any upload also gives the app's code to every other match online
+  ([the pages' code](hosting.md#the-pages-code)); the button's tip, once late, lists why, the code shared by all the
+  pages on its own line ("Code des pages (tous les matchs)"). "Mettre à jour tous les matchs en ligne" (the "..." menu) rebuilds
   every match online and uploads them at once. "Exporter le site" (the same menu, a server set or not) zips the pages for
   any host ([hosting.md](hosting.md#without-a-server-the-export)).
 - "Réanalyser" (the list of the matches, above its tabs) brings every match waiting up to date in one job of the
