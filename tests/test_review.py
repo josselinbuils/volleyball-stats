@@ -1489,6 +1489,12 @@ class TestPageChanges:
 
         assert page_changes(sent, now) == [{"part": "positions", "count": None}]
 
+    def test_data_sent_before_its_format_was_written_is_format_1(self):
+        from volleyball_stats.review import page_changes
+
+        assert page_changes({"data": {"name": "m"}, "code": {}}, {"data": {"name": "m", "format": 1}, "code": {}}) == []
+        assert page_changes({"data": {"name": "m"}, "code": {}}, {"data": {"name": "m", "format": 2}, "code": {}}) == [{"part": "format", "count": None}]
+
     def test_the_code_an_older_upload_recorded_is_no_change_of_its_page(self):
         from volleyball_stats.review import page_changes
 

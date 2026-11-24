@@ -2179,7 +2179,8 @@ def page_changes(sent: dict, now: dict) -> list[dict]:
     """What changed from the page content `sent` to `now` (`page_content`): each part of the data that differs, with how many of
     its items changed, added or went (a list's, a mapping's) and, for NAMED_KEYS, which (`keys`: the players by name)."""
     out = []
-    old, new = sent["data"], now["data"]
+    # Data built before its format was written is format 1 (`matches.page_format`): no change of the page.
+    old, new = {"format": 1, **sent["data"]}, {"format": 1, **now["data"]}
     for part in sorted(set(old) | set(new)):
         a, b = old.get(part), new.get(part)
         if a == b:
