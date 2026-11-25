@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import cv2
 
-from volleyball_stats import app, applog, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, network, presence, rename, sync, timeouts, web
+from volleyball_stats import app, applog, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, network, pictures, presence, rename, sync, timeouts, web
 from volleyball_stats.review import APPLIED, STALE_PHOTOS, TIMINGS, TOOK, applied_too, commented, due, eta, locked, pinned, read_comments, undo, unlocked, waiting, write_comments
 from volleyball_stats.review_answers import (
     ROSTER,
@@ -652,8 +652,8 @@ class Review:
                 built = self.generation
                 if self.stale_photos.exists():
                     try:
-                        people = web.refresh_photos(self.match, self.video, self.site, self.stopped.is_set)
-                    except web.Stopped:
+                        people = pictures.refresh_photos(self.match, self.video, self.site, self.stopped.is_set)
+                    except pictures.Stopped:
                         # Left for the next time it opens (`stale_photos`).
                         return
                     except Exception as error:
@@ -756,9 +756,9 @@ class Review:
 
     def card_photos(self) -> dict:
         """Each player's card picture first, then the other best moments for one, as picked by
-        web.photos; whether the cards' pictures are out of date (an apply came since), why the new
+        pictures.photos; whether the cards' pictures are out of date (an apply came since), why the new
         ones failed."""
-        offered = self.match / web.PHOTO_CANDIDATES
+        offered = self.match / pictures.PHOTO_CANDIDATES
         photos = {
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
             for who, found in (files.read_json(offered, {})).items()
@@ -943,7 +943,7 @@ class Review:
         team, number, frame = int(body["team"]), int(body["identity"]), int(body["frame"])
         set_photo(self.match, self.questions.table, team, number, frame, body["box"])
         # Only that picture cut, the page patched; the pages built again only for a moment never scored.
-        person = web.swap_photo(self.match, self.video, self.site, team, number, frame, body["box"], self.questions.track_at)
+        person = pictures.swap_photo(self.match, self.video, self.site, team, number, frame, body["box"], self.questions.track_at)
         if person is None:
             self.run_steps(self.pages())
         else:

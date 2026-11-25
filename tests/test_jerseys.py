@@ -1,6 +1,6 @@
 import json
 
-from volleyball_stats import files, jerseys, web
+from volleyball_stats import files, jerseys, pictures
 from volleyball_stats.jerseys import agreed, load, number
 
 
@@ -69,14 +69,14 @@ class TestPicturesRead:
 
 class TestCodeText:
     def test_follows_what_the_function_uses_and_not_the_rest_of_its_module(self, monkeypatch):
-        text = files.code_text(web.looks, web.framed)
+        text = files.code_text(pictures.looks, pictures.framed)
 
         assert "def looks(" in text and "def framed(" in text and "def cut(" in text and "def bust(" in text
         assert "def upscaled(" not in text and "def photos(" not in text
-        assert f"PHOTO_RATIO={web.PHOTO_RATIO}" in text
+        assert f"PHOTO_RATIO={pictures.PHOTO_RATIO}" in text
 
     def test_a_constant_used_changes_it(self, monkeypatch):
-        before = files.code_text(web.framed)
-        monkeypatch.setattr(web, "PHOTO_RATIO", web.PHOTO_RATIO + 1)
+        before = files.code_text(pictures.framed)
+        monkeypatch.setattr(pictures, "PHOTO_RATIO", pictures.PHOTO_RATIO + 1)
 
-        assert files.code_text(web.framed) != before
+        assert files.code_text(pictures.framed) != before

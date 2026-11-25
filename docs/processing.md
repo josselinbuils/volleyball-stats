@@ -203,7 +203,7 @@ which the page then shows instead of the match number.
 - A named card stays whole through an apply: its pieces keep the name unless an answer names them or the player would
   be in two places at once; a piece reading a named player's jersey number joins them, one reading another named
   player's number leaves the card (`identity.kept_cards`). A card's picture stays on the player it shows until the new
-  ones come (`web.kept_photos`, `photo_shown.json`), marked as being updated meanwhile; each apply is counted in the app's log.
+  ones come (`pictures.kept_photos`, `photo_shown.json`), marked as being updated meanwhile; each apply is counted in the app's log.
 - Applying also updates the roster (`--roster`, `outputs/roster.json` by default, outside the
   repository since it names people): each named player's appearance over their last 5 matches. Its players follow a team's name
   however it changes.

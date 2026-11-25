@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import attribution, contacts, feedback, files, identity, jerseys, rallies, scoreboard, tables, web
+from volleyball_stats import attribution, contacts, feedback, files, identity, jerseys, pictures, rallies, scoreboard, tables, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.players import Row
 from volleyball_stats.review_answers import TOUCH_TYPES, Ref, card_numbers, checked, log_of, meeting, path, piece_vectors, propose, prototypes, read_absent, reviewed, suggest
@@ -317,7 +317,7 @@ class Questions:
     def card_pictures(self) -> dict[tuple[int, int], list[tuple[int, tuple[int, ...]]]]:
         """The (frame, box) of the pictures the review shows of each (team, identity): its card's,
         and those offered for its card on the match page."""
-        offered = self.match / web.PHOTO_CANDIDATES
+        offered = self.match / pictures.PHOTO_CANDIDATES
         photos = files.read_json(offered, {})
         out = {}
         for team, number in sorted({(r[3], r[4]) for r in self.table if r[4]}):

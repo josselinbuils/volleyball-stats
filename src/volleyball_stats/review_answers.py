@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from volleyball_stats import files, identity, jerseys, likeness, timeouts, web
+from volleyball_stats import files, identity, jerseys, likeness, pictures, timeouts, web
 from volleyball_stats.teams import clock, match_end, parse_colour, seconds
 
 if TYPE_CHECKING:
@@ -619,10 +619,10 @@ def name_absent(match: Path, table: list, team: int, name: str | None, removed: 
 
 
 def set_photo(match: Path, table: list, team: int, number: int, frame: int, box: list[int]) -> None:
-    """web.PHOTO_PICKED with the card picture of identity `number` of `team` taken at `frame` in
+    """pictures.PHOTO_PICKED with the card picture of identity `number` of `team` taken at `frame` in
     `box`, by the player's name (it outlives the identities' numbers), else by their card."""
     who = (identity.named(table, identity.read_names(match)).get((team, number)) or {}).get("name")
-    path = match / web.PHOTO_PICKED
+    path = match / pictures.PHOTO_PICKED
     taken = files.read_json(path, {})
     taken[who or f"{team}:{number}"] = {"frame": int(frame), "box": [int(v) for v in box]}
     files.write_text(path, json.dumps(taken, indent=1, ensure_ascii=False) + "\n")

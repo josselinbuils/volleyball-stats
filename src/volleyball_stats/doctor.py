@@ -77,9 +77,9 @@ def disk(data: Path) -> dict:
 
 
 def model_files() -> list[Path]:
-    from volleyball_stats import actions, ball, film, identity, players, web
+    from volleyball_stats import actions, ball, film, identity, pictures, players
 
-    return [ball.WEIGHTS_PATH, players.MODEL, actions.POSE_MODEL, identity.REID, film.SEG_S, film.SEG_M, web.UPSCALER]
+    return [ball.WEIGHTS_PATH, players.MODEL, actions.POSE_MODEL, identity.REID, film.SEG_S, film.SEG_M, pictures.UPSCALER]
 
 
 def models() -> dict:
@@ -112,7 +112,7 @@ def checks(data: Path = Path("data")) -> list[dict]:
 def fetch_models() -> None:
     """Each model missing, downloaded where the pipeline looks for it. The share told as it goes is the models done of those
     missing (the libraries downloading them show no bytes)."""
-    from volleyball_stats import ball, identity, jobs, web
+    from volleyball_stats import ball, identity, jobs, pictures
 
     missing = [p for p in model_files() if not p.exists()]
     for done, path in enumerate(missing):
@@ -122,8 +122,8 @@ def fetch_models() -> None:
             ball.load_model("cpu")
         elif path == identity.REID:
             identity.load_reid("cpu")
-        elif path == web.UPSCALER:
-            if web.upscaler() is None:
+        elif path == pictures.UPSCALER:
+            if pictures.upscaler() is None:
                 raise SystemExit(f"Could not download {path.name}")
         else:
             from ultralytics.utils.downloads import attempt_download_asset

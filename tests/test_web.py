@@ -10,7 +10,7 @@ import pytest
 from volleyball_stats.court import Calibration
 from volleyball_stats import club_settings, web
 from volleyball_stats.teams import COLOURS
-from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, unlikely, unmeasured, wrong_measures, drop_rallies, merge_rallies, split_rallies, match_data, people, photos, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
+from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, unlikely, unmeasured, wrong_measures, drop_rallies, merge_rallies, split_rallies, match_data, people, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
 # Pixels are court metres.
 IDENTITY = Calibration(np.eye(3))
@@ -825,64 +825,6 @@ class TestFramesIndex:
         assert frames_index(path) is None
 
 
-class TestPhotos:
-    def test_saves_a_picture_of_each_numbered_player_from_their_longest_piece(self, tmp_path, monkeypatch):
-        video = tmp_path / "clip.mp4"
-        writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
-        for _ in range(20):
-            writer.write(np.full((48, 64, 3), 128, np.uint8))
-        writer.release()
-        rows = [f"{f},1,left,10,10,20,40,0.9,15,40,-3,0" for f in range(20)]
-        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "\n".join(rows) + "\n")
-        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity,runner_up,confidence\n1,0,19,1,3,,1.0\n")
-        (tmp_path / "identity_candidates.json").write_text('{"segments": [], "merges": []}')
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n0,19\n")
-        people = {0: {"team": 1, "number": 3}, 1: {"team": 2, "number": None}}
-
-        # The picture as cut, without the upscaler.
-        monkeypatch.setattr(web, "upscaler", lambda: None)
-        photos(tmp_path, video, people, tmp_path / "players", record=tmp_path / web.PHOTO_SHOWN)
-
-        assert people[0]["photo"].startswith("players/0.webp?v=")
-        # Where it was taken, for an apply to keep it on that player.
-        assert json.loads((tmp_path / web.PHOTO_SHOWN).read_text())["players/0.webp"]["track"] == 1
-        # The 10x30 box from a little above its top down to its waist (55 %), 3 wide for 4 tall.
-        assert cv2.imread(str(tmp_path / "players" / "0.webp")).shape[:2] == (17, 13)
-        assert "photo" not in people[1]
-
-    def test_a_picked_moment_swaps_only_that_picture_on_the_page(self, tmp_path, monkeypatch):
-        video = tmp_path / "clip.mp4"
-        writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
-        for k in range(20):
-            writer.write(np.full((48, 64, 3), 10 * k, np.uint8))
-        writer.release()
-        rows = [f"{f},1,left,10,10,20,40,0.9,15,40,-3,0" for f in range(20)]
-        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "\n".join(rows) + "\n")
-        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity,runner_up,confidence\n1,0,19,1,3,,1.0\n")
-        (tmp_path / "identity_candidates.json").write_text('{"segments": [], "merges": []}')
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n0,19\n")
-        monkeypatch.setattr(web, "upscaler", lambda: None)
-        site = tmp_path / "review"
-        people = {"0": {"team": 1, "number": 3}}
-        photos(tmp_path, video, people, site / "players", record=tmp_path / web.PHOTO_SHOWN)
-        (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people, 'v': 'a'})};\n")
-        (site / "index.html").write_text('<script src="data.js?v=a"></script>')
-        first, *others = json.loads((tmp_path / web.PHOTO_CANDIDATES).read_text())["1:3"]
-        pick = next(m for m in others if m["frame"] != first["frame"])
-
-        found = web.swap_photo(tmp_path, video, site, 1, 3, pick["frame"], pick["box"], lambda frame, box: 1)
-
-        from volleyball_stats.web import page_data
-
-        assert found["photo"] != people["0"]["photo"]
-        assert page_data(site)["people"]["0"]["photo"] == found["photo"]
-        # Offered first from now on, and recorded where it was taken.
-        assert json.loads((tmp_path / web.PHOTO_CANDIDATES).read_text())["1:3"][0] == pick
-        assert json.loads((tmp_path / web.PHOTO_SHOWN).read_text())["players/0.webp"] == {"track": 1, "frame": pick["frame"]}
-        # A moment never scored: the pages are built again instead.
-        assert web.swap_photo(tmp_path, video, site, 1, 3, 19, [0, 0, 5, 5], lambda frame, box: 1) is None
-
-
 class TestPublish:
     def test_keeps_the_previous_choices_each_given_one_replacing_its_own(self, tmp_path, monkeypatch):
         built = []
@@ -1164,34 +1106,6 @@ class TestReceived:
         web.jumped(found, {0: {"team": 1, "number": 7}}, lambda track, frame: (1, 7), {100: [{"track": "3"}]}, tmp_path, tmp_path / "v.mp4", IDENTITY, 50.0)
 
         assert found[0]["late"] == -200 and "air" not in found[0]
-
-
-class TestKeptPhotos:
-    def site(self, tmp_path, people):
-        (tmp_path / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people})};\n")
-        (tmp_path / "players").mkdir()
-        for key in people:
-            (tmp_path / "players" / f"{key}.webp").write_bytes(b"x")
-
-    def test_keeps_each_picture_on_the_player_it_shows(self, tmp_path):
-        # An apply moved the player of #3's picture to #8, and #3 to someone else.
-        self.site(tmp_path, {"0": {"team": 1, "number": 3, "photo": "players/0.webp?v=a"}, "1": {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}})
-        (tmp_path / web.PHOTO_SHOWN).write_text(json.dumps({"players/0.webp": {"track": 7, "frame": 150}, "players/1.webp": {"track": 9, "frame": 50}}))
-        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity,runner_up,confidence\n7,100,200,1,8,,1\n9,0,100,2,4,,1\n")
-        built = {5: {"team": 1, "number": 3}, 6: {"team": 1, "number": 8}, 7: {"team": 2, "number": 4}}
-
-        web.kept_photos(built, tmp_path, tmp_path)
-
-        assert built == {5: {"team": 1, "number": 3}, 6: {"team": 1, "number": 8, "photo": "players/0.webp?v=a"}, 7: {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}}
-
-    def test_without_where_it_was_taken_keeps_a_named_players_picture_only(self, tmp_path):
-        self.site(tmp_path, {"0": {"team": 1, "number": 3, "name": "Ana", "photo": "players/0.webp?v=a"}, "1": {"team": 2, "number": 4, "photo": "players/1.webp?v=b"}})
-        (tmp_path / "players" / "1.webp").unlink()
-        built = {5: {"team": 1, "number": 6, "name": "Ana"}, 6: {"team": 2, "number": 4}}
-
-        web.kept_photos(built, tmp_path, tmp_path)
-
-        assert built == {5: {"team": 1, "number": 6, "name": "Ana", "photo": "players/0.webp?v=a"}, 6: {"team": 2, "number": 4}}
 
 
 class TestStarted:

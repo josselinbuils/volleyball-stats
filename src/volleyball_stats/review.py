@@ -21,7 +21,7 @@ from pathlib import Path
 from volleyball_stats import analysis, film, files, web
 from volleyball_stats.review_answers import KINDS, checked, corrections, load_log, log_of, restorable, reviewed, save, state, touch_answer
 
-# ponytail: web.framed imports CROP_MARGIN from here, and the pictures' scores stamp (web.scores_stamp) reads its source:
+# ponytail: pictures.framed imports CROP_MARGIN from here, and the pictures' scores stamp (pictures.scores_stamp) reads its source:
 # importing it from review_questions there would score every match's pictures again. Move it with the next change to scoring.
 from volleyball_stats.review_questions import CROP_MARGIN  # noqa: F401
 
