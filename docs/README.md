@@ -16,4 +16,4 @@ Start with the [README's getting started](../README.md#getting-started).
 ## Project notes
 
 The maintainer's working notes: [where the project stands](state.md), [fewer corrections in the review](corrections_log.md),
-[history, 1-11 Nov](history.md), [running and checking](running.md), [the review](review.md) and [hosting](hosting.md).
+[history](history.md), [running and checking](running.md), [the review](review.md) and [hosting](hosting.md).

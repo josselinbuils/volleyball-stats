@@ -49,7 +49,7 @@ frame or stays unseen near the floor. Most rules were tuned on the first match a
 attribution trains on both: neither is a clean held-out test. For reference, a fixed-camera semi-automatic system reached 77% agreement
 with human scouting ([UFP thesis, 2026](https://bdigital.ufp.pt/bitstreams/9e2cbd9e-89d4-4191-a1bc-7a0533e97f9f/download)).
 
-What is next, with the numbers: [state.md](state.md) and [corrections_log.md](corrections_log.md); before 11 Nov,
+What is next, with the numbers: [state.md](state.md) and [corrections_log.md](corrections_log.md); what was done,
 [history.md](history.md).
 Ideas for later: attack efficiency, and a second camera on the opposite sideline if the far side proves
 unreliable.

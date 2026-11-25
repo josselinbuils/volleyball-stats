@@ -201,7 +201,7 @@ A 10 s cut of `side_club` upscaled to 3840×2160 at 50 fps (HEVC, like the Osmo 
 | yolo11x 1280 | 9 | 11.5 h |
 
 The detector's input is 1280 px wide whatever the source, so the cost per frame barely depends on
-4K. On the RTX 5080 the whole tracking, ball and players, runs at 37 fps ([state.md](../../docs/state.md), item 7).
+4K. On the RTX 5080 the whole tracking, ball and players, runs at 37 fps ([history.md](../../docs/history.md) "Done, 5-22 Nov", item 7).
 
 ## Limits
 

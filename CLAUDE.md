@@ -89,5 +89,5 @@ These are not loaded at the start of a session: read the one a task touches.
 | The app (one command, everything else in the browser), importing and running a match, a busy machine, checking the page on the short clips | [docs/running.md](docs/running.md) |
 | The server, your own server (nginx), the export, uploads, password, viewers' reports, crawlers, backups, two machines (sync), films, voice | [docs/hosting.md](docs/hosting.md) |
 | Fewer corrections in the review: the harness, what was kept and dropped, the hand-over and what waits on the owner | [docs/corrections_log.md](docs/corrections_log.md) |
-| Pipeline changes and their numbers, 1-11 Nov; the page's measures | [docs/history.md](docs/history.md) |
+| Pipeline changes and their numbers, 1-11 Nov; the page's measures; what was done until 22 Nov (state.md's old numbered items) | [docs/history.md](docs/history.md) |
 | Setup, recording, every command and option, the page's sections and stats, each pipeline step | [docs/setup.md](docs/setup.md), [docs/recording.md](docs/recording.md), [docs/processing.md](docs/processing.md), [docs/match-page.md](docs/match-page.md), [docs/pipeline.md](docs/pipeline.md) |

@@ -2,7 +2,7 @@
 
 Started 11 Nov 2026. Goal (the owner's): less work correcting the automatic labels of a match.
 This file is the hand-over: what was measured, tried, kept and dropped, and what to do next.
-Read `state.md` first, and `history.md` for what was tried before 11 Nov.
+Read `state.md` first, and `history.md` for what was tried before 11 Nov and done until 22 Nov.
 
 ## How the work is run
 
