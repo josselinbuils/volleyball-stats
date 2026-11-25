@@ -6,6 +6,7 @@ import { useRunning } from '@/hooks/useRunning';
 import { useKeydown } from '@/hooks/useKeydown';
 import { useReported } from '@/hooks/useReported';
 import { useFollowList } from '@/components/Review/hooks/useFollowList';
+import { useAutosave } from '@/components/Review/hooks/useAutosave';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
@@ -110,8 +111,6 @@ const fixesOf = (c: Partial<ReportChanges>): Record<number, Fix> => Object.fromE
 const addedOf = (c: Partial<ReportChanges>): Added[] => (c.added ?? []).map((a) => ({ ...a, time: a.frame / match.fps }));
 const rallyFixesOf = (c: Partial<ReportChanges>): Record<number, RallyFix> =>
   Object.fromEntries((c.rallies ?? []).map(({ start, end, ...fix }) => [start, { ...fix, ...(end !== undefined ? { end: end / match.fps } : {}) }]));
-/** Corrections save themselves this long after the last one, at once on moving to another rally or leaving. */
-const AUTOSAVE_MS = 1000;
 /** A touch as listed: one of the page's, or one added. */
 type Row = {
   frame: number;
@@ -438,21 +437,10 @@ export function ReportEditor({
   };
   // The rallies with corrections not saved yet: one checked is unchecked by its save.
   const unsaved = changedIn(changes, saved);
-  const unsavedKeys = [...unsaved];
-  useReported(unsavedKeys, onUnsaved);
+  useReported([...unsaved], onUnsaved);
+  /** Whether the rally `key` is checked as it shows: an edit not saved yet unchecks it. */
+  const isChecked = (key: number) => checked.has(key) && !unsaved.has(key);
 
-  // What the saves sent make, those under way too: each next one is reckoned from it. Back to what the server says once
-  // none is under way.
-  const base = useRef({ changes: saved, checked });
-  const underWay = useRef(0);
-  const lastSave = useRef<Promise<boolean>>(Promise.resolve(true));
-  // What a save that failed unchecked: the next one does it.
-  const owed = useRef<{ unchecked: number[]; was: Record<number, Was> }>({ unchecked: [], was: {} });
-  useEffect(() => {
-    if (!underWay.current) {
-      base.current = { changes: saved, checked };
-    }
-  });
   /** The corrections of rally `key` in `from`, on the frames it covers with them (from just before its start, `LEAD_S`, to
    * just before the next one's); null for a rally they do not make. */
   const wasOf = (key: number, from: Partial<ReportChanges>): Was | null => {
@@ -463,60 +451,7 @@ export function ReportEditor({
     }
     return sliceOf(from, key, k > 0 ? frameOf(then[k].start - LEAD_S) : 0, then[k + 1] ? frameOf(then[k + 1].start - LEAD_S) : Number.MAX_SAFE_INTEGER);
   };
-  /** Saves `body`, the rallies checked it changes unchecked with it (but those it checks or unchecks), and what they were
-   * when checked: to put them back. */
-  const send = (body: Edit & { changes: ReportChanges }): Promise<boolean> => {
-    const { changes: before, checked: on } = base.current;
-    const said = new Set([...(body.checked ?? []), ...(body.unchecked ?? [])]);
-    const off = [...changedIn(body.changes, before)].filter((k) => on.has(k) && !said.has(k));
-    const owing = owed.current;
-    owed.current = { unchecked: [], was: {} };
-    const later = [...new Set([...owing.unchecked, ...off])].filter((k) => !said.has(k));
-    const was: Record<number, Was> = { ...owing.was };
-    for (const k of off) {
-      const w = wasOf(k, before);
-      if (w) {
-        was[k] = w;
-      }
-    }
-    const kept = Object.fromEntries(Object.entries(was).filter(([k]) => later.includes(Number(k))));
-    const unchecked = [...(body.unchecked ?? []), ...later];
-    const full: Edit = {
-      ...body,
-      ...(unchecked.length ? { unchecked } : {}),
-      ...(Object.keys(kept).length ? { was: kept } : {}),
-    };
-    base.current = { changes: body.changes, checked: new Set([...[...on].filter((k) => !unchecked.includes(k)), ...(body.checked ?? [])]) };
-    underWay.current++;
-    const done = onSend(full)
-      .then((ok) => {
-        if (!ok) {
-          owed.current = { unchecked: [...new Set([...owed.current.unchecked, ...later])], was: { ...kept, ...owed.current.was } };
-        }
-        return ok;
-      })
-      .finally(() => underWay.current--);
-    lastSave.current = done;
-    return done;
-  };
-  // The corrections save themselves (`AUTOSAVE_MS`): what the last save sent is not sent again. Whether all went.
-  const autosave = () => (changedIn(changes, base.current.changes).size ? send({ changes }) : lastSave.current);
-  const autosaveRef = useRef(autosave);
-  autosaveRef.current = autosave;
-  const text = JSON.stringify(changes);
-  useEffect(() => {
-    const timer = window.setTimeout(() => void autosaveRef.current(), AUTOSAVE_MS);
-    return () => window.clearTimeout(timer);
-  }, [text]);
-  // On another rally, at once.
-  useEffect(() => void autosaveRef.current(), [here]);
-  useEffect(() => {
-    flush.current = () => autosaveRef.current();
-    return () => {
-      flush.current = null;
-      void autosaveRef.current();
-    };
-  }, []);
+  const { send, autosave } = useAutosave({ changes, saved, checked, here, flush, onSend, changedIn, wasOf });
   useReported(
     allRows.filter((row) => !row.removed && !noBall(row)).map((row) => row.time),
     onTouches,
@@ -782,7 +717,7 @@ export function ReportEditor({
     if (fixOf(k)?.play === false || joins(k - 1)) {
       continue;
     }
-    const f = problemsAt(k, checked.has(keyOf(k)) && !unsaved.has(keyOf(k)));
+    const f = problemsAt(k, isChecked(keyOf(k)));
     found.set(k, f);
   }
   const problemsOf = (row: Row): Problem[] => {
@@ -836,7 +771,7 @@ export function ReportEditor({
     }
   };
   // Whether the rally's header offers "Valider".
-  const validatable = (k: number) => !isDeleted(k) && !(checked.has(keyOf(k)) && !unsaved.has(keyOf(k))) && !canDelete(k);
+  const validatable = (k: number) => !isDeleted(k) && !isChecked(keyOf(k)) && !canDelete(k);
   // The video's caption on its rally's last touch offers "Valider", as the button under the video does.
   const closing = named && !named.removed && lastOf(joinStart(named.rally, joins)) === named && validatable(named.rally) ? named.rally : null;
   const validateRef = useRef(validate);
@@ -908,7 +843,7 @@ export function ReportEditor({
     }
     const k = shown.findIndex((_, k) => !joins(k) && fixOf(k)?.play !== false && from < stopOf(k) && stopOf(k) <= now);
     const key = k < 0 ? undefined : keyOf(joinStart(k, joins));
-    if (key !== undefined && stoppedAt.current !== key && !(checked.has(key) && !unsaved.has(key))) {
+    if (key !== undefined && stoppedAt.current !== key && !isChecked(key)) {
       stoppedAt.current = key;
       onPause(timeOf());
     }
@@ -1101,7 +1036,7 @@ export function ReportEditor({
                                 </Button>
                               </Tip>
                             )}
-                            {checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
+                            {isChecked(keyOf(k)) ? (
                               <Tip label={t('review.uncheckRally', { n: k + 1 })}>
                                 <Button
                                   variant="outline"
