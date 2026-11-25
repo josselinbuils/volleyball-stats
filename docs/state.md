@@ -18,6 +18,7 @@ The pipeline's weak spots and what is left to do, most useful first.
 
 ## Open
 
+0. Easier for anyone (agreed 25 Nov): the plan, its order and where it stands are in [easier.md](easier.md).
 1. Waiting on the owner: the camera's shutter. Three warm-up minutes at the next match, from the match position, WB 4000K:
    1/240 ISO 3200 (the 2 Nov settings), 1/500 ISO 6400, 1/1000 ISO 12800 (the Osmo Action 3 offers no 1/480 or 1/960). Compare
    the ball's detection, a spiking arm's sharpness, the grain and flicker, then set [recording.md](recording.md). On 2 Nov the

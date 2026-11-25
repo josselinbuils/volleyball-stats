@@ -85,6 +85,7 @@ These are not loaded at the start of a session: read the one a task touches.
 | For | Read |
 |---|---|
 | What is next, the weak spots, the owner's plans: start here when asked what to do | [docs/state.md](docs/state.md) |
+| Making the app usable by non-tech people (installers, native Windows, resume, sharing): the plan and its log | [docs/easier.md](docs/easier.md) |
 | The review: running it, its questions, Match tab, stats rule, the match list, renames | [docs/review.md](docs/review.md) |
 | The app (one command, everything else in the browser), importing and running a match, a busy machine, checking the page on the short clips | [docs/running.md](docs/running.md) |
 | The server, your own server (nginx), the export, uploads, password, viewers' reports, crawlers, backups, two machines (sync), films, voice | [docs/hosting.md](docs/hosting.md) |
