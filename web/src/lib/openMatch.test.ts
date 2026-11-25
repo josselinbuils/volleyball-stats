@@ -26,4 +26,11 @@ describe('reachedMatch', () => {
     expect(location.reload).not.toHaveBeenCalled();
     expect(location.href).toBe('/review#season');
   });
+
+  it('gives up once the server says the match failed to open', async () => {
+    const location = at('/matches/', '');
+    vi.stubGlobal('fetch', async () => ({ json: async () => ({ name: null, failed: 'next' }) }));
+    await expect(reachedMatch('next')).rejects.toThrow();
+    expect(location.href).toBe('/matches/');
+  });
 });

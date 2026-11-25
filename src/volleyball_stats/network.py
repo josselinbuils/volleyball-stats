@@ -18,8 +18,8 @@ from pathlib import Path
 from volleyball_stats import files
 
 FILE = "network.json"
-# Set by the switch in the server's environment: its own restarts (another match opened, the app updated) keep it, a new
-# start of the app does not.
+# Set by the switch in the server's environment: its own restarts (the app updated) keep it, a new start of the app does
+# not.
 SESSION = "VOLLEYBALL_STATS_LAN"
 # WSL's own firewall (Hyper-V's) knows its virtual machine by this id.
 WSL_VM = "{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}"

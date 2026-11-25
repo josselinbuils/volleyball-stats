@@ -144,9 +144,9 @@ def uv() -> str | None:
     return None
 
 
-def restart_command() -> list[str]:
-    """This server started again with the code and dependencies as they now are, the page already open."""
-    args = [a for a in sys.argv[1:] if a != "--no-browser"] + ["--no-browser"]
+def restart_command(args: list[str]) -> list[str]:
+    """This server started again on `args` (`review_server.Server.arguments`) with the code and dependencies as they now
+    are."""
     tool = uv()
     if tool:
         return [tool, "run", "--project", str(git_check.ROOT), "python", "-m", "volleyball_stats.review_server", *args]
@@ -1020,14 +1020,14 @@ def handle(
     return None
 
 
-def restart_after(lock=None) -> None:
-    """Replaces this server by `restart_command`'s once the response on its way has left."""
+def restart_after(args: list[str], lock=None) -> None:
+    """Replaces this server by `restart_command`'s on `args` once the response on its way has left."""
 
     def replace() -> None:
         time.sleep(0.2)
         if lock:
             lock.acquire()
-        command = restart_command()
+        command = restart_command(args)
         os.execv(command[0], command)
 
     threading.Thread(target=replace, daemon=True).start()

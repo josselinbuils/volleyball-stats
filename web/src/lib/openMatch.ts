@@ -1,4 +1,4 @@
-/** Asks the review server to open the match `name`, then goes to its review once the server has restarted on it. */
+/** Asks the review server to open the match `name`, then goes to its review once it is open. */
 export async function openMatch(name: string): Promise<void> {
   const response = await fetch('/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
   if (!response.ok) {
@@ -18,7 +18,7 @@ export async function pullMatch(name: string): Promise<void> {
   location.reload();
 }
 
-/** Reloads the page once the server, restarting on the same match, answers again. */
+/** Reloads the page once the server, started again or reading the match again, answers again. */
 export async function restarted(): Promise<void> {
   // The server stops a moment after its answer.
   await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -37,12 +37,15 @@ export async function restarted(): Promise<void> {
   throw new Error('restart: timed out');
 }
 
-/** Goes to the review of the match `name`, keeping the tab, once the server has restarted on it. */
+/** Goes to the review of the match `name`, keeping the tab, once the server has opened it; throws if it could not. */
 export async function reachedMatch(name: string): Promise<void> {
   const giveUp = Date.now() + 5 * 60_000;
   while (Date.now() < giveUp) {
     try {
-      const current = (await (await fetch('/current')).json()) as { name: string | null };
+      const current = (await (await fetch('/current')).json()) as { name?: string | null; failed?: string };
+      if (current.failed === name) {
+        break;
+      }
       if (current.name === name) {
         // On /review, setting the same address with a hash would only scroll to it.
         if (location.pathname === '/review') {
@@ -53,9 +56,9 @@ export async function reachedMatch(name: string): Promise<void> {
         return;
       }
     } catch {
-      // Not listening yet: the server is restarting.
+      // Not listening yet: the server is starting again.
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error('open: timed out');
+  throw new Error('open: failed');
 }

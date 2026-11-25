@@ -129,8 +129,8 @@ def fetch_all(outputs: Path) -> dict[str, int]:
 
 
 def watch(outputs: Path, got=lambda found: None) -> None:
-    """Fetches every EVERY_S (`fetch_all`), the first once EVERY_S passed since the last (a server started again on
-    another match fetches none at once), telling `got` what came; a failure (offline) waits for the next."""
+    """Fetches every EVERY_S (`fetch_all`), the first once EVERY_S passed since the last (a server started again fetches
+    none at once), telling `got` what came; a failure (offline) waits for the next."""
     time.sleep(max(0.0, (news(outputs).get("at") or 0) + EVERY_S - time.time()))
     while True:
         try:

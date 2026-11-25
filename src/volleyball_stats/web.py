@@ -1657,10 +1657,15 @@ def scores_stamp(video: Path) -> str:
 LOADED_REID: list = []
 
 
-def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}, record: Path | None = None) -> dict[int, tuple]:
+class Stopped(Exception):
+    """The pictures given up (`photos`' `stop`): the review opened another match."""
+
+
+def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, teams: set[int] = {1, 2}, record: Path | None = None, stop: Callable[[], bool] = lambda: False) -> dict[int, tuple]:
     """A picture of each numbered player of `teams` among `people` in `folder`, as their `photo`: their
     best moment (PHOTO_PICKS), framed, and their `look` for the 3D figures from it (`likeness.dress`); returns each
-    pictured player's (frame, box, head). `record` (PHOTO_SHOWN) gets where each picture was taken."""
+    pictured player's (frame, box, head). `record` (PHOTO_SHOWN) gets where each picture was taken. Stopped once `stop`
+    says so, between two frames read."""
     from volleyball_stats.decode import frames_apart
     from volleyball_stats.review import ALONE, IDENTITY_CROPS, Questions, load_log, piece_key
 
@@ -1759,6 +1764,8 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
 
         scored_any = False
         for frame, image in frames_apart(video, wanted):
+            if stop():
+                raise Stopped
             for box in wanted[frame]:
                 part, (left, top, scale) = framed(image, box)
                 # Copies: a view would keep the whole 4K frame alive.
@@ -2083,12 +2090,12 @@ def kept_photos(people: dict[int, dict], site: Path, match: Path, kept: tuple[st
                 person[field] = found[field]
 
 
-def refresh_photos(match: Path, video: Path, site: Path) -> dict:
-    """The people of the page at `site` with new pictures in its folder, for `patch_people`."""
+def refresh_photos(match: Path, video: Path, site: Path, stop: Callable[[], bool] = lambda: False) -> dict:
+    """The people of the page at `site` with new pictures in its folder, for `patch_people`; Stopped once `stop` says so."""
     from volleyball_stats.review import page_data
 
     people = page_data(site)["people"]
-    photos(match, video, people, site / "players", {1, 2}, match / PHOTO_SHOWN)
+    photos(match, video, people, site / "players", {1, 2}, match / PHOTO_SHOWN, stop)
     return people
 
 

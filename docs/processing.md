@@ -127,8 +127,8 @@ uv run python -m volleyball_stats.review_server outputs/matches/VIDEO   # opens 
 ```
 
 The list shows the matches `match --players` has run on (`outputs/matches/VIDEO/source.json` holds their video and court), one still
-being processed greyed out; "Changer de match" goes back to it from a review. Choosing another match restarts the server on it,
-which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved; the match is also given by its name.
+being processed greyed out; "Changer de match" goes back to it from a review. Choosing another match opens it in the same server
+(`review_server.Server.open`), which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved; the match is also given by its name.
 `--outputs` is where the list looks, `--theme` the pages' club, `--port` the server's, `--no-browser` opens no page,
 `--with-window` stops it once the app's last window closes.
 

@@ -1,10 +1,11 @@
 import http.client
 import json
 import threading
+import time
 
 import pytest
 
-from volleyball_stats import app, review_server
+from volleyball_stats import app, presence, review_server
 
 
 @pytest.fixture
@@ -63,3 +64,97 @@ class TestServer:
         assert ask(server, "POST", "/open", "{}", {"Content-Type": "text/plain"})[0] == 403
         assert ask(server, "POST", "/answer", "{}")[0] == 403
         assert ask(server, "POST", "/open", "{}", {"Content-Length": str(review_server.MAX_BODY + 1)})[0] == 413
+
+
+class FakeReview:
+    """A review that opens at once: the server's switching alone is tested."""
+
+    def __init__(self, match, *_):
+        self.match, self.lock, self.progress, self.closed, self.started = match, threading.Lock(), {}, False, False
+
+    def start(self):
+        self.started = True
+
+    def close(self):
+        self.closed = True
+
+    def get(self, path, query):
+        return review_server.reply({"match": self.match.name})
+
+    def app_context(self):
+        return {"open_match": self.match.name}
+
+
+@pytest.fixture
+def two(server, monkeypatch):
+    """Two ready matches in the server's list, opened as FakeReviews; `gate` holds an opening until set."""
+    gate = threading.Event()
+    gate.set()
+
+    def read(match, *args):
+        gate.wait()
+        if match.name == "broken":
+            raise ValueError("no video")
+        if match.name == "exits":
+            raise SystemExit("unknown theme")
+        return FakeReview(match)
+
+    monkeypatch.setattr(review_server, "read_review", read)
+    monkeypatch.setattr(review_server, "openable", lambda out, name: out / name)
+    server.gate = gate
+    return server
+
+
+def opened(server, name):
+    """Asks `server` to open `name`, then waits until it no longer opens."""
+    status, _, body = ask(server, "POST", "/open", json.dumps({"name": name}))
+    assert (status, json.loads(body)) == (200, {})
+    for _ in range(200):
+        if not server.opening:
+            return
+        time.sleep(0.01)
+    raise AssertionError("still opening")
+
+
+class TestSwitch:
+    def test_opens_one_match_then_another_in_the_same_process(self, two):
+        opened(two, "a")
+        first = two.review
+        assert first.started and json.loads(ask(two, "GET", "/current")[2]) == {"name": "a"}
+        assert json.loads(ask(two, "GET", "/anything")[2]) == {"match": "a"}
+
+        opened(two, "b")
+
+        assert first.closed and two.review.match.name == "b" and two.review.started
+        assert json.loads(ask(two, "GET", "/current")[2]) == {"name": "b"}
+
+    def test_answers_busy_while_a_match_opens(self, two):
+        two.gate.clear()
+        assert ask(two, "POST", "/open", json.dumps({"name": "a"}))[0] == 200
+        try:
+            status, _, body = ask(two, "GET", "/current")
+            assert (status, json.loads(body)) == (503, {"opening": "a"})
+            assert ask(two, "GET", "/review.js")[0] == 503
+            assert ask(two, "POST", "/answer", "{}")[0] == 503
+            assert ask(two, "POST", "/open", json.dumps({"name": "b"}))[0] == 409
+            assert not two.may_stop()
+        finally:
+            two.gate.set()
+
+    def test_shows_the_list_when_a_match_fails_to_open(self, two):
+        opened(two, "a")
+        opened(two, "broken")
+
+        assert two.review is None
+        assert json.loads(ask(two, "GET", "/current")[2]) == {"name": None, "failed": "broken"}
+        opened(two, "exits")
+        assert json.loads(ask(two, "GET", "/current")[2]) == {"name": None, "failed": "exits"}
+
+    def test_starts_again_on_the_match_open_now(self, two, monkeypatch):
+        assert "--with-window" not in two.arguments() and str(two.out / "a") not in two.arguments()
+        opened(two, "a")
+        monkeypatch.setattr(presence, "ON", True)
+
+        args = two.arguments()
+
+        assert args[0] == str(two.out / "a") and "--no-browser" in args and "--with-window" in args

@@ -60,9 +60,9 @@ ON = False
 PAGES = Presence()
 
 
-def watch(may_stop: Callable[[], bool], lock=None) -> None:
-    """With --with-window: the server stopped once its windows closed and `may_stop` (no job, no apply running). Called
-    as the server starts listening."""
+def watch(may_stop: Callable[[], bool], lock: Callable[[], object] | None = None) -> None:
+    """With --with-window: the server stopped once its windows closed and `may_stop` (no job, no apply running), the lock
+    `lock` gives taken first (no answer being saved). Called as the server starts listening."""
     if not ON:
         return
     PAGES.listening()
@@ -72,8 +72,9 @@ def watch(may_stop: Callable[[], bool], lock=None) -> None:
             time.sleep(1)
             if PAGES.closed() and may_stop():
                 print("Its last window closed: stopped.", flush=True)
-                if lock:
-                    lock.acquire()
+                held = lock and lock()
+                if held:
+                    held.acquire()
                 os._exit(0)
 
     threading.Thread(target=run, daemon=True).start()

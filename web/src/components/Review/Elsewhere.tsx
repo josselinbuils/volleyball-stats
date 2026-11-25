@@ -18,7 +18,7 @@ export function Elsewhere({ claim: { machine, at }, onKept }: { claim: Claim; on
     try {
       await post(`sync/${which}`);
       if (which === 'take') {
-        // The review restarts on the other machine's copy.
+        // The review opens again on the other machine's copy.
         await restarted();
       } else {
         onKept();

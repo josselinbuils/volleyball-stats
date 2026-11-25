@@ -1,13 +1,12 @@
 """The review's server: the list of the matches, and a match's review once one is open (`Review`), on this machine only
-unless the app opens it to the local network (`network`). Opening another match starts the process again on it: everything
-is read again, with the code as it now is.
+unless the app opens it to the local network (`network`). Another match opens in the same process (`Server.open`), read
+from its files; a change to the code shows once the process starts again (the app's update starts it again).
 
     uv run python -m volleyball_stats.review_server [MATCH] [--outputs DIR] [--theme NAME] [--roster PATH] [--port PORT]
 """
 
 import argparse
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -122,6 +121,7 @@ def failed(error: BaseException, status: int) -> Reply:
 
 NOT_FOUND = Reply(b"Not found", "text/plain", 404)
 FORBIDDEN = Reply(b"", "text/plain", 403)
+BUSY = Reply(b'{"error": "busy"}', "application/json", 503)
 
 
 def moved(location: str) -> Reply:
@@ -234,26 +234,15 @@ def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
     return file.read_bytes(), kinds.get(file.suffix.lower(), "application/octet-stream")
 
 
-def reopening(name: str, out: Path, theme: str, port: int, roster: Path) -> list[str]:
-    """The command opening the review on the match `name`, one of `match_list`'s ready ones; LookupError otherwise."""
+def openable(out: Path, name: str) -> Path:
+    """The match `name` of `out`, one of `match_list`'s ready ones; LookupError otherwise."""
     if not any(m["path"] == name and m["ready"] for m in match_list(out)):
         raise LookupError(name)
-    return [sys.executable, "-m", "volleyball_stats.review_server", str(out / name), "--outputs", str(out), "--theme", theme, "--port", str(port), "--roster", str(roster), "--no-browser", *(["--with-window"] if presence.ON else [])]
+    return out / name
 
 
 class Busy(Exception):
-    """A request that would wait on the review's run until it ends: refused instead."""
-
-
-def switch(command: list[str], lock: threading.Lock) -> None:
-    """Replaces this server by `command`, once the response on its way has left and no answer is being saved."""
-
-    def replace() -> None:
-        time.sleep(0.2)
-        lock.acquire()
-        os.execv(command[0], command)
-
-    threading.Thread(target=replace, daemon=True).start()
+    """A request that would wait on the review's run until it ends, or reach a match being opened or left: refused instead."""
 
 
 def pulled(body, out: Path) -> Reply:
@@ -295,18 +284,18 @@ def network_route(method: str, path: str, body: dict, port: int) -> Reply | None
     return reply(network.state(app.OUTPUTS, port))
 
 
-def network_restart(path: str, body: dict, answer: tuple, lock=None) -> None:
-    """The server started again once the switch's answer has left: it listens on the network, or no longer."""
+def network_restart(path: str, body: dict, answer: tuple, args: list[str], lock=None) -> None:
+    """The server started again on `args` once the switch's answer has left: it listens on the network, or no longer."""
     if path == "/app/network" and answer[2] == 200 and body.get("action") is None:
-        app.restart_after(lock)
+        app.restart_after(args, lock)
 
 
-def backing_all(outputs: Path) -> None:
-    """While the copies are automatic and no match is open: every match changed here sent and what sits beside them kept in
-    step, as the Site tab's job (`app.start_backup`: it shows there, and neither starts while the other runs), the copies
-    checked once a week (`sync.verify`)."""
+def backing_all(outputs: Path, idle: Callable[[], bool]) -> None:
+    """While the copies are automatic and no match is open (`idle`): every match changed here sent and what sits beside them
+    kept in step, as the Site tab's job (`app.start_backup`: it shows there, and neither starts while the other runs), the
+    copies checked once a week (`sync.verify`)."""
     while True:
-        if sync.server(outputs) and sync.auto(outputs) and not jobs.is_running(app.OUTPUTS, app.BACKUP):
+        if idle() and sync.server(outputs) and sync.auto(outputs) and not jobs.is_running(app.OUTPUTS, app.BACKUP):
             try:
                 app.start_backup(auto=True)
                 while jobs.is_running(app.OUTPUTS, app.BACKUP):
@@ -335,8 +324,12 @@ class Review:
     """A match open in the review: its page built, its questions, the answers' runs one at a time (`lock`, `run_steps`) and
     what they leave for later (the players' pictures), its copies on the server, its upload."""
 
-    def __init__(self, match: Path, video: Path, court: Path, squad, theme: str, port: int, roster: Path) -> None:
+    def __init__(self, match: Path, video: Path, court: Path, squad, theme: str, port: int, roster: Path, opens=None) -> None:
         self.match, self.video, self.court, self.squad, self.theme, self.port, self.roster = match, video, court, squad, theme, port, roster
+        # The server's `open`, for a renamed match or one read again from its files.
+        self.opens = opens
+        # Set once another match opens in its place (`close`): its work beside the requests ends.
+        self.stopped = threading.Event()
         # First the server's newer copy, if nothing changed here (`sync.check`); changed on both sides, the page asks which to keep.
         conflict = sync.check(match) if sync.active(files.root(match)) else None
         matches.ensure_publish(match, video, theme)
@@ -470,12 +463,19 @@ class Review:
             print(f"{len(locks[0]['locked'])} rallies checked locked", flush=True)
 
     def start(self) -> None:
-        """The work beside the requests: the pictures cut ahead, what applies leave for later, the copies, the reports."""
+        """The work beside the requests: the pictures cut ahead, what applies leave for later, the copies."""
         threading.Thread(target=self.warm, daemon=True).start()
         threading.Thread(target=self.afterwards, daemon=True).start()
         if self.can_back_up:
             threading.Thread(target=self.backing, daemon=True).start()
-        threading.Thread(target=feedback.watch, args=(self.outputs, self.reports_came), daemon=True).start()
+
+    def close(self) -> None:
+        """Its work beside the requests ended, once no answer is being saved: requests still on their way are refused
+        (`taken`), the pictures given up (`afterwards`, `warm`). A film being made or an upload ends on its own."""
+        with self.lock:
+            self.stopped.set()
+        self.later.set()
+        self.wake.set()
 
     def may_stop(self) -> bool:
         """Never in an apply nor the work it leaves for later (the pictures), nor in a job."""
@@ -541,8 +541,8 @@ class Review:
     def backing(self) -> None:
         """While the copies are automatic: the match sent whenever it changed here since it was last sent or brought
         (`sync.changed`), else what sits beside it kept in step (`sync.keep_shared`): a change there alone moves no
-        match's version."""
-        while True:
+        match's version. Until it closes."""
+        while not self.stopped.is_set():
             # A copy of a match (a test's) reaches no server: it would send itself as this machine's (`sync.own`). None
             # while the Site tab's backup still runs.
             if sync.auto(self.outputs) and sync.own(self.match) and not jobs.is_running(app.OUTPUTS, app.BACKUP):
@@ -660,23 +660,29 @@ class Review:
         players' pictures, kept on the page if no build came since, then the numbers they read."""
         while True:
             self.later.wait()
+            if self.stopped.is_set():
+                return
             self.after_apply.set()
             self.later.clear()
             try:
                 built = self.generation
                 if self.stale_photos.exists():
                     try:
-                        people = web.refresh_photos(self.match, self.video, self.site)
+                        people = web.refresh_photos(self.match, self.video, self.site, self.stopped.is_set)
+                    except web.Stopped:
+                        # Left for the next time it opens (`stale_photos`).
+                        return
                     except Exception as error:
                         self.photos_error = str(error) or type(error).__name__
                         raise
                     with self.lock:
-                        if built == self.generation:
+                        if built == self.generation and not self.stopped.is_set():
                             web.patch_people(self.site, people)
                             self.page_seen = self.page_mark()
                             self.stale_photos.unlink(missing_ok=True)
                             self.page_changed()
-                self.questions.read_pictures(self.picture)
+                if not self.stopped.is_set():
+                    self.questions.read_pictures(self.picture)
             except Exception:
                 traceback.print_exc()
             finally:
@@ -714,6 +720,9 @@ class Review:
         while not self.lock.acquire(timeout=0.2):
             if self.progress and (not answered or self.at_start["data"] is not None):
                 return False
+        if self.stopped.is_set():
+            self.lock.release()
+            raise Busy
         return True
 
     @contextmanager
@@ -754,7 +763,7 @@ class Review:
         found, _ = self.questions.build(set())
         urls = re.findall(r"crop\?f=(\d+)&b=([\d,-]+)", json.dumps([found, self.questions.players([], self.team_names())]))
         with ThreadPoolExecutor(READERS) as pool:
-            list(pool.map(lambda u: self.picture(int(u[0]), tuple(int(v) for v in u[1].split(","))), dict.fromkeys(urls)))
+            list(pool.map(lambda u: self.stopped.is_set() or self.picture(int(u[0]), tuple(int(v) for v in u[1].split(","))), dict.fromkeys(urls)))
         self.later.set()
 
     def team_names(self) -> list[str | None]:
@@ -931,8 +940,7 @@ class Review:
             except (LookupError, OSError, RuntimeError, subprocess.SubprocessError) as error:
                 return failed(error, 502)
         # Everything read from the match's files again.
-        command = [sys.executable, "-m", "volleyball_stats.review_server", *[a for a in sys.argv[1:] if a != "--no-browser"], "--no-browser"]
-        return reply({}, then=lambda: switch(command, self.lock))
+        return reply({}, then=self.opens(self.match.name))
 
     def post_sync_keep(self, body: dict) -> Reply:
         """This machine's copy kept, the server's set aside there."""
@@ -980,14 +988,14 @@ class Review:
     def post_team(self, e: Edit, body: dict) -> Reply:
         match = self.match
         set_team(match, int(body["team"]), body.get("name"), body.get("colour"))
-        # Its name follows its teams, the folders and the video with it: the server restarts on them.
+        # Its name follows its teams, the folders and the video with it: the review opens again on them.
         new = rename.target_name(match)
         if new and new != match.name and not self.progress and not (match.parent / new).exists():
             # In its own process, with the code as it now is, whenever this server started.
             run = subprocess.run([sys.executable, "-m", "volleyball_stats.rename", str(match), new, "--from-review"], capture_output=True, text=True)
             if run.returncode:
                 raise ValueError(run.stderr.strip())
-            return reply({"renamed": new}, then=lambda: switch(reopening(new, match.parent, self.theme, self.port, self.roster), threading.Lock()))
+            return reply({"renamed": new}, then=self.opens(new))
         self.run_steps(self.pages(pictures=False))
         self.later.set()
         return reply(self.waiting(e.log))
@@ -1256,19 +1264,77 @@ class Review:
         return self.answered(e.log, rebuilt, e.undone)
 
 
-class Server(ThreadingHTTPServer):
-    """The review's server: the list of the matches of `out`, and `review`'s match when one is open. Quiet when a page goes
-    before its answer (a reload, a closed tab)."""
+def read_review(match: Path, theme: str, port: int, roster: Path, opens=None) -> Review:
+    """The review of `match`, with the video, court and squad its source.json says."""
+    given = files.read_json(match / files.SOURCE, {})
+    if not given.get("video") or not given.get("court"):
+        raise ValueError(f"{match / files.SOURCE} names no video or court")
+    squad = identity.parse_squad(given["squad"]) if given.get("squad") else None
+    return Review(match, Path(given["video"]), Path(given["court"]), squad, theme, port, roster, opens)
 
-    def __init__(self, out: Path, theme: str, port: int, roster: Path, review: Review | None = None) -> None:
-        self.out, self.theme, self.port, self.roster, self.review = out, theme, port, roster, review
+
+class Server(ThreadingHTTPServer):
+    """The review's server: the list of the matches of `out`, and `review`'s match when one is open, another opened in its
+    place without stopping (`open`). Quiet when a page goes before its answer (a reload, a closed tab)."""
+
+    def __init__(self, out: Path, theme: str, port: int, roster: Path) -> None:
+        self.out, self.theme, self.port, self.roster = out, theme, port, roster
+        self.review: Review | None = None
+        # The match being opened (`open`), and the last one that failed to.
+        self.opening: str | None = None
+        self.failed: str | None = None
+        self.switching = threading.Lock()
         # On the local network too when the app says so (`network`): the process starts again to change it.
         self.lan = network.shared(app.OUTPUTS)
-        # A restart waits for no answer being saved.
-        self.lock = review.lock if review else None
         super().__init__((network.bind(app.OUTPUTS), port), Handler)
         # The one given, or the one found for port 0.
         self.port = self.server_address[1]
+
+    @property
+    def lock(self):
+        """What a restart or a stop takes first: no answer is being saved."""
+        return self.review.lock if self.review else None
+
+    def open(self, name: str) -> Callable[[], None]:
+        """The review of the match `name`, a ready one of the list, in place of the one open (or the same read again from
+        its files): what starts it once the response has left. Meanwhile /current and the match's requests answer busy;
+        if it fails, the list alone. LookupError for another name, Busy while another opens."""
+        match = openable(self.out, name)
+        with self.switching:
+            if self.opening:
+                raise Busy
+            self.opening, self.failed = name, None
+        return lambda: threading.Thread(target=self.switch, args=(match,), daemon=True).start()
+
+    def switch(self, match: Path) -> None:
+        old, self.review = self.review, None
+        try:
+            if old:
+                old.close()
+            review = read_review(match, self.theme, self.port, self.roster, self.open)
+            review.start()
+            self.review = review
+        # SystemExit too: some steps end so on the command line (an unknown theme).
+        except (Exception, SystemExit):  # noqa: BLE001
+            traceback.print_exc()
+            self.failed = match.name
+        finally:
+            self.opening = None
+
+    def arguments(self) -> list[str]:
+        """This server's options with the match open now, its page already open: to start it again."""
+        review = self.review
+        return [*([str(review.match)] if review else []), "--outputs", str(self.out), "--theme", self.theme, "--port", str(self.port), "--roster", str(self.roster), "--no-browser", *(["--with-window"] if presence.ON else [])]
+
+    def may_stop(self) -> bool:
+        """Whether the app may stop now (`presence`): no match being opened, no job, no apply nor what it leaves for later."""
+        review = self.review
+        return not self.opening and (review.may_stop() if review else not any(j["running"] for j in jobs.state(app.OUTPUTS)))
+
+    def reports_came(self, found: dict[str, int]) -> None:
+        review = self.review
+        if review:
+            review.reports_came(found)
 
     def handle_error(self, request, client_address) -> None:
         if not isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
@@ -1337,7 +1403,9 @@ class Handler(BaseHTTPRequestHandler):
         if url.path in SPELLINGS:
             return moved(SPELLINGS[url.path] + (f"?{url.query}" if url.query else ""))
         if url.path == "/current":
-            return reply({"name": review.match.name if review else None})
+            if s.opening:
+                return reply({"opening": s.opening}, 503)
+            return reply({"name": review.match.name if review else None, **({"failed": s.failed} if s.failed else {})})
         if url.path == "/" or (url.path == "/review" and not review):
             return moved("/matches/")
         found = network_route("GET", url.path, {}, s.port) or app.handle("GET", url.path, url.query, {}, lambda: match_list(s.out), **self.app_context())
@@ -1350,12 +1418,14 @@ class Handler(BaseHTTPRequestHandler):
             return Reply(*page) if page else NOT_FOUND
         if url.path == "/git":
             return reply(git_check.behind(git_check.ROOT))
-        return review.get(url.path, url.query) if review else NOT_FOUND
+        if not review:
+            return BUSY if s.opening else NOT_FOUND
+        return review.get(url.path, url.query)
 
     def post(self) -> Reply:
         s, review, path = self.server, self.server.review, self.path
         # A JSON body: a page elsewhere can only send a form or plain text without asking.
-        known = review or path in ("/open", "/pull") or path.startswith("/app/")
+        known = review or s.opening or path in ("/open", "/pull") or path.startswith("/app/")
         if not self.ours() or not known or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
             return FORBIDDEN
         size = int(self.headers.get("Content-Length", 0))
@@ -1372,9 +1442,9 @@ class Handler(BaseHTTPRequestHandler):
             answer = network_route("POST", path, body, s.port) or app.handle("POST", path, "", body, lambda: match_list(s.out), **self.app_context()) or NOT_FOUND
 
             def then() -> None:
-                network_restart(path, body, answer, s.lock)
+                network_restart(path, body, answer, s.arguments(), s.lock)
                 if path == "/app/update" and answer[2] == 200:
-                    app.restart_after(s.lock)
+                    app.restart_after(s.arguments(), s.lock)
                 if path == "/app/quit" and answer[2] == 200:
                     app.stop_after(s.lock)
 
@@ -1383,36 +1453,38 @@ class Handler(BaseHTTPRequestHandler):
             return pulled(body, s.out)
         if path == "/open":
             return self.open(body)
-        return review.post(path, body)
+        return review.post(path, body) if review else BUSY
 
     def open(self, body: dict) -> Reply:
-        """The review on the match `name`: this process started again on it (the match open already opens)."""
+        """The review on the match `name` (the match open already opens)."""
         s, review = self.server, self.server.review
         try:
             name = body["name"]
-            command = reopening(name, s.out, s.theme, s.port, s.roster)
+            openable(s.out, name)
         except (LookupError, TypeError, ValueError):
             return reply({"error": "no such match"}, 400)
         if review and name == review.match.name:
             return reply({})
         # The match open goes on while it runs: only another waits.
-        if review and review.progress:
+        if (review and review.progress) or s.opening:
             return reply({"error": "busy"}, 409)
-        return reply({}, then=lambda: switch(command, s.lock or threading.Lock()))
+        try:
+            return reply({}, then=s.open(name))
+        except Busy:
+            return reply({"error": "busy"}, 409)
 
 
-def serve(out: Path, theme: str, port: int, browser: bool, roster: Path, review: Review | None = None) -> None:
-    """The list of the matches of `out`, and `review`'s match when one is open, until the process stops."""
+def serve(out: Path, theme: str, port: int, browser: bool, roster: Path, match: Path | None = None) -> None:
+    """The list of the matches of `out`, and `match`'s review if given, until the process stops."""
     # The footage shows real people: this machine only, unless the app opens it to the local network.
-    server = Server(out, theme, port, roster, review)
-    if review:
-        review.start()
-        presence.watch(review.may_stop, review.lock)
-    else:
-        threading.Thread(target=backing_all, args=(out.parent,), daemon=True).start()
-        threading.Thread(target=feedback.watch, args=(out.parent,), daemon=True).start()
-        presence.watch(lambda: not any(j["running"] for j in jobs.state(app.OUTPUTS)))
-    url = f"http://127.0.0.1:{port}/{'review' if review else 'matches/'}"
+    server = Server(out, theme, port, roster)
+    if match:
+        server.review = read_review(match, theme, port, roster, server.open)
+        server.review.start()
+    threading.Thread(target=backing_all, args=(out.parent, lambda: not server.review and not server.opening), daemon=True).start()
+    threading.Thread(target=feedback.watch, args=(out.parent, server.reports_came), daemon=True).start()
+    presence.watch(server.may_stop, lambda: server.lock)
+    url = f"http://127.0.0.1:{port}/{'review' if match else 'matches/'}"
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
         app.open_browser(url)
@@ -1447,9 +1519,9 @@ def main() -> None:
     if not video or not court:
         parser.error(f"--video and --court: {source} does not say them")
     squad = args.squad or (identity.parse_squad(given["squad"]) if given.get("squad") else None)
+    # Kept there for the review to read (`read_review`), again whenever it opens.
     files.write_source(args.match, video, court, squad)
-    review = Review(args.match, Path(video), Path(court), squad, args.theme, args.port, args.roster)
-    serve(args.match.parent, args.theme, args.port, not args.no_browser, args.roster, review)
+    serve(args.match.parent, args.theme, args.port, not args.no_browser, args.roster, args.match)
 
 
 if __name__ == "__main__":

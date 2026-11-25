@@ -142,7 +142,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - The list's "Saison" tab reads each match's `review/data.js` (`/matches/NAME/data.js`); hosted, each match's `data.js`
   ([history.md](history.md)).
 - A match is named by its date and teams (`rename.target_name`): changing a team's name in the review renames its folders,
-  video and backups, and restarts the server (`rename.py`); the old name stays an alias (`source.json`) for reports and
+  video and backups, and opens the review again on them (`rename.py`); the old name stays an alias (`source.json`) for reports and
   viewers' choices. The hosted page follows on its next upload, with a redirect from its old address
   (`matches.write_redirects`).
 - Timeouts (`timeouts.py`): found from the empty court or a long gap in a set (`timeouts.csv`), shown as dashed bands on

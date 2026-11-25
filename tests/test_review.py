@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 
 from volleyball_stats.identity import read_names
-from volleyball_stats import analysis, files, presence, review as review_module, web
+from volleyball_stats import analysis, files, review as review_module, web
 from volleyball_stats.teams import match_end
 from volleyball_stats.hosted import hosted_state
-from volleyball_stats.review_server import list_page, match_list, range_of, reopening, with_review
+from volleyball_stats.review_server import list_page, match_list, openable, range_of, with_review
 from volleyball_stats.review import applied_too, to_apply, records, due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, write_names, set_end, set_start, let_go, piece_conflict, pooled_runs
 
 
@@ -64,17 +64,10 @@ class TestMatchList:
         self.folder(tmp_path, "done", "2026-10-29")
         self.folder(tmp_path, "running", "2026-11-02", finished=False)
 
-        command = reopening("done", tmp_path, "aspom", 8765, tmp_path / "roster.json")
-
-        assert str(tmp_path / "done") in command and "--no-browser" in command and "--with-window" not in command
+        assert openable(tmp_path, "done") == tmp_path / "done"
         for name in ("running", "nothing", "../done"):
             with pytest.raises(LookupError):
-                reopening(name, tmp_path, "aspom", 8765, tmp_path / "roster.json")
-
-    def test_keeps_closing_with_its_window_on_another_match(self, tmp_path, monkeypatch):
-        self.folder(tmp_path, "done", "2026-10-29")
-        monkeypatch.setattr(presence, "ON", True)
-        assert "--with-window" in reopening("done", tmp_path, "aspom", 8765, tmp_path / "roster.json")
+                openable(tmp_path, name)
 
     def test_the_page_lists_them_for_the_review_and_serves_only_its_own_files(self, tmp_path):
         self.folder(tmp_path, "m", "2026-10-29")
