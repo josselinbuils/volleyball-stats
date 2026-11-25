@@ -96,6 +96,8 @@ def moved(log: list[dict], before: list[Window], after: list[Window], lead: int,
         for kind in ("checked", "unchecked"):
             if kind in e:
                 e[kind] = sorted({key(s) for s in e[kind]})
+        # What a rally was when last checked, by its frames: a rerun moves them.
+        e.pop("was", None)
         if "split" in e:
             e["split"] = [a for a in e["split"] if a["frame"] not in adopted]
         return e

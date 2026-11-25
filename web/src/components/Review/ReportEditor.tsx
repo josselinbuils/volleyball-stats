@@ -11,7 +11,7 @@ import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
-import { nearestPlayers, type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
+import { nearestPlayers, type Edit, type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange, type Was } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
 import { ReportRow, autoReport } from '@/components/Review/ReportRow';
@@ -34,8 +34,10 @@ import {
   pieceOf,
   rallyAt,
   rallyOf,
+  restored,
   runningScores,
   settled,
+  sliceOf,
   type Span,
   splitAfter,
   timeoutsAfter,
@@ -103,6 +105,13 @@ const teamOf = (player: string) => Number(player.split(':')[0]) as Group;
 const frameOf = (time: number) => Math.round(time * match.fps);
 /** A touch added: its team the picked player's, else the touch before's. */
 type Added = { frame: number; time: number; team: Group; type: string; result: string; player?: string; cause?: number; partner?: string };
+/** The editor's corrections as saved ones give them. */
+const fixesOf = (c: Partial<ReportChanges>): Record<number, Fix> => Object.fromEntries((c.touches ?? []).map(({ frame, ...fix }) => [frame, fix]));
+const addedOf = (c: Partial<ReportChanges>): Added[] => (c.added ?? []).map((a) => ({ ...a, time: a.frame / match.fps }));
+const rallyFixesOf = (c: Partial<ReportChanges>): Record<number, RallyFix> =>
+  Object.fromEntries((c.rallies ?? []).map(({ start, end, ...fix }) => [start, { ...fix, ...(end !== undefined ? { end: end / match.fps } : {}) }]));
+/** Corrections save themselves this long after the last one, at once on moving to another rally or leaving. */
+const AUTOSAVE_MS = 1000;
 /** A touch as listed: one of the page's, or one added. */
 type Row = {
   frame: number;
@@ -152,11 +161,12 @@ export function ReportEditor({
   isPlaying,
   onPlay,
   onPause,
-  onSave,
-  onSaveUnchecked,
+  onSend,
+  onOnward,
+  flush,
   green,
   checked,
-  onUncheck,
+  restorable,
   onCaption,
   questions,
   onHandled,
@@ -187,20 +197,23 @@ export function ReportEditor({
   onPlay: (time: number) => void;
   /** Stops the video at a moment. */
   onPause: (time: number) => void;
-  /** Saves the corrections, a rally (by its key) checked with them; `onward`: the video goes to the next rally. */
-  onSave: (changes: ReportChanges, rally: number, onward: boolean) => Promise<void>;
-  /** Saves the corrections, a rally (by its key) no longer checked. */
-  onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<void>;
+  /** Saves the corrections, rallies (by their key) checked or unchecked with them: whether it went. */
+  onSend: (body: Edit) => Promise<boolean>;
+  /** A rally checked where the video stands, by its key: the video goes to the next one. */
+  onOnward: (rally: number) => void;
+  /** Set to what saves the corrections waiting at once: whether all went. */
+  flush: RefObject<(() => Promise<boolean>) | null>;
   /** The rallies checked with no report open nor corrections not saved since, by their key: shown green. */
   green: Set<number>;
   /** The rallies checked, by their key, a report open on them or not. */
   checked: Set<number>;
-  onUncheck: (rally: number) => Promise<unknown>;
+  /** The rallies an edit unchecked, by their key: as they were when last checked, to put back. */
+  restorable: Record<string, Was>;
   /** The report questions left: each a rally's reports, listed under it. */
   questions: Question[];
   /** Marks a rally's reports handled, the corrections as they stand saved with them; `wrong`, a record to confirm said
    * wrong: its reading leaves the page. */
-  onHandled: (question: Question, changes: ReportChanges, wrong?: boolean) => void;
+  onHandled: (question: Question, changes: ReportChanges, wrong?: boolean) => Promise<unknown>;
   /** The warnings as they stand: their moments, the rallies they make orange and the rallies joined, by their key. */
   onWarnings?: (found: { times: number[]; warned: number[]; joined: number[] }) => void;
   /** The rallies with corrections not saved yet, by their key. */
@@ -220,14 +233,14 @@ export function ReportEditor({
   onPick: (frame: number, picked: boolean) => void;
   timeouts: Timeout[];
   onTimeout: (change: TimeoutChange) => void;
-  /** Where the list stands and when the user last scrolled it: a save starts the editor again. */
+  /** Where the list stands and when the user last scrolled it: the editor starts again on coming back to the tab. */
   place: RefObject<{ top: number; scrolled: number }>;
 }) {
   const { t } = useTranslation();
   // A touch added and saved that the page now holds is listed once.
   const saved = useMemo(() => settled(given, pageTouches), [given]);
-  const [fixes, setFixes] = useState<Record<number, Fix>>(() => Object.fromEntries((saved.touches ?? []).map(({ frame, ...fix }) => [frame, fix])));
-  const [added, setAdded] = useState<Added[]>(() => (saved.added ?? []).map((a) => ({ ...a, time: a.frame / match.fps })));
+  const [fixes, setFixes] = useState(() => fixesOf(saved));
+  const [added, setAdded] = useState(() => addedOf(saved));
   // The rallies started by the review, by their start frame.
   const [splits, setSplits] = useState<number[]>(() => saved.splits ?? []);
   // The players nearest the ball at each touch added, nearest first (`nearestPlayers`), by its frame.
@@ -235,9 +248,14 @@ export function ReportEditor({
   // The faults whose second player is being picked, by frame.
   const [sharing, setSharing] = useState<number[]>([]);
   // By the rally's key: a rally started before one keeps its index from moving its fixes.
-  const [rallyFixes, setRallyFixes] = useState<Record<number, RallyFix>>(() =>
-    Object.fromEntries((saved.rallies ?? []).map(({ start, end, ...fix }) => [start, { ...fix, ...(end !== undefined ? { end: end / match.fps } : {}) }])),
-  );
+  const [rallyFixes, setRallyFixes] = useState(() => rallyFixesOf(saved));
+  /** The corrections as `c` gives them, all of them. */
+  const load = (c: Partial<ReportChanges>) => {
+    setFixes(fixesOf(c));
+    setAdded(addedOf(c));
+    setSplits(c.splits ?? []);
+    setRallyFixes(rallyFixesOf(c));
+  };
   // The touches and rallies the saved corrections change.
   const savedFrames = new Set([...(saved.touches ?? []), ...(saved.added ?? [])].map((x) => x.frame));
   const savedStarts = new Set([...(saved.rallies ?? []).map((r) => r.start), ...(saved.splits ?? [])]);
@@ -406,11 +424,99 @@ export function ReportEditor({
     ...(Object.keys(rallyFixes).length ? { rallies: Object.entries(rallyFixes).map(([key, f]) => ({ start: Number(key), ...f, ...(f.end !== undefined ? { end: frameOf(f.end) } : {}) })) } : {}),
     ...(splits.length ? { splits } : {}),
   };
-  // The rallies with corrections not saved yet: one checked has to be saved again.
-  const since = changedSince(changes, saved);
-  const unsaved = new Set([...since.starts, ...since.frames.map((frame) => shown[allRows.find((row) => row.frame === frame)?.rally ?? rallyAt(shown, frame / match.fps)]?.key)]);
-  const unsavedKeys = [...unsaved].filter((k) => k !== undefined);
+  /** The rallies `c` changes from the corrections `from`, by their key: a rally started or taken back, the one it ends too. */
+  const changedIn = (c: ReportChanges, from: Partial<ReportChanges>) => {
+    const since = changedSince(c, from);
+    const before = new Set(from.splits ?? []);
+    const cut = (c.splits ?? []).filter((f) => !before.has(f)).concat([...before].filter((f) => !c.splits?.includes(f)));
+    const keys = [
+      ...since.starts,
+      ...cut.map((f) => shown[rallyAt(shown, (f - 1) / match.fps)]?.key),
+      ...since.frames.map((frame) => shown[allRows.find((row) => row.frame === frame)?.rally ?? rallyAt(shown, frame / match.fps)]?.key),
+    ];
+    return new Set(keys.filter((k): k is number => k !== undefined));
+  };
+  // The rallies with corrections not saved yet: one checked is unchecked by its save.
+  const unsaved = changedIn(changes, saved);
+  const unsavedKeys = [...unsaved];
   useReported(unsavedKeys, onUnsaved);
+
+  // What the saves sent make, those under way too: each next one is reckoned from it. Back to what the server says once
+  // none is under way.
+  const base = useRef({ changes: saved, checked });
+  const underWay = useRef(0);
+  const lastSave = useRef<Promise<boolean>>(Promise.resolve(true));
+  // What a save that failed unchecked: the next one does it.
+  const owed = useRef<{ unchecked: number[]; was: Record<number, Was> }>({ unchecked: [], was: {} });
+  useEffect(() => {
+    if (!underWay.current) {
+      base.current = { changes: saved, checked };
+    }
+  });
+  /** The corrections of rally `key` in `from`, on the frames it covers with them (from just before its start, `LEAD_S`, to
+   * just before the next one's); null for a rally they do not make. */
+  const wasOf = (key: number, from: Partial<ReportChanges>): Was | null => {
+    const then = withAdded(withSplits(rallies, from.splits ?? [], match.fps), addedOf(from));
+    const k = then.findIndex((r) => r.key === key);
+    if (k < 0) {
+      return null;
+    }
+    return sliceOf(from, key, k > 0 ? frameOf(then[k].start - LEAD_S) : 0, then[k + 1] ? frameOf(then[k + 1].start - LEAD_S) : Number.MAX_SAFE_INTEGER);
+  };
+  /** Saves `body`, the rallies checked it changes unchecked with it (but those it checks or unchecks), and what they were
+   * when checked: to put them back. */
+  const send = (body: Edit & { changes: ReportChanges }): Promise<boolean> => {
+    const { changes: before, checked: on } = base.current;
+    const said = new Set([...(body.checked ?? []), ...(body.unchecked ?? [])]);
+    const off = [...changedIn(body.changes, before)].filter((k) => on.has(k) && !said.has(k));
+    const owing = owed.current;
+    owed.current = { unchecked: [], was: {} };
+    const later = [...new Set([...owing.unchecked, ...off])].filter((k) => !said.has(k));
+    const was: Record<number, Was> = { ...owing.was };
+    for (const k of off) {
+      const w = wasOf(k, before);
+      if (w) {
+        was[k] = w;
+      }
+    }
+    const kept = Object.fromEntries(Object.entries(was).filter(([k]) => later.includes(Number(k))));
+    const unchecked = [...(body.unchecked ?? []), ...later];
+    const full: Edit = {
+      ...body,
+      ...(unchecked.length ? { unchecked } : {}),
+      ...(Object.keys(kept).length ? { was: kept } : {}),
+    };
+    base.current = { changes: body.changes, checked: new Set([...[...on].filter((k) => !unchecked.includes(k)), ...(body.checked ?? [])]) };
+    underWay.current++;
+    const done = onSend(full)
+      .then((ok) => {
+        if (!ok) {
+          owed.current = { unchecked: [...new Set([...owed.current.unchecked, ...later])], was: { ...kept, ...owed.current.was } };
+        }
+        return ok;
+      })
+      .finally(() => underWay.current--);
+    lastSave.current = done;
+    return done;
+  };
+  // The corrections save themselves (`AUTOSAVE_MS`): what the last save sent is not sent again. Whether all went.
+  const autosave = () => (changedIn(changes, base.current.changes).size ? send({ changes }) : lastSave.current);
+  const autosaveRef = useRef(autosave);
+  autosaveRef.current = autosave;
+  const text = JSON.stringify(changes);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void autosaveRef.current(), AUTOSAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [text]);
+  // On another rally, at once.
+  useEffect(() => void autosaveRef.current(), [here]);
+  useEffect(() => {
+    flush.current = () => autosaveRef.current();
+    return () => {
+      flush.current = null;
+      void autosaveRef.current();
+    };
+  }, []);
   useReported(
     allRows.filter((row) => !row.removed && !noBall(row)).map((row) => row.time),
     onTouches,
@@ -638,19 +744,32 @@ export function ReportEditor({
   // The rally whose change is being saved: its button shows a loader, the others wait.
   const [saving, run] = useRunning();
   const busyOn = (k: number) => saving === String(keyOf(k));
+  /** Corrections changed by an action and saved with it, a rally checked or unchecked: shown at once. */
+  const apply = (c: ReportChanges, rally: Edit) => {
+    load(c);
+    return send({ changes: c, ...rally });
+  };
   // A rally the review started goes away; one of the page's is said no play.
-  const deleteRally = (k: number) => {
+  const deleteRally = async (k: number) => {
     const key = keyOf(k);
     if (splits.includes(key)) {
-      return onSaveUnchecked({ ...changes, splits: splits.filter((f) => f !== key), rallies: otherRallies(key) }, key);
+      return apply({ ...changes, splits: splits.filter((f) => f !== key), rallies: otherRallies(key) }, { unchecked: [key] });
     }
-    return onSave({ ...changes, rallies: [...otherRallies(key), { ...changes.rallies?.find((r) => r.start === key), start: key, play: false }] }, key, k === here);
+    if ((await apply({ ...changes, rallies: [...otherRallies(key), { ...changes.rallies?.find((r) => r.start === key), start: key, play: false }] }, { checked: [key] })) && k === here) {
+      onOnward(key);
+    }
   };
   const restoreRally = (k: number) => {
     const key = keyOf(k);
     const { play: _, ...rest } = changes.rallies?.find((r) => r.start === key) ?? { start: key };
-    return onSaveUnchecked({ ...changes, rallies: [...otherRallies(key), ...(Object.keys(rest).length > 1 ? [rest] : [])] }, key);
+    return apply({ ...changes, rallies: [...otherRallies(key), ...(Object.keys(rest).length > 1 ? [rest] : [])] }, { unchecked: [key] });
   };
+  // A rally an edit unchecked, back as it was when last checked, and checked again.
+  const putBack = (k: number) => {
+    const key = keyOf(k);
+    return apply(restored(changes, key, restorable[String(key)]), { checked: [key] });
+  };
+  const canPutBack = (k: number) => !!restorable[String(keyOf(k))] && !checked.has(keyOf(k)) && !isDeleted(k);
   // `validated`: as it would stand checked.
   const problemsAt = (k: number, validated: boolean) => {
     // After the referee's error the serve may follow what really happened or the point given: no check.
@@ -712,7 +831,9 @@ export function ReportEditor({
     if (text && !(await ask({ title: t('review.validateWarned', { n: k + 1 }), text, confirm: t('review.validateAnyway') }))) {
       return;
     }
-    await run(String(keyOf(k)), () => onSave(changes, keyOf(k), k === here));
+    if ((await run(String(keyOf(k)), () => send({ changes, checked: [keyOf(k)] }))) && k === here) {
+      onOnward(keyOf(k));
+    }
   };
   // Whether the rally's header offers "Valider".
   const validatable = (k: number) => !isDeleted(k) && !(checked.has(keyOf(k)) && !unsaved.has(keyOf(k))) && !canDelete(k);
@@ -795,8 +916,12 @@ export function ReportEditor({
   const openQuestions = liveReports(questions, new Set(joinedKeys));
 
   // The reports under their rally's header; those in no rally between the rallies, as the timeouts.
-  const reportRows = (list: Question[]) =>
-    list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => onHandled(q, changes)} onWrong={() => onHandled(q, changes, true)} />);
+  // The corrections waiting go first, a rally checked they change unchecked.
+  const handled = (q: Question, wrong = false) => {
+    void autosave();
+    void onHandled(q, changes, wrong);
+  };
+  const reportRows = (list: Question[]) => list.map((q) => <ReportRow key={`q${q.id}`} question={q} onPlay={onPlay} onHandled={() => handled(q)} onWrong={() => handled(q, true)} />);
   const rallyOfReport = (q: Question) => shown.findIndex((r) => r.key === q.rally);
   // A report about one touch (a record, a point without crossing the net, a relance played high, a viewer's) sits under that
   // touch, not the rally's header: its touch, the nearest within REPORTED_S of its moment.
@@ -960,6 +1085,22 @@ export function ReportEditor({
                                 </Button>
                               </Tip>
                             )}
+                            {canPutBack(k) && (
+                              <Tip label={t('review.putBackRally', { n: k + 1 })}>
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  className="mr-1 shrink-0 bg-card text-foreground"
+                                  aria-label={t('review.putBackRally', { n: k + 1 })}
+                                  busy={busyOn(k)}
+                                  disabled={saving !== null}
+                                  onClick={() => void run(String(keyOf(k)), () => putBack(k))}
+                                >
+                                  <Undo2 aria-hidden />
+                                  {t('review.putBack')}
+                                </Button>
+                              </Tip>
+                            )}
                             {checked.has(keyOf(k)) && !unsaved.has(keyOf(k)) ? (
                               <Tip label={t('review.uncheckRally', { n: k + 1 })}>
                                 <Button
@@ -969,7 +1110,7 @@ export function ReportEditor({
                                   aria-label={t('review.uncheckRally', { n: k + 1 })}
                                   busy={busyOn(k)}
                                   disabled={saving !== null}
-                                  onClick={() => void run(String(keyOf(k)), () => onUncheck(keyOf(k)))}
+                                  onClick={() => void run(String(keyOf(k)), () => send({ changes, unchecked: [keyOf(k)] }))}
                                 >
                                   <CircleOff aria-hidden />
                                   {t('review.uncheck')}

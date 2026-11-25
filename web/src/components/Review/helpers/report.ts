@@ -1,6 +1,6 @@
 import { noBall } from '@/helpers/contacts';
 import type { Group, Rally } from '@/lib/match';
-import type { ReportChanges } from '@/lib/review';
+import type { ReportChanges, Was } from '@/lib/review';
 import { HOLD_S } from '@/components/Review/helpers/box';
 import { LIVE_PROBLEMS } from '@/components/Review/helpers/checks';
 
@@ -24,6 +24,31 @@ export function changedSince(changes: ReportChanges, saved: Partial<ReportChange
   return {
     frames: [...differing(changes.touches, saved.touches, (x) => x.frame), ...differing(changes.added, saved.added, (x) => x.frame)],
     starts: [...differing(changes.rallies, saved.rallies, (x) => x.start), ...splitsNow.filter((f) => !splitsThen.includes(f)), ...splitsThen.filter((f) => !splitsNow.includes(f))],
+  };
+}
+
+/** `saved`'s corrections of the rally `key`, which covers frames `from` to `to` (excluded): what it was, to put back. */
+export function sliceOf(saved: Partial<ReportChanges>, key: number, from: number, to: number): Was {
+  const inside = (frame: number) => frame >= from && frame < to;
+  const touches = (saved.touches ?? []).filter((x) => inside(x.frame));
+  const added = (saved.added ?? []).filter((x) => inside(x.frame));
+  const rallies = (saved.rallies ?? []).filter((r) => r.start === key || inside(r.start));
+  const splits = (saved.splits ?? []).filter((f) => f !== key && inside(f));
+  return { from, to, touches, ...(added.length ? { added } : {}), ...(rallies.length ? { rallies } : {}), ...(splits.length ? { splits } : {}) };
+}
+
+/** `changes` with the rally `key` put back as it was (`sliceOf`): its frames' corrections replaced by those then. The
+ * rally's own start stays as it stands (deleting a rally the review started is not an edit). */
+export function restored(changes: ReportChanges, key: number, was: Was): ReportChanges {
+  const outside = (frame: number) => frame < was.from || frame >= was.to;
+  const added = [...(changes.added ?? []).filter((x) => outside(x.frame)), ...(was.added ?? [])].sort((a, b) => a.frame - b.frame);
+  const rallies = [...(changes.rallies ?? []).filter((r) => r.start !== key && outside(r.start)), ...(was.rallies ?? [])].sort((a, b) => a.start - b.start);
+  const splits = [...(changes.splits ?? []).filter((f) => f === key || outside(f)), ...(was.splits ?? [])].sort((a, b) => a - b);
+  return {
+    touches: [...changes.touches.filter((x) => outside(x.frame)), ...(was.touches ?? [])].sort((a, b) => a.frame - b.frame),
+    ...(added.length ? { added } : {}),
+    ...(rallies.length ? { rallies } : {}),
+    ...(splits.length ? { splits } : {}),
   };
 }
 

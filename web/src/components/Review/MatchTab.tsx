@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useFullscreen } from '@/hooks/useFullscreen';
 import { match, rallies } from '@/lib/match';
-import type { Named, Question, ReportChanges, Timeout, TimeoutChange } from '@/lib/review';
+import type { Edit, Named, Question, ReportChanges, Timeout, TimeoutChange, Was } from '@/lib/review';
 import type { NameOf } from '@/components/Review/helpers/players';
 import { liveReports, openingTime, pageSpans, REPORT_LEAD_S, type Span } from '@/components/Review/helpers/report';
 import { ClipVideo } from '@/components/Review/ClipVideo';
@@ -46,9 +46,9 @@ export function MatchTab({
   timeouts,
   onTimeout,
   reports,
-  onSave,
-  onSaveUnchecked,
-  onUncheck,
+  restorable,
+  onSend,
+  flush,
   onHandled,
   timeRef: clipTime,
   onUnsaved,
@@ -71,9 +71,12 @@ export function MatchTab({
   onTimeout: (change: TimeoutChange) => void;
   /** The report questions left: each a rally's reports. */
   reports: Question[];
-  onSave: (changes: ReportChanges, rally: number) => Promise<unknown>;
-  onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<unknown>;
-  onUncheck: (rally: number) => Promise<unknown>;
+  /** The rallies an edit unchecked, by their key: as they were when last checked. */
+  restorable: Record<string, Was>;
+  /** Saves the corrections, rallies checked or unchecked with them: whether it went. */
+  onSend: (body: Edit) => Promise<boolean>;
+  /** Set by the editor to what saves its corrections waiting at once. */
+  flush: RefObject<(() => Promise<boolean>) | null>;
   onHandled: (report: Question, changes: ReportChanges, wrong?: boolean) => Promise<unknown>;
   /** Where the video stands, to the frame. */
   timeRef: RefObject<number>;
@@ -94,8 +97,6 @@ export function MatchTab({
   // During the video's lead-in to where it opened, the list already shows that rally.
   const opened = clip.start + REPORT_LEAD_S;
   const listNow = now >= clip.start && now < opened ? opened : now;
-  // The editor starts again from the corrections saved, after each save.
-  const [round, setRound] = useState(0);
   const listPlace = useRef({ top: 0, scrolled: 0 });
   const go = (time: number, play?: boolean) => setSeek((s) => ({ time: Math.max(0, time), n: (s?.n ?? 0) + 1, play }));
   // The warnings as the editor finds them.
@@ -235,7 +236,6 @@ export function MatchTab({
             />
           </div>
           <ReportEditor
-            key={round}
             place={listPlace}
             onWarnings={setFound}
             onUnsaved={(keys) => setUnsaved(new Set(keys))}
@@ -249,22 +249,20 @@ export function MatchTab({
             timeOf={() => clipTime.current}
             onPlay={(at) => go(at - REPORT_LEAD_S, true)}
             onPause={(at) => go(at, false)}
-            onSave={(changes, rally, onward) =>
-              onSave(changes, rally).then(() => {
-                setRound((r) => r + 1);
-                const k = spans.findIndex((r) => r.key === rally);
-                if (onward && k >= 0 && spans[k + 1]) {
-                  go(spans[k + 1].start - REPORT_LEAD_S, true);
-                }
-              })
-            }
-            onSaveUnchecked={(changes, rally) => onSaveUnchecked(changes, rally).then(() => setRound((r) => r + 1))}
+            onSend={onSend}
+            flush={flush}
+            onOnward={(rally) => {
+              const k = spans.findIndex((r) => r.key === rally);
+              if (k >= 0 && spans[k + 1]) {
+                go(spans[k + 1].start - REPORT_LEAD_S, true);
+              }
+            }}
             green={green}
             checked={new Set(checked)}
-            onUncheck={onUncheck}
+            restorable={restorable}
             onCaption={setCaption}
             questions={reports}
-            onHandled={(q, changes, wrong) => void onHandled(q, changes, wrong).then(() => setRound((r) => r + 1))}
+            onHandled={onHandled}
             saved={saved}
             comments={comments}
             onComment={onComment}

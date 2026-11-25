@@ -245,10 +245,19 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ### Checking a rally
 
-- "Valider" in a rally's header, or beside the video's caption on its rally's last touch, saves and checks it: green, its reports handled, until a new report. With a warning that
+- Corrections save by themselves, 1 s after the last edit, at once on moving to another rally, another tab or leaving the
+  page (a reload or a closed window too: `keepalive`); the saves go one after the other (`inLine` in `Review.tsx`), each with
+  all the corrections. Stars, timeouts and "Supprimer" save at once, a comment on leaving its field, the match's end and the
+  sets' starts with an apply.
+- "Valider" in a rally's header, or beside the video's caption on its rally's last touch, checks it: green, its reports handled, until a new report. With a warning that
   checking leaves (not a doubt), it asks first ("Valider quand même"). A press in the list holds it still 3 s, as leaving a
   field does: scrolling to the video's touch moved the button from under the pointer, and the click was lost. The button then
-  becomes "Invalider", which unchecks it, or "Valider" again while the rally has unsaved corrections.
+  becomes "Invalider", which unchecks it.
+- An edit on a checked rally (its touches, winner, join, end, wrong call, replay; not a star, a comment or a timeout)
+  unchecks it, to be checked again (the owner's call, 25 Nov: no change by mistake). "Annuler" in its header then puts it
+  back as it was when last checked and checks it again: the edit's log entry carries the corrections on the rally's frames
+  as they stood (`was`, `sliceOf` and `restored` in `helpers/report.ts`), `review_answers.restorable` gives them back until
+  the rally is checked or an apply runs.
 - A rally checked ends with its last action: where its ball first lands after it (seen), at most 2.5 s after it, at once
   after a playing fault, never later than the end found (`web.closed`, `closedEnd` in the editor; it starts at its first
   action already, `web.started`). On the four matches (18 Nov) that landing came 1.1 s after the action at the median, 90%
@@ -260,8 +269,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - Any rally not joined can be deleted (the bin in its header; on one with no touch and no end said, "Supprimer" takes the
   place of "Valider"): saved at once, no play (`play`), or its split undone if the review started it. "Rétablir" takes it
   back until the apply.
-- Corrections not validated are lost by a reload, an action that reloads or leaving the tab: the review asks first. Saved
-  corrections not yet in the review's page show in the editor (the last report answer carries them all,
+- A save failing, leaving (another tab, an action that reloads) asks before losing it (`useLeave`). Saved corrections not yet
+  in the review's page show in the editor (the last report answer carries them all,
   `review_answers.superseded`).
 
 ### Automatic reports and flags

@@ -1045,11 +1045,13 @@ class Review:
                 log[:] = superseded(log, self.shown)
             ok = [int(k) for k in body.get("checked") or []] if edit else []
             off = [int(k) for k in body.get("unchecked") or []] if edit else []
+            # What each rally unchecked by an edit was when last checked: to put it back.
+            was = {str(k): v for k, v in (body.get("was") or {}).items() if int(k) in off and isinstance(v, dict)} if edit else {}
             asked = {entry["id"] for entry in log}
             # Before the answer: an undo after a restart takes that one away.
             log += pinned(questions.page, ok) + locked(questions.page, ok, given) + unlocked(off)
             wrong = choice == "wrong" and not edit and refs[body["id"]]["report"].get("record")
-            log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), **({"wrong": [wrong]} if wrong else {}), "applied": False})
+            log.append({"id": body["id"], "choice": choice, **fixes, **({"changes": changes} if sent else {}), **({"checked": ok} if ok else {}), **({"unchecked": off} if off else {}), **({"was": was} if was else {}), **({"wrong": [wrong]} if wrong else {}), "applied": False})
             # The reports on a rally checked are handled with it.
             log += [{"id": qid, "choice": "checked", "applied": False} for qid, ref in refs.items() if "report" in ref and ref["report"]["start"] in ok and qid not in asked]
         elif "rally" in refs[body["id"]]:

@@ -82,6 +82,18 @@ export interface ReportChanges {
   splits?: number[];
 }
 
+/** A rally's corrections when it was last checked: those on frames `from` to `to` (excluded), to put back. */
+export type Was = Partial<ReportChanges> & { from: number; to: number };
+
+/** The body of a save from the match tab: the corrections as they stand, the rallies checked and unchecked with them, what
+ * those unchecked were when last checked. */
+export interface Edit {
+  changes?: ReportChanges;
+  checked?: number[];
+  unchecked?: number[];
+  was?: Record<number, Was>;
+}
+
 /** A player to name: an identity with pictures of their clearest moments, their time on court, their
  * touches, the name and jersey number given, and the roster's players who look most like them. */
 export interface Named {
@@ -160,6 +172,8 @@ interface ReviewData {
   corrections: Partial<ReportChanges>;
   /** The rallies checked, by their key. */
   checked: number[];
+  /** The rallies an edit unchecked, by their key: as they were when last checked. */
+  restorable?: Record<string, Was>;
   /** The owner's notes on the rallies, by their key: in the review only. */
   comments: Record<number, string>;
   /** The touches the owner wants in the films, by their frame. */
@@ -240,6 +254,7 @@ export interface Saved {
   toApply?: ToApply;
   corrections?: Partial<ReportChanges>;
   checked?: number[];
+  restorable?: Record<string, Was>;
   rebuilt?: boolean;
   undone?: string | null;
   /** The user declined an answer joining two players of different names: nothing saved. */
@@ -359,7 +374,10 @@ export async function post(
     | 'sync/keep',
   body: object = {},
 ): Promise<Saved> {
-  const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+  const text = JSON.stringify(body);
+  // An answer sent as the page goes (a reload, the window closed) still lands: `keepalive` takes up to 64 kB.
+  const keepalive = path === 'answer' && text.length < 60_000;
+  const response = await tracked('saving', fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: text, keepalive }));
   // An answer joining two players of different names: saved only once the user confirms.
   if (response.status === 409) {
     const { merges, conflict } = (await response.json()) as { merges: string[][]; conflict?: string[] };

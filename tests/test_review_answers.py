@@ -24,6 +24,7 @@ from volleyball_stats.review_answers import (
     rally_answer,
     reanchor,
     remember,
+    restorable,
     reviewed,
     save,
     set_name,
@@ -264,6 +265,19 @@ class TestChecked:
 
         assert checked(log) == [200, 300]
         assert checked([*log, {"id": "edit:4", "checked": [100]}]) == [100, 200, 300]
+
+    def test_a_rally_unchecked_by_an_edit_can_be_put_back_until_checked_or_applied(self):
+        was = {"from": 90, "to": 190, "touches": [{"frame": 120, "player": "1:2"}]}
+        log = [
+            {"id": "edit:1", "checked": [100, 200], "applied": True},
+            {"id": "edit:2", "unchecked": [100, 200], "was": {"100": was}, "applied": False},
+        ]
+
+        assert restorable(log) == {"100": was}
+        assert restorable([*log, {"id": "edit:3", "choice": "report", "applied": False}]) == {"100": was}
+        assert restorable([*log, {"id": "edit:3", "checked": [100], "applied": False}]) == {}
+        assert restorable([*log, {"id": "edit:3", "unchecked": [100], "applied": False}]) == {}
+        assert restorable([log[0], {**log[1], "applied": True}]) == {}
 
     def test_a_match_is_reviewed_once_every_rally_is_checked(self):
         page = {"rallies": [{"key": 100}, {"key": 200}]}

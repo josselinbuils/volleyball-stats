@@ -19,7 +19,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from volleyball_stats import analysis, film, files, web
-from volleyball_stats.review_answers import KINDS, checked, corrections, load_log, reviewed, save, state, touch_answer
+from volleyball_stats.review_answers import KINDS, checked, corrections, load_log, restorable, reviewed, save, state, touch_answer
 
 # ponytail: web.framed imports CROP_MARGIN from here, and the pictures' scores stamp (web.scores_stamp) reads its source:
 # importing it from review_questions there would score every match's pictures again. Move it with the next change to scoring.
@@ -245,6 +245,7 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
         "toApply": to_apply(log, parts),
         "corrections": corrections(log, shown),
         "checked": checked(log),
+        "restorable": restorable(log),
         "films": film.status(match),
         "due": due(match, log),
     }

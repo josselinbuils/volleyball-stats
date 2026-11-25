@@ -19,7 +19,9 @@ import {
   pieceOf,
   rallyAt,
   rallyOf,
+  restored,
   runningScores,
+  sliceOf,
   splitAfter,
   timeoutsAfter,
   withAdded,
@@ -75,6 +77,62 @@ describe('openingTime', () => {
   it('never opens before the video', () => {
     expect(openingTime([{ start: 1 }], [], [], 50)).toBe(0);
     expect(openingTime([], [], [], 50)).toBe(0);
+  });
+});
+
+describe('sliceOf and restored', () => {
+  // Rally 100 covers frames 90 to 190; the one after it, 190 on.
+  const saved = {
+    touches: [
+      { frame: 50, player: '1:2' },
+      { frame: 120, player: '1:4' },
+      { frame: 200, type: 'set' },
+    ],
+    added: [{ frame: 150, team: 1 as const, type: 'set', result: 'play' }],
+    rallies: [
+      { start: 80, winner: 2 as const },
+      { start: 100, winner: 1 as const },
+    ],
+    splits: [100],
+  };
+
+  it("keeps the rally's corrections, its own start out", () => {
+    expect(sliceOf(saved, 100, 90, 190)).toEqual({
+      from: 90,
+      to: 190,
+      touches: [{ frame: 120, player: '1:4' }],
+      added: [{ frame: 150, team: 1, type: 'set', result: 'play' }],
+      rallies: [{ start: 100, winner: 1 }],
+    });
+  });
+
+  it('puts the rally back as it was and leaves the others as they stand', () => {
+    const now = {
+      touches: [
+        { frame: 50, player: '1:3' },
+        { frame: 130, player: 'none' },
+        { frame: 200, type: 'set' },
+      ],
+      rallies: [
+        { start: 80, winner: 2 as const },
+        { start: 100, winner: 2 as const },
+      ],
+      splits: [100, 140],
+    };
+
+    expect(restored(now, 100, sliceOf(saved, 100, 90, 190))).toEqual({
+      touches: [
+        { frame: 50, player: '1:3' },
+        { frame: 120, player: '1:4' },
+        { frame: 200, type: 'set' },
+      ],
+      added: [{ frame: 150, team: 1, type: 'set', result: 'play' }],
+      rallies: [
+        { start: 80, winner: 2 },
+        { start: 100, winner: 1 },
+      ],
+      splits: [100],
+    });
   });
 });
 

@@ -22,6 +22,7 @@ import {
   review,
   type Conflict,
   type Backup,
+  type Edit,
   type FilmCounts,
   type Hosted,
   type Named,
@@ -32,6 +33,7 @@ import {
   type Timeout,
   type TimeoutChange,
   type ToApply,
+  type Was,
 } from '@/lib/review';
 import { Status } from '@/components/Review/Status';
 import { ClipVideo } from '@/components/Review/ClipVideo';
@@ -85,6 +87,7 @@ export function Review({
   toApply,
   corrections: savedCorrections,
   checked: savedChecked,
+  restorable: savedRestorable = {},
   comments: savedComments,
   picks: savedPicks,
   timeouts: savedTimeouts,
@@ -113,6 +116,7 @@ export function Review({
   picks: number[];
   timeouts: Timeout[];
   checked: number[];
+  restorable?: Record<string, Was>;
   questions: Question[];
   players: Named[];
   roster: [Suggestion[], Suggestion[]];
@@ -137,6 +141,7 @@ export function Review({
   const [pending, setPending] = useState({ answers: waiting, changed, names: renamed, items: toApply ?? [] });
   const [corrections, setCorrections] = useState(savedCorrections);
   const [checked, setChecked] = useState(savedChecked);
+  const [restorable, setRestorable] = useState(savedRestorable);
   // Every rally checked: only the questions that teach the next matches are left.
   const reviewed = matchFinished(keys, checked, 0);
   const [comments, setComments] = useState(savedComments);
@@ -152,6 +157,9 @@ export function Review({
     }
     if (saved.checked !== undefined) {
       setChecked(saved.checked);
+    }
+    if (saved.restorable !== undefined) {
+      setRestorable(saved.restorable);
     }
     if (saved.answered !== undefined) {
       setAnswered(saved.answered);
@@ -202,9 +210,10 @@ export function Review({
   const open = questions.filter((q) => q.kind !== 'report' && !(q.kind === 'merge' && (q.choices.some(allMarked) || sameName(at(q, 0), at(q, 1), nameOf))));
   const question = open[0];
   const reports = unwarnedReports(questions.filter((q) => q.kind === 'report'));
-  // Rallies whose corrections are not saved: a reload or leaving the Match tab loses them.
+  // Rallies whose corrections are not saved yet: leaving saves them first.
   const [unsaved, setUnsaved] = useState(0);
-  const { mayLeave, leaving } = useLeave(unsaved);
+  const flush = useRef<(() => Promise<boolean>) | null>(null);
+  const { mayLeave, leaving } = useLeave(() => flush.current?.() ?? Promise.resolve(true), unsaved > 0);
   const matchTime = useRef(0);
   const show = async (next: Tab) => {
     if (next !== tab && !(await mayLeave())) {
@@ -225,18 +234,36 @@ export function Review({
       return false;
     }
   };
+  // The match tab's saves go one after the other, each with all the corrections: a later one never lands first.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const inLine = <T,>(action: () => Promise<T>): Promise<T> => {
+    const next = queue.current.then(action);
+    queue.current = next.catch(() => undefined);
+    return next;
+  };
+  // Two saves in one millisecond keep their own ids.
+  const lastEdit = useRef(0);
   // A report marked handled, with the corrections as they stand; a record to confirm said wrong (`wrong`), its reading off.
   const handled = (report: Question, changes: ReportChanges, wrong = false) =>
-    attempt(async () => {
-      const saved = await post('answer', wrong ? { id: report.id, choice: 'wrong' } : { id: report.id, choice: 'report', changes });
-      setDone((d) => [...d, report]);
-      setQuestions((qs) => qs.filter((q) => q.id !== report.id));
-      onSaved(saved);
-    });
-  // Corrections saved from the match tab, about no question, the `rally` checked with them: its
-  // reports are handled.
-  // A rally checked by mistake, or to look at again: its corrections stay.
-  const uncheck = (rally: number) => attempt(async () => onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', unchecked: [rally] })));
+    inLine(() =>
+      attempt(async () => {
+        const saved = await post('answer', wrong ? { id: report.id, choice: 'wrong' } : { id: report.id, choice: 'report', changes });
+        setDone((d) => [...d, report]);
+        setQuestions((qs) => qs.filter((q) => q.id !== report.id));
+        onSaved(saved);
+      }),
+    );
+  // Corrections saved from the match tab, about no question, rallies checked or unchecked with them: the reports of a rally
+  // checked are handled.
+  const saveEdit = (body: Edit) =>
+    inLine(() =>
+      attempt(async () => {
+        lastEdit.current = Math.max(Date.now(), lastEdit.current + 1);
+        onSaved(await post('answer', { id: `edit:${lastEdit.current}`, choice: 'report', ...body }));
+        const on = new Set(body.checked ?? []);
+        setQuestions((qs) => qs.filter((q) => !(q.kind === 'report' && q.rally != null && on.has(q.rally))));
+      }),
+    );
   // Shown at once: the editor starting again from `comments` must not lose one being saved.
   const saveComment = async (rally: number, text: string) => {
     const before = comments[rally];
@@ -290,14 +317,6 @@ export function Review({
         setTimeouts(saved.timeouts);
       }
       onSaved(saved);
-    });
-
-  const saveUnchecked = (changes: ReportChanges, rally: number) => attempt(async () => onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, unchecked: [rally] })));
-
-  const saveEdits = (changes: ReportChanges, rally: number) =>
-    attempt(async () => {
-      onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, checked: [rally] }));
-      setQuestions((qs) => qs.filter((q) => !(q.kind === 'report' && q.rally === rally)));
     });
 
   // An answer on a piece earlier answers give to another player, to settle.
@@ -644,9 +663,9 @@ export function Review({
             timeouts={timeouts}
             onTimeout={(change) => void saveTimeout(change)}
             reports={reports}
-            onSave={saveEdits}
-            onSaveUnchecked={saveUnchecked}
-            onUncheck={uncheck}
+            restorable={restorable}
+            onSend={saveEdit}
+            flush={flush}
             onHandled={handled}
             timeRef={matchTime}
             onUnsaved={setUnsaved}

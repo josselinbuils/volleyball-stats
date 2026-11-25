@@ -761,6 +761,22 @@ def checked(log: list[dict]) -> list[int]:
     return sorted(out)
 
 
+def restorable(log: list[dict]) -> dict[str, dict]:
+    """The rallies an edit unchecked and nothing checked since, by their key: the corrections on their frames when last
+    checked (`was`, as the page sent them), to put back. An apply ends it: the page then shows what was saved."""
+    out: dict[str, dict] = {}
+    for e in log:
+        for k in e.get("checked", []):
+            out.pop(str(k), None)
+        for k in e.get("unchecked", []):
+            was = None if e.get("applied", True) else (e.get("was") or {}).get(str(k))
+            if was is None:
+                out.pop(str(k), None)
+            else:
+                out[str(k)] = was
+    return out
+
+
 def reviewed(page: dict | None, log: list[dict]) -> bool:
     """Whether every rally of the review's `page` is checked."""
     keys = {r["key"] for r in (page or {}).get("rallies", [])}

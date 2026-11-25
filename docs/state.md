@@ -30,10 +30,7 @@ The pipeline's weak spots and what is left to do, most useful first.
    hand (`PANEL_AT`, `PANEL_TILT`), the name tags' size, the frame rate standalone (the 2048 shadow map).
 4. The play model on someone else's footage: its windows are worse on the one other match (`benchmarks/rallies/README.md`);
    a threshold or uses set per footage, or training on more views, before it runs on anything but the camera's own 4K.
-5. For later (the owner's, 9 Nov): the review's Match tab saves in four ways: touches, winner, join, end, wrong call and replay
-   wait for "Valider"; stars, timeouts and "Supprimer" at once; comments on leaving the field; the match's end with an apply.
-   Saving every edit at once, "Valider" only checking, would end the corrections not saved (a guard asks before losing them now).
-6. Ideas, not planned: the blockers' jumps on the page (measured, `benchmarks/jumps/ground_truth/blocks.csv`); in the 3D
+5. Ideas, not planned: the blockers' jumps on the page (measured, `benchmarks/jumps/ground_truth/blocks.csv`); in the 3D
    looks, the shoes' colour, leggings, long sleeves, glasses (the parsing model's unused classes); the limits of the 3D ball
    and TV mode (history, "The page").
 
