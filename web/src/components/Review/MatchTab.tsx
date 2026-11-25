@@ -71,10 +71,10 @@ export function MatchTab({
   onTimeout: (change: TimeoutChange) => void;
   /** The report questions left: each a rally's reports. */
   reports: Question[];
-  onSave: (changes: ReportChanges, rally: number) => Promise<void>;
-  onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<void>;
-  onUncheck: (rally: number) => Promise<void>;
-  onHandled: (report: Question, changes: ReportChanges, wrong?: boolean) => Promise<void>;
+  onSave: (changes: ReportChanges, rally: number) => Promise<unknown>;
+  onSaveUnchecked: (changes: ReportChanges, rally: number) => Promise<unknown>;
+  onUncheck: (rally: number) => Promise<unknown>;
+  onHandled: (report: Question, changes: ReportChanges, wrong?: boolean) => Promise<unknown>;
   /** Where the video stands, to the frame. */
   timeRef: RefObject<number>;
   /** How many rallies have corrections not saved yet. */
@@ -261,7 +261,7 @@ export function MatchTab({
             onSaveUnchecked={(changes, rally) => onSaveUnchecked(changes, rally).then(() => setRound((r) => r + 1))}
             green={green}
             checked={new Set(checked)}
-            onUncheck={(rally) => onUncheck(rally)}
+            onUncheck={onUncheck}
             onCaption={setCaption}
             questions={reports}
             onHandled={(q, changes, wrong) => void onHandled(q, changes, wrong).then(() => setRound((r) => r + 1))}

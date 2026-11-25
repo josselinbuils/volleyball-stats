@@ -1,14 +1,16 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Check, CircleCheck, CircleOff, CircleStop, Flag, Hand, MessageSquareText, PenLine, Play, Plus, RotateCcw, SquarePlus, Star, Trash2, TriangleAlert, Undo2, UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
+import { useKeydown } from '@/hooks/useKeydown';
+import { useReported } from '@/hooks/useReported';
+import { useFollowList } from '@/components/Review/hooks/useFollowList';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Swatch } from '@/components/Swatch';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { contacts, GROUPS, groupName, hasTeams, match, rallies, teamColor, teamRing, type Contact, type Group } from '@/lib/match';
-import { railAt, shiftOf, topOf } from '@/components/Review/helpers/timeline';
 import { nearestPlayers, type Named, type Question, type ReportChanges, type Timeout, type TimeoutChange } from '@/lib/review';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { RallyComment } from '@/components/Review/RallyComment';
@@ -54,8 +56,6 @@ export const VALIDATE_KEY = 'v';
 export const ADD_KEY = 'n';
 export const RESULTS = ['play', 'point', 'error'] as const;
 export const SELECT = 'h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-sm disabled:opacity-50';
-/** After the user scrolls the list, it stops following the video this long. */
-const HOLD_MS = 3000;
 /** A touch's row lights up, and the video's caption names it, as the video slows down at it. */
 const TOUCH_LEAD_S = SLOW_BEFORE_S;
 // The automatic reports about one touch, by their kind's start: shown under it. A viewer's report is about the touch it
@@ -138,10 +138,6 @@ const touches = contacts
 /** The same, by frame, as the corrections say a touch. */
 const pageTouches = new Map(touches.map(({ contact: c, frame, player, partner }) => [frame, { type: c.type, result: labelled(c), player, cause: c.cause ?? 0, partner }]));
 
-// How often the list checks on the rail's end, and how near its edges that end may come, in pixels.
-const RAIL_FOLLOW_PX = 24;
-const RAIL_EDGE_PX = 64;
-
 /** The match's touches beside its video: those of the rallies around where the video stands, the
  * one it plays centred, to correct (player of either team, action, result), remove or add at the
  * video's moment, or start a rally there (one missed, or the second of two taken for one), or delete a
@@ -199,7 +195,7 @@ export function ReportEditor({
   green: Set<number>;
   /** The rallies checked, by their key, a report open on them or not. */
   checked: Set<number>;
-  onUncheck: (rally: number) => Promise<void>;
+  onUncheck: (rally: number) => Promise<unknown>;
   /** The report questions left: each a rally's reports, listed under it. */
   questions: Question[];
   /** Marks a rally's reports handled, the corrections as they stand saved with them; `wrong`, a record to confirm said
@@ -414,14 +410,11 @@ export function ReportEditor({
   const since = changedSince(changes, saved);
   const unsaved = new Set([...since.starts, ...since.frames.map((frame) => shown[allRows.find((row) => row.frame === frame)?.rally ?? rallyAt(shown, frame / match.fps)]?.key)]);
   const unsavedKeys = [...unsaved].filter((k) => k !== undefined);
-  const unsavedJson = JSON.stringify(unsavedKeys);
-  useEffect(() => {
-    onUnsaved?.(unsavedKeys);
-  }, [unsavedJson]);
-  const touchesJson = JSON.stringify(allRows.filter((row) => !row.removed && !noBall(row)).map((row) => row.time));
-  useEffect(() => {
-    onTouches?.(JSON.parse(touchesJson));
-  }, [touchesJson]);
+  useReported(unsavedKeys, onUnsaved);
+  useReported(
+    allRows.filter((row) => !row.removed && !noBall(row)).map((row) => row.time),
+    onTouches,
+  );
 
   // The touch the video is on: the last one started, highlighted until 3 s after it; a removed one
   // gives way to the touch still there.
@@ -535,15 +528,6 @@ export function ReportEditor({
     }
   };
 
-  // The list follows the video, its touch (else its rally) centred, except while a field in it is
-  // being filled or shortly after the user scrolled it.
-  const list = useRef<HTMLOListElement>(null);
-  const [editing, setEditing] = useState(false);
-  useLayoutEffect(() => {
-    if (list.current) {
-      list.current.scrollTop = place.current.top;
-    }
-  }, []);
   const inHere = started && started.rally === here ? started : undefined;
   const who = (player: string) => {
     const [team, n] = player.split(':').map(Number);
@@ -565,43 +549,9 @@ export function ReportEditor({
   // A serve can light up just before its rally starts: the list goes straight to it.
   const followed = started && started.rally >= here ? started : undefined;
   const current = inTimeout ? `o${inTimeout.start}` : followed ? `t${followed.frame}` : `r${here}`;
-  const centre = (key: string) => {
-    const box = list.current;
-    const item = box?.querySelector<HTMLElement>(`[data-key="${key}"]`);
-    box?.scrollTo({ top: item ? topOf(item) - (box.clientHeight - item.offsetHeight) / 2 : 0, behavior: 'smooth' });
-    return item;
-  };
-  useEffect(() => {
-    if (!editing && Date.now() - place.current.scrolled > HOLD_MS) {
-      centre(current);
-    }
-    // `first`: keeping the rows in place when the rallies around change stops the scroll under way.
-  }, [current, editing, first]);
-  // The rail along the list: how far the time has come, between rallies too, where no row is lit.
-  const [rail, setRail] = useState({ at: 0, height: 0 });
-  const placed = useRef({ first, tops: new Map<string, number>() });
-  useLayoutEffect(() => {
-    const box = list.current;
-    const rows = [...(box?.querySelectorAll<HTMLElement>('[data-at]') ?? [])].map((e) => ({ key: e.dataset.key, at: Number(e.dataset.at), top: topOf(e), bottom: topOf(e) + e.offsetHeight }));
-    // Rallies leaving the list or joining it must not move the rows still there on screen.
-    const tops = new Map(rows.flatMap((r) => (r.key ? [[r.key, r.top] as const] : [])));
-    if (box && placed.current.first !== first) {
-      box.scrollTop += shiftOf(placed.current.tops, tops);
-    }
-    placed.current = { first, tops };
-    const at = railAt(rows, now);
-    const height = rows.at(-1)?.bottom ?? 0;
-    setRail((r) => (Math.abs(r.at - at) < 1 && r.height === height ? r : { at, height }));
-  });
-  // Between rallies, no row is centred: the list follows the rail's end when it nears an edge.
-  const railStep = Math.round(rail.at / RAIL_FOLLOW_PX);
-  useEffect(() => {
-    const box = list.current;
-    // No height yet: the rail is not measured.
-    if (box && rail.height && !editing && Date.now() - place.current.scrolled > HOLD_MS && (rail.at < box.scrollTop + RAIL_EDGE_PX || rail.at > box.scrollTop + box.clientHeight - RAIL_EDGE_PX)) {
-      box.scrollTo({ top: rail.at - box.clientHeight / 2, behavior: 'smooth' });
-    }
-  }, [railStep]);
+  // The list follows the video, its touch (else its rally) centred, except while a field in it is
+  // being filled or shortly after the user scrolled it.
+  const { list, setEditing, rail, centre } = useFollowList(place, current, first, now);
   // A touch just added: in view, its player field ready to type in.
   const [fresh, setFresh] = useState<{ key: string }>();
   useEffect(() => {
@@ -745,14 +695,14 @@ export function ReportEditor({
   const warnedAt = (k: number) => rallyProblems(k).length > 0 || off.has(k);
   const warningsAt = shown.map((_, k) => warningTimes(found.get(k), mineOf(k), startOf(k), endOfRally(joinEnd(k, joins)), off.has(k)));
   const joinedKeys = shown.flatMap((r, k) => (joins(k) || joins(k - 1) ? [r.key] : []));
-  const warningsJson = JSON.stringify({
-    times: warningsAt.flat(),
-    warned: shown.flatMap((r, k) => (warningsAt[joinStart(k, joins)].length ? [r.key] : [])),
-    joined: joinedKeys,
-  });
-  useEffect(() => {
-    onWarnings?.(JSON.parse(warningsJson));
-  }, [warningsJson]);
+  useReported(
+    {
+      times: warningsAt.flat(),
+      warned: shown.flatMap((r, k) => (warningsAt[joinStart(k, joins)].length ? [r.key] : [])),
+      joined: joinedKeys,
+    },
+    onWarnings,
+  );
   // What still warns once a rally is checked (a doubt no longer does): asked about before checking it.
   const validate = async (k: number) => {
     const w = joinStart(k, joins);
@@ -790,8 +740,7 @@ export function ReportEditor({
         : null,
     );
   }, [caption, named?.team, named?.frame, named?.type, named?.result, named?.player, named && likelyFor(named).join(), closing, saving]);
-  const onKey = useRef<(event: KeyboardEvent) => void>(() => {});
-  onKey.current = (event) => {
+  useKeydown((event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (
       event.defaultPrevented ||
@@ -816,21 +765,13 @@ export function ReportEditor({
       event.preventDefault();
       add();
     }
-  };
-  useEffect(() => {
-    const listen = (event: KeyboardEvent) => onKey.current(event);
-    window.addEventListener('keydown', listen);
-    return () => window.removeEventListener('keydown', listen);
-  }, []);
+  });
   const spans: Span[] = shown.flatMap((r, k) =>
     joins(k - 1) || fixOf(k)?.play === false
       ? []
       : [{ key: r.key, n: k + 1, start: startOf(k), end: endOfRally(joinEnd(k, joins)), set: r.set, winner: winnerOf(k), redo: toReplay(k), wrongCall: calledWrong(k) }],
   );
-  const spansJson = JSON.stringify(spans);
-  useEffect(() => {
-    onRallies?.(JSON.parse(spansJson));
-  }, [spansJson]);
+  useReported(spans, onRallies);
   // Played past the end of a rally not checked, the video stops just after it: time to check it. Once, until moved back.
   const lastNow = useRef(now);
   const stoppedAt = useRef<number | null>(null);

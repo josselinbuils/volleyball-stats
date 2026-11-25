@@ -33,10 +33,9 @@ The pipeline's weak spots and what is left to do, most useful first.
 5. For later (the owner's, 9 Nov): the review's Match tab saves in four ways: touches, winner, join, end, wrong call and replay
    wait for "Valider"; stars, timeouts and "Supprimer" at once; comments on leaving the field; the match's end with an apply.
    Saving every edit at once, "Valider" only checking, would end the corrections not saved (a guard asks before losing them now).
-6. Simpler code (25 Nov, after the review server's split): one `files.read_json` for the ~130 `json.loads(p.read_text())`;
-   one `decode.probe` for the five hand-made `ffprobe` calls and the 17 fps read through OpenCV; hooks out of
-   `ReportEditor.tsx` (~1,200 lines) and `Review.tsx` (27 `useState`); opening another match without re-executing the
-   process (`review_server.switch`); the question builders and the names log out of `review.py`.
+6. Simpler code, left from the 25 Nov pass (`files.read_json`, `decode.probe`, the review's hooks done): opening another
+   match without re-executing the process (`review_server.switch`); the question builders and the names log out of
+   `review.py`.
 7. Ideas, not planned: the blockers' jumps on the page (measured, `benchmarks/jumps/ground_truth/blocks.csv`); in the 3D
    looks, the shoes' colour, leggings, long sleeves, glasses (the parsing model's unused classes); the limits of the 3D ball
    and TV mode (history, "The page").

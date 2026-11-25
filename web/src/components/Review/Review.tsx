@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, CircleOff, CirclePause, HelpCircle, Keyboard, ListChecks, LoaderCircle, Maximize, Minimize, PenLine, Scissors, UserX, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ask } from '@/components/ask';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,17 +46,17 @@ import { Names } from '@/components/Review/Names';
 import { MatchTab } from '@/components/Review/MatchTab';
 import { JobProgress } from '@/components/JobProgress';
 import { Tasks } from '@/components/Tasks';
-import type { Told } from '@/components/JobLine';
-import type { AppState } from '@/components/Setup/helpers/setup';
 import { startUpdate, UpdateProgress, type Due } from '@/components/Update';
-import { call } from '@/lib/app';
-import { explain, type Explained } from '@/lib/errors';
 import { matchFinished, unwarnedReports } from '@/components/Review/helpers/report';
 import { ACTIONS, ReviewHeader, type Action } from '@/components/Review/ReviewHeader';
 import { ReviewTabs } from '@/components/Review/ReviewTabs';
 import { windowTitle } from '@/lib/appServer';
 import { VideoButton } from '@/components/VideoButton';
 import { useFullscreen } from '@/hooks/useFullscreen';
+import { useKeydown } from '@/hooks/useKeydown';
+import { useAppUpdate } from '@/components/Review/hooks/useAppUpdate';
+import { useLeave } from '@/components/Review/hooks/useLeave';
+import { useRunProgress } from '@/components/Review/hooks/useRunProgress';
 import { cn } from '@/lib/utils';
 
 /** One answer per key: X not a player, C cut, S don't know. */
@@ -73,8 +72,6 @@ type Tab = 'questions' | 'names' | 'match';
 /** The page's rallies, by the key the review checks them by. */
 const keys = rallies.map((r) => r.key ?? Math.round(r.start * match.fps));
 const HASHES: Record<Tab, string> = { names: '', questions: '#questions', match: '#match' };
-// How often the review asks how the app's update goes.
-const UPDATE_POLL_MS = 3000;
 
 /** The review: the players' names, then the identity step's doubts one at a time, answered on the
  * video and shown with the names given. */
@@ -207,27 +204,7 @@ export function Review({
   const reports = unwarnedReports(questions.filter((q) => q.kind === 'report'));
   // Rallies whose corrections are not saved: a reload or leaving the Match tab loses them.
   const [unsaved, setUnsaved] = useState(0);
-  // Losing them was agreed to: the page may go.
-  const leaving = useRef(false);
-  const mayLeave = async () => {
-    if (unsaved && !(await ask({ title: t('review.unsaved'), confirm: t('review.unsavedLeave'), danger: true }))) {
-      return false;
-    }
-    leaving.current = true;
-    return true;
-  };
-  useEffect(() => {
-    if (!unsaved) {
-      return;
-    }
-    const onLeave = (event: BeforeUnloadEvent) => {
-      if (!leaving.current) {
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('beforeunload', onLeave);
-    return () => window.removeEventListener('beforeunload', onLeave);
-  }, [unsaved]);
+  const { mayLeave, leaving } = useLeave(unsaved);
   const matchTime = useRef(0);
   const show = async (next: Tab) => {
     if (next !== tab && !(await mayLeave())) {
@@ -237,29 +214,29 @@ export function Review({
     setTab(next);
     history.replaceState(null, '', HASHES[next] || location.pathname);
   };
-  // A report marked handled, with the corrections as they stand; a record to confirm said wrong (`wrong`), its reading off.
-  const handled = async (report: Question, changes: ReportChanges, wrong = false) => {
+  // A save's failure shows under the header until one goes through: whether it did.
+  const attempt = async (action: () => Promise<unknown>) => {
     try {
+      await action();
+      setError(false);
+      return true;
+    } catch {
+      setError(true);
+      return false;
+    }
+  };
+  // A report marked handled, with the corrections as they stand; a record to confirm said wrong (`wrong`), its reading off.
+  const handled = (report: Question, changes: ReportChanges, wrong = false) =>
+    attempt(async () => {
       const saved = await post('answer', wrong ? { id: report.id, choice: 'wrong' } : { id: report.id, choice: 'report', changes });
       setDone((d) => [...d, report]);
       setQuestions((qs) => qs.filter((q) => q.id !== report.id));
       onSaved(saved);
-      setError(false);
-    } catch {
-      setError(true);
-    }
-  };
+    });
   // Corrections saved from the match tab, about no question, the `rally` checked with them: its
   // reports are handled.
   // A rally checked by mistake, or to look at again: its corrections stay.
-  const uncheck = async (rally: number) => {
-    try {
-      onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', unchecked: [rally] }));
-      setError(false);
-    } catch {
-      setError(true);
-    }
-  };
+  const uncheck = (rally: number) => attempt(async () => onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', unchecked: [rally] })));
   // Shown at once: the editor starting again from `comments` must not lose one being saved.
   const saveComment = async (rally: number, text: string) => {
     const before = comments[rally];
@@ -270,40 +247,23 @@ export function Review({
         return value ? { ...out, [rally]: value } : out;
       });
     put(text);
-    try {
-      await post('comment', { rally, text });
-      setError(false);
-      return true;
-    } catch {
+    const saved = await attempt(() => post('comment', { rally, text }));
+    if (!saved) {
       // Back to what is saved.
       put(before);
-      setError(true);
-      return false;
     }
+    return saved;
   };
 
   const [backup, setBackup] = useState(savedBackup);
   const [backingUp, setBackingUp] = useState(false);
   const backUp = async () => {
     setBackingUp(true);
-    try {
-      // The server answers with the copy's time or failure.
-      setBackup((await post('backup')) as unknown as Backup);
-      setError(false);
-    } catch {
-      setError(true);
-    } finally {
-      setBackingUp(false);
-    }
+    // The server answers with the copy's time or failure.
+    await attempt(async () => setBackup((await post('backup')) as unknown as Backup));
+    setBackingUp(false);
   };
-  const setAutoBackup = async (on: boolean) => {
-    try {
-      setBackup((await post('autoBackup', { on })) as unknown as Backup);
-      setError(false);
-    } catch {
-      setError(true);
-    }
-  };
+  const setAutoBackup = (on: boolean) => attempt(async () => setBackup((await post('autoBackup', { on })) as unknown as Backup));
 
   const savePick = async (frame: number, picked: boolean) => {
     const put = (on: boolean) =>
@@ -317,155 +277,79 @@ export function Review({
         return out;
       });
     put(picked);
-    try {
-      await post('pick', { frame, picked });
-      setError(false);
-    } catch {
+    if (!(await attempt(() => post('pick', { frame, picked })))) {
       // Back to what is saved.
       put(!picked);
-      setError(true);
     }
   };
 
-  const saveTimeout = async (change: TimeoutChange) => {
-    try {
+  const saveTimeout = (change: TimeoutChange) =>
+    attempt(async () => {
       const saved = await post('timeout', change);
       if (saved.timeouts) {
         setTimeouts(saved.timeouts);
       }
       onSaved(saved);
-      setError(false);
-    } catch {
-      setError(true);
-    }
-  };
+    });
 
-  const saveUnchecked = async (changes: ReportChanges, rally: number) => {
-    try {
-      onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, unchecked: [rally] }));
-      setError(false);
-    } catch {
-      setError(true);
-    }
-  };
+  const saveUnchecked = (changes: ReportChanges, rally: number) => attempt(async () => onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, unchecked: [rally] })));
 
-  const saveEdits = async (changes: ReportChanges, rally: number) => {
-    try {
+  const saveEdits = (changes: ReportChanges, rally: number) =>
+    attempt(async () => {
       onSaved(await post('answer', { id: `edit:${Date.now()}`, choice: 'report', changes, checked: [rally] }));
       setQuestions((qs) => qs.filter((q) => !(q.kind === 'report' && q.rally === rally)));
-      setError(false);
-    } catch {
-      setError(true);
-    }
-  };
+    });
 
   // An answer on a piece earlier answers give to another player, to settle.
   const [conflict, setConflict] = useState<{ names: string[]; choice: string; extra: object } | null>(null);
   // The answer being sent: its button shows a loader, and no other answer goes until it is saved.
   const [answering, setAnswering] = useState<string | null>(null);
   const sending = useRef(false);
-  const answer = useCallback(
-    async (choice: string, extra: object = {}) => {
-      if (!question || sending.current) {
-        return;
-      }
-      // A cut falls where the clip stands when asked, playing or paused, inside the outlined piece.
-      const at = clipTime.current;
-      if (choice === 'cut' && !(at > question.clip.start && at < question.clip.end)) {
-        setNotice(t('review.cutWhere'));
-        return;
-      }
-      sending.current = true;
-      setAnswering(choice);
-      try {
-        const saved = await post('answer', { id: question.id, choice, ...extra, ...(choice === 'cut' ? { at } : {}) });
-        if (saved.cancelled) {
-          return;
-        }
-        if (saved.conflict) {
-          setConflict({ names: saved.conflict, choice, extra });
-          return;
-        }
-        if (choice === 'cut') {
-          setNotice(t('review.cutDone', { at: clock(at) }));
-        }
-        setDone((d) => [...d, question]);
-        setQuestions((qs) => qs.filter((q) => q.id !== question.id));
-        onSaved(saved);
-        setShowOther(false);
-        setError(false);
-      } catch {
-        setError(true);
-      } finally {
-        sending.current = false;
-        setAnswering(null);
-      }
-    },
-    [question, t],
-  );
-
-  /** Where the server's run stands: its step (and the pipeline's stage), which of how many, the time
-   * spent and left, and whether it takes longer than last time. */
-  const [progress, setProgress] = useState<{ fraction: number; part: number | null; step: string; stage: string | null; n: number; of: number; elapsed: number; left: number; late: boolean } | null>(
-    null,
-  );
-  /** Follows the server's run: its steps, the share of the work they counted and the time left; `ended` once none goes. */
-  const watchRun = (ended?: () => void) =>
-    window.setInterval(async () => {
-      try {
-        const p = (await (await fetch('progress')).json()) as {
-          steps?: string[];
-          done: number;
-          stage: string | null;
-          elapsed: number;
-          left: number;
-          late: boolean;
-          part?: number | null;
-          fraction: number;
-        };
-        if (p.steps) {
-          setProgress({
-            fraction: p.fraction,
-            part: p.part ?? null,
-            step: p.steps[p.done],
-            stage: p.stage,
-            n: p.done + 1,
-            of: p.steps.length,
-            elapsed: p.elapsed,
-            left: p.left,
-            late: p.late,
-          });
-        } else {
-          ended?.();
-        }
-      } catch {
-        // The bar waits for the next poll.
-      }
-    }, 400);
-  // A run going as the page opened: the page as it started, reloaded once it ends.
-  useEffect(() => {
-    if (!running) {
+  const answer = async (choice: string, extra: object = {}) => {
+    if (!question || sending.current) {
       return;
     }
-    let over = false;
-    const timer = watchRun(async () => {
-      if (over) {
+    // A cut falls where the clip stands when asked, playing or paused, inside the outlined piece.
+    const at = clipTime.current;
+    if (choice === 'cut' && !(at > question.clip.start && at < question.clip.end)) {
+      setNotice(t('review.cutWhere'));
+      return;
+    }
+    sending.current = true;
+    setAnswering(choice);
+    try {
+      const saved = await post('answer', { id: question.id, choice, ...extra, ...(choice === 'cut' ? { at } : {}) });
+      if (saved.cancelled) {
         return;
       }
-      over = true;
-      window.clearInterval(timer);
-      const failed = await readFailure();
-      if (!failed) {
-        location.reload();
+      if (saved.conflict) {
+        setConflict({ names: saved.conflict, choice, extra });
         return;
       }
-      setProgress(null);
-      setBusy(null);
-      setFailure(failed);
-    });
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, as the page opens
-  }, [running]);
+      if (choice === 'cut') {
+        setNotice(t('review.cutDone', { at: clock(at) }));
+      }
+      setDone((d) => [...d, question]);
+      setQuestions((qs) => qs.filter((q) => q.id !== question.id));
+      onSaved(saved);
+      setShowOther(false);
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      sending.current = false;
+      setAnswering(null);
+    }
+  };
+
+  const {
+    progress,
+    setProgress,
+    watch: watchRun,
+  } = useRunProgress(running, (failed) => {
+    setBusy(null);
+    setFailure(failed);
+  });
   const reload = async (path: Action, body: object = {}) => {
     setBusy(path);
     const poll = watchRun();
@@ -494,39 +378,7 @@ export function Review({
     }
   };
 
-  // The app's update (learn.update): it may make this match again, so the page waits for it, then reloads on what it made.
-  const [update, setUpdate] = useState<Told | null>(null);
-  const [updateError, setUpdateError] = useState<Explained | null>(null);
-  const followUpdate = useCallback(() => {
-    setBusy('update');
-    setUpdateError(null);
-    const check = async () => {
-      const found = await call<AppState>('state');
-      if (!found.ok) {
-        return;
-      }
-      const job = found.learn.job;
-      if (job?.running) {
-        setUpdate(job);
-        return;
-      }
-      window.clearInterval(timer);
-      if (job?.failed) {
-        setUpdate(null);
-        setBusy(null);
-        setUpdateError(explain(t, job.error));
-        return;
-      }
-      location.reload();
-    };
-    const timer = window.setInterval(() => void check(), UPDATE_POLL_MS);
-    void check();
-  }, [t]);
-  useEffect(() => {
-    if (updating) {
-      followUpdate();
-    }
-  }, [updating, followUpdate]);
+  const { update, updateError, setUpdateError, follow: followUpdate } = useAppUpdate(updating, setBusy);
   const startOne = async () => {
     if (!(await mayLeave())) {
       return;
@@ -564,22 +416,18 @@ export function Review({
     }
   };
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
-      if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || conflict || tab !== 'questions' || typing) {
-        return;
-      }
-      const key = { piece: KEYS, merge: MERGE_KEYS, touch: TOUCH_KEYS, rally: RALLY_KEYS, report: REPORT_KEYS }[question.kind][event.key.toLowerCase()];
-      const choice = key === 'proposed' ? question.proposed != null && `player:${question.team}:${question.proposed}` : key;
-      if (choice) {
-        event.preventDefault();
-        void answer(choice);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [question, answer, busy, conflict, tab]);
+  useKeydown((event) => {
+    const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select');
+    if (event.ctrlKey || event.metaKey || event.altKey || !question || busy || conflict || tab !== 'questions' || typing) {
+      return;
+    }
+    const key = { piece: KEYS, merge: MERGE_KEYS, touch: TOUCH_KEYS, rally: RALLY_KEYS, report: REPORT_KEYS }[question.kind][event.key.toLowerCase()];
+    const choice = key === 'proposed' ? question.proposed != null && `player:${question.team}:${question.proposed}` : key;
+    if (choice) {
+      event.preventDefault();
+      void answer(choice);
+    }
+  });
 
   const matchDone = matchFinished(keys, checked, reports.length);
   // The question fills the screen, no card: the video as high as the screen, the question and its answers right beside it.
