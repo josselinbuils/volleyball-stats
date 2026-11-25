@@ -54,3 +54,4 @@ set). In browser checks mute the videos and check a phone width (no horizontal p
 `web/src/components/Stats/helpers/insights.ts` temporarily to see them, and restore it before the
 build you commit. `benchmarks/scale.py` measures memory on a 2-hour match, `benchmarks/speed.py`
 the trackers' speed (`outputs/benchmarks/speed/side_holdout_4k.mp4` is a 4K test copy).
+`benchmarks/online.py` whether a change moved the online state of the matches (CLAUDE.md, "Check a change").

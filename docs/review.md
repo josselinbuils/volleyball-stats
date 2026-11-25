@@ -137,8 +137,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 ## The match list, renames, timeouts
 
-- The review opens without a match on the list of the matches (`review.match_list`, those with a `source.json`); opening
-  one replaces the server's process (`review.switch`).
+- The review opens without a match on the list of the matches (`review_server.match_list`, those with a `source.json`); opening
+  one replaces the server's process (`review_server.switch`).
 - The list's "Saison" tab reads each match's `review/data.js` (`/matches/NAME/data.js`); hosted, each match's `data.js`
   ([history.md](history.md)).
 - A match is named by its date and teams (`rename.target_name`): changing a team's name in the review renames its folders,

@@ -141,7 +141,7 @@ export interface PhotoMoment {
  * other parts changed. */
 export type ToApply = ['players' | 'touches' | 'actions' | 'rallies' | 'answers' | 'jerseys' | 'timeouts' | 'names', number | null][];
 
-/** review.js, served by volleyball_stats.review. */
+/** review.js, served by volleyball_stats.review_server. */
 interface ReviewData {
   width: number;
   height: number;

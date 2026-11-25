@@ -1147,15 +1147,15 @@ def main() -> None:
                 told.start(f"films:{match.name}")
                 film.build(match, video, court, share=told.share_of_stage)
         told.start("mirror")
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         # Each page as the upload begins: a change made while it runs stays late.
-        taken = {m: review.page_taken(m) for m, *_ in found if (m / "review" / "data.js").exists()}
+        taken = {m: hosted.page_taken(m) for m, *_ in found if (m / "review" / "data.js").exists()}
         if config:
             mirror(config, told.share_of_stage)
         host_all(found, args.theme, mirrored=config is not None, told=told, config=config)
         for match, page in taken.items():
-            review.record_hosted(match, page)
+            hosted.record_hosted(match, page)
         return None
     if not args.site:
         parser.error("site or --host")

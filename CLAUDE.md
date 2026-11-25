@@ -75,6 +75,9 @@ cd web && npx tsc --noEmit -p . && npm test && npm run build
 
 In browser checks mute the videos and check a phone width (no horizontal page scroll).
 
+A change to the Python, the page's data or code: `uv run python benchmarks/online.py before` first, `uv run python
+benchmarks/online.py` once done: the matches online must not turn late or changed by themselves (an often-made fault).
+
 ## Read when needed
 
 These are not loaded at the start of a session: read the one a task touches.

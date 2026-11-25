@@ -297,12 +297,6 @@ def push_all(outputs: Path, told: bool = False) -> list[str]:
     return failed
 
 
-def push_shared(outputs: Path, config: dict) -> None:
-    """What sits beside the matches merged with the server's, then copied there: no match's claim moves."""
-    merge_shared(outputs, config)
-    backup.backup_shared(outputs, config)
-
-
 def keep_shared(outputs: Path, config: dict) -> None:
     """What sits beside the matches in step with the server: the other machine's brought, this one's sent only when it
     changed here, a copy made for nothing else."""

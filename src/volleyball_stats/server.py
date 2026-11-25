@@ -43,14 +43,14 @@ def save(outputs: Path, body: dict) -> None:
 def listed(outputs: Path) -> list[dict]:
     """The matches online, then those ready to go online (`new`: their pipeline ended, their files there, a real match),
     newest first: their name, date, title and teams' names, their page's address, and when it last went up, whether the
-    match changed since and what (`review.read_hosted`), whether it has the video (`chosen`: whether that is chosen)."""
-    from volleyball_stats import review
+    match changed since and what (`hosted.read_hosted`), whether it has the video (`chosen`: whether that is chosen)."""
+    from volleyball_stats import hosted, review_server
 
     found = []
     for match, _, _, config in matches.online(outputs / "matches"):
         folder = matches.hosted_folder(match, Path(config["site"]).expanduser())
         page = matches.listed(match / "review") if (match / "review" / "data.js").exists() else {"date": None, "title": None, "teams": None}
-        hosted = review.read_hosted(match, code=False)
+        state = hosted.read_hosted(match, code=False)
         url = config.get("url") or ""
         found.append(
             {
@@ -59,7 +59,7 @@ def listed(outputs: Path) -> list[dict]:
                 "title": page["title"],
                 "teams": [t.get("name") for t in page["teams"]] if page["teams"] else None,
                 "url": f"{url.rstrip('/')}/{folder.name}/" if url and folder else None,
-                **{k: hosted[k] for k in ("at", "day", "behind", "changes")},
+                **{k: state[k] for k in ("at", "day", "behind", "changes")},
                 "video": bool(config["video"]),
                 "new": False,
                 "chosen": True,
@@ -67,7 +67,7 @@ def listed(outputs: Path) -> list[dict]:
         )
     here = {m["name"] for m in found}
     site = Path(SITE)
-    for m in review.match_list(outputs / "matches"):
+    for m in review_server.match_list(outputs / "matches"):
         match = outputs / "matches" / m["path"]
         given = json.loads((match / files.SOURCE).read_text())
         config = json.loads((match / matches.PUBLISH).read_text()) if (match / matches.PUBLISH).exists() else {}
@@ -96,11 +96,11 @@ def listed(outputs: Path) -> list[dict]:
 
 
 def code_state(outputs: Path) -> dict | None:
-    """The pages' code online (`review.site_code`), None with no match online."""
-    from volleyball_stats import review
+    """The pages' code online (`hosted.site_code`), None with no match online."""
+    from volleyball_stats import hosted
 
     found = matches.online(outputs / "matches")
-    return review.site_code(Path(found[0][3]["site"]).expanduser()) if found else None
+    return hosted.site_code(Path(found[0][3]["site"]).expanduser()) if found else None
 
 
 def first_upload(outputs: Path, names: list[str], video: object) -> None:

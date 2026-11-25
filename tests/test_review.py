@@ -10,7 +10,9 @@ import pytest
 from volleyball_stats.identity import read_names
 from volleyball_stats import analysis, files, presence, review as review_module, web
 from volleyball_stats.teams import match_end
-from volleyball_stats.review import applied_too, to_apply, records, due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, hosted_state, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, range_of, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, with_review, write_names, list_page, match_list, reopening, set_end, set_start, let_go, piece_conflict, pooled_runs
+from volleyball_stats.hosted import hosted_state
+from volleyball_stats.review_server import list_page, match_list, range_of, reopening, with_review
+from volleyball_stats.review import applied_too, to_apply, records, due, learned, answers_stamp, joins, teaches, reviewed, last_comparison, card_numbers, APPLIED, Questions, aces, rotation_slips, checked, commented, corrections, read_comments, write_comments, eta, follow_teams, locked, pinned, unlocked, report_answer, superseded, unusual, report_question, reports, unnamed, chain, constraints, doubtful, rally_answer, meeting, path, name_merges, supersede, load_roster, mark_odd, reanchor, receiver_answer, remember, save, set_name, set_photo, set_team, settled, state, suggest, touch_answer, undo, waiting, write_names, set_end, set_start, let_go, piece_conflict, pooled_runs
 
 
 class TestHostedState:
@@ -104,21 +106,6 @@ class TestMatchList:
         found = json.loads(list_page("/matches/remote.json", out, "none")[0])
 
         assert [(m["path"], m["date"], m["remote"]) for m in found] == [("2026-11-02-x", "2026-11-02", True)]
-
-
-class TestRedirect:
-    def sent(self, path):
-        from urllib.parse import urlparse
-
-        handler = SimpleNamespace(headers={}, send_response=lambda code: handler.headers.update(status=code), send_header=lambda k, v: handler.headers.update({k: v}), end_headers=lambda: None)
-        return review_module.redirect(handler, urlparse(path)), handler.headers
-
-    def test_each_page_answers_with_and_without_a_trailing_slash(self):
-        assert self.sent("/matches?x=1") == (True, {"status": 302, "Location": "/matches/?x=1"})
-        assert self.sent("/review/") == (True, {"status": 302, "Location": "/review"})
-        assert self.sent("/page/") == (True, {"status": 302, "Location": "/page"})
-        assert self.sent("/matches/")[0] is False
-        assert self.sent("/review")[0] is False
 
 
 class TestConstraints:
@@ -1347,25 +1334,6 @@ class TestNotOver:
         assert review_module.not_over(page, []) == []
 
 
-class TestServer:
-    def test_is_quiet_when_a_page_goes_and_reports_any_other_error(self, capsys):
-        server = review_module.Server(("127.0.0.1", 0), review_module.BaseHTTPRequestHandler)
-        try:
-            for error in (BrokenPipeError(), ConnectionResetError()):
-                try:
-                    raise error
-                except OSError:
-                    server.handle_error(None, ("127.0.0.1", 1))
-            assert capsys.readouterr().err == ""
-            try:
-                raise ValueError("bad answer")
-            except ValueError:
-                server.handle_error(None, ("127.0.0.1", 1))
-            assert "bad answer" in capsys.readouterr().err
-        finally:
-            server.server_close()
-
-
 class TestPageStamp:
     @staticmethod
     def page(tmp_path, data: dict):
@@ -1376,29 +1344,29 @@ class TestPageStamp:
         return site
 
     def test_the_same_page_patched_with_the_same_pictures_is_no_change(self, tmp_path):
-        from volleyball_stats import review, web
+        from volleyball_stats import hosted, review, web
 
         site = self.page(tmp_path, {"name": "m", "people": {"1": {"photo": "players/a.webp?v=1"}}, "v": "01e892555b"})
-        first = review.page_stamp(tmp_path)
+        first = hosted.page_stamp(tmp_path)
         # What a restart does: the page rebuilt, then the pictures patched in, moving its `v`.
         web.patch_people(site, {"1": {"photo": "players/a.webp?v=1"}})
 
         assert review.page_data(site)["v"] != "01e892555b"
-        assert review.page_stamp(tmp_path) == first
+        assert hosted.page_stamp(tmp_path) == first
 
     def test_the_order_of_the_datas_keys_is_no_change_its_content_is(self, tmp_path):
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         self.page(tmp_path, {"name": "m", "people": {}, "v": "a"})
-        first = review.page_stamp(tmp_path)
+        first = hosted.page_stamp(tmp_path)
         self.page(tmp_path, {"people": {}, "v": "b", "name": "m"})
-        assert review.page_stamp(tmp_path) == first
+        assert hosted.page_stamp(tmp_path) == first
         self.page(tmp_path, {"people": {}, "v": "b", "name": "n"})
-        assert review.page_stamp(tmp_path) != first
+        assert hosted.page_stamp(tmp_path) != first
 
 
 def test_a_look_set_by_name_shows_on_the_players_other_matches_whose_hosted_copy_goes_late(tmp_path, monkeypatch):
-    from volleyball_stats import identity, likeness, review
+    from volleyball_stats import hosted, identity, likeness, review
 
     def page(match, people):
         site = match / "review"
@@ -1411,8 +1379,8 @@ def test_a_look_set_by_name_shows_on_the_players_other_matches_whose_hosted_copy
     page(b, {"4": {"team": 2, "number": 7, "name": "Landy", "look": {"hair": "dark", "skin": 2}}, "5": {"team": 2, "number": 8, "name": "Zoé"}})
     page(c, {"1": {"team": 1, "number": 3, "name": "Zoé"}})
     (b / likeness.CHOICES).write_text(json.dumps({"Landy": {"hair": "dark"}}))
-    review.record_hosted(b)
-    review.record_hosted(c)
+    hosted.record_hosted(b)
+    hosted.record_hosted(c)
     monkeypatch.setattr(identity, "read_names", lambda match: {})
     monkeypatch.setattr(identity, "named", lambda table, names: {(1, 3): {"name": "Landy"}})
 
@@ -1422,7 +1390,7 @@ def test_a_look_set_by_name_shows_on_the_players_other_matches_whose_hosted_copy
     assert "look" not in review.page_data(b / "review")["people"]["5"]
     # Its own choice follows, a rebuild keeping it; the match without the player is untouched.
     assert likeness.chosen(b)["Landy"]["hair"] == "red"
-    assert review.read_hosted(b)["behind"] and not review.read_hosted(c)["behind"]
+    assert hosted.read_hosted(b)["behind"] and not hosted.read_hosted(c)["behind"]
 
     # A name from the jersey number alone is another player in each match.
     page(tmp_path / "d", {"1": {"team": 1, "number": 4, "name": "Joueur 9"}})
@@ -1434,40 +1402,40 @@ def test_a_look_set_by_name_shows_on_the_players_other_matches_whose_hosted_copy
 
 
 def test_a_change_made_while_an_upload_runs_leaves_its_page_late(tmp_path):
-    from volleyball_stats import review, web
+    from volleyball_stats import hosted, web
 
     site = tmp_path / "review"
     site.mkdir()
     (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n")
     (site / "index.html").write_text('<script src="data.js?v=a"></script>')
-    taken = review.page_taken(tmp_path)
+    taken = hosted.page_taken(tmp_path)
     web.patch_people(site, {"1": {"team": 1, "number": 3, "look": {"hair": "red"}}})
 
-    review.record_hosted(tmp_path, taken)
+    hosted.record_hosted(tmp_path, taken)
 
-    hosted = review.read_hosted(tmp_path)
-    assert hosted["behind"] and hosted["changes"]
+    state = hosted.read_hosted(tmp_path)
+    assert state["behind"] and state["changes"]
 
 
 def test_the_commentary_an_upload_makes_leaves_its_page_on_time(tmp_path, monkeypatch):
-    from volleyball_stats import review, speech
+    from volleyball_stats import hosted, speech
 
     site = tmp_path / "review"
     site.mkdir()
     (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n")
-    taken = review.page_taken(tmp_path)
+    taken = hosted.page_taken(tmp_path)
     # The upload's voice made, the review's next build takes it.
     monkeypatch.setattr(speech, "voice_index", lambda match, data, walls=(): {"lines": [[1.0, "a.mp3"]], "replay": {}, "folder": match})
 
-    review.record_hosted(tmp_path, taken)
+    hosted.record_hosted(tmp_path, taken)
     (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'voice': True, 'v': 'b'})};\n")
 
-    assert not review.read_hosted(tmp_path)["behind"]
+    assert not hosted.read_hosted(tmp_path)["behind"]
 
 
 class TestPageChanges:
     def test_each_changed_part_with_how_many_of_its_items(self):
-        from volleyball_stats.review import page_changes
+        from volleyball_stats.hosted import page_changes
 
         sent = {"data": {"contacts": [{"f": 1}, {"f": 2}, {"f": 3}], "people": {"1": {"name": "Ana"}, "2": {"name": "Bob"}}, "ball3d": True, "club": {"name": "A"}, "positions": {"step": 1}, "name": "m"}, "code": {"page": "a", "list": "c"}}
         now = {"data": {"contacts": [{"f": 1}, {"f": 2, "type": "set"}, {"f": 3}, {"f": 4}], "people": {"1": {"name": "Ana"}, "2": {"name": "Bobby"}, "3": {}}, "ball3d": False, "club": {"name": "A", "favicon": "x"}, "positions": {"step": 2}, "name": "m"}, "code": {"page": "b", "list": "c"}}
@@ -1482,7 +1450,7 @@ class TestPageChanges:
         assert page_changes(sent, sent) == []
 
     def test_the_tracks_without_a_name_renumbered_are_the_positions(self):
-        from volleyball_stats.review import page_changes
+        from volleyball_stats.hosted import page_changes
 
         sent = {"data": {"people": {"1": {"name": "Ana"}, "2": {"team": 1}, "3": {"team": 2}}}, "code": "a"}
         now = {"data": {"people": {"1": {"name": "Ana"}, "2": {"team": 2}, "3": {"team": 1}}}, "code": "a"}
@@ -1490,132 +1458,132 @@ class TestPageChanges:
         assert page_changes(sent, now) == [{"part": "positions", "count": None}]
 
     def test_data_sent_before_its_format_was_written_is_format_1(self):
-        from volleyball_stats.review import page_changes
+        from volleyball_stats.hosted import page_changes
 
         assert page_changes({"data": {"name": "m"}, "code": {}}, {"data": {"name": "m", "format": 1}, "code": {}}) == []
         assert page_changes({"data": {"name": "m"}, "code": {}}, {"data": {"name": "m", "format": 2}, "code": {}}) == [{"part": "format", "count": None}]
 
     def test_the_code_an_older_upload_recorded_is_no_change_of_its_page(self):
-        from volleyball_stats.review import page_changes
+        from volleyball_stats.hosted import page_changes
 
         assert page_changes({"data": {}, "code": "a"}, {"data": {}, "code": {"page": "b", "list": "c"}}) == []
 
     def test_the_code_comes_with_the_commits_that_changed_it_once_each_at_most_five(self, monkeypatch):
-        from volleyball_stats import git_check, review
+        from volleyball_stats import git_check, hosted
 
         found = {"a": [(5, "e"), (3, "c")], "b": [(6, "f"), (5, "e"), (4, "d"), (2, "b"), (1, "a")]}
         monkeypatch.setattr(git_check, "commits_since", lambda path, since, now: found.get(since))
 
-        assert review.code_commits({"page": "a", "list": "b"}, {"page": "x", "list": "y"}) == ["f", "e", "d", "c", "+2"]
+        assert hosted.code_commits({"page": "a", "list": "b"}, {"page": "x", "list": "y"}) == ["f", "e", "d", "c", "+2"]
         found["a"] = None
-        assert review.code_commits({"page": "a", "list": "b"}, {"page": "x", "list": "y"}) is None
+        assert hosted.code_commits({"page": "a", "list": "b"}, {"page": "x", "list": "y"}) is None
 
     def test_a_late_page_says_what_changed_since_the_upload(self, tmp_path):
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         TestPageStamp.page(tmp_path, {"name": "m", "contacts": [{"f": 1}], "v": "a"})
-        review.record_hosted(tmp_path)
-        assert review.read_hosted(tmp_path)["changes"] is None
+        hosted.record_hosted(tmp_path)
+        assert hosted.read_hosted(tmp_path)["changes"] is None
         TestPageStamp.page(tmp_path, {"name": "m", "contacts": [{"f": 1}, {"f": 2}], "v": "b"})
 
-        state = review.read_hosted(tmp_path)
+        state = hosted.read_hosted(tmp_path)
         assert state["behind"] and state["changes"] == [{"part": "contacts", "count": 1}]
 
     def test_the_code_no_longer_makes_a_page_late_the_site_s_code_does(self, tmp_path, monkeypatch):
-        from volleyball_stats import matches, review
+        from volleyball_stats import hosted, matches
 
         scene = tmp_path / "scene3d.js"
         scene.write_text("a")
-        monkeypatch.setitem(review.CODE_PAGES, "3d", scene)
+        monkeypatch.setitem(hosted.CODE_PAGES, "3d", scene)
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
         site = tmp_path / "site"
         site.mkdir()
         (tmp_path / matches.PUBLISH).write_text(json.dumps({"site": str(site)}))
         (site / matches.CODE).write_text(json.dumps({"code": matches.code_stamps()}))
-        review.record_hosted(tmp_path)
-        assert not review.read_hosted(tmp_path)["behind"]
+        hosted.record_hosted(tmp_path)
+        assert not hosted.read_hosted(tmp_path)["behind"]
         scene.write_text("b")
 
-        assert not review.read_hosted(tmp_path, code=False)["behind"]
-        state = review.read_hosted(tmp_path)
+        assert not hosted.read_hosted(tmp_path, code=False)["behind"]
+        state = hosted.read_hosted(tmp_path)
         assert state["behind"] and state["changes"] == [{"part": "siteCode", "count": None, "keys": ["3d"]}]
-        assert review.site_code(site)["change"] == {"part": "code", "count": None, "keys": ["3d"]}
+        assert hosted.site_code(site)["change"] == {"part": "code", "count": None, "keys": ["3d"]}
 
     def test_an_upload_recorded_with_the_code_of_each_page_is_late_only_for_its_data(self, tmp_path, monkeypatch):
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         scene = tmp_path / "scene3d.js"
         scene.write_text("a")
-        monkeypatch.setitem(review.CODE_PAGES, "3d", scene)
+        monkeypatch.setitem(hosted.CODE_PAGES, "3d", scene)
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
         pages = ("list", "page", "3d")
-        (tmp_path / review.HOSTED_PAGE).write_text(json.dumps(review.page_content(tmp_path)))
-        (tmp_path / review.HOSTED).write_text(json.dumps({"at": "2026-11-20T23:01:11", "stamp": review.page_stamp(tmp_path, pages), "pages": list(pages), "code": "x"}))
-        assert not review.read_hosted(tmp_path)["behind"]
+        (tmp_path / hosted.HOSTED_PAGE).write_text(json.dumps(hosted.page_content(tmp_path)))
+        (tmp_path / hosted.HOSTED).write_text(json.dumps({"at": "2026-11-20T23:01:11", "stamp": hosted.page_stamp(tmp_path, pages), "pages": list(pages), "code": "x"}))
+        assert not hosted.read_hosted(tmp_path)["behind"]
         scene.write_text("b")
 
-        assert not review.read_hosted(tmp_path)["behind"]
+        assert not hosted.read_hosted(tmp_path)["behind"]
         TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
-        state = review.read_hosted(tmp_path)
+        state = hosted.read_hosted(tmp_path)
         assert state["behind"] and state["changes"] == [{"part": "name", "count": None}]
 
     def test_an_upload_from_before_the_3d_views_stamp_is_judged_without_it(self, tmp_path, monkeypatch):
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         scene = tmp_path / "scene3d.js"
         scene.write_text("a")
-        monkeypatch.setitem(review.CODE_PAGES, "3d", scene)
+        monkeypatch.setitem(hosted.CODE_PAGES, "3d", scene)
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
-        sent = review.page_content(tmp_path)
+        sent = hosted.page_content(tmp_path)
         del sent["code"]["3d"]
-        (tmp_path / review.HOSTED_PAGE).write_text(json.dumps(sent))
-        (tmp_path / review.HOSTED).write_text(json.dumps({"at": "2026-11-10T23:01:11", "stamp": review.page_stamp(tmp_path, review.OLD_STAMPED), "code": "x"}))
+        (tmp_path / hosted.HOSTED_PAGE).write_text(json.dumps(sent))
+        (tmp_path / hosted.HOSTED).write_text(json.dumps({"at": "2026-11-10T23:01:11", "stamp": hosted.page_stamp(tmp_path, hosted.OLD_STAMPED), "code": "x"}))
         scene.write_text("b")
 
-        assert not review.read_hosted(tmp_path)["behind"]
+        assert not hosted.read_hosted(tmp_path)["behind"]
         TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
-        assert review.read_hosted(tmp_path)["changes"] == [{"part": "name", "count": None}]
+        assert hosted.read_hosted(tmp_path)["changes"] == [{"part": "name", "count": None}]
 
 
     def test_a_page_rebuilt_by_the_uploads_code_is_not_late(self, tmp_path):
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         # Uploaded with every match: the review's page as an older code built it, the upload by this one.
         TestPageStamp.page(tmp_path, {"name": "m", "brand": "x", "v": "a"})
-        review.record_hosted(tmp_path)
-        before = review.page_stamp(tmp_path)
+        hosted.record_hosted(tmp_path)
+        before = hosted.page_stamp(tmp_path)
         # Opened: the page rebuilt by this code.
         TestPageStamp.page(tmp_path, {"name": "m", "club": "x", "timeouts": [], "v": "b"})
-        assert review.read_hosted(tmp_path)["behind"]
+        assert hosted.read_hosted(tmp_path)["behind"]
 
-        review.restamp(tmp_path, before)
-        assert not review.read_hosted(tmp_path)["behind"]
+        hosted.restamp(tmp_path, before)
+        assert not hosted.read_hosted(tmp_path)["behind"]
 
     def test_a_page_rebuilt_by_other_code_than_the_uploads_stays_late(self, tmp_path):
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
-        review.record_hosted(tmp_path)
-        saved = json.loads((tmp_path / review.HOSTED).read_text())
-        (tmp_path / review.HOSTED).write_text(json.dumps({**saved, "code": "older"}))
-        before = review.page_stamp(tmp_path)
+        hosted.record_hosted(tmp_path)
+        saved = json.loads((tmp_path / hosted.HOSTED).read_text())
+        (tmp_path / hosted.HOSTED).write_text(json.dumps({**saved, "code": "older"}))
+        before = hosted.page_stamp(tmp_path)
         TestPageStamp.page(tmp_path, {"name": "m", "timeouts": [], "v": "b"})
 
-        review.restamp(tmp_path, before)
-        assert review.read_hosted(tmp_path)["behind"]
+        hosted.restamp(tmp_path, before)
+        assert hosted.read_hosted(tmp_path)["behind"]
 
     def test_a_change_since_the_upload_stays_late(self, tmp_path):
-        from volleyball_stats import review
+        from volleyball_stats import hosted
 
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
-        review.record_hosted(tmp_path)
+        hosted.record_hosted(tmp_path)
         # An answer since: the page rebuilt then, its stamp no longer the upload's.
         TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
-        before = review.page_stamp(tmp_path)
+        before = hosted.page_stamp(tmp_path)
         TestPageStamp.page(tmp_path, {"name": "n", "timeouts": [], "v": "c"})
 
-        review.restamp(tmp_path, before)
-        assert review.read_hosted(tmp_path)["behind"]
+        hosted.restamp(tmp_path, before)
+        assert hosted.read_hosted(tmp_path)["behind"]
 
 
 class TestMore:

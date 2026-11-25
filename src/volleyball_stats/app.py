@@ -5,7 +5,7 @@
     uv run stats server [MATCH] [--port PORT]    the app, opening nothing (a restart: the page is open)
     uv run stats stop [--port PORT]              stops it
 
-Opens the list of the matches (the review server, review.py), or MATCH's review, and serves under /app/ what used to
+Opens the list of the matches (the review server, review_server.py), or MATCH's review, and serves under /app/ what used to
 need a command: checking the machine (doctor.py), importing a match from the camera's card, mapping the court,
 running the pipeline and updating the code. The long work runs in jobs (jobs.py),
 which outlive the server.
@@ -149,8 +149,8 @@ def restart_command() -> list[str]:
     args = [a for a in sys.argv[1:] if a != "--no-browser"] + ["--no-browser"]
     tool = uv()
     if tool:
-        return [tool, "run", "--project", str(git_check.ROOT), "python", "-m", "volleyball_stats.review", *args]
-    return [sys.executable, "-m", "volleyball_stats.review", *args]
+        return [tool, "run", "--project", str(git_check.ROOT), "python", "-m", "volleyball_stats.review_server", *args]
+    return [sys.executable, "-m", "volleyball_stats.review_server", *args]
 
 
 def windows_drives() -> list[tuple[str, str]]:
@@ -1096,7 +1096,7 @@ def parse(args: list[str]) -> tuple[str | None, list[str]]:
 
 
 def main() -> None:
-    from volleyball_stats import review
+    from volleyball_stats import review_server
 
     global opening
     args = sys.argv[1:]
@@ -1107,7 +1107,7 @@ def main() -> None:
     os.chdir(git_check.ROOT)
     club_settings.migrate()
     shortcut.update_launcher()
-    port = int(args[args.index("--port") + 1]) if "--port" in args[:-1] else review.PORT
+    port = int(args[args.index("--port") + 1]) if "--port" in args[:-1] else review_server.PORT
     if command == "stop":
         sys.exit(stop(port))
     opening = OPENING[command]
@@ -1121,7 +1121,7 @@ def main() -> None:
                  "its shortcut, or not as a background job of zsh (`setopt no_bg_nice` first).")
     shortcut.refresh()
     sys.argv = [sys.argv[0], *args, *([] if opening else ["--no-browser"]), *(["--with-window"] if opening == "window" else [])]
-    review.main()
+    review_server.main()
 
 
 if __name__ == "__main__":

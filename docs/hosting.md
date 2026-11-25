@@ -66,7 +66,7 @@ The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.j
   `matches.ensure_publish`); "Tester" checks it answers and holds the folder;
 - lists the matches online, each "À jour" or "En retard" with its link, then those ready to go online, "Pas en ligne"
   (`server.listed`: their pipeline ended, their files there, a real match, not in the site folder). "En retard" once the page's data
-  changed since its upload (`review.read_hosted`; the review's
+  changed since its upload (`hosted.read_hosted`; the review's
   tip lists each cause on its line: "Joueurs" names only the named players whose card changed; the tracks without a name,
   kept with their team for the court's dots and renumbered by each run, count as "Positions des joueurs"). Above them
   "Code des pages", the code all the pages share ([below](#the-pages-code)): "En retard" when the app's page, list or 3D

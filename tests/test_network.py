@@ -2,7 +2,7 @@ import json
 
 from volleyball_stats import network
 from volleyball_stats.network import mirrored_config, named_here
-from volleyball_stats.review import same_site
+from volleyball_stats.review_server import same_site
 
 
 def test_on_until_the_review_closes_unless_asked_for_every_start(tmp_path, monkeypatch):

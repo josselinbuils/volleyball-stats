@@ -72,7 +72,7 @@ interface ServerState {
   pull: Told | null;
   /** The matches the last backup left to the owner: changed here and on `machine`. */
   conflicts: (Named & { machine: string })[];
-  /** The code all pages online share (`review.site_code`): late when the app's changed since; null with no match online. */
+  /** The code all pages online share (`hosted.site_code`): late when the app's changed since; null with no match online. */
   code: { behind: boolean; change: PageChange } | null;
 }
 

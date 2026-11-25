@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 
-/** A part of the page that changed since the last upload, with how many of its items and, for some, which (`review.page_changes`);
+/** A part of the page that changed since the last upload, with how many of its items and, for some, which (`hosted.page_changes`);
  * for the code, the commits that changed it when git tells them. */
 export type PageChange = { part: string; count: number | null; keys?: string[]; commits?: string[] };
 

@@ -122,8 +122,8 @@ over, and the report gives the estimated score's drift from them.
 ## 3. Review and name the players
 
 ```bash
-uv run python -m volleyball_stats.review                 # opens on the list of the matches
-uv run python -m volleyball_stats.review outputs/matches/VIDEO   # opens on this match
+uv run python -m volleyball_stats.review_server          # opens on the list of the matches
+uv run python -m volleyball_stats.review_server outputs/matches/VIDEO   # opens on this match
 ```
 
 The list shows the matches `match --players` has run on (`outputs/matches/VIDEO/source.json` holds their video and court), one still
