@@ -20,6 +20,8 @@ export type Task = {
   error?: string | null;
   /** A backup the list's timer started: left out of the pill, the Site tab shows it. */
   auto?: boolean;
+  /** The machine runs on battery while it runs. */
+  battery?: boolean;
 };
 
 const RUNNING_MS = 2000;

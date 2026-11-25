@@ -36,6 +36,8 @@ export interface Job {
   ended?: number;
   /** A backup the list's timer started, not the Site tab's button. */
   auto?: boolean;
+  /** The machine runs on battery while the job runs. */
+  battery?: boolean;
 }
 
 /** A match not ready for the review (app.preparing) and what it waits for. */

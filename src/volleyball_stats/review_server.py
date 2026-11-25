@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import cv2
 
-from volleyball_stats import app, applog, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, network, pictures, presence, rename, sync, timeouts, web
+from volleyball_stats import app, applog, awake, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, network, pictures, presence, rename, sync, timeouts, web
 from volleyball_stats.review import APPLIED, STALE_PHOTOS, TIMINGS, TOOK, applied_too, commented, due, eta, locked, pinned, read_comments, undo, unlocked, waiting, write_comments
 from volleyball_stats.review_answers import (
     ROSTER,
@@ -685,17 +685,19 @@ class Review:
         # The weights of the share stay as the run started: the durations it records go to the next one.
         progress.update(steps=[name for name, _ in steps], started=time.time(), weights=dict(self.took))
         self.failure.clear()
+        # The machine kept awake while it runs.
         try:
-            for k, (name, work) in enumerate(steps):
-                progress.update(done=k, since=time.time(), stage=None, own=None, passed=0.0)
-                try:
-                    work()
-                except Exception as error:
-                    self.failure.update(step=name, error=repr(error))
-                    raise
-                self.staged(None)
-                self.took[name] = time.time() - progress["since"]
-                files.write_text(self.match / TIMINGS, json.dumps(self.took, indent=1) + "\n")
+            with awake.held():
+                for k, (name, work) in enumerate(steps):
+                    progress.update(done=k, since=time.time(), stage=None, own=None, passed=0.0)
+                    try:
+                        work()
+                    except Exception as error:
+                        self.failure.update(step=name, error=repr(error))
+                        raise
+                    self.staged(None)
+                    self.took[name] = time.time() - progress["since"]
+                    files.write_text(self.match / TIMINGS, json.dumps(self.took, indent=1) + "\n")
         finally:
             progress.clear()
             self.at_start.update(data=None, action=None)

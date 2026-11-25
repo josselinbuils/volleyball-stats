@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { BatteryLow } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShownHere } from '@/lib/tasks';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,8 @@ const SHORT = 600;
 /** A long run's bar: what it does (`children`) with its share done beside, then below its step (`step`, "this step"
  * when only its share `part` is told) and the time left, when it ends and the time spent with `elapsed` (only the time
  * left for a short run), or that it takes longer than expected when `late`. The bar is the work counted (`fraction`),
- * never the time spent (the owner's rule); without a share told, it slides. The app's task it shows (`task`, its id) leaves
+ * never the time spent (the owner's rule); without a share told, it slides. On `battery`, it asks to plug the machine in
+ * (it stays awake by itself, but a battery runs out). The app's task it shows (`task`, its id) leaves
  * the tasks' pill while it is here. */
 export function JobProgress({
   label,
@@ -26,6 +28,7 @@ export function JobProgress({
   left,
   elapsed,
   late,
+  battery,
   task,
   className,
   children,
@@ -37,6 +40,7 @@ export function JobProgress({
   left?: number | null;
   elapsed?: number;
   late?: boolean;
+  battery?: boolean;
   task?: string | null;
   className?: string;
   children?: ReactNode;
@@ -84,6 +88,12 @@ export function JobProgress({
         />
       </div>
       {below && <p className="m-0 text-xs text-muted-foreground tabular-nums">{below}</p>}
+      {battery && (
+        <p role="status" className="m-0 inline-flex items-center gap-1.5 text-xs">
+          <BatteryLow aria-hidden className="size-3.5 shrink-0 text-warning" />
+          {t('app.onBattery')}
+        </p>
+      )}
     </div>
   );
 }

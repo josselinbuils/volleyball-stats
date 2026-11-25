@@ -96,7 +96,7 @@ export function AppMatches({ matches: here, club }: MatchList) {
                 children: (
                   <>
                     {task && (
-                      <JobProgress label={taskLabel(t, task)} fraction={task.fraction ?? null} left={task.left} task={task.id} className="mt-1">
+                      <JobProgress label={taskLabel(t, task)} fraction={task.fraction ?? null} left={task.left} battery={task.battery} task={task.id} className="mt-1">
                         {taskLabel(t, task)}
                       </JobProgress>
                     )}

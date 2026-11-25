@@ -17,7 +17,7 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from volleyball_stats import files
+from volleyball_stats import awake, files
 
 FOLDER = "jobs"
 # A line of a command's output telling its progress (0-1) or its stage (match.STAGE).
@@ -227,10 +227,15 @@ def start(outputs: Path, job_id: str, kind: str, steps: list[tuple[str, list[str
     return job
 
 
+# The runner's threads write its record in turn (the battery's watch beside the steps).
+WRITING = threading.Lock()
+
+
 def update(record: Path, **fields) -> None:
-    job = json.loads(record.read_text())
-    job.update(fields)
-    files.write_text(record, json.dumps(job, indent=1))
+    with WRITING:
+        job = json.loads(record.read_text())
+        job.update(fields)
+        files.write_text(record, json.dumps(job, indent=1))
 
 
 # `ps` tells a process's start from the clock at boot plus its age: a clock set again (WSL2 after a sleep or a resync,
@@ -381,14 +386,15 @@ def forget(outputs: Path, job_id: str) -> None:
 
 
 def run(record: Path) -> None:
-    """The runner: each step in turn, stopping at the first that fails."""
+    """The runner: each step in turn, stopping at the first that fails, the machine kept awake (`battery` told)."""
     job = json.loads(record.read_text())
-    for step in job["steps"]:
-        update(record, step=step["name"], stepStarted=time.time())
-        code = subprocess.run([sys.executable, "-m", *step["args"]], stdin=subprocess.DEVNULL).returncode
-        if code:
-            update(record, ended=time.time(), failed=step["name"], code=code)
-            return
+    with awake.held(lambda on: update(record, battery=on)):
+        for step in job["steps"]:
+            update(record, step=step["name"], stepStarted=time.time())
+            code = subprocess.run([sys.executable, "-m", *step["args"]], stdin=subprocess.DEVNULL).returncode
+            if code:
+                update(record, ended=time.time(), failed=step["name"], code=code)
+                return
     update(record, ended=time.time(), step=None)
 
 

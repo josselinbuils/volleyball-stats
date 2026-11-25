@@ -785,7 +785,7 @@ def tasks(review: dict | None = None, match: str | None = None) -> list[dict]:
     for job in jobs.state(OUTPUTS):
         if not job["running"] and now - (job.get("ended") or 0) > RECENT_S:
             continue
-        item = {"id": job["id"], "kind": job["kind"], "running": job["running"], "step": job.get("step"), "fraction": job.get("progress"), "part": job.get("part"), "error": job.get("error"), "failed": bool(job.get("failed")), "auto": bool(job.get("auto"))}
+        item = {"id": job["id"], "kind": job["kind"], "running": job["running"], "step": job.get("step"), "fraction": job.get("progress"), "part": job.get("part"), "error": job.get("error"), "failed": bool(job.get("failed")), "auto": bool(job.get("auto")), "battery": bool(job.get("battery"))}
         if job["kind"] in MATCH_JOBS:
             item.update(match=job["id"], teams=teams_of(job["id"]) or [t.get("name") for t in job.get("teams") or []] or None)
         found.append({**item, **told(job, now)} if job["running"] else item)

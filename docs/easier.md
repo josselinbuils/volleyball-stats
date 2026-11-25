@@ -45,7 +45,8 @@ short clip, without helping, and notes where they stop** (waits on the owner; it
 
 ## 1. Keep the computer awake
 
-- [ ] Done
+- [x] Done (26 Nov), but its sleep test: the owner's PC already holds itself awake
+  (`CallNtPowerInformation` shows a request with no job, `powercfg /requests` needs admin), the Mac not tried.
 
 A job (`jobs.start`) holds the machine awake while it runs, the screen free to sleep; nothing to set.
 
@@ -298,3 +299,7 @@ One line per session: date, what was done, what is next.
 - 25 Nov: step 7's audit on the owner's PC natively (its findings under step 7): Python pinned to 3.12 and CUDA torch
   on Windows committed; the pipeline runs natively but 67% slower (the pipe, the OCR on the CPU), its outputs differ
   by ffmpeg's version. Next: step 1, step 7's fixes when it comes.
+- 26 Nov: step 1 done (`awake.py`): jobs and the review's apply hold the machine awake, the job's screen says when
+  it runs on battery. Checked under WSL2 (the holder gone on a normal end, a kill, a lost process) and natively on
+  Windows (the thread's state set and released); a real sleep test waits for the Mac and a PC not held awake by
+  something else. Next: step 2.

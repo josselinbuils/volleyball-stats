@@ -18,7 +18,7 @@ export function JobLine({ job, running, quiet, lead }: { job: Told | null; runni
   }
   if (job.running) {
     return (
-      <JobProgress label={running} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed} task={job.id}>
+      <JobProgress label={running} fraction={job.progress ?? null} part={job.part} left={job.left} elapsed={job.elapsed} battery={job.battery} task={job.id}>
         {job.stage ? [lead, t(`server.stage.${job.stage}`, { n: job.n, of: job.of, defaultValue: running })].filter(Boolean).join(' · ') : (lead ?? running)}
       </JobProgress>
     );

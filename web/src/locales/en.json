@@ -1525,6 +1525,7 @@
     "thisStep": "This step",
     "leftOnly": "About {{left}} left",
     "leftOnly_soon": "Less than a minute left",
+    "onBattery": "On battery: plug the computer in",
     "busy": "The computer is busy (load {{load}} on {{cores}} cores): the analysis would be much slower. Close other programs or start it anyway.",
     "busyNice": "The app runs at a low priority: the analysis would be much slower. Restart it in the foreground, or start anyway.",
     "run": "Start the analysis",

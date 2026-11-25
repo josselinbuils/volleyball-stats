@@ -71,7 +71,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
         )}
       </div>
       {job?.running ? (
-        <JobProgress label={status} fraction={job.progress ?? null} part={item.state === 'running' ? job.part : null} left={item.left} task={job.id}>
+        <JobProgress label={status} fraction={job.progress ?? null} part={item.state === 'running' ? job.part : null} left={item.left} battery={job.battery} task={job.id}>
           {status}
         </JobProgress>
       ) : (

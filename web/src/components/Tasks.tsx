@@ -212,7 +212,7 @@ export function Tasks() {
           {running.map((task) => (
             <div key={task.id} className="grid gap-1">
               {head(task)}
-              <JobProgress label={taskLabel(t, task)} fraction={task.fraction ?? null} part={task.part} left={task.left} elapsed={task.elapsed} late={task.late}>
+              <JobProgress label={taskLabel(t, task)} fraction={task.fraction ?? null} part={task.part} left={task.left} elapsed={task.elapsed} late={task.late} battery={task.battery}>
                 {detail(t, task)}
               </JobProgress>
             </div>
