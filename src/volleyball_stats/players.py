@@ -192,7 +192,7 @@ def finish(rows: list[Row], fps: float) -> list[Row]:
 
 def track(video: Path, calibration: Calibration) -> list[Row]:
     """The players' tracks of a video, offline pass done, sorted by frame then track."""
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     frames = track_frames(decode.frames(video), calibration, load_model(), default_device(), size=decode.size(video), fps=fps)
     return finish([row for rows in frames for row in rows], fps)
 
@@ -225,7 +225,7 @@ def main() -> None:
         by_frame: dict[int, list[Row]] = {}
         for r in rows:
             by_frame.setdefault(r.frame, []).append(r)
-        fps = cv2.VideoCapture(str(args.video)).get(cv2.CAP_PROP_FPS)
+        fps = decode.fps(args.video)
         writer = None
         for index, frame in enumerate(read_frames(args.video)):
             if writer is None:

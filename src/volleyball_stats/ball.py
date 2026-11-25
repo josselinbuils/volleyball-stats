@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from volleyball_stats import files
+from volleyball_stats import decode, files
 from volleyball_stats.vendor.wasb_hrnet import HRNet
 
 WEIGHTS_GDRIVE_ID = "1M9y4wPJqLc0K-z-Bo5DP8Ft5XwJuLqIS"
@@ -195,7 +195,7 @@ def main() -> None:
             rows.writerow([index, int(position is not None), *(position or ("", ""))])
             if args.overlay:
                 if writer is None:
-                    fps = cv2.VideoCapture(str(args.video)).get(cv2.CAP_PROP_FPS)
+                    fps = decode.fps(args.video)
                     size = frame.shape[1], frame.shape[0]
                     path = str(args.out / f"{args.video.stem}_ball.mp4")
                     writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, size)

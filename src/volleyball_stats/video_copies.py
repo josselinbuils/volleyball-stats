@@ -155,8 +155,7 @@ def sound(video: Path, pieces: list[list[float]], out: Path, share: jobs.Share =
 
 
 def duration(path: Path) -> float:
-    run = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=duration", "-of", "csv=p=0", str(path)]
-    return float(subprocess.run(run, capture_output=True, text=True, check=True).stdout)
+    return float(decode.probe(path, "-select_streams", "v:0", "-show_entries", "stream=duration", "-of", "csv=p=0", check=True))
 
 
 # Each file's height by its path, with the size and time it had: the Site tab asks it on every look.
@@ -170,9 +169,8 @@ def height(path: Path) -> int | None:
     known = _heights.get(str(path))
     if known and known[0] == stamp:
         return known[1]
-    run = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=height", "-of", "csv=p=0", str(path)]
     try:
-        found = int(subprocess.run(run, capture_output=True, text=True, check=True).stdout)
+        found = int(decode.probe(path, "-select_streams", "v:0", "-show_entries", "stream=height", "-of", "csv=p=0", check=True))
     except (subprocess.CalledProcessError, ValueError):
         found = None
     _heights[str(path)] = (stamp, found)

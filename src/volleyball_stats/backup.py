@@ -159,7 +159,7 @@ def state(outputs: Path) -> dict:
     `shared` the signature of what sits beside the matches as last sent or brought, `verified` the last check of the
     copies and `problems` what it found."""
     path = outputs / STATE_FILE
-    return {"at": None, "error": None, "shared": None, "verified": None, "problems": [], **(json.loads(path.read_text()) if path.exists() else {})}
+    return {"at": None, "error": None, "shared": None, "verified": None, "problems": [], **(files.read_json(path, {}))}
 
 
 def shared_changed(outputs: Path) -> bool:

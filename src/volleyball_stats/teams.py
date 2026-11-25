@@ -347,14 +347,14 @@ def set_starts(windows: list[tuple[int, int]], left: list[int | None], fps: floa
 
 def known_starts(path: Path, sets: list[str] | None) -> list[float] | None:
     """Set starts (seconds) from `sets`, else from the teams.json at `path`; None without either."""
-    starts = sets or (json.loads(path.read_text()).get("sets") if path.exists() else None)
+    starts = sets or (files.read_json(path, {}).get("sets"))
     return [seconds(s) for s in starts] if starts else None
 
 
 def given_end(match: Path) -> str | None:
     """The end of the match teams.json gives, as written; everything after it is left out."""
     path = match / "teams.json"
-    return json.loads(path.read_text()).get("end") if path.exists() else None
+    return files.read_json(path, {}).get("end")
 
 
 def match_end(match: Path) -> float | None:
@@ -451,9 +451,8 @@ def recording_date(video: Path) -> str:
 
     ponytail: a camera writing its local time as UTC shifts the date by a day near midnight only.
     """
-    command = ["ffprobe", "-v", "error", "-show_entries", "format_tags=creation_time", "-of", "default=nw=1:nk=1", str(video)]
     try:
-        tag = subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
+        tag = decode.probe(video, "-show_entries", "format_tags=creation_time", "-of", "default=nw=1:nk=1", check=True)
         return datetime.fromisoformat(tag).astimezone().date().isoformat()
     except (OSError, subprocess.CalledProcessError, ValueError):
         return datetime.fromtimestamp(video.stat().st_mtime).date().isoformat()
@@ -608,7 +607,7 @@ def settle(
         if bad:
             raise ValueError(f"Not a set score: {bad[0]!r} (use 25-21, team 1 first)")
         scores = parsed
-    old = json.loads(path.read_text()) if path.exists() else {}
+    old = files.read_json(path, {})
     prompt = interactive and not old
     given = parse_teams(flag) if flag else None
     if given is None and prompt:
@@ -651,7 +650,7 @@ def main() -> None:
 
     with open(args.rallies) as f:
         windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
-    teams = assign(args.video, read_players(args.players), windows, cv2.VideoCapture(str(args.video)).get(cv2.CAP_PROP_FPS))
+    teams = assign(args.video, read_players(args.players), windows, decode.fps(args.video))
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.video.stem}_tracks.csv"
     with open(path, "w", newline="") as f:

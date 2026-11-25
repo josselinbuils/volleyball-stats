@@ -157,7 +157,7 @@ def dress(match: Path, people: dict[int, dict], cards: dict[int, Path]) -> None:
     """`people` with their `look`: guessed from their card's picture (`cards`, by key), with the figure and hair colour
     the Names tab set (`chosen`, by name else by card); none for a player with neither."""
     path = match / SEEN
-    seen = json.loads(path.read_text()) if path.exists() else {}
+    seen = files.read_json(path, {})
     hashes = {key: hashlib.sha256(card.read_bytes()).hexdigest()[:16] for key, card in cards.items()}
     new = [key for key in cards if hashes[key] not in seen]
     if new:
@@ -192,7 +192,7 @@ def chosen(match: Path) -> dict[str, dict]:
     for path in others:
         out.update({who: look for who, look in json.loads(path.read_text()).items() if ":" not in who and not NUMBERED.fullmatch(who)})
     path = match / CHOICES
-    for who, look in (json.loads(path.read_text()) if path.exists() else {}).items():
+    for who, look in (files.read_json(path, {})).items():
         out[who] = {**out.get(who, {}), **look}
     return {who: kept for who, look in out.items() if (kept := {k: v for k, v in look.items() if v in ALLOWED.get(k, ())})}
 
@@ -202,7 +202,7 @@ def choose(match: Path, who: str, field: str, value: str | None) -> None:
     if field not in ALLOWED or (value is not None and value not in ALLOWED[field]):
         raise ValueError(f"{field} {value!r}")
     path = match / CHOICES
-    taken = json.loads(path.read_text()) if path.exists() else {}
+    taken = files.read_json(path, {})
     mine = taken.setdefault(who, {})
     if value is None:
         mine.pop(field, None)

@@ -181,7 +181,7 @@ def match_list(out: Path) -> list[dict]:
         if (folder / "review" / "data.js").exists():
             item = matches.listed(folder / "review")
         else:
-            saved = json.loads((folder / "teams.json").read_text()) if (folder / "teams.json").exists() else {}
+            saved = files.read_json(folder / "teams.json", {})
             scores = saved.get("scores") or []
             item = {"name": folder.name, "date": saved.get("date"), "title": saved.get("title"), "teams": saved.get("teams"), "scores": scores, "sets": sum(map(bool, scores)), "rallies": 0}
         item["path"] = folder.name
@@ -385,7 +385,7 @@ class Review:
         self.progress: dict = {}
         # The last run's failure until the user dismisses it: `step` and `error`.
         self.failure: dict = {}
-        self.took = {**TOOK, **(json.loads((match / TIMINGS).read_text()) if (match / TIMINGS).exists() else {})}
+        self.took = {**TOOK, **(files.read_json(match / TIMINGS, {}))}
         # The last hosting (publish.json): when, why it failed, and whether the page has changed since; the
         # page says it. The user puts the pages online ("/host"), an apply does not.
         self.online: dict = hosted.read_hosted(match)
@@ -395,7 +395,7 @@ class Review:
         # The last copy on the hosting server: when, why it failed.
         self.backed: dict = {"at": None, "error": None}
         self.outputs = files.root(match)
-        publish = json.loads((match / matches.PUBLISH).read_text()) if (match / matches.PUBLISH).exists() else {}
+        publish = files.read_json(match / matches.PUBLISH, {})
         self.can_back_up = bool(publish.get("upload") and publish.get("key"))
         # The match changed both here and on another machine since this one's copy (`sync.check`, a push refused): the page
         # asks which to keep.
@@ -768,7 +768,7 @@ class Review:
         offered = self.match / web.PHOTO_CANDIDATES
         photos = {
             who: [{**m, "crop": f"crop?f={m['frame']}&b={','.join(map(str, m['box']))}"} for m in found]
-            for who, found in (json.loads(offered.read_text()) if offered.exists() else {}).items()
+            for who, found in (files.read_json(offered, {})).items()
         }
         return {"photos": photos, "photosPending": self.stale_photos.exists() and not self.photos_error, "photosError": self.photos_error}
 
@@ -1442,7 +1442,7 @@ def main() -> None:
     if not args.match.exists() and (args.outputs / args.match).is_dir():
         args.match = args.outputs / args.match
     source = args.match / files.SOURCE
-    given = json.loads(source.read_text()) if source.exists() else {}
+    given = files.read_json(source, {})
     video, court = args.video or given.get("video"), args.court or given.get("court")
     if not video or not court:
         parser.error(f"--video and --court: {source} does not say them")

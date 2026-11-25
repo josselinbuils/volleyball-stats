@@ -1131,7 +1131,7 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
     # (`identify`'s).
     part = jobs.parts(share, {"previous": 1.7, "identify": 1409.4})
     answers_path, path = match / "identity_answers.json", match / "identities.csv"
-    answers = json.loads(answers_path.read_text()) if answers_path.exists() else None
+    answers = files.read_json(answers_path)
     entries = read_names(match)
     names = [(e["ref"], e["name"]) for e in entries if e.get("name")]
     numbers = {e["name"].strip().casefold(): e["jersey"] for e in entries if e.get("name") and e.get("jersey") is not None}
@@ -1177,7 +1177,7 @@ def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None, share:
     actions = match / "actions.csv"
     with open(actions) as f:
         typed = list(csv.DictReader(f))
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     rows = read_players(match / "players.csv", part("read"))
     table = run(match, video, rows, windows, left, fps, squad, [(int(r["frame"]), int(r["track"])) for r in typed if r.get("track")], part("run"))
     find = finder(table)

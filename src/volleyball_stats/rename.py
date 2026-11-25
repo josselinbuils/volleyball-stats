@@ -24,7 +24,7 @@ PORT = 8765
 def target_name(match: Path) -> str | None:
     """The name teams.json gives `match`; None while a date or a team's name is missing."""
     path = match / "teams.json"
-    saved = json.loads(path.read_text()) if path.exists() else {}
+    saved = files.read_json(path, {})
     if not saved.get("date") or not all(t.get("name") for t in saved.get("teams") or [{}]):
         return None
     return matches.address({"date": saved["date"], "name": "", "teams": saved["teams"]}) or None
@@ -56,7 +56,7 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
     if target.exists() or folder.exists():
         raise ValueError(f"{target} or {folder} already exists")
     publish = match / matches.PUBLISH
-    config = json.loads(publish.read_text()) if publish.exists() else {}
+    config = files.read_json(publish, {})
     copies = [key for key in ("light", "av1", "small") if config.get(key)]
     missing = [config[key] for key in copies if not Path(config[key]).expanduser().exists()]
     if missing:

@@ -482,7 +482,7 @@ def preparing(listed: list[dict]) -> list[dict]:
     found = []
     for name in sorted(names - ready):
         job, folder = by_match.get(name), MATCHES / name
-        saved = json.loads((folder / "teams.json").read_text()) if (folder / "teams.json").exists() else job or {}
+        saved = files.read_json(folder / "teams.json", job or {})
         item = {"name": name, "date": saved.get("date"), "teams": saved.get("teams"), "job": job, "start": (folder / "start.jpg").exists(), "court": (folder / "court.jpg").exists()}
         if job and job["running"]:
             item["state"] = "importing" if job.get("step") == "import" else "running" if job.get("step") == "pipeline" else "court"

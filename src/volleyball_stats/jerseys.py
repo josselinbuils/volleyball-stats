@@ -77,7 +77,7 @@ def read(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> list[tuple
     `share` as it goes."""
     ocr = reader()
     rows = read_players(match / "players.csv")
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     cover = identity.covers(rows)
     boxes = {(r.frame, r.track): r.box for r in rows}
     wanted: dict[int, list[tuple[int, int]]] = {}
@@ -110,7 +110,7 @@ def picture_key(frame: int, box: Iterable[int]) -> str:
 def pictures_read(match: Path, stamp: str) -> dict[str, int | None]:
     """PICTURES' numbers by `picture_key`, none if they were read under another `stamp`."""
     path = match / PICTURES
-    saved = json.loads(path.read_text()) if path.exists() else {}
+    saved = files.read_json(path, {})
     return saved["read"] if saved.get("stamp") == stamp else {}
 
 

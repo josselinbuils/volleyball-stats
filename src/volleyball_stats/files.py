@@ -39,6 +39,11 @@ def replacing(path: Path, mode: str = "w", **kwargs) -> Iterator[IO]:
         raise
 
 
+def read_json(path: Path, default=None):
+    """`path`'s JSON, `default` without the file."""
+    return json.loads(path.read_text()) if path.exists() else default
+
+
 def write_text(path: Path, text: str) -> None:
     with replacing(path) as f:
         f.write(text)
@@ -73,7 +78,7 @@ def write_bytes(path: Path, data: bytes) -> None:
 def aliases(match: Path) -> list[str]:
     """The names `match` had before (rename.py), which viewers' reports and choices may still carry."""
     path = match / SOURCE
-    return json.loads(path.read_text()).get("aliases", []) if path.exists() else []
+    return read_json(path, {}).get("aliases", [])
 
 
 def write_source(match: Path, video: Path, court: Path, squad: tuple[int, int] | None = None) -> None:

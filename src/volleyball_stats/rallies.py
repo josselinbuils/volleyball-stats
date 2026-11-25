@@ -12,10 +12,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import cv2
 import numpy as np
 
-from volleyball_stats import jobs, tables
+from volleyball_stats import decode, jobs, tables
 from volleyball_stats.court import Calibration
 
 SAMPLE_RATE = 16000
@@ -347,7 +346,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("outputs"))
     args = parser.parse_args()
 
-    fps = cv2.VideoCapture(str(args.video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(args.video)
     rallies = segment(load_track(args.track), whistles(read_audio(args.video)), fps)
     args.out.mkdir(parents=True, exist_ok=True)
     with open(args.out / f"{args.video.stem}_rallies.csv", "w", newline="") as f:

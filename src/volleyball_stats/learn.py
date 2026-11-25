@@ -29,9 +29,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-import cv2
-
-from volleyball_stats import actions, files, identity, jobs, review, web
+from volleyball_stats import actions, decode, files, identity, jobs, review, web
 from volleyball_stats.court import Calibration
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -191,7 +189,7 @@ def from_training(match: Path) -> dict[str, Score]:
 
 def scores(match: Path, video: Path, court: Path, name: str | None = None, share: jobs.Share = jobs.quiet) -> dict[str, Score]:
     """The match's scores, the share of players.csv read told as it goes."""
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     page, _ = web.match_data(match, video, Calibration.load(court), share)
     return {**from_answers(match, fps), **from_training(match), **from_labels(match, fps, name or match.name), **from_checked(match, page, fps)}
 
@@ -287,7 +285,7 @@ def rerun(
     if run.returncode:
         raise subprocess.CalledProcessError(run.returncode, run.args)
     on_stage("answers")
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     path = match / "identity_answers.json"
     if not path.exists():
         return record(match, video, court, replaced, update)
@@ -311,7 +309,7 @@ def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | N
     """`scores`, added to learn.json with those of the results they `replaced` and the app's `update` they are part
     of; printed against the last ones."""
     path = match / HISTORY
-    history = json.loads(path.read_text()) if path.exists() else []
+    history = files.read_json(path, [])
     now = scores(match, video, court, share=share)
     print(report(now, history[-1]["scores"] if history else None))
     # The answers it saw: the review asks for another run once they change.

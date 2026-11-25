@@ -104,6 +104,16 @@ def hardware(video: Path) -> tuple[str, ...]:
     return ()
 
 
+def probe(video: Path, *args: str, check: bool = False) -> str:
+    """What ffprobe says of `video` asked `args`, stripped; with `check`, CalledProcessError when it cannot read it."""
+    return subprocess.run(["ffprobe", "-v", "error", *args, str(video)], capture_output=True, text=True, check=check).stdout.strip()
+
+
+def fps(video: Path) -> float:
+    """The frame rate the video's header gives."""
+    return cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+
+
 @functools.cache
 def timestamps(video: Path) -> np.ndarray:
     """Each frame's time in seconds from the video's start, as ffmpeg's -ss counts it: a camera's are
@@ -114,16 +124,13 @@ def timestamps(video: Path) -> np.ndarray:
     if kept.exists():
         return np.load(kept)
 
-    def probe(*args: str) -> str:
-        return subprocess.run(["ffprobe", "-v", "error", *args, str(video)], capture_output=True, text=True).stdout.strip()
-
-    base = probe("-select_streams", "v:0", "-show_entries", "stream=time_base", "-of", "csv=p=0")
+    base = probe(video, "-select_streams", "v:0", "-show_entries", "stream=time_base", "-of", "csv=p=0")
     # Not a video: it has no frame.
     if not base:
         return np.empty(0)
     base = Fraction(base)
-    start = float(probe("-show_entries", "format=start_time", "-of", "csv=p=0"))
-    ticks = np.sort(np.array(probe("-select_streams", "v:0", "-show_entries", "packet=pts", "-of", "csv=p=0").replace(",", "").split(), dtype=np.int64))
+    start = float(probe(video, "-show_entries", "format=start_time", "-of", "csv=p=0"))
+    ticks = np.sort(np.array(probe(video, "-select_streams", "v:0", "-show_entries", "packet=pts", "-of", "csv=p=0").replace(",", "").split(), dtype=np.int64))
     found = ticks * float(base) - start
     # Under another name first: several readers may list them at once.
     partial = kept.with_name(f"{kept.stem}_{os.getpid()}_{threading.get_ident()}.npy")

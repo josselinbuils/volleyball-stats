@@ -167,7 +167,7 @@ def clips(video: Path, rows: list[dict], folder: Path, share: jobs.Share = jobs.
 
     index, data = folder / "index.json", folder / "clips.u8"
     made = {"size": video.stat().st_size, "time": int(video.stat().st_mtime)}
-    known = json.loads(index.read_text()) if index.exists() else {}
+    known = files.read_json(index, {})
     if {k: known.get(k) for k in made} != made:
         known = {**made, "keys": {}}
     keys: dict[str, int] = known["keys"]

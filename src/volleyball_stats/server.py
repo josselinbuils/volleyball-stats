@@ -70,7 +70,7 @@ def listed(outputs: Path) -> list[dict]:
     for m in review_server.match_list(outputs / "matches"):
         match = outputs / "matches" / m["path"]
         given = json.loads((match / files.SOURCE).read_text())
-        config = json.loads((match / matches.PUBLISH).read_text()) if (match / matches.PUBLISH).exists() else {}
+        config = files.read_json(match / matches.PUBLISH, {})
         if m["path"] in here or not m["ready"] or m.get("missing") or not matches.imported(match, Path(given["video"])):
             continue
         if matches.hosted_folder(match, Path(config.get("site") or site).expanduser()):

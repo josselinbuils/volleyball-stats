@@ -55,7 +55,7 @@ def server(outputs: Path) -> dict | None:
     by a match's publish.json; None without an address and key."""
     given = (json.loads(p.read_text()) for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")))
     found = next((c for c in given if c.get("upload") and c.get("key")), {})
-    saved = json.loads((outputs / SERVER).read_text()) if (outputs / SERVER).exists() else {}
+    saved = files.read_json(outputs / SERVER, {})
     # An address without its folder (`root@HOST:`, written before the tab asked for it) takes the match's.
     if str(saved.get("upload", "")).endswith(":") and str(found.get("upload", "")).startswith(saved["upload"]):
         saved = {k: v for k, v in saved.items() if k != "upload"}
@@ -120,7 +120,7 @@ def remote(config: dict, op: str, match: str = "-", base: int = 0, force: bool =
 
 def local(match: Path) -> dict:
     path = match / STATE
-    return json.loads(path.read_text()) if path.exists() else {"version": 0, "signature": None}
+    return files.read_json(path, {"version": 0, "signature": None})
 
 
 def own(match: Path) -> bool:

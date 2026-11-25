@@ -497,7 +497,7 @@ def hand_edited(parse: Callable[[str], str | None], text: str, kind: str) -> str
 def read_teams(match: Path) -> dict | None:
     """teams.json of a match run with --players, None without it."""
     path = match / "teams.json"
-    return json.loads(path.read_text()) if path.exists() else None
+    return files.read_json(path)
 
 
 def club_page(name: str, site: Path) -> dict | None:
@@ -523,7 +523,7 @@ def club_page(name: str, site: Path) -> dict | None:
         cv2.imwrite(str(target), logo, [cv2.IMWRITE_WEBP_QUALITY, LOGO_QUALITY])
         data["logo"] = f"club/{target.name}"
     sponsors = path.parent / "sponsors"
-    data["sponsors"] = json.loads((sponsors / "sponsors.json").read_text()) if (sponsors / "sponsors.json").exists() else []
+    data["sponsors"] = files.read_json(sponsors / "sponsors.json", [])
     # A sponsor without a logo shows as text.
     for sponsor in (s for s in data["sponsors"] if s.get("logo")):
         picture = cv2.imread(str(sponsors / sponsor["logo"]), cv2.IMREAD_UNCHANGED)
@@ -550,7 +550,7 @@ def touched(match: Path, given: dict[tuple[int, int], dict], kind: str = "touch"
     With `kind` "receiver", the aces' receivers by the serve's frame, None for no one; "partner", the second player a fault
     is shared with, by the fault's frame."""
     path = match / "identity_answers.json"
-    answers = json.loads(path.read_text()).get(kind, []) if path.exists() else []
+    answers = files.read_json(path, {}).get(kind, [])
     by_name = {(team, g["name"]): (team, number) for (team, number), g in given.items() if g.get("name")}
     return {t["frame"]: None if t["identity"] is None else by_name.get((t["team"], t.get("name")), (t["team"], t["identity"])) for t in answers}
 
@@ -558,7 +558,7 @@ def touched(match: Path, given: dict[tuple[int, int], dict], kind: str = "touch"
 def answers(match: Path, kind: str) -> list[dict]:
     """The review's answers of `kind` in identity_answers.json."""
     path = match / "identity_answers.json"
-    return json.loads(path.read_text()).get(kind, []) if path.exists() else []
+    return files.read_json(path, {}).get(kind, [])
 
 
 # A next serve this soon after a rally ends follows it: no rally was missed in between. First ASPOM
@@ -804,7 +804,7 @@ def no_rallies(match: Path, fps: float) -> set[int]:
     """Start frames of the rally windows the review's answers say are no rally (no play), and of
     those after the end of the match."""
     path = match / "identity_answers.json"
-    said = {r["start"] for r in (json.loads(path.read_text()).get("rally", []) if path.exists() else []) if not r["play"]}
+    said = {r["start"] for r in (files.read_json(path, {}).get("rally", [])) if not r["play"]}
     end = match_end(match)
     return said if end is None else said | {int(r["start_frame"]) for r in read_csv(match / "rallies.csv") if int(r["start_frame"]) >= end * fps}
 
@@ -1666,7 +1666,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
 
     if not teams or not (match / "identity_candidates.json").exists():
         return {}
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     questions = Questions(match, fps)
     width, height = decode.size(video)
     marked = {piece_key(o) for e in load_log(match / "identity_answers.json") for o in e.get("odd", [])}
@@ -1717,7 +1717,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
     # The appearances are written first, so scores under a stamp mean appearances under it too.
     stamp = scores_stamp(video)
     path = match / PHOTO_SCORES
-    saved = json.loads(path.read_text()) if path.exists() else {}
+    saved = files.read_json(path, {})
     current = saved.get("stamp") == stamp
     scores = saved["scores"] if current else {}
     name = lambda frame, box: f"{frame}:{','.join(map(str, box))}"  # noqa: E731
@@ -1798,7 +1798,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
         moments[key] = list(dict.fromkeys(moments[key] + fitting_card))
     # The moments the user picked, by the player's name, else on their card while it still holds that moment.
     path = match / PHOTO_PICKED
-    taken = json.loads(path.read_text()) if path.exists() else {}
+    taken = files.read_json(path, {})
 
     def pick_of(person: dict) -> dict | None:
         if person.get("name") in taken:
@@ -1874,7 +1874,7 @@ def swap_photo(match: Path, video: Path, site: Path, team: int, number: int, fra
     people = (page_data(site) or {}).get("people") or {}
     key = next((k for k, p in people.items() if (p["team"], p["number"]) == (team, number)), None)
     path = match / PHOTO_SCORES
-    saved = json.loads(path.read_text()) if path.exists() else {}
+    saved = files.read_json(path, {})
     box = tuple(int(v) for v in box)
     scored = saved.get("scores", {}).get(f"{frame}:{','.join(map(str, box))}") if saved.get("stamp") == scores_stamp(video) else None
     if key is None or not scored or len(scored) != 6:
@@ -1897,7 +1897,7 @@ def swap_photo(match: Path, video: Path, site: Path, team: int, number: int, fra
     likeness.dress(match, {key: person}, {key: folder / f"{key}.webp"})
     patch_people(site, people)
     shown = match / PHOTO_SHOWN
-    taken = json.loads(shown.read_text()) if shown.exists() else {}
+    taken = files.read_json(shown, {})
     taken[f"{folder.name}/{key}.webp"] = {"track": track_at(frame, box), "frame": frame}
     files.write_text(shown, json.dumps(taken))
     offered = match / PHOTO_CANDIDATES
@@ -2061,7 +2061,7 @@ def kept_photos(people: dict[int, dict], site: Path, match: Path, kept: tuple[st
     from volleyball_stats.review import page_data
 
     path = match / PHOTO_SHOWN
-    taken = json.loads(path.read_text()) if path.exists() else {}
+    taken = files.read_json(path, {})
     find = finder(read_identities(match / "identities.csv")) if taken and (match / "identities.csv").exists() else None
     by_card: dict[tuple[int, int], dict] = {}
     by_name: dict[str, dict] = {}

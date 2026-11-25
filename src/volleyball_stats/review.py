@@ -139,7 +139,7 @@ class Questions:
         best = records(self.page) if self.page else []
         self.reports = sorted(reports(self.match) + (unusual(self.page, done) if self.page else []) + missed + board + still + over + best, key=lambda r: r.get("time") or 0)
         answers = self.match / "identity_answers.json"
-        nothing = {str(a["frame"]) for a in (json.loads(answers.read_text()).get("touch", []) if answers.exists() else []) if a["identity"] is None}
+        nothing = {str(a["frame"]) for a in (files.read_json(answers, {}).get("touch", [])) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
         self.aces = aces(self.page)
 
@@ -347,7 +347,7 @@ class Questions:
         """The (frame, box) of the pictures the review shows of each (team, identity): its card's,
         and those offered for its card on the match page."""
         offered = self.match / web.PHOTO_CANDIDATES
-        photos = json.loads(offered.read_text()) if offered.exists() else {}
+        photos = files.read_json(offered, {})
         out = {}
         for team, number in sorted({(r[3], r[4]) for r in self.table if r[4]}):
             shown = re.findall(r"crop\?f=(\d+)&b=([\d,-]+)", json.dumps(self.faces(team, number)["crops"]))
@@ -357,7 +357,7 @@ class Questions:
     def picture_stamp(self) -> str:
         """What the numbers read on pictures depend on: the video, the reader and how pictures are cut."""
         source = self.match / "source.json"
-        video = json.loads(source.read_text()).get("video") if source.exists() else None
+        video = files.read_json(source, {}).get("video")
         return files.cache_stamp(Path(video) if video else None, [Path(jerseys.__file__)], f"{CROP_PX}:{CROP_MARGIN}")
 
     def picture_counts(self) -> dict[tuple[int, int], Counter]:
@@ -1641,7 +1641,7 @@ def set_photo(match: Path, table: list, team: int, number: int, frame: int, box:
     `box`, by the player's name (it outlives the identities' numbers), else by their card."""
     who = (identity.named(table, identity.read_names(match)).get((team, number)) or {}).get("name")
     path = match / web.PHOTO_PICKED
-    taken = json.loads(path.read_text()) if path.exists() else {}
+    taken = files.read_json(path, {})
     taken[who or f"{team}:{number}"] = {"frame": int(frame), "box": [int(v) for v in box]}
     files.write_text(path, json.dumps(taken, indent=1, ensure_ascii=False) + "\n")
 
@@ -1734,7 +1734,7 @@ def write_names(match: Path, entries: list[dict]) -> None:
 
 
 def load_log(path: Path) -> list[dict]:
-    return json.loads(path.read_text()).get("log", []) if path.exists() else []
+    return files.read_json(path, {}).get("log", [])
 
 
 def state(match: Path, log: list[dict]) -> dict:
@@ -1975,7 +1975,7 @@ def waiting(match: Path, log: list[dict], shown: set[str] | frozenset[str] = fro
     page does not show yet (`shown`: the answers it was built with), the rallies `checked`, the
     `films` to make, players' and highlights, and whether the last learning run saw these answers."""
     computed = match / APPLIED
-    now, then = state(match, log), json.loads(computed.read_text()) if computed.exists() else {}
+    now, then = state(match, log), files.read_json(computed, {})
     parts = {
         "answers": given(now["answers"]) != given(then.get("answers") or {}),
         # The jersey numbers' time to the second: a copy through the server (`sync`) keeps no less.
@@ -2014,7 +2014,7 @@ def learned(match: Path, log: list[dict]) -> bool:
     """Whether the match's last learning run (learn.json) saw the answers as they stand, but for those given since that
     teach nothing (`silent`): a report marked handled no longer asks for the match to be analysed again."""
     path = match / "learn.json"
-    runs = json.loads(path.read_text()) if path.exists() else []
+    runs = files.read_json(path, [])
     if not runs:
         return False
     n = len(log)

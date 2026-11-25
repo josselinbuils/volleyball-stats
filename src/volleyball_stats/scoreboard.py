@@ -13,8 +13,6 @@ import time
 from collections import Counter
 from pathlib import Path
 
-import cv2
-
 from volleyball_stats import decode, files, jobs, web
 
 FILE = "scoreboard.csv"
@@ -103,7 +101,7 @@ def load(match: Path) -> dict[int, list[str]]:
 def run(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> None:
     """Reads the board before each serve of the match's rallies (rallies.csv), the frames not read yet; the share of them
     read is told to `share` as it goes."""
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     rows = web.read_csv(match / "rallies.csv")
     rallies = [(int(r["start_frame"]) / fps, int(r["end_frame"]) / fps, int(r.get("set") or 1)) for r in rows]
     texts = load(match)

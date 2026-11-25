@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from volleyball_stats import files, jobs, matches, teams
+from volleyball_stats import decode, files, jobs, matches, teams
 
 CAMERA_NAME = re.compile(r"(\d{14})_\d+_")
 # Chapters of one recording follow each other within this long.
@@ -43,8 +43,7 @@ class Chapter:
 
 def probe(path: Path) -> Chapter:
     """The video stream's length; its frames, 0 when the file does not say."""
-    command = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames,duration", "-of", "json", str(path)]
-    stream = json.loads(subprocess.run(command, capture_output=True, text=True, check=True).stdout)["streams"][0]
+    stream = json.loads(decode.probe(path, "-select_streams", "v:0", "-show_entries", "stream=nb_frames,duration", "-of", "json", check=True))["streams"][0]
     frames = stream.get("nb_frames", "0")
     return Chapter(path, float(stream["duration"]), int(frames) if frames.isdigit() else 0)
 

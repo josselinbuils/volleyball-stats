@@ -113,14 +113,14 @@ def read_hosted(match: Path, code: bool = True) -> dict:
     and whether the video's copies were made from other rallies than the review's now (`copiesStale`). With `code`, the site's
     code late (`site_code`) makes it late too, as its last cause: its upload puts the code in."""
     path, sent = match / HOSTED, match / HOSTED_PAGE
-    saved = json.loads(path.read_text()) if path.exists() else None
+    saved = files.read_json(path)
     state = hosted_state(saved, page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)) if saved else STAMPED), date.today())
     state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
     # An upload before the shared code stamped its pages' code too: late only for its data now.
     if state["behind"] and saved and saved.get("pages", OLD_STAMPED) and state["changes"] == []:
         state["behind"], state["changes"] = False, None
     config = match / matches.PUBLISH
-    given = json.loads(config.read_text()) if config.exists() else None
+    given = files.read_json(config)
     state["copiesStale"] = bool(given) and matches.copies_stale(match, given)
     late = site_code(Path(given["site"]).expanduser()) if code and saved and given and given.get("site") else None
     if late and late["behind"]:
@@ -178,7 +178,7 @@ def restamp(match: Path, before: str | None) -> None:
     """The review's page of `match` rebuilt from the same answers, `before` its stamp: when the last upload carried that stamp and
     was built by this code, the online page is the rebuilt one, recorded so. Else the review's newer code showed it late."""
     path = match / HOSTED
-    saved = json.loads(path.read_text()) if path.exists() else None
+    saved = files.read_json(path)
     if not saved or before is None or saved["stamp"] != before or saved.get("code") != CODE or page_stamp(match) == before:
         return
     files.write_text(match / HOSTED_PAGE, json.dumps({"data": page_content(match)["data"]}, ensure_ascii=False) + "\n")

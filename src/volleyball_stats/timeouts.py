@@ -83,7 +83,7 @@ def read_detected(match: Path, fps: float) -> list[tuple[int, int]]:
 
 def read_answers(match: Path) -> list[dict]:
     path = match / ANSWERS
-    return json.loads(path.read_text()) if path.exists() else []
+    return files.read_json(path, [])
 
 
 def overlap(a: dict, start: int, end: int) -> bool:

@@ -57,12 +57,6 @@ def truth(match: Path, fps: float) -> list[dict] | None:
     return out
 
 
-def fps_of(video: Path) -> float:
-    import cv2
-
-    return cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-
-
 def labels(rallies: list[dict], table: Sequence[dict], fps: float) -> np.ndarray:
     """Each contact's class (`gesture.LABELS`): the checked touch nearest it within `learn.SAME_S` in its rally, "none"
     without one, -1 for a touch of another kind or a contact out of every rally (left out)."""
@@ -127,7 +121,7 @@ def contacts(match: Path, video: Path) -> list[dict]:
     from volleyball_stats import attribution, ball3d, decode
     from volleyball_stats.court import Calibration
 
-    fps = fps_of(video)
+    fps = decode.fps(video)
     calibration = Calibration.load(ROOT / json.loads((match / files.SOURCE).read_text())["court"])
     rows = learn.read_rows(match / "actions.csv")
     typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in rows]
@@ -258,9 +252,11 @@ def learn_from(found: list[tuple[Path, Path]], outputs: Path, weights: Path, epo
     were trained."""
     import torch
 
+    from volleyball_stats import decode
+
     on = gesture.device()
     tables = [contacts(m, v) for m, v in found]
-    ys = [labels(truth(m, fps_of(v)), t, fps_of(v)) for (m, v), t in zip(found, tables)]
+    ys = [labels(truth(m, decode.fps(v)), t, decode.fps(v)) for (m, v), t in zip(found, tables)]
     folds = [list(range(k, len(found), min(FOLDS, len(found)))) for k in range(min(FOLDS, len(found)))]
     cache = outputs / gesture.CACHE
     missing = []

@@ -622,7 +622,7 @@ def tracking_stamp(match: Path) -> str:
 
 def manifest(match: Path) -> dict:
     path = match / FILMS / MANIFEST
-    return json.loads(path.read_text()) if path.exists() else {}
+    return files.read_json(path, {})
 
 
 def kind_of(name: str) -> str:
@@ -897,8 +897,8 @@ def frame_times(match: Path, video: Path) -> np.ndarray:
     path = match / TIMES_CACHE
     if path.exists():
         return np.load(path)
-    done = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time", "-of", "csv=p=0", str(video)], capture_output=True, text=True, check=True)
-    times = np.sort(np.array([float(line.split(",")[0]) for line in done.stdout.splitlines() if line.strip()]))
+    done = decode.probe(video, "-select_streams", "v:0", "-show_entries", "packet=pts_time", "-of", "csv=p=0", check=True)
+    times = np.sort(np.array([float(line.split(",")[0]) for line in done.splitlines() if line.strip()]))
     np.save(path, times)
     return times
 
@@ -945,7 +945,7 @@ def search_ball(match: Path, video: Path, court: Path, films: dict[str, dict], p
     import torch
 
     path = match / BALL_CACHE
-    cache = json.loads(path.read_text()) if path.exists() else {"seen": [], "found": {}}
+    cache = files.read_json(path, {"seen": [], "found": {}})
     seen = {int(q) for q in cache["seen"]}
     found = {int(q): tuple(v) for q, v in cache["found"].items()}
     sizes: dict[str, float] = cache.get("sizes", {})
@@ -1267,7 +1267,7 @@ class Maker:
         self.italic, self.din, self.cond = font("Arial Bold Italic.ttf"), font("DIN Alternate Bold.ttf"), font("DIN Condensed Bold.ttf")
         self.words = locale()
         self.detected = read_ball(match / "ball.csv")
-        cache = json.loads((match / BALL_CACHE).read_text()) if (match / BALL_CACHE).exists() else {"found": {}}
+        cache = files.read_json(match / BALL_CACHE, {"found": {}})
         self.found = {int(q): tuple(v) for q, v in cache["found"].items()}
         self.rejected = {int(q): tuple(v) for q, v in cache.get("rejected", {}).items()}
         site = match / "review"

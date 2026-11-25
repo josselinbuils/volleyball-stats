@@ -257,7 +257,7 @@ def build(site: Path, theme: str = CLUB, url: str | None = None, retired: list[s
     code in one folder (`share_code`, `retire_code`: the files it removes added to `retired`), the site's text files compressed
     (`compress`); returns them."""
     path = site / REDIRECTS
-    redirects = json.loads(path.read_text()) if path.exists() else {}
+    redirects = files.read_json(path, {})
     for data in sorted(site.glob("*/data.js")):
         found = address(listed(data.parent))
         # No address from its date and teams (a video named "_.mp4"), or a RESERVED one: it keeps its folder.
@@ -336,7 +336,7 @@ def retire_code(site: Path, today: date | None = None) -> list[str]:
     shared = site / ASSETS
     named = {name for index in site.rglob("index.html") for name in ASSET_NAMES.findall(index.read_text())}
     path = shared / RETIRED
-    retired = json.loads(path.read_text()) if path.exists() else {}
+    retired = files.read_json(path, {})
     kept, removed = {}, []
     for file in sorted(shared.glob("*")):
         if not file.is_file() or file.suffix == ".gz" or file.name == RETIRED or file.name in named:
@@ -379,7 +379,7 @@ def online_code(site: Path) -> dict | None:
     """What the site in `site` said of its code at its last upload (CODE), None before."""
     path = site / CODE
     try:
-        return json.loads(path.read_text()) if path.exists() else None
+        return files.read_json(path)
     except ValueError:
         return None
 
@@ -840,7 +840,7 @@ def made_from(match: Path, video: Path, court: Path, theme: str, config: dict) -
 def made_as(folder: Path) -> str | None:
     """What the hosted pages in `folder` were built from (`made_from`), None if not said."""
     path = folder / MADE
-    return json.loads(path.read_text()).get("from") if path.exists() else None
+    return files.read_json(path, {}).get("from")
 
 
 def adopt_films(match: Path, page: Path) -> int:
@@ -1058,7 +1058,7 @@ def export(chosen: list[tuple[Path, Path, Path]], theme: str, out: Path, told: j
                     raise RuntimeError(f"{match.name}: video not found: {video}")
                 ensure_review_page(match, video, court, theme)
                 make_voice(match)
-                given = json.loads((match / PUBLISH).read_text()) if (match / PUBLISH).exists() else {}
+                given = files.read_json(match / PUBLISH, {})
                 web.publish(match, video, court, theme, {"footage": "none", "club": given.get("club") or club_team(match, theme), "pictures": False}, site / match.name, told.share_of_stage)
             told.start("zip")
             build(site, theme)

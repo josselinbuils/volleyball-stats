@@ -129,13 +129,11 @@ def placed(windows: list[tuple[int, int]], fps: float, label: np.ndarray, sure: 
 
 def no_model(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> tuple[list[tuple[int, int]], float]:
     """The rally windows the pipeline finds in `match` with no play model (`match.rally_windows`), and the video's fps."""
-    import cv2
-
-    from volleyball_stats import attribution, rallies
+    from volleyball_stats import attribution, decode, rallies
     from volleyball_stats import match as pipeline
     from volleyball_stats.court import Calibration
 
-    fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
+    fps = decode.fps(video)
     calibration = Calibration.load(ROOT / json.loads((match / files.SOURCE).read_text())["court"])
     track = rallies.load_track(match / "ball.csv")
     rows = attribution.read_players(match / "players.csv") if (match / "players.csv").exists() else None

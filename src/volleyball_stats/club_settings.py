@@ -46,7 +46,7 @@ def read(folder: Path = FOLDER) -> dict | None:
         return None
     data = json.loads(path.read_text())
     listed = folder / "sponsors" / "sponsors.json"
-    sponsors = json.loads(listed.read_text()) if listed.exists() else []
+    sponsors = files.read_json(listed, [])
     return {
         "name": data.get("name", ""),
         "url": data.get("url", ""),
@@ -111,7 +111,7 @@ def save(body: dict, folder: Path = FOLDER) -> None:
     if teams is not None and (not isinstance(teams, list) or not all(isinstance(t, str) and t.strip() for t in teams)):
         raise ValueError("teams")
     path = folder / FILE
-    previous = json.loads(path.read_text()) if path.exists() else None
+    previous = files.read_json(path)
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "sponsors").mkdir(exist_ok=True)
     kept = {p.name for p in folder.iterdir() if p.is_file() and p.suffix.lower() in PICTURES}
