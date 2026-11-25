@@ -402,7 +402,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
         offered[f"{people[key]['team']}:{people[key]['number']}"] = [{"frame": f, "box": list(b)} for f, b in list(dict.fromkeys([(frame, box), *facing_card[key], *ranked]))[:PHOTO_CHOICES]]
         chosen.setdefault(frame, []).append((key, box))
         picked[key] = (frame, box, scores[name(frame, box)][4])
-    files.write_text(match / PHOTO_CANDIDATES, json.dumps(offered))
+    files.write_changed(match / PHOTO_CANDIDATES, json.dumps(offered))
     folder.mkdir(parents=True, exist_ok=True)
     # A moment already framed and upscaled is not decoded again: most stay from one apply to the next.
     # They are kept under what makes them, by frame, box and head; any other stamp's go.
@@ -431,7 +431,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
                 people[key]["photo"] = versioned(folder / f"{key}.webp", folder.name)
                 taken_at[f"{folder.name}/{key}.webp"] = {"track": questions.track_at(frame, box), "frame": frame}
     if record:
-        files.write_text(record, json.dumps(taken_at))
+        files.write_changed(record, json.dumps(taken_at))
     likeness.dress(match, people, {key: folder / f"{key}.webp" for key in picked if (folder / f"{key}.webp").exists()})
     return picked
 

@@ -318,10 +318,12 @@ class Review:
         conflict = sync.check(match) if sync.active(files.root(match)) else None
         matches.ensure_publish(match, video, theme)
         self.site = match / "review"
-        # Open at once: the pictures follow (`afterwards`), minutes if their scores are out of date.
-        before = hosted.page_stamp(match) if (self.site / "data.js").exists() else None
-        web.review_page(match, video, court, theme, pictures=False)
-        hosted.restamp(match, before)
+        # Open at once: the pictures follow (`afterwards`), minutes if their scores are out of date. Kept as last built when
+        # its files have not changed since.
+        if not web.review_kept(match, video, court, theme):
+            before = hosted.page_stamp(match) if (self.site / "data.js").exists() else None
+            web.review_page(match, video, court, theme, pictures=False)
+            hosted.restamp(match, before)
         (match / STALE_PHOTOS).touch()
         cap = cv2.VideoCapture(str(video))
         self.fps, self.width, self.height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))

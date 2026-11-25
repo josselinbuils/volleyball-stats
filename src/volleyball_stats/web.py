@@ -1578,10 +1578,49 @@ def computed(match: Path, video: Path, court: Path, share: jobs.Share = jobs.qui
     return match_data(match, video, calibration, share)
 
 
+# The review's page's inputs when it was last built (`review_inputs`), in its folder.
+BUILT_FROM = "built_from.txt"
+# The match's files no page reads: the pages and pictures made from it, and what the review server writes beside them
+# (review.STALE_PHOTOS, review.TIMINGS, backup.STATE, hosted.HOSTED and HOSTED_PAGE, review_server.FEEDBACK).
+NOT_READ = {"review", "site", "crops", "before-rerun", "photo_moments", "photos_stale", "review_timings.json", ".sync.json", "hosted.json", "hosted_page.json", "feedback.log"}
+
+
+def review_inputs(match: Path, video: Path, court: Path, theme: str) -> str:
+    """What the review's page of `match` is built from, as a stamp of the files' sizes and times: the match's (but
+    NOT_READ), the other matches' looks (`likeness.chosen`), the video, the court, the club and its themes, and this code with
+    the page's."""
+    paths = [*(p for p in match.iterdir() if p.name not in NOT_READ), *match.parent.glob(f"*/{likeness.CHOICES}"), video, court]
+    paths += [club_settings.FOLDER, club_settings.THEMES, Path(__file__).parent]
+    digest = hashlib.sha256(theme.encode())
+    for path in paths:
+        for file in sorted(path.rglob("*")) if path.is_dir() else [path]:
+            try:
+                if "__pycache__" not in file.parts and not file.name.endswith(".tmp") and file.is_file():
+                    stat = file.stat()
+                    digest.update(f"\n{file}\t{stat.st_size}\t{stat.st_mtime_ns}".encode())
+            except FileNotFoundError:
+                # Removed since listed.
+                continue
+    return digest.hexdigest()
+
+
+def review_kept(match: Path, video: Path, court: Path, theme: str) -> bool:
+    """Whether the review's page of `match` was built from the files it would be built from now (`review_inputs`)."""
+    built = match / "review" / BUILT_FROM
+    return (match / "review" / "data.js").exists() and built.exists() and built.read_text() == review_inputs(match, video, court, theme)
+
+
 def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictures: bool = True, share: jobs.Share = jobs.quiet) -> dict:
     """The review's own page in MATCH/review/, with the video and every picture: the published one
     stays as it was built. Without `pictures`, each player keeps their last one (`pictures.refresh_photos`)."""
-    return build(match, video, court, match / "review", theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True, share=share)
+    site = match / "review"
+    inputs = review_inputs(match, video, court, theme)
+    # Gone while it builds: a build stopped half-way is never kept.
+    (site / BUILT_FROM).unlink(missing_ok=True)
+    data = build(match, video, court, site, theme=theme, footage="full", pictured={1, 2}, feedback="feedback", pictures=pictures, review=True, share=share)
+    site.mkdir(parents=True, exist_ok=True)
+    files.write_text(site / BUILT_FROM, inputs)
+    return data
 
 
 def hide_looks(people: dict[int, dict], blurred: set[int] | None) -> None:

@@ -51,6 +51,12 @@ def write_text(path: Path, text: str) -> None:
         f.write(text)
 
 
+def write_changed(path: Path, text: str) -> None:
+    """`write_text` but for the same text: rewritten unchanged, a file would look changed (`web.review_kept`, `sync.changed`)."""
+    if not path.exists() or path.read_text() != text:
+        write_text(path, text)
+
+
 def write_secret(path: Path, text: str) -> None:
     """`text` written whole in `path`, which only this user may read (POSIX rights; on Windows, those of the user's folder)."""
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
@@ -86,7 +92,7 @@ def aliases(match: Path) -> list[str]:
 def write_source(match: Path, video: Path, court: Path, squad: tuple[int, int] | None = None) -> None:
     """What `match` was made from, in its SOURCE: the review opens it from that."""
     given = {"video": str(video), "court": str(court), "squad": f"{squad[0]},{squad[1]}" if squad else None, "aliases": aliases(match)}
-    write_text(match / SOURCE, json.dumps(given, indent=1) + "\n")
+    write_changed(match / SOURCE, json.dumps(given, indent=1) + "\n")
 
 
 def cache_stamp(video: Path | None, sources: Iterable[Path], extra: str = "") -> str:

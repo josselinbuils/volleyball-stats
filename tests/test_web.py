@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from volleyball_stats.court import Calibration
-from volleyball_stats import club_settings, web
+from volleyball_stats import club_settings, likeness, web
 from volleyball_stats.teams import COLOURS
 from volleyball_stats.web import acted, blamed, credited, frames_index, labelled, followed, served_next, ball_near, ball_track, crossed, ended, club_page, brief, contacts, rewon, settled_scores, unlikely, unmeasured, wrong_measures, drop_rallies, merge_rallies, split_rallies, match_data, people, player_samples, playing_time, publish, receivers, result, settle, unjoined, spot, touched, track_feet, with_added, write_site, zone, zone_cells
 
@@ -874,6 +874,30 @@ class TestPublish:
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": 1}, tmp_path / "hosted")
 
         assert built == [True, False]
+
+    def test_the_review_keeps_its_page_until_a_file_it_reads_changes(self, tmp_path, monkeypatch):
+        match = tmp_path / "matches" / "m"
+        (match / "review").mkdir(parents=True)
+        (match / "review" / "data.js").write_text("")
+        (match / "rallies.csv").write_text("a")
+        (tmp_path / "matches" / "other").mkdir()
+        video, court = tmp_path / "v.mp4", tmp_path / "c.json"
+        monkeypatch.setattr(web, "build", lambda *args, **kwargs: {})
+        kept = lambda: web.review_kept(match, video, court, "aspom")
+
+        assert not kept()
+        web.review_page(match, video, court, "aspom")
+        assert kept()
+        assert not web.review_kept(match, video, court, "none")
+        # What the review server writes beside the page is not read.
+        (match / "photos_stale").touch()
+        (match / ".rallies.csv.1.2.tmp").write_text("")
+        assert kept()
+        (match / "rallies.csv").write_text("bb")
+        assert not kept()
+        web.review_page(match, video, court, "aspom")
+        (tmp_path / "matches" / "other" / likeness.CHOICES).write_text("{}")
+        assert not kept()
 
     def test_refuses_pictures_or_a_blurred_opponent_without_a_club(self, tmp_path):
         with pytest.raises(ValueError):
