@@ -12,7 +12,7 @@ import json
 import shutil
 from pathlib import Path
 
-from volleyball_stats import review, review_answers, review_questions, web
+from volleyball_stats import files, review, review_answers, review_questions, web
 from volleyball_stats.court import Calibration
 
 Window = tuple[int, int]
@@ -167,7 +167,7 @@ def main() -> None:
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--court", type=Path, required=True)
     args = parser.parse_args()
-    path = args.match / "identity_answers.json"
+    path = args.match / files.ANSWERS
     shutil.copy2(path, args.match / "identity_answers.before-rekey.json")
     page_before = read_page(args.page_before)
     lead = round(web.LEAD_S * page_before["fps"])

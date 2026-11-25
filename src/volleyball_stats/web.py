@@ -28,7 +28,7 @@ import json
 import os
 import shutil
 import struct
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterator
 from typing import BinaryIO
 from pathlib import Path
 
@@ -549,16 +549,14 @@ def touched(match: Path, given: dict[tuple[int, int], dict], kind: str = "touch"
     the name `given` them (it outlives the identities' numbers), else by number; None for no touch.
     With `kind` "receiver", the aces' receivers by the serve's frame, None for no one; "partner", the second player a fault
     is shared with, by the fault's frame."""
-    path = match / "identity_answers.json"
-    answers = files.read_json(path, {}).get(kind, [])
+    said = answers(match, kind)
     by_name = {(team, g["name"]): (team, number) for (team, number), g in given.items() if g.get("name")}
-    return {t["frame"]: None if t["identity"] is None else by_name.get((t["team"], t.get("name")), (t["team"], t["identity"])) for t in answers}
+    return {t["frame"]: None if t["identity"] is None else by_name.get((t["team"], t.get("name")), (t["team"], t["identity"])) for t in said}
 
 
 def answers(match: Path, kind: str) -> list[dict]:
     """The review's answers of `kind` in identity_answers.json."""
-    path = match / "identity_answers.json"
-    return files.read_json(path, {}).get(kind, [])
+    return files.read_json(match / files.ANSWERS, {}).get(kind, [])
 
 
 # A next serve this soon after a rally ends follows it: no rally was missed in between. First ASPOM
@@ -803,8 +801,7 @@ def rally_table(match: Path) -> tuple[list[dict], list[dict]]:
 def no_rallies(match: Path, fps: float) -> set[int]:
     """Start frames of the rally windows the review's answers say are no rally (no play), and of
     those after the end of the match."""
-    path = match / "identity_answers.json"
-    said = {r["start"] for r in (files.read_json(path, {}).get("rally", [])) if not r["play"]}
+    said = {r["start"] for r in answers(match, "rally") if not r["play"]}
     end = match_end(match)
     return said if end is None else said | {int(r["start_frame"]) for r in read_csv(match / "rallies.csv") if int(r["start_frame"]) >= end * fps}
 
@@ -1674,7 +1671,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
     pictured player's (frame, box, head). `record` (PHOTO_SHOWN) gets where each picture was taken. Stopped once `stop`
     says so, between two frames read."""
     from volleyball_stats.decode import frames_apart
-    from volleyball_stats.review_answers import load_log, piece_key
+    from volleyball_stats.review_answers import log_of, piece_key
     from volleyball_stats.review_questions import ALONE, IDENTITY_CROPS, Questions
 
     if not teams or not (match / "identity_candidates.json").exists():
@@ -1682,7 +1679,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
     fps = decode.fps(video)
     questions = Questions(match, fps)
     width, height = decode.size(video)
-    marked = {piece_key(o) for e in load_log(match / "identity_answers.json") for o in e.get("odd", [])}
+    marked = {piece_key(o) for e in log_of(match) for o in e.get("odd", [])}
 
     def room(box: tuple) -> bool:
         x1, y1, x2, y2 = box

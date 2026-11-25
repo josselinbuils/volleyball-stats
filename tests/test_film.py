@@ -150,12 +150,19 @@ class TestPlan:
         assert film.status(tmp_path) == {"players": {"total": 1, "stale": ["Élodie"]}, "highlights": none}
 
 
+def called(page):
+    """`page` with its rallies' line calls, as read_page gives them."""
+    for call in web.line_calls(page):
+        page["rallies"][call["rally"]]["call"] = call
+    return page
+
+
 class TestLineCall:
     @staticmethod
     def attack(x, winner, **more):
         """Team 1 attacks from the left; the ball lands at (x, 1) on the right."""
-        r = rally(0, [contact(0, 10.0, "attack", 1, x=-2.0, y=0.0), contact(1, 10.5, "floor", None, g=2, x=x, y=1.0)], [1, 0], winner)
-        return {**r, **more}
+        r = {**rally(0, [contact(0, 10.0, "attack", 1, x=-2.0, y=0.0), contact(1, 10.5, "floor", None, g=2, x=x, y=1.0)], [1, 0], winner), **more}
+        return called({"rallies": [r], "contacts": r["contacts"], "teams": [{"name": "A"}, {"name": "B"}]})["rallies"][0]
 
     def test_calls_a_close_landing_as_the_point_went(self):
         assert film.line_call(self.attack(8.8, 1)) == {"t": 10.5, "x": 8.8, "y": 1.0, "in": True, "wrongCall": False, "line": "end"}
@@ -176,7 +183,7 @@ class TestLineCall:
         page = TestPlan.page()
         page["contacts"][1].update(x=-2.0, y=0.0)
         page["contacts"][2].update(x=8.8, y=1.0, g=2)
-        shots = film.plan(page, tmp_path)["Élodie"]["shots"]
+        shots = film.plan(called(page), tmp_path)["Élodie"]["shots"]
         kinds = [s["kind"] for s in shots]
         call = shots[kinds.index("call")]
         assert kinds[kinds.index("call") - 1] == "live" and call["from"] == 21.0 - film.CALL_BEFORE_S and call["speed"] == film.CALL_SPEED

@@ -16,7 +16,7 @@ import numpy as np
 from volleyball_stats import attribution, contacts, feedback, files, identity, jerseys, rallies, scoreboard, tables, web
 from volleyball_stats.court import Calibration
 from volleyball_stats.players import Row
-from volleyball_stats.review_answers import TOUCH_TYPES, Ref, card_numbers, checked, load_log, meeting, path, piece_vectors, propose, prototypes, read_absent, reviewed, suggest
+from volleyball_stats.review_answers import TOUCH_TYPES, Ref, card_numbers, checked, log_of, meeting, path, piece_vectors, propose, prototypes, read_absent, reviewed, suggest
 
 
 # Frames between two boxes of a question's outline, pictures shown per piece and per identity, and
@@ -104,12 +104,12 @@ class Questions:
         texts = scoreboard.load(self.match)
         missed = missed_points(self.page, texts) if self.page else []
         board = board_off(self.page, texts) if self.page else []
-        done = set(checked(load_log(self.match / "identity_answers.json")))
+        done = set(checked(log_of(self.match)))
         still = board_still(self.page, texts, done) if self.page else []
         over = not_over(self.page, crossings(self.match, self.calibration, self.fps), done) if self.page and self.calibration else []
         best = records(self.page) if self.page else []
         self.reports = sorted(reports(self.match) + (unusual(self.page, done) if self.page else []) + missed + board + still + over + best, key=lambda r: r.get("time") or 0)
-        answers = self.match / "identity_answers.json"
+        answers = self.match / files.ANSWERS
         nothing = {str(a["frame"]) for a in (files.read_json(answers, {}).get("touch", [])) if a["identity"] is None}
         self.empty = [(w, r.get("set"), int(r["start_frame"])) for w, r in zip(windows, rallies) if all(row["frame"] in nothing for row in touches_in(actions, w))]
         self.aces = aces(self.page)
@@ -512,7 +512,7 @@ class Questions:
         None that a rally checked answers: who made a touch it shows a named player for, whether it is a rally;
         nor who made a touch already answered elsewhere (the match tab, a rally checked)."""
         out, refs = [], {}
-        log = load_log(self.match / "identity_answers.json")
+        log = log_of(self.match)
         checked_keys = set(checked(log))
         # A match whose every rally is checked asks only what teaches the next ones: who made a touch,
         # a piece or two players whose answer may change a touch the learned attribution trains on.

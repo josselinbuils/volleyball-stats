@@ -31,7 +31,7 @@ import csv
 import json
 from bisect import bisect_right
 from collections import Counter
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -1130,7 +1130,7 @@ def run(match: Path, video: Path, rows: list[Row], windows: list[tuple[int, int]
     # Its parts' shares of the time, measured on the second match (13 Nov, "previous" 18 Nov), the embeddings computed
     # (`identify`'s).
     part = jobs.parts(share, {"previous": 1.7, "identify": 1409.4})
-    answers_path, path = match / "identity_answers.json", match / "identities.csv"
+    answers_path, path = match / files.ANSWERS, match / "identities.csv"
     answers = files.read_json(answers_path)
     entries = read_names(match)
     names = [(e["ref"], e["name"]) for e in entries if e.get("name")]

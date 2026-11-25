@@ -66,9 +66,9 @@ def near(frame: int, frames: list[int], within: int) -> int | None:
 
 def from_answers(match: Path, fps: float) -> dict[str, Score]:
     """The scores on the answers: right, asked."""
-    if not (match / "identity_answers.json").exists():
+    answers = files.read_json(match / files.ANSWERS, None)
+    if answers is None:
         return {}
-    answers = json.loads((match / "identity_answers.json").read_text())
     rows = read_rows(match / "actions.csv")
     by_frame = {int(r["frame"]): r for r in rows}
     frames = sorted(by_frame)
@@ -128,7 +128,7 @@ def from_labels(match: Path, fps: float, name: str) -> dict[str, Score]:
 def from_checked(match: Path, page: dict, fps: float) -> dict[str, Score]:
     """The scores on the rallies checked in the Match tab: the page's touches (the review's) found by
     the pipeline, the pipeline's kept, their types and players, the rallies' winners."""
-    keys = set(review_answers.checked(review_answers.load_log(match / "identity_answers.json")))
+    keys = set(review_answers.checked(review_answers.log_of(match)))
     rallies = [(k, r) for k, r in enumerate(page["rallies"]) if r["key"] in keys]
     if not rallies:
         return {}
@@ -208,7 +208,7 @@ def answered(outputs: Path) -> list[str]:
     found = []
     for source in sorted(outputs.glob(f"*/{files.SOURCE}")):
         match, given = source.parent, json.loads(source.read_text())
-        if (match / "identity_answers.json").exists() and (ROOT / given["video"]).exists():
+        if (match / files.ANSWERS).exists() and (ROOT / given["video"]).exists():
             found.append(f"{match}:{ROOT / given['video']}:{ROOT / given['court']}")
     return found
 
@@ -286,10 +286,10 @@ def rerun(
         raise subprocess.CalledProcessError(run.returncode, run.args)
     on_stage("answers")
     fps = decode.fps(video)
-    path = match / "identity_answers.json"
+    path = match / files.ANSWERS
     if not path.exists():
         return record(match, video, court, replaced, update)
-    shutil.copy2(path, before / "identity_answers.json")
+    shutil.copy2(path, before / files.ANSWERS)
     lead = round(actions.LEAD_S * fps)
     old, new = rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv")
     page_before = before / "review-data.js"
@@ -313,7 +313,7 @@ def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | N
     now = scores(match, video, court, share=share)
     print(report(now, history[-1]["scores"] if history else None))
     # The answers it saw: the review asks for another run once they change.
-    stamp = review.answers_stamp(review_answers.load_log(match / "identity_answers.json"))
+    stamp = review.answers_stamp(review_answers.log_of(match))
     history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now, "answers": stamp, **({"before": replaced} if replaced else {}), **({"update": update} if update else {})})
     files.write_text(path, json.dumps(history, indent=1) + "\n")
     return now
@@ -351,7 +351,7 @@ def update(outputs: Path, only: str | None = None) -> None:
     for match, video, court in found:
         told.start(f"match:{match.name}")
         print(f"{match.name}:", flush=True)
-        if review_answers.reviewed(web.page_data(match / "review"), review_answers.load_log(match / "identity_answers.json")):
+        if review_answers.reviewed(web.page_data(match / "review"), review_answers.log_of(match)):
             measured(match, video, court, started, told.share_of_stage)
             taught = taught or (match if play_due(match) else None)
             typed = typed or (match if gesture_due(match) else None)

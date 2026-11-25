@@ -19,7 +19,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from volleyball_stats import analysis, film, files, web
-from volleyball_stats.review_answers import KINDS, checked, corrections, load_log, restorable, reviewed, save, state, touch_answer
+from volleyball_stats.review_answers import KINDS, checked, corrections, load_log, log_of, restorable, reviewed, save, state, touch_answer
 
 # ponytail: web.framed imports CROP_MARGIN from here, and the pictures' scores stamp (web.scores_stamp) reads its source:
 # importing it from review_questions there would score every match's pictures again. Move it with the next change to scoring.
@@ -287,7 +287,7 @@ def due(match: Path, log: list[dict] | None = None) -> str | None:
     checked match keeps its labels: only new answers make it wait."""
     if not (match / "report.md").exists():
         return None
-    log = load_log(match / "identity_answers.json") if log is None else log
+    log = log_of(match) if log is None else log
     if log and not learned(match, log):
         return "answers"
     if reviewed(web.page_data(match / "review"), log):
@@ -302,7 +302,7 @@ def rebuilt(match: Path, video: Path, court: Path, theme: str = web.CLUB) -> Non
     (match / STALE_PHOTOS).unlink(missing_ok=True)
     if (match / "page.json").exists():
         web.publish(match, video, court, theme, {})
-    path = match / "identity_answers.json"
+    path = match / files.ANSWERS
     log = [{**e, "applied": True} for e in load_log(path)]
     if path.exists():
         save(path, log)

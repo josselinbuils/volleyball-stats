@@ -61,7 +61,7 @@ def spans(name: str) -> list[tuple[float, float, float]]:
     review checks the touches, not the ends, which are mostly the pipeline's."""
     d = match_dir(name)
     page = web.page_data(d / "review")
-    keys = set(review_answers.checked(review_answers.load_log(d / "identity_answers.json")))
+    keys = set(review_answers.checked(review_answers.log_of(d)))
     last: dict[int, float] = {}
     for c in page["contacts"]:
         if c["type"] not in ("floor", "net", "fault"):

@@ -337,7 +337,7 @@ def report(
         + (f", median rally {np.median(lengths):.1f} s" if len(windows) else ""),
         f"- Contacts in rallies: {len(typed)}" + (f", {len(typed) / len(windows):.1f} per rally" if windows else ""),
         f"- Net crossings in rallies: {len(crossings)}",
-        *([f"- Player tracks: " + ", ".join(f"{n} {label}" for label, n in tracks.items())] if tracks is not None else []),
+        *(["- Player tracks: " + ", ".join(f"{n} {label}" for label, n in tracks.items())] if tracks is not None else []),
         *([f"- Sets: {max(sets)}"] if sets and max(sets) > 1 else []),
         "",
         *table(typed, groups, labels),
@@ -490,7 +490,7 @@ def main() -> None:
         # New tracks: the identities, their embeddings and the attackers' poses (by track) start over.
         for stale in ("identities.csv", "embeddings.npz", "looks.npz", jerseys.FILE, "jumps.json", "jumps_rows.npz"):
             (out / stale).unlink(missing_ok=True)
-        if (out / "identity_answers.json").exists():
+        if (out / files.ANSWERS).exists():
             print(f"{out / 'identity_answers.json'} answers about the previous player tracks: review the identities again", file=sys.stderr)
 
     rows = attribution.read_players(players_path) if args.players else None

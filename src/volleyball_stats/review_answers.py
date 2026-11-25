@@ -719,6 +719,11 @@ def load_log(path: Path) -> list[dict]:
     return files.read_json(path, {}).get("log", [])
 
 
+def log_of(match: Path) -> list[dict]:
+    """The log of the review's answers on `match`, empty before any."""
+    return load_log(match / files.ANSWERS)
+
+
 def state(match: Path, log: list[dict]) -> dict:
     """What the identities are computed from: the answers' constraints, the names and the date of
     the jersey numbers (to the second), as JSON gives them back; with the timeouts given, which

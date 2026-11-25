@@ -30,7 +30,7 @@ def run(name: str, npz: Path, combos: list[tuple[str, ...]]) -> None:
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     net_x = float(cal.to_image(np.array([[0.0, 0.0]]))[0, 0])
     page = web.page_data(d / "review")
-    keys = set(review_answers.checked(review_answers.load_log(d / "identity_answers.json")))
+    keys = set(review_answers.checked(review_answers.log_of(d)))
     ch = {k: r for k, r in enumerate(page["rallies"]) if r["key"] in keys}
     lead = round(actions.LEAD_S * fps)
     spans = [(round(r["start"] * fps) - lead, round(r["end"] * fps)) for r in ch.values()]

@@ -602,7 +602,7 @@ def delete(name: str) -> None:
     from volleyball_stats import gesture
 
     folder, clips = MATCHES / name, OUTPUTS / gesture.CACHE
-    if (folder / "report.md").exists() or (folder / "identity_answers.json").exists() or any(j["id"] == name and j["running"] for j in jobs.state(OUTPUTS)):
+    if (folder / "report.md").exists() or (folder / files.ANSWERS).exists() or any(j["id"] == name and j["running"] for j in jobs.state(OUTPUTS)):
         raise PermissionError(name)
     jobs.forget(OUTPUTS, name)
     for path in (folder, DATA / name, clips / name):

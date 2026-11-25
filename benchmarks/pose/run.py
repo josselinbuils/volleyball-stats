@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import cache  # noqa: E402
 import models  # noqa: E402
 
-from volleyball_stats import actions, attribution, decode, jumps, web  # noqa: E402
+from volleyball_stats import attribution, decode, jumps, web  # noqa: E402
 
 FPS = 50.0
 ROOT = cache.ROOT

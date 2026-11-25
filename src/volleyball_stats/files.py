@@ -18,6 +18,8 @@ from typing import IO
 
 # Beside a match's outputs: what they were made from.
 SOURCE = "source.json"
+# The review's answers and their log (`review_answers`).
+ANSWERS = "identity_answers.json"
 
 
 def root(match: Path) -> Path:

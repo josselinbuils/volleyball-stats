@@ -326,7 +326,7 @@ class Review:
         cap = cv2.VideoCapture(str(video))
         self.fps, self.width, self.height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         cap.release()
-        self.answers = match / "identity_answers.json"
+        self.answers = match / files.ANSWERS
         # The answers the review's page was last built with: it shows their corrections.
         self.shown = {e["id"] for e in load_log(self.answers)}
         if not (match / "identity_candidates.json").exists():

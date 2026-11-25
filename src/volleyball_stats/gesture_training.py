@@ -46,7 +46,7 @@ def truth(match: Path, fps: float) -> list[dict] | None:
     """Each checked rally's frames and touches (frame, type), from the review's page; None unless every rally is checked:
     the heads learn the order of whole rallies."""
     page = web.page_data(match / "review")
-    log = review_answers.load_log(match / "identity_answers.json") if (match / "identity_answers.json").exists() else []
+    log = review_answers.log_of(match)
     if not review_answers.reviewed(page, log):
         return None
     out = []

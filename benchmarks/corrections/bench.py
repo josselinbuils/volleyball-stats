@@ -104,7 +104,7 @@ def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | No
     on_stage("end")
     seconds = time.perf_counter() - start
     page, _ = web.match_data(scratch, video, __import__("volleyball_stats.court", fromlist=["Calibration"]).Calibration.load(court))
-    kept = set(review_answers.checked(review_answers.load_log(scratch / "identity_answers.json")))
+    kept = set(review_answers.checked(review_answers.log_of(scratch)))
     now = {r["key"] for r in page["rallies"]}
     info = {"seconds": round(seconds, 1), "stages": stages, "commit": learn.commit(), "checked_keys_after": len(kept), "checked_rallies_on_page": len(kept & now), "rallies": len(page["rallies"])}
     (scratch.parent / "run.json").write_text(json.dumps(info, indent=1) + "\n")

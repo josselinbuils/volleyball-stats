@@ -39,7 +39,7 @@ def main() -> None:
     calibration = Calibration.load(args.court)
     net_x = float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
     page = web.page_data(args.match / "review")
-    keys = set(review_answers.checked(review_answers.load_log(args.match / "identity_answers.json")))
+    keys = set(review_answers.checked(review_answers.log_of(args.match)))
     checked = {k: r for k, r in enumerate(page["rallies"]) if r["key"] in keys}
     lead = round(actions.LEAD_S * fps)
     spans = [(round(r["start"] * fps) - lead, round(r["end"] * fps)) for r in checked.values()]

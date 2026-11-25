@@ -26,6 +26,7 @@ import numpy as np
 from volleyball_stats import ball as tracker
 from volleyball_stats import decode, files, jobs, tables
 from volleyball_stats.court import Calibration, distort, undistort
+from volleyball_stats.web import BALL_R, HALF_X, HALF_Y
 from volleyball_stats.points import set_scores
 
 FILMS = "films"
@@ -95,9 +96,8 @@ TAIL_CROPS = ((1536, 864), (2560, 1440))
 WINDOW_PAD_S = 0.4
 TAIL_FRAMES = 90
 BATCH = 16
-# A ball landing this near a line at a point's end, or any landing the review says the referee called wrongly, is shown again
-# slowly on its bounce, in or out as the point went (the page's `lineCall.ts`): court half sizes and the ball's radius in metres.
-CALL_NEAR_M, BALL_R, HALF_X, HALF_Y, LINE_M = 0.4, 0.105, 9.0, 4.5, 0.05
+# The page's line calls (`web.line_calls`) are shown again slowly on their bounce: the lines' width in metres.
+LINE_M = 0.05
 CALL_BEFORE_S, CALL_AFTER_S, CALL_SPEED = 0.5, 0.5, 0.3
 IN_GREEN, COURT_FLOOR, AROUND_FLOOR = (74, 163, 22), (60, 116, 200), (143, 111, 47)
 # A server stands behind the end line, 9 m from the net: a track this close to it at the serve follows someone else.
@@ -125,7 +125,8 @@ def locale() -> dict:
 
 
 def read_page(site: Path) -> dict | None:
-    """The data.js of the page at `site`, with each contact's index and team group, None without one."""
+    """The data.js of the page at `site`, with each contact's index and team group, each rally's contacts and line call, None
+    without one."""
     path = site / "data.js"
     if not path.exists():
         return None
@@ -139,6 +140,8 @@ def read_page(site: Path) -> dict | None:
         r["contacts"] = []
     for c in page["contacts"]:
         page["rallies"][c["rally"]]["contacts"].append(c)
+    for call in page.get("lineCalls", []):
+        page["rallies"][call["rally"]]["call"] = call
     return page
 
 
@@ -174,34 +177,14 @@ def scoring_touch(rally: dict) -> dict | None:
     return None
 
 
-def outside(x: float, y: float) -> tuple[float, str]:
-    """How far a ball centred on (x, y) lands outside the court (negative inside), and the line it is told against."""
-    dx, dy = abs(x) - HALF_X, abs(y) - HALF_Y
-    if dx > 0 or dy > 0:
-        return float(np.hypot(max(0.0, dx), max(0.0, dy))), "end" if dx >= dy else "side"
-    return (dx, "end") if dx >= dy else (dy, "side")
-
-
 def line_call(rally: dict) -> dict | None:
-    """A rally ending on a ball landing near a line on the other side from its last touch (with a wrong call, any such landing):
-    its bounce `t`, in or out from who won the point (the other team on a wrong call), the measured `mark` where it says the same."""
-    if not rally.get("winner") or rally.get("redo"):
+    """The page's line call on `rally` (`web.line_calls`): its bounce `t`, in or out, the landing (x, y) and the line its mark
+    is told against, None where the mark is left out."""
+    call = rally.get("call")
+    if not call:
         return None
-    played = [c for c in rally["contacts"] if c["type"] not in ("fault", "missed")]
-    hits = [c for c in played if is_touch(c)]
-    if not played or not hits or played[-1]["type"] != "floor":
-        return None
-    land, hit = played[-1], hits[-1]
-    if land.get("x") is None or land.get("y") is None or hit.get("x") is None or np.sign(land["x"]) == np.sign(hit["x"]):
-        return None
-    wrong = bool(rally.get("wrongCall"))
-    won = 3 - rally["winner"] if wrong else rally["winner"]
-    is_in = won == hit["g"]
-    by, line = outside(land["x"], land["y"])
-    agrees = (by <= BALL_R) == is_in
-    if not wrong and not (agrees and abs(by) <= CALL_NEAR_M):
-        return None
-    return {"t": land["t"], "x": land["x"], "y": land["y"], "in": is_in, "wrongCall": wrong, "line": line if agrees else None}
+    land = next(c for c in rally["contacts"] if c["type"] == "floor" and c["t"] == call["t"])
+    return {"t": call["t"], "x": land["x"], "y": land["y"], "in": call["in"], "wrongCall": call["wrongCall"], "line": call["mark"]["line"] if call["mark"] else None}
 
 
 def call_shot(rally: dict, start: float, end: float) -> tuple[float, float, dict] | None:
@@ -888,10 +871,6 @@ def ball_size(before: np.ndarray, picture: np.ndarray, after: np.ndarray, x: flo
     return float(min(cv2.minAreaRect(np.argwhere(labels == best)[:, ::-1].astype(np.float32))[1]))
 
 
-def read_ball(path: Path) -> dict[int, tuple[float, float]]:
-    return tables.seen(path)
-
-
 def frame_times(match: Path, video: Path) -> np.ndarray:
     """Each frame's real time: a video's rate need not be even, and a time made from a frame's number then drifts."""
     path = match / TIMES_CACHE
@@ -952,7 +931,7 @@ def search_ball(match: Path, video: Path, court: Path, films: dict[str, dict], p
     sized = {int(q) for q in cache.get("sized", [])}
     rejected = {int(q): tuple(v) for q, v in cache.get("rejected", {}).items()}
     least = least_sizes(Calibration.load(court).with_lens((SOURCE_W, SOURCE_H)))
-    detected = read_ball(match / "ball.csv")
+    detected = tables.seen(match / "ball.csv")
     times = frame_times(match, video)
     marks_of = marks(page)
     wanted: dict[int, set[int]] = {}
@@ -1266,7 +1245,7 @@ class Maker:
         self.seg, self.fine = YOLO(str(SEG_S)), YOLO(str(SEG_M))
         self.italic, self.din, self.cond = font("Arial Bold Italic.ttf"), font("DIN Alternate Bold.ttf"), font("DIN Condensed Bold.ttf")
         self.words = locale()
-        self.detected = read_ball(match / "ball.csv")
+        self.detected = tables.seen(match / "ball.csv")
         cache = files.read_json(match / BALL_CACHE, {"found": {}})
         self.found = {int(q): tuple(v) for q, v in cache["found"].items()}
         self.rejected = {int(q): tuple(v) for q, v in cache.get("rejected", {}).items()}

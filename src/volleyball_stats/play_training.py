@@ -51,7 +51,7 @@ Span = tuple[float, float, float]
 def spans(match: Path) -> list[Span] | None:
     """Each rally's serve (its start, `web.started`), last player touch and window's end in seconds, from the review's
     page; None unless every rally is checked: an unchecked one would teach play as no play."""
-    page, log = web.page_data(match / "review"), review_answers.load_log(match / "identity_answers.json") if (match / "identity_answers.json").exists() else []
+    page, log = web.page_data(match / "review"), review_answers.log_of(match)
     if not review_answers.reviewed(page, log):
         return None
     last: dict[int, float] = {}

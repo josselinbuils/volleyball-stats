@@ -53,7 +53,6 @@ def stack(tr: dict, te: dict, oof: np.ndarray, test: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     data = {m: load(m) for m in MATCHES}
-    rows = []
     for name in sys.argv[1:]:
         for tr_name, te_name in (MATCHES, MATCHES[::-1]):
             tr, te = data[tr_name], data[te_name]

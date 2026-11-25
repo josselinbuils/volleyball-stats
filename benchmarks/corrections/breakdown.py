@@ -57,7 +57,6 @@ def breakdown(name: str, run: str) -> list[str]:
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in learn.read_rows(folder / "rallies.csv")]
     rows = attribution.read_players(folder / "players.csv")
     seen, raw, typed_frames, far = raw_contacts(folder, ROOT / given["court"], fps, windows, rows, lead)
-    kept = [int(r["frame"]) for r in learn.read_rows(folder / "actions.csv")]
     by_key = {r["key"]: r for r in truth["rallies"]}
     out = [f"## {name} ({len(truth['rallies'])} rallies, {summary['counts']['total']} corrections, run {run})", ""]
     out += table(["add", "remove", "type", "player", "winner", "total", "per rally", "rallies at zero"], [[summary["counts"][k] for k in ("add", "remove", "type", "player", "winner", "total", "per rally", "rallies at zero")]])
