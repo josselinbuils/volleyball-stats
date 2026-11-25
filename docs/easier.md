@@ -115,13 +115,20 @@ A stopped analysis (sleep, restart, crash, update, the window closed) starts aga
 
 A bad framing costs a match: check it before.
 
-- "Tester le cadrage": a photo or a few seconds filmed from the planned spot, imported like a match; the automatic
-  court detection (`court auto`) answers in a picture: both end lines and corners seen, or what to change ("reculez",
-  "montez la caméra", "alignez-la sur le filet"), with the court's outline drawn on the picture.
+- `court auto` only finds a court already stored (a gym calibrated once from clicks); a new gym, every away match's
+  among them, needs the clicks. So: "Tester le cadrage" takes a photo or a few seconds filmed from the planned spot,
+  imported like a match. A stored court answers on its own; a new gym asks the rough clicks (the existing flow),
+  and a corner or end line out of the picture is what it reports. The answer is a picture: the court's outline drawn,
+  OK or what to change ("reculez", "montez la caméra", "alignez-la sur le filet"). The court is stored, so the match
+  itself is found automatically.
 - The same check runs at each import on the first minutes, said at once, before the long analysis.
-- Ask the owner then: is a check at the gym, from a phone, worth it (the review server on the local network,
-  `network.py`, or a page in the hosted site that runs nothing but the detection)? Decide before building more than the
-  in-app check.
+- At the gym (open, the owner's call): the computer only sees the camera's picture once the card is imported, usually
+  after the match. A check there could be (a) the recording guide (step 6) readable on a phone with "what the
+  camera's screen must show", judged by eye: hours on top of step 6, but a page online (ask the owner); (b) the
+  automatic check in the phone's browser on a screenshot of the camera's live view (DJI Mimo or the like): court.py's
+  line snapping ported to JS (opencv.js, ~10 MB), the picture never leaving the phone: several days; (c) the app on a
+  laptop at the gym through "Réseau local" (`network.py`): nothing to build, a laptop and one network needed. Sending
+  the picture to a server is out (footage of people). Decide after step 11 shows whether framing goes wrong.
 - Touches: `court.py`, `app.py`, the import screen.
 - Done when: on the four matches' first frames the check says OK; on frames cropped to hide an end line, it says
   which one and what to do.
