@@ -162,6 +162,62 @@ Keep WSL2 working until native has passed everything below.
 - Done when: on native Windows, `uv run pytest -q` passes, a match imports, runs (same outputs as under WSL2, or the
   differences explained), reviews, exports, uploads and backs up; the pipeline's speed within 10% of WSL2's.
 
+### The audit (25 Nov)
+
+A copy in `D:\vbs-native` (no `server.json`, no `publish.json`: it cannot sync or upload), uv and ffmpeg installed per
+user (`irm https://astral.sh/uv/install.ps1 | iex`, `winget install Gyan.FFmpeg --scope user`: no admin; its ffmpeg has
+`av1_nvenc`, `h264_nvenc`, `libsvtav1`), uv's cache on D: (C: has 25 GB free). Git is not on Windows: the copy was
+cloned from WSL. The trial's files: `D:\vbs-trial\` (a 3-minute cut of the 16 Nov match, its court, the logs).
+
+Fixed at once (committed):
+- No Python pinned: a fresh machine got CPython 3.15, which torch has no wheel for (a fresh Mac too, through
+  `install.sh`). `.python-version` pins 3.12, the version WSL runs.
+- PyPI's torch is CPU-only on Windows: `torch` and `torchvision` come from PyTorch's CUDA 13 index there
+  (`[tool.uv.sources]`, marker `win32`); Linux's and macOS's packages unchanged (`uv sync --dry-run`). The 5080 is seen.
+
+Left to fix, by how much they block:
+1. **The app does not start**: `os.nice` does not exist on Windows (`app.lowered`, `match.py`'s busy check, with
+   `os.getloadavg`). Busy and priority checks need a Windows way (the process's priority class; the CPU's load).
+2. **Ctrl+C to itself**: `os.kill(pid, 0)` (`jobs.alive`, 2 calls) tests a process on POSIX, but on Windows signal 0 is
+   `CTRL_C_EVENT`, sent to the whole console: it stopped pytest itself, it would stop the app. A Windows test of a
+   process (`OpenProcess` through `ctypes`, or `tasklist`).
+3. **Text encoding**: 148 `read_text()`/`write_text()`/`open()` without `encoding=`: Windows' default is cp1252, the
+   pages come out garbled ("·" as "Â·", test_matches). `encoding="utf-8"` everywhere, or `PYTHONUTF8=1` set by the
+   launcher (the quick way; Python 3.15 makes UTF-8 the default).
+4. **Replacing a file still open** (`files.py`'s atomic write, a numpy temp file): `PermissionError` (WinError 5) where
+   POSIX replaces it. Close before replacing, retry a moment.
+5. **Symlinks** (2 places: a match's video link): need admin or Developer Mode on Windows (WinError 1314). A copy,
+   a hard link or the path itself.
+6. **Remote paths built as local ones**: the server's paths and the ssh key come out with backslashes
+   (`root@host:\…\feedback.log`, `ssh -i '\Users\A B\key'`): `PurePosixPath` for what goes to the server.
+7. **Jobs outliving the server**: `start_new_session` means nothing on Windows: `CREATE_NEW_PROCESS_GROUP` and
+   `DETACHED_PROCESS`; `ps` (3 calls: `started_at`, the busiest processes) and `/proc` (`process_key`) absent.
+8. **Tools**: `rsync` (5 calls: uploads, backups) is not on Windows; ssh is (Windows' OpenSSH). `fcntl.flock`
+   (`sync.py`) absent. Git absent: the installer brings it, or updates come from GitHub's archive (step 8).
+9. **The platform's own screens**: the file picker (`app.pick`: Windows' dialog directly, not through `wsl.exe`), the
+   shortcut (`shortcut.py`: a `.lnk` starting `uv run stats`, not `wsl.exe`), drives (a plain `E:\`, no mount).
+10. A script started as a program (WinError 193, the backup flow's tests: their fake `ssh` is a shell script) and
+    `time.tzset` (test_sync): the tests' own POSIX habits, to make portable with the code.
+
+Tests natively: 1,065 pass, 43 fail in 18 of the 60 files run, and `test_jobs.py` (17 tests) stops the run (point 2);
+the reasons above; the full list in `D:\pytest-files.txt` and `D:\pytest-files2.txt`. Diagnostics runs, its busy check fails
+(point 1); 5 of the 7 models missing on a new machine, as expected (downloaded by Diagnostics).
+
+The pipeline natively (`D:\vbs-trial\run_native.py`: `os.nice` and `os.getloadavg` stood in for, the code unchanged), on
+the 3-minute clip, against WSL2 on the same file:
+- It runs to the end: 826 s against 495 s (+67%). Tracking takes the same time (3.9 min against 4.0); what decodes
+  4K frames and the OCR are slower: identity 5.0 min against 1.5, jerseys 2.3 against 1.1, wrists, teams, jumps.
+11. **Windows' pipe is the bottleneck**: ffmpeg alone decodes 263 4K frames a second there (200 under WSL2), but read
+    through `Popen`'s pipe Python gets 22 (108 under WSL2), whatever Popen's buffer. A pipe made with a 1 MB buffer
+    (`_winapi.CreatePipe`, given to ffmpeg as its stdout) gives 146, more than WSL2: `decode.piped`'s pipe on Windows.
+12. **The OCR on the CPU**: `onnxruntime-gpu` is installed on Linux only (pyproject's marker), Windows gets the CPU
+    one. `onnxruntime-gpu` has Windows wheels: extend the marker to `win32`, check it shares torch's CUDA there.
+13. **ffmpeg's version changes the pixels**: Windows' (winget, 9.1) and WSL2's (Ubuntu, 6.1) give the same frame with
+    12% of its pixels off by up to 9 levels (their scaler changed), CPU and GPU decoding identical on each. The boxes
+    move by about 0.2 px, which was enough to split one rally in two (6 rallies against 5, the set 3-3 against 2-3).
+    Not Windows' doing: a Mac on Homebrew's ffmpeg differs from the PC already. The installers bring one ffmpeg
+    version everywhere (step 8), the same under WSL2, and Diagnostics names a different one.
+
 ## 8. Installers
 
 - [ ] Done
@@ -239,3 +295,6 @@ found) against ours and say what differs.
 One line per session: date, what was done, what is next.
 
 - 25 Nov: plan written with the owner (costs of a cloud GPU rejected: ~€8 a match). No code signing (owner). Next: step 1.
+- 25 Nov: step 7's audit on the owner's PC natively (its findings under step 7): Python pinned to 3.12 and CUDA torch
+  on Windows committed; the pipeline runs natively but 67% slower (the pipe, the OCR on the CPU), its outputs differ
+  by ffmpeg's version. Next: step 1, step 7's fixes when it comes.

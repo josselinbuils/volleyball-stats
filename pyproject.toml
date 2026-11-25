@@ -13,6 +13,8 @@ dependencies = [
     "onnxruntime-gpu[cuda,cudnn]==1.31.0; sys_platform == 'linux'",
     "spandrel>=0.4.2",
     "torch",
+    # Already ultralytics'; named for its Windows source below.
+    "torchvision",
     # The play / no-play clip model (playing.py).
     "transformers",
     "ultralytics",
@@ -41,3 +43,13 @@ override-dependencies = ["onnxruntime; sys_platform != 'linux'"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# PyPI's torch is CPU-only on Windows: there, PyTorch's own CUDA 13 build (the one PyPI gives Linux).
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32'" }]
+torchvision = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32'" }]
