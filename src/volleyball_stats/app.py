@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import backup, club_settings, doctor, feedback, files, git_check, jobs, presence, server, shortcut, sync
+from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, server, shortcut, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -423,7 +423,8 @@ def team_flag(teams: list[dict]) -> str:
 
 
 def import_steps(body: dict) -> tuple[str, str, list, float]:
-    """The match's name and day, the steps importing it then looking for its court, and the length of the video they make."""
+    """The match's name and day, the steps importing it, timing this machine when nothing did (`estimate`), then looking
+    for its court, and the length of the video they make."""
     from volleyball_stats import import_match, teams
 
     flag = team_flag(body["teams"])
@@ -448,7 +449,8 @@ def import_steps(body: dict) -> tuple[str, str, list, float]:
     command = ["volleyball_stats.import_match", *map(str, paths if isinstance(paths, list) else [paths]), "--teams", flag, "--date", day, "--recording", str(recording)]
     command += ["--net", str(net)] if net else []
     command += [arg for k, flag_name in (("from", "--from"), ("to", "--to")) if body.get(k) for arg in (flag_name, str(body[k]))]
-    return name, day, [("import", command), court_auto(name)], min(end or total, total) - (start or 0)
+    timing = [] if estimate.factor(OUTPUTS) else [("speed", ["volleyball_stats.estimate", str(target), "--outputs", str(OUTPUTS)])]
+    return name, day, [("import", command), *timing, court_auto(name)], min(end or total, total) - (start or 0)
 
 
 def court_auto(name: str) -> tuple[str, list[str]]:
@@ -472,10 +474,27 @@ def video_of(name: str) -> Path:
     return DATA / name / f"{name}.mp4"
 
 
+ESTIMATES: dict[tuple, dict] = {}
+
+
+def analysis_time(name: str) -> dict:
+    """The seconds the analysis of `name` would take here (`estimate.seconds`, None when unknown) and whether that is
+    too `slow`, kept while nothing it reads changes."""
+    video, out = video_of(name), MATCHES / name
+    stamp = lambda p: p.stat().st_mtime_ns if p.exists() else None  # noqa: E731
+    key = (str(video), stamp(video), stamp(OUTPUTS / estimate.SPEED), stamp(OUTPUTS / estimate.TIMINGS))
+    if key not in ESTIMATES:
+        duration = probed([video])[0].duration if video.exists() else 0.0
+        seconds = estimate.seconds(OUTPUTS, video, out, duration) if duration else None
+        ESTIMATES[key] = {"seconds": seconds, "slow": seconds is not None and seconds > estimate.SLOW * duration}
+    return ESTIMATES[key]
+
+
 def preparing(listed: list[dict]) -> list[dict]:
-    """The matches not ready for the review, with what they wait for: `importing`, `court` (to map by hand, `fitFailed`
-    when the clicks did not fit), `check` (to look at, then start), `running`, `failed`, `elsewhere` (run by a command
-    on this machine) or `stalled` (a run by a command that stopped, or one on the other machine)."""
+    """The matches not ready for the review, with what they wait for: `importing`, `measuring` (this machine's speed),
+    `court` (to map by hand, `fitFailed` when the clicks did not fit), `check` (to look at, then start: the analysis'
+    `seconds` here, `slow`, `laptop` when its lid would still sleep it), `running`, `failed`, `elsewhere` (run by a command on
+    this machine) or `stalled` (a run by a command that stopped, or one on the other machine)."""
     ready = {m["path"] for m in listed if m.get("ready") or m.get("missing")}
     by_match = {j["id"]: j for j in jobs.state(OUTPUTS) if j["kind"] in ("import", "court", "pipeline")}
     names = {p.parent.name for p in MATCHES.glob("*/teams.json") if not (p.parent / "report.md").exists()} | set(by_match)
@@ -485,7 +504,7 @@ def preparing(listed: list[dict]) -> list[dict]:
         saved = files.read_json(folder / "teams.json", job or {})
         item = {"name": name, "date": saved.get("date"), "teams": saved.get("teams"), "job": job, "start": (folder / "start.jpg").exists(), "court": (folder / "court.jpg").exists()}
         if job and job["running"]:
-            item["state"] = "importing" if job.get("step") == "import" else "running" if job.get("step") == "pipeline" else "court"
+            item["state"] = {"import": "importing", "speed": "measuring", "pipeline": "running"}.get(job.get("step"), "court")
             item["searching"] = job.get("step") == "court" and not job.get("manual")
             item["placing"] = job.get("step") == "court" and bool(job.get("manual"))
             item["left"] = time_left(job, time.time())
@@ -497,7 +516,7 @@ def preparing(listed: list[dict]) -> list[dict]:
         elif (folder / files.SOURCE).exists() and not job:
             item["state"] = "elsewhere" if name in commands_running() else "stalled"
         elif (folder / COURT).exists():
-            item["state"] = "check"
+            item.update(state="check", **analysis_time(name), laptop=awake.laptop() is not False)
         elif folder.exists():
             item["state"] = "court"
         else:

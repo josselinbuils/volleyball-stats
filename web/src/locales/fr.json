@@ -1519,6 +1519,7 @@
     "setup": "Préparer un match",
     "preparing": "En préparation",
     "hours": "{{h}} h {{m}} min",
+    "hours_whole": "{{h}} h",
     "left": "Reste environ {{left}} · Fin vers {{end}}",
     "left_soon": "Reste moins d'une minute · Fin vers {{end}}",
     "stepDone": "{{step}} : {{percent}}",
@@ -1540,9 +1541,11 @@
     "cancel": "Annuler",
     "state": {
       "importing": "Copie de la vidéo…",
+      "measuring": "Mesure de la vitesse de l'ordinateur…",
       "searching": "Recherche du terrain…",
       "court": "Terrain inconnu : placez-le une fois pour ce gymnase.",
-      "check": "Vérifiez les deux images, puis lancez l'analyse (plusieurs heures).",
+      "check": "Vérifiez les deux images, puis lancez l'analyse.",
+      "check_unknown": "Vérifiez les deux images, puis lancez l'analyse (plusieurs heures).",
       "running": "Analyse en cours",
       "failed": "Échec : {{step}}",
       "stopped": "Arrêté : {{step}}",
@@ -1553,6 +1556,7 @@
     },
     "step": {
       "import": "copie de la vidéo",
+      "speed": "mesure de la vitesse",
       "court": "recherche du terrain",
       "pipeline": "analyse"
     },
@@ -1649,6 +1653,7 @@
         "memory": "Mémoire",
         "disk": "Espace disque",
         "models": "Modèles",
+        "speed": "Vitesse d'analyse",
         "code": "Version",
         "busy": "Charge de l'ordinateur"
       },
@@ -1680,6 +1685,11 @@
         "ok": "Téléchargés.",
         "missing_one": "{{count}} modèle à télécharger avant la première analyse.",
         "missing_other": "{{count}} modèles à télécharger avant la première analyse."
+      },
+      "speed": {
+        "ok": "Un match d'une heure : environ {{time}} d'analyse.",
+        "warn": "Un match d'une heure : environ {{time}}. Il faudrait une carte graphique NVIDIA récente ou un Mac à puce Apple.",
+        "unknown": "Mesurée à la première importation."
       },
       "code": {
         "ok": "À jour.",
@@ -1737,7 +1747,10 @@
       "loading": "Chargement…"
     },
     "confirm": "Confirmer",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "estimate": "Environ {{time}} · Fin vers {{end}}",
+    "estimateLaptop": "Laissez l'ordinateur branché et ouvert.",
+    "estimateSlow": "Trop lent sur cet ordinateur : il faudrait une carte graphique NVIDIA récente ou un Mac à puce Apple."
   },
   "error": {
     "failed": "Échec : réessayez.",

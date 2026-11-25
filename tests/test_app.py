@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from volleyball_stats import app, files, jobs, matches, presence
+from volleyball_stats import app, awake, files, jobs, matches, presence
 
 
 class TestApp:
@@ -32,6 +32,7 @@ class TestApp:
     def test_tells_what_each_match_waits_for(self, place, monkeypatch):
         # No pipeline of this machine's: one running for real would name these one-letter matches.
         monkeypatch.setattr(app, "commands_running", lambda: "")
+        monkeypatch.setattr(awake, "laptop", lambda: None)
         self.match(place, "a")
         self.match(place, "b", app.COURT)
         self.match(place, "c", files.SOURCE)
@@ -45,6 +46,8 @@ class TestApp:
         found = {m["name"]: m for m in app.preparing([{"path": "d", "ready": True}])}
         assert {k: m["state"] for k, m in found.items()} == {"a": "court", "b": "check", "c": "stalled", "e": "court", "f": "failed", "g": "court"}
         assert found["g"]["fitFailed"] and not found["e"]["fitFailed"]
+        # No video: no time; a machine that cannot tell is asked to stay open.
+        assert found["b"]["seconds"] is None and not found["b"]["slow"] and found["b"]["laptop"]
 
     def test_lists_the_tasks_running_or_just_ended(self, place):
         import time

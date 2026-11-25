@@ -62,7 +62,8 @@ A job (`jobs.start`) holds the machine awake while it runs, the screen free to s
 
 ## 2. Say the time before starting
 
-- [ ] Done
+- [x] Done (26 Nov) on the PC, the Mac's check waiting (`estimate.py`; the measure is the tracking pass alone,
+  every stage scaled as it: a Mac's CPU-bound stages may differ, until its first run keeps its own).
 
 Before the analysis starts, the import says how long it will take on this machine, in plain words ("environ 7 h :
 laissez l'ordinateur allumé et branché"), and the projected end time.
@@ -303,3 +304,7 @@ One line per session: date, what was done, what is next.
   it runs on battery. Checked under WSL2 (the holder gone on a normal end, a kill, a lost process) and natively on
   Windows (the thread's state set and released); a real sleep test waits for the Mac and a PC not held awake by
   something else. Next: step 2.
+- 26 Nov: step 2 done on the PC (`estimate.py`): a first import times this machine's tracking (~20 s, its own bar,
+  `outputs/speed.json`), the card then says the time and the end, "branché et ouvert" on a laptop, too slow past
+  24 s a second; Diagnostics gives an hour of match. Checked with no `pipeline_timings.json` on a 2-min clip: 287 s
+  announced, 285 s run; the Eysines match 4.28 h announced, 4.21 h run. Waits on the Mac's import. Next: step 3.

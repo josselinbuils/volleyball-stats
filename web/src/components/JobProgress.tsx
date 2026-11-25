@@ -1,14 +1,26 @@
 import type { ReactNode } from 'react';
+import type { TFunction } from 'i18next';
 import { BatteryLow } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShownHere } from '@/lib/tasks';
 import { cn } from '@/lib/utils';
 
 /** Seconds as the bars say them: under a minute, minutes, hours and minutes. */
+export function duration(t: TFunction, s: number): string {
+  const minutes = Math.round(s / 60);
+  if (s < 60) return t('review.lessThanMinute');
+  if (minutes < 60) return t('review.minutes', { count: minutes });
+  return t('app.hours', { h: Math.floor(minutes / 60), m: minutes % 60, context: minutes % 60 ? undefined : 'whole' });
+}
+
+/** An estimate's seconds as said: to 10 minutes past an hour. */
+export function roughly(s: number): number {
+  return s < 3600 ? s : Math.round(s / 600) * 600;
+}
+
 export function useDuration() {
   const { t } = useTranslation();
-  return (s: number) =>
-    s < 60 ? t('review.lessThanMinute') : s < 3600 ? t('review.minutes', { count: Math.round(s / 60) }) : t('app.hours', { h: Math.floor(s / 3600), m: Math.round((s % 3600) / 60) });
+  return (s: number) => duration(t, s);
 }
 
 /** Under this many seconds in all, a run says only the time left: no end time, no time spent. */

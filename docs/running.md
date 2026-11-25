@@ -17,6 +17,11 @@
   their last duration by second of video (`outputs/pipeline_timings.json`, `import_timings.json`), kept as the run started,
   and only by a run tracking the players anew (a run on the same tracks reads the last one's wrists, jerseys, embeddings
   in seconds: kept, its durations made the next import's time left hours short, 17 Nov).
+  Before the analysis, the import's card says its time and end (`estimate.py`, `/app/state`'s `seconds`): those
+  durations, else, on a new machine, the RTX 5080's scaled by this one's tracking pass timed at its first import
+  (500 frames after 50 to warm up, 30 s at most, its own counted bar, kept in `outputs/speed.json`); "Laissez
+  l'ordinateur branché et ouvert" on a laptop (`awake.laptop`), and past 24 s per second of video, that it is too
+  slow and what would help. Diagnostics says the same for an hour of match.
   The bars show both shares, and slide when a job tells none. Every page of the app (the list, the review, the page at
   `/page`) shows the tasks running elsewhere in a pill in its corner (`Tasks.tsx`, `/app/tasks`: the review's apply and
   the jobs running or ended within 2 min), its panel each one's bar and a link to its screen, the share leading the

@@ -99,9 +99,18 @@ def busy() -> dict:
     return {"id": "busy", "status": "warn" if reasons else "ok", "load": round(os.getloadavg()[0], 1), "cores": os.cpu_count(), "nice": os.nice(0)}
 
 
+def speed(outputs: Path = Path("outputs")) -> dict:
+    """An hour of match's analysis here (`estimate`), unknown before the first import; too slow past estimate.SLOW."""
+    from volleyball_stats import estimate
+
+    found = estimate.stages(outputs)
+    hour = None if found is None else 3600 * sum(found[k] for k in estimate.REFERENCE)
+    return {"id": "speed", "status": "warn" if hour and hour > 3600 * estimate.SLOW else "ok", "hour": hour}
+
+
 def checks(data: Path = Path("data")) -> list[dict]:
     found = []
-    for check in (tools, gpu, memory, lambda: disk(data), models, code, busy):
+    for check in (tools, gpu, memory, lambda: disk(data), models, speed, code, busy):
         try:
             found.append(check())
         except Exception as error:  # noqa: BLE001

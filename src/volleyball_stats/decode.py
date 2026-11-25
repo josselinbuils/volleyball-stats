@@ -189,9 +189,9 @@ def spans(sorted_: list[int]) -> list[tuple[int, int]]:
     return out
 
 
-def frames(video: Path, width: int = WIDTH) -> Iterator[np.ndarray]:
-    """Every BGR frame of the video in order, `scaled` to `width` pixels wide."""
-    return piped(video, *scaled(*size(video), width))
+def frames(video: Path, width: int = WIDTH, count: int | None = None) -> Iterator[np.ndarray]:
+    """Every BGR frame of the video in order (its first `count`), `scaled` to `width` pixels wide."""
+    return piped(video, *scaled(*size(video), width), count=count)
 
 
 def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndarray]]:

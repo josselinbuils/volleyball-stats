@@ -1519,6 +1519,7 @@
     "setup": "Prepare a match",
     "preparing": "Being prepared",
     "hours": "{{h}} h {{m}} min",
+    "hours_whole": "{{h}} h",
     "left": "About {{left}} left · Done around {{end}}",
     "left_soon": "Less than a minute left · Done around {{end}}",
     "stepDone": "{{step}}: {{percent}}",
@@ -1540,9 +1541,11 @@
     "cancel": "Cancel",
     "state": {
       "importing": "Copying the video…",
+      "measuring": "Timing this computer…",
       "searching": "Looking for the court…",
       "court": "Unknown court: place it once for this gym.",
-      "check": "Check both pictures, then start the analysis (several hours).",
+      "check": "Check both pictures, then start the analysis.",
+      "check_unknown": "Check both pictures, then start the analysis (several hours).",
       "running": "Analysing",
       "failed": "Failed: {{step}}",
       "stopped": "Stopped: {{step}}",
@@ -1553,6 +1556,7 @@
     },
     "step": {
       "import": "copying the video",
+      "speed": "timing",
       "court": "looking for the court",
       "pipeline": "analysis"
     },
@@ -1649,6 +1653,7 @@
         "memory": "Memory",
         "disk": "Disk space",
         "models": "Models",
+        "speed": "Analysis speed",
         "code": "Version",
         "busy": "Computer load"
       },
@@ -1680,6 +1685,11 @@
         "ok": "Downloaded.",
         "missing_one": "{{count}} model to download before the first analysis.",
         "missing_other": "{{count}} models to download before the first analysis."
+      },
+      "speed": {
+        "ok": "A one-hour match: about {{time}} of analysis.",
+        "warn": "A one-hour match: about {{time}}. It would need a recent NVIDIA graphics card or an Apple silicon Mac.",
+        "unknown": "Timed at the first import."
       },
       "code": {
         "ok": "Up to date.",
@@ -1737,7 +1747,10 @@
       "loading": "Loading…"
     },
     "confirm": "Confirm",
-    "save": "Save"
+    "save": "Save",
+    "estimate": "About {{time}} · Done around {{end}}",
+    "estimateLaptop": "Keep the computer plugged in and open.",
+    "estimateSlow": "Too slow on this computer: it would need a recent NVIDIA graphics card or an Apple silicon Mac."
   },
   "error": {
     "failed": "Failed: try again.",

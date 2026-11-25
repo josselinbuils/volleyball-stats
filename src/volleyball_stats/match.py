@@ -28,7 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, files, gesture, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, estimate, files, gesture, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -127,18 +127,20 @@ def side_by_side(frames: Iterator, steps: list[Callable[[Iterator], Iterator]]) 
         stop.set()
 
 
-def tracked(video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float) -> Iterator[tuple[ball.Position, list[players.Row]]]:
+def tracked(
+    video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float, count: int | None = None
+) -> Iterator[tuple[ball.Position, list[players.Row]]]:
     """Per frame, the ball's position (None when not found or not tracked) and the players' rows
-    (none when not tracked), from one decoding pass of the video at `fps`; `with_ball` or
-    `with_players`, both side by side."""
+    (none when not tracked), from one decoding pass of the video at `fps` (its first `count` frames, else all);
+    `with_ball` or `with_players`, both side by side."""
     device, native = ball.default_device(), decode.size(video)
     balls = lambda frames: (p for _, p in ball.track_frames(frames, ball.load_model(device), device, size=native))  # noqa: E731
     found = lambda frames: players.track_frames(frames, calibration, players.load_model(), device, size=native, fps=fps)  # noqa: E731
     if with_ball and with_players and device == "cuda":
         # The players first, in this thread: they yield frame by frame, the ball in batches.
-        return ((b, p) for p, b in side_by_side(decode.frames(video), [found, balls]))
+        return ((b, p) for p, b in side_by_side(decode.frames(video, count=count), [found, balls]))
     # Metal (MPS) aborts when two threads run models at once: one thread, both models in turn.
-    branches = iter(tee(decode.frames(video), with_ball + with_players))
+    branches = iter(tee(decode.frames(video, count=count), with_ball + with_players))
     return zip(balls(next(branches)) if with_ball else repeat(None), found(next(branches)) if with_players else repeat([]))
 
 
@@ -244,8 +246,9 @@ def unseen_serves(
 
 
 # The pipeline's stages told to the app (`plan`): what each took here, by second of video, in this file of the outputs.
-TIMINGS = "pipeline_timings.json"
-# A stage no run here measured yet: the first ASPOM match's (review.TOOK, its video 4013 s long), the page's guessed.
+TIMINGS = estimate.TIMINGS
+# A stage no run here measured yet: the RTX 5080's scaled to this machine (`estimate.stages`), else the first ASPOM
+# match's (review.TOOK, its video 4013 s long), the page's guessed.
 TOOK_VIDEO_S, PAGE_S = 4013.0, 60.0
 stages: jobs.Stages | None = None
 
@@ -256,7 +259,8 @@ def plan(names: list[str], outputs: Path | None, duration: float, keep: bool = T
     from volleyball_stats import review
 
     global stages
-    took = {name: review.TOOK.get(f"pipeline:{name}", PAGE_S if name == "page" else 0.0) / TOOK_VIDEO_S for name in names}
+    here = (estimate.stages(outputs) if outputs else None) or {}
+    took = {name: here.get(name, review.TOOK.get(f"pipeline:{name}", PAGE_S if name == "page" else 0.0) / TOOK_VIDEO_S) for name in names}
     stages = jobs.Stages(outputs / TIMINGS if outputs else None, names, took, scale=duration, keep=keep)
 
 

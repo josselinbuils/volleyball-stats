@@ -6,6 +6,7 @@ import { ErrorNote, LogDialog } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { duration, roughly } from '@/components/JobProgress';
 import type { Check } from './helpers/setup';
 
 /** A check's text: what was found, and when it is not right, what to do. */
@@ -24,6 +25,8 @@ export function checkText(t: TFunction, check: Check): string {
       return check.slow ? t('app.doctor.disk.slow', { gb: check.gb }) : t(`app.doctor.disk.${check.status}`, { gb: check.gb });
     case 'models':
       return check.status === 'ok' ? t('app.doctor.models.ok') : t('app.doctor.models.missing', { count: check.missing as number });
+    case 'speed':
+      return check.hour == null ? t('app.doctor.speed.unknown') : t(`app.doctor.speed.${check.status}`, { time: duration(t, roughly(check.hour)) });
     case 'code':
       return check.status === 'ok' ? t('app.doctor.code.ok') : t('app.doctor.code.behind', { count: check.behind });
     case 'busy':

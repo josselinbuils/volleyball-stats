@@ -3,7 +3,7 @@ import type { Team } from '@/lib/match';
 
 /** A check of the machine (doctor.py): its status and the values its text shows. */
 export interface Check {
-  id: 'tools' | 'gpu' | 'memory' | 'disk' | 'models' | 'code' | 'busy';
+  id: 'tools' | 'gpu' | 'memory' | 'disk' | 'models' | 'speed' | 'code' | 'busy';
   status: 'ok' | 'warn' | 'error';
   missing?: string[] | number;
   command?: string | null;
@@ -17,6 +17,8 @@ export interface Check {
   load?: number;
   cores?: number;
   nice?: number;
+  /** An hour of match's analysis here, in seconds; null before the first import times this machine. */
+  hour?: number | null;
   detail?: string;
 }
 
@@ -48,13 +50,17 @@ export interface Preparing {
   job: Job | null;
   start: boolean;
   court: boolean;
-  state: 'importing' | 'court' | 'check' | 'running' | 'failed' | 'elsewhere' | 'stalled';
+  state: 'importing' | 'measuring' | 'court' | 'check' | 'running' | 'failed' | 'elsewhere' | 'stalled';
   /** The court being found among the known gyms; `placing`, from the clicks. */
   searching?: boolean;
   placing?: boolean;
   /** The clicks gave no court. */
   fitFailed?: boolean;
   left?: number | null;
+  /** Before the analysis: its seconds on this machine (null when it was never timed), whether that is too slow, and whether a lid could sleep it. */
+  seconds?: number | null;
+  slow?: boolean;
+  laptop?: boolean;
 }
 
 export interface AppState {

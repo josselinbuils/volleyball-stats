@@ -6,19 +6,26 @@ import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useFormat } from '@/lib/format';
+import { useFormat, type Format } from '@/lib/format';
 import { CourtDialog } from './CourtDialog';
-import { JobProgress } from '@/components/JobProgress';
+import { JobProgress, roughly, useDuration } from '@/components/JobProgress';
 import { Zoomable } from '@/components/Zoomable';
 import { call } from '@/lib/app';
 import { explain, type Explained } from '@/lib/errors';
 import { imageUrl, teamNames, type Check, type Preparing } from './helpers/setup';
 
+/** When work of `seconds` started now ends: its time today, else its day too. */
+function endOf(seconds: number, language: string, f: Format): string {
+  const end = new Date(Date.now() + seconds * 1000);
+  return end.toDateString() === new Date().toDateString() ? end.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' }) : f.when(end.toISOString());
+}
+
 /** A match on its way to the review: the copy, the court, a look at both before the analysis, the analysis, or why it
  * stopped. */
 export function PreparingCard({ item, onChange }: { item: Preparing; onChange: () => Promise<void> }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const f = useFormat();
+  const duration = useDuration();
   const [placing, setPlacing] = useState(false);
   const [confirm, setConfirm] = useState<'stop' | 'delete' | null>(null);
   const [busy, setBusy] = useState<Check | null>(null);
@@ -45,8 +52,9 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
     });
   const status = {
     importing: t('app.state.importing'),
+    measuring: t('app.state.measuring'),
     court: item.searching ? t('app.state.searching') : item.placing ? t('app.state.placing') : item.fitFailed ? t('app.state.fitFailed') : t('app.state.court'),
-    check: t('app.state.check'),
+    check: t('app.state.check', { context: item.seconds == null ? 'unknown' : undefined }),
     running: [t('app.state.running'), job?.stage && t(`review.stage.${job.stage}`, { defaultValue: job.stage })].filter(Boolean).join(' · '),
     failed: t(job?.error === 'stopped' ? 'app.state.stopped' : 'app.state.failed', { step: t(`app.step.${job?.failed}`, { defaultValue: job?.failed }) }),
     elsewhere: t('app.state.elsewhere'),
@@ -108,6 +116,13 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
               </figcaption>
             </figure>
           )}
+        </div>
+      )}
+      {item.state === 'check' && item.seconds != null && (
+        <div className="grid gap-1 text-sm">
+          <p>{t('app.estimate', { time: duration(roughly(item.seconds)), end: endOf(item.seconds, i18n.language, f) })}</p>
+          {item.slow && <p>{t('app.estimateSlow')}</p>}
+          {item.laptop && <p>{t('app.estimateLaptop')}</p>}
         </div>
       )}
       {busy && (

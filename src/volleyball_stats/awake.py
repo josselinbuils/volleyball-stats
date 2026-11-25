@@ -7,6 +7,7 @@ battery: a sleep would stop a job for good. Nothing to set: each system's own wa
 """
 
 import ctypes
+import functools
 import os
 import shutil
 import subprocess
@@ -21,6 +22,9 @@ from volleyball_stats.network import in_wsl
 ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
 CHECK_S = 30
 WHO, WHY = "Volleyball Stats", "Analyse en cours"
+# GetSystemPowerStatus's flag for no battery; under WSL2, Windows asked once whether it has one.
+NO_BATTERY = 128
+HAS_BATTERY = "@(Get-CimInstance Win32_Battery).Count -gt 0"
 
 # Holds Windows awake while a byte comes in at least every BEAT_S (a stopped job's own stop the beats too), its input
 # open; after each, writes 1 on battery, else 0.
@@ -54,14 +58,37 @@ def on_battery() -> bool | None:
         return None
 
 
-def windows_battery() -> bool:
-    class Status(ctypes.Structure):
-        _fields_ = [("ac", ctypes.c_ubyte), ("flag", ctypes.c_ubyte), ("life", ctypes.c_ubyte), ("reserved", ctypes.c_ubyte), ("left", ctypes.c_ulong), ("full", ctypes.c_ulong)]
+@functools.cache
+def laptop() -> bool | None:
+    """Whether this machine has a battery (a laptop, whose lid closing still sleeps it); None when it cannot be told."""
+    try:
+        if sys.platform == "win32":
+            return windows_status().flag & NO_BATTERY == 0
+        if in_wsl():
+            if not shutil.which("powershell.exe"):
+                return None
+            said = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", HAS_BATTERY], capture_output=True, text=True, timeout=30).stdout.strip()
+            return {"True": True, "False": False}.get(said)
+        if sys.platform == "darwin":
+            return "InternalBattery" in subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True, timeout=10).stdout
+        return any((s / "type").read_text().strip() == "Battery" for s in Path("/sys/class/power_supply").glob("*"))
+    except (OSError, subprocess.SubprocessError):
+        return None
 
+
+class Status(ctypes.Structure):
+    _fields_ = [("ac", ctypes.c_ubyte), ("flag", ctypes.c_ubyte), ("life", ctypes.c_ubyte), ("reserved", ctypes.c_ubyte), ("left", ctypes.c_ulong), ("full", ctypes.c_ulong)]
+
+
+def windows_status() -> Status:
     status = Status()
     if not ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(status)):
         raise OSError("GetSystemPowerStatus")
-    return status.ac == 0
+    return status
+
+
+def windows_battery() -> bool:
+    return windows_status().ac == 0
 
 
 def holder() -> list[str] | None:
