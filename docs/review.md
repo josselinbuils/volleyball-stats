@@ -78,8 +78,8 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   same training without the newest such match places that match's rallies better than no model (`play_training.check`);
   then the gesture model (`learn.train_gesture`, `gesture_training`: about an hour on the 5080 for four matches, the clips cut once), kept
   only when each match typed by a model trained without it gets more types right than the rules, over all of them.
-  The match stays as reviewed (`review.reviewed`), and the review asks only what teaches the next matches: who made a
-  touch, a piece or two players whose answer may mend a touch the training reads (`review.untaught`).
+  The match stays as reviewed (`review_answers.reviewed`), and the review asks only what teaches the next matches: who made a
+  touch, a piece or two players whose answer may mend a touch the training reads (`review_questions.untaught`).
 - The list's "Progrès" tab (`Progress/Progress.tsx`, in `app.js`: never hosted) shows every run's scores on the answers of
   all the matches measured so far (`review.pooled_runs`) and what the last update changed, summed over its matches on the
   same answers (`review.last_comparison`, its runs' `update` in `learn.json`).
@@ -108,7 +108,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 
 - Who a piece of track is (pieces and merges, most at stake first) comes before the other questions: one answer names
   every touch on it, and a rally checked in the Match tab answers the rest. Answer them and apply before the Match tab.
-  Only pieces worth more than about two touches are asked (`review.MIN_IMPACT`; the rest, a touch each, the Match tab
+  Only pieces worth more than about two touches are asked (`review_questions.MIN_IMPACT`; the rest, a touch each, the Match tab
   answers faster), and the pieces answered leave the list (`identity.doubts`): one round, a few new after an apply.
 - A question's video has full screen at its bar's right end, as the Match tab's: no card, the video as large as the
   screen allows, the question, name field, answers and outlined pictures in a column right beside it
@@ -127,7 +127,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - Every touch its page credits to no named player (a player on court under `web.BRIEF_S` of a set is a tracking slip;
   an unnamed identity under a tenth of its team's median time, `identity.leftovers`, gets no card in the review and no
   number on the page, `web.unjoined`: one rule for both, so no touch names a player the review cannot offer), and
-  who missed every ace its page counts as a missed reception (`review.aces`, read from the page): the page should show no
+  who missed every ace its page counts as a missed reception (`review_questions.aces`, read from the page): the page should show no
   unidentified player.
 - A player's card has "Silhouette 3D", a man's or a woman's figure, and "Cheveux", the hair colour guessed from the
   card's picture (`likeness.py`) to correct, or bald (never guessed) (`/look`, saved at once in `likeness_choices.json`
@@ -225,7 +225,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - "Balle manquée" (`missed`, `web.NO_BALL` with `fault`): a ball its player should have played, let fall untouched, only
   added in the review, at the moment it passes them. A fault as a playing fault is; the touch before keeps its result: the
   other team's serve or attack stays their point (`web.credited`), and it counts for its player as a missed reception after a
-  serve, a missed dig after another touch of the other team (stats.ts), so the ace needs no receiver (`review.aces`). Shared
+  serve, a missed dig after another touch of the other team (stats.ts), so the ace needs no receiver (`review_questions.aces`). Shared
   ("Faute partagée avec"), it is in both players' "Entre deux" in place of the guess from where it landed (between.ts); "Le
   coin du coach" counts it as "Les ballons laissés" when shared or after the team's own touch, else as what beat it.
 - "À rejouer" (`redo`, beside the winners): the rally stays, its touches in play, nobody scores; picking a winner takes it
@@ -238,7 +238,7 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
 - The star on a touch puts it in the films, the match's and its player's (`film.PICKS`, by frame, saved at once; a rerun's
   touch within 0.3 s takes it).
 - "Fin du match à …" (the video's moment) and taking it back are in the "..." menu.
-- So are "Nouveau set à …" and "Retirer le début du set N" (the set the video is in; `review.set_start`, teams.json's
+- So are "Nouveau set à …" and "Retirer le début du set N" (the set the video is in; `review_answers.set_start`, teams.json's
   `sets`): a set starts at the rally playing or the next one, its start the middle of the break before it, a start
   already in that break giving way. The pipeline runs again then (no training; on a reviewed match too): the sides of
   teams in one kit change at each set start.
@@ -262,11 +262,11 @@ How it runs, what it asks, its Match tab. Hosting: [hosting.md](hosting.md).
   back until the apply.
 - Corrections not validated are lost by a reload, an action that reloads or leaving the tab: the review asks first. Saved
   corrections not yet in the review's page show in the editor (the last report answer carries them all,
-  `review.superseded`).
+  `review_answers.superseded`).
 
 ### Automatic reports and flags
 
-Automatic reports (`review.unusual`) flag:
+Automatic reports (`review_questions.unusual`) flag:
 
 - no serve first, two serves, a reception not right after a serve (not as a rally's first touch: no serve says it), a serve not followed by a reception, four touches in a
   row, the wrong server, no touch, no winner, over 2.5 s between two touches, a server out of rotation order;
@@ -276,19 +276,19 @@ Automatic reports (`review.unusual`) flag:
   missing: the editor's doubt "a set going to the other team" stands for it);
 - a set ending off the score given (`scoreOff`, asked again once the score moves; the list shows the running score);
 - the score board gaining more points than rallies played between two readings, the next one keeping that lead, a rally to
-  replay allowed to explain one (`missedPoint`, `review.missed_points`: none on the first match, 26 of its 129 rallies
+  replay allowed to explain one (`missedPoint`, `review_questions.missed_points`: none on the first match, 26 of its 129 rallies
   found hidden in turn, for lack of readings);
 - the running score parting from the score board's for two readings in a row (`boardOff`, `scoreboard.py`: the board read
   before each serve, a misread one dropped, its sides fitted set by set);
 - one jersey on two players of a team (allowed, the owner's: both may wear no team jersey; handled once).
-- each trophy's record (`review.records`, `auto.record.KEY`: the fastest serve and attack, the highest jump, from 5 measured; ties
+- each trophy's record (`review_questions.records`, `auto.record.KEY`: the fastest serve and attack, the highest jump, from 5 measured; ties
   each), on its touch, its own question: the trophies take the best single reading (the owner, 15 Nov), which a wrong one
   wins, and the numbers alone do not tell a wrong one (on the three matches the outstanding ones were not all wrong).
   "Juste" (or checking its rally) keeps it; "Fausse" (a `wrong` answer: the key and frame; pending, it asks for the apply) takes that reading off the
   page at the apply (`web.wrong_measures`), and the next best one is asked then.
 
 A rally between two equal board readings (`boardStill`, to replay or false) and a last touch scoring with no net crossing
-after it, a block apart (`notOver`, `review.crossings`: `net.csv` stops with the windows) are reported too, but never on a
+after it, a block apart (`notOver`, `review_questions.crossings`: `net.csv` stops with the windows) are reported too, but never on a
 rally checked: a new check reopens none. No winner, a set's score, the board and a missed point sit at the rally's end,
 after its touches; the others at its start or their touch.
 

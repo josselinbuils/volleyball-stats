@@ -6,13 +6,13 @@ import type { Question } from '@/lib/review';
 import { Tip } from '@/components/Tip';
 import { cn } from '@/lib/utils';
 
-/** Whether all of `question`'s reports come from the review's own checks (`review.unusual`, the records…). */
+/** Whether all of `question`'s reports come from the review's own checks (`review_questions.unusual`, the records…). */
 export function autoReport(question: Question): boolean {
   return !!question.reports?.length && question.reports.every((r) => r.kind?.startsWith('auto.'));
 }
 
 /** A rally's reports in its list: what each said, the moment to replay, and marking them handled; a record to confirm
- * (`review.records`) is right (handled) or wrong (`onWrong`: its reading leaves the page). */
+ * (`review_questions.records`) is right (handled) or wrong (`onWrong`: its reading leaves the page). */
 export function ReportRow({ question, onPlay, onHandled, onWrong }: { question: Question; onPlay: (time: number) => void; onHandled: () => void; onWrong: () => void }) {
   const { t } = useTranslation();
   const f = useFormat();

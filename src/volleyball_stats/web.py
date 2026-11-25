@@ -665,7 +665,7 @@ def counted(rallies: list[dict]) -> None:
 
 
 def wrong_measures(said: list[dict]) -> set[tuple[str, int]]:
-    """The readings the review said wrong (`wrong` answers: a record's report answered "Fausse", `review.records`), as
+    """The readings the review said wrong (`wrong` answers: a record's report answered "Fausse", `review_questions.records`), as
     (the contact's key, its frame)."""
     return {(w["key"], int(w["frame"])) for w in said}
 
@@ -931,7 +931,7 @@ def match_data(match: Path, video: Path, calibration: Calibration, share: jobs.S
         })
     for contact in found:
         contact["set"] = rallies[contact["rally"]]["set"]
-    from volleyball_stats.review import checked
+    from volleyball_stats.review_answers import checked
 
     started(rallies, found)
     if teams:
@@ -1480,11 +1480,18 @@ def write_data(site: Path, data: dict) -> None:
     index.write_text((TEMPLATE / "index.html").read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
 
 
+def page_data(site: Path) -> dict | None:
+    """The data.js of the page at `site`, None without one."""
+    path = site / "data.js"
+    if not path.exists():
+        return None
+    text = path.read_text()
+    return json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
+
+
 def renew_code(site: Path) -> None:
     """The hosted page at `site` with the page's code as built now (TEMPLATE), its data as it is: a change of the page's
     code alone reaches it without building its data again (`matches.upload_all`), its data.js as it was."""
-    from volleyball_stats.review import page_data
-
     data = page_data(site)
     data.pop("v", None)
     shutil.rmtree(site / "assets", ignore_errors=True)
@@ -1648,7 +1655,7 @@ def scores_stamp(video: Path) -> str:
     SCORES_FORMAT stands for `scored`, inside `photos`."""
     from volleyball_stats.actions import POSE_MODEL
     from volleyball_stats.identity import REID, describe, load_reid
-    from volleyball_stats.review import CROP_MARGIN
+    from volleyball_stats.review_questions import CROP_MARGIN
 
     return files.cache_stamp(video, [POSE_MODEL, REID], f"{SCORES_FORMAT}:{CROP_MARGIN}:" + files.code_text(looks, framed, describe, load_reid))
 
@@ -1667,7 +1674,8 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
     pictured player's (frame, box, head). `record` (PHOTO_SHOWN) gets where each picture was taken. Stopped once `stop`
     says so, between two frames read."""
     from volleyball_stats.decode import frames_apart
-    from volleyball_stats.review import ALONE, IDENTITY_CROPS, Questions, load_log, piece_key
+    from volleyball_stats.review_answers import load_log, piece_key
+    from volleyball_stats.review_questions import ALONE, IDENTITY_CROPS, Questions
 
     if not teams or not (match / "identity_candidates.json").exists():
         return {}
@@ -1876,8 +1884,6 @@ def swap_photo(match: Path, video: Path, site: Path, team: int, number: int, fra
     player's picture. Only that picture is cut (a second, against a whole page's build). Returns the player's `photo` and
     `look`; None when the moment was not scored (`photos` scores every one it offers) or the page has no such player: the
     pages are to be built again."""
-    from volleyball_stats.review import page_data
-
     people = (page_data(site) or {}).get("people") or {}
     key = next((k for k, p in people.items() if (p["team"], p["number"]) == (team, number)), None)
     path = match / PHOTO_SCORES
@@ -2065,8 +2071,6 @@ def kept_photos(people: dict[int, dict], site: Path, match: Path, kept: tuple[st
     the player it shows now: the (team, number) whose piece holds where it was taken (PHOTO_SHOWN), else
     the player of the same name; none for the others until the new pictures come. An apply moves numbers
     between players."""
-    from volleyball_stats.review import page_data
-
     path = match / PHOTO_SHOWN
     taken = files.read_json(path, {})
     find = finder(read_identities(match / "identities.csv")) if taken and (match / "identities.csv").exists() else None
@@ -2092,8 +2096,6 @@ def kept_photos(people: dict[int, dict], site: Path, match: Path, kept: tuple[st
 
 def refresh_photos(match: Path, video: Path, site: Path, stop: Callable[[], bool] = lambda: False) -> dict:
     """The people of the page at `site` with new pictures in its folder, for `patch_people`; Stopped once `stop` says so."""
-    from volleyball_stats.review import page_data
-
     people = page_data(site)["people"]
     photos(match, video, people, site / "players", {1, 2}, match / PHOTO_SHOWN, stop)
     return people
@@ -2101,8 +2103,6 @@ def refresh_photos(match: Path, video: Path, site: Path, stop: Callable[[], bool
 
 def patch_people(site: Path, people: dict) -> None:
     """The page at `site` showing `people`, its data.js under a new address."""
-    from volleyball_stats.review import page_data
-
     data = {**page_data(site), "people": people}
     old = data["v"]
     text = json.dumps(data, separators=(",", ":"), ensure_ascii=False)

@@ -60,7 +60,7 @@ export function rallyAt<R extends { start: number; end: number }>(rallies: R[], 
 }
 
 // A report outside every rally is about the one ending up to REPORT_AFTER_S before it (a viewer reports just after), else
-// the one starting up to REPORT_BEFORE_S after it (review.REPORT_AFTER_S, REPORT_BEFORE_S).
+// the one starting up to REPORT_BEFORE_S after it (review_questions.REPORT_AFTER_S, REPORT_BEFORE_S).
 export const REPORT_BEFORE_S = 3;
 export const REPORT_AFTER_S = 8;
 

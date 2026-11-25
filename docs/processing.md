@@ -165,11 +165,11 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   numbers: a step of `match`, about an hour on 4K, writes `jerseys.csv`, kept for the next runs and
   read by every apply. "Noms" fills the number read and suggests first the roster's player wearing
   it; a card without one takes what its pictures read (`jersey_pictures.json`).
-- **Names proposed**: each unnamed card shows one ("Proposé", `review.propose`), each roster player on one card: the
+- **Names proposed**: each unnamed card shows one ("Proposé", `review_answers.propose`), each roster player on one card: the
   one wearing the number read, then the most alike left (not one who last wore another number than the one read, often
   a jersey changed hands), else "Joueur N" from the number read. "Valider" on a card saves its proposal, one card at a time
   (the owner's call, 17 Nov: no button for a whole team). A name removed from a card (cleared, given or only proposed, or every picture of the card
-  marked as someone else) is absent from the match (`absent_names.json`, `review.name_absent`): never proposed nor
+  marked as someone else) is absent from the match (`absent_names.json`, `review_answers.name_absent`): never proposed nor
   suggested in it again, until typed on a card (a card of others' pieces otherwise took the same absent player again
   and again, 17 Nov). Each match left out of the roster (`benchmarks/identity/names.py`): 40 of 53 cards right
   (15/18, 11/16, 14/19), 5 wrong, 3 "Joueur N" to rename, 5 none, against 23 with the first suggestion right before.
@@ -179,7 +179,7 @@ For two numbers never on court together: 1 for the same person, 2 for two people
   A piece your answers give another number's player follows the answer alone.
 - **The score board** the scorer flips near the camera is read before each serve (RapidOCR, a step of
   `match`, `scoreboard.csv`, kept for the next runs): the review reports the rally after which the
-  running score parts from it ("Score après l'échange différent du tableau", `review.board_off`).
+  running score parts from it ("Score après l'échange différent du tableau", `review_questions.board_off`).
 - **Apply** shows its steps on a progress bar; pictures are cut ahead and kept in
   `outputs/matches/VIDEO/crops/`.
 - **Apply** comes back without waiting for the players' pictures and the jersey numbers they read:

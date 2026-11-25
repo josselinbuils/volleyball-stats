@@ -1,4 +1,4 @@
-"""The names the review proposes on each match's cards (`review.propose`), against those given, each match left out
+"""The names the review proposes on each match's cards (`review_answers.propose`), against those given, each match left out
 of the roster (its players' vectors and jerseys from the other matches only), as when it is first reviewed.
 
     uv run python benchmarks/identity/names.py
@@ -11,7 +11,7 @@ import copy
 import json
 from pathlib import Path
 
-from volleyball_stats import identity, review, web
+from volleyball_stats import identity, review_answers, review_questions, web
 
 OUT = Path("outputs/matches")
 
@@ -38,14 +38,14 @@ def left_out(roster: list[dict], match: str, worn: dict[str, dict[str, int]]) ->
 
 
 def score(match: Path, roster: list[dict], worn) -> dict:
-    q = review.Questions(match, 50.0)
+    q = review_questions.Questions(match, 50.0)
     names = identity.named(q.table, identity.read_names(match))
     seconds = identity.on_court(q.table, q.fps)
     left = identity.leftovers(seconds, names)
     cards = {k: q.vectors.get(k) for k in seconds if k not in left and names.get(k, {}).get("name")}
     teams = review_teams(match)
     known = left_out(roster, match.name, worn)
-    proposed = review.propose(cards, q.read, known, teams)
+    proposed = review_answers.propose(cards, q.read, known, teams)
     counts = {"cards": len(cards), "right": 0, "wrong": 0, "rename": 0, "none": 0, "first chip": 0}
     for card in cards:
         truth = names[card]["name"].casefold()
@@ -58,7 +58,7 @@ def score(match: Path, roster: list[dict], worn) -> dict:
             counts["rename"] += 1
         else:
             counts["wrong"] += 1
-        chips = review.suggest(cards[card], known, teams[card[0] - 1], number=q.read.get(card))
+        chips = review_answers.suggest(cards[card], known, teams[card[0] - 1], number=q.read.get(card))
         counts["first chip"] += bool(chips) and chips[0]["name"].casefold() == truth
     return counts
 
@@ -70,7 +70,7 @@ def review_teams(match: Path) -> list[str | None]:
 
 def main() -> None:
     matches = sorted(m for m in OUT.glob("2026-*") if (m / "player_names.json").exists())
-    roster = review.load_roster(review.ROSTER)
+    roster = review_answers.load_roster(review_answers.ROSTER)
     worn = jerseys(matches)
     for m in matches:
         print(f"{m.name}: {score(m, roster, worn)}")

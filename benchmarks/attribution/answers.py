@@ -18,7 +18,7 @@ from pathlib import Path
 from volleyball_stats import attribution, identity, ranker, web
 from volleyball_stats.actions import LEAD_S
 from volleyball_stats.players import Row
-from volleyball_stats.review import UNKNOWN, doubtful
+from volleyball_stats.review_questions import UNKNOWN, doubtful
 
 GAPS = (0.01, 0.02, 0.05, 0.1)
 

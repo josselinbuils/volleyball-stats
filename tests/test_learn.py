@@ -93,8 +93,8 @@ class TestUpdate:
         monkeypatch.setattr(learn, "measured", lambda m, v, court, update, share=None: done.append(f"measured {m.name}"))
         monkeypatch.setattr(learn, "play_due", lambda m: False)
         monkeypatch.setattr(learn.review, "rebuilt", lambda m, v, court: done.append(f"pages {m.name}"))
-        monkeypatch.setattr(learn.review, "page_data", lambda site: site.parent.name)
-        monkeypatch.setattr(learn.review, "reviewed", lambda page, log: page == "c")
+        monkeypatch.setattr(learn.web, "page_data", lambda site: site.parent.name)
+        monkeypatch.setattr(learn.review_answers, "reviewed", lambda page, log: page == "c")
 
         learn.update(tmp_path / "matches")
 
@@ -108,9 +108,9 @@ class TestUpdate:
         monkeypatch.setattr(learn, "rerun", lambda m, v, court, on_share, update: done.append(f"rerun {m.name}"))
         monkeypatch.setattr(learn, "play_due", lambda m: False)
         monkeypatch.setattr(learn.review, "rebuilt", lambda m, v, court: done.append(f"pages {m.name}"))
-        monkeypatch.setattr(learn.review, "page_data", lambda site: None)
-        monkeypatch.setattr(learn.review, "reviewed", lambda page, log: False)
-        monkeypatch.setattr(learn.review, "load_log", lambda path: [])
+        monkeypatch.setattr(learn.web, "page_data", lambda site: None)
+        monkeypatch.setattr(learn.review_answers, "reviewed", lambda page, log: False)
+        monkeypatch.setattr(learn.review_answers, "load_log", lambda path: [])
         (tmp_path / "matches").mkdir()
 
         learn.update(tmp_path / "matches", "b")

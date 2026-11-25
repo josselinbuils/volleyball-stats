@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from volleyball_stats import actions, review
+from volleyball_stats import actions, review_answers, web
 
 OUT = Path("outputs/benchmarks/bench/play")
 FPS, T = 8, 16
@@ -60,8 +60,8 @@ def spans(name: str) -> list[tuple[float, float, float]]:
     """Each checked rally's serve (LEAD_S before its window), its last player touch and its window's end, in seconds: the
     review checks the touches, not the ends, which are mostly the pipeline's."""
     d = match_dir(name)
-    page = review.page_data(d / "review")
-    keys = set(review.checked(review.load_log(d / "identity_answers.json")))
+    page = web.page_data(d / "review")
+    keys = set(review_answers.checked(review_answers.load_log(d / "identity_answers.json")))
     last: dict[int, float] = {}
     for c in page["contacts"]:
         if c["type"] not in ("floor", "net", "fault"):

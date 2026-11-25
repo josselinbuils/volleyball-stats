@@ -169,7 +169,7 @@ On the first match it drops 66 touches: the 16 the review said were none and 50 
 `ranked` gives each contact's candidates, nearest first; `gap_to_next`, the box heights between
 the toucher and the next one. Two players about as near the ball is where wrong picks are (the
 failures below): a gap under `DOUBT` = 0.05 makes the pick a doubt, written to `actions.csv`'s `gap`
-column by `match.py` and asked in the review (`review.doubtful`).
+column by `match.py` and asked in the review (`review_questions.doubtful`).
 
 | Clips | Doubts | Wrong picks among them | Wrong picks elsewhere |
 | --- | --- | --- | --- |

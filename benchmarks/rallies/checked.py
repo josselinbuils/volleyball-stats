@@ -10,7 +10,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, attribution, learn, match, rallies, review
+from volleyball_stats import actions, attribution, learn, match, rallies, review_answers, web
 from volleyball_stats.court import Calibration
 
 Window = tuple[int, int]
@@ -38,8 +38,8 @@ def main() -> None:
     fps = cv2.VideoCapture(str(args.video)).get(cv2.CAP_PROP_FPS)
     calibration = Calibration.load(args.court)
     net_x = float(calibration.to_image(np.array([[0.0, 0.0]]))[0, 0])
-    page = review.page_data(args.match / "review")
-    keys = set(review.checked(review.load_log(args.match / "identity_answers.json")))
+    page = web.page_data(args.match / "review")
+    keys = set(review_answers.checked(review_answers.load_log(args.match / "identity_answers.json")))
     checked = {k: r for k, r in enumerate(page["rallies"]) if r["key"] in keys}
     lead = round(actions.LEAD_S * fps)
     spans = [(round(r["start"] * fps) - lead, round(r["end"] * fps)) for r in checked.values()]

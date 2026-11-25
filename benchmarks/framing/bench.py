@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 
 from volleyball_stats import framing, web
-from volleyball_stats.review import page_data
+from volleyball_stats.web import page_data
 
 # The page's zoom.ts: the ball's place averaged over SMOOTH_S, kept EDGE inside the view, the views averaged over AHEAD_S.
 SMOOTH_S, EDGE, AHEAD_S, AHEAD_STEPS = 0.5, 0.15, 1.0, 20

@@ -23,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import files, jobs, playing, review
+from volleyball_stats import files, jobs, playing, review_answers, web
 
 # Its weights are CC BY-NC 4.0.
 BASE = "MCG-NJU/videomae-base-finetuned-kinetics"
@@ -51,8 +51,8 @@ Span = tuple[float, float, float]
 def spans(match: Path) -> list[Span] | None:
     """Each rally's serve (its start, `web.started`), last player touch and window's end in seconds, from the review's
     page; None unless every rally is checked: an unchecked one would teach play as no play."""
-    page, log = review.page_data(match / "review"), review.load_log(match / "identity_answers.json") if (match / "identity_answers.json").exists() else []
-    if not review.reviewed(page, log):
+    page, log = web.page_data(match / "review"), review_answers.load_log(match / "identity_answers.json") if (match / "identity_answers.json").exists() else []
+    if not review_answers.reviewed(page, log):
         return None
     last: dict[int, float] = {}
     for c in page["contacts"]:

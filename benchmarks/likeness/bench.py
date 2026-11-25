@@ -15,7 +15,7 @@ from pathlib import Path
 import cv2
 
 from volleyball_stats import likeness
-from volleyball_stats.review import page_data
+from volleyball_stats.web import page_data
 
 TRUTH = Path("outputs/benchmarks/likeness/truth.json")
 MADE_UP = {"hair": "dark", "style": "short", "skin": 2}

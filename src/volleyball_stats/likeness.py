@@ -52,7 +52,7 @@ SEEN = "likeness_seen.json"
 
 # The review's corrections, by the player's name else by their card ("team:number").
 CHOICES = "likeness_choices.json"
-# The name a card gets from its jersey number alone (`review.propose`): another player in each match, whose choices stay in it.
+# The name a card gets from its jersey number alone (`review_answers.propose`): another player in each match, whose choices stay in it.
 NUMBERED = re.compile(r"Joueur \d+")
 
 LOADED: list = []

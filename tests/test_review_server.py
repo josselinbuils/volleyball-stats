@@ -5,7 +5,8 @@ import time
 
 import pytest
 
-from volleyball_stats import app, presence, review_server
+from volleyball_stats import app, files, presence, review_server
+from volleyball_stats.review_server import list_page, match_list, openable, range_of, with_review
 
 
 @pytest.fixture
@@ -158,3 +159,92 @@ class TestSwitch:
         args = two.arguments()
 
         assert args[0] == str(two.out / "a") and "--no-browser" in args and "--with-window" in args
+
+
+class TestMatchList:
+    @staticmethod
+    def folder(out, name, date, finished=True):
+        (out / name).mkdir(parents=True)
+        video, court = out / f"{name}.mp4", out / f"{name}.json"
+        video.touch()
+        court.touch()
+        files.write_source(out / name, video, court)
+        (out / name / "teams.json").write_text(json.dumps({"date": date, "teams": [{"name": "A", "colour": None}, {"name": "B", "colour": None}], "scores": ["25-20", None]}))
+        if finished:
+            (out / name / "report.md").touch()
+
+    def test_lists_the_matches_with_a_source_newest_first_and_which_are_finished(self, tmp_path):
+        self.folder(tmp_path, "old", "2026-10-29")
+        self.folder(tmp_path, "new", "2026-11-02", finished=False)
+        (tmp_path / "bench").mkdir()
+
+        listed = match_list(tmp_path)
+
+        assert [(m["path"], m["ready"]) for m in listed] == [("new", False), ("old", True)]
+        assert listed[0]["sets"] == 1 and listed[0]["rallies"] == 0
+
+    def test_a_match_whose_video_is_gone_is_not_ready(self, tmp_path):
+        self.folder(tmp_path, "m", "2026-10-29")
+        (tmp_path / "m.mp4").unlink()
+
+        assert not match_list(tmp_path)[0]["ready"]
+
+    def test_opens_only_a_finished_match_of_the_list(self, tmp_path):
+        self.folder(tmp_path, "done", "2026-10-29")
+        self.folder(tmp_path, "running", "2026-11-02", finished=False)
+
+        assert openable(tmp_path, "done") == tmp_path / "done"
+        for name in ("running", "nothing", "../done"):
+            with pytest.raises(LookupError):
+                openable(tmp_path, name)
+
+    def test_the_page_lists_them_for_the_review_and_serves_only_its_own_files(self, tmp_path):
+        self.folder(tmp_path, "m", "2026-10-29")
+
+        html, kind = list_page("/matches/", tmp_path, "none")
+
+        assert b"matches.js" in html and kind.startswith("text/html")
+        body, _ = list_page("/matches/matches.js", tmp_path, "none")
+        assert b'"review": true' in body and b'"path": "m"' in body
+        assert list_page("/matches/../../secret", tmp_path, "none") is None
+        assert list_page("/matches/nothing.js", tmp_path, "none") is None
+        assert list_page("/matches/../secret/data.js", tmp_path, "none") is None
+        assert list_page("/matches/m/data.js", tmp_path, "none") is None
+        (tmp_path / "m" / "review").mkdir()
+        (tmp_path / "m" / "review" / "data.js").write_text("window.MATCH = {};")
+        assert list_page("/matches/m/data.js", tmp_path, "none")[0] == b"window.MATCH = {};"
+        assert list_page("/matches/other/data.js", tmp_path, "none") is None
+
+    def test_the_server_s_matches_come_apart_and_only_for_a_machine_keeping_its_matches_there(self, tmp_path, monkeypatch):
+        out = tmp_path / "matches"
+        self.folder(out, "m", "2026-10-29")
+        reached = []
+        monkeypatch.setattr("volleyball_stats.sync.listing", lambda outputs: reached.append(outputs) or {"m": {}, "2026-11-02-x": {}})
+
+        list_page("/matches/", out, "none")
+        assert json.loads(list_page("/matches/remote.json", out, "none")[0]) == []
+        assert not reached
+        (tmp_path / "server.json").write_text("{}")
+        found = json.loads(list_page("/matches/remote.json", out, "none")[0])
+
+        assert [(m["path"], m["date"], m["remote"]) for m in found] == [("2026-11-02-x", "2026-11-02", True)]
+
+
+class TestRange:
+    def test_reads_byte_ranges_for_the_video_to_seek(self):
+        assert range_of("bytes=0-99", 1000) == (0, 99)
+        assert range_of("bytes=500-", 1000) == (500, 999)
+        assert range_of("bytes=-100", 1000) == (900, 999)
+        assert range_of("bytes=0-5000", 1000) == (0, 999)
+
+    def test_has_no_range_without_a_header_or_past_the_end(self):
+        assert range_of(None, 1000) is None
+        assert range_of("bytes=2000-", 1000) is None
+
+
+class TestWithReview:
+    def test_loads_review_js_after_data_js_with_or_without_its_hash(self):
+        for src in ("data.js", "data.js?v=1b236973b3"):
+            html = f'<script defer src="{src}"></script><script defer src="./assets/index.js"></script>'
+
+            assert with_review(html) == f'<script defer src="{src}"></script><script defer src="review.js"></script><script defer src="./assets/index.js"></script>'

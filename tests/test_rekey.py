@@ -1,4 +1,4 @@
-from volleyball_stats import review
+from volleyball_stats import review_questions
 from volleyball_stats.rekey import added_rallies, found, moved, moved_comments, overlaps, renamed_reports, with_reports
 
 
@@ -80,7 +80,7 @@ class TestReports:
 
     def test_a_report_at_the_rally_s_end_is_renamed(self):
         page = lambda start: {"rallies": [{"start": start, "end": 20.0, "set": 1}], "contacts": [], "teams": [{"name": "A"}, {"name": "B"}]}  # noqa: E731
-        before, after = review.unusual(page(10.0)), review.unusual(page(9.5))
+        before, after = review_questions.unusual(page(10.0)), review_questions.unusual(page(9.5))
         assert "auto.noWinner" in [r["kind"] for r in before]
         assert renamed_reports(page(10.0), page(9.5)) == {b["key"]: a["key"] for b, a in zip(before, after)}
 

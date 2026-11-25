@@ -19,7 +19,7 @@ from pathlib import Path
 
 import cv2
 
-from volleyball_stats import actions, files, gesture, learn, review, web
+from volleyball_stats import actions, files, gesture, learn, review_answers, review_questions, web
 
 ROOT = Path(__file__).resolve().parents[2]
 MATCHES = ROOT / "outputs/matches"
@@ -45,8 +45,8 @@ def freeze(name: str) -> None:
     """The truth of the checked rallies, from the reviewed page, written once."""
     video, _ = source(name)
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-    page = review.page_data(MATCHES / name / "review")
-    keys = set(review.checked(review.load_log(MATCHES / name / "identity_answers.json")))
+    page = web.page_data(MATCHES / name / "review")
+    keys = set(review_answers.checked(review_answers.load_log(MATCHES / name / "identity_answers.json")))
     people = {str(k): v for k, v in page["people"].items()}
     out = []
     for k, r in enumerate(page["rallies"]):
@@ -104,7 +104,7 @@ def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | No
     on_stage("end")
     seconds = time.perf_counter() - start
     page, _ = web.match_data(scratch, video, __import__("volleyball_stats.court", fromlist=["Calibration"]).Calibration.load(court))
-    kept = set(review.checked(review.load_log(scratch / "identity_answers.json")))
+    kept = set(review_answers.checked(review_answers.load_log(scratch / "identity_answers.json")))
     now = {r["key"] for r in page["rallies"]}
     info = {"seconds": round(seconds, 1), "stages": stages, "commit": learn.commit(), "checked_keys_after": len(kept), "checked_rallies_on_page": len(kept & now), "rallies": len(page["rallies"])}
     (scratch.parent / "run.json").write_text(json.dumps(info, indent=1) + "\n")
@@ -158,10 +158,10 @@ def corrections(folder: Path, truth: dict) -> tuple[dict, list[dict], dict[int, 
                 add("type", frame=c["frame"], t=c["t"], truth_type=c["type"], pipe_type=x["type"], pipe_frame=f)
             if c["name"] and x["type"] not in web.NO_PLAYER:
                 asked += 1
-                right = x["identity"] not in review.UNKNOWN and by_name.get((c["person_team"], c["name"])) == int(x["identity"]) and x["team"] == str(c["person_team"])
+                right = x["identity"] not in review_questions.UNKNOWN and by_name.get((c["person_team"], c["name"])) == int(x["identity"]) and x["team"] == str(c["person_team"])
                 player += right
                 if not right:
-                    unknown = x["identity"] in review.UNKNOWN
+                    unknown = x["identity"] in review_questions.UNKNOWN
                     add("player", frame=c["frame"], t=c["t"], truth_type=c["type"], pipe_type=x["type"], truth_name=c["name"], truth_team=c["person_team"], pipe_team=x["team"],
                         pipe_identity=None if unknown else int(x["identity"]), pipe_name=None if unknown else names.get((int(x["team"]), int(x["identity"])) if x["team"] else None), track=x.get("track"))
         kept += len(matched)

@@ -8,7 +8,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from volleyball_stats import files, git_check, matches, speech
-from volleyball_stats.review import page_data
+from volleyball_stats.web import page_data
 
 # Beside a match's outputs: when its hosted page was last uploaded, and what it then showed (`page_stamp`).
 HOSTED = "hosted.json"

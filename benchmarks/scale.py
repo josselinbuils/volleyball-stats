@@ -85,7 +85,7 @@ def build(clip: str, times: int) -> None:
 
 
 def step(name: str) -> None:
-    from volleyball_stats import attribution, identity, players, rallies, review, teams, web
+    from volleyball_stats import attribution, identity, players, rallies, review_questions, teams, web
     from volleyball_stats.court import Calibration
 
     fps = cv2.VideoCapture(str(VIDEO)).get(cv2.CAP_PROP_FPS)
@@ -102,7 +102,7 @@ def step(name: str) -> None:
         size = len(json.dumps(samples, separators=(",", ":"))) if samples else 0
         return print(f"{len(data['contacts'])} contacts, positions {size / 1e6:.0f} MB")
     if name == "review":
-        found, _ = review.Questions(OUT, fps).build(set())
+        found, _ = review_questions.Questions(OUT, fps).build(set())
         return print(f"{len(found)} questions")
     rows = attribution.read_players(OUT / "players.csv")
     if name == "finish":

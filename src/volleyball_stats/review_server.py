@@ -27,35 +27,21 @@ from urllib.parse import parse_qs, unquote, urlparse
 import cv2
 
 from volleyball_stats import app, applog, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, network, presence, rename, sync, timeouts, web
-from volleyball_stats.review import (
-    APPLIED,
-    CROP_MARGIN,
-    CROP_PX,
+from volleyball_stats.review import APPLIED, STALE_PHOTOS, TIMINGS, TOOK, applied_too, commented, due, eta, locked, pinned, read_comments, undo, unlocked, waiting, write_comments
+from volleyball_stats.review_answers import (
     ROSTER,
-    STALE_PHOTOS,
-    TIMINGS,
-    TOOK,
-    Questions,
-    applied_too,
     checked,
-    commented,
     constraints,
-    due,
-    eta,
     follow_teams,
     given_sets,
     load_log,
     load_roster,
-    locked,
     mark_odd,
     name_absent,
     name_merges,
-    page_data,
     piece_conflict,
     piece_key,
-    pinned,
     rally_answer,
-    read_comments,
     reanchor,
     receiver_answer,
     remember,
@@ -72,12 +58,10 @@ from volleyball_stats.review import (
     supersede,
     superseded,
     touch_answer,
-    undo,
-    unlocked,
-    waiting,
-    write_comments,
     write_names,
 )
+from volleyball_stats.review_questions import CROP_MARGIN, CROP_PX, Questions
+from volleyball_stats.web import page_data
 from volleyball_stats.teams import given_end, match_end
 
 PORT = 8765

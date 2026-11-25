@@ -1,4 +1,4 @@
-from volleyball_stats.review import board_off, board_still, missed_points
+from volleyball_stats.review_questions import board_off, board_still, missed_points
 from volleyball_stats.scoreboard import boards, grid, parse, steady
 
 

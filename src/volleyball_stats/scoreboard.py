@@ -1,7 +1,7 @@
 """The flip score board the scorer keeps beside the court, read before each serve by RapidOCR (as
 jerseys.py) on the frame's lower part, where it stands near the camera: its two scores and, between
 them, the sets each side won. What each frame read is kept in scoreboard.csv: a rerun reads only
-the frames it lacks. The review compares the board with the running score (`review.board_off`).
+the frames it lacks. The review compares the board with the running score (`review_questions.board_off`).
 A step of match.py; alone:
 
     uv run python -m volleyball_stats.scoreboard outputs/matches/MATCH --video VIDEO

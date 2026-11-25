@@ -122,15 +122,15 @@ def checked_scores(name: str, tag: str, **kw) -> None:
     """checked.py's score of the windows match.py writes, the ends as they are and moved by P(play)."""
     import checked
 
-    from volleyball_stats import attribution, learn, match, review
+    from volleyball_stats import attribution, learn, match, review_answers, web
 
     d = play.match_dir(name)
     source = json.loads((d / "source.json").read_text())
     video, cal = Path(source["video"]), Calibration.load(Path(source["court"]))
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     net_x = float(cal.to_image(np.array([[0.0, 0.0]]))[0, 0])
-    page = review.page_data(d / "review")
-    keys = set(review.checked(review.load_log(d / "identity_answers.json")))
+    page = web.page_data(d / "review")
+    keys = set(review_answers.checked(review_answers.load_log(d / "identity_answers.json")))
     ch = {k: r for k, r in enumerate(page["rallies"]) if r["key"] in keys}
     lead = round(actions.LEAD_S * fps)
     spans = [(round(r["start"] * fps) - lead, round(r["end"] * fps)) for r in ch.values()]

@@ -12,7 +12,7 @@ import json
 import shutil
 from pathlib import Path
 
-from volleyball_stats import review, web
+from volleyball_stats import review, review_answers, review_questions, web
 from volleyball_stats.court import Calibration
 
 Window = tuple[int, int]
@@ -117,9 +117,9 @@ def renamed_reports(before: dict, after: dict) -> dict[str, str]:
     after = {**after, "people": {str(p): q for p, q in (after.get("people") or {}).items()}}
     to = overlaps(windows(before), windows(after), 0)
     at_before, at_after = rally_at(before), rally_at(after)
-    new = {(r["kind"], at_after[r["time"]]): r["key"] for r in review.unusual(after)}
+    new = {(r["kind"], at_after[r["time"]]): r["key"] for r in review_questions.unusual(after)}
     out = {}
-    for r in review.unusual(before):
+    for r in review_questions.unusual(before):
         k = to.get(at_before[r["time"]])
         if k is not None and (r["kind"], k) in new:
             out[r["key"]] = new[(r["kind"], k)]
@@ -171,12 +171,12 @@ def main() -> None:
     lead = round(web.LEAD_S * page_before["fps"])
     before, after = read_windows(args.before), read_windows(args.match / "rallies.csv")
     adopted = found(added_rallies(page_before, before), before, after, lead)
-    log = moved(review.load_log(path), before, after, lead, adopted)
-    review.save(path, log)
+    log = moved(review_answers.load_log(path), before, after, lead, adopted)
+    review_answers.save(path, log)
     review.write_comments(args.match, moved_comments(review.read_comments(args.match), before, after, lead, adopted))
     page, _ = web.match_data(args.match, args.video, Calibration.load(args.court))
     keys = renamed_reports(read_page(args.page_before), page)
-    review.save(path, with_reports(log, keys))
+    review_answers.save(path, with_reports(log, keys))
     print(f"{len(keys)} automatic reports renamed")
 
 

@@ -71,7 +71,7 @@ export function Feedback({ inline = false, className }: { inline?: boolean; clas
   };
   const flag = () => {
     const time = Math.round((video?.currentTime ?? 0) * 100) / 100;
-    // The rally the review files it under (review.report_question), with the moment itself.
+    // The rally the review files it under (review_questions.report_question), with the moment itself.
     const rally = rallyReported(rallies, time);
     const shown = playlist && clip ? `${playlist.title(t)} · ${clipLabel(clip, t, f, (g) => groupName(t, g))}` : rally ? `${t('rally', { n: rally.i + 1 })} · ${clock(time)}` : clock(time);
     const report: Report = {

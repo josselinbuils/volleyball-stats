@@ -1,6 +1,6 @@
 import { noBall } from '@/helpers/contacts';
 
-/** What looks wrong in a rally, as the review's automatic reports find it (review.unusual). */
+/** What looks wrong in a rally, as the review's automatic reports find it (review_questions.unusual). */
 export type Problem =
   | 'empty'
   | 'noServe'
@@ -20,7 +20,7 @@ export type Problem =
   | 'endsInPlay'
   | DoubtfulProblem;
 
-/** What the editor finds as the server's automatic reports do (review.unusual): the editor's warning stands for such a report. */
+/** What the editor finds as the server's automatic reports do (review_questions.unusual): the editor's warning stands for such a report. */
 export const LIVE_PROBLEMS: Problem[] = [
   'empty',
   'noServe',
@@ -42,7 +42,7 @@ export const LIVE_PROBLEMS: Problem[] = [
 /** What may well be right after all, in an amateur match: a rally checked shows none of them. */
 type DoubtfulProblem = 'doubleTouch' | 'overThenSameTeam' | 'setToOtherTeam' | 'setFirst' | 'digLater' | 'twoSets' | 'endsOnSet' | 'pointOnTouch';
 
-// Over this long between two touches, in seconds, one is often missing (review.GAP_S).
+// Over this long between two touches, in seconds, one is often missing (review_questions.GAP_S).
 const GAP_S = 2.5;
 // Under this long after a team's touch, in seconds, a touch is often the same one seen twice.
 const DOUBLE_SAME_TEAM_S = 0.3;

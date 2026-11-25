@@ -817,7 +817,7 @@ def made_from(match: Path, video: Path, court: Path, theme: str, config: dict) -
         if not path.is_file() or parts == (PUBLISH,) or any(Path(part).match(skip) for part in parts for skip in MADE_SKIP) or (parts[0] == "review" and parts[1] in MADE_REVIEW):
             continue
         add(path, "/".join(parts))
-    from volleyball_stats.review import page_data
+    from volleyball_stats.web import page_data
 
     data = page_data(match / "review") or {}
     data.pop("v", None)

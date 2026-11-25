@@ -29,7 +29,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from volleyball_stats import actions, decode, files, identity, jobs, review, web
+from volleyball_stats import actions, decode, files, identity, jobs, review, review_answers, review_questions, web
 from volleyball_stats.court import Calibration
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -81,7 +81,7 @@ def from_answers(match: Path, fps: float) -> dict[str, Score]:
     right = 0
     for r, a in picked:
         said = by_name.get((a["team"], a.get("name")), a["identity"])
-        right += r["identity"] not in review.UNKNOWN and r["team"] == str(a["team"]) and int(r["identity"]) == said
+        right += r["identity"] not in review_questions.UNKNOWN and r["team"] == str(a["team"]) and int(r["identity"]) == said
     out["attribution: answered touches"] = (right, len(picked))
     added = list({a["frame"]: a for a in answers.get("added", [])}.values())
     out["contacts: added touches found"] = (sum(near(a["frame"], frames, within) is not None for a in added), len(added))
@@ -128,7 +128,7 @@ def from_labels(match: Path, fps: float, name: str) -> dict[str, Score]:
 def from_checked(match: Path, page: dict, fps: float) -> dict[str, Score]:
     """The scores on the rallies checked in the Match tab: the page's touches (the review's) found by
     the pipeline, the pipeline's kept, their types and players, the rallies' winners."""
-    keys = set(review.checked(review.load_log(match / "identity_answers.json")))
+    keys = set(review_answers.checked(review_answers.load_log(match / "identity_answers.json")))
     rallies = [(k, r) for k, r in enumerate(page["rallies"]) if r["key"] in keys]
     if not rallies:
         return {}
@@ -159,7 +159,7 @@ def from_checked(match: Path, page: dict, fps: float) -> dict[str, Score]:
             person = people.get(str(c.get("person")))
             if person and person.get("name") and x["type"] not in web.NO_PLAYER:
                 asked += 1
-                player += x["identity"] not in review.UNKNOWN and by_name.get((person["team"], person["name"])) == int(x["identity"]) and x["team"] == str(person["team"])
+                player += x["identity"] not in review_questions.UNKNOWN and by_name.get((person["team"], person["name"])) == int(x["identity"]) and x["team"] == str(person["team"])
         kept += len(matched)
         p = points.get(r["key"], {})
         won += r.get("winner") is not None and p.get("winner") == str(r["winner"])
@@ -294,14 +294,14 @@ def rerun(
     old, new = rekey.read_windows(before / "rallies.csv"), rekey.read_windows(match / "rallies.csv")
     page_before = before / "review-data.js"
     adopted = rekey.found(rekey.added_rallies(rekey.read_page(page_before), old), old, new, lead) if page_before.exists() else {}
-    log = rekey.moved(review.load_log(path), old, new, lead, adopted)
-    review.save(path, log)
+    log = rekey.moved(review_answers.load_log(path), old, new, lead, adopted)
+    review_answers.save(path, log)
     if (match / review.COMMENTS).exists():
         shutil.copy2(match / review.COMMENTS, before / review.COMMENTS)
         review.write_comments(match, rekey.moved_comments(review.read_comments(match), old, new, lead, adopted))
     if (before / "review-data.js").exists():
         page, _ = web.match_data(match, video, Calibration.load(court))
-        review.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page)))
+        review_answers.save(path, rekey.with_reports(log, rekey.renamed_reports(rekey.read_page(before / "review-data.js"), page)))
     return record(match, video, court, replaced, update)
 
 
@@ -313,7 +313,7 @@ def record(match: Path, video: Path, court: Path, replaced: dict[str, Score] | N
     now = scores(match, video, court, share=share)
     print(report(now, history[-1]["scores"] if history else None))
     # The answers it saw: the review asks for another run once they change.
-    stamp = review.answers_stamp(review.load_log(match / "identity_answers.json"))
+    stamp = review.answers_stamp(review_answers.load_log(match / "identity_answers.json"))
     history.append({"time": time.strftime("%Y-%m-%d %H:%M"), "commit": commit(), "scores": now, "answers": stamp, **({"before": replaced} if replaced else {}), **({"update": update} if update else {})})
     files.write_text(path, json.dumps(history, indent=1) + "\n")
     return now
@@ -351,7 +351,7 @@ def update(outputs: Path, only: str | None = None) -> None:
     for match, video, court in found:
         told.start(f"match:{match.name}")
         print(f"{match.name}:", flush=True)
-        if review.reviewed(review.page_data(match / "review"), review.load_log(match / "identity_answers.json")):
+        if review_answers.reviewed(web.page_data(match / "review"), review_answers.load_log(match / "identity_answers.json")):
             measured(match, video, court, started, told.share_of_stage)
             taught = taught or (match if play_due(match) else None)
             typed = typed or (match if gesture_due(match) else None)

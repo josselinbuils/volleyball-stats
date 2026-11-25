@@ -26,7 +26,7 @@ from pathlib import Path
 
 import numpy as np
 
-from volleyball_stats import actions, files, gesture, jobs, learn, review
+from volleyball_stats import actions, files, gesture, jobs, learn, review_answers, web
 
 TRAINED, REFUSED = "trained.json", "refused.json"
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,9 +45,9 @@ CUT_S, EPOCH_S, SCORE_S = 0.4, 0.1, 0.05
 def truth(match: Path, fps: float) -> list[dict] | None:
     """Each checked rally's frames and touches (frame, type), from the review's page; None unless every rally is checked:
     the heads learn the order of whole rallies."""
-    page = review.page_data(match / "review")
-    log = review.load_log(match / "identity_answers.json") if (match / "identity_answers.json").exists() else []
-    if not review.reviewed(page, log):
+    page = web.page_data(match / "review")
+    log = review_answers.load_log(match / "identity_answers.json") if (match / "identity_answers.json").exists() else []
+    if not review_answers.reviewed(page, log):
         return None
     out = []
     for k, r in enumerate(page["rallies"]):

@@ -872,7 +872,7 @@ class TestPhotos:
 
         found = web.swap_photo(tmp_path, video, site, 1, 3, pick["frame"], pick["box"], lambda frame, box: 1)
 
-        from volleyball_stats.review import page_data
+        from volleyball_stats.web import page_data
 
         assert found["photo"] != people["0"]["photo"]
         assert page_data(site)["people"]["0"]["photo"] == found["photo"]
