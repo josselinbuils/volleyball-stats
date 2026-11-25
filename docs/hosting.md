@@ -254,7 +254,7 @@ rsync -rt --delete -e "ssh -i ~/.ssh/id_ed25519_ovh" outputs/hosted/ root@<OVH I
   Rejected: NVENC's spatial and temporal AQ with a lookahead (VMAF 0.4-1.3 lower at the same CQ, larger).
 - The films and highlights too (`film.encoding`): `h264_nvenc` at `-cq 38`, VMAF 83.9 at 0.90 Mb/s against x264 medium CRF
   29's 83.3 at 0.99 (720x1280), 85.3 at 1.49 against 84.5 at 1.64 (1920x1080), on 10 s of the Avia match; x264 took two
-  cores from the drawing. Their source decoded on the GPU (`film.decoder`, through yuv420p: the CPU's pixels): read 1.6x
+  cores from the drawing. Their source decoded on the GPU (`ball_path.decoder`, through yuv420p: the CPU's pixels): read 1.6x
   faster, three films at once 125 s against 133 (the drawing, on the CPU, takes the rest).
 - A keyframe every 2 s (`-g 50`) keeps the jumps between clips from freezing: 21 frames to decode a jump instead of 131
   with `-g 250`, for +30% size in H.264, +60% in AV1.

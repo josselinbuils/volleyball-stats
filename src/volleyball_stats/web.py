@@ -1000,7 +1000,7 @@ def line_calls(data: dict) -> list[dict]:
 def ball_track(match: Path, size: tuple[int, int], fps: float, times: np.ndarray | None = None) -> dict:
     """video.js's ball: the ball's place where it is seen in the rallies (their lead included), every BALL_STEP_S and
     at the corners between (BALL_CORNER), as flat [seconds, x, y, ...] samples, x and y fractions of the picture. The
-    seconds are each frame's real ones (`times`, film.frame_times), which the video plays it at: a frame's number drifts
+    seconds are each frame's real ones (`times`, ball_path.frame_times), which the video plays it at: a frame's number drifts
     from them by a few frames over a match, and the trail drawn on the video would leave the ball; without them, the
     frame's number over `fps`."""
     lead, step = round(LEAD_S * fps), max(1, round(BALL_STEP_S * fps))
@@ -1540,9 +1540,9 @@ def build(
     data["feedback"] = feedback
     ball = None
     if blurred is not None and (match / "ball.csv").exists():
-        from volleyball_stats import film
+        from volleyball_stats.ball_path import frame_times
 
-        ball = ball_track(match, decode.size(video), data["fps"], film.frame_times(match, video))
+        ball = ball_track(match, decode.size(video), data["fps"], frame_times(match, video))
     part("ball")(1.0)
     if blurred is not None and (match / "players.csv").exists():
         samples = np.array(ball["samples"] if ball else [], dtype=float).reshape(-1, 3)

@@ -267,7 +267,7 @@ class TestCheck:
         assert sync.check(match) is None and pulled == []
 
 
-class TestAuto:
+class TestAutoChoice:
     def test_off_until_this_machine_chooses_it(self, tmp_path):
         assert not sync.auto(tmp_path)
         sync.set_auto(tmp_path, True)

@@ -70,7 +70,7 @@ moments.
   landing where it does not is left out (13 of the 17 landings within 0.5 m on the three matches agreed). 4, 0 and 5 calls
   on the three matches, the Le Haillan wrong call (an attack called in, 0.92 m out) among them. The films show it too. A canvas in the video's box, drawn by the zoom's loop for the frame
   on screen (`requestVideoFrameCallback`), so it moves with the zoom. `video.js` (`ball.js` until 16 Nov) holds the ball's place by each frame's
-  real seconds (`web.ball_track`, `film.frame_times`): the camera drops 5 to 10 frames a match, a frame's number then
+  real seconds (`web.ball_track`, `ball_path.frame_times`): the camera drops 5 to 10 frames a match, a frame's number then
   runs up to 45 ms off the video, one to two balls for a fast one, and the hosted copies play 25 frames a second on the
   source's timeline. A place every 0.08 s, and the frames between where a straight line would miss the ball by 0.004 of
   the picture's width, the corners at touches: on the Avia match a line between the 0.08 s places alone misses it by

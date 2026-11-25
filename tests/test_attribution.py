@@ -202,7 +202,7 @@ class TestByWrists:
         assert frames == {"0:3:4": [0, 1], "5:1:2": [4, 5, 6], "6:1:2": [5, 6, 7], "11:5:6": [10, 11]}
 
 
-class TestReadPlayers:
+class TestReadPlayersFields:
     HEADER = "frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n"
 
     def test_reads_every_field_as_the_csv_reader_does(self, tmp_path):
