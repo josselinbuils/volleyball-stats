@@ -168,10 +168,17 @@ A file to download and double-click, nothing typed.
   installer, a static ffmpeg build: check its licence; git through the system or none: see below), so no password.
 - Git: the app updates with `git pull`. Without git on the machine, update from GitHub's release archive instead;
   decide when there (the sync's `code.json` names a commit: keep that working).
-- Signing: unsigned, Windows shows "Windows a protégé votre ordinateur" (SmartScreen) and macOS blocks the app
-  (Privacy settings > "Ouvrir quand même"), both hard for non-tech people. Apple's Developer Program is $99/year
-  (signing + notarization); a Windows code-signing certificate costs a few hundred euros a year. **Waits on the owner:
-  buy them or not.** Unsigned, the download page shows how to get past the warning, in pictures.
+- No code signing (the owner's call, 25 Nov: no Apple Developer Program, no Windows certificate). So the warning
+  comes once, at the first install only, and is made easy to pass:
+  - The installers stay small and rarely change: they fetch the code, and the app updates itself (`git pull`, or the
+    archive) without any warning. On Windows, SmartScreen's reputation is per file: an unchanged `setup.exe` builds it.
+  - Windows: SmartScreen's "Windows a protégé votre ordinateur": "Informations complémentaires" then "Exécuter quand
+    même". macOS (Sequoia and later, right-click > Open no longer works): open it once, then Réglages Système >
+    Confidentialité et sécurité > "Ouvrir quand même". The download page shows each, in screenshots of the real
+    dialogs, fr then en.
+  - Also on the page, for those at ease with it: one line to paste (`irm … | iex` in PowerShell, `curl … | sh` in
+    Terminal): files fetched so carry no "downloaded from the internet" mark, so no warning at all.
+  - The `.app` is ad-hoc signed (`codesign -s -`, free: Apple Silicon refuses to run unsigned code at all).
 - Where to download: a page with the two buttons (the hosted list's site or GitHub's releases). **Ask the owner before
   putting anything online.**
 - Touches: `install.sh`, new `install.ps1`, `packaging/` (Inno Setup script, the `.app`'s bundle), GitHub releases.
@@ -224,4 +231,4 @@ found) against ours and say what differs.
 
 One line per session: date, what was done, what is next.
 
-- 25 Nov: plan written with the owner (costs of a cloud GPU rejected: ~€8 a match). Next: step 1.
+- 25 Nov: plan written with the owner (costs of a cloud GPU rejected: ~€8 a match). No code signing (owner). Next: step 1.
