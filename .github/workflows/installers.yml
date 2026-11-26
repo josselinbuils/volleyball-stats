@@ -1,6 +1,14 @@
-# setup.exe and Volleyball Stats.dmg, built on demand (Actions → Installers → Run workflow), kept as the run's files.
+# setup.exe and volleyball-stats.dmg, built on demand (Actions → Installers → Run workflow), kept as the run's files.
+# With a release's tag, also put on that GitHub release (made if new, its text packaging/release/release.md): the
+# download page, its links fixed (releases/latest/download/…).
 name: Installers
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release tag to publish to (empty: build only)"
+        required: false
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -20,9 +28,32 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Volleyball Stats.dmg
+      - name: volleyball-stats.dmg
         run: sh packaging/macos/build.sh
       - uses: actions/upload-artifact@v4
         with:
           name: volleyball-stats-dmg
-          path: packaging/macos/dist/Volleyball Stats.dmg
+          path: packaging/macos/dist/volleyball-stats.dmg
+  release:
+    if: inputs.release != ''
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: GitHub release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --notes-file packaging/release/release.md
+          else
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "Volleyball Stats" --notes-file packaging/release/release.md --latest
+          fi

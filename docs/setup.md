@@ -54,7 +54,7 @@ uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_
 uv run python benchmarks/speed.py VIDEO          # projected processing time of a match
 ```
 
-Or natively on Windows, no WSL: `volleyball-stats-setup.exe`, or in PowerShell (not as administrator):
+Or natively on Windows, no WSL: `volleyball-stats-setup.exe` from [the download page](https://github.com/josselinbuils/volleyball-stats/releases/latest), or in PowerShell (not as administrator):
 
 ```powershell
 irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
@@ -63,9 +63,13 @@ irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/instal
 `install.ps1` installs uv, the code in `~\volleyball-stats` (GitHub's archive: no git), the libraries, ffmpeg 9.1 and
 the models, the launcher `~\.local\bin\volleyball-stats.cmd`, then opens the app, which makes its shortcuts. No admin
 rights; run again, it only opens the app. `setup.exe` (`packaging/windows/setup.iss`, Inno Setup 7) runs it in a window
-of its own; its uninstaller, in Windows' installed apps, removes the app and, if asked, the matches. A Mac's `.dmg`
-(`packaging/macos/build.sh`, on a Mac) holds an app whose first open runs `install.sh` in Terminal. Both are built by the
-"Installers" workflow (`.github/workflows/installers.yml`, started by hand).
+of its own; its uninstaller, in Windows' installed apps, removes the app and, if asked, the matches. A Mac's
+`volleyball-stats.dmg` (`packaging/macos/build.sh`, on a Mac) holds an app whose first open runs `install.sh` in
+Terminal. Both are built by the "Installers" workflow (`.github/workflows/installers.yml`, started by hand); given a
+release's tag, it puts them on that GitHub release with its text (`packaging/release/release.md`, the screenshots of
+SmartScreen and Gatekeeper beside it): the download page, whose links stay the same
+(`releases/latest/download/volleyball-stats-setup.exe`, `…/volleyball-stats.dmg`). The installers change rarely: they
+take the code from GitHub at install.
 
 Without git, the code's version is the archive's commit (`.install.json`: its files too), the commits behind come from
 the branch's feed and "Mettre à jour" writes the new archive over it, removing the files gone (`updates.py`).

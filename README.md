@@ -82,8 +82,11 @@ each one through the whole match and keeps the score. Each step is scored agains
 
 ### 1. Install
 
-You need a computer with a graphics card: an NVIDIA one, or a Mac with an Apple chip (slower). In a terminal (on a
-Mac: the Terminal app), paste this line and press Enter:
+You need a computer with a graphics card: an NVIDIA one, or a Mac with an Apple chip (slower). On Windows or a Mac,
+[download it](https://github.com/josselinbuils/volleyball-stats/releases/latest) and double-click the file: the page
+shows how to pass the system's warning about an unsigned file.
+
+Or, in a terminal (on a Mac: the Terminal app), paste this line and press Enter:
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh

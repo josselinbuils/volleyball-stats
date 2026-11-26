@@ -1,8 +1,8 @@
 #!/bin/sh
-# Volleyball Stats.dmg: an app that installs volleyball-stats at its first open (install.sh in a Terminal window, its
+# volleyball-stats.dmg: an app that installs volleyball-stats at its first open (install.sh in a Terminal window, its
 # steps and bars, nothing asked), then opens it as the desktop's icon does. On a Mac (codesign, hdiutil):
 #
-#   sh packaging/macos/build.sh    # packaging/macos/dist/Volleyball Stats.dmg
+#   sh packaging/macos/build.sh    # packaging/macos/dist/volleyball-stats.dmg
 #
 # Signed ad hoc (no Apple account): macOS asks once before its first open (System Settings → Privacy & Security → Open
 # Anyway). It changes rarely: the code comes from GitHub at install, then updates itself.
@@ -50,4 +50,4 @@ chmod +x "$app/Contents/MacOS/volleyball-stats"
 codesign --force --deep --sign - "$app"
 ln -s /Applications "$work/dmg/Applications"
 mkdir -p "$here/dist"
-hdiutil create -volname "Volleyball Stats" -srcfolder "$work/dmg" -ov -format UDZO "$here/dist/Volleyball Stats.dmg"
+hdiutil create -volname "Volleyball Stats" -srcfolder "$work/dmg" -ov -format UDZO "$here/dist/volleyball-stats.dmg"
