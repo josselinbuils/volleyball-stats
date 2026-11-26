@@ -1,0 +1,28 @@
+# setup.exe and Volleyball Stats.dmg, built on demand (Actions → Installers → Run workflow), kept as the run's files.
+name: Installers
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup.exe
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup --no-progress -y }
+          iscc packaging\windows\setup.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: volleyball-stats-setup
+          path: packaging/windows/dist/volleyball-stats-setup.exe
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Volleyball Stats.dmg
+        run: sh packaging/macos/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: volleyball-stats-dmg
+          path: packaging/macos/dist/Volleyball Stats.dmg
