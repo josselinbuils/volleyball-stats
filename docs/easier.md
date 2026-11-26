@@ -336,7 +336,8 @@ green).
 
 ## 9. Share without a server
 
-- [ ] Done
+- [ ] Done: built and checked against a fake Netlify (26 Nov); waits on the owner's Netlify application (its client id
+  in `netlify.py`), then the real test below. How it works: [hosting.md](hosting.md#without-a-server-netlify).
 
 The Site tab offers a server-less way: "Publier" puts the matches' pages on a free static host, no server to set up.
 
@@ -438,3 +439,8 @@ One line per session: date, what was done, what is next.
 - 26 Nov: the release `v1.0` with both files is the download page (`packaging/release/`: its text and the real
   SmartScreen and Gatekeeper screenshots); the workflow publishes to a release given its tag; the `.dmg` renamed
   `volleyball-stats.dmg`. Next: the fresh accounts (the owner's).
+- 26 Nov: step 9 built (`netlify.py`, `NetlifyCard.tsx`): Netlify's ticket sign-in, the site named after the club, the
+  public pages without video built in `outputs/netlify/`, a deploy sending only what Netlify lacks, each match "Pas en
+  ligne", "En retard" or "À jour", the link and its QR code, a warning near the free plan's ~20 deploys a month. Two
+  real matches published end to end against a fake Netlify (1293 files, both then "À jour"). Next: the owner registers
+  the OAuth application, then two matches from a new account and a phone; meanwhile step 10.

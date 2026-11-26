@@ -132,7 +132,7 @@ export function taskHref(task: Task): string {
   if (task.kind === 'review') {
     return '/review';
   }
-  return ['hosting', 'backup', 'verify', 'pull', 'export'].includes(task.kind) ? '/matches/#site' : '/matches/';
+  return ['hosting', 'backup', 'verify', 'pull', 'export', 'netlify'].includes(task.kind) ? '/matches/#site' : '/matches/';
 }
 
 /** Whether `href` is the screen shown: the list's tabs are its hashes, the review's are one screen. */

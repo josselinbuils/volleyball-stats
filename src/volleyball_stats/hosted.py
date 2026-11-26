@@ -157,10 +157,8 @@ def page_taken(match: Path) -> tuple[dict, str]:
     return page_content(match), page_stamp(match)
 
 
-def record_hosted(match: Path, taken: tuple[dict, str] | None = None) -> None:
-    """The upload of `match`'s page just made: its time, stamp and the code that built it, on disk now (HOSTED), and what it
-    sent (HOSTED_PAGE): the page as the upload began (`taken`, `page_taken`), a change made while it ran left late. The stamp
-    is the review's page as last built, by older code maybe: `restamp` then takes the next build."""
+def sent_page(match: Path, taken: tuple[dict, str] | None = None) -> tuple[dict, str]:
+    """The page an upload of `match` that took `taken` (`page_taken`, else now) sent: its content and stamp."""
     content, stamp = taken or page_taken(match)
     # The upload made the commentary's missing audio (`matches.make_voice`) after it took the page, and its build took it:
     # the review's page takes it at its next build, and the online page was shown late for it ("Commentaire").
@@ -169,6 +167,14 @@ def record_hosted(match: Path, taken: tuple[dict, str] | None = None) -> None:
         data["voice"] = True
     if data != content["data"]:
         content, stamp = {**content, "data": data}, data_stamp(data)
+    return content, stamp
+
+
+def record_hosted(match: Path, taken: tuple[dict, str] | None = None) -> None:
+    """The upload of `match`'s page just made: its time, stamp and the code that built it, on disk now (HOSTED), and what it
+    sent (HOSTED_PAGE): the page as the upload began (`taken`, `page_taken`), a change made while it ran left late. The stamp
+    is the review's page as last built, by older code maybe: `restamp` then takes the next build."""
+    content, stamp = sent_page(match, taken)
     # Without the code: the site's, late on its own (`site_code`).
     files.write_text(match / HOSTED_PAGE, json.dumps({"data": content["data"]}, ensure_ascii=False) + "\n")
     files.write_text(match / HOSTED, json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "stamp": stamp, "pages": list(STAMPED), "code": code_version()}) + "\n")

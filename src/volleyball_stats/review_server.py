@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import cv2
 
-from volleyball_stats import app, applog, awake, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, network, pictures, presence, rename, sync, timeouts, web
+from volleyball_stats import app, applog, awake, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, netlify, network, pictures, presence, rename, sync, timeouts, web
 from volleyball_stats.review import APPLIED, STALE_PHOTOS, TIMINGS, TOOK, applied_too, commented, due, eta, locked, pinned, read_comments, undo, unlocked, waiting, write_comments
 from volleyball_stats.review_answers import (
     ROSTER,
@@ -324,6 +324,7 @@ class Review:
             before = hosted.page_stamp(match) if (self.site / "data.js").exists() else None
             web.review_page(match, video, court, theme, pictures=False)
             hosted.restamp(match, before)
+            netlify.restamp(match, before)
         (match / STALE_PHOTOS).touch()
         cap = cv2.VideoCapture(str(video))
         self.fps, self.width, self.height = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))

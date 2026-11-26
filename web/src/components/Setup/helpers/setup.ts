@@ -28,7 +28,7 @@ export interface Check {
 /** A job (jobs.py) as the app shows it. */
 export interface Job {
   id: string;
-  kind: 'import' | 'court' | 'pipeline' | 'models' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn' | 'lens' | 'placement';
+  kind: 'import' | 'court' | 'pipeline' | 'models' | 'hosting' | 'backup' | 'verify' | 'export' | 'netlify' | 'learn' | 'lens' | 'placement';
   running: boolean;
   step?: string | null;
   failed?: string;

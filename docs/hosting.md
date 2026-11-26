@@ -3,6 +3,7 @@
 The rules on what may go online are in `CLAUDE.md`.
 
 - [Without a server: the export](#without-a-server-the-export)
+- [Without a server: Netlify](#without-a-server-netlify)
 - [Your own server](#your-own-server)
 - [The Site tab](#the-site-tab)
 - [The server](#the-server)
@@ -23,6 +24,36 @@ the page's language: `matchs.zip` with a `matchs/` folder, `matches` in English)
 no "Signaler", no link previews) nor the gzip copies. Any static host serves it (shared hosting by FTP, GitHub Pages,
 Netlify...), and its `index.html` opens from disk. Each export rebuilds the matches: 16 s for two, more the first time a
 match's commentary voice is made. None is ticked at first (the owner's rule, 15 Nov); the download is offered while the matches ticked are those of the last zip.
+
+## Without a server: Netlify
+
+"Site gratuit Netlify", a card of the Site tab (first while no server is set, last once one is; `NetlifyCard.tsx`,
+`/app/netlify`, `netlify.py`), puts the public pages on a free Netlify site of the user's account, with no server
+and no token to paste:
+
+- "Se connecter à Netlify" signs in through OAuth's ticket flow, as Netlify's own CLI does: the app asks for a ticket
+  (`POST /oauth/tickets?client_id=…`), opens Netlify's consent page, and polls the ticket while the card shows it waiting;
+  once the user agrees it takes the token (`…/exchange`) and creates the site, named after the club
+  (`aspom-begles-volley-stats.netlify.app`, with four letters after it when that name is taken). The token, the site and
+  what was deployed live in `outputs/netlify/` (gitignored, never synced or backed up: a new sign-in makes a new site).
+  "Se déconnecter" forgets them here; the site stays on Netlify.
+- The app's OAuth application: `CLIENT_ID` in `netlify.py`, public as the CLI's (the ticket flow has no secret).
+  ponytail: empty until the owner registers it at app.netlify.com/applications (any redirect URI: the flow never uses
+  it); the card is hidden meanwhile. `VOLLEYBALL_STATS_NETLIFY_CLIENT`, `_API` and `_APP` override the id and
+  Netlify's addresses (a fake Netlify for checks).
+- The matches ready (as the export's) each say "Pas en ligne", "En retard" (what changed in the tip, as with the server:
+  `hosted.page_changes` against what the last deploy sent, `outputs/netlify/pages/`; the pages' code too) or "À jour".
+  "Publier" (the newest late or new one ticked at first, "Tout publier") runs a job (`python -m volleyball_stats.netlify
+  --outputs outputs MATCH...`): each match built as the export builds it (no video, no pictures, no "Signaler", the
+  other pages given the new code) in `outputs/netlify/site/`, then the whole site deployed by its files' SHA1s, only
+  those Netlify lacks sent (the bar counts their bytes), live once Netlify says ready. A video in the site stops it.
+- Then the site's link to copy or open, and its QR code (`/app/netlify/qr`, OpenCV's encoder) to show at the club.
+- The free plan (checked 26 Nov 2026: netlify.com/pricing, docs.netlify.com's credit-based plans): 300 credits a month,
+  15 a production deploy, so about 20 publishes a month; bandwidth 20 credits a GB. Past them Netlify pauses every site
+  of the account until the next month. The card warns from 15 deploys in 30 days. Each "Publier" is one deploy,
+  whatever the number of matches: tick them together.
+- ponytail: a match is never removed from the Netlify site (its folder stays until a new sign-in); a site deleted on
+  Netlify's side fails the next deploy: sign out and in again.
 
 ## Your own server
 
@@ -62,7 +93,7 @@ address, `$http_cf_connecting_ip`, keys the limits there).
 
 The app's "Site" tab (on the list, `#site`, `server.py`, `SiteTab.tsx` in `app.js`, never hosted):
 
-- sets the server (its "Serveur" card, linking to [setting one up](#your-own-server)): address, site folder, ssh key,
+- sets the server (its "Votre serveur" card, linking to [setting one up](#your-own-server)): address, site folder, ssh key,
   public address, in `outputs/server.json`, written into every match's `publish.json` (a new match takes it from there,
   `matches.ensure_publish`); "Tester" checks it answers and holds the folder;
 - lists the matches online, each "À jour" or "En retard" with its link, then those ready to go online, "Pas en ligne"

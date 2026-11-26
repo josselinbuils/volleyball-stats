@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tip } from '@/components/Tip';
 import { JobLine, type Told } from '@/components/JobLine';
 import { ExportSite } from '@/components/ExportSite';
+import { NetlifyCard } from '@/components/NetlifyCard';
 import { LateCauses } from '@/components/LateCauses';
 import { VideoPassword } from '@/components/VideoPassword';
 import { HostChoice, type HostBody } from '@/components/Review/HostChoice';
@@ -377,6 +378,8 @@ export function SiteTab() {
     <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
       {/* Two columns of their own, each card its own height; on a phone one list, the backups last. */}
       <div className="contents lg:grid lg:gap-3">
+        {/* Without a server of one's own, the free site first. */}
+        {!saved && <NetlifyCard />}
         <Card className="gap-3 px-4 py-3.5">
           <h2 className="text-lg font-semibold">{t('server.connection')}</h2>
           <p className="text-muted-foreground">
@@ -659,6 +662,7 @@ export function SiteTab() {
           <h2 className="text-lg font-semibold">{t('export.title')}</h2>
           <ExportSite />
         </Card>
+        {saved && <NetlifyCard />}
       </div>
       {choosing && (
         <HostChoice

@@ -995,6 +995,25 @@
     "done": "Exporté le {{at}}.",
     "folder": "matchs"
   },
+  "netlify": {
+    "title": "Site gratuit Netlify",
+    "intro": "Les pages des matchs, sans vidéo ni photos, sur un site gratuit de votre compte Netlify.",
+    "connect": "Se connecter à Netlify",
+    "consent": "Acceptez sur la page de Netlify qui vient de s'ouvrir.",
+    "none": "Aucun match prêt.",
+    "publishAll": "Tout publier",
+    "publish_zero": "Publier",
+    "publish_one": "Publier {{count}} match",
+    "publish_other": "Publier {{count}} matchs",
+    "publishing": "Publication…",
+    "qr": "QR code du site",
+    "disconnect": "Se déconnecter",
+    "disconnectTitle": "Se déconnecter de Netlify ?",
+    "disconnectText": "Le site reste en ligne. Une nouvelle connexion en crée un autre.",
+    "deploys_one": "{{count}} publication en 30 jours : la formule gratuite en permet environ {{free}} par mois, puis met le site en pause.",
+    "deploys_other": "{{count}} publications en 30 jours : la formule gratuite en permet environ {{free}} par mois, puis met le site en pause.",
+    "signedOut": "Netlify a refusé l'accès : déconnectez-vous puis reconnectez-vous."
+  },
   "passwords": {
     "title": "Mot de passe des vidéos",
     "loading": "Chargement du mot de passe…",
@@ -1019,7 +1038,7 @@
   "server": {
     "title": "Site",
     "intro": "Le site, en ligne ou exporté, et les sauvegardes.",
-    "connection": "Serveur",
+    "connection": "Votre serveur",
     "need": "Un serveur Linux joignable en SSH, avec nginx.",
     "guide": "Le préparer",
     "address": "Adresse",
@@ -1059,7 +1078,8 @@
       "upload": "Envoi sur le serveur",
       "shared": "Club, terrains, joueurs et signalements",
       "list": "Lecture des sauvegardes",
-      "zip": "Création du fichier"
+      "zip": "Création du fichier",
+      "deploy": "Envoi sur Netlify"
     },
     "backups": "Sauvegardes",
     "auto": "Sauvegarde automatique",
@@ -1931,7 +1951,8 @@
       "models": "Téléchargement des modèles",
       "learn": "Réanalyse",
       "lens": "Calibration de la caméra",
-      "placement": "Test du cadrage"
+      "placement": "Test du cadrage",
+      "netlify": "Publication sur Netlify"
     },
     "count_one": "{{count}} tâche",
     "count_other": "{{count}} tâches",

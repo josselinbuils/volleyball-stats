@@ -15,7 +15,7 @@ const EXTENSIONS = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
 // The app's own modules, by their path under src/: only review-app.js and app.js load them.
 const LOCAL = [
   /^components\/(Review|Setup|Progress)\//,
-  /^components\/(AppMatches|SiteTab|Tasks|Behind|NewReports|Update|ExportSite|VideoPassword)\.tsx$/,
+  /^components\/(AppMatches|SiteTab|Tasks|Behind|NewReports|Update|ExportSite|VideoPassword|NetlifyCard)\.tsx$/,
   /^(reviewApp|appPanel)\.tsx$/,
   /^lib\/(review|tasks|openMatch|remoteMatches|sheet)\.ts$/,
 ];

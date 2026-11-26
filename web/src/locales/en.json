@@ -995,6 +995,25 @@
     "done": "Exported {{at}}.",
     "folder": "matches"
   },
+  "netlify": {
+    "title": "Free Netlify site",
+    "intro": "The matches' pages, without video or pictures, on a free site of your Netlify account.",
+    "connect": "Sign in to Netlify",
+    "consent": "Accept on the Netlify page that just opened.",
+    "none": "No match ready.",
+    "publishAll": "Publish all",
+    "publish_zero": "Publish",
+    "publish_one": "Publish {{count}} match",
+    "publish_other": "Publish {{count}} matches",
+    "publishing": "Publishing…",
+    "qr": "Site's QR code",
+    "disconnect": "Sign out",
+    "disconnectTitle": "Sign out of Netlify?",
+    "disconnectText": "The site stays online. A new sign-in makes another one.",
+    "deploys_one": "{{count}} publish in 30 days: the free plan allows about {{free}} a month, then pauses the site.",
+    "deploys_other": "{{count}} publishes in 30 days: the free plan allows about {{free}} a month, then pauses the site.",
+    "signedOut": "Netlify refused access: sign out, then sign in again."
+  },
   "passwords": {
     "title": "Video password",
     "loading": "Loading the password…",
@@ -1019,7 +1038,7 @@
   "server": {
     "title": "Site",
     "intro": "The site, online or exported, and the backups.",
-    "connection": "Server",
+    "connection": "Your server",
     "need": "A Linux server reachable by SSH, with nginx.",
     "guide": "Setting it up",
     "address": "Address",
@@ -1059,7 +1078,8 @@
       "upload": "Uploading to the server",
       "shared": "Club, courts, players and reports",
       "list": "Reading the backups",
-      "zip": "Making the file"
+      "zip": "Making the file",
+      "deploy": "Sending to Netlify"
     },
     "backups": "Backups",
     "auto": "Automatic backup",
@@ -1931,7 +1951,8 @@
       "models": "Downloading the models",
       "learn": "Reanalysis",
       "lens": "Camera calibration",
-      "placement": "Framing test"
+      "placement": "Framing test",
+      "netlify": "Publishing to Netlify"
     },
     "count_one": "{{count}} task",
     "count_other": "{{count}} tasks",

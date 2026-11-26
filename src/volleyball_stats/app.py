@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, procs, resume, server, shortcut, sync, updates
+from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, netlify, presence, procs, resume, server, shortcut, sync, updates
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -55,6 +55,8 @@ VERIFY = "verify"
 PULL = "pull"
 # The site zipped for a host of one's own (matches.export).
 EXPORT = "export"
+# The matches put on the Netlify site the app signed in to (netlify.py).
+NETLIFY = "netlify"
 # Every match waiting brought up to date (learn.update).
 LEARN = "learn"
 # What the server prints, for the page (applog.py).
@@ -870,6 +872,12 @@ def export(names: list[str], listed: list[dict], folder: str | None = None) -> N
     jobs.start(OUTPUTS, EXPORT, EXPORT, [(EXPORT, command)])
 
 
+def netlify_state() -> dict:
+    """The Netlify card: the account and the matches (`netlify.state`), its job."""
+    job = next((j for j in jobs.state(OUTPUTS) if j["id"] == NETLIFY), None)
+    return {**netlify.state(OUTPUTS), "job": {**job, **told(job, time.time())} if job and job["running"] else job}
+
+
 def models_state() -> dict | None:
     return next((j for j in jobs.state(OUTPUTS) if j["id"] == MODELS), None)
 
@@ -994,6 +1002,13 @@ def handle(
                 return reply(server.copies(OUTPUTS))
             if route == "export":
                 return reply(export_state(listed()))
+            if route == "netlify":
+                return reply(netlify_state())
+            if route == "netlify/qr":
+                url = netlify.account(OUTPUTS).get("url")
+                if not url:
+                    return reply({"error": "missing"}, 404)
+                return netlify.qr(url), "image/png", 200
             if route == "export/file":
                 from volleyball_stats import matches
 
@@ -1114,6 +1129,20 @@ def handle(
                 return reply({"error": "running"}, 409)
             matches.set_password(OUTPUTS, body.get("password"))
             return reply(server_state())
+        if route == "netlify/connect":
+            return reply({"url": netlify.connect(OUTPUTS)})
+        if route == "netlify/disconnect":
+            if jobs.is_running(OUTPUTS, NETLIFY):
+                raise jobs.Running(NETLIFY)
+            netlify.disconnect(OUTPUTS)
+            return reply(netlify_state())
+        if route == "netlify/publish":
+            names = body.get("matches")
+            ready = {m.name for m, *_ in netlify.ready(OUTPUTS)}
+            if not isinstance(names, list) or not names or not set(names) <= ready:
+                raise ValueError("matches")
+            jobs.start(OUTPUTS, NETLIFY, NETLIFY, [(NETLIFY, ["volleyball_stats.netlify", "--outputs", str(OUTPUTS), *map(str, names)])])
+            return reply(netlify_state())
         if route == "export":
             export([str(n) for n in body["matches"]], listed(), body.get("folder") and str(body["folder"]))
             return reply(export_state(listed()))
