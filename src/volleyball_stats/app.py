@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, procs, resume, server, shortcut, sync
+from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, procs, resume, server, shortcut, sync, updates
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -875,11 +875,15 @@ def models_state() -> dict | None:
 
 
 def update() -> None:
-    """The code brought up to date (git pull), then the dependencies (uv sync); RuntimeError with git's or uv's reason."""
-    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    pull = subprocess.run(["git", "-C", str(git_check.ROOT), "pull", "--ff-only", "--autostash"], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, timeout=120, encoding="utf-8", errors="replace")
-    if pull.returncode:
-        raise RuntimeError(((pull.stderr.strip() or pull.stdout.strip()).splitlines() or [f"git pull: exit {pull.returncode}"])[-1])
+    """The code brought up to date (git pull, or GitHub's archive without git: `updates`), then the dependencies (uv
+    sync); RuntimeError with git's or uv's reason."""
+    if updates.git(git_check.ROOT):
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        pull = subprocess.run(["git", "-C", str(git_check.ROOT), "pull", "--ff-only", "--autostash"], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, timeout=120, encoding="utf-8", errors="replace")
+        if pull.returncode:
+            raise RuntimeError(((pull.stderr.strip() or pull.stdout.strip()).splitlines() or [f"git pull: exit {pull.returncode}"])[-1])
+    else:
+        updates.install(git_check.ROOT)
     tool = uv()
     if tool:
         sync = subprocess.run([tool, "sync", "--inexact", "--project", str(git_check.ROOT)], capture_output=True, text=True, timeout=1800, encoding="utf-8", errors="replace")

@@ -288,6 +288,42 @@ A file to download and double-click, nothing typed.
 - Done when: on a fresh Windows 11 account and a fresh macOS user (no tools installed), the download, the
   double-click and nothing else end on the app's list with Diagnostics all green.
 
+Built (26 Nov), everything but what waits on the owner:
+- No git: `updates.py` (the standard library only, run alone before the code is there) puts GitHub's archive of `main`
+  in the folder, its commit read from the zip's comment and kept with its files in `.install.json`; the update writes the
+  new files and removes those gone upstream. The commits behind come from the branch's Atom feed (GitHub's API limits
+  each address: a club's network shares one). The sync's `code.json` and Diagnostics' "code" read that commit
+  (`updates.commit`), "Mettre à jour" runs the archive's update.
+- ffmpeg 9.1 everywhere the app installs it (`tools.py`, point 13): Gyan's full build on Windows (its `.7z` through
+  Windows' `tar`, its `.zip` where that cannot), Martin Riedl's on a Mac (Apple chip and Intel), each file checked by its
+  sha256, in `~/.local/share/volleyball-stats/ffmpeg` and first on the PATH at the package's import; Diagnostics offers
+  it with the models. Both GPL (x264). Linux and WSL2 keep apt's 6.1: no static Linux build carries NVENC.
+- `install.ps1`: uv (its own installer), the code (`updates.py`), `uv sync`, ffmpeg and the models, the launcher
+  `~\.local\bin\volleyball-stats.cmd`, then the app (which makes its shortcuts). No admin rights, no git, Windows
+  PowerShell 5.1. A 32-bit PowerShell is refused (uv would take a 32-bit Python: no torch). Run again it only starts the
+  app; `VOLLEYBALL_STATS_UNINSTALL` removes it (the matches kept unless asked).
+- `packaging/windows/setup.iss` (Inno Setup 7): `volleyball-stats-setup.exe`, 2.2 MB, French or English by Windows'
+  language, no page to click: it runs `install.ps1` in a window showing its steps and uv's bars, then the app opens. Its
+  uninstaller (Paramètres > Applications) asks whether the matches go too. Two traps met: Setup is 32-bit (its
+  PowerShell is taken from `{sysnative}`), and Inno 7's RedirectionGuard, inherited by a setup that is not elevated,
+  made uv's links to its Python fail (`RedirectionGuard=no`).
+- `install.sh` on a Mac: no Homebrew any more (uv's installer, the archive, ffmpeg from `tools.py`); a git checkout
+  keeps the old way. `packaging/macos/build.sh` makes `Volleyball Stats.dmg`: an ad-hoc signed `.app` whose first open
+  runs `install.sh` in Terminal, its next opens the app. Built on a Mac only: not run yet.
+- `.github/workflows/installers.yml` builds both (by hand only, `workflow_dispatch`): not run yet.
+
+Checked on the PC, natively, in a sandboxed profile (`USERPROFILE`, `APPDATA`, `LOCALAPPDATA` elsewhere, the owner's
+uv, ffmpeg and git off the PATH), the code from a local archive:
+- `setup.exe` silent, to its end: 35 s with uv's cache warm (uv, the archive, the libraries, ffmpeg 9.1, the 7
+  models, the launcher); Diagnostics then all green (ffmpeg 9.1, the RTX 5080, the memory, the disk, the models, the
+  code, the load).
+- The update from GitHub's real archive: the files not on `main` removed with their empty folders.
+- The uninstaller: nothing left (the folder, the launcher, ffmpeg, the entry in the installed apps).
+- `install.ps1` in a 32-bit PowerShell: refused, nothing installed.
+
+Waits on the owner: running the workflow and a GitHub release (the files to download), the download page (the
+SmartScreen and Gatekeeper screenshots), the fresh Windows 11 account and the Mac (the `.dmg` built and opened there).
+
 ## 9. Share without a server
 
 - [ ] Done
@@ -384,3 +420,8 @@ One line per session: date, what was done, what is next.
   on Windows itself (`procs.py`, `transfer.py`, `decode.popen`, onnxruntime on the GPU, the encodings, the paths),
   native tests 1,157 pass and 52 skipped, the 3-minute clip in 525 s against WSL2's 517 s, its outputs a rally apart by
   ffmpeg's version; import, stop, run, review, apply and export through the app natively. Next: step 8.
+- 26 Nov: step 8 built and checked natively in a sandboxed profile, but the release, the download page and the fresh
+  accounts (the owner's): `updates.py` (no git: GitHub's archive and feed), ffmpeg 9.1 brought by the app on Windows and
+  macOS (`tools.py`), `install.ps1` and `setup.exe` (Inno Setup), `install.sh` without Homebrew and the `.dmg`'s build
+  (not run: a Mac), the workflow building both (not run). `setup.exe` to Diagnostics all green in 35 s, its uninstaller
+  leaving nothing.

@@ -10,3 +10,5 @@ web/public/
 branding/*/sponsors/
 .DS_Store
 .claude/settings.local.json
+.install.json
+packaging/*/dist/

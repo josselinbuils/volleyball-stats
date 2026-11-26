@@ -45,9 +45,24 @@ def install_command(packages: list[str]) -> str:
 
 
 def tools() -> dict:
-    missing = [t for t in ("ffmpeg", "ffprobe", "git") if not shutil.which(t)]
-    packages = sorted({"git" if t == "git" else "ffmpeg" for t in missing})
-    return {"id": "tools", "status": "error" if missing else "ok", "missing": missing, "command": install_command(packages) if missing else None}
+    """ffmpeg, and git in a git checkout (an install without it updates from GitHub's archive). An ffmpeg the app
+    installs (Windows, macOS) comes with the models' download, no command."""
+    from volleyball_stats import tools as fetched
+
+    # Fetched since this process started (the models' download).
+    fetched.add_to_path()
+    needed = ("ffmpeg", "ffprobe", "git") if (git_check.ROOT / ".git").exists() else ("ffmpeg", "ffprobe")
+    missing = [t for t in needed if not shutil.which(t)]
+    fetch = any(t != "git" for t in missing) and fetched.fetchable()
+    packages = sorted({"git" if t == "git" else "ffmpeg" for t in missing if t == "git" or not fetch})
+    return {
+        "id": "tools",
+        "status": "error" if missing else "ok",
+        "missing": missing,
+        "fetch": fetch,
+        "version": None if "ffmpeg" in missing else fetched.version(),
+        "command": install_command(packages) if packages else None,
+    }
 
 
 def gpu() -> dict:
@@ -97,7 +112,10 @@ def models() -> dict:
 
 
 def code() -> dict:
-    late = git_check.behind(git_check.ROOT) if (git_check.ROOT / ".git").exists() and shutil.which("git") else None
+    from volleyball_stats import updates
+
+    known = updates.installed(git_check.ROOT) or ((git_check.ROOT / ".git").exists() and shutil.which("git"))
+    late = git_check.behind(git_check.ROOT) if known else None
     return {"id": "code", "status": "warn" if late else "ok", "behind": late["behind"] if late else 0}
 
 
@@ -129,13 +147,19 @@ def checks(data: Path = Path("data")) -> list[dict]:
 
 
 def fetch_models() -> None:
-    """Each model missing, downloaded where the pipeline looks for it. The share told as it goes is the models done of those
-    missing (the libraries downloading them show no bytes)."""
-    from volleyball_stats import ball, identity, jobs, pictures
+    """ffmpeg where the app installs it and it is missing (`tools`), then each model missing, downloaded where the
+    pipeline looks for it. The share told as it goes is the items done of those missing, ffmpeg's by its bytes (the
+    libraries downloading the models show none)."""
+    from volleyball_stats import ball, identity, jobs, pictures, tools as fetched
 
     missing = [p for p in model_files() if not p.exists()]
-    for done, path in enumerate(missing):
-        jobs.tell(done / len(missing))
+    ffmpeg = fetched.fetchable() and not (shutil.which("ffmpeg") and shutil.which("ffprobe"))
+    items = len(missing) + ffmpeg
+    if ffmpeg:
+        print(f"Downloading ffmpeg {fetched.VERSION}", flush=True)
+        fetched.fetch(lambda share: jobs.tell(share / items))
+    for done, path in enumerate(missing, start=ffmpeg):
+        jobs.tell(done / items)
         print(f"Downloading {path.name}", flush=True)
         if path == ball.WEIGHTS_PATH:
             ball.load_model("cpu")

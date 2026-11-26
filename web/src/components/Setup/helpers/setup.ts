@@ -7,6 +7,9 @@ export interface Check {
   status: 'ok' | 'warn' | 'error';
   missing?: string[] | number;
   command?: string | null;
+  // tools: ffmpeg missing comes with the models' download; the version found.
+  fetch?: boolean;
+  version?: string | null;
   kind?: 'cuda' | 'mps' | 'cpu' | 'driver' | 'torch';
   name?: string | null;
   gb?: number | null;

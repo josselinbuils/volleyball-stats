@@ -21,7 +21,12 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
 
 
 def behind(root: Path) -> dict | None:
-    """Fetch, then how far the current branch is behind its upstream: None when it is not."""
+    """Fetch, then how far the current branch is behind its upstream: None when it is not. An install without git: by
+    GitHub's feed (`updates.behind`)."""
+    if not (root / ".git").exists():
+        from volleyball_stats import updates
+
+        return updates.behind(root)
     try:
         upstream = _git(root, "rev-parse", "--abbrev-ref", "@{u}")
         if upstream.returncode != 0:

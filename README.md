@@ -92,9 +92,15 @@ curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main
 It installs what is missing, puts a "Volleyball Stats" shortcut on the desktop and opens the app in a window of its
 own. Next time, open that shortcut; closing its window closes the app.
 
-On Windows, the app runs in Ubuntu (WSL2): in PowerShell as administrator, run `wsl --install -d Ubuntu-24.04`,
-restart, open "Ubuntu" from the Start menu, choose a user name and password, then paste the line above there. See
-[Setup](docs/setup.md) for the NVIDIA driver, or to run it on Windows itself, without Ubuntu.
+On Windows, paste this in PowerShell instead:
+
+```powershell
+irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
+```
+
+Or run it in Ubuntu (WSL2): in PowerShell as administrator, run `wsl --install -d Ubuntu-24.04`, restart, open
+"Ubuntu" from the Start menu, choose a user name and password, then paste the first line there. See
+[Setup](docs/setup.md) for the NVIDIA driver.
 
 The app's "Diagnostics" button checks the graphics card, the memory, the disk space and the tools, and says what to
 fix; it also shows the app's log.

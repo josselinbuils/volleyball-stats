@@ -17,7 +17,10 @@ export function checkText(t: TFunction, check: Check): string {
   }
   switch (check.id) {
     case 'tools':
-      return check.status === 'ok' ? t('app.doctor.tools.ok') : t('app.doctor.tools.missing', { tools: (check.missing as string[]).join(', ') });
+      if (check.status === 'ok') {
+        return check.version ? t('app.doctor.tools.ok', { version: check.version }) : t('app.doctor.tools.okPlain');
+      }
+      return check.fetch && !check.command ? t('app.doctor.tools.fetch') : t('app.doctor.tools.missing', { tools: (check.missing as string[]).join(', ') });
     case 'gpu':
       return t(`app.doctor.gpu.${check.kind}`, { name: check.name });
     case 'memory':

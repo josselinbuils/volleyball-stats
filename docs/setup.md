@@ -25,9 +25,11 @@
 ## Install
 
 `install.sh` does it all and starts the app (`curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh`,
-or `./install.sh` in a copy): Homebrew on a Mac, git, ffmpeg and uv when missing, the code in `~/volleyball-stats`
-(`VOLLEYBALL_STATS_DIR` for another place), `~/.local/bin/volleyball-stats` (`uv run stats`, carrying the PATH the tools were found
-on: a Mac's shortcut opens without Homebrew's). The app's start and the club's changes make the shortcut on that launcher again when
+or `./install.sh` in a copy): on Linux and WSL2 git, ffmpeg and uv when missing (apt) and a git clone; on a Mac uv
+(its own installer), the code from GitHub's archive (no git, no Homebrew, no password) and ffmpeg 9.1, a git checkout
+keeping Homebrew's tools. The code in `~/volleyball-stats` (`VOLLEYBALL_STATS_DIR` for another place),
+`~/.local/bin/volleyball-stats` (`uv run stats`, carrying the PATH the tools were found on: a Mac's shortcut opens
+without Homebrew's). The app's start and the club's changes make the shortcut on that launcher again when
 `shortcut.VERSION` or the icon's colours change (`shortcut.py`), replacing the older `.bat` or `.command`: under WSL2 a
 Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl.exe …`, natively `cmd.exe` on
 `volleyball-stats.cmd`: no window, the icon in
@@ -52,24 +54,35 @@ uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_
 uv run python benchmarks/speed.py VIDEO          # projected processing time of a match
 ```
 
-Or natively on Windows, no WSL (no installer yet, so no shortcut: [easier.md](easier.md), step 8), in PowerShell, no admin:
+Or natively on Windows, no WSL: `volleyball-stats-setup.exe`, or in PowerShell (not as administrator):
 
 ```powershell
-irm https://astral.sh/uv/install.ps1 | iex
-winget install --scope user Gyan.FFmpeg
-winget install --scope user Git.Git
-git clone https://github.com/josselinbuils/volleyball-stats.git; cd volleyball-stats
-uv run stats
+irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
 ```
+
+`install.ps1` installs uv, the code in `~\volleyball-stats` (GitHub's archive: no git), the libraries, ffmpeg 9.1 and
+the models, the launcher `~\.local\bin\volleyball-stats.cmd`, then opens the app, which makes its shortcuts. No admin
+rights; run again, it only opens the app. `setup.exe` (`packaging/windows/setup.iss`, Inno Setup 7) runs it in a window
+of its own; its uninstaller, in Windows' installed apps, removes the app and, if asked, the matches. A Mac's `.dmg`
+(`packaging/macos/build.sh`, on a Mac) holds an app whose first open runs `install.sh` in Terminal. Both are built by the
+"Installers" workflow (`.github/workflows/installers.yml`, started by hand).
+
+Without git, the code's version is the archive's commit (`.install.json`: its files too), the commits behind come from
+the branch's feed and "Mettre à jour" writes the new archive over it, removing the files gone (`updates.py`).
 
 Natively, torch comes from PyTorch's CUDA 13 index (`[tool.uv.sources]`) and the OCR from `onnxruntime-gpu` on torch's
 CUDA. What POSIX has and Windows lacks has a stand-in in the code: processes (`procs.py`: `OpenProcess` and its creation
 time, priority classes, the CPU's busy share, jobs apart from the console's Ctrl+C), rsync (`transfer.py`), the frames'
 pipes (`decode.popen`, 1 MB), files replaced while another process reads them (`files.replace` retries). Symlinks need
-Developer Mode, which nothing needs. Its ffmpeg (winget's 9.1) gives pixels slightly unlike Ubuntu's 6.1: the same
-match can come out a rally apart ([easier.md](easier.md), step 7).
+Developer Mode, which nothing needs. Its ffmpeg gives pixels slightly unlike Ubuntu's 6.1: the same match can come
+out a rally apart ([easier.md](easier.md), step 7).
 
-On a Mac:
+ffmpeg where the system has none, on Windows and a Mac (`tools.py`): 9.1, Gyan's full build on Windows and Martin
+Riedl's on a Mac, each file checked by its sha256, in `~/.local/share/volleyball-stats/ffmpeg` and first on the PATH.
+Both GPL (x264). Diagnostics offers it with the models (`uv run python -m volleyball_stats.tools` by hand); Linux has
+apt's.
+
+On a Mac, by hand with Homebrew:
 
 ```bash
 brew install ffmpeg git uv

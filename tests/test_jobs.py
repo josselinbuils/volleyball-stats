@@ -177,3 +177,11 @@ class TestCounting:
         assert run.returncode == 0 and told and told[-1] == pytest.approx(1.0, abs=0.1)
         failed = jobs.ffmpeg(["ffmpeg", "-v", "error", "-i", str(tmp_path / "missing.mp4"), str(tmp_path / "x.mp4")], 2.0, told.append)
         assert failed.returncode and "missing.mp4" in failed.stderr
+
+
+def test_tell_in_a_terminal_writes_each_percentage_once_over_the_last(monkeypatch, capsys):
+    monkeypatch.setattr(jobs.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(jobs, "_told", [])
+    for share in (0.0, 0.001, 0.5, 0.504, 1.0):
+        jobs.tell(share)
+    assert capsys.readouterr().out == "\r0%\r50%\r100%\n"

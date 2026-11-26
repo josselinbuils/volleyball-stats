@@ -1807,7 +1807,9 @@
         "busy": "Computer load"
       },
       "tools": {
-        "ok": "ffmpeg and git are installed.",
+        "ok": "ffmpeg {{version}} installed.",
+        "okPlain": "ffmpeg installed.",
+        "fetch": "ffmpeg to download before the first analysis.",
         "missing": "Missing: {{tools}}. Install it in a terminal:"
       },
       "gpu": {

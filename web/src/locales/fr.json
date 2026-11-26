@@ -1807,7 +1807,9 @@
         "busy": "Charge de l'ordinateur"
       },
       "tools": {
-        "ok": "ffmpeg et git sont installés.",
+        "ok": "ffmpeg {{version}} installé.",
+        "okPlain": "ffmpeg installé.",
+        "fetch": "ffmpeg à télécharger avant la première analyse.",
         "missing": "Manquant : {{tools}}. Installez-le dans un terminal :"
       },
       "gpu": {

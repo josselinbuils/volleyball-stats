@@ -174,12 +174,10 @@ def from_checked(match: Path, page: dict, fps: float) -> dict[str, Score]:
 
 
 def commit() -> str:
-    """The code's version, empty without git."""
-    try:
-        run = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-    return run.stdout.strip()
+    """The code's version (short), empty when nothing says it."""
+    from volleyball_stats import updates
+
+    return (updates.commit(ROOT) or "")[:7]
 
 
 def from_training(match: Path) -> dict[str, Score]:

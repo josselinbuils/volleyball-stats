@@ -153,9 +153,19 @@ def every(count: int, tell: Share, step: int = 0) -> Callable[[int], None]:
     return seen
 
 
+_told: list[str] = []
+
+
 def tell(share: float) -> None:
-    """A share told on stdout, for the process that started this one (`follow`)."""
-    print(f"{PROGRESS}{share:.4f}", flush=True)
+    """A share told on stdout, for the process that started this one (`follow`); in a terminal (an installer's), a
+    percentage written over the last."""
+    if not sys.stdout.isatty():
+        print(f"{PROGRESS}{share:.4f}", flush=True)
+        return
+    percent = f"{share:.0%}"
+    if _told[-1:] != [percent]:
+        _told[:] = [percent]
+        print(f"\r{percent}", end="\n" if share >= 1 else "", flush=True)
 
 
 def follow(command: list[str], share: Share, **options) -> None:

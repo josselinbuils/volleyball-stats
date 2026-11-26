@@ -365,14 +365,10 @@ def code_stamps() -> dict[str, str]:
 
 
 def head_commit() -> str | None:
-    """The app's commit, None outside a git checkout."""
-    from volleyball_stats import git_check
+    """The app's commit, None when nothing says it (`updates.commit`)."""
+    from volleyball_stats import git_check, updates
 
-    try:
-        run = git_check._git(git_check.ROOT, "rev-parse", "HEAD")
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    return run.stdout.strip() if run.returncode == 0 else None
+    return updates.commit(git_check.ROOT)
 
 
 def online_code(site: Path) -> dict | None:
@@ -392,10 +388,12 @@ def newer_code(site: Path) -> bool:
         return False
     here = head_commit()
     if here is None:
-        # ponytail: an app outside git cannot tell its age; a version number in CODE would.
+        # ponytail: an app that knows no commit cannot tell its age; a version number in CODE would.
         return False
-    from volleyball_stats import git_check
+    from volleyball_stats import git_check, updates
 
+    if not updates.git(git_check.ROOT):
+        return updates.newer(sent["commit"], here)
     try:
         # Also when this app does not know that commit: newer, or another branch's.
         return git_check._git(git_check.ROOT, "merge-base", "--is-ancestor", sent["commit"], here).returncode != 0

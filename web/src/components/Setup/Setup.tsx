@@ -18,6 +18,9 @@ import { call } from '@/lib/app';
 import { useFormat } from '@/lib/format';
 import { type AppState, type Check } from './helpers/setup';
 
+/** Whether the models' download brings what `check` lacks: the models, ffmpeg where the app installs it. */
+const downloads = (check: Check) => check.id === 'models' || (check.id === 'tools' && !!check.fetch);
+
 // Polled faster while something runs.
 const BUSY_MS = 3000;
 const IDLE_MS = 20_000;
@@ -110,7 +113,7 @@ export function Setup() {
           <AlertDescription className="grid gap-2">
             <span>{checkText(t, check)}</span>
             {check.command && <code className="w-fit rounded-md bg-muted px-2 py-1 font-mono text-xs select-all">{check.command}</code>}
-            {check.id === 'models' && (
+            {downloads(check) && (
               <Button
                 size="sm"
                 variant="outline"
@@ -128,8 +131,8 @@ export function Setup() {
                 {modelsRunning ? t('app.doctor.downloading') : t('app.doctor.download')}
               </Button>
             )}
-            {modelsError && check.id === 'models' && <ErrorNote {...modelsError} />}
-            {state?.models?.failed && !modelsRunning && check.id === 'models' && <ErrorNote text={t('app.doctor.downloadFailed')} />}
+            {modelsError && downloads(check) && <ErrorNote {...modelsError} />}
+            {state?.models?.failed && !modelsRunning && downloads(check) && <ErrorNote text={t('app.doctor.downloadFailed')} />}
           </AlertDescription>
         </Alert>
       ))}
