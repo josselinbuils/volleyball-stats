@@ -308,9 +308,16 @@ Built (26 Nov), everything but what waits on the owner:
   PowerShell is taken from `{sysnative}`), and Inno 7's RedirectionGuard, inherited by a setup that is not elevated,
   made uv's links to its Python fail (`RedirectionGuard=no`).
 - `install.sh` on a Mac: no Homebrew any more (uv's installer, the archive, ffmpeg from `tools.py`); a git checkout
-  keeps the old way. `packaging/macos/build.sh` makes `Volleyball Stats.dmg`: an ad-hoc signed `.app` whose first open
-  runs `install.sh` in Terminal, its next opens the app. Built on a Mac only: not run yet.
-- `.github/workflows/installers.yml` builds both (by hand only, `workflow_dispatch`): not run yet.
+  keeps the old way. `packaging/macos/build.sh` makes `volleyball-stats.dmg`: an ad-hoc signed `.app` whose first open
+  runs `install.sh` in Terminal, its next opens the app. Built on a Mac only.
+- `.github/workflows/installers.yml` builds both (by hand only, `workflow_dispatch`, ~1 min), and given a release's tag
+  puts them on that GitHub release with its text.
+- The download page is that release (`releases/latest`, made 26 Nov as `v1.0`): its text in
+  `packaging/release/release.md` (French then English: the two files, the way past the warning, the one-liners) with
+  the real dialogs' screenshots beside it: SmartScreen on the PC (a copy of `setup.exe` marked as downloaded, run with
+  `/?` through Explorer, closed on "Ne pas exécuter"), Gatekeeper on macOS 26 on a GitHub runner (the `.dmg` marked as
+  downloaded, opened, then Privacy & Security), both in French. The links stay
+  `releases/latest/download/volleyball-stats-setup.exe` and `…/volleyball-stats.dmg`; the README points to the page.
 
 Checked on the PC, natively, in a sandboxed profile (`USERPROFILE`, `APPDATA`, `LOCALAPPDATA` elsewhere, the owner's
 uv, ffmpeg and git off the PATH), the code from a local archive:
@@ -321,8 +328,11 @@ uv, ffmpeg and git off the PATH), the code from a local archive:
 - The uninstaller: nothing left (the folder, the launcher, ffmpeg, the entry in the installed apps).
 - `install.ps1` in a 32-bit PowerShell: refused, nothing installed.
 
-Waits on the owner: running the workflow and a GitHub release (the files to download), the download page (the
-SmartScreen and Gatekeeper screenshots), the fresh Windows 11 account and the Mac (the `.dmg` built and opened there).
+On macOS 26, the runner's Gatekeeper refuses the ad-hoc signed app ("rejected") and shows the dialog: the `.dmg` is
+built right, its open past the warning not yet seen.
+
+Waits on the owner: the fresh Windows 11 account and the Mac (the download and the double-click to Diagnostics all
+green).
 
 ## 9. Share without a server
 
@@ -425,3 +435,6 @@ One line per session: date, what was done, what is next.
   macOS (`tools.py`), `install.ps1` and `setup.exe` (Inno Setup), `install.sh` without Homebrew and the `.dmg`'s build
   (not run: a Mac), the workflow building both (not run). `setup.exe` to Diagnostics all green in 35 s, its uninstaller
   leaving nothing.
+- 26 Nov: the release `v1.0` with both files is the download page (`packaging/release/`: its text and the real
+  SmartScreen and Gatekeeper screenshots); the workflow publishes to a release given its tag; the `.dmg` renamed
+  `volleyball-stats.dmg`. Next: the fresh accounts (the owner's).
