@@ -83,8 +83,11 @@ faster.
 - [x] Record 2 hours at home, 4K 50 fps, on the power bank through the 5 m cable: no cut, no
       overheating.
 - [x] Calibrate the lens in Standard (see [below](#lens-calibration)).
-- [ ] At the gym: get approval for the handball goals and check they are anchored. Check the framing
-      from the stand shows both end lines and the near corners.
+- [ ] At the gym: get approval for the handball goals and check they are anchored. Film a few seconds
+      from the stand with the match settings, then "Tester le cadrage" in the app: it draws the court on
+      the picture and says what to change (move back, turn, tilt, face the net, raise the camera). A new gym
+      is placed by a few clicks once; its matches then find the court alone. Each import says it again
+      before the analysis.
 
 ## Lens calibration
 

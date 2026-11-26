@@ -185,6 +185,30 @@ class TestApp:
         (jobs.folder(place / "outputs") / "lens.log").write_text("board on 4 frames\n" + lens.RESULT + json.dumps(result) + "\n")
         assert app.lens_state()["job"]["result"] == result
 
+    def test_tests_the_framing_then_places_its_court_by_hand(self, place, monkeypatch):
+        from volleyball_stats import placement
+
+        started = []
+        monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append((job_id, steps[0][1])))
+        monkeypatch.setattr(app, "chapters_of", lambda source, recording: [type("Chapter", (), {"path": Path(f"{source}/{recording}a.mp4")})()])
+        assert app.handle("POST", "/app/placement/test", "", {"source": "card", "recording": 1}, list)[2] == 200
+        assert started[0] == ("placement", ["volleyball_stats.placement", "test", "card/1a.mp4", "--outputs", str(place / "outputs")])
+        # No stored court matched: the test's picture, to click.
+        folder = place / "outputs" / placement.FOLDER
+        folder.mkdir(parents=True)
+        (folder / placement.BACKGROUND).write_bytes(b"png")
+        self.job(place, "placement", kind="placement")
+        assert app.placement_state()["court"] and app.placement_state()["verdict"] is None
+        assert app.handle("GET", "/app/placement/image", "kind=background", {}, list)[:2] == (b"png", "image/png")
+        assert app.handle("GET", "/app/placement/image", "kind=picture", {}, list)[2] == 404
+        clicks = {"corner_left_far": [1, 2], "attack_left_far": [3, 4], "center_far": [5, 6], "corner_left_near": [7, 8]}
+        assert app.handle("POST", "/app/placement/fit", "", {"clicks": {"corner_left_far": [1, 2]}, "court": "Gym"}, list)[2] == 400
+        assert app.handle("POST", "/app/placement/fit", "", {"clicks": clicks, "court": "Salle Jean Zay"}, list)[2] == 200
+        assert started[1][1][:2] == ["volleyball_stats.placement", "fit"] and started[1][1][-4:] == ["--court", "salle_jean_zay", "--outputs", str(place / "outputs")]
+        assert json.loads((folder / "clicks.json").read_text()) == clicks
+        (folder / placement.VERDICT).write_text(json.dumps({"found": True, "ok": True}))
+        assert app.placement_state()["verdict"] == {"found": True, "ok": True} and not app.placement_state()["court"]
+
     def test_exports_only_the_matches_ready(self, place, monkeypatch):
         started = []
         monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append(steps[0][1]))

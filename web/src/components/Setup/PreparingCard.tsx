@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useFormat, type Format } from '@/lib/format';
 import { CalibrateDialog } from './CalibrateDialog';
 import { CourtDialog } from './CourtDialog';
+import { FramingVerdict } from './FramingDialog';
 import { JobProgress, roughly, useDuration } from '@/components/JobProgress';
 import { Zoomable } from '@/components/Zoomable';
 import { call } from '@/lib/app';
@@ -122,6 +123,12 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
               </figcaption>
             </figure>
           )}
+        </div>
+      )}
+      {item.state === 'check' && item.framing && (
+        <div className="grid gap-1.5 text-sm">
+          <FramingVerdict framing={item.framing} />
+          <p className="m-0 text-muted-foreground">{t('app.framing.next')}</p>
         </div>
       )}
       {(item.state === 'check' || item.resume != null) && item.seconds != null && (

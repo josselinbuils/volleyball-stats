@@ -133,6 +133,9 @@ def undistort(points: np.ndarray, lens: Lens) -> np.ndarray:
     k, d = np.array(lens["K"], float), np.array(lens["D"], float)
     # A copy: OpenCV reads a slice of a wider array as if it were contiguous.
     src = np.array(points, float).reshape(-1, 1, 2)
+    if not len(src):
+        # OpenCV answers None to no points (a line found nowhere on a frame `match` slid the court over).
+        return src.reshape(-1, 2)
     if lens["model"] == "fisheye":
         return cv2.fisheye.undistortPoints(src, k, d, P=k).reshape(-1, 2)
     return cv2.undistortPoints(src, k, d, P=k).reshape(-1, 2)
@@ -227,15 +230,17 @@ def fit(image_points: Points, lens: Lens | None = None, ransac: bool = True) -> 
     return Calibration(homography, lens, error)
 
 
-def background(video: Path, frames: int = BACKGROUND_FRAMES) -> np.ndarray:
-    """Median of frames spread over the video: players and the ball vanish, a fixed camera's court stays."""
+def background(video: Path, frames: int = BACKGROUND_FRAMES, tell=lambda _: None) -> np.ndarray:
+    """Median of frames spread over the video: players and the ball vanish, a fixed camera's court stays. The share of
+    the frames read told to `tell`."""
     cap = cv2.VideoCapture(str(video))
     stack = []
-    for index in np.linspace(0, cap.get(cv2.CAP_PROP_FRAME_COUNT) - 2, frames).astype(int):
+    for k, index in enumerate(np.linspace(0, cap.get(cv2.CAP_PROP_FRAME_COUNT) - 2, frames).astype(int)):
         cap.set(cv2.CAP_PROP_POS_FRAMES, int(index))
         ok, frame = cap.read()
         if ok:
             stack.append(frame)
+        tell((k + 1) / frames)
     cap.release()
     if not stack:
         raise ValueError(f"Cannot read {video}")
@@ -462,6 +467,25 @@ def match(image: np.ndarray, court: Calibration) -> tuple[Calibration | None, fl
     return calibration, found, accepted
 
 
+def find(image: np.ndarray, courts: Path, say=lambda _: None) -> Calibration | None:
+    """The stored court in `courts` that `image` matches best (`match`), None when none does; each court's score told
+    to `say`."""
+    best, best_found = None, 0.0
+    for path in sorted(courts.glob("*.json")):
+        court = Calibration.load(path)
+        calibration, found, accepted = match(image, court)
+        if calibration is None:
+            say(f"{path.stem}: other frame size")
+            continue
+        say(
+            f"{path.stem}: line samples on lines {found:.0%}, {len(calibration.points)} landmarks snapped "
+            f"({len(court.points)} when calibrated), RMS {calibration.error:.1f} px -> {'match' if accepted else 'no match'}"
+        )
+        if accepted and found > best_found:
+            best, best_found = calibration, found
+    return best
+
+
 def overlay(image: np.ndarray, calibration: Calibration) -> np.ndarray:
     """`image` with the court's lines as `calibration` sees them, to check it by eye."""
     out = image.copy()
@@ -472,14 +496,28 @@ def overlay(image: np.ndarray, calibration: Calibration) -> np.ndarray:
     return out
 
 
+# How far a court line out of the picture is still drawn, beside it on a grey margin: a fraction of its width.
+OUTSIDE = 0.2
+
+
 def check_image(image: np.ndarray, calibration: Calibration, width: int = 1280) -> np.ndarray:
-    """`overlay` on a copy `width` pixels wide, its lines thick enough to see there."""
+    """`overlay` on a copy `width` pixels wide, its lines thick enough to see there; a line leaving the picture goes on
+    in red over a grey margin around it, as far as OUTSIDE."""
     scale = width / image.shape[1]
-    out = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-    for line in LINES:
-        for a, b in zip(line, line[1:]):
-            path = calibration.to_image(np.linspace(LANDMARKS[a], LANDMARKS[b], 40)) * scale
-            cv2.polylines(out, [path.astype(np.int32)], False, (0, 255, 255), 2, cv2.LINE_AA)
+    shrunk = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    h, w = shrunk.shape[:2]
+    paths = [calibration.to_image(np.linspace(LANDMARKS[a], LANDMARKS[b], 40)) * scale for line in LINES for a, b in zip(line, line[1:])]
+    every = np.concatenate(paths)
+    reach = int(OUTSIDE * w)
+    pad = [int(np.clip(v, 0, reach)) for v in (-every[:, 1].min(), every[:, 1].max() - h, -every[:, 0].min(), every[:, 0].max() - w)]
+    pad = [p + 12 if p else 0 for p in pad]
+    out = cv2.copyMakeBorder(shrunk, *pad, cv2.BORDER_CONSTANT, value=(90, 90, 90))
+    origin = np.array([pad[2], pad[0]])
+    for path in paths:
+        seen = (path[:, 0] >= 0) & (path[:, 0] <= w) & (path[:, 1] >= 0) & (path[:, 1] <= h)
+        for (p, q), a, b in zip(zip(path, path[1:]), seen, seen[1:]):
+            colour = (0, 255, 255) if a and b else (60, 60, 255)
+            cv2.line(out, tuple((p + origin).astype(int)), tuple((q + origin).astype(int)), colour, 2 if a and b else 3, cv2.LINE_AA)
     return out
 
 
@@ -681,19 +719,7 @@ def main() -> None:
         if args.background:
             args.background.parent.mkdir(parents=True, exist_ok=True)
             cv2.imwrite(str(args.background), image)
-        best, best_found = None, 0.0
-        for path in sorted(args.courts.glob("*.json")):
-            court = Calibration.load(path)
-            calibration, found, accepted = match(image, court)
-            if calibration is None:
-                print(f"{path.stem}: other frame size")
-                continue
-            print(
-                f"{path.stem}: line samples on lines {found:.0%}, {len(calibration.points)} landmarks snapped "
-                f"({len(court.points)} when calibrated), RMS {calibration.error:.1f} px -> {'match' if accepted else 'no match'}"
-            )
-            if accepted and found > best_found:
-                best, best_found = calibration, found
+        best = find(image, args.courts, print)
         if best is None:
             raise SystemExit(f"No stored court matches {args.video}: run `click` then `fit`.")
         out = args.out or Path("outputs/court") / f"{args.video.stem}.json"

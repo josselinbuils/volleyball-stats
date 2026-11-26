@@ -256,3 +256,9 @@ class TestDrawGrid:
         # A grid line at source x = 50 lands on output column 100.
         assert out[150, 100].tolist() == [0, 255, 255]
         assert out[150, 101].tolist() == [0, 0, 0]
+
+
+@pytest.mark.parametrize("model", ["fisheye", "standard"])
+def test_undistorts_no_points(model):
+    # OpenCV answers None to none: `match` sliding a court over a picture where a line is found nowhere.
+    assert undistort(np.empty((0, 2)), {"model": model, "K": TestLens.K, "D": [0.0] * 4}).shape == (0, 2)

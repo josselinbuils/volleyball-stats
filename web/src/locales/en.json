@@ -1634,6 +1634,40 @@
       "none": "Unknown camera: court positions less precise.",
       "refit": "Camera calibrated since: place the court again to use it."
     },
+    "framing": {
+      "open": "Test the framing",
+      "title": "Test the framing",
+      "why": "Film a few seconds from the camera's planned spot, with the match settings, then pick that video.",
+      "loading": "Reading the last test…",
+      "start": "Test",
+      "running": "Finding the court",
+      "place": "Unknown gym: place the court once, its matches will find it alone. Click each point the small court shows, roughly.",
+      "picture": "The court as the camera sees it",
+      "ok": "Framing fine.",
+      "better": "Framing to improve:",
+      "out": "Out of the picture: {{lines}}.",
+      "line": {
+        "left": "left end line",
+        "right": "right end line",
+        "far": "far sideline",
+        "near": "near sideline",
+        "heads": "far players' heads"
+      },
+      "advice": {
+        "back": "Move the camera back.",
+        "align_left": "Move it left, facing the net.",
+        "align_right": "Move it right, facing the net.",
+        "higher": "Raise it higher.",
+        "turn_left": "Turn it left.",
+        "turn_right": "Turn it right.",
+        "tilt_up": "Tilt it up.",
+        "tilt_down": "Tilt it down."
+      },
+      "camera": "Camera {{back}} m from the court, {{high}} m high.",
+      "next": "To fix at the next match.",
+      "failed": "Test failed.",
+      "again": "Test again"
+    },
     "court": {
       "open": "Place the court",
       "title": "Place the court",
@@ -1808,7 +1842,8 @@
       "export": "Export",
       "models": "Downloading the models",
       "learn": "Reanalysis",
-      "lens": "Camera calibration"
+      "lens": "Camera calibration",
+      "placement": "Framing test"
     },
     "count_one": "{{count}} task",
     "count_other": "{{count}} tasks",

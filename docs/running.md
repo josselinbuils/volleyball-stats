@@ -22,6 +22,13 @@
   (500 frames after 50 to warm up, 30 s at most, its own counted bar, kept in `outputs/speed.json`); "Laissez
   l'ordinateur branché et ouvert" on a laptop (`awake.laptop`), and past 24 s per second of video, that it is too
   slow and what would help. Diagnostics says the same for an hour of match.
+  The framing (`placement.py`): "Tester le cadrage" on the list takes a few seconds filmed from the camera's planned
+  spot, picked like an import, as a job (`placement test`: the picture without the players, its counted bar, then
+  `court.find` among the stored courts); a new gym asks the clicks (`placement fit`, the court then stored for its
+  matches). The answer is the court drawn (`court.check_image`: a line out of the picture goes on in red on a grey border)
+  and what is out (an end line, a sideline, the far players' heads at 2.4 m) with what to change: back, turn, tilt, on the
+  net's line, higher (the camera's place and heads only with its lens known: a guessed one puts it metres off). An
+  import's card says the same before the analysis when its court could be framed better (`/app/state`'s `framing`).
   A stopped analysis (the Stop button, a sleep, a crash, the app closed) carries on where it was: the tracking pass
   keeps a part every 9600 frames (`resume.py`, `tracking_parts/`: the ball positions, the player rows, BoT-SORT's
   state and its next id, pickled; this machine's own, left out of backups and the hosted pages), started again it reads

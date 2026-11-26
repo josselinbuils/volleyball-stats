@@ -36,6 +36,8 @@ COURT, BACKGROUND = "court.json", "background.png"
 # The camera's calibration (lens.py): its job, its board's picture.
 LENS = "lens"
 BOARD: list[bytes] = []
+# The framing's test (placement.py): its job.
+PLACEMENT = "placement"
 IMAGES = {"start": ("start.jpg", "image/jpeg"), "court": ("court.jpg", "image/jpeg"), "background": (BACKGROUND, "image/png")}
 # Where a camera's card or a video folder may be.
 MOUNTS = {"mac": ["/Volumes"], "linux": ["/media/{user}", "/run/media/{user}"]}
@@ -525,6 +527,8 @@ def preparing(listed: list[dict]) -> list[dict]:
             continue
         if item["state"] in ("court", "check"):
             item["lens"] = lens_need(name)
+        if item["state"] == "check":
+            item["framing"] = framing_of(name)
         if item["state"] == "stalled" or (item["state"] == "failed" and job.get("failed") == "pipeline"):
             # Started again, it carries on where it stopped (`resume`): the time for what is left. Its tracks written, it
             # tracks nothing again (`match.main`).
@@ -533,6 +537,14 @@ def preparing(listed: list[dict]) -> list[dict]:
                 item.update(**analysis_time(name, item["resume"]), laptop=awake.laptop() is not False)
         found.append(item)
     return found
+
+
+def framing_of(name: str) -> dict | None:
+    """How the camera framed `name`'s court (placement.judge), told on its card before the analysis; None when fine."""
+    from volleyball_stats import placement
+
+    found = placement.judge_file(MATCHES / name / COURT)
+    return found if found and not found["ok"] else None
 
 
 def lens_of(name: str) -> Path | None:
@@ -571,6 +583,40 @@ def calibrate_lens(source: str | list[str], recording: int) -> None:
     board: its first chapter, a minute being one."""
     chapters = chapters_of(source, recording)
     jobs.start(OUTPUTS, LENS, LENS, [(LENS, ["volleyball_stats.lens", "calibrate", str(chapters[0].path), "--outputs", str(OUTPUTS)])])
+
+
+def placement_state() -> dict:
+    """The framing's test: its job, then its `verdict` (placement.judge), or `court` when its court is to be placed by
+    hand (none stored matched, or the clicks did not fit)."""
+    from volleyball_stats import placement
+
+    job = next((j for j in jobs.state(OUTPUTS) if j["id"] == PLACEMENT), None)
+    folder = OUTPUTS / placement.FOLDER
+    ended = bool(job and not job["running"])
+    verdict = files.read_json(folder / placement.VERDICT, None) if ended and not job.get("failed") else None
+    court = ended and verdict is None and job.get("failed") in (None, "fit") and (folder / placement.BACKGROUND).exists()
+    return {"job": job, "verdict": verdict, "court": court}
+
+
+def test_placement(source: str | list[str], recording: int) -> None:
+    """The framing's test started on the first chapter of the recording `recording` (from 1) of a source (`paths_of`)."""
+    chapters = chapters_of(source, recording)
+    jobs.start(OUTPUTS, PLACEMENT, PLACEMENT, [("test", ["volleyball_stats.placement", "test", str(chapters[0].path), "--outputs", str(OUTPUTS)])])
+
+
+def fit_placement(clicks: dict, court_name: str) -> None:
+    """The test's court placed from rough clicks on its picture and stored as `court_name`, as `fit_court` does a match's."""
+    from volleyball_stats import court, placement
+
+    points = {k: [float(v[0]), float(v[1])] for k, v in clicks.items() if k in court.LANDMARKS}
+    if len(points) < 4 or not NAME.fullmatch(court_name.strip()) or "/" in court_name:
+        raise ValueError("clicks")
+    folder = OUTPUTS / placement.FOLDER
+    if jobs.is_running(OUTPUTS, PLACEMENT):
+        raise jobs.Running(PLACEMENT)
+    files.write_text(folder / "clicks.json", json.dumps(points, indent=2))
+    slug = re.sub(r"[^a-z0-9]+", "_", court_name.strip().lower()).strip("_") or "court"
+    jobs.start(OUTPUTS, PLACEMENT, PLACEMENT, [("fit", ["volleyball_stats.placement", "fit", str(folder / "clicks.json"), "--court", slug, "--outputs", str(OUTPUTS)])])
 
 
 def board() -> bytes:
@@ -912,6 +958,16 @@ def handle(
                 return reply(lens_state())
             if route == "board":
                 return board(), "image/png", 200
+            if route == "placement":
+                return reply(placement_state())
+            if route == "placement/image":
+                from volleyball_stats import placement
+
+                file = {"picture": placement.PICTURE, "background": placement.BACKGROUND}[parse_qs(query)["kind"][0]]
+                image = OUTPUTS / placement.FOLDER / file
+                if not image.is_file():
+                    return reply({"error": "missing"}, 404)
+                return image.read_bytes(), "image/png" if file.endswith(".png") else "image/jpeg", 200
             if route == "learning":
                 return reply(learning())
             if route == "server":
@@ -977,6 +1033,12 @@ def handle(
         if route == "lens/calibrate":
             calibrate_lens(body["source"], int(body.get("recording") or 1))
             return reply(lens_state())
+        if route == "placement/test":
+            test_placement(body["source"], int(body.get("recording") or 1))
+            return reply(placement_state())
+        if route == "placement/fit":
+            fit_placement(body["clicks"], str(body["court"]))
+            return reply(placement_state())
         if route == "court/fit":
             fit_court(name, body["clicks"], str(body["court"]))
             return reply({})

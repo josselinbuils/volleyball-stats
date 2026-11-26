@@ -1634,6 +1634,40 @@
       "none": "Caméra inconnue : positions sur le terrain moins précises.",
       "refit": "Caméra calibrée depuis : replacez le terrain pour en profiter."
     },
+    "framing": {
+      "open": "Tester le cadrage",
+      "title": "Tester le cadrage",
+      "why": "Filmez quelques secondes depuis l'endroit prévu pour la caméra, avec les réglages des matchs, puis choisissez cette vidéo.",
+      "loading": "Lecture du dernier test…",
+      "start": "Tester",
+      "running": "Recherche du terrain",
+      "place": "Gymnase inconnu : placez le terrain une fois, ses matchs le trouveront seuls. Cliquez sur chaque point montré sur le petit terrain, à peu près.",
+      "picture": "Le terrain vu par la caméra",
+      "ok": "Cadrage bon.",
+      "better": "Cadrage à améliorer :",
+      "out": "Hors de l'image : {{lines}}.",
+      "line": {
+        "left": "ligne de fond gauche",
+        "right": "ligne de fond droite",
+        "far": "ligne de côté du fond",
+        "near": "ligne de côté proche",
+        "heads": "têtes des joueurs du fond"
+      },
+      "advice": {
+        "back": "Reculez la caméra.",
+        "align_left": "Décalez-la vers la gauche, face au filet.",
+        "align_right": "Décalez-la vers la droite, face au filet.",
+        "higher": "Montez-la plus haut.",
+        "turn_left": "Tournez-la vers la gauche.",
+        "turn_right": "Tournez-la vers la droite.",
+        "tilt_up": "Inclinez-la vers le haut.",
+        "tilt_down": "Inclinez-la vers le bas."
+      },
+      "camera": "Caméra à {{back}} m du terrain, {{high}} m de haut.",
+      "next": "À corriger au prochain match.",
+      "failed": "Test impossible.",
+      "again": "Tester à nouveau"
+    },
     "court": {
       "open": "Placer le terrain",
       "title": "Placer le terrain",
@@ -1808,7 +1842,8 @@
       "export": "Export",
       "models": "Téléchargement des modèles",
       "learn": "Réanalyse",
-      "lens": "Calibration de la caméra"
+      "lens": "Calibration de la caméra",
+      "placement": "Test du cadrage"
     },
     "count_one": "{{count}} tâche",
     "count_other": "{{count}} tâches",

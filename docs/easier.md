@@ -116,7 +116,8 @@ A stopped analysis (sleep, restart, crash, update, the window closed) starts aga
 
 ## 5. A framing check
 
-- [ ] Done
+- [x] Done (26 Nov): `placement.py`, "Tester le cadrage" on the list (`FramingDialog`), the card's line at import; a
+  video only (a photo's 4:3 frame is not the video's); the check at the gym (below) still open
 
 A bad framing costs a match: check it before.
 
@@ -328,3 +329,14 @@ One line per session: date, what was done, what is next.
   half or quarter frame then refined) was 4-8x faster but moved the lens 10-19 px from the profile (4 px for the same
   search run again): kept the exact one, ~5 min a minute of 4K. Waits: the Mac's calibration from the app; whether the
   Osmo's Wide mode differs in its tags (film a few seconds in Wide). Next: step 5.
+- 26 Nov: step 5 done (`placement.py`, `FramingDialog`): "Tester le cadrage" on the list takes a few seconds filmed
+  from the planned spot as a job (the picture without the players, its counted bar), finds a stored court
+  (`court.find`) or asks the clicks of a new gym (the court dialog's body, `CourtPlacer`) and stores it; the answer is
+  the court drawn (a line out of the picture goes on in red on a grey border), what is out (end lines, sidelines, the
+  far players' heads at 2.4 m) and what to do (back, turn, tilt, face the net, higher); an import's card says it
+  before the analysis when its court could be framed better. The four matches' first 10 s: found alone and OK
+  (camera 7.3 m back, 3.9-4.0 m high, on the net's line); side_club (near corners cut): back; shifted Eysines frames:
+  left/right end line out → turn left/right, near sideline → tilt down, heads → tilt up, zoomed 1.25 → back; a clip
+  shifted 400 px through the app: not found, clicked, left end line out → turn left. The camera's place and the heads
+  only with the lens known (a guessed camera said "heads out" on a good picture). Court benchmark identical (manual,
+  refine, auto), online state unchanged. Waits: the gym's own check (photo, phone, laptop), after step 11. Next: step 6.

@@ -25,7 +25,7 @@ export interface Check {
 /** A job (jobs.py) as the app shows it. */
 export interface Job {
   id: string;
-  kind: 'import' | 'court' | 'pipeline' | 'models' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn' | 'lens';
+  kind: 'import' | 'court' | 'pipeline' | 'models' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn' | 'lens' | 'placement';
   running: boolean;
   step?: string | null;
   failed?: string;
@@ -58,6 +58,8 @@ export interface Preparing {
   fitFailed?: boolean;
   /** The camera has no lens here (`none`: positions less precise), or got one since the court was placed (`refit`). */
   lens?: 'none' | 'refit' | null;
+  /** How the camera frames the court, when it could do better (placement.judge). */
+  framing?: Framing | null;
   left?: number | null;
   /** Before the analysis: its seconds on this machine (null when it was never timed), whether that is too slow, and whether a lid could sleep it. */
   seconds?: number | null;
@@ -197,6 +199,22 @@ export interface Camera {
 }
 
 /** The camera's calibration (app.lens_state): its job, how it went once ended, and the cameras with a lens. */
+/** How a court sits in its picture (placement.judge): the lines out of it, what to change (the most useful first), the
+ * camera's place in metres (along the court from the net, back from the near sideline, high) when its lens is known. */
+export interface Framing {
+  ok: boolean;
+  out: ('left' | 'right' | 'far' | 'near' | 'heads')[];
+  advice: ('back' | 'align_left' | 'align_right' | 'higher' | 'turn_left' | 'turn_right' | 'tilt_up' | 'tilt_down')[];
+  camera: [number, number, number] | null;
+}
+
+/** The framing's test: its job, then its verdict, or `court` when its court is to be clicked. */
+export interface PlacementState {
+  job: Job | null;
+  verdict: (Framing & { found: true }) | null;
+  court: boolean;
+}
+
 export interface LensState {
   job: (Job & { result?: { camera: Camera; views: number; coverage?: number; rms?: number; kept: boolean; why?: 'views' | 'coverage' | 'rms' } | null }) | null;
   lenses: Camera[];
