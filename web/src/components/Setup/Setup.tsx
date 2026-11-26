@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, FolderInput, Frame, Shield, Stethoscope, TriangleAlert, Video, Wifi } from 'lucide-react';
+import { Download, FolderInput, Frame, ListChecks, Shield, Stethoscope, TriangleAlert, Video, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorNote } from '@/components/ErrorNote';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { ClubDialog } from '@/components/ClubDialog';
 import { Doctor, checkText } from './Doctor';
+import { FirstSteps } from './FirstSteps';
 import { FramingDialog } from './FramingDialog';
 import { GuideDialog } from './GuideDialog';
 import { ImportDialog } from './ImportDialog';
@@ -16,7 +17,7 @@ import { UpdateLine } from '@/components/Update';
 import { explain, type Explained } from '@/lib/errors';
 import { call } from '@/lib/app';
 import { useFormat } from '@/lib/format';
-import { type AppState, type Check } from './helpers/setup';
+import { STEPS, type AppState, type Check, type FirstState, type FirstStep } from './helpers/setup';
 
 /** Whether the models' download brings what `check` lacks: the models, ffmpeg where the app installs it. */
 const downloads = (check: Check) => check.id === 'models' || (check.id === 'tools' && !!check.fetch);
@@ -25,9 +26,10 @@ const downloads = (check: Check) => check.id === 'models' || (check.id === 'tool
 const BUSY_MS = 3000;
 const IDLE_MS = 20_000;
 
-/** On the review's list of the matches: what used to need a command. The machine's problems, importing a match, the
- * matches being prepared until their review opens. */
-export function Setup() {
+/** On the review's list of the matches: what used to need a command. The machine's problems, the guided first run
+ * (`first`, as the list came; `onReview` opens a match for its review step), importing a match, the matches being prepared
+ * until their review opens. */
+export function Setup({ first: given, onReview, reviewing }: { first?: FirstState; onReview?: (() => void) | false; reviewing: boolean }) {
   const { t } = useTranslation();
   const f = useFormat();
   const [state, setState] = useState<AppState | null>(null);
@@ -88,6 +90,35 @@ export function Setup() {
     }
   }, [modelsRunning, recheck]);
 
+  // As the list came until the first poll answers.
+  const first = state?.first ?? given;
+  const left = !!first && STEPS.some((s) => !first.done.includes(s));
+  const [marking, runMark] = useRunning<'guide' | 'hidden'>();
+  const [markError, setMarkError] = useState<Explained | null>(null);
+  const mark = (seen: 'guide' | 'hidden', value = true) =>
+    runMark(seen, async () => {
+      const r = await call('first', { seen, value });
+      setMarkError(r.ok || seen === 'guide' ? null : explain(t, r.error));
+      await refresh();
+    });
+  const openDialog = (which: NonNullable<typeof dialog>) => {
+    setDialog(which);
+    if (which === 'guide' && first && !first.done.includes('guide')) {
+      void mark('guide');
+    }
+  };
+  const step = (s: FirstStep) => {
+    if (s === 'review') {
+      if (onReview) {
+        onReview();
+      }
+    } else if (s === 'share') {
+      location.hash = '#site';
+    } else if (s !== 'analysis') {
+      openDialog(s);
+    }
+  };
+
   // The code's version has its own notice (Behind), the machine's load only matters when a pipeline starts.
   const problems = (Array.isArray(checks) ? checks : []).filter((c) => c.status !== 'ok' && c.id !== 'code' && c.id !== 'busy');
 
@@ -136,32 +167,40 @@ export function Setup() {
           </AlertDescription>
         </Alert>
       ))}
+      {first && left && !first.hidden && <FirstSteps first={first} onStep={step} onHide={() => void mark('hidden')} hiding={marking === 'hidden'} opening={reviewing} reviewable={!!onReview} />}
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setDialog('import')}>
           <FolderInput aria-hidden />
           {t('app.import.open')}
         </Button>
-        <Button variant="outline" className="bg-card" onClick={() => setDialog('guide')}>
+        <Button variant="outline" className="bg-card" onClick={() => openDialog('guide')}>
           <Video aria-hidden />
           {t('app.guide.open')}
         </Button>
-        <Button variant="outline" className="bg-card" onClick={() => setDialog('framing')}>
+        <Button variant="outline" className="bg-card" onClick={() => openDialog('framing')}>
           <Frame aria-hidden />
           {t('app.framing.open')}
         </Button>
-        <Button variant="outline" className="bg-card" onClick={() => setDialog('club')}>
+        <Button variant="outline" className="bg-card" onClick={() => openDialog('club')}>
           <Shield aria-hidden />
           {t('app.club.open')}
         </Button>
-        <Button variant="outline" className="bg-card" onClick={() => setDialog('doctor')}>
+        <Button variant="outline" className="bg-card" onClick={() => openDialog('doctor')}>
           <Stethoscope aria-hidden />
           {t('app.doctor.open')}
         </Button>
-        <Button variant="outline" className="bg-card" onClick={() => setDialog('network')}>
+        <Button variant="outline" className="bg-card" onClick={() => openDialog('network')}>
           <Wifi aria-hidden />
           {t('app.network.open')}
         </Button>
+        {first && left && first.hidden && (
+          <Button variant="outline" className="bg-card" busy={marking === 'hidden'} onClick={() => void mark('hidden', false)}>
+            <ListChecks aria-hidden />
+            {t('app.first.title')}
+          </Button>
+        )}
       </div>
+      {markError && <ErrorNote {...markError} />}
       {state && <UpdateLine learn={state.learn} onChange={refresh} />}
       {state && state.preparing.length > 0 && (
         <div className="grid gap-3">
@@ -185,8 +224,8 @@ export function Setup() {
           }}
         />
       )}
-      {dialog === 'guide' && <GuideDialog onClose={() => setDialog(null)} onFraming={() => setDialog('framing')} />}
-      {dialog === 'framing' && <FramingDialog onClose={() => setDialog(null)} onGuide={() => setDialog('guide')} />}
+      {dialog === 'guide' && <GuideDialog onClose={() => setDialog(null)} onFraming={() => openDialog('framing')} />}
+      {dialog === 'framing' && <FramingDialog onClose={() => setDialog(null)} onGuide={() => openDialog('guide')} />}
       {dialog === 'club' && <ClubDialog onClose={() => setDialog(null)} />}
       {dialog === 'network' && <NetworkDialog onClose={() => setDialog(null)} />}
       {dialog === 'doctor' && <Doctor checks={checks} onRecheck={recheck} onClose={() => setDialog(null)} />}

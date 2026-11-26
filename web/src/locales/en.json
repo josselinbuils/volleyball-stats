@@ -630,7 +630,16 @@
     "updateFailed": "Update failed.",
     "mergeTitle": "Join these players?",
     "unsavedLeave": "Lose them",
-    "matchesLoading": "Loading…"
+    "matchesLoading": "Loading…",
+    "welcome": {
+      "title": "The review",
+      "names": "Name each player.",
+      "questions": "Answer the analysis's doubts, on the video. For example:",
+      "match": "Check each rally, then “Validate”.",
+      "apply": "“Apply” puts it all in the match page.",
+      "name": "Lea",
+      "start": "Start"
+    }
   },
   "progress": {
     "tab": "Progress",
@@ -1921,7 +1930,28 @@
     "save": "Save",
     "estimate": "About {{time}} · Done around {{end}}",
     "estimateLaptop": "Keep the computer plugged in and open.",
-    "estimateSlow": "Too slow on this computer: it would need a recent NVIDIA graphics card or an Apple silicon Mac."
+    "estimateSlow": "Too slow on this computer: it would need a recent NVIDIA graphics card or an Apple silicon Mac.",
+    "first": {
+      "title": "First steps",
+      "hide": "Hide",
+      "done": "Done",
+      "open": "Open",
+      "openMatch": "Open the match",
+      "club": "The club and its teams",
+      "clubText": "Its name, colours and the teams to follow.",
+      "guide": "Film a match",
+      "guideText": "Where to put the camera and how to set it.",
+      "framing": "Test the framing",
+      "framingText": "A few seconds filmed from your spot, before the match.",
+      "import": "Import the match",
+      "importText": "The camera's video, once the match is over.",
+      "analysis": "The analysis",
+      "analysisText": "Start it on the match's card, below: it runs by itself.",
+      "review": "The review",
+      "reviewText": "Name the players and answer the analysis's doubts.",
+      "share": "Share",
+      "shareText": "The match online for the team, from the Site tab."
+    }
   },
   "error": {
     "failed": "Failed: try again.",

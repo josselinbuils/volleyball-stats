@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import cv2
 
-from volleyball_stats import app, applog, awake, decode, feedback, film, files, git_check, hosted, identity, jobs, matches, netlify, network, pictures, presence, rename, sync, timeouts, web
+from volleyball_stats import app, applog, awake, decode, feedback, film, files, first_steps, git_check, hosted, identity, jobs, matches, netlify, network, pictures, presence, rename, sync, timeouts, web
 from volleyball_stats.review import APPLIED, STALE_PHOTOS, TIMINGS, TOOK, applied_too, commented, due, eta, locked, pinned, read_comments, undo, unlocked, waiting, write_comments
 from volleyball_stats.review_answers import (
     ROSTER,
@@ -202,7 +202,7 @@ def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
             club.pop("sponsors")
         # The server's matches come after (`/matches/remote.json`): reaching it takes a second, or ssh's timeout.
         listed = match_list(out)
-        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'club': club, 'review': True}, ensure_ascii=False)};\n", encoding="utf-8")
+        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'club': club, 'review': True, 'first': first_steps.state(out.parent, listed)}, ensure_ascii=False)};\n", encoding="utf-8")
         return (site / "matches.html").read_bytes(), "text/html; charset=utf-8"
     if path == "/matches/remote.json":
         found = on_server(out, match_list(out)) if sync.active(out.parent) else []

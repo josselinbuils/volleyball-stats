@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/Tabs';
 import type { Due } from '@/components/Update';
+import type { FirstState } from '@/components/Setup/helpers/setup';
 import { ClubBar } from '@/components/ClubBar';
 import { Season } from '@/components/Season/Season';
 import { seasonTeams } from '@/components/Season/helpers/season';
@@ -41,6 +42,8 @@ export interface MatchList {
   club: Club | null;
   /** Listed by the review server: the app's script (app.js) shows the list, a card opening the match's review there. */
   review?: boolean;
+  /** The review server's: the guided first run (`FirstState`), shown with the list. */
+  first?: FirstState;
 }
 
 /** A tab of the list: its id, its address (the list's with this hash) and its name. */

@@ -25,6 +25,10 @@
   "Filmer un match" on the list (`GuideDialog`, also from the framing check) is recording.md for anyone: the camera's
   place drawn from above and from an end line (SVG, no footage), the settings by camera (the Osmo Action 3's by its
   menus, others' in general with "Calibrer la caméra"), what to bring as boxes to tick, what to do once.
+  "Premiers pas" on the list (`FirstSteps.tsx`, `first_steps.py`, `/app/first`) walks a new install from the club to a
+  shared match: each step ticked from the files and kept in `outputs/first_steps.json`, only the next one with its button,
+  hidden by its cross (a "Premiers pas" button brings it back), gone once all are done. The review's first open shows
+  "La relecture" once (`ReviewIntro.tsx`).
   The framing (`placement.py`): "Tester le cadrage" on the list takes a few seconds filmed from the camera's planned
   spot, picked like an import, as a job (`placement test`: the picture without the players, its counted bar, then
   `court.find` among the stored courts); a new gym asks the clicks (`placement fit`, the court then stored for its

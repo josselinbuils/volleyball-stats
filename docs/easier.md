@@ -355,7 +355,12 @@ The Site tab offers a server-less way: "Publier" puts the matches' pages on a fr
 
 ## 10. A guided first run
 
-- [ ] Done
+- [ ] Done: built (26 Nov), its "Done when" checked in step 11. "Premiers pas" on the list (`FirstSteps.tsx`,
+  `first_steps.py`): the seven steps, each ticked from the files (a club with its teams, the guide opened, a framing
+  tested, a match imported, analysed, reviewed, online or exported) and kept in `outputs/first_steps.json` once done;
+  only the next one with its line and its button; a cross hides it, a "Premiers pas" button brings it back; gone once
+  all are done. The review's first open: "La relecture", its three tabs in a line each and a question as an example
+  (`ReviewIntro.tsx`), once.
 
 The first opening walks through it: the club and its teams, the recording guide (step 6), the framing check (step 5),
 the import, the analysis (its time, step 2), the review, sharing (step 9). Each screen says only what is next; a
@@ -444,3 +449,6 @@ One line per session: date, what was done, what is next.
   ligne", "En retard" or "À jour", the link and its QR code, a warning near the free plan's ~20 deploys a month. Two
   real matches published end to end against a fake Netlify (1293 files, both then "À jour"). Next: the owner registers
   the OAuth application, then two matches from a new account and a phone; meanwhile step 10.
+- 26 Nov: step 10 built: "Premiers pas" on the list, the review's intro. Checked in a fresh install at phone width,
+  light and dark: each step ticks, the next one's button opens its screen (the club, the guide, the framing, the match,
+  the Site tab), hide and back. The owner's install has steps 2-7 done, the club's teams not picked yet. Next: step 11 (the owner's).

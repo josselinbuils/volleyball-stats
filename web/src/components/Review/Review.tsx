@@ -41,6 +41,7 @@ import { Pictures } from '@/components/Review/Pictures';
 import { Conflicts } from '@/components/Review/Conflicts';
 import { PieceConflict } from '@/components/Review/PieceConflict';
 import { RunFailure } from '@/components/Review/RunFailure';
+import { ReviewIntro } from '@/components/Review/ReviewIntro';
 import { Elsewhere } from '@/components/Review/Elsewhere';
 import { PlayerSelect } from '@/components/Review/PlayerSelect';
 import { sameName } from '@/components/Review/helpers/players';
@@ -603,6 +604,7 @@ export function Review({
             </Tip>
           )}
         </p>
+        <ReviewIntro />
         <Conflicts conflicts={conflicts} width={width} height={height} players={current} nameOf={nameOf} onSplit={(c) => void split(c)} />
         {!full && failed}
         <Behind />

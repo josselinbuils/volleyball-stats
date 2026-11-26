@@ -630,7 +630,16 @@
     "updateFailed": "Mise à jour impossible.",
     "mergeTitle": "Relier ces joueurs ?",
     "unsavedLeave": "Les perdre",
-    "matchesLoading": "Chargement…"
+    "matchesLoading": "Chargement…",
+    "welcome": {
+      "title": "La relecture",
+      "names": "Nommez chaque joueur.",
+      "questions": "Répondez aux doutes de l'analyse, sur la vidéo. Par exemple :",
+      "match": "Vérifiez chaque échange, puis « Valider ».",
+      "apply": "« Appliquer » met tout dans la page du match.",
+      "name": "Léa",
+      "start": "Commencer"
+    }
   },
   "progress": {
     "tab": "Progrès",
@@ -1921,7 +1930,28 @@
     "save": "Enregistrer",
     "estimate": "Environ {{time}} · Fin vers {{end}}",
     "estimateLaptop": "Laissez l'ordinateur branché et ouvert.",
-    "estimateSlow": "Trop lent sur cet ordinateur : il faudrait une carte graphique NVIDIA récente ou un Mac à puce Apple."
+    "estimateSlow": "Trop lent sur cet ordinateur : il faudrait une carte graphique NVIDIA récente ou un Mac à puce Apple.",
+    "first": {
+      "title": "Premiers pas",
+      "hide": "Masquer",
+      "done": "Fait",
+      "open": "Ouvrir",
+      "openMatch": "Ouvrir le match",
+      "club": "Le club et ses équipes",
+      "clubText": "Le nom, les couleurs et les équipes à suivre.",
+      "guide": "Filmer un match",
+      "guideText": "Où poser la caméra et comment la régler.",
+      "framing": "Tester le cadrage",
+      "framingText": "Quelques secondes filmées depuis votre place, avant le match.",
+      "import": "Importer le match",
+      "importText": "La vidéo de la caméra, une fois le match fini.",
+      "analysis": "L'analyse",
+      "analysisText": "Lancez-la sur la carte du match, plus bas : elle tourne seule.",
+      "review": "La relecture",
+      "reviewText": "Nommez les joueurs et répondez aux doutes de l'analyse.",
+      "share": "Partager",
+      "shareText": "Le match en ligne pour l'équipe, depuis l'onglet Site."
+    }
   },
   "error": {
     "failed": "Échec : réessayez.",

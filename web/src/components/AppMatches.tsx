@@ -20,7 +20,7 @@ type View = 'matches' | 'season' | 'progress' | 'site';
 
 /** The review server's list of the matches: the app's screens (importing a match and preparing it until its review opens),
  * the matches, a card opening its review, and the tabs of the site and the progress. Part of app.js, never online. */
-export function AppMatches({ matches: here, club }: MatchList) {
+export function AppMatches({ matches: here, club, first }: MatchList) {
   const { t } = useTranslation();
   // The matches only on the server, asked after the page shows: reaching it takes a second.
   const [remote, setRemote] = useState<ListedMatch[]>([]);
@@ -44,6 +44,7 @@ export function AppMatches({ matches: here, club }: MatchList) {
     { id: 'site', hash: '#site', label: t('server.title') },
   ];
   const [view, setView] = useListTab(tabs);
+  const ready = here.find((m) => m.ready && !m.missing);
   const open = (name: string, remote = false) => {
     setOpening(name);
     setFailed(null);
@@ -61,7 +62,8 @@ export function AppMatches({ matches: here, club }: MatchList) {
       >
         <Behind />
         <NewReports />
-        <Setup />
+        {/* The first-run's review step opens the newest match analysed. */}
+        <Setup first={first} onReview={ready && (() => open(ready.path))} reviewing={!!ready && opening === ready.path} />
         <ListTabs tabs={tabs} value={view} onChange={setView} />
         <p className="px-1 text-muted-foreground">{t({ site: 'server.intro', progress: 'progress.intro', season: 'season.intro', matches: 'matches.pick' }[view])}</p>
         {/* Kept while hidden: their state stays as the tabs switch. */}

@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, netlify, presence, procs, resume, server, shortcut, sync, updates
+from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, first_steps, git_check, jobs, netlify, presence, procs, resume, server, shortcut, sync, updates
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -944,7 +944,7 @@ def tasks(review: dict | None = None, match: str | None = None) -> list[dict]:
 
 
 def state(listed: list[dict]) -> dict:
-    return {"preparing": preparing(listed), "models": models_state(), "backup": server.warning(OUTPUTS), "learn": learn_state(listed)}
+    return {"preparing": preparing(listed), "models": models_state(), "backup": server.warning(OUTPUTS), "learn": learn_state(listed), "first": first_steps.state(OUTPUTS, listed)}
 
 
 def handle(
@@ -969,6 +969,8 @@ def handle(
         if method == "GET":
             if route == "state":
                 return reply(state(listed()))
+            if route == "first":
+                return reply(first_steps.state(OUTPUTS, listed()))
             if route == "reports":
                 # The viewers' reports fetched (`feedback.watch`) and not yet seen in their match's review.
                 found = feedback.news(OUTPUTS).get("matches") or {}
@@ -1049,6 +1051,9 @@ def handle(
         if route in ("alive", "leaving"):
             (presence.PAGES.seen if route == "alive" else presence.PAGES.left)(str(body["id"]))
             return reply({})
+        if route == "first":
+            first_steps.mark(OUTPUTS, str(body.get("seen")), body.get("value", True) is not False)
+            return reply(first_steps.state(OUTPUTS, listed()))
         if route == "mount":
             return reply({"path": str(mount(str(body["drive"])))})
         if route == "pick":

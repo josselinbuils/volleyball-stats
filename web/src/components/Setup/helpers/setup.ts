@@ -78,6 +78,18 @@ export interface AppState {
   /** What is wrong with the copies on the server (server.warning), null when they are fine. */
   backup: { kind: 'off' | 'failed' | 'old' | 'differ'; error?: string; at?: string | null; problems?: string[] } | null;
   learn: LearnState;
+  first: FirstState;
+}
+
+/** The guided first run's steps, in order (first_steps.STEPS). */
+export const STEPS = ['club', 'guide', 'framing', 'import', 'analysis', 'review', 'share'] as const;
+export type FirstStep = (typeof STEPS)[number];
+
+/** The guided first run (first_steps.state): the steps done, whether its card is hidden, whether the review's intro was read. */
+export interface FirstState {
+  done: FirstStep[];
+  hidden: boolean;
+  review_intro: boolean;
 }
 
 export interface Source {
